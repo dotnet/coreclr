@@ -46,12 +46,12 @@ namespace System.Reflection.Emit
         public override LocalBuilder DeclareLocal(Type localType, bool pinned)
         {
             LocalBuilder localBuilder;
-            if (localType == null)
+            if (localType is null)
                 throw new ArgumentNullException(nameof(localType));
 
             RuntimeType rtType = localType as RuntimeType;
 
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             localBuilder = new LocalBuilder(m_localCount, localType, m_methodBuilder);
@@ -68,20 +68,20 @@ namespace System.Reflection.Emit
         //
         public override void Emit(OpCode opcode, MethodInfo meth)
         {
-            if (meth == null)
+            if (meth is null)
                 throw new ArgumentNullException(nameof(meth));
 
             int stackchange = 0;
             int token = 0;
             DynamicMethod dynMeth = meth as DynamicMethod;
-            if (dynMeth == null)
+            if (dynMeth is null)
             {
                 RuntimeMethodInfo rtMeth = meth as RuntimeMethodInfo;
-                if (rtMeth == null)
+                if (rtMeth is null)
                     throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(meth));
 
                 RuntimeType declaringType = rtMeth.GetRuntimeType();
-                if (declaringType != null && (declaringType.IsGenericType || declaringType.IsArray))
+                if ((object)declaringType != null && (declaringType.IsGenericType || declaringType.IsArray))
                     token = GetTokenFor(rtMeth, declaringType);
                 else
                     token = GetTokenFor(rtMeth);
@@ -123,17 +123,17 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, ConstructorInfo con)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
 
             RuntimeConstructorInfo rtConstructor = con as RuntimeConstructorInfo;
-            if (rtConstructor == null)
+            if (rtConstructor is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(con));
 
             RuntimeType declaringType = rtConstructor.GetRuntimeType();
             int token;
 
-            if (declaringType != null && (declaringType.IsGenericType || declaringType.IsArray))
+            if ((object)declaringType != null && (declaringType.IsGenericType || declaringType.IsArray))
                 // need to sort out the stack size story
                 token = GetTokenFor(rtConstructor, declaringType);
             else
@@ -150,12 +150,12 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             RuntimeType rtType = type as RuntimeType;
 
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             int token = GetTokenFor(rtType);
@@ -166,15 +166,15 @@ namespace System.Reflection.Emit
 
         public override void Emit(OpCode opcode, FieldInfo field)
         {
-            if (field == null)
+            if (field is null)
                 throw new ArgumentNullException(nameof(field));
 
             RuntimeFieldInfo runtimeField = field as RuntimeFieldInfo;
-            if (runtimeField == null)
+            if (runtimeField is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo, nameof(field));
 
             int token;
-            if (field.DeclaringType == null)
+            if (field.DeclaringType is null)
                 token = GetTokenFor(runtimeField);
             else
                 token = GetTokenFor(runtimeField, runtimeField.GetRuntimeType());
@@ -243,7 +243,7 @@ namespace System.Reflection.Emit
 
         public override void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
-            if (methodInfo == null)
+            if (methodInfo is null)
                 throw new ArgumentNullException(nameof(methodInfo));
 
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
@@ -252,7 +252,7 @@ namespace System.Reflection.Emit
             if (methodInfo.ContainsGenericParameters)
                 throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
 
-            if (methodInfo.DeclaringType != null && methodInfo.DeclaringType.ContainsGenericParameters)
+            if (methodInfo.DeclaringType?.ContainsGenericParameters == true)
                 throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
 
             int tk;
@@ -341,7 +341,7 @@ namespace System.Reflection.Emit
 
             if (current.GetCurrentState() == __ExceptionInfo.State_Filter)
             {
-                if (exceptionType != null)
+                if ((object)exceptionType != null)
                 {
                     throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }
@@ -353,10 +353,10 @@ namespace System.Reflection.Emit
             else
             {
                 // execute this branch if previous clause is Catch or Fault
-                if (exceptionType == null)
+                if (exceptionType is null)
                     throw new ArgumentNullException(nameof(exceptionType));
 
-                if (rtType == null)
+                if (rtType is null)
                     throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
                 Label endLabel = current.GetEndLabel();
@@ -413,7 +413,7 @@ namespace System.Reflection.Emit
             RuntimeMethodInfo rtMeth = methodInfo as RuntimeMethodInfo;
             DynamicMethod dm = methodInfo as DynamicMethod;
 
-            if (rtMeth == null && dm == null)
+            if (rtMeth is null && dm is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
             ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
@@ -433,7 +433,7 @@ namespace System.Reflection.Emit
                                                      parameterTypes,
                                                      optionalParameterTypes);
 
-            if (rtMeth != null)
+            if ((object)rtMeth != null)
                 return GetTokenForVarArgMethod(rtMeth, sig);
             else
                 return GetTokenForVarArgMethod(dm, sig);
@@ -590,7 +590,7 @@ namespace System.Reflection.Emit
         {
             DynamicMethod method = m_method;
 
-            if (method == null)
+            if (method is null)
                 return;
 
             if (method.m_methodHandle == null)
@@ -783,7 +783,7 @@ namespace System.Reflection.Emit
             }
 
             DynamicMethod dm = handle as DynamicMethod;
-            if (dm != null)
+            if ((object)dm != null)
             {
                 methodHandle = dm.GetMethodDescriptor().Value;
                 return;
@@ -808,7 +808,7 @@ namespace System.Reflection.Emit
             VarArgMethod vaMeth = handle as VarArgMethod;
             if (vaMeth != null)
             {
-                if (vaMeth.m_dynamicMethod == null)
+                if (vaMeth.m_dynamicMethod is null)
                 {
                     methodHandle = vaMeth.m_method.MethodHandle.Value;
                     typeHandle = vaMeth.m_method.GetDeclaringTypeInternal().GetTypeHandleInternal().Value;
@@ -934,7 +934,7 @@ namespace System.Reflection.Emit
             if (methodReal != null && !RuntimeMethodHandle.IsDynamicMethod(rmhi))
             {
                 RuntimeType type = RuntimeMethodHandle.GetDeclaringType(rmhi);
-                if ((type != null) && RuntimeTypeHandle.HasInstantiation(type))
+                if (((object)type != null) && RuntimeTypeHandle.HasInstantiation(type))
                 {
                     // Do we really need to retrieve this much info just to throw an exception?
                     MethodBase m = RuntimeType.GetMethodBase(methodReal);

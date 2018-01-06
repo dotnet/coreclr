@@ -1219,7 +1219,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         public static IActivationFactory GetActivationFactory(Type type)
         {
-            if (type == null)
+            if (type is null)
                 throw new ArgumentNullException(nameof(type));
 
             if (type.IsWindowsRuntimeObject && type.IsImport)

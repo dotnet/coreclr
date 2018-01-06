@@ -438,7 +438,7 @@ namespace System
             {
                 Assembly asm = handler(this, args);
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
-                if (ret != null)
+                if ((object)ret != null)
                     return ret;
             }
 
@@ -465,7 +465,7 @@ namespace System
         private static RuntimeAssembly GetRuntimeAssembly(Assembly asm)
         {
             return
-                asm == null ? null :
+                asm is null ? null :
                 asm is RuntimeAssembly rtAssembly ? rtAssembly :
                 asm is AssemblyBuilder ab ? ab.InternalAssembly :
                 null;

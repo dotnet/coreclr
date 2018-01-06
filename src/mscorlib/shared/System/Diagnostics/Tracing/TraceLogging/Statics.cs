@@ -491,7 +491,7 @@ namespace System.Diagnostics.Tracing
                     }
 #endif
 
-                    if (elementType != null)
+                    if ((object)elementType != null)
                     {
                         // ambiguous match. report no match at all.
                         elementType = null;
@@ -709,7 +709,7 @@ namespace System.Diagnostics.Tracing
                 else
                 {
                     var elementType = FindEnumerableElementType(dataType);
-                    if (elementType != null)
+                    if ((object)elementType != null)
                     {
                         result = new EnumerableTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
                     }

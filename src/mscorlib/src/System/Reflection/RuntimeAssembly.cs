@@ -105,7 +105,7 @@ namespace System.Reflection
             ImageFileMachine ifm;
 
             Module manifestModule = ManifestModule;
-            if (manifestModule != null)
+            if ((object)manifestModule != null)
             {
                 if (manifestModule.MDStreamVersion > 0x10000)
                 {
@@ -239,12 +239,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -252,12 +252,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -283,7 +283,7 @@ namespace System.Reflection
             RuntimeAssembly assembly;
             AssemblyName an = CreateAssemblyName(assemblyString, out assembly);
 
-            if (assembly != null)
+            if ((object)assembly != null)
             {
                 // The assembly was returned from ResolveAssemblyEvent
                 return assembly;
@@ -389,7 +389,7 @@ namespace System.Reflection
         public override FileStream GetFile(String name)
         {
             RuntimeModule m = (RuntimeModule)GetModule(name);
-            if (m == null)
+            if (m is null)
                 return null;
 
             return new FileStream(m.GetFullyQualifiedName(),
@@ -545,7 +545,7 @@ namespace System.Reflection
             ref StackCrawlMark stackMark)
         {
             StringBuilder sb = new StringBuilder();
-            if (type == null)
+            if (type is null)
             {
                 if (name == null)
                     throw new ArgumentNullException(nameof(type));
@@ -679,7 +679,7 @@ namespace System.Reflection
             foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
             {
                 RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
-                if (ret != null)
+                if ((object)ret != null)
                     return ret;
             }
 
@@ -726,7 +726,7 @@ namespace System.Reflection
             an.SetPublicKey(GetPublicKey());
             an.Flags = GetFlags() | AssemblyNameFlags.PublicKey;
 
-            if (version == null)
+            if (version is null)
                 an.Version = GetVersion();
             else
                 an.Version = version;
@@ -738,7 +738,7 @@ namespace System.Reflection
                                 IntPtr.Zero,
                                 throwOnFileNotFound);
 
-            if (retAssembly == this || (retAssembly == null && throwOnFileNotFound))
+            if (retAssembly == this || (retAssembly is null && throwOnFileNotFound))
             {
                 throw new FileNotFoundException(String.Format(culture, SR.IO_FileNotFound_FileName, an.Name));
             }
@@ -792,7 +792,7 @@ namespace System.Reflection
                 try
                 {
                     GetForwardedType(this, mdtExternalType, pType);
-                    if (type == null)
+                    if (type is null)
                         continue;  // mdtExternalType was not a forwarder entry.
                 }
                 catch (Exception e)
@@ -803,7 +803,7 @@ namespace System.Reflection
 
                 Debug.Assert((type != null) != (exception != null)); // Exactly one of these must be non-null.
 
-                if (type != null)
+                if ((object)type != null)
                 {
                     types.Add(type);
                     AddPublicNestedTypes(type, types, exceptions);

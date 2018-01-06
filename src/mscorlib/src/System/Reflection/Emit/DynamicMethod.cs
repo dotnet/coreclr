@@ -93,7 +93,7 @@ namespace System.Reflection.Emit
                              Type[] parameterTypes,
                              Module m)
         {
-            if (m == null)
+            if (m is null)
                 throw new ArgumentNullException(nameof(m));
 
             Init(name,
@@ -113,7 +113,7 @@ namespace System.Reflection.Emit
                              Module m,
                              bool skipVisibility)
         {
-            if (m == null)
+            if (m is null)
                 throw new ArgumentNullException(nameof(m));
 
             Init(name,
@@ -135,7 +135,7 @@ namespace System.Reflection.Emit
                              Module m,
                              bool skipVisibility)
         {
-            if (m == null)
+            if (m is null)
                 throw new ArgumentNullException(nameof(m));
 
             Init(name,
@@ -154,7 +154,7 @@ namespace System.Reflection.Emit
                              Type[] parameterTypes,
                              Type owner)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -174,7 +174,7 @@ namespace System.Reflection.Emit
                              Type owner,
                              bool skipVisibility)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -196,7 +196,7 @@ namespace System.Reflection.Emit
                              Type owner,
                              bool skipVisibility)
         {
-            if (owner == null)
+            if (owner is null)
                 throw new ArgumentNullException(nameof(owner));
 
             Init(name,
@@ -234,12 +234,12 @@ namespace System.Reflection.Emit
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         private static RuntimeModule GetDynamicMethodsModule()
         {
-            if (s_anonymouslyHostedDynamicMethodsModule != null)
+            if ((object)s_anonymouslyHostedDynamicMethodsModule != null)
                 return s_anonymouslyHostedDynamicMethodsModule;
 
             lock (s_anonymouslyHostedDynamicMethodsModuleLock)
             {
-                if (s_anonymouslyHostedDynamicMethodsModule != null)
+                if ((object)s_anonymouslyHostedDynamicMethodsModule != null)
                     return s_anonymouslyHostedDynamicMethodsModule;
 
                 ConstructorInfo transparencyCtor = typeof(SecurityTransparentAttribute).GetConstructor(Type.EmptyTypes);
@@ -283,10 +283,10 @@ namespace System.Reflection.Emit
                 m_parameterTypes = new RuntimeType[signature.Length];
                 for (int i = 0; i < signature.Length; i++)
                 {
-                    if (signature[i] == null)
+                    if (signature[i] is null)
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                     m_parameterTypes[i] = signature[i].UnderlyingSystemType as RuntimeType;
-                    if (m_parameterTypes[i] == null || m_parameterTypes[i] == (RuntimeType)typeof(void))
+                    if (m_parameterTypes[i] is null || m_parameterTypes[i] == (RuntimeType)typeof(void))
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                 }
             }
@@ -296,8 +296,8 @@ namespace System.Reflection.Emit
             }
 
             // check and store the return value
-            m_returnType = (returnType == null) ? (RuntimeType)typeof(void) : returnType.UnderlyingSystemType as RuntimeType;
-            if (m_returnType == null)
+            m_returnType = (returnType is null) ? (RuntimeType)typeof(void) : returnType.UnderlyingSystemType as RuntimeType;
+            if (m_returnType is null)
                 throw new NotSupportedException(SR.Arg_InvalidTypeInRetType);
 
             if (transparentMethod)
@@ -315,15 +315,15 @@ namespace System.Reflection.Emit
                 Debug.Assert(m == null || !m.Equals(s_anonymouslyHostedDynamicMethodsModule), "The user cannot explicitly use this assembly");
                 Debug.Assert(m == null || owner == null, "m and owner cannot both be set");
 
-                if (m != null)
+                if ((object)m != null)
                     m_module = m.ModuleHandle.GetRuntimeModule(); // this returns the underlying module for all RuntimeModule and ModuleBuilder objects.
                 else
                 {
                     RuntimeType rtOwner = null;
-                    if (owner != null)
+                    if ((object)owner != null)
                         rtOwner = owner.UnderlyingSystemType as RuntimeType;
 
-                    if (rtOwner != null)
+                    if ((object)rtOwner != null)
                     {
                         if (rtOwner.HasElementType || rtOwner.ContainsGenericParameters
                             || rtOwner.IsGenericParameter || rtOwner.IsInterface)
@@ -670,7 +670,7 @@ namespace System.Reflection.Emit
 
             public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
             {
-                if (attributeType == null)
+                if (attributeType is null)
                     throw new ArgumentNullException(nameof(attributeType));
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))
@@ -687,7 +687,7 @@ namespace System.Reflection.Emit
 
             public override bool IsDefined(Type attributeType, bool inherit)
             {
-                if (attributeType == null)
+                if (attributeType is null)
                     throw new ArgumentNullException(nameof(attributeType));
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))

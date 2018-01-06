@@ -14,7 +14,7 @@ namespace System.Reflection
     {
         public override bool IsAssignableFrom(TypeInfo typeInfo)
         {
-            if (typeInfo == null)
+            if (typeInfo is null)
                 return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
@@ -25,7 +25,7 @@ namespace System.Reflection
 
         public TypeDelegator(Type delegatingType)
         {
-            if (delegatingType == null)
+            if (delegatingType is null)
                 throw new ArgumentNullException(nameof(delegatingType));
 
             typeImpl = delegatingType;
@@ -84,7 +84,7 @@ namespace System.Reflection
         protected override PropertyInfo GetPropertyImpl(string name, BindingFlags bindingAttr, Binder binder,
                         Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
-            if (returnType == null && types == null)
+            if (returnType is null && types == null)
                 return typeImpl.GetProperty(name, bindingAttr);
             else
                 return typeImpl.GetProperty(name, bindingAttr, binder, returnType, types, modifiers);

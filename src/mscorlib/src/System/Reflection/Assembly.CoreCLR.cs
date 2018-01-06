@@ -21,7 +21,7 @@ namespace System.Reflection
         private static Assembly LoadFromResolveHandler(object sender, ResolveEventArgs args)
         {
             Assembly requestingAssembly = args.RequestingAssembly;
-            if (requestingAssembly == null)
+            if (requestingAssembly is null)
             {
                 return null;
             }
@@ -134,7 +134,7 @@ namespace System.Reflection
                 assemblyString,
                 out assembly);
 
-            if (assembly == null)
+            if (assembly is null)
             {
                 if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
                 {

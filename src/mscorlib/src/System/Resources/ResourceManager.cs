@@ -274,7 +274,7 @@ namespace System.Resources
             if (null == baseName)
                 throw new ArgumentNullException(nameof(baseName));
 
-            if (null == assembly)
+            if (assembly is null)
                 throw new ArgumentNullException(nameof(assembly));
 
             if (!(assembly is RuntimeAssembly))
@@ -303,7 +303,7 @@ namespace System.Resources
         {
             if (null == baseName)
                 throw new ArgumentNullException(nameof(baseName));
-            if (null == assembly)
+            if (assembly is null)
                 throw new ArgumentNullException(nameof(assembly));
 
             if (!(assembly is RuntimeAssembly))
@@ -312,7 +312,7 @@ namespace System.Resources
             MainAssembly = assembly;
             BaseNameField = baseName;
 
-            if (usingResourceSet != null && (usingResourceSet != _minResourceSet) && !(usingResourceSet.IsSubclassOf(_minResourceSet)))
+            if ((object)usingResourceSet != null && (usingResourceSet != _minResourceSet) && !(usingResourceSet.IsSubclassOf(_minResourceSet)))
                 throw new ArgumentException(SR.Arg_ResMgrNotResSet, nameof(usingResourceSet));
             _userResourceSet = usingResourceSet;
 
@@ -329,7 +329,7 @@ namespace System.Resources
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public ResourceManager(Type resourceSource)
         {
-            if (null == resourceSource)
+            if (resourceSource is null)
                 throw new ArgumentNullException(nameof(resourceSource));
 
             if (!(resourceSource is RuntimeType))
@@ -387,7 +387,7 @@ namespace System.Resources
         // to construct ResourceSets.
         public virtual Type ResourceSetType
         {
-            get { return (_userResourceSet == null) ? typeof(RuntimeResourceSet) : _userResourceSet; }
+            get { return (_userResourceSet is null) ? typeof(RuntimeResourceSet) : _userResourceSet; }
         }
 
         protected UltimateResourceFallbackLocation FallbackLocation
@@ -666,7 +666,7 @@ namespace System.Resources
         protected static Version GetSatelliteContractVersion(Assembly a)
         {
             // Ensure that the assembly reference is not null
-            if (a == null)
+            if (a is null)
             {
                 throw new ArgumentNullException(nameof(a), SR.ArgumentNull_Assembly);
             }
@@ -839,10 +839,10 @@ namespace System.Resources
 
             RuntimeAssembly resourcesAssembly = (RuntimeAssembly)MainAssembly;
 
-            if (resourcesAssembly == null)
+            if (resourcesAssembly is null)
                 resourcesAssembly = _callingAssembly;
 
-            if (resourcesAssembly != null)
+            if ((object)resourcesAssembly != null)
             {
                 if (resourcesAssembly != typeof(Object).Assembly) // We are not loading resources for mscorlib
                 {
@@ -853,7 +853,7 @@ namespace System.Resources
                         s_IsAppXModel = true;
 
                         // If we have the type information from the ResourceManager(Type) constructor, we use it. Otherwise, we use BaseNameField.
-                        String reswFilename = _locationInfo == null ? BaseNameField : _locationInfo.FullName;
+                        String reswFilename = _locationInfo is null ? BaseNameField : _locationInfo.FullName;
 
                         // The only way this can happen is if a class inherited from ResourceManager and
                         // did not set the BaseNameField before calling the protected ResourceManager() constructor.

@@ -16,7 +16,7 @@ namespace System.Reflection
             FieldInfo f = RuntimeType.GetFieldInfo(handle.GetRuntimeFieldInfo());
 
             Type declaringType = f.DeclaringType;
-            if (declaringType != null && declaringType.IsGenericType)
+            if (declaringType?.IsGenericType == true)
                 throw new ArgumentException(String.Format(
                     CultureInfo.CurrentCulture, SR.Argument_FieldDeclaringTypeGeneric,
                     f.Name, declaringType.GetGenericTypeDefinition()));

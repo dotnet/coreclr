@@ -24,7 +24,7 @@ namespace System.Reflection
                 sb.AppendQuoted(name);
             }
 
-            if (version != null)
+            if ((object)version != null)
             {
                 Version canonicalizedVersion = version.CanonicalizeVersion();
                 if (canonicalizedVersion.Major != ushort.MaxValue)

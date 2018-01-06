@@ -51,10 +51,10 @@ namespace System.Reflection
             for (int i = 0; i < size; i++)
             {
                 Type typeArg = genericArguments[i];
-                if (typeArg == null)
+                if (typeArg is null)
                     throw new ArgumentException(SR.Argument_InvalidGenericInstArray);
                 typeArg = typeArg.UnderlyingSystemType;
-                if (typeArg == null)
+                if (typeArg is null)
                     throw new ArgumentException(SR.Argument_InvalidGenericInstArray);
                 if (!(typeArg is RuntimeType))
                     throw new ArgumentException(SR.Argument_InvalidGenericInstArray);
@@ -245,7 +245,7 @@ namespace System.Reflection
             {
                 Type t = GetModuleHandleImpl().ResolveTypeHandle(metadataToken, typeArgs, methodArgs).GetRuntimeType();
 
-                if (t == null)
+                if (t is null)
                     throw new ArgumentException(SR.Format(SR.Argument_ResolveType, tk, this), nameof(metadataToken));
 
                 return t;
@@ -356,7 +356,7 @@ namespace System.Reflection
         internal MethodInfo GetMethodInternal(String name, BindingFlags bindingAttr, Binder binder,
             CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            if (RuntimeType == null)
+            if (RuntimeType is null)
                 return null;
 
             if (types == null)
@@ -375,7 +375,7 @@ namespace System.Reflection
         {
             get
             {
-                if (m_runtimeType == null)
+                if (m_runtimeType is null)
                     m_runtimeType = ModuleHandle.GetModuleType(GetNativeHandle());
 
                 return m_runtimeType;
@@ -407,12 +407,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -420,12 +420,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -508,7 +508,7 @@ namespace System.Reflection
 
         public override FieldInfo[] GetFields(BindingFlags bindingFlags)
         {
-            if (RuntimeType == null)
+            if (RuntimeType is null)
                 return new FieldInfo[0];
 
             return RuntimeType.GetFields(bindingFlags);
@@ -519,7 +519,7 @@ namespace System.Reflection
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            if (RuntimeType == null)
+            if (RuntimeType is null)
                 return null;
 
             return RuntimeType.GetField(name, bindingAttr);
@@ -527,7 +527,7 @@ namespace System.Reflection
 
         public override MethodInfo[] GetMethods(BindingFlags bindingFlags)
         {
-            if (RuntimeType == null)
+            if (RuntimeType is null)
                 return new MethodInfo[0];
 
             return RuntimeType.GetMethods(bindingFlags);

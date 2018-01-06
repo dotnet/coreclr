@@ -34,7 +34,7 @@ namespace System.Diagnostics.Tracing
 
         internal TraceLoggingTypeInfo(Type dataType)
         {
-            if (dataType == null)
+            if (dataType is null)
             {
                 throw new ArgumentNullException(nameof(dataType));
             }
@@ -52,7 +52,7 @@ namespace System.Diagnostics.Tracing
             EventKeywords keywords,
             EventTags tags)
         {
-            if (dataType == null)
+            if (dataType is null)
             {
                 throw new ArgumentNullException(nameof(dataType));
             }

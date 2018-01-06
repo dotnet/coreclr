@@ -30,7 +30,7 @@ namespace System
 
                         underlyingType = underlyingType.BaseType;
                     }
-                    while (underlyingType != null);
+                    while ((object)underlyingType != null);
                 }
 
                 return false;
@@ -77,7 +77,7 @@ namespace System
             {
 #if CORECLR
                 RuntimeType rt = this as RuntimeType;
-                if (rt != null)
+                if ((object)rt != null)
                     return RuntimeTypeHandle.IsVisible(rt);
 #endif //CORECLR
 
@@ -135,7 +135,7 @@ namespace System
             cnt = 0;
             for (int i = 0; i < c.Length; i++)
             {
-                if (c[i] != null)
+                if ((object)c[i] != null)
                     ret[cnt++] = c[i];
             }
             return ret;
@@ -270,7 +270,7 @@ namespace System
             if (m != null)
             {
                 for (i = 0; i < m.Length; i++)
-                    if (m[i] != null)
+                    if ((object)m[i] != null)
                         ret[cnt++] = m[i];
             }
 
@@ -278,7 +278,7 @@ namespace System
             if (c != null)
             {
                 for (i = 0; i < c.Length; i++)
-                    if (c[i] != null)
+                    if ((object)c[i] != null)
                         ret[cnt++] = c[i];
             }
 
@@ -286,7 +286,7 @@ namespace System
             if (f != null)
             {
                 for (i = 0; i < f.Length; i++)
-                    if (f[i] != null)
+                    if ((object)f[i] != null)
                         ret[cnt++] = f[i];
             }
 
@@ -294,7 +294,7 @@ namespace System
             if (p != null)
             {
                 for (i = 0; i < p.Length; i++)
-                    if (p[i] != null)
+                    if ((object)p[i] != null)
                         ret[cnt++] = p[i];
             }
 
@@ -302,7 +302,7 @@ namespace System
             if (e != null)
             {
                 for (i = 0; i < e.Length; i++)
-                    if (e[i] != null)
+                    if ((object)e[i] != null)
                         ret[cnt++] = e[i];
             }
 
@@ -310,7 +310,7 @@ namespace System
             if (t != null)
             {
                 for (i = 0; i < t.Length; i++)
-                    if (t[i] != null)
+                    if ((object)t[i] != null)
                         ret[cnt++] = t[i];
             }
 
@@ -322,7 +322,7 @@ namespace System
             Type p = this;
             if (p == c)
                 return false;
-            while (p != null)
+            while ((object)p != null)
             {
                 if (p == c)
                     return true;
@@ -333,7 +333,7 @@ namespace System
 
         public virtual bool IsAssignableFrom(Type c)
         {
-            if (c == null)
+            if (c is null)
                 return false;
 
             if (this == c)
@@ -369,17 +369,16 @@ namespace System
         internal bool ImplementInterface(Type ifaceType)
         {
             Type t = this;
-            while (t != null)
+            while ((object)t != null)
             {
                 Type[] interfaces = t.GetInterfaces();
                 if (interfaces != null)
                 {
-                    for (int i = 0; i < interfaces.Length; i++)
+                    foreach (Type iface in interfaces)
                     {
                         // Interfaces don't derive from other interfaces, they implement them.
                         // So instead of IsSubclassOf, we should use ImplementInterface instead.
-                        if (interfaces[i] == ifaceType ||
-                            (interfaces[i] != null && interfaces[i].ImplementInterface(ifaceType)))
+                        if (iface == ifaceType || iface?.ImplementInterface(ifaceType) == true)
                             return true;
                     }
                 }

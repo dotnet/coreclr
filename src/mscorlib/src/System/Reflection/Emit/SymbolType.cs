@@ -23,7 +23,7 @@ namespace System.Reflection.Emit
     {
         public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
         {
-            if (typeInfo == null) return false;
+            if (typeInfo is null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
@@ -231,7 +231,7 @@ namespace System.Reflection.Emit
         #region Internal Members
         internal void SetElementType(Type baseType)
         {
-            if (baseType == null)
+            if (baseType is null)
                 throw new ArgumentNullException(nameof(baseType));
 
             m_baseType = baseType;
@@ -547,7 +547,7 @@ namespace System.Reflection.Emit
 
         protected override bool HasElementTypeImpl()
         {
-            return m_baseType != null;
+            return (object)m_baseType != null;
         }
 
         public override Type UnderlyingSystemType

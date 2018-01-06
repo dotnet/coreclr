@@ -67,7 +67,7 @@ namespace System.Reflection
         {
             MethodInfo addMethod = GetAddMethod(nonPublic: false);
 
-            if (addMethod == null)
+            if (addMethod is null)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicAddMethod);
 
 #if FEATURE_COMINTEROP
@@ -84,7 +84,7 @@ namespace System.Reflection
         {
             MethodInfo removeMethod = GetRemoveMethod(nonPublic: false);
 
-            if (removeMethod == null)
+            if (removeMethod is null)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicRemoveMethod);
 
 #if FEATURE_COMINTEROP

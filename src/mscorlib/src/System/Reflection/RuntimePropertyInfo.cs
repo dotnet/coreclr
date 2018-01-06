@@ -152,12 +152,12 @@ namespace System.Reflection
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
@@ -165,12 +165,12 @@ namespace System.Reflection
 
         public override bool IsDefined(Type attributeType, bool inherit)
         {
-            if (attributeType == null)
+            if (attributeType is null)
                 throw new ArgumentNullException(nameof(attributeType));
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null)
+            if (attributeRuntimeType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
@@ -325,7 +325,7 @@ namespace System.Reflection
 
                 // First try to get the Get method.
                 MethodInfo m = GetGetMethod(true);
-                if (m != null)
+                if ((object)m != null)
                 {
                     // There is a Get method so use it.
                     methParams = m.GetParametersNoCopy();
@@ -336,7 +336,7 @@ namespace System.Reflection
                     // If there is no Get method then use the Set method.
                     m = GetSetMethod(true);
 
-                    if (m != null)
+                    if ((object)m != null)
                     {
                         methParams = m.GetParametersNoCopy();
                         numParams = methParams.Length - 1;
@@ -369,7 +369,7 @@ namespace System.Reflection
         {
             get
             {
-                return m_getterMethod != null;
+                return (object)m_getterMethod != null;
             }
         }
 
@@ -377,7 +377,7 @@ namespace System.Reflection
         {
             get
             {
-                return m_setterMethod != null;
+                return (object)m_setterMethod != null;
             }
         }
         #endregion
@@ -396,7 +396,7 @@ namespace System.Reflection
         public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
         {
             MethodInfo m = GetGetMethod(true);
-            if (m == null)
+            if (m is null)
                 throw new ArgumentException(System.SR.Arg_GetMethNotFnd);
             return m.Invoke(obj, invokeAttr, binder, index, null);
         }
@@ -419,7 +419,7 @@ namespace System.Reflection
         {
             MethodInfo m = GetSetMethod(true);
 
-            if (m == null)
+            if (m is null)
                 throw new ArgumentException(System.SR.Arg_SetMethNotFnd);
 
             Object[] args = null;

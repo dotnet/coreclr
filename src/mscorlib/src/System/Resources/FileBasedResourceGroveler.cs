@@ -61,7 +61,7 @@ namespace System.Resources
                     {
                         // We really don't think this should happen - we always
                         // expect the neutral locale's resources to be present.
-                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLine + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo == null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
+                        throw new MissingManifestResourceException(SR.MissingManifestResource_NoNeutralDisk + Environment.NewLine + "baseName: " + _mediator.BaseNameField + "  locationInfo: " + (_mediator.LocationInfo is null ? "<null>" : _mediator.LocationInfo.FullName) + "  fileName: " + _mediator.GetResourceFileName(culture));
                     }
                 }
             }
@@ -108,7 +108,7 @@ namespace System.Resources
         {
             Debug.Assert(file != null, "file shouldn't be null; check caller");
 
-            if (_mediator.UserResourceSet == null)
+            if (_mediator.UserResourceSet is null)
             {
                 return new RuntimeResourceSet(file);
             }

@@ -40,10 +40,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public);
 
-            if (propertyInfo == null)
-                return null;
-            else
-                return new CustomPropertyImpl(propertyInfo);
+            return propertyInfo is null ? null : new CustomPropertyImpl(propertyInfo);
         }
 
         //
@@ -80,10 +77,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 null                                                                    // ignore type modifier
                 );
 
-            if (propertyInfo == null)
-                return null;
-            else
-                return new CustomPropertyImpl(propertyInfo);
+            return propertyInfo is null ? null : new CustomPropertyImpl(propertyInfo);
         }
 
         static internal unsafe void GetType(object target, TypeNameNative* pIndexedParamType)

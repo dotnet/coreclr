@@ -168,7 +168,7 @@ namespace System
             Debug.Assert(fieldName != null);
 
             Type t = GetType();
-            while (null != t)
+            while ((object)t != null)
             {
                 if (t.FullName.Equals(typeName))
                 {
@@ -178,7 +178,7 @@ namespace System
                 t = t.BaseType;
             }
 
-            if (null == t)
+            if (t is null)
             {
                 throw new ArgumentException();
             }
@@ -186,7 +186,7 @@ namespace System
             FieldInfo fldInfo = t.GetField(fieldName, BindingFlags.Public |
                                                       BindingFlags.Instance |
                                                       BindingFlags.IgnoreCase);
-            if (null == fldInfo)
+            if (fldInfo is null)
             {
                 throw new ArgumentException();
             }

@@ -407,11 +407,11 @@ namespace System
 
         private static bool TryParseEnum(Type enumType, String value, bool ignoreCase, ref EnumResult parseResult)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
 
             if (!enumType.IsEnum)
@@ -542,7 +542,7 @@ namespace System
 
         public static Type GetUnderlyingType(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumUnderlyingType();
@@ -550,7 +550,7 @@ namespace System
 
         public static Array GetValues(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumValues();
@@ -564,7 +564,7 @@ namespace System
 
         public static String GetName(Type enumType, Object value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumName(value);
@@ -572,7 +572,7 @@ namespace System
 
         public static String[] GetNames(Type enumType)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumNames();
@@ -632,7 +632,7 @@ namespace System
 
         public static bool IsDefined(Type enumType, Object value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.IsEnumDefined(value);
@@ -640,7 +640,7 @@ namespace System
 
         public static String Format(Type enumType, Object value, String format)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
 
             if (!enumType.IsEnum)
@@ -653,7 +653,7 @@ namespace System
                 throw new ArgumentNullException(nameof(format));
 
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
 
             // Check if both of them are of the same type
@@ -1084,48 +1084,48 @@ namespace System
         [CLSCompliant(false)]
         public static Object ToObject(Type enumType, sbyte value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
 
         public static Object ToObject(Type enumType, short value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
 
         public static Object ToObject(Type enumType, int value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
 
         public static Object ToObject(Type enumType, byte value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
@@ -1133,12 +1133,12 @@ namespace System
         [CLSCompliant(false)]
         public static Object ToObject(Type enumType, ushort value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
@@ -1146,24 +1146,24 @@ namespace System
         [CLSCompliant(false)]
         public static Object ToObject(Type enumType, uint value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
 
         public static Object ToObject(Type enumType, long value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
@@ -1171,36 +1171,36 @@ namespace System
         [CLSCompliant(false)]
         public static Object ToObject(Type enumType, ulong value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, unchecked((long)value));
         }
 
         private static Object ToObject(Type enumType, char value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value);
         }
 
         private static Object ToObject(Type enumType, bool value)
         {
-            if (enumType == null)
+            if (enumType is null)
                 throw new ArgumentNullException(nameof(enumType));
             if (!enumType.IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, nameof(enumType));
             RuntimeType rtType = enumType as RuntimeType;
-            if (rtType == null)
+            if (rtType is null)
                 throw new ArgumentException(SR.Arg_MustBeType, nameof(enumType));
             return InternalBoxEnum(rtType, value ? 1 : 0);
         }

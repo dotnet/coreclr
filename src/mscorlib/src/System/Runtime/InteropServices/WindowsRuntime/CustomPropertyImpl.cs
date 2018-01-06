@@ -28,7 +28,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         public CustomPropertyImpl(PropertyInfo propertyInfo)
         {
-            if (propertyInfo == null)
+            if (propertyInfo is null)
                 throw new ArgumentNullException(nameof(propertyInfo));
 
             m_property = propertyInfo;
@@ -51,7 +51,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             get
             {
                 // Return false if the getter is not public
-                return m_property.GetGetMethod() != null;
+                return (object)m_property.GetGetMethod() != null;
             }
         }
 
@@ -60,7 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             get
             {
                 // Return false if the setter is not public
-                return m_property.GetSetMethod() != null;
+                return (object)m_property.GetSetMethod() != null;
             }
         }
 
@@ -105,7 +105,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // We get non-public accessors just so that we can throw the correct exception.
             MethodInfo accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
 
-            if (accessor == null)
+            if (accessor is null)
                 throw new ArgumentException(getValue ? SR.Arg_GetMethNotFnd : SR.Arg_SetMethNotFnd);
 
             if (!accessor.IsPublic)
@@ -117,7 +117,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         accessor.DeclaringType.FullName));
 
             RuntimeMethodInfo rtMethod = accessor as RuntimeMethodInfo;
-            if (rtMethod == null)
+            if (rtMethod is null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo);
 
             // We can safely skip access check because this is only used in full trust scenarios.

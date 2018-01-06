@@ -139,11 +139,8 @@ namespace System.Reflection.Emit
 
             // initialize local signature
             m_localCount = 0;
-            MethodBuilder mb = m_methodBuilder as MethodBuilder;
-            if (mb == null)
-                m_localSignature = SignatureHelper.GetLocalVarSigHelper(null);
-            else
-                m_localSignature = SignatureHelper.GetLocalVarSigHelper(mb.GetTypeBuilder().Module);
+            m_localSignature = SignatureHelper.GetLocalVarSigHelper(
+                m_methodBuilder is MethodBuilder mb ? mb.GetTypeBuilder().Module : null);
         }
 
         #endregion
@@ -460,7 +457,7 @@ namespace System.Reflection.Emit
 
         public virtual void Emit(OpCode opcode, MethodInfo meth)
         {
-            if (meth == null)
+            if (meth is null)
                 throw new ArgumentNullException(nameof(meth));
 
             if (opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj))
@@ -578,7 +575,7 @@ namespace System.Reflection.Emit
 
         public virtual void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
-            if (methodInfo == null)
+            if (methodInfo is null)
                 throw new ArgumentNullException(nameof(methodInfo));
 
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
@@ -648,7 +645,7 @@ namespace System.Reflection.Emit
 
         public virtual void Emit(OpCode opcode, ConstructorInfo con)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
 
             int stackchange = 0;
@@ -695,7 +692,7 @@ namespace System.Reflection.Emit
 
             int tempVal = 0;
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
-            if (opcode == OpCodes.Ldtoken && cls != null && cls.IsGenericTypeDefinition)
+            if (opcode == OpCodes.Ldtoken && cls?.IsGenericTypeDefinition == true)
             {
                 // This gets the token for the generic type definition if cls is one.
                 tempVal = modBuilder.GetTypeToken(cls).Token;
@@ -1032,7 +1029,7 @@ namespace System.Reflection.Emit
 
             if (current.GetCurrentState() == __ExceptionInfo.State_Filter)
             {
-                if (exceptionType != null)
+                if ((object)exceptionType != null)
                 {
                     throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }
@@ -1042,7 +1039,7 @@ namespace System.Reflection.Emit
             else
             {
                 // execute this branch if previous clause is Catch or Fault
-                if (exceptionType == null)
+                if (exceptionType is null)
                 {
                     throw new ArgumentNullException(nameof(exceptionType));
                 }
@@ -1150,7 +1147,7 @@ namespace System.Reflection.Emit
         {
             // Emits the il to throw an exception
 
-            if (excType == null)
+            if (excType is null)
             {
                 throw new ArgumentNullException(nameof(excType));
             }
@@ -1160,7 +1157,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_NotExceptionType);
             }
             ConstructorInfo con = excType.GetConstructor(Type.EmptyTypes);
-            if (con == null)
+            if (con is null)
             {
                 throw new ArgumentException(SR.Argument_MissingDefaultConstructor);
             }
@@ -1194,7 +1191,7 @@ namespace System.Reflection.Emit
             // we do *not* call ToString on the locals.
 
             Object cls;
-            if (m_methodBuilder == null)
+            if (m_methodBuilder is null)
             {
                 throw new ArgumentException(SR.InvalidOperation_BadILGeneratorUsage);
             }
@@ -1210,7 +1207,7 @@ namespace System.Reflection.Emit
             }
             parameterTypes[0] = (Type)cls;
             MethodInfo mi = prop.ReturnType.GetMethod("WriteLine", parameterTypes);
-            if (mi == null)
+            if (mi is null)
             {
                 throw new ArgumentException(SR.Argument_EmitWriteLineType, nameof(localBuilder));
             }
@@ -1227,7 +1224,7 @@ namespace System.Reflection.Emit
 
             Object cls;
 
-            if (fld == null)
+            if (fld is null)
             {
                 throw new ArgumentNullException(nameof(fld));
             }
@@ -1252,7 +1249,7 @@ namespace System.Reflection.Emit
             }
             parameterTypes[0] = (Type)cls;
             MethodInfo mi = prop.ReturnType.GetMethod("WriteLine", parameterTypes);
-            if (mi == null)
+            if (mi is null)
             {
                 throw new ArgumentException(SR.Argument_EmitWriteLineType, nameof(fld));
             }
@@ -1275,7 +1272,7 @@ namespace System.Reflection.Emit
             LocalBuilder localBuilder;
 
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
-            if (methodBuilder == null)
+            if (methodBuilder is null)
                 throw new NotSupportedException();
 
             if (methodBuilder.IsTypeCreated())
@@ -1284,7 +1281,7 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_TypeHasBeenCreated);
             }
 
-            if (localType == null)
+            if (localType is null)
             {
                 throw new ArgumentNullException(nameof(localType));
             }
@@ -1315,7 +1312,7 @@ namespace System.Reflection.Emit
 
             int index;
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
-            if (methodBuilder == null)
+            if (methodBuilder is null)
                 throw new NotSupportedException();
 
             index = methodBuilder.GetILGenerator().m_ScopeTree.GetCurrentActiveScopeIndex();

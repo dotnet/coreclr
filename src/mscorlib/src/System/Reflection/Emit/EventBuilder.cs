@@ -54,7 +54,7 @@ namespace System.Reflection.Emit
 
         private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
         {
-            if (mdBuilder == null)
+            if (mdBuilder is null)
             {
                 throw new ArgumentNullException(nameof(mdBuilder));
             }
@@ -91,7 +91,7 @@ namespace System.Reflection.Emit
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));

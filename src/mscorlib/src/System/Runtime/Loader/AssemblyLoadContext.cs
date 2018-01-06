@@ -196,7 +196,7 @@ namespace System.Runtime.Loader
                 foreach (Func<AssemblyLoadContext, AssemblyName, Assembly> handler in assemblyResolveHandler.GetInvocationList())
                 {
                     resolvedAssembly = handler(this, assemblyName);
-                    if (resolvedAssembly != null)
+                    if ((object)resolvedAssembly != null)
                     {
                         break;
                     }
@@ -215,7 +215,7 @@ namespace System.Runtime.Loader
             // which is a RuntimeAssembly instance. However, since Assembly type can be used build any other artifact (e.g. AssemblyBuilder),
             // we need to check for RuntimeAssembly.
             RuntimeAssembly rtLoadedAssembly = assembly as RuntimeAssembly;
-            if (rtLoadedAssembly != null)
+            if ((object)rtLoadedAssembly != null)
             {
                 loadedSimpleName = rtLoadedAssembly.GetSimpleName();
             }
@@ -232,7 +232,7 @@ namespace System.Runtime.Loader
             string simpleName = assemblyName.Name;
             Assembly assembly = Load(assemblyName);
 
-            if (assembly != null)
+            if ((object)assembly != null)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
@@ -246,14 +246,14 @@ namespace System.Runtime.Loader
 
             // Invoke the AssemblyResolve event callbacks if wired up
             Assembly assembly = GetFirstResolvedAssembly(assemblyName);
-            if (assembly != null)
+            if ((object)assembly != null)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
             }
 
             // Since attempt to resolve the assembly via Resolving event is the last option,
             // throw an exception if we do not find any assembly.
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new FileNotFoundException(SR.IO_FileLoad, simpleName);
             }
@@ -350,7 +350,7 @@ namespace System.Runtime.Loader
         // Returns the load context in which the specified assembly has been loaded
         public static AssemblyLoadContext GetLoadContext(Assembly assembly)
         {
-            if (assembly == null)
+            if (assembly is null)
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
@@ -360,7 +360,7 @@ namespace System.Runtime.Loader
             RuntimeAssembly rtAsm = assembly as RuntimeAssembly;
 
             // We only support looking up load context for runtime assemblies.
-            if (rtAsm != null)
+            if ((object)rtAsm != null)
             {
                 IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
                 if (ptrAssemblyLoadContext == IntPtr.Zero)

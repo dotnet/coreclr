@@ -80,7 +80,7 @@ namespace System.Resources
             {
                 satellite = GetSatelliteAssembly(lookForCulture, ref stackMark);
 
-                if (satellite == null)
+                if (satellite is null)
                 {
                     bool raiseException = (culture.HasInvariantCultureName && (_mediator.FallbackLoc == UltimateResourceFallbackLocation.Satellite));
                     // didn't find satellite, give error if necessary
@@ -96,7 +96,7 @@ namespace System.Resources
             String fileName = _mediator.GetResourceFileName(lookForCulture);
 
             // 3. If we identified an assembly to search; look in manifest resource stream for resource file
-            if (satellite != null)
+            if ((object)satellite != null)
             {
                 // Handle case in here where someone added a callback for assembly load events.
                 // While no other threads have called into GetResourceSet, our own thread can!
@@ -259,7 +259,7 @@ namespace System.Resources
                         resourceSetArgs[0] = reader;
 
                         Type resSetType;
-                        if (_mediator.UserResourceSet == null)
+                        if (_mediator.UserResourceSet is null)
                         {
                             Debug.Assert(resSetTypeName != null, "We should have a ResourceSet type name from the custom resource file here.");
                             resSetType = Type.GetType(resSetTypeName, true, false);
@@ -281,7 +281,7 @@ namespace System.Resources
                 }
             }
 
-            if (_mediator.UserResourceSet == null)
+            if (_mediator.UserResourceSet is null)
             {
                 return new RuntimeResourceSet(store);
             }
@@ -344,7 +344,7 @@ namespace System.Resources
             Debug.Assert(name != null, "name shouldn't be null; check caller");
 
             StringBuilder sb = new StringBuilder();
-            if (_mediator.LocationInfo != null)
+            if ((object)_mediator.LocationInfo != null)
             {
                 String nameSpace = _mediator.LocationInfo.Namespace;
                 if (nameSpace != null)
@@ -441,7 +441,7 @@ namespace System.Resources
             Debug.Assert(readerTypeName != null, "readerTypeName shouldn't be null; check caller");
             Debug.Assert(resSetTypeName != null, "resSetTypeName shouldn't be null; check caller");
 
-            if (_mediator.UserResourceSet != null)
+            if ((object)_mediator.UserResourceSet != null)
                 return false;
 
             // Ignore the actual version of the ResourceReader and 
@@ -474,7 +474,7 @@ namespace System.Resources
         private void HandleSatelliteMissing()
         {
             String satAssemName = _mediator.MainAssembly.GetSimpleName() + ".resources.dll";
-            if (_mediator.SatelliteContractVersion != null)
+            if ((object)_mediator.SatelliteContractVersion != null)
             {
                 satAssemName += ", Version=" + _mediator.SatelliteContractVersion.ToString();
             }
@@ -514,7 +514,7 @@ namespace System.Resources
             // We really don't think this should happen - we always
             // expect the neutral locale's resources to be present.
             String resName = String.Empty;
-            if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
+            if (_mediator.LocationInfo?.Namespace != null)
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;
             throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_NoNeutralAsm, resName, _mediator.MainAssembly.GetSimpleName()));

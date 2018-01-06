@@ -123,7 +123,7 @@ namespace System
             {
                 assembly = ResolveAssembly(asmName, assemblyResolver, throwOnError, ref stackMark);
 
-                if (assembly == null)
+                if (assembly is null)
                 {
                     // Cannot resolve the assembly. If throwOnError is true we should have already thrown.
                     return null;
@@ -142,7 +142,7 @@ namespace System
 
             Type baseType = ResolveType(assembly, names, typeResolver, throwOnError, ignoreCase, ref stackMark);
 
-            if (baseType == null)
+            if (baseType is null)
             {
                 // Cannot resolve the type. If throwOnError is true we should have already thrown.
                 Debug.Assert(throwOnError == false);
@@ -164,7 +164,7 @@ namespace System
                         types[i] = argParser.ConstructType(assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
                     }
 
-                    if (types[i] == null)
+                    if (types[i] is null)
                     {
                         // If throwOnError is true argParser.ConstructType should have already thrown.
                         Debug.Assert(throwOnError == false);
@@ -211,7 +211,7 @@ namespace System
             else
             {
                 assembly = assemblyResolver(new AssemblyName(asmName));
-                if (assembly == null && throwOnError)
+                if (assembly is null && throwOnError)
                 {
                     throw new FileNotFoundException(SR.Format(SR.FileNotFound_ResolveAssembly, asmName));
                 }
@@ -234,9 +234,9 @@ namespace System
             {
                 type = typeResolver(assembly, OuterMostTypeName, ignoreCase);
 
-                if (type == null && throwOnError)
+                if (type is null && throwOnError)
                 {
-                    string errorString = assembly == null ?
+                    string errorString = assembly is null ?
                         SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName):
                         SR.Format(SR.TypeLoad_ResolveTypeFromAssembly, OuterMostTypeName, assembly.FullName);
 
@@ -245,7 +245,7 @@ namespace System
             }
             else
             {
-                if (assembly == null)
+                if (assembly is null)
                 {
                     type = RuntimeType.GetType(OuterMostTypeName, throwOnError, ignoreCase, false, ref stackMark);
                 }
@@ -256,7 +256,7 @@ namespace System
             }
 
             // Resolve nested types.
-            if (type != null)
+            if ((object)type != null)
             {
                 BindingFlags bindingFlags = BindingFlags.NonPublic | BindingFlags.Public;
                 if (ignoreCase)
@@ -266,7 +266,7 @@ namespace System
                 {
                     type = type.GetNestedType(names[i], bindingFlags);
 
-                    if (type == null)
+                    if (type is null)
                     {
                         if (throwOnError)
                             throw new TypeLoadException(SR.Format(SR.TypeLoad_ResolveNestedType, names[i], names[i - 1]));

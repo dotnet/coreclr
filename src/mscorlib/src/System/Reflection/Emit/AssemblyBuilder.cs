@@ -433,10 +433,10 @@ namespace System.Reflection.Emit
 
             foreach (Type type in types)
             {
-                if (type == null)
+                if (type is null)
                     continue;
 
-                if (type.Module == null || type.Module.Assembly == null)
+                if (type.Module is null || type.Module.Assembly is null)
                     throw new ArgumentException(SR.Argument_TypeNotValid);
 
                 if (type.Module.Assembly == typeof(object).Module.Assembly)
@@ -688,7 +688,7 @@ namespace System.Reflection.Emit
         **********************************************/
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
-            if (con == null)
+            if (con is null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
