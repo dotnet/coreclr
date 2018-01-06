@@ -61,7 +61,8 @@ jit_list = {
 
 os_group_list = {
     'Windows_NT': 'Windows_NT',
-    'Ubuntu14.04': 'Linux'
+    'Ubuntu14.04': 'Linux',
+    'Ubuntu16.04': 'Linux'
 }
 
 python_exe_list = {
@@ -132,7 +133,7 @@ def validate_args(args):
     valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
-    valid_os = ['Windows_NT', 'Ubuntu14.04']
+    valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
     valid_opt_levels = ['full_opt', 'min_opt']
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
@@ -383,7 +384,7 @@ def main(args):
                 "--config",
                 "OptLevel",
                 opt_level,
-                "--arch",
+                "--architecture",
                 architecture,
                 "--machinepool",
                 "PerfSnake"
@@ -391,6 +392,9 @@ def main(args):
         log(" ".join(submission_args))
         proc = subprocess.Popen(submission_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
         # Call upload.py
         upload_args = [python_exe,
@@ -402,6 +406,9 @@ def main(args):
         log(" ".join(upload_args))
         proc = subprocess.Popen(upload_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
     os.chdir(current_dir)
 

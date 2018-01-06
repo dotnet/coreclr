@@ -1096,7 +1096,7 @@ inline EEMessageException::EEMessageException(HRESULT hr)
 }
 
 inline EEMessageException::EEMessageException(HRESULT hr, bool fUseCOMException)
-  : EEException(GetKindFromHR(hr, fUseCOMException)),
+  : EEException(GetKindFromHR(hr, !fUseCOMException)),
     m_hr(hr),
     m_resID(0)
 {
