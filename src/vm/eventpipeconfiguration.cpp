@@ -34,6 +34,11 @@ EventPipeConfiguration::~EventPipeConfiguration()
         MODE_ANY;
     }
     CONTRACTL_END;
+    
+    if(m_pConfigProvider != NULL)
+    {
+        DeleteProvider(m_pConfigProvider);
+    }
 
     if(m_pEnabledProviderList != NULL)
     {
@@ -443,8 +448,7 @@ void EventPipeConfiguration::DeleteDeferredProviders()
         EventPipeProvider *pProvider = pElem->GetValue();
         if(pProvider->GetDeleteDeferred())
         {
-            // The act of deleting the provider unregisters it and removes it from the list.
-            delete(pProvider);
+            DeleteProvider(pProvider);
         }
 
         pElem = m_pProviderList->GetNext(pElem);
