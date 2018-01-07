@@ -1655,26 +1655,21 @@ namespace System.Text
                 return false;
 
             StringBuilder thisChunk = this;
-            int thisChunkIndex = thisChunk.m_ChunkLength;
-            var chunkChars = thisChunk.m_ChunkChars;
-
-            for (int i = Length - 1; i >= 0; i--)
+            int offset = 0;
+            int chunk_length = -1;
+            
+            
+            while (thisChunk != null)
             {
-                thisChunkIndex--;
-                if (thisChunkIndex < 0)
-                {
-                    thisChunk = thisChunk.m_ChunkPrevious;
-                    if (thisChunk == null)
-                        return false;
+                chunk_length = thisChunk.m_ChunkLength;                 
+                offset += chunk_length;
 
-                    thisChunkIndex += thisChunk.m_ChunkLength;
-                    chunkChars = thisChunk.m_ChunkChars;
-                }
-
-                if (chunkChars[thisChunkIndex] != value[i])
+                if(!StringSpanHelpers.Equals(thisChunk.m_ChunkChars, value.Slice(value.Length - offset, chunk_length)))
                     return false;
-            }
 
+                thisChunk = thisChunk.m_ChunkPrevious;
+            }
+            
             return true;
         }
 
