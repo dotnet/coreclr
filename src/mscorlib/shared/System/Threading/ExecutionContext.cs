@@ -30,15 +30,9 @@ namespace System.Threading
         private readonly bool m_isFlowSuppressed;
         private readonly bool m_isDefault;
 
-        private ExecutionContext()
+        private ExecutionContext(bool isDefault)
         {
-            m_localValues = AsyncLocalValueMap.Empty;
-            m_localChangeNotifications = Array.Empty<IAsyncLocal>();
-        }
-
-        private ExecutionContext(bool isDefault) : base()
-        {
-            m_isDefault = true;
+            m_isDefault = isDefault;
         }
 
         private ExecutionContext(
@@ -70,8 +64,8 @@ namespace System.Threading
             Debug.Assert(isFlowSuppressed != m_isFlowSuppressed);
 
             if (!isFlowSuppressed &&
-                m_localValues == Default.m_localValues &&
-                m_localChangeNotifications == Default.m_localChangeNotifications)
+                m_localValues == null &&
+                m_localChangeNotifications == null)
             {
                 return null; // implies the default context
             }
@@ -114,6 +108,8 @@ namespace System.Threading
 
         internal bool HasChangeNotifications => m_localChangeNotifications != null;
 
+        internal bool IsDefault => m_isDefault;
+
         public static void Run(ExecutionContext executionContext, ContextCallback callback, Object state)
         {
             // Note: ExecutionContext.Run is an extremely hot function and used by every await, ThreadPool execution, etc.
@@ -122,7 +118,14 @@ namespace System.Threading
                 ThrowNullContext();
             }
 
-            // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
+            RunInternal(executionContext, callback, state);
+        }
+
+        internal static void RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
+        {
+            // Note: ExecutionContext.RunInternal is an extremely hot function and used by every await, ThreadPool execution, etc.
+
+            // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
             Thread currentThread0 = Thread.CurrentThread;
             Thread currentThread = currentThread0;

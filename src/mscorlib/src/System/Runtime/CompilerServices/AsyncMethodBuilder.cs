@@ -575,13 +575,14 @@ namespace System.Runtime.CompilerServices
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext()
             {
-                if (Context == null)
+                ExecutionContext context = Context;
+                if (context == null)
                 {
                     StateMachine.MoveNext();
                 }
                 else
                 {
-                    ExecutionContext.Run(Context, s_callback, this);
+                    ExecutionContext.RunInternal(context, s_callback, this);
                 }
 
                 // In case this is a state machine box with a finalizer, suppress its finalization
