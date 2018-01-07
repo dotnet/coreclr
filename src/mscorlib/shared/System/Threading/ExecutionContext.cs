@@ -23,16 +23,22 @@ namespace System.Threading
 
     public sealed class ExecutionContext : IDisposable, ISerializable
     {
-        internal static readonly ExecutionContext Default = new ExecutionContext();
+        internal static readonly ExecutionContext Default = new ExecutionContext(isDefault: true);
 
         private readonly IAsyncLocalValueMap m_localValues;
         private readonly IAsyncLocal[] m_localChangeNotifications;
         private readonly bool m_isFlowSuppressed;
+        private readonly bool m_isDefault;
 
         private ExecutionContext()
         {
             m_localValues = AsyncLocalValueMap.Empty;
             m_localChangeNotifications = Array.Empty<IAsyncLocal>();
+        }
+
+        private ExecutionContext(bool isDefault) : base()
+        {
+            m_isDefault = true;
         }
 
         private ExecutionContext(
@@ -129,7 +135,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext == Default)
+            if (executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
