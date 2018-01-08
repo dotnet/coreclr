@@ -64,8 +64,9 @@ namespace System.Threading
             Debug.Assert(isFlowSuppressed != m_isFlowSuppressed);
 
             if (!isFlowSuppressed &&
-                m_localValues == null &&
-                m_localChangeNotifications == null)
+                (m_localValues == null ||
+                 m_localValues.GetType() == typeof(AsyncLocalValueMap.EmptyAsyncLocalValueMap))
+               )
             {
                 return null; // implies the default context
             }
@@ -356,7 +357,9 @@ namespace System.Threading
                 }
             }
 
-            Thread.CurrentThread.ExecutionContext =
+            Thread.CurrentThread.ExecutionContext = 
+                (!isFlowSuppressed && newValues.GetType() == typeof(AsyncLocalValueMap.EmptyAsyncLocalValueMap)) ?
+                null : // No values, return to Default context
                 new ExecutionContext(newValues, newChangeNotifications, isFlowSuppressed);
 
             if (needChangeNotifications)
