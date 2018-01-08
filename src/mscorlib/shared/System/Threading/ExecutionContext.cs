@@ -124,6 +124,8 @@ namespace System.Threading
         internal static void RunInternal(ExecutionContext executionContext, ContextCallback callback, Object state)
         {
             // Note: ExecutionContext.RunInternal is an extremely hot function and used by every await, ThreadPool execution, etc.
+            // Note: Manual enregistering may be addressed by "Exception Handling Write Through Optimization"
+            //       https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/eh-writethru.md
 
             // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
