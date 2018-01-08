@@ -151,7 +151,7 @@ namespace System.Threading
                 if ((executionContext != null && executionContext.HasChangeNotifications) ||
                     (previousExecutionCtx0 != null && previousExecutionCtx0.HasChangeNotifications))
                 {
-                    // Are change notifications; trigger any effected
+                    // There are change notifications; trigger any affected
                     OnValuesChanged(previousExecutionCtx0, executionContext);
                 }
             }
@@ -188,14 +188,13 @@ namespace System.Threading
                 if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
                     (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
                 {
-                    // Are change notifications; trigger any effected
+                    // There are change notifications; trigger any affected
                     OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
                 }
             }
-            // Enregistrer edi to edi1
-            ExceptionDispatchInfo edi1 = edi;
+
             // If exception was thrown by callback, rethrow it now original contexts are restored
-            edi1?.Throw();
+            edi?.Throw();
         }
 
         internal static void OnValuesChanged(ExecutionContext previousExecutionCtx, ExecutionContext nextExecutionCtx)
@@ -225,7 +224,7 @@ namespace System.Threading
 
                         if (previousValue != currentValue)
                         {
-                            local.OnValueChanged(previousValue, currentValue, true);
+                            local.OnValueChanged(previousValue, currentValue, contextChanged: true);
                         }
                     }
 
@@ -241,7 +240,7 @@ namespace System.Threading
                                 nextExecutionCtx.m_localValues.TryGetValue(local, out object currentValue);
                                 if (previousValue != currentValue)
                                 {
-                                    local.OnValueChanged(previousValue, currentValue, true);
+                                    local.OnValueChanged(previousValue, currentValue, contextChanged: true);
                                 }
                             }
                         }
@@ -257,7 +256,7 @@ namespace System.Threading
                         previousExecutionCtx.m_localValues.TryGetValue(local, out object previousValue);
                         if (previousValue != null)
                         {
-                            local.OnValueChanged(previousValue, null, true);
+                            local.OnValueChanged(previousValue, null, contextChanged: true);
                         }
                     }
                 }
@@ -271,7 +270,7 @@ namespace System.Threading
                         nextExecutionCtx.m_localValues.TryGetValue(local, out object currentValue);
                         if (currentValue != null)
                         {
-                            local.OnValueChanged(null, currentValue, true);
+                            local.OnValueChanged(null, currentValue, contextChanged: true);
                         }
                     }
                 }
@@ -345,8 +344,7 @@ namespace System.Threading
                 }
                 else if (newChangeNotifications == null)
                 {
-                    newChangeNotifications = new IAsyncLocal[1];
-                    newChangeNotifications[0] = local;
+                    newChangeNotifications = new IAsyncLocal[1] { local };
                 }
                 else
                 {
@@ -361,7 +359,7 @@ namespace System.Threading
 
             if (needChangeNotifications)
             {
-                local.OnValueChanged(previousValue, newValue, false);
+                local.OnValueChanged(previousValue, newValue, contextChanged: false);
             }
         }
 

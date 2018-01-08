@@ -356,7 +356,7 @@ namespace System.Runtime.CompilerServices
                     if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
                         (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
                     {
-                        // Are change notifications; trigger any effected
+                        // There are change notifications; trigger any affected
                         ExecutionContext.OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
                     }
                 }
