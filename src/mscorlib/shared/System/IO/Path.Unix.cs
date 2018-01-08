@@ -49,11 +49,11 @@ namespace System.IO
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
-            if (IsPathFullyQualified(path))
-                return GetFullPath(path);
-
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
+
+            if (IsPathFullyQualified(path))
+                return GetFullPath(path);
 
             return GetFullPath(CombineNoChecks(basePath, path));
         }
