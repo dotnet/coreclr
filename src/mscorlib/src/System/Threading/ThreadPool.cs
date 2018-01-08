@@ -1000,7 +1000,8 @@ namespace System.Threading
 #if DEBUG
             MarkExecuted(aborted: false);
 #endif
-            ExecutionContext.RunInternal(ExecutionContext.Default, ccb, this);
+            // null executionContext on RunInternal is Default context
+            ExecutionContext.RunInternal(executionContext: null, ccb, this);
         }
 
         void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)

@@ -138,7 +138,7 @@ namespace System.Threading
             ExecutionContext previousExecutionCtx = previousExecutionCtx0;
             SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
 
-            if (executionContext.m_isDefault)
+            if (executionContext != null && executionContext.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 executionContext = null;
