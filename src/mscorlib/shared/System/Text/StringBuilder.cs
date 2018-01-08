@@ -1648,28 +1648,29 @@ namespace System.Text
         /// <summary>
         /// Determines if the contents of this builder are equal to the contents of ReadOnlySpan<char>.
         /// </summary>
-        /// <param name="value">The ReadOnlySpan<char>.</param>
+        /// <param name="value">The ReadOnlySpan{char}.</param>
         public bool Equals(ReadOnlySpan<char> value)
         {
             if (value.Length != Length)
                 return false;
 
-            StringBuilder thisChunk = this;
+            StringBuilder sbChunk = this;
             int offset = 0;
-            int chunk_length = -1;
-            
-            
-            while (thisChunk != null)
+
+            do
             {
-                chunk_length = thisChunk.m_ChunkLength;                 
+                int chunk_length = sbChunk.m_ChunkLength;
                 offset += chunk_length;
 
-                if(!StringSpanHelpers.Equals(thisChunk.m_ChunkChars, value.Slice(value.Length - offset, chunk_length)))
+                ReadOnlySpan<char> chunk = new ReadOnlySpan<char>(sbChunk.m_ChunkChars, 0, chunk_length);
+
+                if (!StringSpanHelpers.Equals(chunk, value.Slice(value.Length - offset, chunk_length)))
                     return false;
 
-                thisChunk = thisChunk.m_ChunkPrevious;
-            }
-            
+                sbChunk = sbChunk.m_ChunkPrevious;
+            } while (sbChunk != null);
+
+            Debug.Assert(offset == Length);
             return true;
         }
 
