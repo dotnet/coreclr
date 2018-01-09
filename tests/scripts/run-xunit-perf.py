@@ -115,7 +115,7 @@ def validate_args(args):
     log('collectionFlags: %s' % args.collectionFlags)
     log('uploadToBenchview: %s' % args.uploadToBenchview)
 
-    return (coreclrPerf, args.arch, arch.operatingSystem, args.configuration, args.jitName, args.optLevel, args.runType, args.outputDir, args.stabilityPrefix, args.isScenarioTest, args.benchviewPath, args.isPgoOptimized, args.benchviewGroup, args.hasWarmupRun, args.collectionFlags, args.library, args.uploadToBenchview, args.better, args.sliceNumber, args.sliceConfigFile)
+    return (coreclrPerf, args.arch, args.operatingSystem, args.configuration, args.jitName, args.optLevel, args.runType, args.outputDir, args.stabilityPrefix, args.isScenarioTest, args.benchviewPath, args.isPgoOptimized, args.benchviewGroup, args.hasWarmupRun, args.collectionFlags, args.library, args.uploadToBenchview, args.better, args.sliceNumber, args.sliceConfigFile)
 
 def log(message):
     """ Print logging information
