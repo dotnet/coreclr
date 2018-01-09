@@ -10,7 +10,7 @@ import glob
 # Argument Parser
 ##########################################################################
 
-description = 'Tool to generate slice<number>.txt files based off of a slice json file (see perf-slices.json for format)'
+description = 'Tool to run coreclr perf tests'
 
 parser = argparse.ArgumentParser(description=description)
 
