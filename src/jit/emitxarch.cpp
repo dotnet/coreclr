@@ -4799,7 +4799,7 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 #if FEATURE_HW_INTRINSICS
 void emitter::emitIns_SIMD_R_R_R(instruction ins, regNumber reg, regNumber reg1, regNumber reg2, var_types simdtype)
 {
-    if (UseVEXEncoding() && reg1 != reg)
+    if (UseVEXEncoding())
     {
         emitIns_R_R_R(ins, emitTypeSize(simdtype), reg, reg1, reg2);
     }
@@ -4808,6 +4808,8 @@ void emitter::emitIns_SIMD_R_R_R(instruction ins, regNumber reg, regNumber reg1,
         if (reg1 != reg)
         {
             emitIns_R_R(INS_movaps, emitTypeSize(simdtype), reg, reg1);
+            regTracker.rsTrackRegCopy(reg, reg1);
+            gcInfo.gcMarkRegPtrVal(reg, simdType);
         }
         emitIns_R_R(ins, emitTypeSize(simdtype), reg, reg2);
     }
