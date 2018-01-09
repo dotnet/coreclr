@@ -808,19 +808,24 @@ namespace System.Text
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
+
             if (count < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
             }
 
+            if (value == null)
+            {
+                if (startIndex == 0 && count == 0)
+                {
+                    return this;
+                }
+                throw new ArgumentNullException(nameof(value));
+            }
+
             if (count > value.Length - startIndex)
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Index);
-            }
-                        
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
             }
 
             if (count > 0)
