@@ -173,7 +173,7 @@ void StackLevelSetter::SetThrowHelperBlock(SpecialCodeKind kind, BasicBlock* blo
     else
     {
         add->acdStkLvlInit = true;
-        if (add->acdStkLvl != currentStackLevel && !comp->codeGen->isFramePointerRequired())
+        if (add->acdStkLvl != currentStackLevel)
         {
             JITDUMP("Wrong stack level was set for block %d\n", add->acdDstBlk->bbNum);
         }
