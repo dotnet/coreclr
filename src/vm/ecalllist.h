@@ -127,6 +127,7 @@ FCFuncStart(gStringFuncs)
 #endif // FEATURE_COMINTEROP
 #ifdef FEATURE_RANDOMIZED_STRING_HASHING
     FCFuncElement("InternalMarvin32HashString", COMString::Marvin32HashString)
+    FCFuncElement("InternalMarvin32HashPtr", COMString::Marvin32HashPtr)
     QCFuncElement("InternalUseRandomizedHashing", COMString::UseRandomizedHashing) 
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
 FCFuncEnd()
