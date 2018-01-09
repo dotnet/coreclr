@@ -5037,7 +5037,7 @@ public:
         unsigned        acdData;
         SpecialCodeKind acdKind; // what kind of a special block is this?
         unsigned        acdStkLvl;
-        bool            acdStkLvlInit;
+        bool            acdStkLvlInit; // has acdStkLvl value been already set?
     };
 
 private:

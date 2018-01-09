@@ -31,6 +31,8 @@ StackLevelSetter::StackLevelSetter(Compiler* compiler)
 //   that calls inside this method can push on the stack.
 //   This value is used for sanity checks in the emitter.
 //
+//   Stack slots are pointer-sized: 4 bytes for x86, 8 bytes for amd64.
+//
 //   For x86 it also sets throw-helper blocks incoming stack depth and set
 //   framePointerRequired when it is necessary. These values are used to pop
 //   pushed args when an exception occurs.
@@ -246,7 +248,7 @@ void StackLevelSetter::AddStackLevel(unsigned value)
 // SubStackLevel: Reflect popping from the stack.
 //
 // Arguments:
-//   value - a positive value to substract.
+//   value - a positive value to subtract.
 //
 void StackLevelSetter::SubStackLevel(unsigned value)
 {
