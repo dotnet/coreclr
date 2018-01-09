@@ -14,24 +14,24 @@ description = 'Tool to run coreclr perf tests'
 
 parser = argparse.ArgumentParser(description=description)
 
+parser.add_argument('-testBinLoc', dest='coreclrPerf', default=None, required=True)
+parser.add_argument('-arch', dest='arch', default='x64', choices=['x64', 'x86'])
+parser.add_argument('-os', dest='operatingSystem', default=sys.platform, choices=['Windows_NT', 'Ubuntu16.04', 'Ubuntu14.04', 'OSX', sys.platform])
+parser.add_argument('-configuration', dest='configuration', default='Release', choices=['Release', 'Checked', 'Debug'])
+parser.add_argument('-optLevel', dest='optLevel', default='full_opt', choices=['full_opt', 'min_opt', 'tiered'])
+parser.add_argument('-jitName', dest='jitName', default='ryujit')
+parser.add_argument('-runtype', dest='runType', default='local', choices=['local', 'private', 'rolling'])
+parser.add_argument('-noPgo', dest='isPgoOptimized', action='store_false', default=True)
+parser.add_argument('-scenarioTest', dest='isScenarioTest', action='store_true', default=False)
+parser.add_argument('-stabilityPrefix', dest='stabilityPrefix', default=None)
+parser.add_argument('-uploadToBenchview', dest='uploadToBenchview', action='store_true', default=False)
+parser.add_argument('-generateBenchviewData', dest='benchviewPath', default=None)
 parser.add_argument('-slice', dest='sliceNumber', default=-1, type=int)
 parser.add_argument('-sliceConfigFile', dest='sliceConfigFile', default=None)
-parser.add_argument('-testBinLoc', dest='coreclrPerf', default=None)
-parser.add_argument('-stabilityPrefix', dest='stabilityPrefix', default=None)
-parser.add_argument('-scenarioTest', dest='isScenarioTest', action='store_true', default=False)
-parser.add_argument('-uploadToBenchview', dest='uploadToBenchview', action='store_true', default=False)
 parser.add_argument('-nowarmup', dest='hasWarmupRun', action='store_false', default=True)
 parser.add_argument('-better', dest='better', default='desc')
-parser.add_argument('-runtype', dest='runType', default='local')
 parser.add_argument('-collectionFlags', dest='collectionFlags', default='stopwatch')
 parser.add_argument('-library', dest='library', action='store_true', default=False)
-parser.add_argument('-generateBenchviewData', dest='benchviewPath', default=None)
-parser.add_argument('-arch', dest='arch', default='x64')
-parser.add_argument('-os', dest='operatingSystem', default=sys.platform)
-parser.add_argument('-optLevel', dest='optLevel', default='full_opt')
-parser.add_argument('-jitName', dest='jitName', default='ryujit')
-parser.add_argument('-noPgo', dest='isPgoOptimized', action='store_false', default=True)
-parser.add_argument('-configuration', dest='configuration', default='Release')
 parser.add_argument('-group', dest='benchviewGroup', default='CoreCLR')
 parser.add_argument('-outputdir', dest='outputDir', default=None)
 
@@ -67,29 +67,15 @@ def validate_args(args):
         if not helper(arg):
             raise ValueError('Argument: %s is not valid.' % (arg))
 
-    valid_arches = ['x64', 'x86']
-    valid_jits = ['ryujit']
-    valid_optlevels = ['full_opt', 'min_opt', 'tiered']
-    valid_better = ['desc', 'asc']
-    valid_runtypes = ['rolling', 'private', 'local']
-    valid_configurations = ['Release', 'Checked', 'Debug']
-    valid_operatingSystems = ['Windows_NT', 'Ubuntu16.04', 'Ubuntu14.04', 'OSX', sys.platform]
-
     coreclrPerf = os.path.join(os.getcwd(), args.coreclrPerf)
-
-    validate_arg(args.arch, lambda item: item in valid_arches)
-    validate_arg(args.operatingSystem, lambda item: item in valid_operatingSystems)
-    validate_arg(args.jitName, lambda item: item in valid_jits)
-    validate_arg(args.optLevel, lambda item: item in valid_optlevels)
     validate_arg(coreclrPerf, lambda item: os.path.isdir(item))
-    validate_arg(args.better, lambda item: item in valid_better)
-    validate_arg(args.runType, lambda item: item in valid_runtypes)
-    validate_arg(args.configuration, lambda item: item in valid_configurations)
 
     if not args.benchviewPath is None:
         validate_arg(args.benchviewPath, lambda item: os.path.isdir(item))
     if not args.sliceNumber == -1:
         validate_arg(args.sliceConfigFile, lambda item: os.path.isfile(item))
+    if not args.outputDir is None:
+        validate_arg(args.outputDir, lambda item: os.path.isdir(item))
 
     log('Args:')
     log('arch: %s' % args.arch)
@@ -105,8 +91,10 @@ def validate_args(args):
     if not args.sliceNumber == -1:
         log('sliceNumber: %s' % args.sliceNumber)
         log('sliceConfigFile: %s' % args.sliceConfigFile)
-    log('outputDir: %s' % args.outputDir)
-    log('stabilityPrefix: %s' % args.stabilityPrefix)
+    if not outputDir is None:
+        log('outputDir: %s' % args.outputDir)
+    if not stabilityPrefix is None:
+        log('stabilityPrefix: %s' % args.stabilityPrefix)
     log('isScenarioTest: %s' % args.isScenarioTest)
     log('isPgoOptimized: %s' % args.isPgoOptimized)
     log('benchviewGroup: %s' % args.isScenarioTest)
