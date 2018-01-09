@@ -886,10 +886,7 @@ VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (ETW_TRACING_CATEGORY_ENABLED(
-        MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_GC_KEYWORD))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, GCStart_V2))
     {
         // If the controller specified a client sequence number for us to log with this
         // GCStart, then retrieve it
@@ -925,10 +922,9 @@ VOID ETW::GCLog::FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth)
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (ETW_TRACING_CATEGORY_ENABLED(
+    if (ETW_EVENT_ENABLED(
         MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_GC_KEYWORD))
+        GCEnd_V1))
     {
         // Fire an event per range per generation
         IGCHeap *hp = GCHeapUtilities::GetGCHeap();
@@ -4039,15 +4035,17 @@ VOID ETW::EnumerationLog::StartRundown()
             {
                 enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCStart;
             }
-            if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
-                                            TRACE_LEVEL_INFORMATION, 
-                                            CLR_RUNDOWNJIT_KEYWORD))
+            if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCStart_V1)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCStart_V2)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCStartVerbose_V1)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCStartVerbose_V2))
             {
                 enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::JitMethodDCStart;
-            }
-            if(IsRundownNgenKeywordEnabledAndNotSuppressed())
-            {
-                enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodDCStart;
+
+                if(IsRundownNgenKeywordEnabledAndNotSuppressed())
+                {
+                    enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodDCStart;
+                }
             }
             if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
                                             TRACE_LEVEL_INFORMATION, 
@@ -4105,21 +4103,17 @@ DWORD ETW::EnumerationLog::GetEnumerationOptionsFromRuntimeKeywords()
     {
         enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload;
     }
-    if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_JIT_KEYWORD) &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_ENDENUMERATION_KEYWORD))
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodUnload_V1)
+    || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodUnload_V2)
+    || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodUnloadVerbose_V1)
+    || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodUnloadVerbose_V2))
     {
         enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::JitMethodUnload;
-    }
-    if(IsRuntimeNgenKeywordEnabledAndNotSuppressed() &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_ENDENUMERATION_KEYWORD))
-    {
-        enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodUnload;
+
+        if(IsRuntimeNgenKeywordEnabledAndNotSuppressed())
+        {
+            enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodUnload;
+        }
     }
 
     return enumerationOptions;
@@ -4221,15 +4215,17 @@ VOID ETW::EnumerationLog::EndRundown()
             {
                 enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleDCEnd;
             }
-            if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
-                                            TRACE_LEVEL_INFORMATION, 
-                                            CLR_RUNDOWNJIT_KEYWORD))
+            if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCEnd_V1)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCEnd_V2)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCEndVerbose_V1)
+            || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, MethodDCEndVerbose_V2))
             {
                 enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::JitMethodDCEnd;
-            }
-            if(IsRundownNgenKeywordEnabledAndNotSuppressed())
-            {
-                enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodDCEnd;
+
+                if(IsRundownNgenKeywordEnabledAndNotSuppressed())
+                {
+                    enumerationOptions |= ETW::EnumerationLog::EnumerationStructs::NgenMethodDCEnd;
+                }
             }
             if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
                                             TRACE_LEVEL_INFORMATION, 
@@ -5346,6 +5342,14 @@ VOID ETW::MethodLog::DynamicMethodDestroyed(MethodDesc *pMethodDesc)
     } EX_CATCH { } EX_END_CATCH(SwallowAllExceptions);
 }
 
+static BOOL EwtMethodLoadEnabled()
+{
+    return ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodLoad_V1)
+        || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodLoad_V2)
+        || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodLoadVerbose_V1)
+        || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodLoadVerbose_V2);
+}
+
 /****************************************************************************/
 /* This is called by the runtime when a ngen method is restored */
 /****************************************************************************/
@@ -5359,10 +5363,7 @@ VOID ETW::MethodLog::MethodRestored(MethodDesc *pMethodDesc)
     EX_TRY
     {
         if(IsRuntimeNgenKeywordEnabledAndNotSuppressed()
-           && 
-           ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-                                        TRACE_LEVEL_INFORMATION, 
-                                        CLR_STARTENUMERATION_KEYWORD))
+        && EwtMethodLoadEnabled())
         {
             ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::NgenMethodLoad, FALSE);
         }
@@ -5381,10 +5382,7 @@ VOID ETW::MethodLog::MethodTableRestored(MethodTable *pMethodTable)
     EX_TRY
     {
         if(IsRuntimeNgenKeywordEnabledAndNotSuppressed()
-            && 
-            ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-                                         TRACE_LEVEL_INFORMATION, 
-                                         CLR_STARTENUMERATION_KEYWORD))
+        && EwtMethodLoadEnabled())
         {
             {
                 MethodTable::MethodIterator iter(pMethodTable);
