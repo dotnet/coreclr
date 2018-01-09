@@ -1664,7 +1664,7 @@ namespace System.Text
 
                 ReadOnlySpan<char> chunk = new ReadOnlySpan<char>(sbChunk.m_ChunkChars, 0, chunk_length);
 
-                if (!StringSpanHelpers.Equals(chunk, value.Slice(value.Length - offset, chunk_length)))
+                if (!chunk.Equals(value.Slice(value.Length - offset, chunk_length)))
                     return false;
 
                 sbChunk = sbChunk.m_ChunkPrevious;
