@@ -46,8 +46,8 @@ provider separately. To accomplish this, the GC will contain a class with this s
 ```c++
 enum GCEventProvider
 {
-    GCEventProvider_Default,
-    GCEventProvider_Private
+    GCEventProvider_Default = 0,
+    GCEventProvider_Private = 1
 };
 
 
@@ -75,25 +75,13 @@ When the EE *does* observe a change in event state, it must inform the GC of the
 state accordingly. The following additions are made to the `IGCHeap` API surface area:
 
 ```c++
-class IGCEventController
-{
-    // Enables events with the given keyword and level on the default provider.
-    virtual void EnableEvents(int keyword, int level) = 0;
-
-    // Disables events with the given keyword and level on the default provider.
-    virtual void DisableEvents(int keyword, int level) = 0;
-
-    // Enables events with the given keyword and level on the private provider.
-    virtual void EnablePrivateEvents(int keyword, int level) = 0;
-
-    // Disables events with the given keyword and level on the private provider.
-    virtual void DisablePrivateEvents(int keyword, int level) = 0;
-};
-
 class IGCHeap
 {
-    // Returns a pointer to this heap's event controller, used for enabling and disabling events.
-    virtual IGCEventController* EventController() = 0;
+    // Enables or disables events with the given keyword and level on the default provider.
+    virtual void ControlEvents(bool enable, int keyword, int level) = 0;
+
+    // Enables or disables events with the given keyword and level on the private provider.
+    virtual void ControlPrivateEvents(bool enable, int keyword, int level) = 0;
 };
 ```
 
@@ -106,7 +94,7 @@ uint32_t enabledKeywords[2];
 
 bool GCEventStatus::IsEnabled(GCEventProvider provider, int keyword, int level)
 {
-    size_t index = provider == GCEventProvider_Default ? 0 : 1;
+    size_t index = static_cast<size_t>(provider);
     return (enabledLevels[index] & level) && (enabledKeywords[index] & keyword);
 }
 ```
@@ -162,7 +150,7 @@ for the GC within this repository to add new events without having to recompile 
 While it is possible for some eventing implementations to receive events that are created at runtime, not all eventing implementations (particularly LTTNG) are not flexible enough for this. In order to accomodate new events, another method is added to `IGCToCLREventSink`:
 
 ```c++
-void IGCToCCLREventSink::FireDynamicEvent(
+void IGCToCLREventSink::FireDynamicEvent(
     /* IN */ const char* eventName,
     /* IN */ void* payload,
     /* IN */ size_t payloadSize
@@ -171,11 +159,8 @@ void IGCToCCLREventSink::FireDynamicEvent(
 
 A runtime implementing this callback will implement it by having a "catch-all" GC event whose schema is an arbitrary sequence of bytes. Tools can parse the (deliberately unspecified) binary format provided by GC events that use this mechanism in order to recover the data within the payload.
 
-Of note with dynamic events is that the CLR GC *may* ship with them. It is highly desirable that the CLR GC be able 
-to add new events that will then "light up" when run on older EEs; it is not sufficient to simply bump a minor version number
-when adding an event to make it a known event. This implies that we will need to periodically convert dynamic events to
-known events whenever the GC is willing to tolerate a recompile of the runtime, which can potentially be few and far
-between.
+Dynamic events will by fired by the GC whenever developers want to add a new event but don't want to force
+users to get a new version of the runtime in order to utilize the new event.
 
 ## Getting Informed of Changes to Event State
 
@@ -232,3 +217,21 @@ You can then define the `FireYourEvent` macro in `src/gc/env/etmdummy.h` to poin
 Your implementation of `FireYourEvent` in the EE will need to calculate any EE-specific data (e.g. `ClrInstanceId`) and
 then forward the event arguments onto the platform logger, which can be done with the `Fire` macros that the EE has access
 to (that we implemented for the GC).
+
+### Concrete Example: Adding a dynamic event
+
+The following steps illustrate what needs to be done to add a new dynamic event:
+
+There are two things that need to be written: the `ETW_EVENT_ENABLED` support for your new event and the macro responsible
+for firing your event. `ETW_EVENT_ENABLED` can be implemented in the same manner as a known event, by introducing a macro
+for your event name that expands to your event's level and keyword.
+
+Firing of a dynamic event ultimately must call `FireDynamicEvent` with an event name and a serialized payload. Therefore,
+it is the responsibility of the GC to format an event's payload into a binary format. It is ultimately up to you(1) to write
+a function that serializes your event's arguments into a buffer and sends the buffer to `FireDynamicEvent`. This code in
+turn can be wired up to the GC codebase by defining a new `FireMyCustomEvent` macro whose arguments are forwarded onto
+the event serialization function.
+
+1. C++ has the ability to auto-generate large swaths of this code. The implementation of this spec will provide a series of
+composable helper functions that automate the serialization of arguments so that they do not have to be written by the
+developer adding a new event.
