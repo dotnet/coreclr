@@ -211,8 +211,7 @@ unsigned StackLevelSetter::PopArgumentsFromCall(GenTreeCall* call)
                 GenTree* node = argTab->node;
                 assert(node->OperIsPutArgStkOrSplit());
 
-                GenTreePutArgStk* putArg =
-                    static_cast<GenTreePutArgStk*>(node); // PutArgSplit is inherited from PutArgStk.
+                GenTreePutArgStk* putArg = node->AsPutArgStk();
 
 #if !FEATURE_FIXED_OUT_ARGS
                 assert(argTab->numSlots == putArg->gtNumSlots);
