@@ -91,7 +91,7 @@ def validate_args(args):
     if not args.sliceNumber == -1:
         log('sliceNumber: %s' % args.sliceNumber)
         log('sliceConfigFile: %s' % args.sliceConfigFile)
-    if not outputDir is None:
+    if not args.outputDir is None:
         log('outputDir: %s' % args.outputDir)
     if not stabilityPrefix is None:
         log('stabilityPrefix: %s' % args.stabilityPrefix)
@@ -294,23 +294,23 @@ def set_perf_run_log(sandboxOutputDir):
     return os.path.join(sandboxOutputDir, "perfrun.log")
 
 def setup_optimization_level(env, optLevel):
-    my_env = env
+    myEnv = env
     if optLevel == 'min_opts':
-        my_env['COMPlus_JITMinOpts'] = '1'
+        myEnv['COMPlus_JITMinOpts'] = '1'
     elif optLevel == 'tiered':
-        my_env['COMPLUS_EXPERIMENTAL_TieredCompilation'] = '1'
+        myEnv['COMPLUS_EXPERIMENTAL_TieredCompilation'] = '1'
 
-    return my_env
+    return myEnv
 
 def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
     # Confirm dotnet works
     dotnet = os.path.join(coreclrRepo, 'Tools', 'dotnetcli', 'dotnet' + extension)
-    run_args = [dotnet,
+    runArgs = [dotnet,
             '--info'
             ]
-    log(" ".join(run_args))
+    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
+    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
     (out, err) = proc.communicate()
 
     if not proc.returncode == 0:
@@ -318,28 +318,28 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
 
     # Restore PerfHarness
     perfHarnessPath = os.path.join(coreclrRepo, 'tests', 'src', 'Common', 'PerfHarness', 'PerfHarness.csproj')
-    run_args = [dotnet,
+    runArgs = [dotnet,
             'restore',
             perfHarnessPath]
-    log(" ".join(run_args))
+    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
+    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
     (out, err) = proc.communicate()
 
     if not proc.returncode == 0:
         print_error(out, err, 'Failed to restore PerfHarness.csproj')
 
     # Publish PerfHarness
-    run_args = [dotnet,
+    runArgs = [dotnet,
             'publish',
             perfHarnessPath,
             '-c',
             'Release',
             '-o',
             sandboxDir]
-    log(" ".join(run_args))
+    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
+    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
     (out, err) = proc.communicate()
 
     if not proc.returncode == 0:
@@ -383,10 +383,10 @@ def main(args):
 
     extension = '.exe' if platform == 'Windows_NT' else ''
 
-    my_env = os.environ
+    myEnv = os.environ
 
-    my_env['DOTNET_MULTILEVEL_LOOKUP'] = '0'
-    my_env['UseSharedCompilation'] = 'false'
+    myEnv['DOTNET_MULTILEVEL_LOOKUP'] = '0'
+    myEnv['UseSharedCompilation'] = 'false'
 
     # Setup directories
     log('Setting up directories')
@@ -396,14 +396,14 @@ def main(args):
     os.chdir(sandboxDir)
 
     perfRunLog = set_perf_run_log(sandboxOutputDir)
-    build_perfharness(coreclrRepo, sandboxDir, extension, my_env)
+    build_perfharness(coreclrRepo, sandboxDir, extension, myEnv)
 
-    my_env = setup_optimization_level(my_env, optLevel)
+    myEnv = setup_optimization_level(myEnv, optLevel)
 
-    if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in my_env:
-        my_env['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'
-    if not 'XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED' in my_env:
-        my_env['XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED'] = '21'
+    if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in myEnv:
+        myEnv['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'
+    if not 'XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED' in myEnv:
+        myEnv['XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED'] = '21'
 
     # Copy core overlay contents to sandbox
     copytree(coreclrOverlay, sandboxDir)
@@ -442,7 +442,7 @@ def main(args):
                     benchmarkOutputDir = os.path.join(sandboxOutputDir, 'Scenarios') if isScenarioTest else os.path.join(sandboxOutputDir, 'Microbenchmarks')
                     benchmarkOutputDir = os.path.join(benchmarkOutputDir, etwCollection, benchname)
 
-                    failure = run_benchmark(benchname, root, my_env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
+                    failure = run_benchmark(benchname, root, myEnv, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
                     failures += failure
                     if (not benchviewPath is None) and (failure == 0):
                         generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, better, hasWarmupRun, benchmarkOutputDir, benchviewPath)
