@@ -637,7 +637,7 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidId, nameof(name)));
             }
 
-            Span<char> pName = stackalloc char[name.Length];
+            Span<char> normalizedName = stackalloc char[name.Length];
 
             bool changed = false;
 
@@ -646,12 +646,12 @@ namespace System.Globalization
                 if (name[i] >= 'A' && name[i] <= 'Z')
                 {
                     // lowercase characters before '-'
-                    pName[i] = (char) (((int)name[i]) + 0x20);
+                    normalizedName[i] = (char) (((int)name[i]) + 0x20);
                     changed = true;
                 }
                 else
                 {
-                    pName[i] = name[i];
+                    normalizedName[i] = name[i];
                 }
                 i++;
             }
@@ -666,18 +666,18 @@ namespace System.Globalization
             {
                 if (name[i] >= 'a' && name[i] <= 'z')
                 {
-                    pName[i] = (char) (((int)name[i]) - 0x20);
+                    normalizedName[i] = (char) (((int)name[i]) - 0x20);
                     changed = true;
                 }
                 else
                 {
-                    pName[i] = name[i];
+                    normalizedName[i] = name[i];
                 }
                 i++;
             }
 
             if (changed)
-                return new string(pName);
+                return new string(normalizedName);
 
             return name;
         }
