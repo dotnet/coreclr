@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 import argparse
 import os
@@ -74,8 +76,6 @@ def validate_args(args):
         validate_arg(args.benchviewPath, lambda item: os.path.isdir(item))
     if not args.sliceNumber == -1:
         validate_arg(args.sliceConfigFile, lambda item: os.path.isfile(item))
-    if not args.outputDir is None:
-        validate_arg(args.outputDir, lambda item: os.path.isdir(item))
 
     log('Args:')
     log('arch: %s' % args.arch)
@@ -118,8 +118,12 @@ def print_error(out, err, message):
     log('%s' % err.decode("utf-8"))
     raise Exception(message)
 
+from sys import version_info
+def is_supported_version() -> bool:
+    return version_info.major > 2 and version_info.minor > 4
+
 def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable):
-    my_env = env
+    myEnv = env
     benchnameWithExt = benchname + '.' + testFileExt
     fullPath = os.path.join(benchdir, benchnameWithExt)
     shutil.copy2(fullPath, sandboxDir)
@@ -129,7 +133,7 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
         if os.path.isfile(filename):
             shutil.copy2(filename, sandboxDir)
 
-    my_env['CORE_ROOT'] = sandboxDir
+    myEnv['CORE_ROOT'] = sandboxDir
 
     benchnameLogFileName = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.log')
 
@@ -155,14 +159,14 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
         lvCommonArgs.insert(0, 'PerfHarness.dll')
 
     splitPrefix = [] if stabilityPrefix is None else stabilityPrefix.split(' ')
-    run_args = executable + splitPrefix + [os.path.join(sandboxDir, 'corerun' + extension)] + lvCommonArgs + ['--perf:collect', collectionFlags]
-    log(" ".join(run_args))
+    runArgs = executable + splitPrefix + [os.path.join(sandboxDir, 'corerun' + extension)] + lvCommonArgs + ['--perf:collect', collectionFlags]
+    log(" ".join(runArgs))
     sys.stdout.flush()
 
     error = 0
     expectedOutputFile = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
     with open(benchnameLogFileName, 'wb') as out:
-        proc = subprocess.Popen(' '.join(run_args), shell=True, stdout=out, stderr=out, env=my_env)
+        proc = subprocess.Popen(' '.join(runArgs), shell=True, stdout=out, stderr=out, env=myEnv)
         proc.communicate()
         if not proc.returncode == 0:
             error = proc.returncode
@@ -190,11 +194,11 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
 
     filename = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
 
-    run_args = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
+    runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
     log('')
-    log(" ".join(run_args))
+    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = proc.communicate()
     if not proc.returncode == 0:
         print_error(out, err, 'Call to measurement.py failed.')
@@ -214,7 +218,7 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
     if not os.path.isfile(submissionMetadataJson):
         raise Exception('%s does not exist. There is no data to be uploaded.' % submissionMetadataJson)
 
-    run_args = [python,
+    runArgs = [python,
             os.path.join(benchviewPath, 'submission.py'),
             measurementJson,
             '--build',
@@ -249,22 +253,22 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
             '--machinepool',
             'PerfSnake']
     log('')
-    log(" ".join(run_args))
+    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (out, err) = proc.communicate()
 
     if not proc.returncode == 0:
         print_error(out, err, 'Createing BenchView submission data failed.')
 
     if uploadToBenchview:
-        run_args = [python,
+        runArgs = [python,
                 os.path.join(benchviewPath, 'upload.py'),
                 'submission.json',
                 '--container',
                 'coreclr']
-        log(" ".join(run_args))
-        proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        log(" ".join(runArgs))
+        proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (out, err) = proc.communicate()
 
         if not proc.returncode == 0:
@@ -351,6 +355,10 @@ def copytree(src, dst):
             shutil.copy2(s, d)
 
 def main(args):
+    if not is_supported_version():
+        log("Python 3.5 or newer is required")
+        return 1
+
     coreclrPerf, arch, operatingSystem, configuration, jitName, optLevel, runType, outputDir, stabilityPrefix, isScenarioTest, benchviewPath, isPgoOptimized, benchviewGroup, hasWarmupRun, collectionFlags, isLibrary, uploadToBenchview, better, sliceNumber, sliceConfigFile = validate_args(args)
 
     platform = sys.platform
@@ -363,6 +371,8 @@ def main(args):
         python = 'python3'
     elif platform == 'win32':
         platform = "Windows_NT"
+    else:
+        raise ValueError("Platform %s is not supported" % platform)
 
     executable = ['cmd.exe', '/c'] if platform == 'Windows_NT' else []
 
@@ -374,10 +384,9 @@ def main(args):
     extension = '.exe' if platform == 'Windows_NT' else ''
 
     my_env = os.environ
-    dotnetEnv = os.environ
 
-    dotnetEnv['DOTNET_MULTILEVEL_LOOKUP'] = '0'
-    dotnetEnv['UseSharedCompilation'] = 'false'
+    my_env['DOTNET_MULTILEVEL_LOOKUP'] = '0'
+    my_env['UseSharedCompilation'] = 'false'
 
     # Setup directories
     log('Setting up directories')
@@ -387,7 +396,7 @@ def main(args):
     os.chdir(sandboxDir)
 
     perfRunLog = set_perf_run_log(sandboxOutputDir)
-    build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv)
+    build_perfharness(coreclrRepo, sandboxDir, extension, my_env)
 
     my_env = setup_optimization_level(my_env, optLevel)
 
@@ -433,8 +442,9 @@ def main(args):
                     benchmarkOutputDir = os.path.join(sandboxOutputDir, 'Scenarios') if isScenarioTest else os.path.join(sandboxOutputDir, 'Microbenchmarks')
                     benchmarkOutputDir = os.path.join(benchmarkOutputDir, etwCollection, benchname)
 
-                    failures += run_benchmark(benchname, root, my_env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
-                    if not benchviewPath is None:
+                    failure = run_benchmark(benchname, root, my_env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
+                    failures += failure
+                    if (not benchviewPath is None) and (failure == 0):
                         generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, better, hasWarmupRun, benchmarkOutputDir, benchviewPath)
 
     # Setup variables for uploading to benchview
