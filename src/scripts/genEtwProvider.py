@@ -310,7 +310,9 @@ def main(argv):
     # Update the final directory from temp
     provider_temp_dirname = os.path.join(intermediate, etw_dirname + "_temp")
     provider_dirname = os.path.join(intermediate, etw_dirname)
-    os.makedirs(provider_dirname, exist_ok=True)
+    if not os.path.exists(provider_dirname):
+        os.makedirs(provider_dirname)
+        
     update_directory(provider_temp_dirname, provider_dirname)
     shutil.rmtree(provider_temp_dirname)
 
