@@ -22,7 +22,7 @@ namespace System
     /// </summary>
     public static class Span
     {
-        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
         public static ReadOnlyMemory<char> AsReadOnlyMemory(this string text)
@@ -33,11 +33,11 @@ namespace System
             return new ReadOnlyMemory<char>(text, 0, text.Length);
         }
 
-        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;=text.Length).
+        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;text.Length).
         /// </exception>
         public static ReadOnlyMemory<char> AsReadOnlyMemory(this string text, int start)
         {
@@ -50,7 +50,7 @@ namespace System
             return new ReadOnlyMemory<char>(text, start, text.Length - start);
         }
 
-        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
@@ -206,7 +206,7 @@ namespace System
         /// reference (Nothing in Visual Basic).
         /// </exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;=text.Length).
+        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;text.Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsReadOnlySpan(this string text, int start)
