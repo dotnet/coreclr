@@ -117,6 +117,6 @@ def update_directory(srcpath, dstpath, recursive=True, destructive=True, shallow
     if recursive:
         for dirname in srcdirs:
             dstdir, srcdir = os.path.join(dstpath, dirname), os.path.join(srcpath, dirname)
-            if not os.path.exists(dstdir)
+            if not os.path.exists(dstdir):
                 os.makedirs(dstdir)
             update_directory(srcdir, dstdir, recursive, destructive, shallow)
