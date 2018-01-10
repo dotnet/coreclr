@@ -637,8 +637,6 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidId, nameof(name)));
             }
 
-            // char *buff = stackalloc char[LOCALE_NAME_MAX_LENGTH]
-            // Span<char> pName = new Span<char>(buff, 0, LOCALE_NAME_MAX_LENGTH);
             Span<char> pName = stackalloc char[name.Length];
 
             bool changed = false;
