@@ -751,25 +751,31 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
             Clrallevents.write(generateClrallEvents(eventNodes, allTemplates) + "\n")
 
 
+    clreventpipewriteevents = os.path.join(incDir, "clreventpipewriteevents.h")
+    with open_for_update(clreventpipewriteevents) as Clreventpipewriteevents:
+        Clreventpipewriteevents.write(stdprolog + "\n")
+
+        for providerNode in tree.getElementsByTagName('provider'):
+            templateNodes = providerNode.getElementsByTagName('template')
+            allTemplates  = parseTemplateNodes(templateNodes)
+            eventNodes = providerNode.getElementsByTagName('event')
+
+            #eventpipe: create clreventpipewriteevents.h
+            Clreventpipewriteevents.write(generateClrEventPipeWriteEvents(eventNodes, allTemplates, extern) + "\n")
+                
     # Write secondary headers for FireEtXplat* and EventPipe* functions
     if write_xplatheader:
         clrxplatevents = os.path.join(incDir, "clrxplatevents.h")
-        clreventpipewriteevents = os.path.join(incDir, "clreventpipewriteevents.h")
         with open_for_update(clrxplatevents) as Clrxplatevents:
-            with open_for_update(clreventpipewriteevents) as Clreventpipewriteevents:
-                Clrxplatevents.write(stdprolog + "\n")
-                Clreventpipewriteevents.write(stdprolog + "\n")
+            Clrxplatevents.write(stdprolog + "\n")
 
-                for providerNode in tree.getElementsByTagName('provider'):
-                    templateNodes = providerNode.getElementsByTagName('template')
-                    allTemplates  = parseTemplateNodes(templateNodes)
-                    eventNodes = providerNode.getElementsByTagName('event')
+            for providerNode in tree.getElementsByTagName('provider'):
+                templateNodes = providerNode.getElementsByTagName('template')
+                allTemplates  = parseTemplateNodes(templateNodes)
+                eventNodes = providerNode.getElementsByTagName('event')
 
-                    #pal: create clrallevents.h
-                    Clrxplatevents.write(generateClrXplatEvents(eventNodes, allTemplates, extern) + "\n")
-
-                    #eventpipe: create clreventpipewriteevents.h
-                    Clreventpipewriteevents.write(generateClrEventPipeWriteEvents(eventNodes, allTemplates, extern) + "\n")
+                #pal: create clrallevents.h
+                Clrxplatevents.write(generateClrXplatEvents(eventNodes, allTemplates, extern) + "\n")
 
 import argparse
 import sys
