@@ -93,7 +93,7 @@ def validate_args(args):
         log('sliceConfigFile: %s' % args.sliceConfigFile)
     if not args.outputDir is None:
         log('outputDir: %s' % args.outputDir)
-    if not stabilityPrefix is None:
+    if not args.stabilityPrefix is None:
         log('stabilityPrefix: %s' % args.stabilityPrefix)
     log('isScenarioTest: %s' % args.isScenarioTest)
     log('isPgoOptimized: %s' % args.isPgoOptimized)
@@ -122,8 +122,19 @@ from sys import version_info
 def is_supported_version() -> bool:
     return version_info.major > 2 and version_info.minor > 4
 
+
+def run_command(runArgs, environment):
+    log('')
+    log(" ".join(runArgs))
+
+    try:
+        subprocess.check_output(runArgs, stderr=PIPE, env=environment)
+    except CalledProcessError as e:
+        log(e.output.decode('utf-8'))
+        raise RuntimeException("Call to %s failed" % runArgs[1])
+
 def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable):
-    myEnv = env
+    myEnv = dict(env)
     benchnameWithExt = benchname + '.' + testFileExt
     fullPath = os.path.join(benchdir, benchnameWithExt)
     shutil.copy2(fullPath, sandboxDir)
@@ -158,7 +169,7 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     else:
         lvCommonArgs.insert(0, 'PerfHarness.dll')
 
-    splitPrefix = [] if stabilityPrefix is None else stabilityPrefix.split(' ')
+    splitPrefix = [] if stabilityPrefix is None else stabilityPrefix.split()
     runArgs = executable + splitPrefix + [os.path.join(sandboxDir, 'corerun' + extension)] + lvCommonArgs + ['--perf:collect', collectionFlags]
     log(" ".join(runArgs))
     sys.stdout.flush()
@@ -195,13 +206,8 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
     filename = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
 
     runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
-    log('')
-    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = proc.communicate()
-    if not proc.returncode == 0:
-        print_error(out, err, 'Call to measurement.py failed.')
+    run_command(runArgs, os.environ)
 
 def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, architecture):
     measurementJson = os.path.join(os.getcwd(), 'measurement.json')
@@ -209,14 +215,9 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
     machinedataJson = os.path.join(coreclrRepo, 'machinedata.json')
     submissionMetadataJson = os.path.join(coreclrRepo, 'submission-metadata.json')
 
-    if not os.path.isfile(measurementJson):
-        raise Exception('%s does not exist. There is no data to be uploaded.' % measurementJson)
-    if not os.path.isfile(buildJson):
-        raise Exception('%s does not exist. There is no data to be uploaded.' % buildJson)
-    if not os.path.isfile(machinedataJson):
-        raise Exception('%s does not exist. There is no data to be uploaded.' % machinedataJson)
-    if not os.path.isfile(submissionMetadataJson):
-        raise Exception('%s does not exist. There is no data to be uploaded.' % submissionMetadataJson)
+    for jsonFile in [measurementJson, buildJson, machinedataJson, submissionMetadatason]:
+        if not os.path.isfile(jsonFile):
+            raise Exception('%s does not exist. There is no data to be uploaded.' % jsonFile)
 
     runArgs = [python,
             os.path.join(benchviewPath, 'submission.py'),
@@ -252,14 +253,8 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
             architecture,
             '--machinepool',
             'PerfSnake']
-    log('')
-    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (out, err) = proc.communicate()
-
-    if not proc.returncode == 0:
-        print_error(out, err, 'Createing BenchView submission data failed.')
+    run_command(runArgs, os.environ)
 
     if uploadToBenchview:
         runArgs = [python,
@@ -267,12 +262,8 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
                 'submission.json',
                 '--container',
                 'coreclr']
-        log(" ".join(runArgs))
-        proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (out, err) = proc.communicate()
 
-        if not proc.returncode == 0:
-            print_error(out, err, 'Uploading to BenchView failed.')
+        run_command(runArgs, os.environ)
 
 def verify_core_overlay(coreclrRepo, operatingSystem, arch, configuration):
     configurationDir = "%s.%s.%s" % (operatingSystem, arch, configuration)
@@ -290,17 +281,8 @@ def setup_sandbox(sandboxDir):
 
 def set_perf_run_log(sandboxOutputDir):
     if not os.path.isdir(sandboxOutputDir):
-        os.mkdir(sandboxOutputDir)
+        os.mkdirs(sandboxOutputDir)
     return os.path.join(sandboxOutputDir, "perfrun.log")
-
-def setup_optimization_level(env, optLevel):
-    myEnv = env
-    if optLevel == 'min_opts':
-        myEnv['COMPlus_JITMinOpts'] = '1'
-    elif optLevel == 'tiered':
-        myEnv['COMPLUS_EXPERIMENTAL_TieredCompilation'] = '1'
-
-    return myEnv
 
 def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
     # Confirm dotnet works
@@ -308,10 +290,8 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
     runArgs = [dotnet,
             '--info'
             ]
-    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
-    (out, err) = proc.communicate()
+    run_command(runArgs, dotnetEnv)
 
     if not proc.returncode == 0:
         print_error(out, err, 'Failed to get information about the CLI tool.')
@@ -321,10 +301,8 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
     runArgs = [dotnet,
             'restore',
             perfHarnessPath]
-    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
-    (out, err) = proc.communicate()
+    run_command(runArgs, dotnetEnv)
 
     if not proc.returncode == 0:
         print_error(out, err, 'Failed to restore PerfHarness.csproj')
@@ -337,10 +315,8 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
             'Release',
             '-o',
             sandboxDir]
-    log(" ".join(runArgs))
 
-    proc = subprocess.Popen(runArgs, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=dotnetEnv)
-    (out, err) = proc.communicate()
+    run_command(runArgs, dotnetEnv)
 
     if not proc.returncode == 0:
         print_error(out, err, 'Failed to publish PerfHarness.csproj')
@@ -383,8 +359,7 @@ def main(args):
 
     extension = '.exe' if platform == 'Windows_NT' else ''
 
-    myEnv = os.environ
-
+    myEnv = dict(os.environ)
     myEnv['DOTNET_MULTILEVEL_LOOKUP'] = '0'
     myEnv['UseSharedCompilation'] = 'false'
 
@@ -398,7 +373,11 @@ def main(args):
     perfRunLog = set_perf_run_log(sandboxOutputDir)
     build_perfharness(coreclrRepo, sandboxDir, extension, myEnv)
 
-    myEnv = setup_optimization_level(myEnv, optLevel)
+    # Set up environment for running tests
+    if optLevel == 'min_opts':
+        myEnv['COMPlus_JITMinOpts'] = '1'
+    elif optLevel == 'tiered':
+        myEnv['COMPLUS_EXPERIMENTAL_TieredCompilation'] = '1'
 
     if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in myEnv:
         myEnv['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'
