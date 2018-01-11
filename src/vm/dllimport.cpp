@@ -5727,13 +5727,15 @@ public:
 
         DWORD priority;
 
-        LPWSTR dwLastError = nullptr;
-
 #ifdef FEATURE_PAL
-        int nSize = PAL_GetLoadLibraryError(dwLastError, 0);
-        PAL_GetLoadLibraryError(dwLastError, nSize);
-        UpdateHRUnix(dwLastError);
+        LPWSTR lpLastError = nullptr;
+        
+        int nSize = PAL_GetLoadLibraryError(lpLastError, 0);
+        PAL_GetLoadLibraryError(lpLastError, nSize);
+        UpdateHRUnix(lpLastError);
 #else
+        DWORD dwLastError;
+        
         dwLastError = GetLastError();
 
         switch (dwLastError)
