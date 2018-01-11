@@ -825,7 +825,7 @@ namespace System.Text
 
             if (count > value.Length - startIndex)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Index);
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
             if (count > 0)
@@ -843,7 +843,7 @@ namespace System.Text
             int newLength = Length + count;
             if ((uint)newLength > (uint)m_MaxCapacity)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_SmallMaxCapacity);
+                throw new ArgumentOutOfRangeException(nameof(Capacity), SR.ArgumentOutOfRange_Capacity);
             }
 
             while (count > 0)
