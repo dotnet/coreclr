@@ -14,7 +14,8 @@ struct HWIntrinsicInfo
 }
 
 static const hwIntrinsicInfoArray[] = {
-#define HARDWARE_INTRINSIC(id, name, isa) {NI_##id, name, InstructionSet_##isa},
+#define HARDWARE_INTRINSIC(id, name, isa, ins1, ins2, ins3, ins4, ins5, ins6, ival)                                    \
+    {NI_##id, name, InstructionSet_##isa},
 #include "hwintrinsiclistxarch.h"
 };
 

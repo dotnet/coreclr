@@ -16,7 +16,7 @@ enum NamedIntrinsic : unsigned int
     NI_System_Collections_Generic_EqualityComparer_get_Default = 4,
 #if FEATURE_HW_INTRINSICS
     NI_HW_INTRINSIC_START,
-#define HARDWARE_INTRINSIC(id, name, isa) NI_##id,
+#define HARDWARE_INTRINSIC(id, name, isa, ins1, ins2, ins3, ins4, ins5, ins6, ival) NI_##id,
 #include "hwintrinsiclistxarch.h"
     NI_HW_INTRINSIC_END
 #endif
