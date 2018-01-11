@@ -5710,7 +5710,6 @@ EXTERN_C VOID __stdcall PInvokeStackImbalanceWorker(StackImbalanceCookie *pSICoo
 class LoadLibErrorTracker
 {
 private:
-    static const DWORD const_priorityUnix = 0;
     static const DWORD const_priorityNotFound     = 10;
     static const DWORD const_priorityAccessDenied = 20;
     static const DWORD const_priorityCouldNotLoad = 99999;
@@ -5733,7 +5732,7 @@ public:
 #ifdef FEATURE_PAL
         int nSize = PAL_GetLoadLibraryError(dwLastError, 0);
         PAL_GetLoadLibraryError(dwLastError, nSize);
-        UpdateHR(const_priorityUnix, HRESULT_FROM_WIN32(dwLastError));
+        UpdateHRUnix(dwLastError);
 #else
         dwLastError = GetLastError();
 
@@ -5757,15 +5756,14 @@ public:
                 priority = const_priorityCouldNotLoad;
                 break;
         }
-        // Add new field to UpdateHR for new string
-        UpdateHR(priority, HRESULT_FROM_WIN32(dwLastError));
+        UpdateHRWin(priority, HRESULT_FROM_WIN32(dwLastError));
 #endif
     }
 
     // Sets the error code to HRESULT as could not load DLL
     void TrackHR_CouldNotLoad(HRESULT hr)
     {
-        UpdateHR(const_priorityCouldNotLoad, hr);
+        UpdateHRWin(const_priorityCouldNotLoad, hr);
     }
     
     HRESULT GetHR()
@@ -5773,10 +5771,19 @@ public:
         return m_hr;
     }
 
+    LPWSTR GetMessage()
+    {
+        return m_message;
+    }
+
     void DECLSPEC_NORETURN Throw(SString &libraryNameOrPath)
     {
         STANDARD_VM_CONTRACT;
 
+#ifdef FEATURE_PAL
+        SString hrString = (SString) GetMessage();
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
+#else
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
         {
@@ -5785,31 +5792,32 @@ public:
         else
         {
             SString hrString;
-            //Only call GetHRMsg on Win, else use string from HR
             GetHRMsg(theHRESULT, hrString);
             COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
         }
+#endif
 
         __UNREACHABLE();
     }
 
 private:
-    void UpdateHR(DWORD priority, HRESULT hr)
+    void UpdateHRWin(DWORD priority, HRESULT hr)
     {
-#ifdef FEATURE_PAL
-    m_hr    =               hr;
-    m_priorityOfLastError = priority;
-#else
         if (priority > m_priorityOfLastError)
         {
             m_hr                  = hr;
             m_priorityOfLastError = priority;
         }
-#endif
+    }
+
+    void UpdateHRUnix(LPWSTR message)
+    {
+        m_message = message;
     }
 
     HRESULT m_hr;
     DWORD   m_priorityOfLastError;
+    LPWSTR  m_message;
 };  // class LoadLibErrorTracker
 
 //  Local helper function for the LoadLibraryModule function below
@@ -5836,7 +5844,7 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         DWORD dwLastError = GetLastError();
         if (dwLastError != ERROR_INVALID_PARAMETER)
         {
-            pErrorTracker->TrackErrorCode(dwLastError);
+            pErrorTracker->TrackErrorCode();
             return hmod;
         }
     }
