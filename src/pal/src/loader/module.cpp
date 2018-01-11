@@ -872,7 +872,7 @@ PAL_GetLoadLibraryError(
 
     wcscpy_s(lpBuffer, nSize, W(""));
 
-    last_error = dlerror();
+    last_error = (LPWSTR) dlerror();
     error_length = lstrlenW(last_error);
 
     if (error_length >= (INT)nSize)

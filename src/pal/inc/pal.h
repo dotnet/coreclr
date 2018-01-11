@@ -2719,7 +2719,7 @@ LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
 
 PALIMPORT
-BOOL
+DWORD
 PALAPI
 PAL_GetLoadLibraryError(
     OUT LPWSTR lpBuffer,
