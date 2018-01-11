@@ -94,13 +94,12 @@ namespace System.Diagnostics
 
                 try
                 {
-                    stackTrace = Internal.Runtime.Augments.EnvironmentAugments.StackTrace;
+                    stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
                 }
                 catch
                 {
                     stackTrace = "";
                 }
-
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
                 s_ShowAssertDialog(stackTrace, message, detailMessage);
             }
@@ -116,6 +115,18 @@ namespace System.Diagnostics
         public static void Fail(string message, string detailMessage)
         {
             Assert(false, message, detailMessage);
+        }
+
+        public static string PopStackTrace(string stackTrace)
+        {
+            string newStackTrace="";
+            string[] stackTraceSplit = stackTrace.Split(Environment.NewLine);
+            for (int count = 1; count < stackTraceSplit.Length; count++)
+            {
+                newStackTrace += stackTraceSplit[count];
+                newStackTrace += Environment.NewLine;
+            }
+            return newStackTrace;
         }
 
         private static string FormatAssert(string stackTrace, string message, string detailMessage)

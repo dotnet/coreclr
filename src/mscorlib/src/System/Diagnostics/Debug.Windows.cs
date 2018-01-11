@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System;
 
 namespace System.Diagnostics
 {
@@ -18,7 +19,8 @@ namespace System.Diagnostics
                 // Fail in order to avoid anyone catching an exception and masking
                 // an assert failure.
                 var ex = new DebugAssertException(message, detailMessage, stackTrace);
-                Environment.FailFast(ex.Message, ex);
+                throw ex;
+                //Environment.FailFast(ex.Message, ex);
             }
         }
 

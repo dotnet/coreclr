@@ -384,7 +384,7 @@ extern "C" UINT_PTR STDCALL GetCurrentIP()
     return 0;
 }
 
-void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, BOOL isDebugError=FALSE)
 { 
     fprintf(stderr, "Fatal error: %08x\n", exitCode);
     ExitProcess(exitCode);

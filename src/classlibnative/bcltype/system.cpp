@@ -377,7 +377,7 @@ WCHAR g_szFailFastBuffer[256];
 
 // This is the common code for FailFast processing that is wrapped by the two
 // FailFast FCalls below.
-void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode)
+void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, CLR_BOOL isDebugFail)
 {
     CONTRACTL
     {
@@ -502,7 +502,7 @@ FCIMPL1(VOID, SystemNative::FailFast, StringObject* refMessageUNSAFE)
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, NULL, retaddr, COR_E_FAILFAST);
+    GenericFailFast(refMessage, NULL, retaddr, COR_E_FAILFAST, false);
 
     HELPER_METHOD_FRAME_END();
 }
@@ -520,7 +520,7 @@ FCIMPL2(VOID, SystemNative::FailFastWithExitCode, StringObject* refMessageUNSAFE
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, NULL, retaddr, exitCode);
+    GenericFailFast(refMessage, NULL, retaddr, exitCode, false);
 
     HELPER_METHOD_FRAME_END();
 }
@@ -539,7 +539,26 @@ FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAF
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST);
+    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, false);
+
+    HELPER_METHOD_FRAME_END();
+}
+FCIMPLEND
+
+FCIMPL3(VOID, SystemNative::FailFastWithExceptionDebug, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE, CLR_BOOL isDebug)
+{
+    FCALL_CONTRACT;
+
+    STRINGREF refMessage = (STRINGREF)refMessageUNSAFE;
+    EXCEPTIONREF refException = (EXCEPTIONREF)refExceptionUNSAFE;
+
+    HELPER_METHOD_FRAME_BEGIN_2(refMessage, refException);
+
+    // The HelperMethodFrame knows how to get the return address.
+    UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
+    
+    // Call the actual worker to perform failfast
+    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, true);
 
     HELPER_METHOD_FRAME_END();
 }

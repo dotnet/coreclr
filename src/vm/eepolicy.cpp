@@ -1176,18 +1176,27 @@ inline void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, BOOL isDebugFail)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
-        PrintToStdErrA("FailFast: ");
+        //wchar_t DebugAssert[] = L"Debug.Assert";
+        if (isDebugFail)
+        {
+            PrintToStdErrA("Assertion Failed: ");
+        }
+        else 
+        {
+            PrintToStdErrA("FailFast:");
+        }
+        
         PrintToStdErrW((WCHAR*)pszMessage);
         PrintToStdErrA("\n");
 
-        if (pThread)
+        if (pThread && !isDebugFail)
         {
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
@@ -1203,7 +1212,7 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
 // Log an error to the event log if possible, then throw up a dialog box.
 //
 
-void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, BOOL isDebugFail)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -1214,7 +1223,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     // Log FailFast exception to StdErr
     if (exitCode == (UINT)COR_E_FAILFAST)
     {
-        DoLogForFailFastException(pszMessage, pExceptionInfo);
+        DoLogForFailFastException(pszMessage, pExceptionInfo, isDebugFail);
     }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
@@ -1469,7 +1478,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */)
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, BOOL isDebugError = FALSE)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1519,11 +1528,11 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         switch (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime))
         {
         case eRudeExitProcess:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, isDebugError);
 	        SafeExitProcess(exitCode, TRUE);
             break;
         case eDisableRuntime:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, isDebugError);
             DisableRuntime(SCA_ExitProcessWhenShutdownComplete);
             break;
         default:
