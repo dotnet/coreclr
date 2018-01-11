@@ -5710,6 +5710,7 @@ EXTERN_C VOID __stdcall PInvokeStackImbalanceWorker(StackImbalanceCookie *pSICoo
 class LoadLibErrorTracker
 {
 private:
+    static const DWORD const_priorityUnix = 0;
     static const DWORD const_priorityNotFound     = 10;
     static const DWORD const_priorityAccessDenied = 20;
     static const DWORD const_priorityCouldNotLoad = 99999;
@@ -5721,11 +5722,20 @@ public:
         m_priorityOfLastError = 0;
     }
 
-    VOID TrackErrorCode(DWORD dwLastError)
+    VOID TrackErrorCode()
     {
         LIMITED_METHOD_CONTRACT;
 
         DWORD priority;
+
+        LPWSTR dwLastError = nullptr;
+
+#ifdef FEATURE_PAL
+        int nSize = PAL_GetLoadLibraryError(dwLastError, 0);
+        PAL_GetLoadLibraryError(dwLastError, nSize);
+        UpdateHR(const_priorityUnix, HRESULT_FROM_WIN32(dwLastError));
+#else
+        dwLastError = GetLastError();
 
         switch (dwLastError)
         {
@@ -5747,8 +5757,9 @@ public:
                 priority = const_priorityCouldNotLoad;
                 break;
         }
-
+        // Add new field to UpdateHR for new string
         UpdateHR(priority, HRESULT_FROM_WIN32(dwLastError));
+#endif
     }
 
     // Sets the error code to HRESULT as could not load DLL
@@ -5774,6 +5785,7 @@ public:
         else
         {
             SString hrString;
+            //Only call GetHRMsg on Win, else use string from HR
             GetHRMsg(theHRESULT, hrString);
             COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
         }
@@ -5784,11 +5796,16 @@ public:
 private:
     void UpdateHR(DWORD priority, HRESULT hr)
     {
+#ifdef FEATURE_PAL
+    m_hr    =               hr;
+    m_priorityOfLastError = priority;
+#else
         if (priority > m_priorityOfLastError)
         {
             m_hr                  = hr;
             m_priorityOfLastError = priority;
         }
+#endif
     }
 
     HRESULT m_hr;
@@ -5832,7 +5849,7 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         
     if (hmod == NULL)
     {
-        pErrorTracker->TrackErrorCode(GetLastError());
+        pErrorTracker->TrackErrorCode();
     }
     
     return hmod;
@@ -5852,7 +5869,7 @@ static HMODULE LocalLoadLibraryDirectHelper(LPCWSTR name, DWORD flags, LoadLibEr
 
     if (hmod == NULL)
     {
-        pErrorTracker->TrackErrorCode(GetLastError());
+        pErrorTracker->TrackErrorCode();
     }
 
     return hmod;

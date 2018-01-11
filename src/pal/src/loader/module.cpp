@@ -367,8 +367,8 @@ GetProcAddress(
     }
     else
     {
-        TRACE("Symbol %s not found in module %p (named %S), dlerror message is \"%s\"\n",
-              lpProcName, module, MODNAME(module), dlerror());
+        TRACE("Symbol %s not found in module %p (named %S)\n",
+              lpProcName, module, MODNAME(module));
         SetLastError(ERROR_PROC_NOT_FOUND);
     }
 done:
@@ -840,6 +840,58 @@ PAL_GetSymbolModuleBase(void *symbol)
     return retval;
 }
 
+/*++
+    PAL_GetLoadLibraryError
+
+    Wrapper for dlerror() to be used by PAL functions
+
+Parameters:
+    IN nSize - the number of characters to copy to lpBuffer
+    OUT lpBuffer - the buffer to copy dlerror() to
+
+Return value:
+
+If the buffer pointed to by lpBuffer is not large enough, the return
+value is the buffer size required to hold the value string. Otherwise, return 0.
+
+--*/
+PALIMPORT
+DWORD
+PALAPI
+PAL_GetLoadLibraryError(
+    OUT LPWSTR lpBuffer,
+    IN DWORD nSize)
+{
+    DWORD retval = 0;
+    INT error_length;
+    LPWSTR last_error = nullptr;
+    
+    PERF_ENTRY(PAL_GetLoadLibraryError);
+    ENTRY("PAL_GetLoadLibraryError (lpBuffer=%p, nSize=%u)\n",
+          lpBuffer, nSize);
+
+    wcscpy_s(lpBuffer, nSize, W(""));
+
+    last_error = dlerror();
+    error_length = lstrlenW(last_error);
+
+    if (error_length >= (INT)nSize)
+    {
+        TRACE("Buffer too small (%u) to copy last error message (%u).\n", nSize, error_length);
+        SetLastError(ERROR_INSUFFICIENT_BUFFER);
+        retval = error_length + 1;
+        goto done;
+    }
+    
+    wcscpy_s(lpBuffer, nSize, last_error);
+
+done:
+    LOGEXIT("PAL_GetLoadLibraryError returns %d\n", retval);
+    PERF_EXIT(PAL_GetLoadLibraryError);
+    return retval;
+}
+
+
 /* Internal PAL functions *****************************************************/
 
 /*++
@@ -870,7 +922,7 @@ BOOL LOADInitializeModules()
     exe_module.dl_handle = dlopen(nullptr, RTLD_LAZY);
     if (exe_module.dl_handle == nullptr)
     {
-        ERROR("Executable module will be broken : dlopen(nullptr) failed dlerror message is \"%s\" \n", dlerror());
+        ERROR("Executable module will be broken : dlopen(nullptr) failed\n");
         return FALSE;
     }
     exe_module.lib_name = nullptr;
@@ -1107,7 +1159,7 @@ static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain)
     if (module->dl_handle && 0 != dlclose(module->dl_handle))
     {
         /* report dlclose() failure, but proceed anyway. */
-        WARN("dlclose() call failed! error message is \"%s\"\n", dlerror());
+        WARN("dlclose() call failed!\n");
     }
 
     /* release all memory */
@@ -1376,7 +1428,6 @@ static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
     void *dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY);
     if (dl_handle == nullptr)
     {
-        WARN("dlopen() failed; dlerror says '%s'\n", dlerror());
         SetLastError(ERROR_MOD_NOT_FOUND);
     }
     else
@@ -1696,7 +1747,7 @@ MODSTRUCT *LOADGetPalLibrary()
         Dl_info info;
         if (dladdr((PVOID)&LOADGetPalLibrary, &info) == 0)
         {
-            ERROR("LOADGetPalLibrary: dladdr() failed. dlerror message is \"%s\"\n", dlerror());
+            ERROR("LOADGetPalLibrary: dladdr() failed.\n");
             goto exit;
         }
         // Stash a copy of the CoreCLR installation path in a global variable.
