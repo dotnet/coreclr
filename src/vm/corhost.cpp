@@ -108,8 +108,6 @@ typedef DPTR(CONNID)   PTR_CONNID;
 
 // *** ICorRuntimeHost methods ***
 
-extern BOOL g_fWeOwnProcess;
-
 CorHost2::CorHost2()
 {
     LIMITED_METHOD_CONTRACT;
@@ -195,18 +193,7 @@ STDMETHODIMP CorHost2::Start()
             // So, if you want to do that, just make sure you are the first host to load the
             // specific version of CLR in memory AND start it.
             m_fFirstToLoadCLR = TRUE;
-            if (FastInterlockIncrement(&m_RefCount) != 1)
-            {
-            }
-            else
-            {
-                if (g_fWeOwnProcess)
-                {
-                    // Runtime is started by a managed exe.  Bump the ref-count, so that
-                    // matching Start/Stop does not stop runtime.
-                    FastInterlockIncrement(&m_RefCount);
-                }
-            }
+            FastInterlockIncrement(&m_RefCount);
         }
     }
 
@@ -663,10 +650,6 @@ HRESULT CorHost2::_CreateAppDomain(
     if (dwFlags & APPDOMAIN_FORCE_TRIVIAL_WAIT_OPERATIONS)
         pDomain->SetForceTrivialWaitOperations();
 
-        
-#ifdef PROFILING_SUPPORTED
-    EX_TRY
-#endif    
     {
         GCX_COOP();
     
@@ -723,28 +706,6 @@ HRESULT CorHost2::_CreateAppDomain(
 
         m_fAppDomainCreated = TRUE;
     }
-#ifdef PROFILING_SUPPORTED
-    EX_HOOK
-    {
-        // Need the first assembly loaded in to get any data on an app domain.
-        {
-            BEGIN_PIN_PROFILER(CORProfilerTrackAppDomainLoads());
-            GCX_PREEMP();
-            g_profControlBlock.pProfInterface->AppDomainCreationFinished((AppDomainID)(AppDomain*) pDomain, GET_EXCEPTION()->GetHR());
-            END_PIN_PROFILER();
-        }
-    }
-    EX_END_HOOK;
-
-    // Need the first assembly loaded in to get any data on an app domain.
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackAppDomainLoads());
-        GCX_PREEMP();
-        g_profControlBlock.pProfInterface->AppDomainCreationFinished((AppDomainID)(AppDomain*) pDomain, S_OK);
-        END_PIN_PROFILER();
-    }        
-#endif // PROFILING_SUPPORTED
-
     // DoneCreating releases ownership of AppDomain.  After this call, there should be no access to pDomain.
     pDomain.DoneCreating();
 

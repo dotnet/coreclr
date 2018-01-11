@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
+using Internal.Runtime.CompilerServices;
 
 #pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
 
@@ -27,7 +28,7 @@ namespace System
     public readonly ref struct Span<T>
     {
         /// <summary>A byref or a native ptr.</summary>
-        private readonly ByReference<T> _pointer;
+        internal readonly ByReference<T> _pointer;
         /// <summary>The number of elements this Span contains.</summary>
 #if PROJECTN
         [Bound]
@@ -139,7 +140,7 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public ref T DangerousGetPinnableReference()
+        internal ref T DangerousGetPinnableReference()
         {
             return ref _pointer.Value;
         }

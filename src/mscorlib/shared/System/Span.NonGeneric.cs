@@ -5,6 +5,9 @@
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+using Internal.Runtime.CompilerServices;
 
 #if BIT64
 using nuint = System.UInt64;
@@ -19,17 +22,49 @@ namespace System
     /// </summary>
     public static class Span
     {
-        /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
         public static ReadOnlyMemory<char> AsReadOnlyMemory(this string text)
         {
             if (text == null)
-            {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
-            }
 
             return new ReadOnlyMemory<char>(text, 0, text.Length);
+        }
+
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
+        /// <param name="text">The target string.</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;text.Length).
+        /// </exception>
+        public static ReadOnlyMemory<char> AsReadOnlyMemory(this string text, int start)
+        {
+            if (text == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+            if ((uint)start > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new ReadOnlyMemory<char>(text, start, text.Length - start);
+        }
+
+        /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
+        /// <param name="text">The target string.</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null reference (Nothing in Visual Basic).</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified <paramref name="start"/> index or <paramref name="length"/> is not in range.
+        /// </exception>
+        public static ReadOnlyMemory<char> AsReadOnlyMemory(this string text, int start, int length)
+        {
+            if (text == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+            if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new ReadOnlyMemory<char>(text, start, length);
         }
 
         /// <summary>Attempts to get the underlying <see cref="string"/> from a <see cref="ReadOnlyMemory{T}"/>.</summary>
@@ -72,7 +107,7 @@ namespace System
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
             return new Span<byte>(
-                ref Unsafe.As<T, byte>(ref source.DangerousGetPinnableReference()),
+                ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(source)),
                 checked(source.Length * Unsafe.SizeOf<T>()));
         }
 
@@ -92,7 +127,7 @@ namespace System
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
             return new ReadOnlySpan<byte>(
-                ref Unsafe.As<T, byte>(ref source.DangerousGetPinnableReference()),
+                ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(source)),
                 checked(source.Length * Unsafe.SizeOf<T>()));
         }
 
@@ -144,7 +179,7 @@ namespace System
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TTo));
 
             return new ReadOnlySpan<TTo>(
-                ref Unsafe.As<TFrom, TTo>(ref source.DangerousGetPinnableReference()),
+                ref Unsafe.As<TFrom, TTo>(ref MemoryMarshal.GetReference(source)),
                 checked((int)((long)source.Length * Unsafe.SizeOf<TFrom>() / Unsafe.SizeOf<TTo>())));
         }
 
@@ -161,6 +196,50 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
 
             return new ReadOnlySpan<char>(ref text.GetRawStringData(), text.Length);
+        }
+
+        /// <summary>
+        /// Creates a new readonly span over the portion of the target string.
+        /// </summary>
+        /// <param name="text">The target string.</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null
+        /// reference (Nothing in Visual Basic).
+        /// </exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;text.Length).
+        /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsReadOnlySpan(this string text, int start)
+        {
+            if (text == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+            if ((uint)start > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new ReadOnlySpan<char>(ref Unsafe.Add(ref text.GetRawStringData(), start), text.Length - start);
+        }
+
+        /// <summary>
+        /// Creates a new readonly span over the portion of the target string.
+        /// </summary>
+        /// <param name="text">The target string.</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null
+        /// reference (Nothing in Visual Basic).
+        /// </exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified <paramref name="start"/> index or <paramref name="length"/> is not in range.
+        /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsReadOnlySpan(this string text, int start, int length)
+        {
+            if (text == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
+
+            if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            return new ReadOnlySpan<char>(ref Unsafe.Add(ref text.GetRawStringData(), start), length);
         }
 
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)

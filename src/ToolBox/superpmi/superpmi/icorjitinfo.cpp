@@ -436,6 +436,20 @@ const char* MyICJI::getClassName(CORINFO_CLASS_HANDLE cls)
     return result;
 }
 
+const char* MyICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    jitInstance->mc->cr->AddCall("getClassNameFromMetadata");
+    const char* result = jitInstance->mc->repGetClassNameFromMetadata(cls, namespaceName);
+    return result;
+}
+
+CORINFO_CLASS_HANDLE MyICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    jitInstance->mc->cr->AddCall("getTypeInstantiationArgument");
+    CORINFO_CLASS_HANDLE result = jitInstance->mc->repGetTypeInstantiationArgument(cls, index);
+    return result;
+}
+
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
 // If fNamespace=TRUE, include the namespace/enclosing classes
 // If fFullInst=TRUE (regardless of fNamespace and fAssembly), include namespace and assembly for any type parameters
@@ -747,6 +761,14 @@ CorInfoType MyICJI::getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE cls)
 {
     jitInstance->mc->cr->AddCall("getTypeForPrimitiveValueClass");
     return jitInstance->mc->repGetTypeForPrimitiveValueClass(cls);
+}
+
+// "System.Int32" ==> CORINFO_TYPE_INT..
+// "System.UInt32" ==> CORINFO_TYPE_UINT..
+CorInfoType MyICJI::getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    jitInstance->mc->cr->AddCall("getTypeForPrimitiveNumericClass");
+    return jitInstance->mc->repGetTypeForPrimitiveNumericClass(cls);
 }
 
 // TRUE if child is a subtype of parent

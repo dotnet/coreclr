@@ -343,7 +343,7 @@ if (isPR()) {
 }*/
 
 stage ('Build Product') {
-    parallel innerLoopBuilds + outerLoopBuilds //+ baselineBuilds
+    parallel innerLoopBuilds //+ outerLoopBuilds //+ baselineBuilds
 }
 
 // Pipeline builds don't allow outside scripts (ie ArrayList.Add) if running from a script from SCM, so manually list these for now.
@@ -375,15 +375,17 @@ def innerLoopTests = [:]
 def outerLoopTests = [:]
 
 if (!isPR()) {
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
-        simpleNode('windows_server_2016_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, false, '')
+    ['x64', 'x86'].each { arch ->
+        outerLoopTests["windows ${arch} ryujit full_opt pgo jitbench"] = {
+            simpleNode('windows_server_2016_clr_perf', 180) {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, false, '')
+            }
         }
-    }
 
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
-        simpleNode('Windows_NT', '20170427-elevated') {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, false, '')
+        outerLoopTests["windows ${arch} ryujit full_opt pgo illink"] = {
+            simpleNode('Windows_NT', '20170427-elevated') {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, false, '')
+            }
         }
     }
 
@@ -429,5 +431,5 @@ if (!isPR()) {
 }
 
 stage ('Run testing') {
-    parallel innerLoopTests + outerLoopTests
+    parallel innerLoopTests //+ outerLoopTests
 }

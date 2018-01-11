@@ -62,6 +62,15 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Ceiling(Vector128<double> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
+        /// __m128d _mm_ceil_sd (__m128d a)
+        /// </summary>
+        public static Vector128<double> CeilingScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128 _mm_ceil_ss (__m128 a)
+        /// </summary>
+        public static Vector128<float> CeilingScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
         /// __m128i _mm_cmpeq_epi64 (__m128i a, __m128i b)
         /// </summary>
         public static Vector128<long> CompareEqual(Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
@@ -73,51 +82,51 @@ namespace System.Runtime.Intrinsics.X86
         /// <summary>
         /// __m128i _mm_cvtepi8_epi16 (__m128i a)
         /// </summary>
-        public static Vector128<short> ConvertToShort(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<short> ConvertToVector128Int16(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu8_epi16 (__m128i a)
         /// </summary>
-        public static Vector128<short> ConvertToShort(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<short> ConvertToVector128Int16(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepi8_epi32 (__m128i a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ConvertToVector128Int32(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu8_epi32 (__m128i a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ConvertToVector128Int32(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepi16_epi32 (__m128i a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ConvertToVector128Int32(Vector128<short> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu16_epi32 (__m128i a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ConvertToVector128Int32(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepi8_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu8_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepi16_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<short> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu16_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepi32_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<int> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<int> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_cvtepu32_epi64 (__m128i a)
         /// </summary>
-        public static Vector128<long> ConvertToLong(Vector128<uint> value) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ConvertToVector128Int64(Vector128<uint> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128 _mm_dp_ps (__m128 a, __m128 b, const int imm8)
@@ -131,37 +140,32 @@ namespace System.Runtime.Intrinsics.X86
         /// <summary>
         /// int _mm_extract_epi8 (__m128i a, const int imm8)
         /// </summary>
-        public static sbyte ExtractSbyte<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static sbyte Extract(Vector128<sbyte> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// int _mm_extract_epi8 (__m128i a, const int imm8)
         /// </summary>
-        public static byte ExtractByte<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static byte Extract(Vector128<byte> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// int _mm_extract_epi32 (__m128i a, const int imm8)
         /// </summary>
-        public static int ExtractInt<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static int Extract(Vector128<int> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// int _mm_extract_epi32 (__m128i a, const int imm8)
         /// </summary>
-        public static uint ExtractUint<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static uint Extract(Vector128<uint> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __int64 _mm_extract_epi64 (__m128i a, const int imm8)
         /// </summary>
-        public static long ExtractLong<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static long Extract(Vector128<long> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __int64 _mm_extract_epi64 (__m128i a, const int imm8)
         /// </summary>
-        public static ulong ExtractUlong<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static ulong Extract(Vector128<ulong> value, byte index) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int _mm_extract_ps (__m128 a, const int imm8)
         /// </summary>
-        public static float ExtractFloat<T>(Vector128<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static float Extract(Vector128<float> value, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128 _mm_floor_ps (__m128 a)
         /// </summary>
@@ -172,39 +176,42 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Floor(Vector128<double> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
-        /// __m128i _mm_insert_epi8 (__m128i a, int i, const int imm8)
+        /// __m128d _mm_floor_sd (__m128d a)
         /// </summary>
-        public static Vector128<T> InsertSbyte<T>(Vector128<T> value, sbyte data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> FloorScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128 _mm_floor_ss (__m128 a)
+        /// </summary>
+        public static Vector128<float> FloorScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm_insert_epi8 (__m128i a, int i, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertByte<T>(Vector128<T> value, byte data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static Vector128<sbyte> Insert(Vector128<sbyte> value, sbyte data, byte index) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_insert_epi8 (__m128i a, int i, const int imm8)
+        /// </summary>
+        public static Vector128<byte> Insert(Vector128<byte> value, byte data, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_insert_epi32 (__m128i a, int i, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertInt<T>(Vector128<T> value, int data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static Vector128<int> Insert(Vector128<int> value, int data, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_insert_epi32 (__m128i a, int i, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertUint<T>(Vector128<T> value, uint data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static Vector128<uint> Insert(Vector128<uint> value, uint data, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_insert_epi64 (__m128i a, __int64 i, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertLong<T>(Vector128<T> value, long data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static Vector128<long> Insert(Vector128<long> value, long data, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_insert_epi64 (__m128i a, __int64 i, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertUlong<T>(Vector128<T> value, ulong data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-
+        public static Vector128<ulong> Insert(Vector128<ulong> value, ulong data, byte index) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128 _mm_insert_ps (__m128 a, __m128 b, const int imm8)
         /// </summary>
-        public static Vector128<T> InsertFloat<T>(Vector128<T> value, float data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> Insert(Vector128<float> value, float data, byte index) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm_max_epi8 (__m128i a, __m128i b)
@@ -310,6 +317,50 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> RoundCurrentDirection(Vector128<double> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
+        /// _MM_FROUND_CUR_DIRECTION
+        /// </summary>
+        public static Vector128<double> RoundCurrentDirectionScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128d _mm_round_sd (__m128d a, int rounding)
+        /// _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<double> RoundToNearestIntegerScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_NEG_INF |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<double> RoundToNegativeInfinityScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_POS_INF |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<double> RoundToPositiveInfinityScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_ZERO |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<double> RoundToZeroScalar(Vector128<double> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// _MM_FROUND_CUR_DIRECTION
+        /// </summary>
+        public static Vector128<float> RoundCurrentDirectionScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128 _mm_round_ss (__m128 a, int rounding)
+        /// _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<float> RoundToNearestIntegerScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_NEG_INF |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<float> RoundToNegativeInfinityScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_POS_INF |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<float> RoundToPositiveInfinityScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _MM_FROUND_TO_ZERO |_MM_FROUND_NO_EXC
+        /// </summary>
+        public static Vector128<float> RoundToZeroScalar(Vector128<float> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
         /// __m128i _mm_stream_load_si128 (const __m128i* mem_addr)
         /// </summary>
         public static unsafe Vector128<sbyte> LoadAlignedNonTemporal(sbyte* address) { throw new PlatformNotSupportedException(); }
@@ -365,7 +416,7 @@ namespace System.Runtime.Intrinsics.X86
         public static bool TestAllZeros(Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
         public static bool TestAllZeros(Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
         public static bool TestAllZeros(Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
-        
+
         /// <summary>
         /// int _mm_testc_si128 (__m128i a, __m128i b)
         /// </summary>
@@ -389,7 +440,7 @@ namespace System.Runtime.Intrinsics.X86
         public static bool TestMixOnesZeros(Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
         public static bool TestMixOnesZeros(Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
         public static bool TestMixOnesZeros(Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
-        
+
         /// <summary>
         /// int _mm_testnzc_si128 (__m128i a, __m128i b)
         /// </summary>

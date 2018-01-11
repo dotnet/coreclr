@@ -538,7 +538,6 @@ inline bool genTypeCanRepresentValue(var_types type, TValue value)
         case TYP_BYTE:
             return FitsIn<INT8>(value);
         case TYP_USHORT:
-        case TYP_CHAR:
             return FitsIn<UINT16>(value);
         case TYP_SHORT:
             return FitsIn<INT16>(value);
@@ -552,7 +551,6 @@ inline bool genTypeCanRepresentValue(var_types type, TValue value)
             return FitsIn<INT64>(value);
         case TYP_REF:
         case TYP_BYREF:
-        case TYP_ARRAY:
             return FitsIn<UINT_PTR>(value);
         default:
             return false;
@@ -569,7 +567,7 @@ extern const BYTE genTypeSizes[TYP_COUNT];
 template <class T>
 inline unsigned genTypeSize(T type)
 {
-    assert((unsigned)TypeGet(type) < sizeof(genTypeSizes) / sizeof(genTypeSizes[0]));
+    assert((unsigned)TypeGet(type) < _countof(genTypeSizes));
 
     return genTypeSizes[TypeGet(type)];
 }
@@ -584,7 +582,7 @@ extern const BYTE genTypeStSzs[TYP_COUNT];
 
 inline unsigned genTypeStSz(var_types type)
 {
-    assert((unsigned)type < sizeof(genTypeStSzs) / sizeof(genTypeStSzs[0]));
+    assert((unsigned)type < _countof(genTypeStSzs));
 
     return genTypeStSzs[type];
 }
@@ -607,7 +605,6 @@ inline var_types genActualType(var_types type)
     /* Spot check to make certain the table is in synch with the enum */
 
     assert(genActualTypes[TYP_DOUBLE] == TYP_DOUBLE);
-    assert(genActualTypes[TYP_FNC] == TYP_FNC);
     assert(genActualTypes[TYP_REF] == TYP_REF);
 
     assert((unsigned)type < sizeof(genActualTypes));
@@ -626,7 +623,7 @@ inline var_types genUnsignedType(var_types type)
             type = TYP_UBYTE;
             break;
         case TYP_SHORT:
-            type = TYP_CHAR;
+            type = TYP_USHORT;
             break;
         case TYP_INT:
             type = TYP_UINT;
@@ -2132,7 +2129,7 @@ inline void LclVarDsc::addPrefReg(regMaskTP regMask, Compiler* comp)
 
 #ifdef _TARGET_ARM_
     // Don't set a preferred register for a TYP_STRUCT that takes more than one register slot
-    if ((lvType == TYP_STRUCT) && (lvSize() > sizeof(void*)))
+    if ((lvType == TYP_STRUCT) && (lvSize() > REGSIZE_BYTES))
         return;
 #endif
 
@@ -3034,6 +3031,8 @@ inline bool Compiler::fgIsThrowHlpBlk(BasicBlock* block)
     return false;
 }
 
+#if !FEATURE_FIXED_OUT_ARGS
+
 /*****************************************************************************
  *
  *  Return the stackLevel of the inserted block that throws exception
@@ -3066,6 +3065,8 @@ inline unsigned Compiler::fgThrowHlpBlkStkLevel(BasicBlock* block)
 
     return 0;
 }
+
+#endif // !FEATURE_FIXED_OUT_ARGS
 
 /*
     Small inline function to change a given block to a throw block.

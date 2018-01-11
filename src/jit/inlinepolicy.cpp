@@ -104,6 +104,27 @@ void LegalPolicy::NoteFatal(InlineObservation obs)
     assert(InlDecisionIsFailure(m_Decision));
 }
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+
+//------------------------------------------------------------------------
+// NotePriorFailure: record reason for earlier inline failure
+//
+// Arguments:
+//    obs      - the current obsevation
+//
+// Notes:
+//    Used to "resurrect" failure observations from the early inline
+//    screen when building the inline context tree. Only used during
+//    debug modes.
+
+void LegalPolicy::NotePriorFailure(InlineObservation obs)
+{
+    NoteInternal(obs);
+    assert(InlDecisionIsFailure(m_Decision));
+}
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 //------------------------------------------------------------------------
 // NoteInternal: helper for handling an observation
 //
@@ -463,7 +484,8 @@ void DefaultPolicy::NoteInt(InlineObservation obs, int value)
 
             unsigned basicBlockCount = static_cast<unsigned>(value);
 
-            if (m_IsNoReturn && (basicBlockCount == 1))
+            // CALLEE_IS_FORCE_INLINE overrides CALLEE_DOES_NOT_RETURN
+            if (!m_IsForceInline && m_IsNoReturn && (basicBlockCount == 1))
             {
                 SetNever(InlineObservation::CALLEE_DOES_NOT_RETURN);
             }
@@ -758,10 +780,8 @@ int DefaultPolicy::DetermineCallsiteNativeSizeEstimate(CORINFO_METHOD_INFO* meth
 
             callsiteSize += 10; // "lea     EAX, bword ptr [EBP-14H]"
 
-            // NB sizeof (void*) fails to convey intent when cross-jitting.
-
-            unsigned opsz  = (unsigned)(roundUp(comp->getClassSize(verType.GetClassHandle()), sizeof(void*)));
-            unsigned slots = opsz / sizeof(void*);
+            unsigned opsz  = (unsigned)(roundUp(comp->getClassSize(verType.GetClassHandle()), TARGET_POINTER_SIZE));
+            unsigned slots = opsz / TARGET_POINTER_SIZE;
 
             callsiteSize += slots * 20; // "push    gword ptr [EAX+offs]  "
         }
@@ -1578,7 +1598,7 @@ void DiscretionaryPolicy::MethodInfoObservations(CORINFO_METHOD_INFO* methodInfo
     const unsigned    argCount = args.numArgs;
     m_ArgCount                 = argCount;
 
-    const unsigned pointerSize = sizeof(void*);
+    const unsigned pointerSize = TARGET_POINTER_SIZE;
     unsigned       i           = 0;
 
     // Implicit arguments

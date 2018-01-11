@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* b6af83a1-ca48-46c6-b7b0-5d7d6a79a5c5 */
-    0xb6af83a1,
-    0xca48,
-    0x46c6,
-    {0xb7, 0xb0, 0x5d, 0x7d, 0x6a, 0x79, 0xa5, 0xc5}
+SELECTANY const GUID JITEEVersionIdentifier = { /* e042cffc-cf03-4315-96b9-5fd01dc15923 */
+    0xe042cffc,
+    0xcf03,
+    0x4315,
+    {0x96, 0xb9, 0x5f, 0xd0, 0x1d, 0xc1, 0x59, 0x23}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -809,7 +809,7 @@ enum CorInfoFlag
     CORINFO_FLG_VIRTUAL               = 0x00000040,
 //  CORINFO_FLG_UNUSED                = 0x00000080,
     CORINFO_FLG_NATIVE                = 0x00000100,
-//  CORINFO_FLG_UNUSED                = 0x00000200,
+    CORINFO_FLG_INTRINSIC_TYPE        = 0x00000200, // This type is marked by [Intrinsic]
     CORINFO_FLG_ABSTRACT              = 0x00000400,
 
     CORINFO_FLG_EnC                   = 0x00000800, // member was added by Edit'n'Continue
@@ -915,6 +915,7 @@ enum CorInfoIntrinsics
 {
     CORINFO_INTRINSIC_Sin,
     CORINFO_INTRINSIC_Cos,
+    CORINFO_INTRINSIC_Cbrt,
     CORINFO_INTRINSIC_Sqrt,
     CORINFO_INTRINSIC_Abs,
     CORINFO_INTRINSIC_Round,
@@ -923,9 +924,12 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_Tan,
     CORINFO_INTRINSIC_Tanh,
     CORINFO_INTRINSIC_Asin,
+    CORINFO_INTRINSIC_Asinh,
     CORINFO_INTRINSIC_Acos,
+    CORINFO_INTRINSIC_Acosh,
     CORINFO_INTRINSIC_Atan,
     CORINFO_INTRINSIC_Atan2,
+    CORINFO_INTRINSIC_Atanh,
     CORINFO_INTRINSIC_Log10,
     CORINFO_INTRINSIC_Pow,
     CORINFO_INTRINSIC_Exp,
@@ -2281,6 +2285,21 @@ public:
             CORINFO_CLASS_HANDLE    cls
             ) = 0;
 
+    // Return class name as in metadata, or nullptr if there is none.
+    // Suitable for non-debugging use.
+    virtual const char* getClassNameFromMetadata (
+            CORINFO_CLASS_HANDLE    cls,
+            const char            **namespaceName   /* OUT */
+            ) = 0;
+
+    // Return the type argument of the instantiated generic class,
+    // which is specified by the index
+    virtual CORINFO_CLASS_HANDLE getTypeInstantiationArgument(
+            CORINFO_CLASS_HANDLE cls, 
+            unsigned             index
+            ) = 0;
+    
+
     // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
     // If fNamespace=TRUE, include the namespace/enclosing classes
     // If fFullInst=TRUE (regardless of fNamespace and fAssembly), include namespace and assembly for any type parameters
@@ -2490,6 +2509,12 @@ public:
 
     // "System.Int32" ==> CORINFO_TYPE_INT..
     virtual CorInfoType getTypeForPrimitiveValueClass(
+            CORINFO_CLASS_HANDLE        cls
+            ) = 0;
+
+    // "System.Int32" ==> CORINFO_TYPE_INT..
+    // "System.UInt32" ==> CORINFO_TYPE_UINT..
+    virtual CorInfoType getTypeForPrimitiveNumericClass(
             CORINFO_CLASS_HANDLE        cls
             ) = 0;
 

@@ -75,27 +75,106 @@ bool emitter::IsAVXInstruction(instruction ins)
 // to indicate whether a 3-operand instruction.
 bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
 {
-    return IsAVXInstruction(ins) &&
-           (ins == INS_cvtsi2ss || ins == INS_cvtsi2sd || ins == INS_addss || ins == INS_addsd || ins == INS_subss ||
-            ins == INS_subsd || ins == INS_mulss || ins == INS_mulsd || ins == INS_divss || ins == INS_divsd ||
-            ins == INS_addps || ins == INS_addpd || ins == INS_subps || ins == INS_subpd || ins == INS_mulps ||
-            ins == INS_mulpd || ins == INS_cmpps || ins == INS_cmppd || ins == INS_andps || ins == INS_andpd ||
-            ins == INS_orps || ins == INS_orpd || ins == INS_xorps || ins == INS_xorpd || ins == INS_dpps ||
-            ins == INS_dppd || ins == INS_haddpd || ins == INS_por || ins == INS_pand || ins == INS_pandn ||
-            ins == INS_pcmpeqd || ins == INS_pcmpgtd || ins == INS_pcmpeqw || ins == INS_pcmpgtw ||
-            ins == INS_pcmpeqb || ins == INS_pcmpgtb || ins == INS_pcmpeqq || ins == INS_pcmpgtq || ins == INS_pmulld ||
-            ins == INS_pmullw || ins == INS_shufps || ins == INS_shufpd || ins == INS_minps || ins == INS_minss ||
-            ins == INS_minpd || ins == INS_minsd || ins == INS_divps || ins == INS_divpd || ins == INS_maxps ||
-            ins == INS_maxpd || ins == INS_maxss || ins == INS_maxsd || ins == INS_andnps || ins == INS_andnpd ||
-            ins == INS_paddb || ins == INS_paddw || ins == INS_paddd || ins == INS_paddq || ins == INS_psubb ||
-            ins == INS_psubw || ins == INS_psubd || ins == INS_psubq || ins == INS_pmuludq || ins == INS_pxor ||
-            ins == INS_insertps || ins == INS_vinsertf128 || ins == INS_punpckldq || ins == INS_phaddd ||
-            ins == INS_pminub || ins == INS_pminsw || ins == INS_pminsb || ins == INS_pminsd || ins == INS_pminuw ||
-            ins == INS_pminud || ins == INS_pmaxub || ins == INS_pmaxsw || ins == INS_pmaxsb || ins == INS_pmaxsd ||
-            ins == INS_pmaxuw || ins == INS_pmaxud || ins == INS_vinserti128 || ins == INS_punpckhbw ||
-            ins == INS_punpcklbw || ins == INS_punpckhqdq || ins == INS_punpcklqdq || ins == INS_punpckhwd ||
-            ins == INS_punpcklwd || ins == INS_punpckhdq || ins == INS_packssdw || ins == INS_packsswb ||
-            ins == INS_packuswb || ins == INS_packusdw || ins == INS_vperm2i128);
+    switch (ins)
+    {
+        case INS_addpd:
+        case INS_addps:
+        case INS_addsd:
+        case INS_addss:
+        case INS_andnpd:
+        case INS_andnps:
+        case INS_andpd:
+        case INS_andps:
+        case INS_cmppd:
+        case INS_cmpps:
+        case INS_cvtsi2sd:
+        case INS_cvtsi2ss:
+        case INS_divpd:
+        case INS_divps:
+        case INS_divsd:
+        case INS_divss:
+        case INS_dppd:
+        case INS_dpps:
+        case INS_haddpd:
+        case INS_insertps:
+        case INS_maxpd:
+        case INS_maxps:
+        case INS_maxsd:
+        case INS_maxss:
+        case INS_minpd:
+        case INS_minps:
+        case INS_minsd:
+        case INS_minss:
+        case INS_movlhps:
+        case INS_mulpd:
+        case INS_mulps:
+        case INS_mulsd:
+        case INS_mulss:
+        case INS_orpd:
+        case INS_orps:
+        case INS_packssdw:
+        case INS_packsswb:
+        case INS_packusdw:
+        case INS_packuswb:
+        case INS_paddb:
+        case INS_paddd:
+        case INS_paddq:
+        case INS_paddw:
+        case INS_pand:
+        case INS_pandn:
+        case INS_pcmpeqb:
+        case INS_pcmpeqd:
+        case INS_pcmpeqq:
+        case INS_pcmpeqw:
+        case INS_pcmpgtb:
+        case INS_pcmpgtd:
+        case INS_pcmpgtq:
+        case INS_pcmpgtw:
+        case INS_phaddd:
+        case INS_pmaxsb:
+        case INS_pmaxsd:
+        case INS_pmaxsw:
+        case INS_pmaxub:
+        case INS_pmaxud:
+        case INS_pmaxuw:
+        case INS_pminsb:
+        case INS_pminsd:
+        case INS_pminsw:
+        case INS_pminub:
+        case INS_pminud:
+        case INS_pminuw:
+        case INS_pmulld:
+        case INS_pmullw:
+        case INS_pmuludq:
+        case INS_por:
+        case INS_psubb:
+        case INS_psubd:
+        case INS_psubq:
+        case INS_psubw:
+        case INS_punpckhbw:
+        case INS_punpckhdq:
+        case INS_punpckhqdq:
+        case INS_punpckhwd:
+        case INS_punpcklbw:
+        case INS_punpckldq:
+        case INS_punpcklqdq:
+        case INS_punpcklwd:
+        case INS_pxor:
+        case INS_shufpd:
+        case INS_shufps:
+        case INS_subpd:
+        case INS_subps:
+        case INS_subsd:
+        case INS_subss:
+        case INS_vinsertf128:
+        case INS_vinserti128:
+        case INS_vperm2i128:
+        case INS_xorpd:
+        case INS_xorps:
+            return IsAVXInstruction(ins);
+        default:
+            return false;
+    }
 }
 
 // Returns true if the AVX instruction requires 3 operands that duplicate the source
@@ -105,9 +184,21 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
 // to indicate whether a 3-operand instruction.
 bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
 {
-    return IsAVXInstruction(ins) &&
-           (ins == INS_movlpd || ins == INS_movlps || ins == INS_movhpd || ins == INS_movhps || ins == INS_movss ||
-            ins == INS_movlhps || ins == INS_sqrtss || ins == INS_sqrtsd || ins == INS_cvtss2sd || ins == INS_cvtsd2ss);
+    switch (ins)
+    {
+        case INS_cvtsd2ss:
+        case INS_cvtss2sd:
+        case INS_movhpd:
+        case INS_movhps:
+        case INS_movlpd:
+        case INS_movlps:
+        case INS_movss:
+        case INS_sqrtsd:
+        case INS_sqrtss:
+            return IsAVXInstruction(ins);
+        default:
+            return false;
+    }
 }
 
 // ------------------------------------------------------------------------------
@@ -823,7 +914,7 @@ const BYTE          emitter::emitInsModeFmtTab[] =
 // clang-format on
 
 #ifdef DEBUG
-unsigned const emitter::emitInsModeFmtCnt = sizeof(emitInsModeFmtTab) / sizeof(emitInsModeFmtTab[0]);
+unsigned const emitter::emitInsModeFmtCnt = _countof(emitInsModeFmtTab);
 #endif
 
 /*****************************************************************************
@@ -938,7 +1029,7 @@ inline size_t insCode(instruction ins)
     };
     // clang-format on
 
-    assert((unsigned)ins < sizeof(insCodes) / sizeof(insCodes[0]));
+    assert((unsigned)ins < _countof(insCodes));
     assert((insCodes[ins] != BAD_CODE));
 
     return insCodes[ins];
@@ -971,7 +1062,7 @@ inline size_t insCodeACC(instruction ins)
     };
     // clang-format on
 
-    assert((unsigned)ins < sizeof(insCodesACC) / sizeof(insCodesACC[0]));
+    assert((unsigned)ins < _countof(insCodesACC));
     assert((insCodesACC[ins] != BAD_CODE));
 
     return insCodesACC[ins];
@@ -1004,7 +1095,7 @@ inline size_t insCodeRR(instruction ins)
     };
     // clang-format on
 
-    assert((unsigned)ins < sizeof(insCodesRR) / sizeof(insCodesRR[0]));
+    assert((unsigned)ins < _countof(insCodesRR));
     assert((insCodesRR[ins] != BAD_CODE));
 
     return insCodesRR[ins];
@@ -1033,7 +1124,7 @@ size_t          insCodesRM[] =
 // Returns true iff the give CPU instruction has an RM encoding.
 inline bool hasCodeRM(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesRM) / sizeof(insCodesRM[0]));
+    assert((unsigned)ins < _countof(insCodesRM));
     return ((insCodesRM[ins] != BAD_CODE));
 }
 
@@ -1044,7 +1135,7 @@ inline bool hasCodeRM(instruction ins)
 
 inline size_t insCodeRM(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesRM) / sizeof(insCodesRM[0]));
+    assert((unsigned)ins < _countof(insCodesRM));
     assert((insCodesRM[ins] != BAD_CODE));
 
     return insCodesRM[ins];
@@ -1073,7 +1164,7 @@ size_t          insCodesMI[] =
 // Returns true iff the give CPU instruction has an MI encoding.
 inline bool hasCodeMI(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesMI) / sizeof(insCodesMI[0]));
+    assert((unsigned)ins < _countof(insCodesMI));
     return ((insCodesMI[ins] != BAD_CODE));
 }
 
@@ -1084,7 +1175,7 @@ inline bool hasCodeMI(instruction ins)
 
 inline size_t insCodeMI(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesMI) / sizeof(insCodesMI[0]));
+    assert((unsigned)ins < _countof(insCodesMI));
     assert((insCodesMI[ins] != BAD_CODE));
 
     return insCodesMI[ins];
@@ -1113,7 +1204,7 @@ size_t          insCodesMR[] =
 // Returns true iff the give CPU instruction has an MR encoding.
 inline bool hasCodeMR(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesMR) / sizeof(insCodesMR[0]));
+    assert((unsigned)ins < _countof(insCodesMR));
     return ((insCodesMR[ins] != BAD_CODE));
 }
 
@@ -1124,7 +1215,7 @@ inline bool hasCodeMR(instruction ins)
 
 inline size_t insCodeMR(instruction ins)
 {
-    assert((unsigned)ins < sizeof(insCodesMR) / sizeof(insCodesMR[0]));
+    assert((unsigned)ins < _countof(insCodesMR));
     assert((insCodesMR[ins] != BAD_CODE));
 
     return insCodesMR[ins];
@@ -3679,7 +3770,7 @@ void emitter::emitIns_C(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fld
     if (EA_IS_OFFSET(attr))
     {
         assert(ins == INS_push);
-        sz = 1 + sizeof(void*);
+        sz = 1 + TARGET_POINTER_SIZE;
 
         id = emitNewInstrDsp(EA_1BYTE, offs);
         id->idIns(ins);
@@ -3888,7 +3979,7 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         assert(ins == INS_mov && reg == REG_EAX);
 
         // Special case: "mov eax, [addr]" is smaller
-        sz = 1 + sizeof(void*);
+        sz = 1 + TARGET_POINTER_SIZE;
     }
     else
     {
@@ -3905,7 +3996,7 @@ void emitter::emitIns_R_C(instruction ins, emitAttr attr, regNumber reg, CORINFO
         // instruction.
         if (ins == INS_mov && reg == REG_EAX)
         {
-            sz = 1 + sizeof(void*);
+            sz = 1 + TARGET_POINTER_SIZE;
             if (size == EA_2BYTE)
                 sz += 1;
         }
@@ -3979,7 +4070,7 @@ void emitter::emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE f
     // the instruction.
     if (ins == INS_mov && reg == REG_EAX)
     {
-        sz = 1 + sizeof(void*);
+        sz = 1 + TARGET_POINTER_SIZE;
         if (size == EA_2BYTE)
             sz += 1;
     }
@@ -4796,6 +4887,24 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
     emitAdjustStackDepthPushPop(ins);
 }
 
+#if FEATURE_HW_INTRINSICS
+void emitter::emitIns_SIMD_R_R_R(instruction ins, regNumber reg, regNumber reg1, regNumber reg2, var_types simdtype)
+{
+    if (UseVEXEncoding() && reg1 != reg)
+    {
+        emitIns_R_R_R(ins, emitTypeSize(simdtype), reg, reg1, reg2);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, emitTypeSize(simdtype), reg, reg1);
+        }
+        emitIns_R_R(ins, emitTypeSize(simdtype), reg, reg2);
+    }
+}
+#endif
+
 /*****************************************************************************
  *
  *  The following add instructions referencing stack-based local variables.
@@ -5273,7 +5382,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
         //
         //
         //
-        if ((sizeof(void*) + // return address for call
+        if ((TARGET_POINTER_SIZE + // return address for call
              emitComp->genStackLevel +
              // Current stack level. This gets resetted on every
              // localloc and on the prolog (invariant is that
@@ -5283,7 +5392,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
              // we've consumed more than JIT_RESERVED_STACK bytes
              // of stack, which is what the prolog probe covers (in
              // addition to the EE requested size)
-             (emitComp->compHndBBtabCount * sizeof(void*))
+             (emitComp->compHndBBtabCount * TARGET_POINTER_SIZE)
              // Hidden slots for calling finallys
              ) >= JIT_RESERVED_STACK)
         {
@@ -5382,8 +5491,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % sizeof(void*) == 0);
-    argCnt = (int)(argSize / (ssize_t)sizeof(void*)); // we need a signed-divide
+    assert(argSize % REGSIZE_BYTES == 0);
+    argCnt = (int)(argSize / (int)REGSIZE_BYTES); // we need a signed-divide
 
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
@@ -5964,7 +6073,7 @@ const char* emitter::emitXMMregName(unsigned reg)
     };
 
     assert(reg < REG_COUNT);
-    assert(reg < sizeof(regNames) / sizeof(regNames[0]));
+    assert(reg < _countof(regNames));
 
     return regNames[reg];
 }
@@ -5986,7 +6095,7 @@ const char* emitter::emitYMMregName(unsigned reg)
     };
 
     assert(reg < REG_COUNT);
-    assert(reg < sizeof(regNames) / sizeof(regNames[0]));
+    assert(reg < _countof(regNames));
 
     return regNames[reg];
 }
@@ -6377,7 +6486,7 @@ void emitter::emitDispAddrMode(instrDesc* id, bool noDetail)
 
     if (jdsc && !noDetail)
     {
-        unsigned     cnt = (jdsc->dsSize - 1) / sizeof(void*);
+        unsigned     cnt = (jdsc->dsSize - 1) / TARGET_POINTER_SIZE;
         BasicBlock** bbp = (BasicBlock**)jdsc->dsCont;
 
 #ifdef _TARGET_AMD64_
@@ -8741,7 +8850,7 @@ BYTE* emitter::emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
 
         if (id->idIsDspReloc())
         {
-            emitRecordRelocation((void*)(dst - sizeof(void*)), target, IMAGE_REL_BASED_MOFFSET);
+            emitRecordRelocation((void*)(dst - TARGET_POINTER_SIZE), target, IMAGE_REL_BASED_MOFFSET);
         }
 
 #endif //_TARGET_X86_
@@ -11207,7 +11316,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 if (ins == INS_sub && id->idInsFmt() == IF_RRW_CNS && id->idReg1() == REG_ESP)
                 {
                     assert((size_t)emitGetInsSC(id) < 0x00000000FFFFFFFFLL);
-                    emitStackPushN(dst, (unsigned)(emitGetInsSC(id) / sizeof(void*)));
+                    emitStackPushN(dst, (unsigned)(emitGetInsSC(id) / TARGET_POINTER_SIZE));
                 }
                 break;
 
@@ -11217,7 +11326,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 {
                     assert((size_t)emitGetInsSC(id) < 0x00000000FFFFFFFFLL);
                     emitStackPop(dst, /*isCall*/ false, /*callInstrSize*/ 0,
-                                 (unsigned)(emitGetInsSC(id) / sizeof(void*)));
+                                 (unsigned)(emitGetInsSC(id) / TARGET_POINTER_SIZE));
                 }
                 break;
 

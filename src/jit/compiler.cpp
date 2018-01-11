@@ -2116,7 +2116,39 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     SIMDVector3Handle = nullptr;
     SIMDVector4Handle = nullptr;
     SIMDVectorHandle  = nullptr;
-#endif
+#if FEATURE_HW_INTRINSICS
+#if defined(_TARGET_ARM64_)
+    Vector64FloatHandle  = nullptr;
+    Vector64DoubleHandle = nullptr;
+    Vector64IntHandle    = nullptr;
+    Vector64UShortHandle = nullptr;
+    Vector64UByteHandle  = nullptr;
+    Vector64ShortHandle  = nullptr;
+    Vector64ByteHandle   = nullptr;
+    Vector64LongHandle   = nullptr;
+#endif // defined(_TARGET_ARM64_)
+    Vector128FloatHandle  = nullptr;
+    Vector128DoubleHandle = nullptr;
+    Vector128IntHandle    = nullptr;
+    Vector128UShortHandle = nullptr;
+    Vector128UByteHandle  = nullptr;
+    Vector128ShortHandle  = nullptr;
+    Vector128ByteHandle   = nullptr;
+    Vector128LongHandle   = nullptr;
+    Vector128UIntHandle   = nullptr;
+#if defined(_TARGET_XARCH_)
+    Vector256FloatHandle  = nullptr;
+    Vector256DoubleHandle = nullptr;
+    Vector256IntHandle    = nullptr;
+    Vector256UShortHandle = nullptr;
+    Vector256UByteHandle  = nullptr;
+    Vector256ShortHandle  = nullptr;
+    Vector256ByteHandle   = nullptr;
+    Vector256LongHandle   = nullptr;
+    Vector256UIntHandle   = nullptr;
+#endif // defined(_TARGET_XARCH_)
+#endif // FEATURE_HW_INTRINSICS
+#endif // FEATURE_SIMD
 
     compUsesThrowHelper = false;
 }
@@ -2159,7 +2191,7 @@ unsigned Compiler::compGetTypeSize(CorInfoType cit, CORINFO_CLASS_HANDLE clsHnd)
     }
     else if (cit == CORINFO_TYPE_REFANY)
     {
-        sigSize = 2 * sizeof(void*);
+        sigSize = 2 * TARGET_POINTER_SIZE;
     }
     return sigSize;
 }
@@ -3879,10 +3911,6 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
     if ((strStressModeNamesNot != nullptr) &&
         (wcsstr(strStressModeNamesNot, s_compStressModeNames[stressArea]) != nullptr))
     {
-        if (verbose)
-        {
-            printf("JitStressModeNamesNot contains %ws\n", s_compStressModeNames[stressArea]);
-        }
         doStress = false;
         goto _done;
     }
@@ -3893,10 +3921,6 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
     {
         if (wcsstr(strStressModeNames, s_compStressModeNames[stressArea]) != nullptr)
         {
-            if (verbose)
-            {
-                printf("JitStressModeNames contains %ws\n", s_compStressModeNames[stressArea]);
-            }
             doStress = true;
             goto _done;
         }
@@ -4559,6 +4583,17 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
             /* Filter out unimported BBs */
 
             fgRemoveEmptyBlocks();
+
+            // Update type of return spill temp if we have gathered better info
+            // when importing the inlinee.
+            if (fgNeedReturnSpillTemp())
+            {
+                CORINFO_CLASS_HANDLE retExprClassHnd = impInlineInfo->retExprClassHnd;
+                if (retExprClassHnd != nullptr)
+                {
+                    lvaUpdateClass(lvaInlineeReturnSpillTemp, retExprClassHnd, impInlineInfo->retExprClassHndIsExact);
+                }
+            }
         }
 
         EndPhase(PHASE_POST_IMPORT);
@@ -5768,8 +5803,8 @@ void Compiler::compCompileFinish()
     {
         if (compJitHaltMethod())
         {
-#if !defined(_TARGET_ARM64_) && !defined(_HOST_UNIX_)
-            // TODO-ARM64-NYI: re-enable this when we have an OS that supports a pop-up dialog
+#if !defined(_TARGET_ARMARCH_) && !defined(_HOST_UNIX_)
+            // TODO-ARM-NYI: re-enable this when we have an OS that supports a pop-up dialog
 
             // Don't do an assert, but just put up the dialog box so we get just-in-time debugger
             // launching.  When you hit 'retry' it will continue and naturally stop at the INT 3
@@ -7826,7 +7861,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
                 extraHdr2);
 
         // Ensure that at least the names array and the Phases enum have the same number of entries:
-        assert(sizeof(PhaseNames) / sizeof(const char*) == PHASE_NUMBER_OF);
+        assert(_countof(PhaseNames) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
             double phase_tot_ms  = (((double)m_total.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
@@ -7890,7 +7925,7 @@ void CompTimeSummaryInfo::Print(FILE* f)
         fprintf(f, "     PHASE                            inv/meth Mcycles    time (ms)  %% of total\n");
         fprintf(f, "     --------------------------------------------------------------------------------------\n");
         // Ensure that at least the names array and the Phases enum have the same number of entries:
-        assert(sizeof(PhaseNames) / sizeof(const char*) == PHASE_NUMBER_OF);
+        assert(_countof(PhaseNames) == PHASE_NUMBER_OF);
         for (int i = 0; i < PHASE_NUMBER_OF; i++)
         {
             double phase_tot_ms = (((double)m_filtered.m_cyclesByPhase[i]) / countsPerSec) * 1000.0;
@@ -11056,6 +11091,9 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             case CORINFO_INTRINSIC_Cos:
                 chars += printf("Cos");
                 break;
+            case CORINFO_INTRINSIC_Cbrt:
+                chars += printf("Cbrt");
+                break;
             case CORINFO_INTRINSIC_Sqrt:
                 chars += printf("Sqrt");
                 break;
@@ -11074,14 +11112,23 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             case CORINFO_INTRINSIC_Asin:
                 chars += printf("Asin");
                 break;
+            case CORINFO_INTRINSIC_Asinh:
+                chars += printf("Asinh");
+                break;
             case CORINFO_INTRINSIC_Acos:
                 chars += printf("Acos");
+                break;
+            case CORINFO_INTRINSIC_Acosh:
+                chars += printf("Acosh");
                 break;
             case CORINFO_INTRINSIC_Atan:
                 chars += printf("Atan");
                 break;
             case CORINFO_INTRINSIC_Atan2:
                 chars += printf("Atan2");
+                break;
+            case CORINFO_INTRINSIC_Atanh:
+                chars += printf("Atanh");
                 break;
             case CORINFO_INTRINSIC_Log10:
                 chars += printf("Log10");

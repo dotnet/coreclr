@@ -464,6 +464,8 @@ public:
     void LongLifetimeFree(void* obj);
     size_t getClassModuleIdForStatics(CORINFO_CLASS_HANDLE clsHnd, CORINFO_MODULE_HANDLE *pModuleHandle, void **ppIndirection);
     const char* getClassName (CORINFO_CLASS_HANDLE cls);
+    const char* getClassNameFromMetadata (CORINFO_CLASS_HANDLE cls, const char** namespaceName);
+    CORINFO_CLASS_HANDLE getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index);
     const char* getHelperName(CorInfoHelpFunc ftnNum);
     int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
                                   int* pnBufLen,
@@ -546,6 +548,12 @@ public:
 
     // "System.Int32" ==> CORINFO_TYPE_INT..
     CorInfoType getTypeForPrimitiveValueClass(
+            CORINFO_CLASS_HANDLE        cls
+            );
+
+    // "System.Int32" ==> CORINFO_TYPE_INT..
+    // "System.UInt32" ==> CORINFO_TYPE_UINT..
+    CorInfoType getTypeForPrimitiveNumericClass(
             CORINFO_CLASS_HANDLE        cls
             );
 
@@ -736,7 +744,8 @@ public:
     void getMethodSigInternal (
             CORINFO_METHOD_HANDLE ftnHnd,
             CORINFO_SIG_INFO* sigInfo,
-            CORINFO_CLASS_HANDLE owner = NULL
+            CORINFO_CLASS_HANDLE owner = NULL,
+            BOOL isCallSite = FALSE
             );
 
     void getEHinfo(

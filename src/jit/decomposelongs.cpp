@@ -952,13 +952,27 @@ GenTree* DecomposeLongs::DecomposeNeg(LIR::Use& use)
     loResult->gtOp.gtOp1 = loOp1;
 
     GenTree* zero = m_compiler->gtNewZeroConNode(TYP_INT);
+
 #if defined(_TARGET_X86_)
+
     GenTree* hiAdjust = m_compiler->gtNewOperNode(GT_ADD_HI, TYP_INT, hiOp1, zero);
     GenTree* hiResult = m_compiler->gtNewOperNode(GT_NEG, TYP_INT, hiAdjust);
     Range().InsertAfter(loResult, zero, hiAdjust, hiResult);
+
+    loResult->gtFlags |= GTF_SET_FLAGS;
+    hiAdjust->gtFlags |= GTF_USE_FLAGS;
+
 #elif defined(_TARGET_ARM_)
+
+    // We tend to use "movs" to load zero to a register, and that sets the flags, so put the
+    // zero before the loResult, which is setting the flags needed by GT_SUB_HI.
     GenTree* hiResult = m_compiler->gtNewOperNode(GT_SUB_HI, TYP_INT, zero, hiOp1);
-    Range().InsertAfter(loResult, zero, hiResult);
+    Range().InsertBefore(loResult, zero);
+    Range().InsertAfter(loResult, hiResult);
+
+    loResult->gtFlags |= GTF_SET_FLAGS;
+    hiResult->gtFlags |= GTF_USE_FLAGS;
+
 #endif
 
     return FinalizeDecomposition(use, loResult, hiResult, hiResult);
@@ -1098,6 +1112,24 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
         {
             case GT_LSH:
             {
+                // Reduce count modulo 64 to match behavior found in
+                // the LLSH helper and in gtFoldExpr.
+                count &= 0x3F;
+
+                // Retest for zero shift
+                if (count == 0)
+                {
+                    GenTree* next = shift->gtNext;
+                    // Remove shift and don't do anything else.
+                    if (shift->IsUnusedValue())
+                    {
+                        gtLong->SetUnusedValue();
+                    }
+                    Range().Remove(shift);
+                    use.ReplaceWith(m_compiler, gtLong);
+                    return next;
+                }
+
                 if (count < 32)
                 {
                     // For shifts of < 32 bits, we transform the code to:
@@ -1143,7 +1175,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 }
                 else
                 {
-                    assert(count >= 32);
+                    assert(count >= 32 && count < 64);
 
                     // Since we're left shifting at least 32 bits, we can remove the hi part of the shifted value iff
                     // it has no side effects.
@@ -1159,57 +1191,30 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                         hiOp1->SetUnusedValue();
                     }
 
-                    if (count < 64)
+                    if (count == 32)
                     {
-                        if (count == 32)
-                        {
-                            // Move loOp1 into hiResult (shift of 32 bits is just a mov of lo to hi)
-                            // We need to make sure that we save lo to a temp variable so that we don't overwrite lo
-                            // before saving it to hi in the case that we are doing an inplace shift. I.e.:
-                            // x = x << 32
+                        // Move loOp1 into hiResult (shift of 32 bits is just a mov of lo to hi)
+                        // We need to make sure that we save lo to a temp variable so that we don't overwrite lo
+                        // before saving it to hi in the case that we are doing an inplace shift. I.e.:
+                        // x = x << 32
 
-                            LIR::Use loOp1Use(Range(), &gtLong->gtOp.gtOp1, gtLong);
-                            loOp1Use.ReplaceWithLclVar(m_compiler, m_blockWeight);
+                        LIR::Use loOp1Use(Range(), &gtLong->gtOp.gtOp1, gtLong);
+                        loOp1Use.ReplaceWithLclVar(m_compiler, m_blockWeight);
 
-                            hiResult = loOp1Use.Def();
-                            Range().Remove(gtLong);
-                        }
-                        else
-                        {
-                            Range().Remove(gtLong);
-                            assert(count > 32 && count < 64);
-
-                            // Move loOp1 into hiResult, do a GT_LSH with count - 32.
-                            // We will compute hiResult before loResult in this case, so we don't need to store lo to a
-                            // temp
-                            GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
-                            hiResult         = m_compiler->gtNewOperNode(oper, TYP_INT, loOp1, shiftBy);
-                            Range().InsertBefore(shift, shiftBy, hiResult);
-                        }
+                        hiResult = loOp1Use.Def();
+                        Range().Remove(gtLong);
                     }
                     else
                     {
-                        assert(count >= 64);
-
                         Range().Remove(gtLong);
+                        assert(count > 32 && count < 64);
 
-                        // Since we're left shifting at least 64 bits, we can remove the lo part of the shifted value
-                        // iff it has no side effects.
-                        //
-                        // TODO-CQ: we could go perform this removal transitively (i.e. iteratively remove everything
-                        // that feeds the lo operand while there are no side effects)
-                        if ((loOp1->gtFlags & GTF_ALL_EFFECT) == 0)
-                        {
-                            Range().Remove(loOp1, true);
-                        }
-                        else
-                        {
-                            loOp1->SetUnusedValue();
-                        }
-
-                        // Zero out hi (shift of >= 64 bits moves all the bits out of the two registers)
-                        hiResult = m_compiler->gtNewZeroConNode(TYP_INT);
-                        Range().InsertBefore(shift, hiResult);
+                        // Move loOp1 into hiResult, do a GT_LSH with count - 32.
+                        // We will compute hiResult before loResult in this case, so we don't need to store lo to a
+                        // temp
+                        GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
+                        hiResult         = m_compiler->gtNewOperNode(oper, TYP_INT, loOp1, shiftBy);
+                        Range().InsertBefore(shift, shiftBy, hiResult);
                     }
 
                     // Zero out loResult (shift of >= 32 bits shifts all lo bits to hiResult)
@@ -1258,7 +1263,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                     //
                     // TODO-CQ: we could go perform this removal transitively (i.e. iteratively remove everything that
                     // feeds the lo operand while there are no side effects)
-                    if ((loOp1->gtFlags & GTF_ALL_EFFECT) == 0)
+                    if ((loOp1->gtFlags & (GTF_ALL_EFFECT | GTF_SET_FLAGS)) == 0)
                     {
                         Range().Remove(loOp1, true);
                     }
@@ -1356,7 +1361,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                     //
                     // TODO-CQ: we could go perform this removal transitively (i.e. iteratively remove everything that
                     // feeds the lo operand while there are no side effects)
-                    if ((loOp1->gtFlags & GTF_ALL_EFFECT) == 0)
+                    if ((loOp1->gtFlags & (GTF_ALL_EFFECT | GTF_SET_FLAGS)) == 0)
                     {
                         Range().Remove(loOp1, true);
                     }
@@ -1538,6 +1543,11 @@ GenTree* DecomposeLongs::DecomposeRotate(LIR::Use& use)
         loResult           = hiOp1Use.Def();
         gtLong->gtOp.gtOp1 = loResult;
         gtLong->gtOp.gtOp2 = hiResult;
+
+        if (tree->IsUnusedValue())
+        {
+            gtLong->SetUnusedValue();
+        }
 
         GenTree* next = tree->gtNext;
         // Remove tree and don't do anything else.

@@ -296,53 +296,66 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector256<long> CompareGreaterThan(Vector256<long> left, Vector256<long> right) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
+        /// double _mm256_cvtsd_f64 (__m256d a)
+        /// </summary>
+        public static double ConvertToDouble(Vector256<double> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// int _mm256_cvtsi256_si32 (__m256i a)
+        /// </summary>
+        public static int ConvertToInt32(Vector256<int> value) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// int _mm256_cvtsi256_si32 (__m256i a)
+        /// </summary>
+        public static uint ConvertToUInt32(Vector256<uint> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
         /// __m256i _mm256_cvtepi8_epi16 (__m128i a)
         /// </summary>
-        public static Vector256<short> ConvertToVector256Short(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<short> ConvertToVector256Int16(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu8_epi16 (__m128i a)
         /// </summary>
-        public static Vector256<ushort> ConvertToVector256UShort(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<ushort> ConvertToVector256UInt16(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepi8_epi32 (__m128i a)
         /// </summary>
-        public static Vector256<int> ConvertToVector256Int(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<int> ConvertToVector256Int32(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepi16_epi32 (__m128i a)
         /// </summary>
-        public static Vector256<int> ConvertToVector256Int(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<int> ConvertToVector256Int32(Vector128<short> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu8_epi32 (__m128i a)
         /// </summary>
-        public static Vector256<uint> ConvertToVector256UInt(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<uint> ConvertToVector256UInt32(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu16_epi32 (__m128i a)
         /// </summary>
-        public static Vector256<uint> ConvertToVector256UInt(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<uint> ConvertToVector256UInt32(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepi8_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<long> ConvertToVector256Long(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<long> ConvertToVector256Int64(Vector128<sbyte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepi16_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<long> ConvertToVector256Long(Vector128<short> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<long> ConvertToVector256Int64(Vector128<short> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepi32_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<long> ConvertToVector256Long(Vector128<int> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<long> ConvertToVector256Int64(Vector128<int> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu8_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<ulong> ConvertToVector256ULong(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<ulong> ConvertToVector256UInt64(Vector128<byte> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu16_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<ulong> ConvertToVector256ULong(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<ulong> ConvertToVector256UInt64(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_cvtepu32_epi64 (__m128i a)
         /// </summary>
-        public static Vector256<ulong> ConvertToVector256ULong(Vector128<uint> value) { throw new PlatformNotSupportedException(); }
+        public static Vector256<ulong> ConvertToVector256UInt64(Vector128<uint> value) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm256_extracti128_si256 (__m256i a, const int imm8)
@@ -709,7 +722,40 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
         /// </summary>
         public static unsafe Vector256<ulong> Insert(Vector256<ulong> value, ulong* address, byte index) { throw new PlatformNotSupportedException(); }
-        
+
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<sbyte> LoadAlignedVector256NonTemporal(sbyte* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<byte> LoadAlignedVector256NonTemporal(byte* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<short> LoadAlignedVector256NonTemporal(short* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<ushort> LoadAlignedVector256NonTemporal(ushort* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<int> LoadAlignedVector256NonTemporal(int* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<uint> LoadAlignedVector256NonTemporal(uint* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<long> LoadAlignedVector256NonTemporal(long* address) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_inserti128_si256 (__m256i a, __m128i b, const int imm8)
+        /// </summary>
+        public static unsafe Vector256<ulong> LoadAlignedVector256NonTemporal(ulong* address) { throw new PlatformNotSupportedException(); }
+
         /// <summary>
         /// __m128i _mm_maskload_epi32 (int const* mem_addr, __m128i mask)
         /// </summary>
@@ -880,7 +926,7 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static Vector256<short> MultiplyLow(Vector256<short> left, Vector256<short> right) { throw new PlatformNotSupportedException(); }
         /// <summary>
-        /// __m256i _mm256_mullo_epu16 (__m256i a, __m256i b)
+        /// __m256i _mm256_mullo_epi32 (__m256i a, __m256i b)
         /// </summary>
         public static Vector256<int> MultiplyLow(Vector256<int> left, Vector256<int> right) { throw new PlatformNotSupportedException(); }
 
@@ -994,6 +1040,31 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector256<float> PermuteVar8x32(Vector256<float> left, Vector256<float> mask) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
+        /// __m256i _mm256_sll_epi16 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<short> ShiftLeftLogical(Vector256<short> value, Vector128<short> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_sll_epi16 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<ushort> ShiftLeftLogical(Vector256<ushort> value, Vector128<ushort> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_sll_epi32 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<int> ShiftLeftLogical(Vector256<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_sll_epi32 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<uint> ShiftLeftLogical(Vector256<uint> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_sll_epi64 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<long> ShiftLeftLogical(Vector256<long> value, Vector128<long> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_sll_epi64 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<ulong> ShiftLeftLogical(Vector256<ulong> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
         /// __m256i _mm256_slli_epi16 (__m256i a, int imm8)
         /// </summary>
         public static Vector256<short> ShiftLeftLogical(Vector256<short> value, byte count) { throw new PlatformNotSupportedException(); }
@@ -1068,6 +1139,31 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static Vector256<ulong> ShiftLeftLogicalVariable(Vector256<ulong> value, Vector256<ulong> count) { throw new PlatformNotSupportedException(); }
         
+        /// __m128i _mm_sllv_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftLeftLogicalVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_sllv_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<uint> ShiftLeftLogicalVariable(Vector128<uint> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_sllv_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<long> ShiftLeftLogicalVariable(Vector128<long> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_sllv_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<ulong> ShiftLeftLogicalVariable(Vector128<ulong> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// _mm256_sra_epi16 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<short> ShiftRightArithmetic(Vector256<short> value, Vector128<short> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// _mm256_sra_epi32 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<int> ShiftRightArithmetic(Vector256<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
+
         /// <summary>
         /// __m256i _mm256_srai_epi16 (__m256i a, int imm8)
         /// </summary>
@@ -1081,6 +1177,36 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_srav_epi32 (__m256i a, __m256i count)
         /// </summary>
         public static Vector256<int> ShiftRightArithmeticVariable(Vector256<int> value, Vector256<uint> count) { throw new PlatformNotSupportedException(); }
+        
+        /// <summary>
+        /// __m128i _mm_srav_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftRightArithmeticVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// __m256i _mm256_srl_epi16 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<short> ShiftRightLogical(Vector256<short> value, Vector128<short> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_srl_epi16 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<ushort> ShiftRightLogical(Vector256<ushort> value, Vector128<ushort> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_srl_epi32 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<int> ShiftRightLogical(Vector256<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_srl_epi32 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<uint> ShiftRightLogical(Vector256<uint> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_srl_epi64 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<long> ShiftRightLogical(Vector256<long> value, Vector128<long> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m256i _mm256_srl_epi64 (__m256i a, __m128i count)
+        /// </summary>
+        public static Vector256<ulong> ShiftRightLogical(Vector256<ulong> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256i _mm256_srli_epi16 (__m256i a, int imm8)
@@ -1156,6 +1282,23 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_srlv_epi64 (__m256i a, __m256i count)
         /// </summary>
         public static Vector256<ulong> ShiftRightLogicalVariable(Vector256<ulong> value, Vector256<ulong> count) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// __m128i _mm_srlv_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftRightLogicalVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_srlv_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<uint> ShiftRightLogicalVariable(Vector128<uint> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_srlv_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<long> ShiftRightLogicalVariable(Vector128<long> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+        /// <summary>
+        /// __m128i _mm_srlv_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<ulong> ShiftRightLogicalVariable(Vector128<ulong> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
         
         /// <summary>
         /// __m256i _mm256_shuffle_epi8 (__m256i a, __m256i b)

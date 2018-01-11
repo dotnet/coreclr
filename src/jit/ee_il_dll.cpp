@@ -386,7 +386,11 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
-        if (JitConfig.EnableAVX() != 0)
+        if (JitConfig.EnableAVX() != 0
+#ifdef DEBUG
+            && JitConfig.EnableAVX2() != 0
+#endif
+            )
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {
@@ -437,7 +441,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         return structSize; // TODO: roundUp() needed here?
     }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-    return sizeof(size_t);
+    return TARGET_POINTER_SIZE;
 
 #else // !_TARGET_AMD64_
 
@@ -450,7 +454,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         unsigned structSize = info.compCompHnd->getClassSize(argClass);
 
         // make certain the EE passes us back the right thing for refanys
-        assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2 * sizeof(void*));
+        assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2 * TARGET_POINTER_SIZE);
 
         // For each target that supports passing struct args in multiple registers
         // apply the target specific rules for them here:

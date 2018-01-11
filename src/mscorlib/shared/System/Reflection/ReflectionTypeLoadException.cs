@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System.Reflection
 {
@@ -26,7 +27,7 @@ namespace System.Reflection
             HResult = HResults.COR_E_REFLECTIONTYPELOAD;
         }
 
-        private ReflectionTypeLoadException(SerializationInfo info, StreamingContext context) 
+        private ReflectionTypeLoadException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
             LoaderExceptions = (Exception[])(info.GetValue("Exceptions", typeof(Exception[])));
@@ -42,5 +43,31 @@ namespace System.Reflection
         public Type[] Types { get; }
 
         public Exception[] LoaderExceptions { get; }
+
+        public override string Message => CreateString(isMessage: true);
+
+        public override string ToString() => CreateString(isMessage: false);
+
+        private string CreateString(bool isMessage)
+        {
+            string baseValue = isMessage ? base.Message : base.ToString();
+
+            Exception[] exceptions = LoaderExceptions;
+            if (exceptions == null || exceptions.Length == 0)
+            {
+                return baseValue;
+            }
+
+            var text = new StringBuilder(baseValue);
+            foreach (Exception e in exceptions)
+            {
+                if (e != null)
+                {
+                    text.AppendLine();
+                    text.Append(isMessage ? e.Message : e.ToString());
+                }
+            }
+            return text.ToString();
+        }
     }
 }

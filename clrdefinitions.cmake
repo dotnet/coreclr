@@ -1,5 +1,14 @@
 include(clrfeatures.cmake)
 
+# If set, indicates that this is not an officially supported release
+# Keep in sync with IsPrerelease in dir.props
+set(PRERELEASE 1)
+
+# Features we're currently flighting, but don't intend to ship in officially supported releases
+if (PRERELEASE)
+  add_definitions(-DFEATURE_DEFAULT_INTERFACES=1)  
+endif (PRERELEASE)
+
 if (CLR_CMAKE_TARGET_ARCH_AMD64)
   if (CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DDBG_TARGET_AMD64_UNIX)
@@ -116,6 +125,7 @@ if(FEATURE_DBGIPC)
 endif(FEATURE_DBGIPC)
 if(FEATURE_EVENT_TRACE)
     add_definitions(-DFEATURE_EVENT_TRACE=1)
+    add_definitions(-DFEATURE_PERFTRACING=1)
 endif(FEATURE_EVENT_TRACE)
 if(FEATURE_GDBJIT)
     add_definitions(-DFEATURE_GDBJIT)
@@ -129,9 +139,6 @@ endif(FEATURE_GDBJIT_LANGID_CS)
 if(FEATURE_GDBJIT_SYMTAB)
     add_definitions(-DFEATURE_GDBJIT_SYMTAB)
 endif(FEATURE_GDBJIT_SYMTAB)
-if(CLR_CMAKE_PLATFORM_LINUX)
-    add_definitions(-DFEATURE_PERFTRACING)
-endif(CLR_CMAKE_PLATFORM_LINUX)
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_definitions(-DFEATURE_EVENTSOURCE_XPLAT=1)
 endif(CLR_CMAKE_PLATFORM_UNIX)

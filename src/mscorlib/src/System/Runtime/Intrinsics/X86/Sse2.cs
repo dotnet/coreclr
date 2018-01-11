@@ -53,6 +53,11 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Add(Vector128<double> left, Vector128<double> right) => Add(left, right);
 
         /// <summary>
+        /// __m128d _mm_add_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> AddScalar(Vector128<double> left, Vector128<double> right) => AddScalar(left, right);
+
+        /// <summary>
         /// __m128i _mm_adds_epi8 (__m128i a,  __m128i b)
         /// </summary>
         public static Vector128<sbyte> AddSaturate(Vector128<sbyte> left, Vector128<sbyte> right) => AddSaturate(left, right);
@@ -182,6 +187,21 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareEqual(Vector128<double> left, Vector128<double> right) => CompareEqual(left, right);
 
         /// <summary>
+        /// int _mm_comieq_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareEqualOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareEqualOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomieq_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareEqualUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareEqualUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpeq_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareEqualScalar(Vector128<double> left, Vector128<double> right) => CompareEqualScalar(left, right);
+
+        /// <summary>
         /// __m128i _mm_cmpgt_epi8 (__m128i a,  __m128i b)
         /// </summary>
         public static Vector128<sbyte> CompareGreaterThan(Vector128<sbyte> left, Vector128<sbyte> right) => CompareGreaterThan(left, right);
@@ -199,9 +219,39 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareGreaterThan(Vector128<double> left, Vector128<double> right) => CompareGreaterThan(left, right);
 
         /// <summary>
+        /// int _mm_comigt_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareGreaterThanOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomigt_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareGreaterThanUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpgt_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareGreaterThanScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanScalar(left, right);
+
+        /// <summary>
         /// __m128d _mm_cmpge_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> CompareGreaterThanOrEqual(Vector128<double> left, Vector128<double> right) => CompareGreaterThanOrEqual(left, right);
+
+        /// <summary>
+        /// int _mm_comige_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareGreaterThanOrEqualOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanOrEqualOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomige_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareGreaterThanOrEqualUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanOrEqualUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpge_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareGreaterThanOrEqualScalar(Vector128<double> left, Vector128<double> right) => CompareGreaterThanOrEqualScalar(left, right);
 
         /// <summary>
         /// __m128i _mm_cmplt_epi8 (__m128i a,  __m128i b)
@@ -221,9 +271,39 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareLessThan(Vector128<double> left, Vector128<double> right) => CompareLessThan(left, right);
 
         /// <summary>
+        /// int _mm_comilt_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareLessThanOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomilt_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareLessThanUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmplt_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareLessThanScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanScalar(left, right);
+
+        /// <summary>
         /// __m128d _mm_cmple_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> CompareLessThanOrEqual(Vector128<double> left, Vector128<double> right) => CompareLessThanOrEqual(left, right);
+
+        /// <summary>
+        /// int _mm_comile_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareLessThanOrEqualOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanOrEqualOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomile_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareLessThanOrEqualUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanOrEqualUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmple_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareLessThanOrEqualScalar(Vector128<double> left, Vector128<double> right) => CompareLessThanOrEqualScalar(left, right);
 
         /// <summary>
         /// __m128d _mm_cmpneq_pd (__m128d a,  __m128d b)
@@ -231,9 +311,29 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareNotEqual(Vector128<double> left, Vector128<double> right) => CompareNotEqual(left, right);
 
         /// <summary>
+        /// int _mm_comineq_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareNotEqualOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareNotEqualOrderedScalar(left, right);
+
+        /// <summary>
+        /// int _mm_ucomineq_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static bool CompareNotEqualUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareNotEqualUnorderedScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpneq_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareNotEqualScalar(Vector128<double> left, Vector128<double> right) => CompareNotEqualScalar(left, right);
+
+        /// <summary>
         /// __m128d _mm_cmpngt_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> CompareNotGreaterThan(Vector128<double> left, Vector128<double> right) => CompareNotGreaterThan(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpngt_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareNotGreaterThanScalar(Vector128<double> left, Vector128<double> right) => CompareNotGreaterThanScalar(left, right);
 
         /// <summary>
         /// __m128d _mm_cmpnge_pd (__m128d a,  __m128d b)
@@ -241,9 +341,19 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareNotGreaterThanOrEqual(Vector128<double> left, Vector128<double> right) => CompareNotGreaterThanOrEqual(left, right);
 
         /// <summary>
+        /// __m128d _mm_cmpnge_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareNotGreaterThanOrEqualScalar(Vector128<double> left, Vector128<double> right) => CompareNotGreaterThanOrEqualScalar(left, right);
+
+        /// <summary>
         /// __m128d _mm_cmpnlt_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> CompareNotLessThan(Vector128<double> left, Vector128<double> right) => CompareNotLessThan(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpnlt_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareNotLessThanScalar(Vector128<double> left, Vector128<double> right) => CompareNotLessThanScalar(left, right);
 
         /// <summary>
         /// __m128d _mm_cmpnle_pd (__m128d a,  __m128d b)
@@ -251,9 +361,19 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareNotLessThanOrEqual(Vector128<double> left, Vector128<double> right) => CompareNotLessThanOrEqual(left, right);
 
         /// <summary>
+        /// __m128d _mm_cmpnle_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareNotLessThanOrEqualScalar(Vector128<double> left, Vector128<double> right) => CompareNotLessThanOrEqualScalar(left, right);
+
+        /// <summary>
         /// __m128d _mm_cmpord_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> CompareOrdered(Vector128<double> left, Vector128<double> right) => CompareOrdered(left, right);
+
+        /// <summary>
+        /// __m128d _mm_cmpord_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareOrderedScalar(Vector128<double> left, Vector128<double> right) => CompareOrderedScalar(left, right);
 
         /// <summary>
         /// __m128d _mm_cmpunord_pd (__m128d a,  __m128d b)
@@ -261,38 +381,115 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> CompareUnordered(Vector128<double> left, Vector128<double> right) => CompareUnordered(left, right);
 
         /// <summary>
+        /// __m128d _mm_cmpunord_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> CompareUnorderedScalar(Vector128<double> left, Vector128<double> right) => CompareUnorderedScalar(left, right);
+
+        /// <summary>
         /// __m128i _mm_cvtps_epi32 (__m128 a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<float> value) => ConvertToInt(value);
+        public static Vector128<int> ConvertToVector128Int32(Vector128<float> value) => ConvertToVector128Int32(value);
         /// <summary>
         /// __m128i _mm_cvtpd_epi32 (__m128d a)
         /// </summary>
-        public static Vector128<int> ConvertToInt(Vector128<double> value) => ConvertToInt(value);
+        public static Vector128<int> ConvertToVector128Int32(Vector128<double> value) => ConvertToVector128Int32(value);
         /// <summary>
         /// __m128 _mm_cvtepi32_ps (__m128i a)
         /// </summary>
-        public static Vector128<float> ConvertToFloat(Vector128<int> value) => ConvertToFloat(value);
+        public static Vector128<float> ConvertToVector128Single(Vector128<int> value) => ConvertToVector128Single(value);
         /// <summary>
         /// __m128 _mm_cvtpd_ps (__m128d a)
         /// </summary>
-        public static Vector128<float> ConvertToFloat(Vector128<double> value) => ConvertToFloat(value);
+        public static Vector128<float> ConvertToVector128Single(Vector128<double> value) => ConvertToVector128Single(value);
         /// <summary>
         /// __m128d _mm_cvtepi32_pd (__m128i a)
         /// </summary>
-        public static Vector128<double> ConvertToDouble(Vector128<int> value) => ConvertToDouble(value);
+        public static Vector128<double> ConvertToVector128Double(Vector128<int> value) => ConvertToVector128Double(value);
         /// <summary>
         /// __m128d _mm_cvtps_pd (__m128 a)
         /// </summary>
-        public static Vector128<double> ConvertToDouble(Vector128<float> value) => ConvertToDouble(value);
+        public static Vector128<double> ConvertToVector128Double(Vector128<float> value) => ConvertToVector128Double(value);
+
+        
+        /// <summary>
+        /// double _mm_cvtsd_f64(__m128d a)
+        /// </summary>
+        public static double ConvertToDouble(Vector128<double> value) => ConvertToDouble(value);
+        /// <summary>
+        /// int _mm_cvtsd_si32 (__m128d a)
+        /// </summary>
+        public static int ConvertToInt32(Vector128<double> value) => ConvertToInt32(value);
+        /// <summary>
+        /// int _mm_cvtsi128_si32 (__m128i a)
+        /// </summary>
+        public static int ConvertToInt32(Vector128<int> value) => ConvertToInt32(value);
+        /// <summary>
+        /// __int64 _mm_cvtsd_si64 (__m128d a)
+        /// </summary>
+        public static long ConvertToInt64(Vector128<double> value) => ConvertToInt64(value);
+        /// <summary>
+        /// __int64 _mm_cvtsi128_si64 (__m128i a)
+        /// </summary>
+        public static long ConvertToInt64(Vector128<long> value) => ConvertToInt64(value);
+        /// <summary>
+        /// int _mm_cvtsi128_si32 (__m128i a)
+        /// </summary>
+        public static uint ConvertToUInt32(Vector128<uint> value) => ConvertToUInt32(value);
+        /// <summary>
+        /// __int64 _mm_cvtsi128_si64 (__m128i a)
+        /// </summary>
+        public static ulong ConvertToUInt64(Vector128<ulong> value) => ConvertToUInt64(value);
+
+        /// <summary>
+        /// __m128d _mm_cvtsi32_sd (__m128d a, int b)
+        /// </summary>
+        public static Vector128<double> ConvertToVector128DoubleScalar(Vector128<double> upper, int value) => ConvertToVector128DoubleScalar(upper, value);
+        /// <summary>
+        /// __m128d _mm_cvtsi64_sd (__m128d a, int b)
+        /// </summary>
+        public static Vector128<double> ConvertToVector128DoubleScalar(Vector128<double> upper, long value) => ConvertToVector128DoubleScalar(upper, value);
+        /// <summary>
+        /// __m128d _mm_cvtss_sd (__m128d a, __m128 b)
+        /// </summary>
+        public static Vector128<double> ConvertToVector128DoubleScalar(Vector128<double> upper, Vector128<float> value) => ConvertToVector128DoubleScalar(upper, value);
+        /// <summary>
+        /// __m128i _mm_cvtsi32_si128 (int a)
+        /// </summary>
+        public static Vector128<int> ConvertToVector128Int32Scalar(int value) => ConvertToVector128Int32Scalar(value);
+        /// <summary>
+        /// __m128i _mm_cvtsi64_si128 (__int64 a)
+        /// </summary>
+        public static Vector128<long> ConvertToVector128Int64Scalar(long value) => ConvertToVector128Int64Scalar(value);
+        /// <summary>
+        /// __m128 _mm_cvtsd_ss (__m128 a, __m128d b)
+        /// </summary>
+        public static Vector128<float> ConvertToVector128SingleScalar(Vector128<float> upper, Vector128<double> value) => ConvertToVector128SingleScalar(upper, value);
+        /// <summary>
+        /// __m128i _mm_cvtsi32_si128 (int a)
+        /// </summary>
+        public static Vector128<uint> ConvertToVector128UInt32Scalar(uint value) => ConvertToVector128UInt32Scalar(value);
+        /// <summary>
+        /// __m128i _mm_cvtsi64_si128 (__int64 a)
+        /// </summary>
+        public static Vector128<ulong> ConvertToVector128UInt64Scalar(ulong value) => ConvertToVector128UInt64Scalar(value);
 
         /// <summary>
         /// __m128i _mm_cvttps_epi32 (__m128 a)
         /// </summary>
-        public static Vector128<int> ConvertToIntWithTruncation(Vector128<float> value) => ConvertToIntWithTruncation(value);
+        public static Vector128<int> ConvertToVector128Int32WithTruncation(Vector128<float> value) => ConvertToVector128Int32WithTruncation(value);
         /// <summary>
         /// __m128i _mm_cvttpd_epi32 (__m128d a)
         /// </summary>
-        public static Vector128<int> ConvertToIntWithTruncation(Vector128<double> value) => ConvertToIntWithTruncation(value);
+        public static Vector128<int> ConvertToVector128Int32WithTruncation(Vector128<double> value) => ConvertToVector128Int32WithTruncation(value);
+
+        /// <summary>
+        /// int _mm_cvttsd_si32 (__m128d a)
+        /// </summary>
+        public static int ConvertToInt32WithTruncation(Vector128<double> value) => ConvertToInt32WithTruncation(value);
+        /// <summary>
+        /// __int64 _mm_cvttsd_si64 (__m128d a)
+        /// </summary>
+        public static long ConvertToInt64WithTruncation(Vector128<double> value) => ConvertToInt64WithTruncation(value);
 
         /// <summary>
         /// __m128d _mm_div_pd (__m128d a,  __m128d b)
@@ -300,113 +497,150 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Divide(Vector128<double> left, Vector128<double> right) => Divide(left, right);
 
         /// <summary>
-        /// int _mm_extract_epi16 (__m128i a,  int immediate)
+        /// __m128d _mm_div_sd (__m128d a,  __m128d b)
         /// </summary>
-        public static short ExtractShort<T>(Vector128<T> value, byte index) where T : struct
-        {
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            return ExtractShort<T>(value, index);
-        }
+        public static Vector128<double> DivideScalar(Vector128<double> left, Vector128<double> right) => DivideScalar(left, right);
+
         /// <summary>
         /// int _mm_extract_epi16 (__m128i a,  int immediate)
         /// </summary>
-        public static ushort ExtractUshort<T>(Vector128<T> value, byte index) where T : struct
-        {
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            return ExtractUshort<T>(value, index);
-        }
+        public static short Extract(Vector128<short> value, byte index) => Extract(value, index);
+        /// <summary>
+        /// int _mm_extract_epi16 (__m128i a,  int immediate)
+        /// </summary>
+        public static ushort Extract(Vector128<ushort> value, byte index) => Extract(value, index);
         
         /// <summary>
         /// __m128i _mm_insert_epi16 (__m128i a,  int i, int immediate)
         /// </summary>
-        public static Vector128<T> InsertShort<T>(Vector128<T> value, short data, byte index) where T : struct
-        {
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            return InsertShort<T>(value, data, index);
-        }
+        public static Vector128<short> Insert(Vector128<short> value, short data, byte index) => Insert(value, data, index);
         /// <summary>
         /// __m128i _mm_insert_epi16 (__m128i a,  int i, int immediate)
         /// </summary>
-        public static Vector128<T> InsertUshort<T>(Vector128<T> value, ushort data, byte index) where T : struct
-        {
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            return InsertUshort<T>(value, data, index);
-        }
+        public static Vector128<ushort> Insert(Vector128<ushort> value, ushort data, byte index) => Insert(value, data, index);
         
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<sbyte> Load(sbyte* address) => Load(address);
+        public static unsafe Vector128<sbyte> LoadVector128(sbyte* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<byte> Load(byte* address) => Load(address);
+        public static unsafe Vector128<byte> LoadVector128(byte* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<short> Load(short* address) => Load(address);
+        public static unsafe Vector128<short> LoadVector128(short* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<ushort> Load(ushort* address) => Load(address);
+        public static unsafe Vector128<ushort> LoadVector128(ushort* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<int> Load(int* address) => Load(address);
+        public static unsafe Vector128<int> LoadVector128(int* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<uint> Load(uint* address) => Load(address);
+        public static unsafe Vector128<uint> LoadVector128(uint* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<long> Load(long* address) => Load(address);
+        public static unsafe Vector128<long> LoadVector128(long* address) => LoadVector128(address);
         /// <summary>
         /// __m128i _mm_loadu_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<ulong> Load(ulong* address) => Load(address);
+        public static unsafe Vector128<ulong> LoadVector128(ulong* address) => LoadVector128(address);
         /// <summary>
         /// __m128d _mm_loadu_pd (double const* mem_address)
         /// </summary>
-        public static unsafe Vector128<double> Load(double* address) => Load(address);
+        public static unsafe Vector128<double> LoadVector128(double* address) => LoadVector128(address);
+
+        /// <summary>
+        /// __m128d _mm_load_sd (double const* mem_address)
+        /// </summary>
+        public static unsafe Vector128<double> LoadScalar(double* address) => LoadScalar(address);
 
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<sbyte> LoadAligned(sbyte* address) => LoadAligned(address);
+        public static unsafe Vector128<sbyte> LoadAlignedVector128(sbyte* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<byte> LoadAligned(byte* address) => LoadAligned(address);
+        public static unsafe Vector128<byte> LoadAlignedVector128(byte* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<short> LoadAligned(short* address) => LoadAligned(address);
+        public static unsafe Vector128<short> LoadAlignedVector128(short* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<ushort> LoadAligned(ushort* address) => LoadAligned(address);
+        public static unsafe Vector128<ushort> LoadAlignedVector128(ushort* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<int> LoadAligned(int* address) => LoadAligned(address);
+        public static unsafe Vector128<int> LoadAlignedVector128(int* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<uint> LoadAligned(uint* address) => LoadAligned(address);
+        public static unsafe Vector128<uint> LoadAlignedVector128(uint* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<long> LoadAligned(long* address) => LoadAligned(address);
+        public static unsafe Vector128<long> LoadAlignedVector128(long* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128i _mm_load_si128 (__m128i const* mem_address)
         /// </summary>
-        public static unsafe Vector128<ulong> LoadAligned(ulong* address) => LoadAligned(address);
+        public static unsafe Vector128<ulong> LoadAlignedVector128(ulong* address) => LoadAlignedVector128(address);
         /// <summary>
         /// __m128d _mm_load_pd (double const* mem_address)
         /// </summary>
-        public static unsafe Vector128<double> LoadAligned(double* address) => LoadAligned(address);
+        public static unsafe Vector128<double> LoadAlignedVector128(double* address) => LoadAlignedVector128(address);
 
+        /// <summary>
+        /// __m128d _mm_loadh_pd (__m128d a, double const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<double> LoadHigh(Vector128<double> value, double* address) => LoadHigh(value, address);
+
+        /// <summary>
+        /// __m128d _mm_loadl_pd (__m128d a, double const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<double> LoadLow(Vector128<double> value, double* address) => LoadLow(value, address);
+
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<sbyte> LoadScalar(sbyte* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<byte> LoadScalar(byte* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<short> LoadScalar(short* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<ushort> LoadScalar(ushort* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<int> LoadScalar(int* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<uint> LoadScalar(uint* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<long> LoadScalar(long* address) => LoadScalar(address);
+        /// <summary>
+        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
+        /// </summary>
+        public static unsafe Vector128<ulong> LoadScalar(ulong* address) => LoadScalar(address);
+        
         /// <summary>
         /// void _mm_maskmoveu_si128 (__m128i a,  __m128i mask, char* mem_address)
         /// </summary>
@@ -430,6 +664,11 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Max(Vector128<double> left, Vector128<double> right) => Max(left, right);
 
         /// <summary>
+        /// __m128d _mm_max_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> MaxScalar(Vector128<double> left, Vector128<double> right) => MaxScalar(left, right);
+
+        /// <summary>
         /// __m128i _mm_min_epu8 (__m128i a,  __m128i b)
         /// </summary>
         public static Vector128<byte> Min(Vector128<byte> left, Vector128<byte> right) => Min(left, right);
@@ -441,6 +680,16 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_min_pd (__m128d a,  __m128d b)
         /// </summary>
         public static Vector128<double> Min(Vector128<double> left, Vector128<double> right) => Min(left, right);
+
+        /// <summary>
+        /// __m128d _mm_min_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> MinScalar(Vector128<double> left, Vector128<double> right) => MinScalar(left, right);
+
+        /// <summary>
+        /// __m128d _mm_move_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static Vector128<double> MoveScalar(Vector128<double> upper, Vector128<double> value) => MoveScalar(upper, value);
 
         /// <summary>
         /// int _mm_movemask_epi8 (__m128i a)
@@ -461,13 +710,18 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<double> Multiply(Vector128<double> left, Vector128<double> right) => Multiply(left, right);
 
         /// <summary>
+        /// __m128d _mm_mul_sd (__m128d a,  __m128d b)
+        /// </summary>
+        public static Vector128<double> MultiplyScalar(Vector128<double> left, Vector128<double> right) => MultiplyScalar(left, right);
+
+        /// <summary>
         /// __m128i _mm_mulhi_epi16 (__m128i a,  __m128i b)
         /// </summary>
-        public static Vector128<short> MultiplyHi(Vector128<short> left, Vector128<short> right) => MultiplyHi(left, right);
+        public static Vector128<short> MultiplyHigh(Vector128<short> left, Vector128<short> right) => MultiplyHigh(left, right);
         /// <summary>
         /// __m128i _mm_mulhi_epu16 (__m128i a,  __m128i b)
         /// </summary>
-        public static Vector128<ushort> MultiplyHi(Vector128<ushort> left, Vector128<ushort> right) => MultiplyHi(left, right);
+        public static Vector128<ushort> MultiplyHigh(Vector128<ushort> left, Vector128<ushort> right) => MultiplyHigh(left, right);
 
         /// <summary>
         /// __m128i _mm_madd_epi16 (__m128i a,  __m128i b)
@@ -533,85 +787,90 @@ namespace System.Runtime.Intrinsics.X86
         /// <summary>
         /// ___m128i _mm_set_epi8 (char e15, char e14, char e13, char e12, char e11, char e10, char e9, char e8, char e7, char e6, char e5, char e4, char e3, char e2, char e1, char e0)
         /// </summary>
-        public static Vector128<sbyte> Set(sbyte e15, sbyte e14, sbyte e13, sbyte e12, sbyte e11, sbyte e10, sbyte e9, sbyte e8, sbyte e7, sbyte e6, sbyte e5, sbyte e4, sbyte e3, sbyte e2, sbyte e1, sbyte e0)  => Set(e15, e14, e13, e12, e11, e10, e9, e8, e7, e6, e5, e4, e3, e2, e1, e0);
+        public static Vector128<sbyte> SetVector128(sbyte e15, sbyte e14, sbyte e13, sbyte e12, sbyte e11, sbyte e10, sbyte e9, sbyte e8, sbyte e7, sbyte e6, sbyte e5, sbyte e4, sbyte e3, sbyte e2, sbyte e1, sbyte e0)  => SetVector128(e15, e14, e13, e12, e11, e10, e9, e8, e7, e6, e5, e4, e3, e2, e1, e0);
         /// <summary>
         /// ___m128i _mm_set_epi8 (char e15, char e14, char e13, char e12, char e11, char e10, char e9, char e8, char e7, char e6, char e5, char e4, char e3, char e2, char e1, char e0)
         /// </summary>
-        public static Vector128<byte> Set(byte e15, byte e14, byte e13, byte e12, byte e11, byte e10, byte e9, byte e8, byte e7, byte e6, byte e5, byte e4, byte e3, byte e2, byte e1, byte e0)  => Set(e15, e14, e13, e12, e11, e10, e9, e8, e7, e6, e5, e4, e3, e2, e1, e0);
+        public static Vector128<byte> SetVector128(byte e15, byte e14, byte e13, byte e12, byte e11, byte e10, byte e9, byte e8, byte e7, byte e6, byte e5, byte e4, byte e3, byte e2, byte e1, byte e0)  => SetVector128(e15, e14, e13, e12, e11, e10, e9, e8, e7, e6, e5, e4, e3, e2, e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi16 (short e7, short e6, short e5, short e4, short e3, short e2, short e1, short e0)
         /// </summary>
-        public static Vector128<short> Set(short e7, short e6, short e5, short e4, short e3, short e2, short e1, short e0) => Set(e7, e6, e5, e4, e3, e2, e1, e0);
+        public static Vector128<short> SetVector128(short e7, short e6, short e5, short e4, short e3, short e2, short e1, short e0) => SetVector128(e7, e6, e5, e4, e3, e2, e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi16 (short e7, short e6, short e5, short e4, short e3, short e2, short e1, short e0)
         /// </summary>
-        public static Vector128<ushort> Set(ushort e7, ushort e6, ushort e5, ushort e4, ushort e3, ushort e2, ushort e1, ushort e0) => Set(e7, e6, e5, e4, e3, e2, e1, e0);
+        public static Vector128<ushort> SetVector128(ushort e7, ushort e6, ushort e5, ushort e4, ushort e3, ushort e2, ushort e1, ushort e0) => SetVector128(e7, e6, e5, e4, e3, e2, e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi32 (int e3, int e2, int e1, int e0)
         /// </summary>
-        public static Vector128<int> Set(int e3, int e2, int e1, int e0) => Set(e3, e2, e1, e0);
+        public static Vector128<int> SetVector128(int e3, int e2, int e1, int e0) => SetVector128(e3, e2, e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi32 (int e3, int e2, int e1, int e0)
         /// </summary>
-        public static Vector128<uint> Set(uint e3, uint e2, uint e1, uint e0) => Set(e3, e2, e1, e0);
+        public static Vector128<uint> SetVector128(uint e3, uint e2, uint e1, uint e0) => SetVector128(e3, e2, e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi64x (__int64 e1, __int64 e0)
         /// </summary>
-        public static Vector128<long> Set(long e1, long e0) => Set(e1, e0);
+        public static Vector128<long> SetVector128(long e1, long e0) => SetVector128(e1, e0);
         /// <summary>
         /// __m128i _mm_set_epi64x (__int64 e1, __int64 e0)
         /// </summary>
-        public static Vector128<ulong> Set(ulong e1, ulong e0) => Set(e1, e0);
+        public static Vector128<ulong> SetVector128(ulong e1, ulong e0) => SetVector128(e1, e0);
         /// <summary>
         /// __m128d _mm_set_pd (double e1, double e0)
         /// </summary>
-        public static Vector128<double> Set(double e1, double e0) => Set(e1, e0);
-        
+        public static Vector128<double> SetVector128(double e1, double e0) => SetVector128(e1, e0);
+
+        /// <summary>
+        /// __m128d _mm_set_sd (double a)
+        /// </summary>
+        public static Vector128<double> SetScalar(double value) => SetScalar(value);
+
         /// <summary>
         /// __m128i _mm_set1_epi8 (char a)
         /// </summary>
-        public static Vector128<byte> Set1(byte value) => Set1(value);
+        public static Vector128<byte> SetAllVector128(byte value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi8 (char a)
         /// </summary>
-        public static Vector128<sbyte> Set1(sbyte value) => Set1(value);
+        public static Vector128<sbyte> SetAllVector128(sbyte value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi16 (short a)
         /// </summary>
-        public static Vector128<short> Set1(short value) => Set1(value);
+        public static Vector128<short> SetAllVector128(short value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi16 (short a)
         /// </summary>
-        public static Vector128<ushort> Set1(ushort value) => Set1(value);
+        public static Vector128<ushort> SetAllVector128(ushort value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi32 (int a)
         /// </summary>
-        public static Vector128<int> Set1(int value) => Set1(value);
+        public static Vector128<int> SetAllVector128(int value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi32 (int a)
         /// </summary>
-        public static Vector128<uint> Set1(uint value) => Set1(value);
+        public static Vector128<uint> SetAllVector128(uint value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi64x (long long a)
         /// </summary>
-        public static Vector128<long> Set1(long value) => Set1(value);
+        public static Vector128<long> SetAllVector128(long value) => SetAllVector128(value);
         /// <summary>
         /// __m128i _mm_set1_epi64x (long long a)
         /// </summary>
-        public static Vector128<ulong> Set1(ulong value) => Set1(value);
+        public static Vector128<ulong> SetAllVector128(ulong value) => SetAllVector128(value);
         /// <summary>
         /// __m128d _mm_set1_pd (double a)
         /// </summary>
-        public static Vector128<double> Set1(double value) => Set1(value);
+        public static Vector128<double> SetAllVector128(double value) => SetAllVector128(value);
 
         /// <summary>
         /// __m128i _mm_setzero_si128 ()
         /// __m128d _mm_setzero_pd (void)
         /// </summary>
-        public static Vector128<T> SetZero<T>() where T : struct
+        public static Vector128<T> SetZeroVector128<T>() where T : struct
         {
             ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            return SetZero<T>();
+            return SetZeroVector128<T>();
         }
 
         /// <summary>
@@ -649,6 +908,31 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_shufflelo_epi16 (__m128i a,  int control)
         /// </summary>
         public static Vector128<ushort> ShuffleLow(Vector128<ushort> value, byte control) => ShuffleLow(value, control);
+
+        /// <summary>
+        /// __m128i _mm_sll_epi16 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<short> ShiftLeftLogical(Vector128<short> value, Vector128<short> count) => ShiftLeftLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_sll_epi16 (__m128i a,  __m128i count)
+        /// </summary>
+        public static Vector128<ushort> ShiftLeftLogical(Vector128<ushort> value, Vector128<ushort> count) => ShiftLeftLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_sll_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftLeftLogical(Vector128<int> value, Vector128<int> count) => ShiftLeftLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_sll_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<uint> ShiftLeftLogical(Vector128<uint> value, Vector128<uint> count) => ShiftLeftLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_sll_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<long> ShiftLeftLogical(Vector128<long> value, Vector128<long> count) => ShiftLeftLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_sll_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<ulong> ShiftLeftLogical(Vector128<ulong> value, Vector128<ulong> count) => ShiftLeftLogical(value, count);
         
         /// <summary>
         /// __m128i _mm_slli_epi16 (__m128i a,  int immediate)
@@ -707,7 +991,16 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_bslli_si128 (__m128i a, int imm8)
         /// </summary>
         public static Vector128<ulong> ShiftLeftLogical128BitLane(Vector128<ulong> value, byte numBytes) => ShiftLeftLogical128BitLane(value, numBytes);
-        
+
+        /// <summary>
+        /// __m128i _mm_sra_epi16 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<short> ShiftRightArithmetic(Vector128<short> value, Vector128<short> count) => ShiftRightArithmetic(value, count);
+        /// <summary>
+        /// __m128i _mm_sra_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftRightArithmetic(Vector128<int> value, Vector128<int> count) => ShiftRightArithmetic(value, count);
+
         /// <summary>
         /// __m128i _mm_srai_epi16 (__m128i a,  int immediate)
         /// </summary>
@@ -716,7 +1009,32 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_srai_epi32 (__m128i a,  int immediate)
         /// </summary>
         public static Vector128<int> ShiftRightArithmetic(Vector128<int> value, byte count) => ShiftRightArithmetic(value, count);
-        
+
+        /// <summary>
+        /// __m128i _mm_srl_epi16 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<short> ShiftRightLogical(Vector128<short> value, Vector128<short> count) => ShiftRightLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_srl_epi16 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<ushort> ShiftRightLogical(Vector128<ushort> value, Vector128<ushort> count) => ShiftRightLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_srl_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<int> ShiftRightLogical(Vector128<int> value, Vector128<int> count) => ShiftRightLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_srl_epi32 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<uint> ShiftRightLogical(Vector128<uint> value, Vector128<uint> count) => ShiftRightLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_srl_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<long> ShiftRightLogical(Vector128<long> value, Vector128<long> count) => ShiftRightLogical(value, count);
+        /// <summary>
+        /// __m128i _mm_srl_epi64 (__m128i a, __m128i count)
+        /// </summary>
+        public static Vector128<ulong> ShiftRightLogical(Vector128<ulong> value, Vector128<ulong> count) => ShiftRightLogical(value, count);
+
         /// <summary>
         /// __m128i _mm_srli_epi16 (__m128i a,  int immediate)
         /// </summary>
@@ -779,6 +1097,16 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_sqrt_pd (__m128d a)
         /// </summary>
         public static Vector128<double> Sqrt(Vector128<double> value) => Sqrt(value);
+
+        /// <summary>
+        /// __m128d _mm_sqrt_sd (__m128d a)
+        /// </summary>
+        public static Vector128<double> SqrtScalar(Vector128<double> value) => SqrtScalar(value);
+
+        /// <summary>
+        /// void _mm_store_sd (double* mem_addr, __m128d a)
+        /// </summary>
+        public static unsafe void StoreScalar(double* address, Vector128<double> source) => StoreScalar(address, source);
 
         /// <summary>
         /// void _mm_store_si128 (__m128i* mem_addr, __m128i a)
@@ -945,6 +1273,11 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_sub_pd (__m128d a, __m128d b)
         /// </summary>
         public static Vector128<double> Subtract(Vector128<double> left, Vector128<double> right) => Subtract(left, right);
+
+        /// <summary>
+        /// __m128d _mm_sub_sd (__m128d a, __m128d b)
+        /// </summary>
+        public static Vector128<double> SubtractScalar(Vector128<double> left, Vector128<double> right) => SubtractScalar(left, right);
 
         /// <summary>
         /// __m128i _mm_subs_epi8 (__m128i a,  __m128i b)

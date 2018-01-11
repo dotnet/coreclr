@@ -219,7 +219,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
     if (varTypeIsFloating(regType))
     {
         static const regNumber raRegVarOrderFlt[]   = {REG_VAR_ORDER_FLT};
-        const unsigned         raRegVarOrderFltSize = sizeof(raRegVarOrderFlt) / sizeof(raRegVarOrderFlt[0]);
+        const unsigned         raRegVarOrderFltSize = _countof(raRegVarOrderFlt);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderFltSize;
@@ -230,7 +230,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
 #endif
     {
         static const regNumber raRegVarOrder[]   = {REG_VAR_ORDER};
-        const unsigned         raRegVarOrderSize = sizeof(raRegVarOrder) / sizeof(raRegVarOrder[0]);
+        const unsigned         raRegVarOrderSize = _countof(raRegVarOrder);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderSize;
@@ -370,7 +370,6 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_ILLEGAL,   // TYP_UNDEF,
         RBM_NONE,      // TYP_VOID,
         RBM_INTRET,    // TYP_BOOL,
-        RBM_INTRET,    // TYP_CHAR,
         RBM_INTRET,    // TYP_BYTE,
         RBM_INTRET,    // TYP_UBYTE,
         RBM_INTRET,    // TYP_SHORT,
@@ -383,16 +382,13 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_DOUBLERET, // TYP_DOUBLE,
         RBM_INTRET,    // TYP_REF,
         RBM_INTRET,    // TYP_BYREF,
-        RBM_INTRET,    // TYP_ARRAY,
         RBM_ILLEGAL,   // TYP_STRUCT,
         RBM_ILLEGAL,   // TYP_BLK,
         RBM_ILLEGAL,   // TYP_LCLBLK,
-        RBM_ILLEGAL,   // TYP_PTR,
-        RBM_ILLEGAL,   // TYP_FNC,
         RBM_ILLEGAL,   // TYP_UNKNOWN,
     };
 
-    assert((unsigned)type < sizeof(returnMap) / sizeof(returnMap[0]));
+    assert((unsigned)type < _countof(returnMap));
     assert(returnMap[TYP_LONG] == RBM_LNGRET);
     assert(returnMap[TYP_DOUBLE] == RBM_DOUBLERET);
     assert(returnMap[TYP_REF] == RBM_INTRET);
@@ -845,6 +841,7 @@ void Compiler::raAssignVars()
                  varNum++)
             {
                 noway_assert(lvaTable[varNum].lvRefCnt == 0);
+                lvaTable[varNum].lvIsStructField = false;
             }
         }
         else
@@ -1064,7 +1061,7 @@ inline regMaskTP Compiler::rpPredictRegMask(rpPredictReg predictReg, var_types t
     if (rpHasVarIndexForPredict(predictReg))
         predictReg = PREDICT_REG;
 
-    noway_assert((unsigned)predictReg < sizeof(rpPredictMap) / sizeof(rpPredictMap[0]));
+    noway_assert((unsigned)predictReg < _countof(rpPredictMap));
     noway_assert(rpPredictMap[predictReg] != RBM_ILLEGAL);
 
     regMaskTP regAvailForType = rpPredictMap[predictReg];
@@ -1131,7 +1128,7 @@ regMaskTP Compiler::rpPredictRegPick(var_types type, rpPredictReg predictReg, re
         case TYP_BYTE:
         case TYP_UBYTE:
         case TYP_SHORT:
-        case TYP_CHAR:
+        case TYP_USHORT:
         case TYP_INT:
         case TYP_UINT:
         case TYP_REF:
@@ -4392,7 +4389,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 }
                 tree->gtUsedRegs = (regMaskSmall)(regMask | tmpMask);
                 goto RETURN_CHECK;
-#else  // !_TARGET_ARM
+#else  // !_TARGET_ARM_
                 goto GENERIC_UNARY;
 #endif // _TARGET_ARM_
             }

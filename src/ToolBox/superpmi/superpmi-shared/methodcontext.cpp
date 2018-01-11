@@ -299,8 +299,6 @@ void MethodContext::MethodInitHelperFile(HANDLE hFile)
 
 void MethodContext::MethodInitHelper(unsigned char* buff2, unsigned int totalLen)
 {
-    MethodContext::MethodContext();
-
     unsigned int   buffIndex = 0;
     unsigned int   localsize = 0;
     unsigned char  canary    = 0xff;
@@ -1915,6 +1913,29 @@ CorInfoType MethodContext::repGetTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE
                   "Didn't find %016llX", (DWORDLONG)cls);
     CorInfoType result = (CorInfoType)GetTypeForPrimitiveValueClass->Get((DWORDLONG)cls);
     DEBUG_REP(dmpGetTypeForPrimitiveValueClass((DWORDLONG)cls, (DWORD)result));
+    return result;
+}
+
+void MethodContext::recGetTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls, CorInfoType result)
+{
+    if (GetTypeForPrimitiveNumericClass == nullptr)
+        GetTypeForPrimitiveNumericClass = new LightWeightMap<DWORDLONG, DWORD>();
+
+    GetTypeForPrimitiveNumericClass->Add((DWORDLONG)cls, result);
+    DEBUG_REC(dmpGetTypeForPrimitiveNumericClass((DWORDLONG)cls, (DWORD)result));
+}
+void MethodContext::dmpGetTypeForPrimitiveNumericClass(DWORDLONG key, DWORD value)
+{
+    printf("GetTypeForPrimitiveNumericClass key cls-%016llX, value cit-%u(%s)", key, value, toString((CorInfoType)value));
+}
+CorInfoType MethodContext::repGetTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    AssertCodeMsg(GetTypeForPrimitiveNumericClass != nullptr, EXCEPTIONCODE_MC,
+                  "Encountered an empty LWM while looking for %016llX", (DWORDLONG)cls);
+    AssertCodeMsg(GetTypeForPrimitiveNumericClass->GetIndex((DWORDLONG)cls) != -1, EXCEPTIONCODE_MC,
+                  "Didn't find %016llX", (DWORDLONG)cls);
+    CorInfoType result = (CorInfoType)GetTypeForPrimitiveNumericClass->Get((DWORDLONG)cls);
+    DEBUG_REP(dmpGetTypeForPrimitiveNumericClass((DWORDLONG)cls, (DWORD)result));
     return result;
 }
 
@@ -5681,6 +5702,113 @@ const char* MethodContext::repGetClassName(CORINFO_CLASS_HANDLE cls)
     const char* name   = (const char*)GetClassName->GetBuffer(offset);
     DEBUG_REC(dmpGetClassName((DWORDLONG)cls, (DWORD)offset));
     return name;
+}
+
+void MethodContext::recGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls,
+                                                char*               className,
+                                                const char**        namespaceName)
+{
+    if (GetClassNameFromMetadata == nullptr)
+        GetClassNameFromMetadata = new LightWeightMap<DLD, DD>();
+    DD value;
+    DLD key;
+    key.A = (DWORDLONG)cls;
+    key.B = (namespaceName != nullptr);
+
+    if (className != nullptr)
+        value.A = 
+            GetClassNameFromMetadata->AddBuffer((unsigned char*)className, (DWORD)strlen(className) + 1);
+    else
+        value.A = (DWORD)-1;
+
+    if ((namespaceName != nullptr) && (*namespaceName != nullptr))
+        value.B =
+            GetClassNameFromMetadata->AddBuffer((unsigned char*)*namespaceName, (DWORD)strlen(*namespaceName) + 1);
+    else
+        value.B = (DWORD)-1;
+
+    GetClassNameFromMetadata->Add(key, value);
+    DEBUG_REC(dmpGetClassNameFromMetadata(key, value));
+}
+
+void MethodContext::dmpGetClassNameFromMetadata(DLD key, DD value)
+{
+    unsigned char* className     = (unsigned char*)GetClassNameFromMetadata->GetBuffer(value.A);
+    unsigned char* namespaceName = (unsigned char*)GetClassNameFromMetadata->GetBuffer(value.B);
+    printf("GetClassNameFromMetadata key - classNonNull-%llu namespaceNonNull-%u, value "
+           "class-'%s', namespace-'%s'",
+           key.A, key.B, className, namespaceName);
+    GetClassNameFromMetadata->Unlock();
+}
+
+const char* MethodContext::repGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    const char* result = nullptr;
+    DD         value;
+    DLD        key;
+    key.A = (DWORDLONG)cls;
+    key.B = (namespaceName != nullptr);
+
+    int itemIndex = -1;
+    if (GetClassNameFromMetadata != nullptr)
+        itemIndex = GetClassNameFromMetadata->GetIndex(key);
+    if (itemIndex < 0)
+    {
+        if (namespaceName != nullptr)
+        {
+            *namespaceName = nullptr;
+        }
+    }
+    else
+    {
+        value  = GetClassNameFromMetadata->Get(key);
+        result = (const char*)GetClassNameFromMetadata->GetBuffer(value.A);
+
+        if (namespaceName != nullptr)
+        {
+            *namespaceName = (const char*)GetClassNameFromMetadata->GetBuffer(value.B);
+        }
+    }
+    DEBUG_REP(dmpGetClassNameFromMetadata(key, value));
+    return result;
+}
+
+void MethodContext::recGetTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, CORINFO_CLASS_HANDLE result, unsigned index)
+{
+    if (GetTypeInstantiationArgument == nullptr)
+        GetTypeInstantiationArgument = new LightWeightMap<DWORDLONG, DWORDLONG>();
+
+    DWORDLONG key = (DWORDLONG)cls;
+
+    GetTypeInstantiationArgument->Add(key, (DWORDLONG)result);
+    DEBUG_REC(dmpGetTypeInstantiationArgument(key, (DWORDLONG)result));
+}
+
+void MethodContext::dmpGetTypeInstantiationArgument(DWORDLONG key, DWORDLONG value)
+{
+    printf("GetTypeInstantiationArgument key - classNonNull-%llu, value NonNull-%llu", key, value);
+    GetTypeInstantiationArgument->Unlock();
+}
+
+
+CORINFO_CLASS_HANDLE MethodContext::repGetTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    CORINFO_CLASS_HANDLE result = nullptr;
+    DWORDLONG            value;
+    DWORDLONG            key;
+    key = (DWORDLONG)cls;
+
+    int itemIndex = -1;
+    if (GetTypeInstantiationArgument != nullptr)
+        itemIndex = GetTypeInstantiationArgument->GetIndex(key);
+    if (itemIndex >= 0)
+    {
+        value = GetTypeInstantiationArgument->Get(key);
+        result = (CORINFO_CLASS_HANDLE)value;
+    }
+    
+    DEBUG_REP(dmpGetTypeInstantiationArgument(key, value));
+    return result;
 }
 
 void MethodContext::recAppendClassName(

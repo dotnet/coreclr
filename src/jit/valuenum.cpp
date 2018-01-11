@@ -95,7 +95,13 @@ ValueNumStore::ValueNumStore(Compiler* comp, CompAllocator* alloc)
     ChunkNum cn = m_chunks.Push(specialConstChunk);
     assert(cn == 0);
 
-    m_mapSelectBudget = JitConfig.JitVNMapSelBudget();
+    m_mapSelectBudget = (int)JitConfig.JitVNMapSelBudget(); // We cast the unsigned DWORD to a signed int.
+
+    // This value must be non-negative and non-zero, reset the value to DEFAULT_MAP_SELECT_BUDGET if it isn't.
+    if (m_mapSelectBudget <= 0)
+    {
+        m_mapSelectBudget = DEFAULT_MAP_SELECT_BUDGET;
+    }
 }
 
 // static.
@@ -901,7 +907,6 @@ ValueNum ValueNumStore::VNZeroForType(var_types typ)
         case TYP_BOOL:
         case TYP_BYTE:
         case TYP_UBYTE:
-        case TYP_CHAR:
         case TYP_SHORT:
         case TYP_USHORT:
         case TYP_INT:
@@ -919,7 +924,6 @@ ValueNum ValueNumStore::VNZeroForType(var_types typ)
         case TYP_DOUBLE:
             return VNForDoubleCon(0.0);
         case TYP_REF:
-        case TYP_ARRAY:
             return VNForNull();
         case TYP_BYREF:
             return VNForByrefCon(0);
@@ -948,7 +952,6 @@ ValueNum ValueNumStore::VNOneForType(var_types typ)
         case TYP_BOOL:
         case TYP_BYTE:
         case TYP_UBYTE:
-        case TYP_CHAR:
         case TYP_SHORT:
         case TYP_USHORT:
         case TYP_INT:
@@ -1329,9 +1332,13 @@ ValueNum ValueNumStore::VNForMapStore(var_types typ, ValueNum arg0VN, ValueNum a
 
 ValueNum ValueNumStore::VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum arg0VN, ValueNum arg1VN)
 {
-    unsigned budget          = m_mapSelectBudget;
+    int      budget          = m_mapSelectBudget;
     bool     usedRecursiveVN = false;
     ValueNum result          = VNForMapSelectWork(vnk, typ, arg0VN, arg1VN, &budget, &usedRecursiveVN);
+
+    // The remaining budget should always be between [0..m_mapSelectBudget]
+    assert((budget >= 0) && (budget <= m_mapSelectBudget));
+
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
@@ -1365,7 +1372,7 @@ ValueNum ValueNumStore::VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum
 //    (liberal/conservative) to read from the SSA def referenced in the phi argument.
 
 ValueNum ValueNumStore::VNForMapSelectWork(
-    ValueNumKind vnk, var_types typ, ValueNum arg0VN, ValueNum arg1VN, unsigned* pBudget, bool* pUsedRecursiveVN)
+    ValueNumKind vnk, var_types typ, ValueNum arg0VN, ValueNum arg1VN, int* pBudget, bool* pUsedRecursiveVN)
 {
 TailCall:
     // This label allows us to directly implement a tail call by setting up the arguments, and doing a goto to here.
@@ -1396,7 +1403,7 @@ TailCall:
     {
 
         // Give up if we've run out of budget.
-        if (--(*pBudget) == 0)
+        if (--(*pBudget) <= 0)
         {
             // We have to use 'nullptr' for the basic block here, because subsequent expressions
             // in different blocks may find this result in the VNFunc2Map -- other expressions in
@@ -1494,6 +1501,16 @@ TailCall:
                         ValueNum argRest = phiFuncApp.m_args[1];
                         ValueNum sameSelResult =
                             VNForMapSelectWork(vnk, typ, phiArgVN, arg1VN, pBudget, pUsedRecursiveVN);
+
+                        // It is possible that we just now exceeded our budget, if so we need to force an early exit
+                        // and stop calling VNForMapSelectWork
+                        if (*pBudget <= 0)
+                        {
+                            // We don't have any budget remaining to verify that all phiArgs are the same
+                            // so setup the default failure case now.
+                            allSame = false;
+                        }
+
                         while (allSame && argRest != ValueNumStore::NoVN)
                         {
                             ValueNum  cur = argRest;
@@ -1982,7 +1999,6 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                 case TYP_SHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(INT16(arg0Val));
-                case TYP_CHAR:
                 case TYP_USHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(UINT16(arg0Val));
@@ -2071,7 +2087,6 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                         case TYP_SHORT:
                             assert(typ == TYP_INT);
                             return VNForIntCon(INT16(arg0Val));
-                        case TYP_CHAR:
                         case TYP_USHORT:
                             assert(typ == TYP_INT);
                             return VNForIntCon(UINT16(arg0Val));
@@ -2128,7 +2143,6 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                 case TYP_SHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(INT16(arg0Val));
-                case TYP_CHAR:
                 case TYP_USHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(UINT16(arg0Val));
@@ -2170,7 +2184,6 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                 case TYP_SHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(INT16(arg0Val));
-                case TYP_CHAR:
                 case TYP_USHORT:
                     assert(typ == TYP_INT);
                     return VNForIntCon(UINT16(arg0Val));
@@ -3598,6 +3611,9 @@ ValueNum ValueNumStore::EvalMathFuncUnary(var_types typ, CorInfoIntrinsics gtMat
             case CORINFO_INTRINSIC_Cos:
                 vnf = VNF_Cos;
                 break;
+            case CORINFO_INTRINSIC_Cbrt:
+                vnf = VNF_Cbrt;
+                break;
             case CORINFO_INTRINSIC_Sqrt:
                 vnf = VNF_Sqrt;
                 break;
@@ -3637,11 +3653,20 @@ ValueNum ValueNumStore::EvalMathFuncUnary(var_types typ, CorInfoIntrinsics gtMat
             case CORINFO_INTRINSIC_Asin:
                 vnf = VNF_Asin;
                 break;
+            case CORINFO_INTRINSIC_Asinh:
+                vnf = VNF_Asinh;
+                break;
             case CORINFO_INTRINSIC_Acos:
                 vnf = VNF_Acos;
                 break;
+            case CORINFO_INTRINSIC_Acosh:
+                vnf = VNF_Acosh;
+                break;
             case CORINFO_INTRINSIC_Atan:
                 vnf = VNF_Atan;
+                break;
+            case CORINFO_INTRINSIC_Atanh:
+                vnf = VNF_Atanh;
                 break;
             case CORINFO_INTRINSIC_Log10:
                 vnf = VNF_Log10;
@@ -3846,7 +3871,6 @@ void ValueNumStore::vnDump(Compiler* comp, ValueNum vn, bool isPtr)
             case TYP_BOOL:
             case TYP_BYTE:
             case TYP_UBYTE:
-            case TYP_CHAR:
             case TYP_SHORT:
             case TYP_USHORT:
             case TYP_INT:
@@ -3904,7 +3928,6 @@ void ValueNumStore::vnDump(Compiler* comp, ValueNum vn, bool isPtr)
                 printf("DblCns[%f]", ConstantValue<double>(vn));
                 break;
             case TYP_REF:
-            case TYP_ARRAY:
                 if (vn == VNForNull())
                 {
                     printf("null");
@@ -4133,8 +4156,7 @@ void ValueNumStore::InitValueNumStoreStatics()
 #include "valuenumfuncs.h"
 #undef ValueNumFuncDef
 
-    unsigned n = sizeof(genTreeOpsIllegalAsVNFunc) / sizeof(genTreeOps);
-    for (unsigned i = 0; i < n; i++)
+    for (unsigned i = 0; i < _countof(genTreeOpsIllegalAsVNFunc); i++)
     {
         vnfOpAttribs[genTreeOpsIllegalAsVNFunc[i]] |= VNFOA_IllegalGenTreeOp;
     }
@@ -5197,7 +5219,7 @@ void Compiler::fgValueNumberTreeConst(GenTreePtr tree)
         case TYP_ULONG:
         case TYP_INT:
         case TYP_UINT:
-        case TYP_CHAR:
+        case TYP_USHORT:
         case TYP_SHORT:
         case TYP_BYTE:
         case TYP_UBYTE:
@@ -6912,6 +6934,16 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         ValueNumPair op1VNP;
                         ValueNumPair op1VNPx = ValueNumStore::VNPForEmptyExcSet();
                         vnStore->VNPUnpackExc(tree->gtOp.gtOp1->gtVNPair, &op1VNP, &op1VNPx);
+
+                        // If we are fetching the array length for an array ref that came from global memory
+                        // then for CSE safety we must use the conservative value number for both
+                        //
+                        if ((tree->OperGet() == GT_ARR_LENGTH) && ((tree->gtOp.gtOp1->gtFlags & GTF_GLOB_REF) != 0))
+                        {
+                            // use the conservative value number for both when computing the VN for the ARR_LENGTH
+                            op1VNP.SetBoth(op1VNP.GetConservative());
+                        }
+
                         tree->gtVNPair =
                             vnStore->VNPWithExc(vnStore->VNPairForFunc(tree->TypeGet(),
                                                                        GetVNFuncForOper(oper, (tree->gtFlags &
@@ -7042,6 +7074,13 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                 case GT_LIST:
                     // These nodes never need to have a ValueNumber
                     tree->gtVNPair.SetBoth(ValueNumStore::NoVN);
+                    break;
+
+                case GT_BOX:
+                    // BOX doesn't do anything at this point, the actual object allocation
+                    // and initialization happens separately (and not numbering BOX correctly
+                    // prevents seeing allocation related assertions through it)
+                    tree->gtVNPair = tree->gtGetOp1()->gtVNPair;
                     break;
 
                 default:

@@ -7,6 +7,7 @@ using System.Runtime;
 using System.Runtime.Serialization;
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security;
 using System.Threading;
@@ -1030,7 +1031,7 @@ namespace System.Text
             {
                 unsafe
                 {
-                    fixed (char* valueChars = &value.DangerousGetPinnableReference())
+                    fixed (char* valueChars = &MemoryMarshal.GetReference(value))
                     {
                         Append(valueChars, value.Length);
                     }
@@ -1272,7 +1273,7 @@ namespace System.Text
             {
                 unsafe
                 {
-                    fixed (char* sourcePtr = &value.DangerousGetPinnableReference())
+                    fixed (char* sourcePtr = &MemoryMarshal.GetReference(value))
                         Insert(index, sourcePtr, value.Length);
                 }
             }
@@ -1642,6 +1643,35 @@ namespace System.Text
                 if (thisChunk.m_ChunkChars[thisChunkIndex] != sbChunk.m_ChunkChars[sbChunkIndex])
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Determines if the contents of this builder are equal to the contents of ReadOnlySpan<char>.
+        /// </summary>
+        /// <param name="value">The ReadOnlySpan{char}.</param>
+        public bool Equals(ReadOnlySpan<char> value)
+        {
+            if (value.Length != Length)
+                return false;
+
+            StringBuilder sbChunk = this;
+            int offset = 0;
+
+            do
+            {
+                int chunk_length = sbChunk.m_ChunkLength;
+                offset += chunk_length;
+
+                ReadOnlySpan<char> chunk = new ReadOnlySpan<char>(sbChunk.m_ChunkChars, 0, chunk_length);
+
+                if (!chunk.Equals(value.Slice(value.Length - offset, chunk_length)))
+                    return false;
+
+                sbChunk = sbChunk.m_ChunkPrevious;
+            } while (sbChunk != null);
+
+            Debug.Assert(offset == Length);
+            return true;
         }
 
         /// <summary>
@@ -2046,7 +2076,7 @@ namespace System.Text
                 }
 
                 fixed (char* sourcePtr = &source[sourceIndex])
-                    fixed (char* destinationPtr = &destination.DangerousGetPinnableReference())
+                    fixed (char* destinationPtr = &MemoryMarshal.GetReference(destination))
                         string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
             }
         }

@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices
 {
@@ -23,5 +25,30 @@ namespace System.Runtime.InteropServices
         /// </remarks>
         public static Memory<T> AsMemory<T>(ReadOnlyMemory<T> readOnlyMemory) =>
             Unsafe.As<ReadOnlyMemory<T>, Memory<T>>(ref readOnlyMemory);
+
+        public static ref T GetReference<T>(Span<T> span) => ref span._pointer.Value;
+
+        public static ref T GetReference<T>(ReadOnlySpan<T> span) => ref span._pointer.Value;
+
+        public static bool TryGetArray<T>(ReadOnlyMemory<T> readOnlyMemory, out ArraySegment<T> arraySegment)
+        {
+            object obj = readOnlyMemory.GetObjectStartLength(out int index, out int length);
+            if (index < 0)
+            {
+                if (((OwnedMemory<T>)obj).TryGetArray(out var segment))
+                {
+                    arraySegment = new ArraySegment<T>(segment.Array, segment.Offset + (index & ReadOnlyMemory<T>.RemoveOwnedFlagBitMask), length);
+                    return true;
+                }
+            }
+            else if (obj is T[] arr)
+            {
+                arraySegment = new ArraySegment<T>(arr, index, length);
+                return true;
+            }
+
+            arraySegment = default;
+            return false;
+        }
     }
 }

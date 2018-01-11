@@ -356,6 +356,22 @@ const char* WrapICorJitInfo::getClassName(CORINFO_CLASS_HANDLE    cls)
     return result;
 }
 
+const char* WrapICorJitInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    API_ENTER(getClassNameFromMetadata);
+    const char* result = wrapHnd->getClassNameFromMetadata(cls, namespaceName);
+    API_LEAVE(getClassNameFromMetadata);
+    return result;
+}
+
+CORINFO_CLASS_HANDLE WrapICorJitInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    API_ENTER(getTypeInstantiationArgument);
+    CORINFO_CLASS_HANDLE result = wrapHnd->getTypeInstantiationArgument(cls, index);
+    API_LEAVE(getTypeInstantiationArgument);
+    return result;
+}
+
 int WrapICorJitInfo::appendClassName(
             __deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
             int* pnBufLen,
@@ -656,6 +672,15 @@ CorInfoType WrapICorJitInfo::getTypeForPrimitiveValueClass(
     API_ENTER(getTypeForPrimitiveValueClass);
     CorInfoType temp = wrapHnd->getTypeForPrimitiveValueClass(cls);
     API_LEAVE(getTypeForPrimitiveValueClass);
+    return temp;
+}
+
+CorInfoType WrapICorJitInfo::getTypeForPrimitiveNumericClass(
+            CORINFO_CLASS_HANDLE        cls)
+{
+    API_ENTER(getTypeForPrimitiveNumericClass);
+    CorInfoType temp = wrapHnd->getTypeForPrimitiveNumericClass(cls);
+    API_LEAVE(getTypeForPrimitiveNumericClass);
     return temp;
 }
 

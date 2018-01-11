@@ -1,3 +1,4 @@
+
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
@@ -240,7 +241,7 @@ bool Compiler::impILConsumesAddr(const BYTE* codeAddr, CORINFO_METHOD_HANDLE fnc
             var_types lclTyp = JITtype2varType(info.compCompHnd->getFieldType(resolvedToken.hField, &clsHnd));
 
             // Preserve 'small' int types
-            if (lclTyp > TYP_INT)
+            if (!varTypeIsSmall(lclTyp))
             {
                 lclTyp = genActualType(lclTyp);
             }
@@ -852,7 +853,21 @@ GenTreeArgList* Compiler::impPopList(unsigned count, CORINFO_SIG_INFO* sig, GenT
             // Morph trees that aren't already OBJs or MKREFANY to be OBJs
             assert(ti.IsType(TI_STRUCT));
             structType = ti.GetClassHandleForValueClass();
-            temp       = impNormStructVal(temp, structType, (unsigned)CHECK_SPILL_ALL);
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("Calling impNormStructVal on:\n");
+                gtDispTree(temp);
+            }
+#endif
+            temp = impNormStructVal(temp, structType, (unsigned)CHECK_SPILL_ALL);
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("resulting tree:\n");
+                gtDispTree(temp);
+            }
+#endif
         }
 
         /* NOTE: we defer bashing the type for I_IMPL to fgMorphArgs */
@@ -1083,14 +1098,16 @@ GenTreePtr Compiler::impAssignStructPtr(GenTreePtr           destAddr,
     assert(src->gtOper == GT_LCL_VAR || src->gtOper == GT_FIELD || src->gtOper == GT_IND || src->gtOper == GT_OBJ ||
            src->gtOper == GT_CALL || src->gtOper == GT_MKREFANY || src->gtOper == GT_RET_EXPR ||
            src->gtOper == GT_COMMA || src->gtOper == GT_ADDR ||
-           (src->TypeGet() != TYP_STRUCT && (GenTree::OperIsSIMD(src->gtOper) || src->gtOper == GT_LCL_FLD)));
+           (src->TypeGet() != TYP_STRUCT &&
+            (GenTree::OperIsSIMD(src->gtOper) || src->OperIsSimdHWIntrinsic() || src->gtOper == GT_LCL_FLD)));
 #else  // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     assert(varTypeIsStruct(src));
 
     assert(src->gtOper == GT_LCL_VAR || src->gtOper == GT_FIELD || src->gtOper == GT_IND || src->gtOper == GT_OBJ ||
            src->gtOper == GT_CALL || src->gtOper == GT_MKREFANY || src->gtOper == GT_RET_EXPR ||
            src->gtOper == GT_COMMA ||
-           (src->TypeGet() != TYP_STRUCT && (GenTree::OperIsSIMD(src->gtOper) || src->gtOper == GT_LCL_FLD)));
+           (src->TypeGet() != TYP_STRUCT &&
+            (GenTree::OperIsSIMD(src->gtOper) || src->OperIsSimdHWIntrinsic() || src->gtOper == GT_LCL_FLD)));
 #endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     if (destAddr->OperGet() == GT_ADDR)
     {
@@ -1596,10 +1613,15 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif // FEATURE_SIMD
+#if FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
+            break;
+#endif
 
         case GT_COMMA:
         {
-            // The second thing could either be a block node or a GT_SIMD or a GT_COMMA node.
+            // The second thing could either be a block node or a GT_FIELD or a GT_SIMD or a GT_COMMA node.
             GenTree* blockNode = structVal->gtOp.gtOp2;
             assert(blockNode->gtType == structType);
 
@@ -1616,6 +1638,12 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
                 } while (blockNode->OperGet() == GT_COMMA);
             }
 
+            if (blockNode->OperGet() == GT_FIELD)
+            {
+                // If we have a GT_FIELD then wrap it in a GT_OBJ.
+                blockNode = gtNewObjNode(structHnd, gtNewOperNode(GT_ADDR, TYP_BYREF, blockNode));
+            }
+
 #ifdef FEATURE_SIMD
             if (blockNode->OperGet() == GT_SIMD)
             {
@@ -1624,8 +1652,16 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             }
             else
 #endif
+#if FEATURE_HW_INTRINSICS
+                if (blockNode->OperGet() == GT_HWIntrinsic && blockNode->AsHWIntrinsic()->isSIMD())
             {
-                assert(blockNode->OperIsBlk());
+                parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
+                alreadyNormalized  = true;
+            }
+            else
+#endif
+            {
+                noway_assert(blockNode->OperIsBlk());
 
                 // Sink the GT_COMMA below the blockNode addr.
                 // That is GT_COMMA(op1, op2=blockNode) is tranformed into
@@ -1649,7 +1685,7 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
         break;
 
         default:
-            assert(!"Unexpected node in impNormStructVal()");
+            noway_assert(!"Unexpected node in impNormStructVal()");
             break;
     }
     structVal->gtType  = structType;
@@ -3343,6 +3379,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     bool              mustExpand  = false;
     bool              isSpecial   = false;
     CorInfoIntrinsics intrinsicID = CORINFO_INTRINSIC_Illegal;
+    NamedIntrinsic    ni          = NI_Illegal;
 
     if ((methodFlags & CORINFO_FLG_INTRINSIC) != 0)
     {
@@ -3353,6 +3390,20 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     {
         // The recursive calls to Jit intrinsics are must-expand by convention.
         mustExpand = mustExpand || gtIsRecursiveCall(method);
+
+        if (intrinsicID == CORINFO_INTRINSIC_Illegal)
+        {
+            ni = lookupNamedIntrinsic(method);
+
+#if FEATURE_HW_INTRINSICS
+#ifdef _TARGET_XARCH_
+            if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
+            {
+                return impX86HWIntrinsic(ni, method, sig, mustExpand);
+            }
+#endif // _TARGET_XARCH_
+#endif // FEATURE_HW_INTRINSICS
+        }
     }
 
     *pIntrinsicID = intrinsicID;
@@ -3394,6 +3445,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         GenTreePtr op1, op2;
 
         case CORINFO_INTRINSIC_Sin:
+        case CORINFO_INTRINSIC_Cbrt:
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
         case CORINFO_INTRINSIC_Cos:
@@ -3403,9 +3455,12 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_Tan:
         case CORINFO_INTRINSIC_Tanh:
         case CORINFO_INTRINSIC_Asin:
+        case CORINFO_INTRINSIC_Asinh:
         case CORINFO_INTRINSIC_Acos:
+        case CORINFO_INTRINSIC_Acosh:
         case CORINFO_INTRINSIC_Atan:
         case CORINFO_INTRINSIC_Atan2:
+        case CORINFO_INTRINSIC_Atanh:
         case CORINFO_INTRINSIC_Log10:
         case CORINFO_INTRINSIC_Pow:
         case CORINFO_INTRINSIC_Exp:
@@ -3517,7 +3572,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_StringGetChar:
             op2 = impPopStack().val;
             op1 = impPopStack().val;
-            op1 = gtNewIndexRef(TYP_CHAR, op1, op2);
+            op1 = gtNewIndexRef(TYP_USHORT, op1, op2);
             op1->gtFlags |= GTF_INX_STRING_LAYOUT;
             retNode = op1;
             break;
@@ -3701,10 +3756,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             //     BoundsCheck(index, s->_length)
             //     s->_pointer + index * sizeof(T)
             //
-            // For ReadOnlySpan<T>
-            //   Comma
-            //     BoundsCheck(index, s->_length)
-            //     *(s->_pointer + index * sizeof(T))
+            // For ReadOnlySpan<T> -- same expansion, as it now returns a readonly ref
             //
             // Signature should show one class type parameter, which
             // we need to examine.
@@ -3757,16 +3809,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
             // Prepare result
             var_types resultType = JITtype2varType(sig->retType);
-
-            if (isReadOnly)
-            {
-                result = gtNewOperNode(GT_IND, resultType, result);
-            }
-            else
-            {
-                assert(resultType == result->TypeGet());
-            }
-
+            assert(resultType == result->TypeGet());
             retNode = gtNewOperNode(GT_COMMA, resultType, boundsCheck, result);
 
             break;
@@ -3848,16 +3891,9 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     }
 
     // Look for new-style jit intrinsics by name
-    if ((intrinsicID == CORINFO_INTRINSIC_Illegal) && ((methodFlags & CORINFO_FLG_JIT_INTRINSIC) != 0))
+    if (ni != NI_Illegal)
     {
         assert(retNode == nullptr);
-        const NamedIntrinsic ni = lookupNamedIntrinsic(method);
-#if FEATURE_HW_INTRINSICS
-        if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
-        {
-            return impX86HWIntrinsic(ni, method, sig);
-        }
-#endif // FEATURE_HW_INTRINSICS
         switch (ni)
         {
             case NI_System_Enum_HasFlag:
@@ -3934,13 +3970,15 @@ GenTree* Compiler::impMathIntrinsic(CORINFO_METHOD_HANDLE method,
     GenTree* op2;
 
     assert(callType != TYP_STRUCT);
-    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || (intrinsicID == CORINFO_INTRINSIC_Sqrt) ||
-           (intrinsicID == CORINFO_INTRINSIC_Abs) || (intrinsicID == CORINFO_INTRINSIC_Cos) ||
-           (intrinsicID == CORINFO_INTRINSIC_Round) || (intrinsicID == CORINFO_INTRINSIC_Cosh) ||
-           (intrinsicID == CORINFO_INTRINSIC_Sinh) || (intrinsicID == CORINFO_INTRINSIC_Tan) ||
-           (intrinsicID == CORINFO_INTRINSIC_Tanh) || (intrinsicID == CORINFO_INTRINSIC_Asin) ||
-           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Atan) ||
-           (intrinsicID == CORINFO_INTRINSIC_Atan2) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
+    assert((intrinsicID == CORINFO_INTRINSIC_Sin) || intrinsicID == CORINFO_INTRINSIC_Cbrt ||
+           (intrinsicID == CORINFO_INTRINSIC_Sqrt) || (intrinsicID == CORINFO_INTRINSIC_Abs) ||
+           (intrinsicID == CORINFO_INTRINSIC_Cos) || (intrinsicID == CORINFO_INTRINSIC_Round) ||
+           (intrinsicID == CORINFO_INTRINSIC_Cosh) || (intrinsicID == CORINFO_INTRINSIC_Sinh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Tan) || (intrinsicID == CORINFO_INTRINSIC_Tanh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Asin) || (intrinsicID == CORINFO_INTRINSIC_Asinh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Acos) || (intrinsicID == CORINFO_INTRINSIC_Acosh) ||
+           (intrinsicID == CORINFO_INTRINSIC_Atan) || (intrinsicID == CORINFO_INTRINSIC_Atan2) ||
+           (intrinsicID == CORINFO_INTRINSIC_Atanh) || (intrinsicID == CORINFO_INTRINSIC_Log10) ||
            (intrinsicID == CORINFO_INTRINSIC_Pow) || (intrinsicID == CORINFO_INTRINSIC_Exp) ||
            (intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor));
 
@@ -4080,7 +4118,7 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         }
     }
 
-#if FEATURE_HW_INTRINSICS
+#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
     if ((namespaceName != nullptr) && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
     {
         InstructionSet isa = lookupHWIntrinsicISA(className);
@@ -5643,7 +5681,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
         GenTreePtr asgStmt = impAppendTree(asg, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
 
         op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
-        op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+        op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1, op2);
 
         if (varTypeIsStruct(exprToBox))
@@ -6338,7 +6376,6 @@ GenTreePtr Compiler::impImportStaticReadOnlyField(void* fldAddr, var_types lclTy
             ival = *((short*)fldAddr);
             goto IVAL_COMMON;
 
-        case TYP_CHAR:
         case TYP_USHORT:
             ival = *((unsigned short*)fldAddr);
             goto IVAL_COMMON;
@@ -6500,9 +6537,9 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
                     op1->gtType = TYP_REF; // points at boxed object
                     FieldSeqNode* firstElemFldSeq =
                         GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
-                    op1 =
-                        gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                      new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), firstElemFldSeq));
+                    op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
+                                        new (this, GT_CNS_INT)
+                                            GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, firstElemFldSeq));
 
                     if (varTypeIsStruct(lclTyp))
                     {
@@ -6558,7 +6595,7 @@ GenTreePtr Compiler::impImportStaticFieldAccess(CORINFO_RESOLVED_TOKEN* pResolve
         FieldSeqNode* fldSeq = GetFieldSeqStore()->CreateSingleton(FieldSeqStore::FirstElemPseudoField);
 
         op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, sizeof(void*), fldSeq));
+                            new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, TARGET_POINTER_SIZE, fldSeq));
     }
 
     if (!(access & CORINFO_ACCESS_ADDRESS))
@@ -10721,13 +10758,14 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 op2 = gtNewLclvNode(lclNum, lclTyp, opcodeOffs + sz + 1);
 
-                /* If the local is aliased, we need to spill calls and
+                /* If the local is aliased or pinned, we need to spill calls and
                    indirections from the stack. */
 
-                if ((lvaTable[lclNum].lvAddrExposed || lvaTable[lclNum].lvHasLdAddrOp) &&
-                    verCurrentState.esStackDepth > 0)
+                if ((lvaTable[lclNum].lvAddrExposed || lvaTable[lclNum].lvHasLdAddrOp || lvaTable[lclNum].lvPinned) &&
+                    (verCurrentState.esStackDepth > 0))
                 {
-                    impSpillSideEffects(false, (unsigned)CHECK_SPILL_ALL DEBUGARG("Local could be aliased"));
+                    impSpillSideEffects(false,
+                                        (unsigned)CHECK_SPILL_ALL DEBUGARG("Local could be aliased or is pinned"));
                 }
 
                 /* Spill any refs to the local from the stack */
@@ -11173,7 +11211,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto ARR_LD;
             case CEE_LDELEM_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto ARR_LD;
 
             ARR_LD:
@@ -11263,7 +11301,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // remember the element size
                     if (lclTyp == TYP_REF)
                     {
-                        op1->gtIndex.gtIndElemSize = sizeof(void*);
+                        op1->gtIndex.gtIndElemSize = TARGET_POINTER_SIZE;
                     }
                     else
                     {
@@ -12195,7 +12233,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV_OVF;
             case CEE_CONV_OVF_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV_OVF;
             case CEE_CONV_OVF_U:
                 lclTyp = TYP_U_IMPL;
@@ -12227,7 +12265,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV_OVF_UN;
             case CEE_CONV_OVF_U2_UN:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV_OVF_UN;
             case CEE_CONV_OVF_U_UN:
                 lclTyp = TYP_U_IMPL;
@@ -12270,7 +12308,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto CONV;
             case CEE_CONV_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto CONV;
 #if (REGSIZE_BYTES == 8)
             case CEE_CONV_U:
@@ -12384,7 +12422,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                 mask  = 0x00FF;
                                 umask = 0x007F;
                                 break;
-                            case TYP_CHAR:
+                            case TYP_USHORT:
                             case TYP_SHORT:
                                 mask  = 0xFFFF;
                                 umask = 0x7FFF;
@@ -12719,7 +12757,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 lclTyp = TYP_UBYTE;
                 goto LDIND;
             case CEE_LDIND_U2:
-                lclTyp = TYP_CHAR;
+                lclTyp = TYP_USHORT;
                 goto LDIND;
             LDIND:
 
@@ -13337,7 +13375,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             !(prefixFlags & PREFIX_TAILCALL_EXPLICIT) && // User hasn't set "tail." prefix yet.
                             verCheckTailCallConstraint(opcode, &resolvedToken,
                                                        constraintCall ? &constrainedResolvedToken : nullptr,
-                                                       true) // Is it legal to do talcall?
+                                                       true) // Is it legal to do tailcall?
                             )
                         {
                             // Stress the tailcall.
@@ -13619,7 +13657,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 /* Preserve 'small' int types */
-                if (lclTyp > TYP_INT)
+                if (!varTypeIsSmall(lclTyp))
                 {
                     lclTyp = genActualType(lclTyp);
                 }
@@ -13955,7 +13993,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 /* Preserve 'small' int types */
-                if (lclTyp > TYP_INT)
+                if (!varTypeIsSmall(lclTyp))
                 {
                     lclTyp = genActualType(lclTyp);
                 }
@@ -14658,7 +14696,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // UNBOX(exp) morphs into
                     // clone = pop(exp);
                     // ((*clone == typeToken) ? nop : helper(clone, typeToken));
-                    // push(clone + sizeof(void*))
+                    // push(clone + TARGET_POINTER_SIZE)
                     //
                     GenTreePtr cloneOperand;
                     op1 = impCloneExpr(op1, &cloneOperand, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
@@ -14691,7 +14729,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // to the beginning of the value-type. Today this means adjusting
                     // past the base of the objects vtable field which is pointer sized.
 
-                    op2 = gtNewIconNode(sizeof(void*), TYP_I_IMPL);
+                    op2 = gtNewIconNode(TARGET_POINTER_SIZE, TYP_I_IMPL);
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, cloneOperand, op2);
                 }
                 else
@@ -15801,6 +15839,31 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     assert(info.compRetNativeType != TYP_VOID &&
                            (fgMoreThanOneReturnBlock() || impInlineInfo->HasGcRefLocals()));
 
+                    // If this method returns a ref type, track the actual types seen
+                    // in the returns.
+                    if (info.compRetType == TYP_REF)
+                    {
+                        bool                 isExact      = false;
+                        bool                 isNonNull    = false;
+                        CORINFO_CLASS_HANDLE returnClsHnd = gtGetClassHandle(op2, &isExact, &isNonNull);
+
+                        if (impInlineInfo->retExpr == nullptr)
+                        {
+                            // This is the first return, so best known type is the type
+                            // of this return value.
+                            impInlineInfo->retExprClassHnd        = returnClsHnd;
+                            impInlineInfo->retExprClassHndIsExact = isExact;
+                        }
+                        else if (impInlineInfo->retExprClassHnd != returnClsHnd)
+                        {
+                            // This return site type differs from earlier seen sites,
+                            // so reset the info and we'll fall back to using the method's
+                            // declared return type for the return spill temp.
+                            impInlineInfo->retExprClassHnd        = nullptr;
+                            impInlineInfo->retExprClassHndIsExact = false;
+                        }
+                    }
+
                     // This is a bit of a workaround...
                     // If we are inlining a call that returns a struct, where the actual "native" return type is
                     // not a struct (for example, the struct is composed of exactly one int, and the native
@@ -15844,7 +15907,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     impAssignTempGen(lvaInlineeReturnSpillTemp, op2, se.seTypeInfo.GetClassHandle(),
                                      (unsigned)CHECK_SPILL_ALL);
 
-                    GenTreePtr tmpOp2 = gtNewLclvNode(lvaInlineeReturnSpillTemp, op2->TypeGet());
+                    GenTree* tmpOp2 = gtNewLclvNode(lvaInlineeReturnSpillTemp, op2->TypeGet());
 
                     if (restoreType)
                     {
@@ -17333,11 +17396,11 @@ void Compiler::impImport(BasicBlock* method)
 
     /* Allocate the stack contents */
 
-    if (info.compMaxStack <= sizeof(impSmallStack) / sizeof(impSmallStack[0]))
+    if (info.compMaxStack <= _countof(impSmallStack))
     {
         /* Use local variable, don't waste time allocating on the heap */
 
-        impStkSize              = sizeof(impSmallStack) / sizeof(impSmallStack[0]);
+        impStkSize              = _countof(impSmallStack);
         verCurrentState.esStack = impSmallStack;
     }
     else
@@ -19126,6 +19189,7 @@ bool Compiler::IsMathIntrinsic(CorInfoIntrinsics intrinsicId)
     switch (intrinsicId)
     {
         case CORINFO_INTRINSIC_Sin:
+        case CORINFO_INTRINSIC_Cbrt:
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
         case CORINFO_INTRINSIC_Cos:
@@ -19135,9 +19199,12 @@ bool Compiler::IsMathIntrinsic(CorInfoIntrinsics intrinsicId)
         case CORINFO_INTRINSIC_Tan:
         case CORINFO_INTRINSIC_Tanh:
         case CORINFO_INTRINSIC_Asin:
+        case CORINFO_INTRINSIC_Asinh:
         case CORINFO_INTRINSIC_Acos:
+        case CORINFO_INTRINSIC_Acosh:
         case CORINFO_INTRINSIC_Atan:
         case CORINFO_INTRINSIC_Atan2:
+        case CORINFO_INTRINSIC_Atanh:
         case CORINFO_INTRINSIC_Log10:
         case CORINFO_INTRINSIC_Pow:
         case CORINFO_INTRINSIC_Exp:

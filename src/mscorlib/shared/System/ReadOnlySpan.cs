@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
+using Internal.Runtime.CompilerServices;
 
 #pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
 
@@ -21,7 +22,7 @@ namespace System
     public readonly ref struct ReadOnlySpan<T>
     {
         /// <summary>A byref or a native ptr.</summary>
-        private readonly ByReference<T> _pointer;
+        internal readonly ByReference<T> _pointer;
         /// <summary>The number of elements this ReadOnlySpan contains.</summary>
 #if PROJECTN
         [Bound]
@@ -127,7 +128,7 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public ref T DangerousGetPinnableReference()
+        internal ref readonly T DangerousGetPinnableReference()
         {
             return ref _pointer.Value;
         }
@@ -164,13 +165,14 @@ namespace System
         /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when index less than 0 or index greater than or equal to Length
         /// </exception>
-        public T this[int index]
+
+        public ref readonly T this[int index]
         {
 #if PROJECTN
             [BoundsChecking]
             get
             {
-                return Unsafe.Add(ref _pointer.Value, index);
+                return ref Unsafe.Add(ref _pointer.Value, index);
             }
 #else
             [Intrinsic]
@@ -180,7 +182,7 @@ namespace System
             {
                 if ((uint)index >= (uint)_length)
                     ThrowHelper.ThrowIndexOutOfRangeException();
-                return Unsafe.Add(ref _pointer.Value, index);
+                return ref Unsafe.Add(ref _pointer.Value, index);
             }
 #endif
         }
@@ -238,7 +240,7 @@ namespace System
         /// Always thrown by this method.
         /// </exception>
         /// </summary>
-        [Obsolete("Equals() on Span will always throw an exception. Use == instead.")]
+        [Obsolete("Equals() on ReadOnlySpan will always throw an exception. Use == instead.")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
@@ -251,7 +253,7 @@ namespace System
         /// Always thrown by this method.
         /// </exception>
         /// </summary>
-        [Obsolete("GetHashCode() on Span will always throw an exception.")]
+        [Obsolete("GetHashCode() on ReadOnlySpan will always throw an exception.")]
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
@@ -360,20 +362,7 @@ namespace System
             public ref readonly T Current
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get
-                {
-                    // TODO https://github.com/dotnet/coreclr/pull/14727:
-                    // Change this to simply be:
-                    //     get => ref readonly _span[_index];
-                    // once ReadOnlySpan<T>'s indexer returns ref readonly.
-
-                    if ((uint)_index >= (uint)_span.Length)
-                    {
-                        ThrowHelper.ThrowIndexOutOfRangeException();
-                    }
-
-                    return ref Unsafe.Add(ref _span.DangerousGetPinnableReference(), _index);
-                }
+                get => ref _span[_index];
             }
         }
     }

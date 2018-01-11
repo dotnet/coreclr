@@ -146,7 +146,7 @@ bool Compiler::fgMorphRelopToQmark(GenTreePtr tree)
 GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
 {
     noway_assert(tree->gtOper == GT_CAST);
-    noway_assert(genTypeSize(TYP_I_IMPL) == sizeof(void*));
+    noway_assert(genTypeSize(TYP_I_IMPL) == TARGET_POINTER_SIZE);
 
     /* The first sub-operand is the thing being cast */
 
@@ -204,7 +204,7 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
             tree->gtFlags &= ~GTF_UNSIGNED;
         }
 #else
-        if (dstSize < sizeof(void*))
+        if (dstSize < TARGET_POINTER_SIZE)
         {
             oper = gtNewCastNodeL(TYP_I_IMPL, oper, TYP_I_IMPL);
             oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
@@ -489,6 +489,11 @@ GenTreePtr Compiler::fgMorphCast(GenTreePtr tree)
                 // of cases we can handle.
                 shiftAmount      = gtFoldExpr(shiftAmount);
                 oper->gtOp.gtOp2 = shiftAmount;
+
+#if DEBUG
+                // We may remorph the shift amount tree again later, so clear any morphed flag.
+                shiftAmount->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
 
                 if (shiftAmount->IsIntegralConst())
                 {
@@ -898,6 +903,7 @@ unsigned UpdateGT_LISTFlags(GenTreePtr tree)
 void fgArgTabEntry::Dump()
 {
     printf("fgArgTabEntry[arg %u", argNum);
+    printf(" %d.%s", node->gtTreeID, GenTree::OpName(node->gtOper));
     if (regNum != REG_STK)
     {
         printf(", %s, regs=%u", getRegName(regNum), numRegs);
@@ -1469,12 +1475,14 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
         assert(curArgTabEntry->isSplit == true);
         assert(curArgTabEntry->numRegs == numRegs);
         assert(curArgTabEntry->numSlots == numSlots);
+        assert(hasStackArgs == true);
     }
     else
     {
         curArgTabEntry->isSplit  = true;
         curArgTabEntry->numRegs  = numRegs;
         curArgTabEntry->numSlots = numSlots;
+        hasStackArgs             = true;
     }
     nextSlotNum += numSlots;
 }
@@ -2132,6 +2140,17 @@ void fgArgInfo::SortArgs()
 
     argsSorted = true;
 }
+
+#ifdef DEBUG
+void fgArgInfo::Dump(Compiler* compiler)
+{
+    for (unsigned curInx = 0; curInx < ArgCount(); curInx++)
+    {
+        fgArgTabEntryPtr curArgEntry = ArgTable()[curInx];
+        curArgEntry->Dump();
+    }
+}
+#endif
 
 //------------------------------------------------------------------------------
 // fgMakeTmpArgNode : This function creates a tmp var only if needed.
@@ -3940,7 +3959,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         }
                         else
                         {
-                            // If the valuetype size is not a multiple of sizeof(void*),
+                            // If the valuetype size is not a multiple of TARGET_POINTER_SIZE,
                             // we must copyblk to a temp before doing the obj to avoid
                             // the obj reading memory past the end of the valuetype
                             CLANG_FORMAT_COMMENT_ANCHOR;
@@ -4481,7 +4500,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     }
 
     assert(fgPtrArgCntCur >= genPtrArgCntSav);
+#if defined(UNIX_X86_ABI)
     call->fgArgInfo->SetStkSizeBytes((fgPtrArgCntCur - genPtrArgCntSav) * TARGET_POINTER_SIZE);
+#endif // UNIX_X86_ABI
 
     /* The call will pop all the arguments we pushed */
 
@@ -4585,15 +4606,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef DEBUG
     if (verbose)
     {
-        fgArgInfoPtr argInfo = call->fgArgInfo;
-        for (unsigned curInx = 0; curInx < argInfo->ArgCount(); curInx++)
-        {
-            fgArgTabEntryPtr curArgEntry = argInfo->ArgTable()[curInx];
-            curArgEntry->Dump();
-        }
+        call->fgArgInfo->Dump(this);
     }
 #endif
-
     return call;
 }
 #ifdef _PREFAST_
@@ -4952,11 +4967,18 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
         objClass           = argObj->gtClass;
         structSize         = info.compCompHnd->getClassSize(objClass);
 
-        // If we have a GT_OBJ of a GT_ADDR then we set argValue to the child node of the GT_ADDR
-        //
-        if (argObj->gtOp1->OperGet() == GT_ADDR)
+        // If we have a GT_OBJ of a GT_ADDR then we set argValue to the child node of the GT_ADDR.
+        GenTree* op1 = argObj->gtOp1;
+        if (op1->OperGet() == GT_ADDR)
         {
-            argValue = argObj->gtOp1->gtOp.gtOp1;
+            GenTree* underlyingTree = op1->gtOp.gtOp1;
+
+            // Only update to the same type.
+            if ((underlyingTree->TypeGet() == argValue->TypeGet()) &&
+                (objClass == gtGetStructHandleIfPresent(underlyingTree)))
+            {
+                argValue = underlyingTree;
+            }
         }
     }
     else if (arg->OperGet() == GT_LCL_VAR)
@@ -5330,6 +5352,19 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             GenTreeObj* argObj   = argValue->AsObj();
             GenTreePtr  baseAddr = argObj->gtOp1;
             var_types   addrType = baseAddr->TypeGet();
+
+            if (baseAddr->OperGet() == GT_ADDR)
+            {
+                GenTree* addrTaken = baseAddr->gtOp.gtOp1;
+                if (addrTaken->IsLocal())
+                {
+                    GenTreeLclVarCommon* varNode = addrTaken->AsLclVarCommon();
+                    unsigned             varNum  = varNode->gtLclNum;
+                    // We access non-struct type (for example, long) as a struct type.
+                    // Make sure lclVar lives on stack to make sure its fields are accessible by address.
+                    lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LocalField));
+                }
+            }
 
             // Create a new tree for 'arg'
             //    replace the existing LDOBJ(EXPR)
@@ -5858,31 +5893,31 @@ BasicBlock* Compiler::fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, u
     {
         delay = false;
 
-#ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
         // we need to initialize this field
         if (fgGlobalMorph && (stkDepth != nullptr))
         {
             *stkDepth = fgPtrArgCntCur;
         }
-#endif // _TARGET_X86_
+#endif // !FEATURE_FIXED_OUT_ARGS
     }
 
     if (!opts.compDbgCode)
     {
         if (delay || compIsForInlining())
         {
-#ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
             // We delay this until after loop-oriented range check analysis. For now we merely store the current stack
             // level in the tree node.
             if (stkDepth != nullptr)
             {
                 *stkDepth = fgPtrArgCntCur;
             }
-#endif // _TARGET_X86_
+#endif // !FEATURE_FIXED_OUT_ARGS
         }
         else
         {
-#ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
             // fgPtrArgCntCur is only valid for global morph or if we walk full stmt.
             noway_assert(fgGlobalMorph || (stkDepth != nullptr));
             const unsigned theStkDepth = fgGlobalMorph ? fgPtrArgCntCur : *stkDepth;
@@ -5933,7 +5968,7 @@ GenTreePtr Compiler::fgMorphArrayIndex(GenTreePtr tree)
     noway_assert(elemTyp != TYP_STRUCT || elemStructType != nullptr);
 
 #ifdef FEATURE_SIMD
-    if (featureSIMD && varTypeIsStruct(elemTyp) && elemSize <= getSIMDVectorRegisterByteLength())
+    if (featureSIMD && varTypeIsStruct(elemTyp) && elemSize <= maxSIMDStructBytes())
     {
         // If this is a SIMD type, this is the point at which we lose the type information,
         // so we need to set the correct type on the GT_IND.
@@ -6340,7 +6375,7 @@ GenTreePtr Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_types varTyp
         // Create a node representing the local pointing to the base of the args
         GenTreePtr ptrArg =
             gtNewOperNode(GT_SUB, TYP_I_IMPL, gtNewLclvNode(lvaVarargsBaseOfStkArgs, TYP_I_IMPL),
-                          gtNewIconNode(varDsc->lvStkOffs - codeGen->intRegState.rsCalleeRegArgCount * sizeof(void*) +
+                          gtNewIconNode(varDsc->lvStkOffs - codeGen->intRegState.rsCalleeRegArgCount * REGSIZE_BYTES +
                                         lclOffs));
 
         // Access the argument through the local
@@ -10164,7 +10199,7 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
                 needsIndirection = false;
                 effectiveVal     = indirTree->Addr()->gtGetOp1();
             }
-            if (effectiveVal->OperIsSIMD())
+            if (effectiveVal->OperIsSIMD() || effectiveVal->OperIsSimdHWIntrinsic())
             {
                 needsIndirection = false;
             }
@@ -10173,10 +10208,14 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
         if (lclNode != nullptr)
         {
             LclVarDsc* varDsc = &(lvaTable[lclNode->gtLclNum]);
-            if (varTypeIsStruct(varDsc) && (varDsc->lvExactSize == blockWidth))
+            if (varTypeIsStruct(varDsc) && (varDsc->lvExactSize == blockWidth) && (varDsc->lvType == asgType))
             {
 #ifndef LEGACY_BACKEND
-                effectiveVal     = lclNode;
+                if (effectiveVal != lclNode)
+                {
+                    JITDUMP("Replacing block node [%06d] with lclVar V%02u\n", dspTreeID(tree), lclNode->gtLclNum);
+                    effectiveVal = lclNode;
+                }
                 needsIndirection = false;
 #endif // !LEGACY_BACKEND
             }
@@ -12483,7 +12522,7 @@ DONE_MORPHING_CHILDREN:
                     // castType is larger or the same as op1's type
                     // then we can discard the cast.
 
-                    if (varTypeIsSmall(castType) && (castType >= op1->TypeGet()))
+                    if (varTypeIsSmall(castType) && (genTypeSize(castType) >= genTypeSize(op1->TypeGet())))
                     {
                         tree->gtOp.gtOp2 = op2 = op2->gtCast.CastOp();
                     }
@@ -14455,7 +14494,7 @@ GenTree* Compiler::fgMorphSmpOpOptional(GenTreeOp* tree)
 
                 /* Make sure these are all ints and precision is not lost */
 
-                if (cast >= dstt && dstt <= TYP_INT && srct <= TYP_INT)
+                if (genTypeSize(cast) >= genTypeSize(dstt) && dstt <= TYP_INT && srct <= TYP_INT)
                 {
                     op2 = tree->gtOp2 = op2->gtCast.CastOp();
                 }

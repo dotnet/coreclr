@@ -262,6 +262,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 #endif //
 
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            LowerHWIntrinsic(node->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
+
         case GT_LCL_VAR:
             WidenSIMD12IfNecessary(node->AsLclVarCommon());
             break;
@@ -1488,44 +1494,12 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 #ifdef _TARGET_ARMARCH_
         if (call->IsVarargs() || comp->opts.compUseSoftFP)
         {
-
             // For vararg call or on armel, reg args should be all integer.
-            // Insert a copy to move float value to integer register.
-            if (varTypeIsFloating(type))
+            // Insert copies as needed to move float value to integer register.
+            GenTree* newNode = LowerFloatArg(ppArg, info);
+            if (newNode != nullptr)
             {
-#ifdef _TARGET_ARM_
-#ifdef DEBUG
-                if (type == TYP_DOUBLE)
-                {
-                    unsigned  numRegs = info->numRegs;
-                    regNumber regCurr = info->regNum;
-                    assert(numRegs % 2 == 0);
-                    for (unsigned i = 0; i < numRegs;)
-                    {
-                        regNumber regNext = REG_NEXT(regCurr);
-                        // double type arg regs can only be either r0:r1 or r2:r3.
-                        assert((regCurr == REG_R0 && regNext == REG_R1) || (regCurr == REG_R2 && regNext == REG_R3));
-
-                        i += 2;
-                        regCurr = REG_NEXT(regNext);
-                    }
-                }
-#endif // DEBUG
-#endif // _TARGET_ARM_
-
-                GenTreePtr intArg = LowerFloatArg(arg, info);
-                if (intArg != nullptr)
-                {
-                    if (intArg != arg)
-                    {
-                        ReplaceArgWithPutArgOrBitcast(ppArg, intArg);
-                        arg        = intArg;
-                        info->node = intArg;
-                    }
-
-                    // update local variables.
-                    type = arg->TypeGet();
-                }
+                type = newNode->TypeGet();
             }
         }
 #endif // _TARGET_ARMARCH_
@@ -1544,7 +1518,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 
 #ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
-// LowerFloatArg: Lower the float call argument on the arm platform.
+// LowerFloatArg: Lower float call arguments on the arm platform.
 //
 // Arguments:
 //    arg  - The arg node
@@ -1555,8 +1529,13 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
 //    return arg if there was in place transformation;
 //    return a new tree if the root was changed.
 //
-GenTree* Lowering::LowerFloatArg(GenTree* arg, fgArgTabEntry* info)
+// Notes:
+//    This must handle scalar float arguments as well as GT_FIELD_LISTs
+//    with floating point fields.
+//
+GenTree* Lowering::LowerFloatArg(GenTree** pArg, fgArgTabEntry* info)
 {
+    GenTree* arg = *pArg;
     if (info->regNum != REG_STK)
     {
         if (arg->OperIsFieldList())
@@ -1565,32 +1544,44 @@ GenTree* Lowering::LowerFloatArg(GenTree* arg, fgArgTabEntry* info)
             regNumber         currRegNumber = info->regNum;
 
             // Transform fields that are passed as registers in place.
-            for (unsigned i = 0; i < info->numRegs; ++i)
+            unsigned fieldRegCount;
+            for (unsigned i = 0; i < info->numRegs; i += fieldRegCount)
             {
                 assert(currListNode != nullptr);
-                GenTree* node    = currListNode->Current();
-                GenTree* intNode = LowerFloatArgReg(node, currRegNumber);
-                assert(intNode != nullptr);
+                GenTree* node = currListNode->Current();
+                if (varTypeIsFloating(node))
+                {
+                    GenTree* intNode = LowerFloatArgReg(node, currRegNumber);
+                    assert(intNode != nullptr);
 
-                ReplaceArgWithPutArgOrBitcast(currListNode->pCurrent(), intNode);
-                currListNode->ChangeType(intNode->TypeGet());
+                    ReplaceArgWithPutArgOrBitcast(currListNode->pCurrent(), intNode);
+                    currListNode->ChangeType(intNode->TypeGet());
+                }
 
-                currListNode  = currListNode->Rest();
-                currRegNumber = REG_NEXT(currRegNumber);
+                if (node->TypeGet() == TYP_DOUBLE)
+                {
+                    currRegNumber = REG_NEXT(REG_NEXT(currRegNumber));
+                    fieldRegCount = 2;
+                }
+                else
+                {
+                    currRegNumber = REG_NEXT(currRegNumber);
+                    fieldRegCount = 1;
+                }
+                currListNode = currListNode->Rest();
             }
             // List fields were replaced in place.
             return arg;
         }
-        else
+        else if (varTypeIsFloating(arg))
         {
-            return LowerFloatArgReg(arg, info->regNum);
+            GenTree* intNode = LowerFloatArgReg(arg, info->regNum);
+            assert(intNode != nullptr);
+            ReplaceArgWithPutArgOrBitcast(pArg, intNode);
+            return *pArg;
         }
     }
-    else
-    {
-        // Do not change stack nodes.
-        return nullptr;
-    }
+    return nullptr;
 }
 
 //------------------------------------------------------------------------
@@ -2420,8 +2411,9 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     return result;
 }
 
+#ifndef _TARGET_64BIT_
 //------------------------------------------------------------------------
-// Lowering::LowerCompare: Lowers a compare node.
+// Lowering::DecomposeLongCompare: Decomposes a TYP_LONG compare node.
 //
 // Arguments:
 //    cmp - the compare node
@@ -2430,9 +2422,231 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 //    The next node to lower.
 //
 // Notes:
-//    - Decomposes long comparisons that feed a GT_JTRUE (32 bit specific).
-//    - Decomposes long comparisons that produce a value (X86 specific).
-//    - Ensures that we don't have a mix of int/long operands (XARCH specific).
+//    This is done during lowering because DecomposeLongs handles only nodes
+//    that produce TYP_LONG values. Compare nodes may consume TYP_LONG values
+//    but produce TYP_INT values.
+//
+GenTree* Lowering::DecomposeLongCompare(GenTree* cmp)
+{
+    assert(cmp->gtGetOp1()->TypeGet() == TYP_LONG);
+
+    GenTree* src1 = cmp->gtGetOp1();
+    GenTree* src2 = cmp->gtGetOp2();
+    assert(src1->OperIs(GT_LONG));
+    assert(src2->OperIs(GT_LONG));
+    GenTree* loSrc1 = src1->gtGetOp1();
+    GenTree* hiSrc1 = src1->gtGetOp2();
+    GenTree* loSrc2 = src2->gtGetOp1();
+    GenTree* hiSrc2 = src2->gtGetOp2();
+    BlockRange().Remove(src1);
+    BlockRange().Remove(src2);
+
+    genTreeOps condition = cmp->OperGet();
+    GenTree*   loCmp;
+    GenTree*   hiCmp;
+
+    if (cmp->OperIs(GT_EQ, GT_NE))
+    {
+        //
+        // Transform (x EQ|NE y) into (((x.lo XOR y.lo) OR (x.hi XOR y.hi)) EQ|NE 0). If y is 0 then this can
+        // be reduced to just ((x.lo OR x.hi) EQ|NE 0). The OR is expected to set the condition flags so we
+        // don't need to generate a redundant compare against 0, we only generate a SETCC|JCC instruction.
+        //
+        // XOR is used rather than SUB because it is commutative and thus allows swapping the operands when
+        // the first happens to be a constant. Usually only the second compare operand is a constant but it's
+        // still possible to have a constant on the left side. For example, when src1 is a uint->ulong cast
+        // then hiSrc1 would be 0.
+        //
+
+        if (loSrc1->OperIs(GT_CNS_INT))
+        {
+            std::swap(loSrc1, loSrc2);
+        }
+
+        if (loSrc2->IsIntegralConst(0))
+        {
+            BlockRange().Remove(loSrc2);
+            loCmp = loSrc1;
+        }
+        else
+        {
+            loCmp = comp->gtNewOperNode(GT_XOR, TYP_INT, loSrc1, loSrc2);
+            BlockRange().InsertBefore(cmp, loCmp);
+            ContainCheckBinary(loCmp->AsOp());
+        }
+
+        if (hiSrc1->OperIs(GT_CNS_INT))
+        {
+            std::swap(hiSrc1, hiSrc2);
+        }
+
+        if (hiSrc2->IsIntegralConst(0))
+        {
+            BlockRange().Remove(hiSrc2);
+            hiCmp = hiSrc1;
+        }
+        else
+        {
+            hiCmp = comp->gtNewOperNode(GT_XOR, TYP_INT, hiSrc1, hiSrc2);
+            BlockRange().InsertBefore(cmp, hiCmp);
+            ContainCheckBinary(hiCmp->AsOp());
+        }
+
+        hiCmp = comp->gtNewOperNode(GT_OR, TYP_INT, loCmp, hiCmp);
+        BlockRange().InsertBefore(cmp, hiCmp);
+        ContainCheckBinary(hiCmp->AsOp());
+    }
+    else
+    {
+        assert(cmp->OperIs(GT_LT, GT_LE, GT_GE, GT_GT));
+
+        //
+        // If the compare is signed then (x LT|GE y) can be transformed into ((x SUB y) LT|GE 0).
+        // If the compare is unsigned we can still use SUB but we need to check the Carry flag,
+        // not the actual result. In both cases we can simply check the appropiate condition flags
+        // and ignore the actual result:
+        //     SUB_LO loSrc1, loSrc2
+        //     SUB_HI hiSrc1, hiSrc2
+        //     SETCC|JCC (signed|unsigned LT|GE)
+        // If loSrc2 happens to be 0 then the first SUB can be eliminated and the second one can
+        // be turned into a CMP because the first SUB would have set carry to 0. This effectively
+        // transforms a long compare against 0 into an int compare of the high part against 0.
+        //
+        // (x LE|GT y) can to be transformed into ((x SUB y) LE|GT 0) but checking that a long value
+        // is greater than 0 is not so easy. We need to turn this into a positive/negative check
+        // like the one we get for LT|GE compares, this can be achieved by swapping the compare:
+        //     (x LE|GT y) becomes (y GE|LT x)
+        //
+        // Having to swap operands is problematic when the second operand is a constant. The constant
+        // moves to the first operand where it cannot be contained and thus needs a register. This can
+        // be avoided by changing the constant such that LE|GT becomes LT|GE:
+        //     (x LE|GT 41) becomes (x LT|GE 42)
+        //
+
+        if (cmp->OperIs(GT_LE, GT_GT))
+        {
+            bool mustSwap = true;
+
+            if (loSrc2->OperIs(GT_CNS_INT) && hiSrc2->OperIs(GT_CNS_INT))
+            {
+                uint32_t loValue  = static_cast<uint32_t>(loSrc2->AsIntCon()->IconValue());
+                uint32_t hiValue  = static_cast<uint32_t>(hiSrc2->AsIntCon()->IconValue());
+                uint64_t value    = static_cast<uint64_t>(loValue) | (static_cast<uint64_t>(hiValue) << 32);
+                uint64_t maxValue = cmp->IsUnsigned() ? UINT64_MAX : INT64_MAX;
+
+                if (value != maxValue)
+                {
+                    value++;
+                    loValue = value & UINT32_MAX;
+                    hiValue = (value >> 32) & UINT32_MAX;
+                    loSrc2->AsIntCon()->SetIconValue(loValue);
+                    hiSrc2->AsIntCon()->SetIconValue(hiValue);
+
+                    condition = cmp->OperIs(GT_LE) ? GT_LT : GT_GE;
+                    mustSwap  = false;
+                }
+            }
+
+            if (mustSwap)
+            {
+                std::swap(loSrc1, loSrc2);
+                std::swap(hiSrc1, hiSrc2);
+                condition = GenTree::SwapRelop(condition);
+            }
+        }
+
+        assert((condition == GT_LT) || (condition == GT_GE));
+
+        if (loSrc2->IsIntegralConst(0))
+        {
+            BlockRange().Remove(loSrc2);
+
+            // Very conservative dead code removal... but it helps.
+
+            if (loSrc1->OperIs(GT_CNS_INT, GT_LCL_VAR, GT_LCL_FLD))
+            {
+                BlockRange().Remove(loSrc1);
+
+                if (loSrc1->OperIs(GT_LCL_VAR, GT_LCL_FLD))
+                {
+                    comp->lvaDecRefCnts(m_block, loSrc1);
+                }
+            }
+            else
+            {
+                loSrc1->SetUnusedValue();
+            }
+
+            hiCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, hiSrc1, hiSrc2);
+            BlockRange().InsertBefore(cmp, hiCmp);
+            ContainCheckCompare(hiCmp->AsOp());
+        }
+        else
+        {
+            loCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, loSrc1, loSrc2);
+            hiCmp = comp->gtNewOperNode(GT_SUB_HI, TYP_INT, hiSrc1, hiSrc2);
+            BlockRange().InsertBefore(cmp, loCmp, hiCmp);
+            ContainCheckCompare(loCmp->AsOp());
+            ContainCheckBinary(hiCmp->AsOp());
+
+            //
+            // Try to move the first SUB_HI operands right in front of it, this allows using
+            // a single temporary register instead of 2 (one for CMP and one for SUB_HI). Do
+            // this only for locals as they won't change condition flags. Note that we could
+            // move constants (except 0 which generates XOR reg, reg) but it's extremly rare
+            // to have a constant as the first operand.
+            //
+
+            if (hiSrc1->OperIs(GT_LCL_VAR, GT_LCL_FLD))
+            {
+                BlockRange().Remove(hiSrc1);
+                BlockRange().InsertBefore(hiCmp, hiSrc1);
+            }
+        }
+    }
+
+    hiCmp->gtFlags |= GTF_SET_FLAGS;
+    if (hiCmp->IsValue())
+    {
+        hiCmp->SetUnusedValue();
+    }
+
+    LIR::Use cmpUse;
+    if (BlockRange().TryGetUse(cmp, &cmpUse) && cmpUse.User()->OperIs(GT_JTRUE))
+    {
+        BlockRange().Remove(cmp);
+
+        GenTree* jcc    = cmpUse.User();
+        jcc->gtOp.gtOp1 = nullptr;
+        jcc->ChangeOper(GT_JCC);
+        jcc->gtFlags |= (cmp->gtFlags & GTF_UNSIGNED) | GTF_USE_FLAGS;
+        jcc->AsCC()->gtCondition = condition;
+    }
+    else
+    {
+        cmp->gtOp.gtOp1 = nullptr;
+        cmp->gtOp.gtOp2 = nullptr;
+        cmp->ChangeOper(GT_SETCC);
+        cmp->gtFlags |= GTF_USE_FLAGS;
+        cmp->AsCC()->gtCondition = condition;
+    }
+
+    return cmp->gtNext;
+}
+#endif // !_TARGET_64BIT_
+
+//------------------------------------------------------------------------
+// Lowering::OptimizeConstCompare: Performs various "compare with const" optimizations.
+//
+// Arguments:
+//    cmp - the compare node
+//
+// Return Value:
+//    The original compare node if lowering should proceed as usual or the next node
+//    to lower if the compare node was changed in such a way that lowering is no
+//    longer needed.
+//
+// Notes:
 //    - Narrow operands to enable memory operand containment (XARCH specific).
 //    - Transform cmp(and(x, y), 0) into test(x, y) (XARCH/Arm64 specific but could
 //      be used for ARM as well if support for GT_TEST_EQ/GT_TEST_NE is added).
@@ -2440,371 +2654,162 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 //    - Transform RELOP(OP, 0) into SETCC(OP) or JCC(OP) if OP can set the
 //      condition flags appropriately (XARCH/ARM64 specific but could be extended
 //      to ARM32 as well if ARM32 codegen supports GTF_SET_FLAGS).
-
-GenTree* Lowering::LowerCompare(GenTree* cmp)
+//
+GenTree* Lowering::OptimizeConstCompare(GenTree* cmp)
 {
-#ifndef _TARGET_64BIT_
-    if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
-    {
-        GenTree* src1 = cmp->gtGetOp1();
-        GenTree* src2 = cmp->gtGetOp2();
-        assert(src1->OperIs(GT_LONG));
-        assert(src2->OperIs(GT_LONG));
-        GenTree* loSrc1 = src1->gtGetOp1();
-        GenTree* hiSrc1 = src1->gtGetOp2();
-        GenTree* loSrc2 = src2->gtGetOp1();
-        GenTree* hiSrc2 = src2->gtGetOp2();
-        BlockRange().Remove(src1);
-        BlockRange().Remove(src2);
-
-        genTreeOps condition = cmp->OperGet();
-        GenTree*   loCmp;
-        GenTree*   hiCmp;
-
-        if (cmp->OperIs(GT_EQ, GT_NE))
-        {
-            //
-            // Transform (x EQ|NE y) into (((x.lo XOR y.lo) OR (x.hi XOR y.hi)) EQ|NE 0). If y is 0 then this can
-            // be reduced to just ((x.lo OR x.hi) EQ|NE 0). The OR is expected to set the condition flags so we
-            // don't need to generate a redundant compare against 0, we only generate a SETCC|JCC instruction.
-            //
-            // XOR is used rather than SUB because it is commutative and thus allows swapping the operands when
-            // the first happens to be a constant. Usually only the second compare operand is a constant but it's
-            // still possible to have a constant on the left side. For example, when src1 is a uint->ulong cast
-            // then hiSrc1 would be 0.
-            //
-
-            if (loSrc1->OperIs(GT_CNS_INT))
-            {
-                std::swap(loSrc1, loSrc2);
-            }
-
-            if (loSrc2->IsIntegralConst(0))
-            {
-                BlockRange().Remove(loSrc2);
-                loCmp = loSrc1;
-            }
-            else
-            {
-                loCmp = comp->gtNewOperNode(GT_XOR, TYP_INT, loSrc1, loSrc2);
-                BlockRange().InsertBefore(cmp, loCmp);
-                ContainCheckBinary(loCmp->AsOp());
-            }
-
-            if (hiSrc1->OperIs(GT_CNS_INT))
-            {
-                std::swap(hiSrc1, hiSrc2);
-            }
-
-            if (hiSrc2->IsIntegralConst(0))
-            {
-                BlockRange().Remove(hiSrc2);
-                hiCmp = hiSrc1;
-            }
-            else
-            {
-                hiCmp = comp->gtNewOperNode(GT_XOR, TYP_INT, hiSrc1, hiSrc2);
-                BlockRange().InsertBefore(cmp, hiCmp);
-                ContainCheckBinary(hiCmp->AsOp());
-            }
-
-            hiCmp = comp->gtNewOperNode(GT_OR, TYP_INT, loCmp, hiCmp);
-            BlockRange().InsertBefore(cmp, hiCmp);
-            ContainCheckBinary(hiCmp->AsOp());
-        }
-        else
-        {
-            assert(cmp->OperIs(GT_LT, GT_LE, GT_GE, GT_GT));
-
-            //
-            // If the compare is signed then (x LT|GE y) can be transformed into ((x SUB y) LT|GE 0).
-            // If the compare is unsigned we can still use SUB but we need to check the Carry flag,
-            // not the actual result. In both cases we can simply check the appropiate condition flags
-            // and ignore the actual result:
-            //     SUB_LO loSrc1, loSrc2
-            //     SUB_HI hiSrc1, hiSrc2
-            //     SETCC|JCC (signed|unsigned LT|GE)
-            // If loSrc2 happens to be 0 then the first SUB can be eliminated and the second one can
-            // be turned into a CMP because the first SUB would have set carry to 0. This effectively
-            // transforms a long compare against 0 into an int compare of the high part against 0.
-            //
-            // (x LE|GT y) can to be transformed into ((x SUB y) LE|GT 0) but checking that a long value
-            // is greater than 0 is not so easy. We need to turn this into a positive/negative check
-            // like the one we get for LT|GE compares, this can be achieved by swapping the compare:
-            //     (x LE|GT y) becomes (y GE|LT x)
-            //
-            // Having to swap operands is problematic when the second operand is a constant. The constant
-            // moves to the first operand where it cannot be contained and thus needs a register. This can
-            // be avoided by changing the constant such that LE|GT becomes LT|GE:
-            //     (x LE|GT 41) becomes (x LT|GE 42)
-            //
-
-            if (cmp->OperIs(GT_LE, GT_GT))
-            {
-                bool mustSwap = true;
-
-                if (loSrc2->OperIs(GT_CNS_INT) && hiSrc2->OperIs(GT_CNS_INT))
-                {
-                    uint32_t loValue  = static_cast<uint32_t>(loSrc2->AsIntCon()->IconValue());
-                    uint32_t hiValue  = static_cast<uint32_t>(hiSrc2->AsIntCon()->IconValue());
-                    uint64_t value    = static_cast<uint64_t>(loValue) | (static_cast<uint64_t>(hiValue) << 32);
-                    uint64_t maxValue = cmp->IsUnsigned() ? UINT64_MAX : INT64_MAX;
-
-                    if (value != maxValue)
-                    {
-                        value++;
-                        loValue = value & UINT32_MAX;
-                        hiValue = (value >> 32) & UINT32_MAX;
-                        loSrc2->AsIntCon()->SetIconValue(loValue);
-                        hiSrc2->AsIntCon()->SetIconValue(hiValue);
-
-                        condition = cmp->OperIs(GT_LE) ? GT_LT : GT_GE;
-                        mustSwap  = false;
-                    }
-                }
-
-                if (mustSwap)
-                {
-                    std::swap(loSrc1, loSrc2);
-                    std::swap(hiSrc1, hiSrc2);
-                    condition = GenTree::SwapRelop(condition);
-                }
-            }
-
-            assert((condition == GT_LT) || (condition == GT_GE));
-
-            if (loSrc2->IsIntegralConst(0))
-            {
-                BlockRange().Remove(loSrc2);
-
-                // Very conservative dead code removal... but it helps.
-
-                if (loSrc1->OperIs(GT_CNS_INT, GT_LCL_VAR, GT_LCL_FLD))
-                {
-                    BlockRange().Remove(loSrc1);
-
-                    if (loSrc1->OperIs(GT_LCL_VAR, GT_LCL_FLD))
-                    {
-                        comp->lvaDecRefCnts(m_block, loSrc1);
-                    }
-                }
-                else
-                {
-                    loSrc1->SetUnusedValue();
-                }
-
-                hiCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, hiSrc1, hiSrc2);
-                BlockRange().InsertBefore(cmp, hiCmp);
-                ContainCheckCompare(hiCmp->AsOp());
-            }
-            else
-            {
-                loCmp = comp->gtNewOperNode(GT_CMP, TYP_VOID, loSrc1, loSrc2);
-                hiCmp = comp->gtNewOperNode(GT_SUB_HI, TYP_INT, hiSrc1, hiSrc2);
-                BlockRange().InsertBefore(cmp, loCmp, hiCmp);
-                ContainCheckCompare(loCmp->AsOp());
-                ContainCheckBinary(hiCmp->AsOp());
-
-                //
-                // Try to move the first SUB_HI operands right in front of it, this allows using
-                // a single temporary register instead of 2 (one for CMP and one for SUB_HI). Do
-                // this only for locals as they won't change condition flags. Note that we could
-                // move constants (except 0 which generates XOR reg, reg) but it's extremly rare
-                // to have a constant as the first operand.
-                //
-
-                if (hiSrc1->OperIs(GT_LCL_VAR, GT_LCL_FLD))
-                {
-                    BlockRange().Remove(hiSrc1);
-                    BlockRange().InsertBefore(hiCmp, hiSrc1);
-                }
-            }
-        }
-
-        hiCmp->gtFlags |= GTF_SET_FLAGS;
-        if (hiCmp->IsValue())
-        {
-            hiCmp->SetUnusedValue();
-        }
-
-        LIR::Use cmpUse;
-        if (BlockRange().TryGetUse(cmp, &cmpUse) && cmpUse.User()->OperIs(GT_JTRUE))
-        {
-            BlockRange().Remove(cmp);
-
-            GenTree* jcc    = cmpUse.User();
-            jcc->gtOp.gtOp1 = nullptr;
-            jcc->ChangeOper(GT_JCC);
-            jcc->gtFlags |= (cmp->gtFlags & GTF_UNSIGNED) | GTF_USE_FLAGS;
-            jcc->AsCC()->gtCondition = condition;
-        }
-        else
-        {
-            cmp->gtOp.gtOp1 = nullptr;
-            cmp->gtOp.gtOp2 = nullptr;
-            cmp->ChangeOper(GT_SETCC);
-            cmp->gtFlags |= GTF_USE_FLAGS;
-            cmp->AsCC()->gtCondition = condition;
-        }
-
-        return cmp->gtNext;
-    }
-#endif
+    assert(cmp->gtGetOp2()->IsIntegralConst());
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
-    if (cmp->gtGetOp2()->IsIntegralConst())
+    GenTree*       op1      = cmp->gtGetOp1();
+    var_types      op1Type  = op1->TypeGet();
+    GenTreeIntCon* op2      = cmp->gtGetOp2()->AsIntCon();
+    ssize_t        op2Value = op2->IconValue();
+
+#ifdef _TARGET_XARCH_
+    if (IsContainableMemoryOp(op1) && varTypeIsSmall(op1Type) && genTypeCanRepresentValue(op1Type, op2Value))
     {
-        GenTree*       op1      = cmp->gtGetOp1();
-        var_types      op1Type  = op1->TypeGet();
-        GenTreeIntCon* op2      = cmp->gtGetOp2()->AsIntCon();
-        ssize_t        op2Value = op2->IconValue();
+        //
+        // If op1's type is small then try to narrow op2 so it has the same type as op1.
+        // Small types are usually used by memory loads and if both compare operands have
+        // the same type then the memory load can be contained. In certain situations
+        // (e.g "cmp ubyte, 200") we also get a smaller instruction encoding.
+        //
 
-#ifdef _TARGET_XARCH_
-        if (IsContainableMemoryOp(op1) && varTypeIsSmall(op1Type) && genTypeCanRepresentValue(op1Type, op2Value))
-        {
-            //
-            // If op1's type is small then try to narrow op2 so it has the same type as op1.
-            // Small types are usually used by memory loads and if both compare operands have
-            // the same type then the memory load can be contained. In certain situations
-            // (e.g "cmp ubyte, 200") we also get a smaller instruction encoding.
-            //
-
-            op2->gtType = op1Type;
-        }
-        else
+        op2->gtType = op1Type;
+    }
+    else
 #endif
-            if (op1->OperIs(GT_CAST) && !op1->gtOverflow())
-        {
-            GenTreeCast* cast       = op1->AsCast();
-            var_types    castToType = cast->CastToType();
-            GenTree*     castOp     = cast->gtGetOp1();
+        if (op1->OperIs(GT_CAST) && !op1->gtOverflow())
+    {
+        GenTreeCast* cast       = op1->AsCast();
+        var_types    castToType = cast->CastToType();
+        GenTree*     castOp     = cast->gtGetOp1();
 
-            if (((castToType == TYP_BOOL) || (castToType == TYP_UBYTE)) && FitsIn<UINT8>(op2Value))
+        if (((castToType == TYP_BOOL) || (castToType == TYP_UBYTE)) && FitsIn<UINT8>(op2Value))
+        {
+            //
+            // Since we're going to remove the cast we need to be able to narrow the cast operand
+            // to the cast type. This can be done safely only for certain opers (e.g AND, OR, XOR).
+            // Some opers just can't be narrowed (e.g DIV, MUL) while other could be narrowed but
+            // doing so would produce incorrect results (e.g. RSZ, RSH).
+            //
+            // The below list of handled opers is conservative but enough to handle the most common
+            // situations. In particular this include CALL, sometimes the JIT unnecessarilly widens
+            // the result of bool returning calls.
+            //
+            bool removeCast =
+#ifdef _TARGET_ARM64_
+                (op2Value == 0) && cmp->OperIs(GT_EQ, GT_NE, GT_GT) &&
+#endif
+                (castOp->OperIs(GT_CALL, GT_LCL_VAR) || castOp->OperIsLogical()
+#ifdef _TARGET_XARCH_
+                 || IsContainableMemoryOp(castOp)
+#endif
+                     );
+
+            if (removeCast)
             {
-                //
-                // Since we're going to remove the cast we need to be able to narrow the cast operand
-                // to the cast type. This can be done safely only for certain opers (e.g AND, OR, XOR).
-                // Some opers just can't be narrowed (e.g DIV, MUL) while other could be narrowed but
-                // doing so would produce incorrect results (e.g. RSZ, RSH).
-                //
-                // The below list of handled opers is conservative but enough to handle the most common
-                // situations. In particular this include CALL, sometimes the JIT unnecessarilly widens
-                // the result of bool returning calls.
-                //
-                bool removeCast =
-#ifdef _TARGET_ARM64_
-                    (op2Value == 0) && cmp->OperIs(GT_EQ, GT_NE, GT_GT) &&
-#endif
-                    (castOp->OperIs(GT_CALL, GT_LCL_VAR) || castOp->OperIsLogical()
-#ifdef _TARGET_XARCH_
-                     || IsContainableMemoryOp(castOp)
-#endif
-                         );
-
-                if (removeCast)
-                {
-                    assert(!castOp->gtOverflowEx()); // Must not be an overflow checking operation
+                assert(!castOp->gtOverflowEx()); // Must not be an overflow checking operation
 
 #ifdef _TARGET_ARM64_
-                    bool cmpEq = cmp->OperIs(GT_EQ);
+                bool cmpEq = cmp->OperIs(GT_EQ);
 
-                    cmp->SetOperRaw(cmpEq ? GT_TEST_EQ : GT_TEST_NE);
-                    op2->SetIconValue(0xff);
-                    op2->gtType = castOp->gtType;
+                cmp->SetOperRaw(cmpEq ? GT_TEST_EQ : GT_TEST_NE);
+                op2->SetIconValue(0xff);
+                op2->gtType = castOp->gtType;
 #else
-                    castOp->gtType = castToType;
-                    op2->gtType    = castToType;
+                castOp->gtType = castToType;
+                op2->gtType    = castToType;
 #endif
-                    // If we have any contained memory ops on castOp, they must now not be contained.
-                    if (castOp->OperIsLogical())
+                // If we have any contained memory ops on castOp, they must now not be contained.
+                if (castOp->OperIsLogical())
+                {
+                    GenTree* op1 = castOp->gtGetOp1();
+                    if ((op1 != nullptr) && !op1->IsCnsIntOrI())
                     {
-                        GenTree* op1 = castOp->gtGetOp1();
-                        if ((op1 != nullptr) && !op1->IsCnsIntOrI())
-                        {
-                            op1->ClearContained();
-                        }
-                        GenTree* op2 = castOp->gtGetOp2();
-                        if ((op2 != nullptr) && !op2->IsCnsIntOrI())
-                        {
-                            op2->ClearContained();
-                        }
+                        op1->ClearContained();
                     }
-                    cmp->gtOp.gtOp1 = castOp;
-
-                    BlockRange().Remove(cast);
+                    GenTree* op2 = castOp->gtGetOp2();
+                    if ((op2 != nullptr) && !op2->IsCnsIntOrI())
+                    {
+                        op2->ClearContained();
+                    }
                 }
+                cmp->gtOp.gtOp1 = castOp;
+
+                BlockRange().Remove(cast);
             }
         }
-        else if (op1->OperIs(GT_AND) && cmp->OperIs(GT_EQ, GT_NE))
+    }
+    else if (op1->OperIs(GT_AND) && cmp->OperIs(GT_EQ, GT_NE))
+    {
+        //
+        // Transform ((x AND y) EQ|NE 0) into (x TEST_EQ|TEST_NE y) when possible.
+        //
+
+        GenTree* andOp1 = op1->gtGetOp1();
+        GenTree* andOp2 = op1->gtGetOp2();
+
+        if (op2Value != 0)
         {
             //
-            // Transform ((x AND y) EQ|NE 0) into (x TEST_EQ|TEST_NE y) when possible.
+            // If we don't have a 0 compare we can get one by transforming ((x AND mask) EQ|NE mask)
+            // into ((x AND mask) NE|EQ 0) when mask is a single bit.
             //
 
-            GenTree* andOp1 = op1->gtGetOp1();
-            GenTree* andOp2 = op1->gtGetOp2();
-
-            if (op2Value != 0)
+            if (isPow2(static_cast<size_t>(op2Value)) && andOp2->IsIntegralConst(op2Value))
             {
-                //
-                // If we don't have a 0 compare we can get one by transforming ((x AND mask) EQ|NE mask)
-                // into ((x AND mask) NE|EQ 0) when mask is a single bit.
-                //
-
-                if (isPow2(static_cast<size_t>(op2Value)) && andOp2->IsIntegralConst(op2Value))
-                {
-                    op2Value = 0;
-                    op2->SetIconValue(0);
-                    cmp->SetOperRaw(GenTree::ReverseRelop(cmp->OperGet()));
-                }
+                op2Value = 0;
+                op2->SetIconValue(0);
+                cmp->SetOperRaw(GenTree::ReverseRelop(cmp->OperGet()));
             }
+        }
 
-            if (op2Value == 0)
-            {
-                BlockRange().Remove(op1);
-                BlockRange().Remove(op2);
+        if (op2Value == 0)
+        {
+            BlockRange().Remove(op1);
+            BlockRange().Remove(op2);
 
-                cmp->SetOperRaw(cmp->OperIs(GT_EQ) ? GT_TEST_EQ : GT_TEST_NE);
-                cmp->gtOp.gtOp1 = andOp1;
-                cmp->gtOp.gtOp2 = andOp2;
-                // We will re-evaluate containment below
-                andOp1->ClearContained();
-                andOp2->ClearContained();
+            cmp->SetOperRaw(cmp->OperIs(GT_EQ) ? GT_TEST_EQ : GT_TEST_NE);
+            cmp->gtOp.gtOp1 = andOp1;
+            cmp->gtOp.gtOp2 = andOp2;
+            // We will re-evaluate containment below
+            andOp1->ClearContained();
+            andOp2->ClearContained();
 
 #ifdef _TARGET_XARCH_
-                if (IsContainableMemoryOp(andOp1) && andOp2->IsIntegralConst())
+            if (IsContainableMemoryOp(andOp1) && andOp2->IsIntegralConst())
+            {
+                //
+                // For "test" we only care about the bits that are set in the second operand (mask).
+                // If the mask fits in a small type then we can narrow both operands to generate a "test"
+                // instruction with a smaller encoding ("test" does not have a r/m32, imm8 form) and avoid
+                // a widening load in some cases.
+                //
+                // For 16 bit operands we narrow only if the memory operand is already 16 bit. This matches
+                // the behavior of a previous implementation and avoids adding more cases where we generate
+                // 16 bit instructions that require a length changing prefix (0x66). These suffer from
+                // significant decoder stalls on Intel CPUs.
+                //
+                // We could also do this for 64 bit masks that fit into 32 bit but it doesn't help.
+                // In such cases morph narrows down the existing GT_AND by inserting a cast between it and
+                // the memory operand so we'd need to add more code to recognize and eliminate that cast.
+                //
+
+                size_t mask = static_cast<size_t>(andOp2->AsIntCon()->IconValue());
+
+                if (FitsIn<UINT8>(mask))
                 {
-                    //
-                    // For "test" we only care about the bits that are set in the second operand (mask).
-                    // If the mask fits in a small type then we can narrow both operands to generate a "test"
-                    // instruction with a smaller encoding ("test" does not have a r/m32, imm8 form) and avoid
-                    // a widening load in some cases.
-                    //
-                    // For 16 bit operands we narrow only if the memory operand is already 16 bit. This matches
-                    // the behavior of a previous implementation and avoids adding more cases where we generate
-                    // 16 bit instructions that require a length changing prefix (0x66). These suffer from
-                    // significant decoder stalls on Intel CPUs.
-                    //
-                    // We could also do this for 64 bit masks that fit into 32 bit but it doesn't help.
-                    // In such cases morph narrows down the existing GT_AND by inserting a cast between it and
-                    // the memory operand so we'd need to add more code to recognize and eliminate that cast.
-                    //
-
-                    size_t mask = static_cast<size_t>(andOp2->AsIntCon()->IconValue());
-
-                    if (FitsIn<UINT8>(mask))
-                    {
-                        andOp1->gtType = TYP_UBYTE;
-                        andOp2->gtType = TYP_UBYTE;
-                    }
-                    else if (FitsIn<UINT16>(mask) && genTypeSize(andOp1) == 2)
-                    {
-                        andOp1->gtType = TYP_CHAR;
-                        andOp2->gtType = TYP_CHAR;
-                    }
+                    andOp1->gtType = TYP_UBYTE;
+                    andOp2->gtType = TYP_UBYTE;
                 }
-#endif
+                else if (FitsIn<UINT16>(mask) && genTypeSize(andOp1) == 2)
+                {
+                    andOp1->gtType = TYP_USHORT;
+                    andOp2->gtType = TYP_USHORT;
+                }
             }
+#endif
         }
     }
 
@@ -2917,6 +2922,38 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
         }
     }
 #endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
+
+    return cmp;
+}
+
+//------------------------------------------------------------------------
+// Lowering::LowerCompare: Lowers a compare node.
+//
+// Arguments:
+//    cmp - the compare node
+//
+// Return Value:
+//    The next node to lower.
+//
+GenTree* Lowering::LowerCompare(GenTree* cmp)
+{
+#ifndef _TARGET_64BIT_
+    if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
+    {
+        return DecomposeLongCompare(cmp);
+    }
+#endif
+
+    if (cmp->gtGetOp2()->IsIntegralConst() && !comp->opts.MinOpts())
+    {
+        GenTree* next = OptimizeConstCompare(cmp);
+
+        // If OptimizeConstCompare return the compare node as "next" then we need to continue lowering.
+        if (next != cmp)
+        {
+            return next;
+        }
+    }
 
 #ifdef _TARGET_XARCH_
     if (cmp->gtGetOp1()->TypeGet() == cmp->gtGetOp2()->TypeGet())
@@ -4716,19 +4753,19 @@ bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 //    node - pointer to the DIV or MOD node
 //
 // Returns:
-//    The next node to lower.
+//    nullptr if no transformation is done, or the next node in the transformed node sequence that
+//    needs to be lowered.
 //
 GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 {
     assert((node->OperGet() == GT_DIV) || (node->OperGet() == GT_MOD));
-    GenTree* next     = node->gtNext;
     GenTree* divMod   = node;
     GenTree* dividend = divMod->gtGetOp1();
     GenTree* divisor  = divMod->gtGetOp2();
 
     if (!divisor->IsCnsIntOrI())
     {
-        return next; // no transformations to make
+        return nullptr; // no transformations to make
     }
 
     const var_types type = divMod->TypeGet();
@@ -4739,7 +4776,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         // We shouldn't see a divmod with constant operands here but if we do then it's likely
         // because optimizations are disabled or it's a case that's supposed to throw an exception.
         // Don't optimize this.
-        return next;
+        return nullptr;
     }
 
     ssize_t divisorValue = divisor->gtIntCon.IconValue();
@@ -4755,7 +4792,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         // case so optimizing this case would break C# code.
 
         // A runtime check could be used to handle this case but it's probably too rare to matter.
-        return next;
+        return nullptr;
     }
 
     bool isDiv = divMod->OperGet() == GT_DIV;
@@ -4767,8 +4804,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
             // If the divisor is the minimum representable integer value then we can use a compare,
             // the result is 1 iff the dividend equals divisor.
             divMod->SetOper(GT_EQ);
-            ContainCheckCompare(divMod->AsOp());
-            return next;
+            return node;
         }
     }
 
@@ -4779,7 +4815,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     {
         if (comp->opts.MinOpts())
         {
-            return next;
+            return nullptr;
         }
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
@@ -4890,7 +4926,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         return mulhi;
 #else
         // Currently there's no GT_MULHI for ARM32
-        return next;
+        return nullptr;
 #endif
     }
 
@@ -4898,7 +4934,7 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     LIR::Use use;
     if (!BlockRange().TryGetUse(node, &use))
     {
-        return next;
+        return nullptr;
     }
 
     // We need to use the dividend node multiple times so its value needs to be
@@ -4999,13 +5035,14 @@ GenTree* Lowering::LowerSignedDivOrMod(GenTreePtr node)
     if (!varTypeIsFloating(node->TypeGet()))
 #endif // _TARGET_XARCH_
     {
-        next = LowerConstIntDivOrMod(node);
+        // LowerConstIntDivOrMod will return nullptr if it doesn't transform the node.
+        GenTree* newNode = LowerConstIntDivOrMod(node);
+        if (newNode != nullptr)
+        {
+            return newNode;
+        }
     }
-
-    if ((node->OperGet() == GT_DIV) || (node->OperGet() == GT_MOD))
-    {
-        ContainCheckDivOrMod(node->AsOp());
-    }
+    ContainCheckDivOrMod(node->AsOp());
 
     return next;
 }
@@ -5668,7 +5705,7 @@ void Lowering::getCastDescription(GenTreePtr treeNode, CastInfo* castInfo)
                 typeMax  = SHRT_MAX;
                 break;
 
-            case TYP_CHAR:
+            case TYP_USHORT:
                 typeMask = ssize_t((int)0xFFFF0000L);
                 break;
 
@@ -5826,6 +5863,11 @@ void Lowering::ContainCheckNode(GenTree* node)
             ContainCheckSIMD(node->AsSIMD());
             break;
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            ContainCheckHWIntrinsic(node->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
         default:
             break;
     }
@@ -5859,7 +5901,7 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
         {
             // If there are no containable operands, we can make an operand reg optional.
             // SSE2 allows only divisor to be a memory-op.
-            SetRegOptional(divisor);
+            divisor->SetRegOptional();
         }
         return;
     }
@@ -5881,7 +5923,7 @@ void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
     {
         // If there are no containable operands, we can make an operand reg optional.
         // Div instruction allows only divisor to be a memory op.
-        SetRegOptional(divisor);
+        divisor->SetRegOptional();
     }
 #endif // _TARGET_XARCH_
 }

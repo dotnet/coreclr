@@ -2392,7 +2392,7 @@ void emitter::emitIns_R_R_I(instruction ins,
             assert(insOptsNone(opt));
 
             // Is it just a mov?
-            if (imm == 0)
+            if ((imm == 0) && insDoesNotSetFlags(flags))
             {
                 // Is the mov even necessary?
                 // Fix 383915 ARM ILGEN
@@ -4502,8 +4502,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % (int)sizeof(void*) == 0);
-    argCnt = argSize / (int)sizeof(void*);
+    assert(argSize % (int)REGSIZE_BYTES == 0);
+    argCnt = argSize / (int)REGSIZE_BYTES;
 
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
@@ -6387,7 +6387,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     if (emitInsWritesToLclVarStackLoc(id))
     {
         int       varNum = id->idAddr()->iiaLclVar.lvaVarNum();
-        unsigned  ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), sizeof(size_t));
+        unsigned  ofs    = AlignDown(id->idAddr()->iiaLclVar.lvaOffset(), TARGET_POINTER_SIZE);
         regNumber regBase;
         int       adr = emitComp->lvaFrameAddress(varNum, true, &regBase, ofs);
         if (id->idGCref() != GCT_NONE)

@@ -23,6 +23,7 @@ endif (WIN32)
 set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
+set(GENERATED_EVENTING_DIR ${CMAKE_CURRENT_BINARY_DIR}/eventing)
 set(VERSION_FILE_PATH "${CMAKE_BINARY_DIR}/version.cpp")
 
 set(CORECLR_SET_RPATH ON)
@@ -348,6 +349,12 @@ if (WIN32)
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
+
+  # Temporarily disable incremental link due to incremental linking CFG bug crashing crossgen. 
+  # See https://github.com/dotnet/coreclr/issues/12592
+  # This has been fixed in VS 2017 Update 5 but we're keeping this around until everyone is off
+  # the versions that have the bug. The bug manifests itself as a bad crash.
+  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")  
 
   # Debug build specific flags
   set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")

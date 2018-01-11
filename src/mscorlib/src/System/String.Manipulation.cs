@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -998,6 +999,7 @@ namespace System
                     // small optimization,
                     // if we have not done any replacements,
                     // we will return the original string
+                    StringBuilderCache.Release(result);
                     return this;
                 }
                 else
