@@ -806,12 +806,12 @@ namespace System.Text
         {
             if (startIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             if (value == null)
@@ -820,12 +820,12 @@ namespace System.Text
                 {
                     return this;
                 }
-                throw new ArgumentNullException(nameof(value));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             }
 
             if (count > value.Length - startIndex)
             {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
             if (count > 0)
@@ -843,7 +843,7 @@ namespace System.Text
             int newLength = Length + count;
             if ((uint)newLength > (uint)m_MaxCapacity)
             {
-                throw new ArgumentOutOfRangeException(nameof(Capacity), SR.ArgumentOutOfRange_Capacity);
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
             }
 
             while (count > 0)
@@ -893,7 +893,7 @@ namespace System.Text
                                     }
                                     else
                                     {
-                                        throw new ArgumentOutOfRangeException(nameof(chunkCount));
+                                        ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                                     }
                                 }
                             }
