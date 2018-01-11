@@ -257,7 +257,7 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
 
     runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
 
-    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
+    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1])
 
 def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, architecture):
     """ Upload results to benchview
@@ -319,7 +319,7 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
             '--machinepool',
             'PerfSnake']
 
-    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
+    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1])
 
     if uploadToBenchview:
         runArgs = [python,
@@ -328,7 +328,7 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
                 '--container',
                 'coreclr']
 
-        run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
+        run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1])
 
 def verify_core_overlay(coreclrRepo, operatingSystem, arch, configuration):
     """ Create the path to and verify the core overlay directory exists
