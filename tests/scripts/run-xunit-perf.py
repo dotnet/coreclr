@@ -114,16 +114,34 @@ def log(message):
 
     print('[%s]: %s' % (sys.argv[0], message))
 
-def print_error(out, err, message):
-    log('%s' % out.decode("utf-8"))
-    log('%s' % err.decode("utf-8"))
-    raise Exception(message)
-
 def is_supported_version() -> bool:
+    """ Checkes that the version of python is at least 3.5
+    Returns:
+        bool : true if python version is 3.5 or higher
+    """
     return version_info.major > 2 and version_info.minor > 4
 
+def copytree(src, dst):
+    """ Copy the entire tree found in src to dest
+    Args:
+        src (str): path to the source directory
+        dst (str): path to the destination directory
+    """
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d)
+        else:
+            shutil.copy2(s, d)
 
-def run_command(runArgs, environment):
+def run_command(runArgs, environment, errorMessage):
+    """ Run command specified by runArgs
+    Args:
+        runargs (str[]): list of arguments for subprocess
+        environment(str{}): dict of environment variable
+        errorMessage(str): message to print if there is an error
+    """
     log('')
     log(" ".join(runArgs))
 
@@ -131,9 +149,31 @@ def run_command(runArgs, environment):
         subprocess.check_output(runArgs, stderr=PIPE, env=environment)
     except CalledProcessError as e:
         log(e.output.decode('utf-8'))
-        raise RuntimeException("Call to %s failed" % runArgs[1])
+        raise RuntimeException(errorMessage);
 
-def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable):
+##########################################################################
+# Execution Functions
+##########################################################################
+
+def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, isScenarioTest, arch, extension, executable):
+    """ Run perf benchmark
+    Args:
+        benchname (str): name of the benchmark
+        benchdir (srr): path to the benchmark
+        env (str{}): environment for the benchmark
+        sandboxDir (str): path to the sandbox
+        benchmarkOutputDir (str): directory where we should save output of the benchmark
+        testFileExt (str): extension of the benchmark
+        stabilityPrefix (str): stability prefix to run the benchmark under
+        collectionFlags (str): data to collect
+        lvRunId (str): ID of the benchmark
+        isScenarioTest (bool): if the benchmark is a scenario
+        arch (str): arch of the benchmark
+        extension (str): extension for corerun (.exe for windows, empty string for non-windows)
+        executable (str[]): executable to run benchmark under (cmd /c for windows, empty for non-windows)
+
+    Returns: 0 if benchmark passed, 1 if benchmark failed
+    """
     myEnv = dict(env)
     benchnameWithExt = benchname + '.' + testFileExt
     fullPath = os.path.join(benchdir, benchnameWithExt)
@@ -195,6 +235,16 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     return 0
 
 def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, better, hasWarmupRun, benchmarkOutputDir, benchviewPath):
+    """ Generates results to be uploaded to benchview using measurement.py
+    Args:
+        python (str): python executable
+        lvRunId (str): ID for the benchmark run
+        isScenarioTest (bool): if the benchmark was a scenario
+        better (str): how to order results
+        hasWarmupRun (bool): if there was a warmup run
+        benchmarkOutputDir (str): path to where benchmark results were written
+        benchviewPath (str): path to benchview tools
+    """
     benchviewMeasurementParser = 'xunitscenario' if isScenarioTest else 'xunit'
     warmupRun = '--drop-first-value' if hasWarmupRun else ''
     lvMeasurementArgs = [benchviewMeasurementParser,
@@ -207,9 +257,24 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
 
     runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
 
-    run_command(runArgs, os.environ)
+    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
 
 def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, architecture):
+    """ Upload results to benchview
+    Args:
+        python (str): python executable
+        coreclrRepo (str): directory where build.json, machinedata.json and submission-metadata.json were written
+        benchviewPath (str): path to benchview tools
+        benchviewGroup (str): group to upload to
+        runType (str): type of run this was (rolling, private)
+        configuration (str): configuration of the build (Release, Checked, etc)
+        operatingSystem (str): operating system of the run
+        etwCollection (str): collection type (On or Off)
+        optLevl (str): optimization level (full_opt, min_opt, tiered)
+        jitName (str): jit type (ryujit, etc)
+        pgoOptimized (str): if the run was with pgo optimizations on
+        architecture (str): architecture of the run (x86, x64)
+    """
     measurementJson = os.path.join(os.getcwd(), 'measurement.json')
     buildJson = os.path.join(coreclrRepo, 'build.json')
     machinedataJson = os.path.join(coreclrRepo, 'machinedata.json')
@@ -254,7 +319,7 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
             '--machinepool',
             'PerfSnake']
 
-    run_command(runArgs, os.environ)
+    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
 
     if uploadToBenchview:
         runArgs = [python,
@@ -263,9 +328,18 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
                 '--container',
                 'coreclr']
 
-        run_command(runArgs, os.environ)
+        run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1]))
 
 def verify_core_overlay(coreclrRepo, operatingSystem, arch, configuration):
+    """ Create the path to and verify the core overlay directory exists
+    Args:
+        coreclrRepo (str): path to the coreclrRepo
+        operatingSystem (str): platform of the build
+        arch (str): architecture if the build
+        configuration (str): configuration of the build
+    Returns:
+        coreOverlay (str): path to the coreOverlay directory
+    """
     configurationDir = "%s.%s.%s" % (operatingSystem, arch, configuration)
     overlayDir = 'Core_Root'
     coreclrOverlay = os.path.join(coreclrRepo, "bin", "tests", configurationDir, "Tests", overlayDir)
@@ -275,26 +349,40 @@ def verify_core_overlay(coreclrRepo, operatingSystem, arch, configuration):
     return coreclrOverlay
 
 def setup_sandbox(sandboxDir):
+    """ Setup the sand box directory by deleting it if it exists and then creating it
+    Args:
+        sandboxDir (str): path to the sandbox directory
+    """
     if os.path.isdir(sandboxDir):
         shutil.rmtree(sandboxDir)
     os.mkdir(sandboxDir)
 
 def set_perf_run_log(sandboxOutputDir):
+    """ Setup the path to the sandbox output directory and generate the perfrun.log file
+    Args:
+        sandboxOutputDirectory (str): path to the sandbox output directory
+    Returns:
+        str: path to the perfrun.log
+    """
     if not os.path.isdir(sandboxOutputDir):
         os.makedirs(sandboxOutputDir)
     return os.path.join(sandboxOutputDir, "perfrun.log")
 
 def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
+    """ Build the perf harness
+    Args:
+        coreclrRepo (str): path to the coreclr repository
+        sandboxDir (str): path to the sandbox directory
+        extension (str): extension of dotnet
+        dotnetEnv (str{}): environment for dotnet
+    """
     # Confirm dotnet works
     dotnet = os.path.join(coreclrRepo, 'Tools', 'dotnetcli', 'dotnet' + extension)
     runArgs = [dotnet,
             '--info'
             ]
 
-    run_command(runArgs, dotnetEnv)
-
-    if proc.returncode != 0:
-        print_error(out, err, 'Failed to get information about the CLI tool.')
+    run_command(runArgs, dotnetEnv, 'Failed to get information about the CLI tool.')
 
     # Restore PerfHarness
     perfHarnessPath = os.path.join(coreclrRepo, 'tests', 'src', 'Common', 'PerfHarness', 'PerfHarness.csproj')
@@ -302,10 +390,7 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
             'restore',
             perfHarnessPath]
 
-    run_command(runArgs, dotnetEnv)
-
-    if proc.returncode != 0:
-        print_error(out, err, 'Failed to restore PerfHarness.csproj')
+    run_command(runArgs, dotnetEnv, 'Failed to restore PerfHarness.csproj')
 
     # Publish PerfHarness
     runArgs = [dotnet,
@@ -316,19 +401,11 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
             '-o',
             sandboxDir]
 
-    run_command(runArgs, dotnetEnv)
+    run_command(runArgs, dotnetEnv, 'Failed to publish PerfHarness.csproj')
 
-    if proc.returncode != 0:
-        print_error(out, err, 'Failed to publish PerfHarness.csproj')
-
-def copytree(src, dst):
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            shutil.copytree(s, d)
-        else:
-            shutil.copy2(s, d)
+##########################################################################
+# Main
+##########################################################################
 
 def main(args):
     if not is_supported_version():
@@ -421,7 +498,7 @@ def main(args):
                     benchmarkOutputDir = os.path.join(sandboxOutputDir, 'Scenarios') if isScenarioTest else os.path.join(sandboxOutputDir, 'Microbenchmarks')
                     benchmarkOutputDir = os.path.join(benchmarkOutputDir, etwCollection, benchname)
 
-                    failure = run_benchmark(benchname, root, myEnv, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
+                    failure = run_benchmark(benchname, root, myEnv, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, isScenarioTest, arch, extension, executable)
                     failures += failure
                     if (benchviewPath is not None) and (failure == 0):
                         generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, better, hasWarmupRun, benchmarkOutputDir, benchviewPath)
