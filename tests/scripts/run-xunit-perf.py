@@ -212,7 +212,6 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     splitPrefix = [] if stabilityPrefix is None else stabilityPrefix.split()
     runArgs = executable + splitPrefix + [os.path.join(sandboxDir, 'corerun' + extension)] + lvCommonArgs + ['--perf:collect', collectionFlags]
     log(" ".join(runArgs))
-    sys.stdout.flush()
 
     error = 0
     expectedOutputFile = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
