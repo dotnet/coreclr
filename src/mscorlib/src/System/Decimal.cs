@@ -278,19 +278,17 @@ namespace System
         {
             if (bits == null)
                 throw new ArgumentNullException(nameof(bits));
-            if (bits.Length == 4)
+            if (bits.Length != 4)
+                ThrowInvalidDecimalBytes();
+            int f = bits[3];
+            if ((f & ~(SignMask | ScaleMask)) == 0 && (f & ScaleMask) <= (28 << 16))
             {
-                int f = bits[3];
-                if ((f & ~(SignMask | ScaleMask)) == 0 && (f & ScaleMask) <= (28 << 16))
-                {
-                    lo = bits[0];
-                    mid = bits[1];
-                    hi = bits[2];
-                    flags = f;
-                    return;
-                }
+                lo = bits[0];
+                mid = bits[1];
+                hi = bits[2];
+                flags = f;
+                return;
             }
-            throw new ArgumentException(SR.Arg_DecBitCtor);
         }
 
         // Constructs a Decimal from its constituent parts.
@@ -338,14 +336,18 @@ namespace System
         // Constructs a Decimal from its constituent parts.
         private Decimal(int lo, int mid, int hi, int flags)
         {
-            if ((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16))
-            {
-                this.lo = lo;
-                this.mid = mid;
-                this.hi = hi;
-                this.flags = flags;
-                return;
-            }
+            if (!((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16)))
+                ThrowInvalidDecimalBytes();
+
+            this.lo = lo;
+            this.mid = mid;
+            this.hi = hi;
+            this.flags = flags;
+        }
+
+        [StackTraceHidden]
+        private void ThrowInvalidDecimalBytes()
+        {
             throw new ArgumentException(SR.Arg_DecBitCtor);
         }
 

@@ -36,6 +36,7 @@ namespace System
           1E9, 1E10, 1E11, 1E12, 1E13, 1E14, 1E15
         };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short Abs(short value)
         {
             if (value < 0)
@@ -49,6 +50,7 @@ namespace System
             return value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Abs(int value)
         {
             if (value < 0)
@@ -62,6 +64,7 @@ namespace System
             return value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long Abs(long value)
         {
             if (value < 0)
@@ -75,6 +78,7 @@ namespace System
             return value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static sbyte Abs(sbyte value)
         {
