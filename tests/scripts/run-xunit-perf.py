@@ -146,8 +146,8 @@ def run_command(runArgs, environment, errorMessage):
     log(" ".join(runArgs))
 
     try:
-        subprocess.check_output(runArgs, stderr=PIPE, env=environment)
-    except CalledProcessError as e:
+        subprocess.check_output(runArgs, stderr=subprocess.PIPE, env=environment)
+    except subprocess.CalledProcessError as e:
         log(e.output.decode('utf-8'))
         raise RuntimeException(errorMessage);
 
