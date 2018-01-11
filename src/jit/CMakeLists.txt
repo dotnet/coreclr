@@ -79,6 +79,8 @@ set( JIT_SOURCES
   valuenum.cpp
 )
 
+# Add header files to Visual Studio vcxproj, not required for unixes
+# change has effect on editor experience and has no impact on build
 if (WIN32)
   set( JIT_HEADERS
     _typeinfo.h
