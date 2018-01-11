@@ -279,7 +279,7 @@ def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, b
     machinedataJson = os.path.join(coreclrRepo, 'machinedata.json')
     submissionMetadataJson = os.path.join(coreclrRepo, 'submission-metadata.json')
 
-    for jsonFile in [measurementJson, buildJson, machinedataJson, submissionMetadatason]:
+    for jsonFile in [measurementJson, buildJson, machinedataJson, submissionMetadataJson]:
         if not os.path.isfile(jsonFile):
             raise Exception('%s does not exist. There is no data to be uploaded.' % jsonFile)
 
