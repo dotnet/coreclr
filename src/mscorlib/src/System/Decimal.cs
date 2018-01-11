@@ -278,17 +278,19 @@ namespace System
         {
             if (bits == null)
                 throw new ArgumentNullException(nameof(bits));
-            if (bits.Length != 4)
-                ThrowInvalidDecimalBytes();
-            int f = bits[3];
-            if ((f & ~(SignMask | ScaleMask)) == 0 && (f & ScaleMask) <= (28 << 16))
+            if (bits.Length == 4)
             {
-                lo = bits[0];
-                mid = bits[1];
-                hi = bits[2];
-                flags = f;
-                return;
+                int f = bits[3];
+                if ((f & ~(SignMask | ScaleMask)) == 0 && (f & ScaleMask) <= (28 << 16))
+                {
+                    lo = bits[0];
+                    mid = bits[1];
+                    hi = bits[2];
+                    flags = f;
+                    return;
+                }
             }
+            throw new ArgumentException(SR.Arg_DecBitCtor);
         }
 
         // Constructs a Decimal from its constituent parts.
@@ -342,16 +344,8 @@ namespace System
                 this.mid = mid;
                 this.hi = hi;
                 this.flags = flags;
+                return;
             }
-            else
-            {
-                ThrowInvalidDecimalBytes();
-            }
-        }
-
-        [StackTraceHidden]
-        private void ThrowInvalidDecimalBytes()
-        {
             throw new ArgumentException(SR.Arg_DecBitCtor);
         }
 
