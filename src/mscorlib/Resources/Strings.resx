@@ -283,6 +283,9 @@
   <data name="Arg_EHClauseNotFilter" xml:space="preserve">
     <value>This ExceptionHandlingClause is not a filter.</value>
   </data>
+  <data name="Arg_ElementsInSourceIsGreaterThanDestination" xml:space="preserve">
+    <value>Number of elements in source vector is greater than the destination array</value>
+  </data>
   <data name="Arg_EmptyArray" xml:space="preserve">
     <value>Array may not be empty.</value>
   </data>
@@ -618,6 +621,9 @@
   </data>
   <data name="Arg_NotSupportedException" xml:space="preserve">
     <value>Specified method is not supported.</value>
+  </data>
+  <data name="Arg_NullArgumentNullRef" xml:space="preserve">
+    <value>The method was called with a null array argument.</value>
   </data>
   <data name="Arg_NullIndex" xml:space="preserve">
     <value>Arrays indexes must be set to an object instance.</value>
