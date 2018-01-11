@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import glob
+from sys import version_info
 
 ##########################################################################
 # Argument Parser
@@ -72,9 +73,9 @@ def validate_args(args):
     coreclrPerf = os.path.join(os.getcwd(), args.coreclrPerf)
     validate_arg(coreclrPerf, lambda item: os.path.isdir(item))
 
-    if not args.benchviewPath is None:
+    if args.benchviewPath is not None:
         validate_arg(args.benchviewPath, lambda item: os.path.isdir(item))
-    if not args.sliceNumber == -1:
+    if args.sliceNumber != -1:
         validate_arg(args.sliceConfigFile, lambda item: os.path.isfile(item))
 
     log('Args:')
@@ -86,14 +87,14 @@ def validate_args(args):
     log('better: %s' % args.better)
     log('runType: %s' % args.runType)
     log('configuration: %s' % args.configuration)
-    if not args.benchviewPath is None:
+    if args.benchviewPath is not None:
         log('benchviewPath: %s' % args.benchviewPath)
-    if not args.sliceNumber == -1:
+    if args.sliceNumber != -1:
         log('sliceNumber: %s' % args.sliceNumber)
         log('sliceConfigFile: %s' % args.sliceConfigFile)
-    if not args.outputDir is None:
+    if args.outputDir is not None:
         log('outputDir: %s' % args.outputDir)
-    if not args.stabilityPrefix is None:
+    if args.stabilityPrefix is not None:
         log('stabilityPrefix: %s' % args.stabilityPrefix)
     log('isScenarioTest: %s' % args.isScenarioTest)
     log('isPgoOptimized: %s' % args.isPgoOptimized)
@@ -118,7 +119,6 @@ def print_error(out, err, message):
     log('%s' % err.decode("utf-8"))
     raise Exception(message)
 
-from sys import version_info
 def is_supported_version() -> bool:
     return version_info.major > 2 and version_info.minor > 4
 
@@ -179,10 +179,10 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     with open(benchnameLogFileName, 'wb') as out:
         proc = subprocess.Popen(' '.join(runArgs), shell=True, stdout=out, stderr=out, env=myEnv)
         proc.communicate()
-        if not proc.returncode == 0:
+        if proc.returncode != 0:
             error = proc.returncode
 
-    if not error == 0:
+    if error != 0:
         log("CoreRun.exe exited with %s code" % (error))
         if os.path.isfile(benchnameLogFileName):
             with open(benchnameLogFileName, 'r') as f:
@@ -281,7 +281,7 @@ def setup_sandbox(sandboxDir):
 
 def set_perf_run_log(sandboxOutputDir):
     if not os.path.isdir(sandboxOutputDir):
-        os.mkdirs(sandboxOutputDir)
+        os.makedirs(sandboxOutputDir)
     return os.path.join(sandboxOutputDir, "perfrun.log")
 
 def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
@@ -293,7 +293,7 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
 
     run_command(runArgs, dotnetEnv)
 
-    if not proc.returncode == 0:
+    if proc.returncode != 0:
         print_error(out, err, 'Failed to get information about the CLI tool.')
 
     # Restore PerfHarness
@@ -304,7 +304,7 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
 
     run_command(runArgs, dotnetEnv)
 
-    if not proc.returncode == 0:
+    if proc.returncode != 0:
         print_error(out, err, 'Failed to restore PerfHarness.csproj')
 
     # Publish PerfHarness
@@ -318,7 +318,7 @@ def build_perfharness(coreclrRepo, sandboxDir, extension, dotnetEnv):
 
     run_command(runArgs, dotnetEnv)
 
-    if not proc.returncode == 0:
+    if proc.returncode != 0:
         print_error(out, err, 'Failed to publish PerfHarness.csproj')
 
 def copytree(src, dst):
@@ -355,7 +355,7 @@ def main(args):
     coreclrRepo = os.getcwd()
     etwCollection = 'Off' if collectionFlags == 'stopwatch' else 'On'
     sandboxDir = os.path.join(coreclrRepo, 'bin', 'sandbox')
-    sandboxOutputDir = outputDir if not outputDir is None else os.path.join(sandboxDir, 'Logs')
+    sandboxOutputDir = outputDir if outputDir is not None else os.path.join(sandboxDir, 'Logs')
 
     extension = '.exe' if platform == 'Windows_NT' else ''
 
@@ -389,7 +389,7 @@ def main(args):
 
     # Determine benchmarks we will be running
     benchmarks = []
-    if not sliceNumber == -1:
+    if sliceNumber != -1:
         with open(sliceConfigFile) as jsonData:
             data = json.load(jsonData)
             if sliceNumber >= len(data["slices"]):
@@ -423,17 +423,17 @@ def main(args):
 
                     failure = run_benchmark(benchname, root, myEnv, sandboxDir, benchmarkOutputDir, testFileExt, stabilityPrefix, collectionFlags, lvRunId, etwCollection, isScenarioTest, arch, extension, executable)
                     failures += failure
-                    if (not benchviewPath is None) and (failure == 0):
+                    if (benchviewPath is not None) and (failure == 0):
                         generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, better, hasWarmupRun, benchmarkOutputDir, benchviewPath)
 
     # Setup variables for uploading to benchview
     pgoOptimized = 'pgo' if isPgoOptimized else 'nopgo'
 
     # Upload to benchview
-    if not benchviewPath is None:
+    if benchviewPath is not None:
         upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, arch)
 
-    if not failures == 0:
+    if failures != 0:
         log('%s benchmarks have failed' % failures)
 
     return failures
