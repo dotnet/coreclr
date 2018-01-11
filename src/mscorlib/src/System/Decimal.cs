@@ -336,13 +336,17 @@ namespace System
         // Constructs a Decimal from its constituent parts.
         private Decimal(int lo, int mid, int hi, int flags)
         {
-            if (!((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16)))
+            if ((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16))
+            {
+                this.lo = lo;
+                this.mid = mid;
+                this.hi = hi;
+                this.flags = flags;
+            }
+            else
+            {
                 ThrowInvalidDecimalBytes();
-
-            this.lo = lo;
-            this.mid = mid;
-            this.hi = hi;
-            this.flags = flags;
+            }
         }
 
         [StackTraceHidden]
