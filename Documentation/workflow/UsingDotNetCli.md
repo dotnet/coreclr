@@ -1,7 +1,7 @@
 
 # Using your .NET Core Runtime Build with dotnet cli
 
-This walkthrough explains how to run against your local core clr build using `dotnet cli` only.
+This walkthrough explains how to run against your local CoreCLR build using `dotnet cli` only.
 
 For other walkthroughs see:
 
@@ -33,7 +33,7 @@ The build script creates NuGet packages and puts them to `bin\Product\<OS>.<arch
 
 Please run `dotnet new nugetconfig` in the app folder and update the created `NuGet.Config` file:
 
-* **set path to local coreclr NuGet folder!!**
+* **set path to local CoreCLR NuGet folder!!**
 * add address to dotnet core tools NuGet feed
 
 
@@ -44,7 +44,7 @@ Please run `dotnet new nugetconfig` in the app folder and update the created `Nu
     <!--To inherit the global NuGet package sources remove the <clear/> line below -->
     <clear />
 
-    <add key="local coreclr" value="C:\coreclr\bin\Product\Windows_NT.x64.Debug\.nuget\pkg" /> <!-- CHANGE THIS PATH to your local output path -->
+    <add key="local CoreCLR" value="C:\coreclr\bin\Product\Windows_NT.x64.Debug\.nuget\pkg" /> <!-- CHANGE THIS PATH to your local output path -->
     <add key="dotnet-core" value="https://dotnet.myget.org/F/dotnet-core/api/v3/index.json" /> <!-- link to corefx NuGet feed -->
   </packageSources>
 </configuration>
@@ -96,20 +96,19 @@ static void Main(string[] args)
 }
 ```
 
-### 5. Restore and publish
+### 5. Publish
 
-Now is the time to restore and publish. The publish step will also trigger a build but you can iterate on build by calling `dotnet build` as
+Now is the time to publish. The publish step will trigger restore and build. You can iterate on build by calling `dotnet build` as
 needed.
 
 ```bat
-dotnet restore --configfile .\NuGet.Config
 dotnet publish
 ```
 
-Make sure that `dotnet restore` has installed the explicit version of the Runtime that you have specified:
+Make sure that restoring done by `dotnet publish` installed the explicit version of the Runtime that you have specified:
 
 ```
-PS C:\coreclr\helloWorld> dotnet restore --configfile .\NuGet.Config
+PS C:\coreclr\helloWorld> dotnet publish
   Restoring packages for C:\coreclr\helloWorld\helloWorld.csproj...
   Installing runtime.win-x64.Microsoft.NETCore.Runtime.CoreCLR 2.1.0-preview1-26210-
 ```
@@ -137,7 +136,7 @@ Hello World from Core 4.6.26210.0 @BuiltBy: adsitnik-MININT-O513E3V @SrcCode: ht
 The location is C:\coreclr\helloWorld\bin\Debug\netcoreapp2.1\win-x64\publish\System.Private.CoreLib.dll
 ```
 
-**Congratulations! You have just run your first app against local core clr build!**
+**Congratulations! You have just run your first app against local CoreCLR build!** 
 
 ## Update CoreCLR using runtime nuget package
 

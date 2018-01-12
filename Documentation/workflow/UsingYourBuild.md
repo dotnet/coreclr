@@ -3,7 +3,7 @@
 
 We assume that you have successfully built CoreCLR repository and thus have files of the form
 ```
-    bin\Product\<OS>.<arch>.<flavor>\.nuget\pkg\runtime.<OS>-<arch>.Microsoft.NETCore.Runtime.CoreCLR.<version>.nupkg
+    bin\Product\<OS>.<arch>.<flavor>\
 ```
 And now you wish to try it out.  We will be using Windows OS as an example and thus will use \ rather
 than / for directory separators and things like Windows_NT instead of Linux but it should be
@@ -54,20 +54,21 @@ shared framework.  In order to do that you will need to add a `RuntimeIdentifier
 </PropertyGroup>
 ```
 
-For windows you will want `win-x64` but for other OS's you will need to set it to the most appropriate one based
-on what you built. You can generally figure that out by looking at the packages you found in your output. In our
-example you will see there is a package with the name `runtime.win-x64.Microsoft.NETCore.Runtime.CoreCLR.2.1.0-beta-25023-0.nupkg`
-so you will want to put whatever id is between `runtime.` and `Microsoft.NETCore.Runtime.CoreCLR`.
+For Windows you will want `win-x64`, for macOS `osx-x64` and `linux-x64` for Linux.
 
-### Restore and publish
+### Publish
 
-Now is the time to restore and publish. The publish step will also trigger a build but you can iterate on build by calling `dotnet build` as
+Now is the time to publish. The publish step will trigger restore and build. You can iterate on build by calling `dotnet build` as
 needed.
 
 ```bat
-dotnet restore
 dotnet publish
 ```
+
+**Note:** If publish fails to restore runtime packages you need to configure custom NuGet feed. To do so you have to:
+
+1. run `dotnet new nugetconfig`
+2. go to the `NuGet.Config` file and add `<add key="dotnet-core" value="https://dotnet.myget.org/F/dotnet-core/api/v3/index.json" />`
 
 After you publish you will find you all the binaries needed to run your application under `bin\Debug\netcoreapp2.1\win-x64\publish\`.
 
@@ -111,10 +112,7 @@ could update these locations in place, but that is not recommended since they ar
 
 ## (Optional) Confirm that the app used your new runtime
 
-Congratulations, you have successfully used your newly built runtime. To confirm that everything worked, you
-should compare the file creation timestamps for the CoreCLR.dll and System.Private.Runtime.dll in the publishing
-directory and the build output directory. They should be identical. If not, something went wrong and the
-dotnet tool picked up a different version of your runtime.
+Congratulations, you have successfully used your newly built runtime. 
 
 As a hint you could add some code like:
 ```
@@ -134,7 +132,7 @@ The location is C:\coreclr\helloWorld\bin\Debug\netcoreapp2.1\win-x64\publish\Sy
 ## Using CoreRun to run your .NET Core Application
 
 If you don't like the idea of copying files manually you can follow [this instructions](UsingDotNetCli.md) to use dotnet cli to do this for you.
-However the described here are the simplest and most commonly used by core clr developers.
+However the steps described here are the simplest and most commonly used by CoreCLR developers for ad-hoc testing.
 
 ## Using CoreRun to run your .NET Core Application
 
