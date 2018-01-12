@@ -124,7 +124,7 @@ public:
 
     static void HandleExitProcess(ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete);
 
-    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, BOOL isDebugFailure=FALSE);
+    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, BOOL isDebugError=FALSE);
 
     static void DECLSPEC_NORETURN HandleFatalStackOverflow(EXCEPTION_POINTERS *pException, BOOL fSkipDebugger = FALSE);
 
