@@ -860,46 +860,30 @@ namespace System.Text
                 int curDestIndex = length;
                 unsafe
                 {
-                    fixed (char* destinationPtr = &m_ChunkChars[m_ChunkLength])
+                    while (curDestIndex > 0)
                     {
-                        while (curDestIndex > 0)
+                        int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
+                        if (chunkEndIndex >= 0)
                         {
-                            int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
-                            if (chunkEndIndex >= 0)
+                            chunkEndIndex = Math.Min(chunkEndIndex, chunk.m_ChunkLength);
+
+                            int countLeft = curDestIndex;
+                            int chunkCount = countLeft;
+                            int chunkStartIndex = chunkEndIndex - countLeft;
+                            if (chunkStartIndex < 0)
                             {
-                                if (chunkEndIndex > chunk.m_ChunkLength)
-                                    chunkEndIndex = chunk.m_ChunkLength;
-
-                                int countLeft = curDestIndex;
-                                int chunkCount = countLeft;
-                                int chunkStartIndex = chunkEndIndex - countLeft;
-                                if (chunkStartIndex < 0)
-                                {
-                                    chunkCount += chunkStartIndex;
-                                    chunkStartIndex = 0;
-                                }
-                                curDestIndex -= chunkCount;
-
-                                if (chunkCount > 0)
-                                {
-                                    // work off of local variables so that they are stable even in the presence of race conditions
-                                    char[] sourceArray = chunk.m_ChunkChars;
-
-                                    // Check that we will not overrun our boundaries. 
-                                    if ((uint)(chunkCount + curDestIndex) <= (uint)length && (uint)(chunkCount + chunkStartIndex) <= (uint)sourceArray.Length)
-                                    {
-                                        fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
-                                            string.wstrcpy(destinationPtr + curDestIndex, sourcePtr, chunkCount);
-                                    }
-                                    else
-                                    {
-                                        ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                                    }
-                                }
+                                chunkCount += chunkStartIndex;
+                                chunkStartIndex = 0;
                             }
-                            chunk = chunk.m_ChunkPrevious;
+                            curDestIndex -= chunkCount;
+
+                            char[] sourceArray = chunk.m_ChunkChars;
+                            fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
+                                ThreadSafeCopy(sourcePtr, m_ChunkChars, m_ChunkLength + curDestIndex, chunkCount);
                         }
+                        chunk = chunk.m_ChunkPrevious;
                     }
+                    
                 }
                 m_ChunkLength += length;
                 startIndex += length;
