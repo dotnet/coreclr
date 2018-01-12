@@ -794,10 +794,10 @@ namespace System.Text
         {
             if (value != null && value.Length != 0)
             {
-                if (value != this)
-                    AppendCore(value, 0, value.Length);
-                else
+                if (value == this)
                     Append(value.ToString());
+                else
+                    AppendCore(value, 0, value.Length);
             }
             return this;
         }
@@ -830,10 +830,10 @@ namespace System.Text
 
             if (count > 0)
             {
-                if (value != this)
-                    AppendCore(value, startIndex, count);
+                if (value == this)
+                    Append(value.ToString(startIndex, count));             
                 else
-                    Append(value.ToString(startIndex, count));
+                    AppendCore(value, startIndex, count);
             }
             return this;
         }
