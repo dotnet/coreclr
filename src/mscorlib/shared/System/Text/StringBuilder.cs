@@ -841,6 +841,8 @@ namespace System.Text
         private void AppendCore(StringBuilder value, int startIndex, int count)
         {
             int newLength = Length + count;
+            Debug.Assert(value != this);
+
             if ((uint)newLength > (uint)m_MaxCapacity)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
