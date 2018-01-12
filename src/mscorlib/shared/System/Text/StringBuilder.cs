@@ -762,12 +762,12 @@ namespace System.Text
         {
             if (startIndex < 0)
             {
-                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
             if (count < 0)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_GenericPositive);
             }
 
             if (value == null)
@@ -776,12 +776,12 @@ namespace System.Text
                 {
                     return this;
                 }
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
+                throw new ArgumentNullException(nameof(value));
             }
 
             if (count > value.Length - startIndex)
             {
-                ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
             return AppendCore(value, startIndex, count);
@@ -789,7 +789,7 @@ namespace System.Text
 
         private StringBuilder AppendCore(StringBuilder value, int startIndex, int count)
         {
-            if (count > 0 && value == this)
+            if (value == this && count > 0)
                 return Append(value.ToString(startIndex, count));
 
             int newLength = Length + count;
@@ -797,7 +797,7 @@ namespace System.Text
 
             if ((uint)newLength > (uint)m_MaxCapacity)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
+                throw new ArgumentOutOfRangeException(nameof(Capacity), SR.ArgumentOutOfRange_Capacity);
             }
 
             while (count > 0)
