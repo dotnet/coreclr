@@ -483,7 +483,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
 
-    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage);
+    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, isDebugFail);
 
     GCPROTECT_END();
 }

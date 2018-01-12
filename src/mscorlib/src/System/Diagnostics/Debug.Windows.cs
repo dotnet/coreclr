@@ -19,7 +19,7 @@ namespace System.Diagnostics
                 // Fail in order to avoid anyone catching an exception and masking
                 // an assert failure.
                 var ex = new DebugAssertException(message, detailMessage, stackTrace);
-                Environment.FailFast(ex.Message, ex);
+                Environment.FailFast(ex.Message, ex, true);
             }
         }
 

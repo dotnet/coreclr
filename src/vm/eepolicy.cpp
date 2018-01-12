@@ -1183,7 +1183,6 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
     Thread *pThread = GetThread();
     EX_TRY
     {
-        //wchar_t DebugAssert[] = L"Debug.Assert";
         if (isDebugFail)
         {
             PrintToStdErrA("Assertion Failed: ");
@@ -1478,7 +1477,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, BOOL isDebugError = FALSE)
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, BOOL isDebugError /* = FALSE */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1605,7 +1604,7 @@ void EEPolicy::HandleCodeContractFailure(LPCWSTR pMessage, LPCWSTR pCondition, L
 #ifndef FEATURE_PAL        
         pThread->GetExceptionState()->GetUEWatsonBucketTracker()->ClearWatsonBucketDetails();
 #endif // !FEATURE_PAL
-        pPolicy->HandleFatalError(COR_E_CODECONTRACTFAILED, NULL, pMessage);
+        pPolicy->HandleFatalError(COR_E_CODECONTRACTFAILED, NULL, pMessage, false);
         break;
     }
 }
