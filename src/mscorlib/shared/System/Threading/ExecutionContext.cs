@@ -70,7 +70,8 @@ namespace System.Threading
             {
                 return null; // implies the default context
             }
-            return new ExecutionContext(m_localValues, m_localChangeNotifications, isFlowSuppressed);
+            // Flow suppressing a Default context will have null values, set them to Empty
+            return new ExecutionContext(m_localValues ?? AsyncLocalValueMap.Empty, m_localChangeNotifications ?? Array.Empty<IAsyncLocal>(), isFlowSuppressed);
         }
 
         public static AsyncFlowControl SuppressFlow()
