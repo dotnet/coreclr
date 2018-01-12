@@ -423,53 +423,12 @@ namespace System.Text
             }
 
             AssertInvariants();
-
-            StringBuilder chunk = this;
-            int sourceEndIndex = startIndex + length;
-
             string result = string.FastAllocateString(length);
-            int curDestIndex = length;
             unsafe
             {
                 fixed (char* destinationPtr = result)
                 {
-                    while (curDestIndex > 0)
-                    {
-                        int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
-                        if (chunkEndIndex >= 0)
-                        {
-                            chunkEndIndex = Math.Min(chunkEndIndex, chunk.m_ChunkLength);
-
-                            int countLeft = curDestIndex;
-                            int chunkCount = countLeft;
-                            int chunkStartIndex = chunkEndIndex - countLeft;
-                            if (chunkStartIndex < 0)
-                            {
-                                chunkCount += chunkStartIndex;
-                                chunkStartIndex = 0;
-                            }
-                            curDestIndex -= chunkCount;
-
-                            if (chunkCount > 0)
-                            {
-                                // Work off of local variables so that they are stable even in the presence of race conditions
-                                char[] sourceArray = chunk.m_ChunkChars;
-
-                                // Check that we will not overrun our boundaries. 
-                                if ((uint)(chunkCount + curDestIndex) <= (uint)length && (uint)(chunkCount + chunkStartIndex) <= (uint)sourceArray.Length)
-                                {
-                                    fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
-                                        string.wstrcpy(destinationPtr + curDestIndex, sourcePtr, chunkCount);
-                                }
-                                else
-                                {
-                                    throw new ArgumentOutOfRangeException(nameof(chunkCount), SR.ArgumentOutOfRange_Index);
-                                }
-                            }
-                        }
-                        chunk = chunk.m_ChunkPrevious;
-                    }
-
+                    this.CopyTo(startIndex, new Span<char>(destinationPtr, length), length);
                     return result;
                 }
             }
@@ -794,10 +753,7 @@ namespace System.Text
         {
             if (value != null && value.Length != 0)
             {
-                if (value == this)
-                    Append(value.ToString());
-                else
-                    AppendCore(value, 0, value.Length);
+                return AppendCore(value, 0, value.Length);
             }
             return this;
         }
@@ -828,18 +784,14 @@ namespace System.Text
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count > 0)
-            {
-                if (value == this)
-                    Append(value.ToString(startIndex, count));             
-                else
-                    AppendCore(value, startIndex, count);
-            }
-            return this;
+            return AppendCore(value, startIndex, count);
         }
 
-        private void AppendCore(StringBuilder value, int startIndex, int count)
+        private StringBuilder AppendCore(StringBuilder value, int startIndex, int count)
         {
+            if (count > 0 && value == this)
+                return Append(value.ToString(startIndex, count));
+
             int newLength = Length + count;
             Debug.Assert(value != this);
 
@@ -856,41 +808,14 @@ namespace System.Text
                     ExpandByABlock(count);
                     length = Math.Min(m_ChunkChars.Length - m_ChunkLength, count);
                 }
+                value.CopyTo(startIndex, new Span<char>(m_ChunkChars, m_ChunkLength, length), length);
 
-                StringBuilder chunk = value;
-                int sourceEndIndex = startIndex + length;
-                int curDestIndex = length;
-                unsafe
-                {
-                    while (curDestIndex > 0)
-                    {
-                        int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
-                        if (chunkEndIndex >= 0)
-                        {
-                            chunkEndIndex = Math.Min(chunkEndIndex, chunk.m_ChunkLength);
-
-                            int countLeft = curDestIndex;
-                            int chunkCount = countLeft;
-                            int chunkStartIndex = chunkEndIndex - countLeft;
-                            if (chunkStartIndex < 0)
-                            {
-                                chunkCount += chunkStartIndex;
-                                chunkStartIndex = 0;
-                            }
-                            curDestIndex -= chunkCount;
-
-                            char[] sourceArray = chunk.m_ChunkChars;
-                            fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
-                                ThreadSafeCopy(sourcePtr, m_ChunkChars, m_ChunkLength + curDestIndex, chunkCount);
-                        }
-                        chunk = chunk.m_ChunkPrevious;
-                    }
-                    
-                }
                 m_ChunkLength += length;
                 startIndex += length;
                 count -= length;
             }
+
+            return this;
         }
 
         public StringBuilder AppendLine() => Append(Environment.NewLine);
