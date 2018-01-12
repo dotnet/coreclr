@@ -779,6 +779,11 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(value));
             }
 
+            if (count == 0)
+            {
+                return this;
+            }
+
             if (count > value.Length - startIndex)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
@@ -793,7 +798,6 @@ namespace System.Text
                 return Append(value.ToString(startIndex, count));
 
             int newLength = Length + count;
-            Debug.Assert(value != this);
 
             if ((uint)newLength > (uint)m_MaxCapacity)
             {
