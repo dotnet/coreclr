@@ -856,39 +856,19 @@ value is the buffer size required to hold the value string. Otherwise, return 0.
 
 --*/
 PALIMPORT
-DWORD
+LPCWSTR
 PALAPI
-PAL_GetLoadLibraryError(
-    OUT LPWSTR lpBuffer,
-    IN DWORD nSize)
+PAL_GetLoadLibraryError()
 {
-    DWORD retval = 0;
-    INT error_length;
-    LPWSTR last_error = nullptr;
-    
+
     PERF_ENTRY(PAL_GetLoadLibraryError);
-    ENTRY("PAL_GetLoadLibraryError (lpBuffer=%p, nSize=%u)\n",
-          lpBuffer, nSize);
+    ENTRY("PAL_GetLoadLibraryError");
 
-    wcscpy_s(lpBuffer, nSize, W(""));
+    LPCWSTR last_error = (LPCWSTR) dlerror();
 
-    last_error = (LPWSTR) dlerror();
-    error_length = lstrlenW(last_error);
-
-    if (error_length >= (INT)nSize)
-    {
-        TRACE("Buffer too small (%u) to copy last error message (%u).\n", nSize, error_length);
-        SetLastError(ERROR_INSUFFICIENT_BUFFER);
-        retval = error_length + 1;
-        goto done;
-    }
-    
-    wcscpy_s(lpBuffer, nSize, last_error);
-
-done:
-    LOGEXIT("PAL_GetLoadLibraryError returns %d\n", retval);
+    LOGEXIT("PAL_GetLoadLibraryError returns %p\n", last_error);
     PERF_EXIT(PAL_GetLoadLibraryError);
-    return retval;
+    return last_error;
 }
 
 

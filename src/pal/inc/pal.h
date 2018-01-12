@@ -2719,11 +2719,9 @@ LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
 
 PALIMPORT
-DWORD
+LPCWSTR
 PALAPI
-PAL_GetLoadLibraryError(
-    OUT LPWSTR lpBuffer,
-    IN DWORD nSize);
+PAL_GetLoadLibraryError();
 
 PALIMPORT
 LPVOID

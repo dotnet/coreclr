@@ -5728,15 +5728,12 @@ public:
         DWORD priority;
 
 #ifdef FEATURE_PAL
-        LPWSTR lpLastError = nullptr;
-        
-        int nSize = PAL_GetLoadLibraryError(lpLastError, 0);
-        PAL_GetLoadLibraryError(lpLastError, nSize);
+
+        LPCWSTR lpLastError = PAL_GetLoadLibraryError();
         UpdateHRUnix(lpLastError);
 #else
-        DWORD dwLastError;
         
-        dwLastError = GetLastError();
+        DWORD dwLastError = GetLastError();
 
         switch (dwLastError)
         {
@@ -5812,14 +5809,14 @@ private:
         }
     }
 
-    void UpdateHRUnix(LPWSTR message)
+    void UpdateHRUnix(LPCWSTR message)
     {
-        m_message = message;
+        m_message = SString(SString::Utf8, message);
     }
 
     HRESULT m_hr;
     DWORD   m_priorityOfLastError;
-    LPWSTR  m_message;
+    SString  m_message;
 };  // class LoadLibErrorTracker
 
 //  Local helper function for the LoadLibraryModule function below
