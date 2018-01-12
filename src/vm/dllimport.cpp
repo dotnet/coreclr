@@ -5770,7 +5770,7 @@ public:
         return m_hr;
     }
 
-    LPWSTR GetMessage()
+    SString GetMessage()
     {
         return m_message;
     }
