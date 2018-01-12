@@ -261,13 +261,37 @@ inline bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg,
 inline void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback)
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->WalkAsyncPinnedForPromotion(object, sc, callback);
+    g_theGCToCLR->WalkAsyncPinnedForPromotion(object, sc, callback);
 }
 
 inline void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*))
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->WalkAsyncPinned(object, context, callback);
+    g_theGCToCLR->WalkAsyncPinned(object, context, callback);
+}
+
+inline void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FireGcStartAndGenerationRanges(count, depth, reason, type);
+}
+
+inline void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FireGcEndAndGenerationRanges(count, depth);
+}
+
+inline void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress) 
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FireAllocationTick(allocationAmount, isSohAllocation, heapNumber, objectAddress);
+}
+
+inline void GCToEEInterface::FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress) 
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->FirePinObject(objectAddress, pinningObjectAddress);
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

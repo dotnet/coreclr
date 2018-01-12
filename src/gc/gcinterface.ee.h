@@ -251,6 +251,28 @@ public:
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
+
+    //
+    // Routines related to event tracing.
+    //
+
+    // Fires the GCStart event, as well as events describing each generation.
+    virtual
+    void FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
+
+    // Fires the GCStop event, as well as events describing each generation.
+    virtual
+    void FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth) = 0;
+
+    // Fires the AllocationTick event. The AllocationTick event itself contains the typeId and name
+    // of the last object that was allocated.
+    virtual
+    void FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress) = 0;
+
+    // Fires the PinObjectAtGCTime event. The PinObjectAtGCTime event contains the name of the type that is
+    // pinned, in addition to the address of the location that is pinning the object.
+    virtual
+    void FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

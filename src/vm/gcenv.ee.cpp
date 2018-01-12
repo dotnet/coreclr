@@ -1384,3 +1384,91 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
         }
     }
 }
+
+void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_EVENT_TRACE
+    ETW::GCLog::ETW_GC_INFO info;
+    info.GCStart.Count = count;
+    info.GCStart.Depth = depth;
+    info.GCStart.Reason = (ETW::GCLog::ETW_GC_INFO::GC_REASON)reason;
+    info.GCStart.Type = (ETW::GCLog::st_GCEventInfo::GC_TYPE)type;
+    ETW::GCLog::FireGcStartAndGenerationRanges(&info);
+#endif // FEATURE_EVENT_TRACE
+}
+
+void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_EVENT_TRACE
+    ETW::GCLog::FireGcEndAndGenerationRanges(count, depth);
+#endif // FEATURE_EVENT_TRACE
+}
+
+void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    assert(GetThread() != nullptr);
+    void * typeId = nullptr;
+    const WCHAR * name = nullptr;
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
+
+    EX_TRY
+    {
+        TypeHandle th = GetThread()->GetTHAllocContextObj();
+
+        if (th != 0)
+        {
+            th.GetName(strTypeName);
+            name = strTypeName.GetUnicode();
+            typeId = th.GetMethodTable();
+        }
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+
+    if (typeId != nullptr)
+    {
+        FireEtwGCAllocationTick_V3((uint32_t)allocationAmount,
+                                   isSohAllocation ? ETW::GCLog::ETW_GC_INFO::AllocationSmall : ETW::GCLog::ETW_GC_INFO::AllocationLarge, 
+                                   GetClrInstanceId(),
+                                   allocationAmount,
+                                   typeId, 
+                                   name,
+                                   heapNumber,
+                                   objectAddress
+                                   );
+    }
+}
+
+void GCToEEInterface::FirePinObject(uint8_t* objectAddress, uint8_t** pinningObjectAddress)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Object* obj = (Object*)objectAddress;
+
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName; 
+   
+    EX_TRY
+    {
+        FAULT_NOT_FATAL();
+
+        TypeHandle th = obj->GetGCSafeTypeHandleIfPossible();
+        if(th != NULL)
+        {
+            th.GetName(strTypeName);
+        }
+
+        FireEtwPinObjectAtGCTime(pinningObjectAddress,
+                             objectAddress,
+                             obj->GetSize(),
+                             strTypeName.GetUnicode(),
+                             GetClrInstanceId());
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+}

@@ -74,10 +74,8 @@ void GCHeap::UpdatePreGCCounters()
 
     GetPerfCounters().m_Security.timeRTchecks = 0;
     GetPerfCounters().m_Security.timeRTchecksBase = 1; // To avoid divide by zero
-
 #endif //ENABLE_PERF_COUNTERS
 
-#ifdef FEATURE_EVENT_TRACE
 #ifdef MULTIPLE_HEAPS
         //take the first heap....
     gc_mechanisms *pSettings = &gc_heap::g_heaps[0]->settings;
@@ -85,27 +83,24 @@ void GCHeap::UpdatePreGCCounters()
     gc_mechanisms *pSettings = &gc_heap::settings;
 #endif //MULTIPLE_HEAPS
 
-    ETW::GCLog::ETW_GC_INFO Info;
+    uint32_t count = (uint32_t)pSettings->gc_index;
+    uint32_t depth = (uint32_t)pSettings->condemned_generation;
+    uint32_t reason = (uint32_t)pSettings->reason;
 
-    Info.GCStart.Count = (uint32_t)pSettings->gc_index;
-    Info.GCStart.Depth = (uint32_t)pSettings->condemned_generation;
-    Info.GCStart.Reason = (ETW::GCLog::ETW_GC_INFO::GC_REASON)((int)(pSettings->reason));
-
-    Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_NGC;
+    uint32_t type = /*ETW::GCLog::ETW_GC_INFO::GC_NGC*/ 0;
     if (pSettings->concurrent)
     {
-        Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_BGC;
+        type = /*ETW::GCLog::ETW_GC_INFO::GC_BGC*/ 1;
     }
 #ifdef BACKGROUND_GC
-    else if (Info.GCStart.Depth < max_generation)
+    else if (depth < max_generation)
     {
         if (pSettings->background_p)
-            Info.GCStart.Type = ETW::GCLog::ETW_GC_INFO::GC_FGC;
+            type = /*ETW::GCLog::ETW_GC_INFO::GC_FGC*/ 2;
     }
 #endif //BACKGROUND_GC
 
-    ETW::GCLog::FireGcStartAndGenerationRanges(&Info);
-#endif // FEATURE_EVENT_TRACE
+    GCToEEInterface::FireGcStartAndGenerationRanges(count, depth, reason, type);
 }
 
 void GCHeap::UpdatePostGCCounters()
@@ -195,11 +190,7 @@ void GCHeap::UpdatePostGCCounters()
 #endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_EVENT_TRACE
-    ETW::GCLog::ETW_GC_INFO Info;
-
-    Info.GCEnd.Depth = condemned_gen;
-    Info.GCEnd.Count = (uint32_t)pSettings->gc_index;
-    ETW::GCLog::FireGcEndAndGenerationRanges(Info.GCEnd.Count, Info.GCEnd.Depth);
+    GCToEEInterface::FireGcEndAndGenerationRanges(condemned_gen, (uint32_t)pSettings->gc_index);
 
     ETW::GCLog::ETW_GC_INFO HeapInfo;
     ZeroMemory(&HeapInfo, sizeof(HeapInfo));
@@ -458,70 +449,12 @@ bool GCHeap::IsConcurrentGCInProgress()
 #ifdef FEATURE_EVENT_TRACE
 void gc_heap::fire_etw_allocation_event (size_t allocation_amount, int gen_number, uint8_t* object_address)
 {
-    void * typeId = nullptr;
-    const WCHAR * name = nullptr;
-#ifdef FEATURE_REDHAWK
-    typeId = RedhawkGCInterface::GetLastAllocEEType();
-#else
-    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
-
-    EX_TRY
-    {
-        TypeHandle th = GCToEEInterface::GetThread()->GetTHAllocContextObj();
-
-        if (th != 0)
-        {
-            th.GetName(strTypeName);
-            name = strTypeName.GetUnicode();
-            typeId = th.GetMethodTable();
-        }
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions)
-#endif
-
-    if (typeId != nullptr)
-    {
-        FireEtwGCAllocationTick_V3((uint32_t)allocation_amount,
-                                   ((gen_number == 0) ? ETW::GCLog::ETW_GC_INFO::AllocationSmall : ETW::GCLog::ETW_GC_INFO::AllocationLarge), 
-                                   GetClrInstanceId(),
-                                   allocation_amount,
-                                   typeId, 
-                                   name,
-                                   heap_number,
-                                   object_address
-                                   );
-    }
+    GCToEEInterface::FireAllocationTick(allocation_amount, gen_number == 0, heap_number, object_address);
 }
+
 void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 {
-#ifdef FEATURE_REDHAWK
-    UNREFERENCED_PARAMETER(object);
-    UNREFERENCED_PARAMETER(ppObject);
-#else
-    Object* obj = (Object*)object;
-
-    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName; 
-   
-    EX_TRY
-    {
-        FAULT_NOT_FATAL();
-
-        TypeHandle th = obj->GetGCSafeTypeHandleIfPossible();
-        if(th != NULL)
-        {
-            th.GetName(strTypeName);
-        }
-
-        FireEtwPinObjectAtGCTime(ppObject,
-                             object,
-                             obj->GetSize(),
-                             strTypeName.GetUnicode(),
-                             GetClrInstanceId());
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions)
-#endif // FEATURE_REDHAWK
+    GCToEEInterface::FirePinObject(object, ppObject);
 }
 #endif // FEATURE_EVENT_TRACE
 

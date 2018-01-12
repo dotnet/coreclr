@@ -337,3 +337,19 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
 }
+
+void GCToEEInterface::FireGcStartAndGenerationRanges(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+}
+
+void GCToEEInterface::FireGcEndAndGenerationRanges(uint32_t count, uint32_t depth)
+{
+}
+
+void GCToEEInterface::FireAllocationTick(size_t allocationAmount, bool isSohAllocation, uint32_t heapNumber, uint8_t* objectAddress)
+{
+}
+
+void GCToEEInterface::FirePinObject(uint8_t* objectAddres, uint8_t** pinningObjectAddress)
+{
+}
