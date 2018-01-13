@@ -1609,7 +1609,7 @@ void EEPolicy::HandleCodeContractFailure(LPCWSTR pMessage, LPCWSTR pCondition, L
 #ifndef FEATURE_PAL        
         pThread->GetExceptionState()->GetUEWatsonBucketTracker()->ClearWatsonBucketDetails();
 #endif // !FEATURE_PAL
-        pPolicy->HandleFatalError(COR_E_CODECONTRACTFAILED, NULL, pMessage, false);
+        pPolicy->HandleFatalError(COR_E_CODECONTRACTFAILED, NULL, pMessage);
         break;
     }
 }

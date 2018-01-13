@@ -10,7 +10,7 @@ namespace System.Diagnostics
     {
         private static readonly bool s_shouldWriteToStdErr = Environment.GetEnvironmentVariable("COMPlus_DebugWriteToStdErr") == "1";
 
-        private static void ShowAssertDialog(string stackTrace, string message, string detailMessage)
+        private static void ShowDialog(string stackTrace, string message, string detailMessage, uint errorSource)
         {
             if (Debugger.IsAttached)
             {
@@ -22,20 +22,7 @@ namespace System.Diagnostics
                 // Fail in order to avoid anyone catching an exception and masking
                 // an assert failure.
                 var ex = new DebugAssertException(message, detailMessage, stackTrace);
-                Environment.FailFast(ex.Message, ex, 1);
-            }
-        }
-
-        private static void ShowAssumeDialog(string stackTrace, string message, string detailMessage)
-        {
-            if (Debugger.IsAttached)
-            {
-                Debugger.Break();
-            }
-            else
-            {
-                var ex = new DebugAssertException(message, detailMessage, stackTrace);
-                Environment.FailFast(ex.Message, ex, 2);
+                Environment.FailFast(ex.Message, ex, errorSource);
             }
         }
 

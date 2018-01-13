@@ -13,6 +13,7 @@ namespace System.Diagnostics
     public static partial class Debug
     {
         private static readonly object s_lock = new object();
+        private enum ErrorSource { Assert=1, Assume }
 
         public static bool AutoFlush { get { return true; } set { } }
 
@@ -91,7 +92,6 @@ namespace System.Diagnostics
             if (!condition)
             {
                 string stackTrace;
-
                 try
                 {
                     stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
@@ -101,7 +101,26 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowAssertDialog(stackTrace, message, detailMessage);
+                s_ShowDialog(stackTrace, message, detailMessage, (uint)ErrorSource.Assert);
+            }
+        }
+
+        [System.Diagnostics.Conditional("DEBUG")]
+        public static void Assume(bool condition, string message, string detailMessage)
+        {
+            if (!condition)
+            {
+                string stackTrace;
+                try
+                {
+                    stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
+                }
+                catch
+                {
+                    stackTrace = "";
+                }
+                WriteLine(FormatAssert(stackTrace, message, detailMessage));
+                s_ShowDialog(stackTrace, message, detailMessage, (uint)ErrorSource.Assume);
             }
         }
 
@@ -117,24 +136,7 @@ namespace System.Diagnostics
             Assert(false, message, detailMessage);
         }
         
-        [System.Diagnostics.Conditional("DEBUG")]
-        public static void AssumptionFail(string message)
-        {
-            string stackTrace;
-
-            try
-            {
-                stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
-            }
-            catch
-            {
-                stackTrace = "";
-            }
-            WriteLine(FormatAssert(stackTrace, message, String.Empty));
-            s_ShowAssumeDialog(stackTrace, message, String.Empty);
-        }
-
-        public static string PopStackTrace(string stackTrace)
+        private static string PopStackTrace(string stackTrace)
         {
             string newStackTrace="";
             string[] stackTraceSplit = stackTrace.Split(Environment.NewLine);
@@ -343,8 +345,7 @@ namespace System.Diagnostics
         }
 
         // internal and not readonly so that the tests can swap this out.
-        internal static Action<string, string, string> s_ShowAssertDialog = ShowAssertDialog;
-        internal static Action<string, string, string> s_ShowAssumeDialog = ShowAssumeDialog;
+        internal static Action<string, string, string, uint> s_ShowDialog = ShowDialog;
 
         internal static Action<string> s_WriteCore = WriteCore;
     }

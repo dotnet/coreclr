@@ -318,7 +318,7 @@ namespace System.Runtime.CompilerServices
             }
 
             // TODO: https://github.com/dotnet/coreclr/issues/14867
-            System.Diagnostics.Debug.Fail(displayMessage);
+            System.Diagnostics.Debug.Assume(false, displayMessage, string.Empty);
         }
 
         private static String GetResourceNameForFailure(ContractFailureKind failureKind)
