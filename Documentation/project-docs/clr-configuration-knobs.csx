@@ -3,7 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using static System.Console;
@@ -11,6 +14,8 @@ using static System.Console;
 char dirSep = Path.DirectorySeparatorChar;
 var clrConfig = $"..{dirSep}..{dirSep}src{dirSep}inc{dirSep}clrconfigvalues.h";
 var jitConfig = $"..{dirSep}..{dirSep}src{dirSep}jit{dirSep}jitconfigvalues.h";
+Console.Out.NewLine = "\n";
+Console.Error.NewLine = "\n";
 
 public struct Knob
 {
@@ -20,8 +25,9 @@ public struct Knob
     public bool Retail;
     public string Category;
     public string Type;
-    public string Value;
+    public string DefaultValue;
     public string Description;
+    public string Flags;
 
     public string Name
     {
@@ -63,7 +69,19 @@ public struct Knob
     private const string DWORD_Type = "DWORD";
     private const string SpaceSeparatedValues = "SSV";
 
-    public Knob(string line, bool isRetail)
+    private static Regex s_cppString = new Regex("\"([^\"\\\\]|\\\\.)*\"", RegexOptions.Compiled);
+
+    enum Fields
+    {
+        Unknown = 0,
+        Symbol,
+        Name,
+        DefaultValue,
+        Description,
+        LookupOptions
+    }
+
+    public Knob(string line, bool isRetail, bool isClrConfigFile, StreamReader reader, out string nextLine)
     {
         nextLine = null;
 
@@ -86,70 +104,69 @@ public struct Knob
 
         if (parts0.Length > 1)
         {
-            int numParts1 = 0;
+            Fields[] numParts1 = null;
             switch(parts0[0])
             {
                 // CONFIG_DWORD_INFO(symbol, name, defaultValue, description)
                 case "CONFIG_DWORD_INFO":
-                    Type = DWORD_Type;
-                    break;
-
                 case "RETAIL_CONFIG_DWORD_INFO":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.DefaultValue, Fields.Description };
+                    parts1 = parts0[1].Split(new[] { ',' }, 4);
                     Type = DWORD_Type;
                     break;
 
+                // CONFIG_DWORD_INFO_DIRECT_ACCESS(symbol, name, description)
                 case "CONFIG_DWORD_INFO_DIRECT_ACCESS":
-                    Type = DWORD_Type;
-                    break;
-
                 case "RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.Description };
+                    parts1 = parts0[1].Split(new[] { ',' }, 3);
                     Type = DWORD_Type;
                     break;
 
                 // CONFIG_STRING_INFO(symbol, name, description)
                 case "CONFIG_STRING_INFO":
-                    Type = StringType;
-                    break;
-
                 case "RETAIL_CONFIG_STRING_INFO":
-                    Type = StringType;
-                    break;
-
                 case "CONFIG_STRING_INFO_DIRECT_ACCESS":
-                    Type = StringType;
-                    break;
-
                 case "RETAIL_CONFIG_STRING_INFO_DIRECT_ACCESS":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.Description };
+                    parts1 = parts0[1].Split(new[] { ',' }, 3);
                     Type = StringType;
                     break;
 
                 // CONFIG_DWORD_INFO_EX(symbol, name, defaultValue, description, lookupOptions)
                 case "CONFIG_DWORD_INFO_EX":
-                    Type = DWORD_Type;
-                    break;
-
                 case "RETAIL_CONFIG_DWORD_INFO_EX":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.DefaultValue, Fields.Description, Fields.LookupOptions };
+                    parts1 = parts0[1].Split(new[] { ',' }, 4);
                     Type = DWORD_Type;
                     break;
 
                 // CONFIG_STRING_INFO_EX(symbol, name, description, lookupOptions)
                 case "CONFIG_STRING_INFO_EX":
-                    Type = StringType;
-                    break;
-
                 case "RETAIL_CONFIG_STRING_INFO_EX":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.Description, Fields.LookupOptions };
+                    parts1 = parts0[1].Split(new[] { ',' }, 3);
                     Type = StringType;
                     break;
 
+                // CONFIG_INTEGER(symbol, name, defaultValue) description in single line comments
                 case "CONFIG_INTEGER":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name, Fields.DefaultValue };
+                    parts1 = parts0[1].Split(new[] { ',' }, 3);
                     Type = DWORD_Type;
                     break;
 
+                // CONFIG_STRING(symbol, name) description in single line comments
                 case "CONFIG_STRING":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name };
+                    parts1 = parts0[1].Split(new[] { ',' }, 2);
                     Type = StringType;
                     break;
 
+                // CONFIG_METHODSET(symbol, name) description in single line comments
                 case "CONFIG_METHODSET":
+                    numParts1 = new Fields[] { Fields.Symbol, Fields.Name };
+                    parts1 = parts0[1].Split(new[] { ',' }, 2);
                     Type = SpaceSeparatedValues;
                     break;
 
@@ -215,47 +232,89 @@ public struct Knob
                 DefaultValue = DefaultValue.Trim();
             }
 
-            NameStr = parts1[1].Replace("W(\"", null).Replace("\")", null);
+                // Parse Flags if present
+                if (parts1.Length < numParts1.Length && numParts1[parts1.Length] == Fields.LookupOptions)
+                {
+                    var tempFlags = parts1[parts1.Length - 1].Substring(descMatch.Index + descMatch.Length).TrimStart(' ', ',');
+                    Flags = tempFlags.Replace("CLRConfig::", null).Replace(")", null).Replace("|", "\\|");
+                }
+            }
+
+            // Parse Description in jitconfigvalues.h file which is in single line C++ comments
+            else if (!isClrConfigFile)
+            {
+                int commentIndex = line.IndexOf(" // ");
+                var description = commentIndex >= 0 ? line.Substring(commentIndex + 4) : String.Empty;
+                if (description.Length > 0)
+                {
+                    nextLine = reader.ReadLine();
+                    while (nextLine != null)
+                    {
+                        var workLine = nextLine.Trim();
+                        if (workLine.StartsWith("// "))
+                        {
+                            description += workLine.Substring(2).TrimEnd();
+                            nextLine = reader.ReadLine();
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                Description = description;
+            }
+
+            Description = Description.Replace("|", "\\|");
+
+            int indexOfDefaultValue = -1;
+            if ((indexOfDefaultValue = Array.IndexOf<Fields>(numParts1, Fields.DefaultValue)) >= 0 && indexOfDefaultValue < parts1.Length)
+            {
+                if (isClrConfigFile)
+                {
+                    DefaultValue = parts1[indexOfDefaultValue].TrimEnd(')');
+                }
+                else
+                {
+                    int indexOfCloseParenth = parts1[indexOfDefaultValue].IndexOf(")");
+                    DefaultValue = parts1[indexOfDefaultValue].Substring(0, indexOfCloseParenth);
+                }
+            }
+
+            // Parse Name
+            var nameMatch = s_cppString.Match(parts1[1]);
+            Name = nameMatch.Captures.Count > 0 ? nameMatch.Value.Substring(1, nameMatch.Length - 2) : String.Empty;
+
+            // Parse Class
+            if (parts1[0].Length > 0)
+            {
+                Class = Name.Length > 0 ? parts1[0].Replace(Name, null) : parts1[0];
+                Class = Class.TrimEnd('_');
+            }
+
             Retail = isRetail;
-            Value = parts1.Length > 2 ? parts1[2].Replace(")", null) : String.Empty;
 
-            // Parse clrconfigvalues.h
-            if (parts2.Length > 1)
+            if (Flags == null)
             {
-                Symbol = parts2[1];
-                Prefix = parts2[0];
-                Description = parts1.Length > 3 ? parts1[3].Replace(")", null).Replace("\"", null) : String.Empty;
-                return;
+                Flags = String.Empty;
             }
-            // Parse jitconfigvalues.h
-            else if (parts2.Length == 1)
-            {
-                Symbol = parts2[0];
-                Prefix = String.Empty;
-                Description = parts1.Length > 3 ? parts1[3].Replace(")", null) : String.Empty;
-                return;
-            }
+
         }
-
-        Symbol = String.Empty;
-        NameStr = String.Empty;
-        Retail = isRetail;
-        Prefix = String.Empty;
-        Type = String.Empty;
-        Value = String.Empty;
-        Description = String.Empty;
     }
 
     public override string ToString()
     {
-        return $"{{Knob: {Symbol}, {NameStr}, {Retail}, {Prefix}, {Type}, {Value}, {Description}}}";
+        return $"{{Knob: Name: {Name}, Retail: {Retail}, Class: {Class}, Type: {Type}, DefaultValue: {DefaultValue}, Description: {Description}, Flags: {Flags}}}";
     }
 }
 
-public static void ParseConfigFile(string filePath, SortedDictionary<string, Knob> knobsDictionary)
+public static void ParseConfigFile(string filePath, bool isClrConfigFile, SortedDictionary<string, SortedDictionary<string, Knob>> categorizedKnobsDictionary)
 {
     using (StreamReader clrReader = new StreamReader(filePath, new UTF8Encoding(false)))
     {
+        SortedDictionary<string, Knob> knobsDictionary = null;
+        string currentCategory = null;
+
         string line = clrReader.ReadLine();
         while (line != null)
         {
@@ -397,6 +456,8 @@ public static class ConfigKnobsDoc
                     writer.WriteLine($"{ knob.Flags}");
                     count++;
                 }
+
+                writer.WriteLine();
             }
         }
         return $"{count} parsed knobs successfully written";
@@ -451,7 +512,22 @@ public static class ConfigKnobsDoc
 
         var process = Process.Start(startInfo);
 
-            line = clrReader.ReadLine();
+        if (process.WaitForExit(20000))
+        {
+            string result = process.StandardOutput.ReadToEnd();
+            string error = process.StandardError.ReadToEnd();
+            if (process.ExitCode == 0)
+            {
+                return result.Trim();
+            }
+            else
+            {
+                throw new InvalidOperationException(error);
+            }
+        }
+        else
+        {
+            throw new TimeoutException("\"git rev-parse HEAD\" command timed out");
         }
     }
 }
@@ -460,9 +536,9 @@ public static class ConfigKnobsDoc
 var knobsDictionary = new SortedDictionary<string, SortedDictionary<string, Knob>>(StringComparer.Create(CultureInfo.InvariantCulture, false));
 
 WriteLine($"Processing header file {clrConfig}");
-ParseConfigFile(clrConfig, knobsDictionary);
+ParseConfigFile(clrConfig, true, knobsDictionary);
 
 WriteLine($"Processing header file {jitConfig}");
-ParseConfigFile(jitConfig, knobsDictionary);
+ParseConfigFile(jitConfig, false, knobsDictionary);
 
-WriteLine("Finished generating clr-configuration-knobs.md")
+WriteLine(ConfigKnobsDoc.WriteFile(knobsDictionary));
