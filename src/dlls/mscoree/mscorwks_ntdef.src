@@ -17,6 +17,7 @@ EXPORTS
         g_CLREngineMetrics                                  @2 data
         
         ; Unix hosting API
+        coreclr_preload_assembly
         coreclr_create_delegate
         coreclr_execute_assembly
         coreclr_initialize

@@ -69,7 +69,7 @@ public:
     const SString& GetPath();
 
 #ifdef FEATURE_PREJIT
-    void ApplyBaseRelocations();
+    void ApplyBaseRelocations(BOOL isRelocated);
 #endif
 
 public:
@@ -130,7 +130,7 @@ protected:
     CLRMapViewHolder m_FileView;
 public:
 #ifndef DACCESS_COMPILE    
-    MappedImageLayout(HANDLE hFile, PEImage* pOwner);    
+    MappedImageLayout(HANDLE hFile, PEImage* pOwner);
 #endif
 };
 

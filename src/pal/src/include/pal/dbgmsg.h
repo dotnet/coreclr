@@ -245,6 +245,7 @@ extern Volatile<BOOL> dbg_master_switch ;
 #define DBGOUT_(x) NOTRACE
 #define ERROR     NOTRACE
 #define ERROR_(x) NOTRACE
+#define ERROR__(condition,x) NOTRACE
 #define DBG_PRINTF(level, channel, bHeader) NOTRACE
 
 #define CHECK_STACK_ALIGN
@@ -312,6 +313,10 @@ bool DBG_ShouldCheckStackAlignment();
     DBG_PRINTF(DLI_ERROR,defdbgchan,TRUE)
 
 #define ERROR_(x) \
+    DBG_PRINTF(DLI_ERROR,DCI_##x,TRUE)
+
+#define ERROR__(condition,x) \
+    if (condition)\
     DBG_PRINTF(DLI_ERROR,DCI_##x,TRUE)
 
 #define DBG_PRINTF(level, channel, bHeader) \
