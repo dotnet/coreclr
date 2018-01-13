@@ -794,7 +794,7 @@ namespace System.Text
 
         private StringBuilder AppendCore(StringBuilder value, int startIndex, int count)
         {
-            if (value == this && count > 0)
+            if (value == this)
                 return Append(value.ToString(startIndex, count));
 
             int newLength = Length + count;
