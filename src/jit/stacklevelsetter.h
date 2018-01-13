@@ -37,5 +37,8 @@ private:
 
 #if !FEATURE_FIXED_OUT_ARGS
     bool framePointerRequired; // Is frame pointer required based on the analysis made by this phase.
-#endif                         // !FEATURE_FIXED_OUT_ARGS
+#ifdef DEBUG
+    void CheckAllEdgesProcessed();
+#endif // DEBUG
+#endif // !FEATURE_FIXED_OUT_ARGS
 };

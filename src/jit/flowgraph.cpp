@@ -18204,7 +18204,11 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
     if (add) // found it
     {
-#ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
+#ifdef DEBUG
+        add->acdIncomingEdgesCount++;
+#endif // DEBUG
+
         // If different range checks happen at different stack levels,
         // they can't all jump to the same "call @rngChkFailed" AND have
         // frameless methods, as the rngChkFailed may need to unwind the
@@ -18239,19 +18243,24 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
             codeGen->setFramePointerRequiredGCInfo(true);
         }
 #endif // !defined(UNIX_X86_ABI)
-#endif // _TARGET_X86_
+#endif // !FEATURE_FIXED_OUT_ARGS
 
         return add->acdDstBlk;
     }
 
     /* We have to allocate a new entry and prepend it to the list */
 
-    add                = new (this, CMK_Unknown) AddCodeDsc;
-    add->acdData       = refData;
-    add->acdKind       = kind;
-    add->acdNext       = fgAddCodeList;
+    add          = new (this, CMK_Unknown) AddCodeDsc;
+    add->acdData = refData;
+    add->acdKind = kind;
+    add->acdNext = fgAddCodeList;
+#if !FEATURE_FIXED_OUT_ARGS
     add->acdStkLvl     = stkDepth;
     add->acdStkLvlInit = false;
+#ifdef DEBUG
+    add->acdIncomingEdgesCount = 1;
+#endif // DEBUG
+#endif // !FEATURE_FIXED_OUT_ARGS
 
     fgAddCodeList = add;
 

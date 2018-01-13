@@ -5036,8 +5036,13 @@ public:
         BasicBlock*     acdDstBlk; // block  to  which we jump
         unsigned        acdData;
         SpecialCodeKind acdKind; // what kind of a special block is this?
-        unsigned        acdStkLvl;
-        bool            acdStkLvlInit; // has acdStkLvl value been already set?
+#if !FEATURE_FIXED_OUT_ARGS
+        bool     acdStkLvlInit; // has acdStkLvl value been already set?
+        unsigned acdStkLvl;
+#ifdef DEBUG
+        unsigned acdIncomingEdgesCount; // unprocessed incoming edges count.
+#endif                                  // DEBUG
+#endif                                  // !FEATURE_FIXED_OUT_ARGS
     };
 
 private:
@@ -5056,6 +5061,11 @@ public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);
 
     bool fgUseThrowHelperBlocks();
+
+    AddCodeDsc* fgGetAdditionalCodeDescriptors()
+    {
+        return fgAddCodeList;
+    }
 
 private:
     bool fgIsCodeAdded();
