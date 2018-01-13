@@ -2793,14 +2793,12 @@ void CodeGen::genExitCode(BasicBlock* block)
 
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk)
 {
-    bool useThrowHlpBlk = !compiler->opts.compDbgCode;
-
 #if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
     // Inline exception-throwing code in funclet to make it possible to unwind funclet frames.
     useThrowHlpBlk = useThrowHlpBlk && (compiler->funCurrentFunc()->funKind == FUNC_ROOT);
 #endif // UNIX_X86_ABI && FEATURE_EH_FUNCLETS
 
-    if (useThrowHlpBlk)
+    if (compiler->fgUseThrowHelperBlocks())
     {
         /* For non-debuggable code, find and use the helper block for
            raising the exception. The block may be shared by other trees too. */

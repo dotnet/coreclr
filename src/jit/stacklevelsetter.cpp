@@ -88,9 +88,8 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
 
 #if !FEATURE_FIXED_OUT_ARGS
         // Set throw blocks incoming stack depth for x86.
-        bool useThrowHlpBlk = !comp->opts.compDbgCode;
         bool operMightThrow = ((node->gtFlags & GTF_EXCEPT) != 0);
-        if (!framePointerRequired && useThrowHlpBlk && operMightThrow)
+        if (!framePointerRequired && comp->fgUseThrowHelperBlocks() && operMightThrow)
         {
             SetThrowHelperBlocks(node, block);
         }

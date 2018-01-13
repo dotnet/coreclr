@@ -18181,9 +18181,7 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     // arg slots on the stack frame if there are no other calls.
     compUsesThrowHelper = true;
 
-    // For debuggable code, genJumpToThrowHlpBlk() will generate the 'throw'
-    // code inline. It has to be kept consistent with fgAddCodeRef()
-    if (opts.compDbgCode)
+    if (!fgUseThrowHelperBlocks())
     {
         return nullptr;
     }
@@ -25884,4 +25882,16 @@ bool Compiler::fgNeedReturnSpillTemp()
 {
     assert(compIsForInlining());
     return (lvaInlineeReturnSpillTemp != BAD_VAR_NUM);
+}
+
+//------------------------------------------------------------------------
+// fgUseThrowHelperBlocks: Determinate does compiler use throw helper blocks.
+//
+// Note:
+//   For debuggable code, codegen will generate the 'throw' code inline.
+// Return Value:
+//    true if 'throw' helper block should be created.
+bool Compiler::fgUseThrowHelperBlocks()
+{
+    return !opts.compDbgCode;
 }

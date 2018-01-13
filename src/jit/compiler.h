@@ -5055,6 +5055,8 @@ private:
 public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);
 
+    bool fgUseThrowHelperBlocks();
+
 private:
     bool fgIsCodeAdded();
 
