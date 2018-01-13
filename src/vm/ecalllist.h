@@ -164,7 +164,7 @@ FCFuncStart(gEnvironmentFuncs)
 #endif // FEATURE_COMINTEROP
     FCFuncElementSig("FailFast", &gsig_SM_Str_RetVoid, SystemNative::FailFast)
     FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_RetVoid, SystemNative::FailFastWithException)
-    FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_Bool_RetVoid, SystemNative::FailFastWithExceptionDebug)
+    FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_Uint_RetVoid, SystemNative::FailFastWithExceptionAndSource)
 FCFuncEnd()
 
 FCFuncStart(gRuntimeEnvironmentFuncs)

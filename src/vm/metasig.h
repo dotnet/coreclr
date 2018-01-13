@@ -557,7 +557,7 @@ DEFINE_METASIG(SM(Obj_Bool_RetVoid, j F, v))
 DEFINE_METASIG(SM(Str_RetVoid, s, v))
 DEFINE_METASIG(SM(Str_Uint_RetVoid, s K, v))
 DEFINE_METASIG_T(SM(Str_Exception_RetVoid, s C(EXCEPTION), v))
-DEFINE_METASIG_T(SM(Str_Exception_Bool_RetVoid, s C(EXCEPTION) F, v))
+DEFINE_METASIG_T(SM(Str_Exception_Uint_RetVoid, s C(EXCEPTION) K, v))
 
 // fields - e.g.:
 // DEFINE_METASIG(Fld(PtrVoid, P(v)))

@@ -116,6 +116,23 @@ namespace System.Diagnostics
         {
             Assert(false, message, detailMessage);
         }
+        
+        [System.Diagnostics.Conditional("DEBUG")]
+        public static void AssumptionFail(string message)
+        {
+            string stackTrace;
+
+            try
+            {
+                stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
+            }
+            catch
+            {
+                stackTrace = "";
+            }
+            WriteLine(FormatAssert(stackTrace, message, String.Empty));
+            s_ShowAssumeDialog(stackTrace, message, String.Empty);
+        }
 
         public static string PopStackTrace(string stackTrace)
         {
@@ -327,6 +344,8 @@ namespace System.Diagnostics
 
         // internal and not readonly so that the tests can swap this out.
         internal static Action<string, string, string> s_ShowAssertDialog = ShowAssertDialog;
+        internal static Action<string, string, string> s_ShowAssumeDialog = ShowAssumeDialog;
+
         internal static Action<string> s_WriteCore = WriteCore;
     }
 }

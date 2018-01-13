@@ -47,6 +47,14 @@ public:
         ADU_Rude
     };
 
+    // Used for producing correct error titles for FailFast exceptions
+    enum FailFastErrorSourceTypes 
+    {
+        FFES_FailFast,
+        FFES_AssertionFailure,
+        FFES_AssumptionFailure
+    };
+
     EEPolicy ();
 
     HRESULT SetTimeout(EClrOperation operation, DWORD timeout);
@@ -124,7 +132,7 @@ public:
 
     static void HandleExitProcess(ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete);
 
-    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, BOOL isDebugError=FALSE);
+    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, UINT errorSource=0);
 
     static void DECLSPEC_NORETURN HandleFatalStackOverflow(EXCEPTION_POINTERS *pException, BOOL fSkipDebugger = FALSE);
 
@@ -147,7 +155,7 @@ private:
     BOOL IsValidActionForFailure(EClrFailure failure, EPolicyAction action);
     EPolicyAction GetFinalAction(EPolicyAction action, Thread *pThread);
 
-    static void LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage, PEXCEPTION_POINTERS pExceptionInfo, BOOL isDebugError=FALSE);
+    static void LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage, PEXCEPTION_POINTERS pExceptionInfo, UINT errorSource);
 
     // IMPORTANT NOTE: only the following two functions should be calling ExitProcessViaShim.
     // - CorHost2::ExitProcess
