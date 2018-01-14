@@ -240,55 +240,6 @@ public struct Knob
                 DefaultValue = DefaultValue.Trim();
             }
 
-                // Parse Flags if present
-                if (parts1.Length < numParts1.Length && numParts1[parts1.Length] == Fields.LookupOptions)
-                {
-                    var tempFlags = parts1[parts1.Length - 1].Substring(descMatch.Index + descMatch.Length).TrimStart(' ', ',');
-                    Flags = tempFlags.Replace("CLRConfig::", null).Replace(")", null).Replace("|", "\\|");
-                }
-            }
-
-            // Parse Description in jitconfigvalues.h file which is in single line C++ comments
-            else if (!isClrConfigFile)
-            {
-                int commentIndex = line.IndexOf(" // ");
-                var description = commentIndex >= 0 ? line.Substring(commentIndex + 4) : String.Empty;
-                if (description.Length > 0)
-                {
-                    nextLine = reader.ReadLine();
-                    while (nextLine != null)
-                    {
-                        var workLine = nextLine.Trim();
-                        if (workLine.StartsWith("// "))
-                        {
-                            description += workLine.Substring(2).TrimEnd();
-                            nextLine = reader.ReadLine();
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-                Description = description;
-            }
-
-            Description = Description.Replace("|", "\\|");
-
-            int indexOfDefaultValue = -1;
-            if ((indexOfDefaultValue = Array.IndexOf<Fields>(numParts1, Fields.DefaultValue)) >= 0 && indexOfDefaultValue < parts1.Length)
-            {
-                if (isClrConfigFile)
-                {
-                    DefaultValue = parts1[indexOfDefaultValue].TrimEnd(')');
-                }
-                else
-                {
-                    int indexOfCloseParenth = parts1[indexOfDefaultValue].IndexOf(")");
-                    DefaultValue = parts1[indexOfDefaultValue].Substring(0, indexOfCloseParenth);
-                }
-            }
-
             // Parse Name
             var nameMatch = s_cppString.Match(parts1[1]);
             Name = nameMatch.Captures.Count > 0 ? nameMatch.Value.Substring(1, nameMatch.Length - 2) : String.Empty;
@@ -398,7 +349,7 @@ public static class ConfigKnobsDoc
         "## Environment/Registry Configuration Knobs\n";
 
     public static string ClrConfigSectionInfo =
-        "This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [GIT_SHORT_HASH](https://github.com/dotnet/coreclr/commit/GIT_LONG_HASH) on DATE_CREATED. It might be out of date. To generate latest documentation run `{dotnet} csi clr-configuration-knobs.csx from this file directory.\n";
+        "This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [GIT_SHORT_HASH](https://github.com/dotnet/coreclr/commit/GIT_LONG_HASH) on DATE_CREATED. It might be out of date. To generate latest documentation run `{dotnet} csi clr-configuration-knobs.csx` from this file directory.\n";
 
     public static string ClrConfigSectionUsage =
         "When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.\n\nSee also [Setting configuration variables](../building/viewing-jit-dumps.md#setting-configuration-variables) for more information.\n";
@@ -412,14 +363,14 @@ public static class ConfigKnobsDoc
         "All the names below need to be prefixed by `COMPlus_`.\n\n" +
         "Name | Description | Type | Default Value\n" +
         "-----|-------------|------|---------------\n" +
-        "`DefaultStackSize` | Overrides the default stack size for secondary threads | STRING | 0\n" +
-        "`DbgEnableMiniDump` | If set to 1, enables this core dump generation. The default is NOT to generate a dump | DWORD | 0\n" +
-        "`DbgMiniDumpName` | If set, use as the template to create the dump path and file name. The pid can be placed in the name with %d. | STRING | _/tmp/coredump.%d_\n" +
-        "`DbgMiniDumpType` | If set to 1 generates _MiniDumpNormal_, 2 _MiniDumpWithPrivateReadWriteMemory_, 3 _MiniDumpFilterTriage_, 4 _MiniDumpWithFullMemory_ | DWORD | 1\n" +
-        "`CreateDumpDiagnostics` | If set to 1, enables the _createdump_ utilities diagnostic messages (TRACE macro) | DWORD | 0\n";
+        "`DefaultStackSize` | Overrides the default stack size for secondary threads | `STRING` | `0`\n" +
+        "`DbgEnableMiniDump` | If set to 1, enables this core dump generation. The default is NOT to generate a dump | `DWORD` | `0`\n" +
+        "`DbgMiniDumpName` | If set, use as the template to create the dump path and file name. The pid can be placed in the name with %d. | `STRING` | `_/tmp/coredump.%d_`\n" +
+        "`DbgMiniDumpType` | If set to 1 generates _MiniDumpNormal_, 2 _MiniDumpWithPrivateReadWriteMemory_, 3 _MiniDumpFilterTriage_, 4 _MiniDumpWithFullMemory_ | `DWORD` | `1`\n" +
+        "`CreateDumpDiagnostics` | If set to 1, enables the _createdump_ utilities diagnostic messages (TRACE macro) | `DWORD` | `0`\n";
 
     /// <summary>
-    ///
+    /// Writes documentation file "clr-configuration-knobs.md"
     /// </summary>
     /// <param name="knobs"></param>
     /// <param name="filePath"></param>
@@ -478,6 +429,10 @@ public static class ConfigKnobsDoc
 
                 writer.WriteLine();
             }
+
+            writer.WriteLine();
+
+            writer.WriteLine(PalConfigurationKnobs);
         }
         return $"Success: {count} parsed configuration knobs, documentation file {filePath} has been updated: commit {hashLong.Substring(0, 7)} date {date}.";
     }

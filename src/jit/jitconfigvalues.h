@@ -310,14 +310,14 @@ CONFIG_INTEGER(JitTelemetry, W("JitTelemetry"), 1)   // If non-zero, gather JIT 
 CONFIG_INTEGER(JitVNMapSelBudget, W("JitVNMapSelBudget"), DEFAULT_MAP_SELECT_BUDGET)
 
 CONFIG_INTEGER(TailCallLoopOpt, W("TailCallLoopOpt"), 1) // Convert recursive tail calls to loops
-CONFIG_METHODSET(AltJit, W("AltJit")) // Enables AltJit and selectively limits it to the specified methods.
-CONFIG_METHODSET(AltJitNgen, W("AltJitNgen")) // Enables AltJit for NGEN and selectively limits it 
+CONFIG_METHODSET(AltJit, W("AltJit"))         // Enables AltJit and selectively limits it to the specified methods.
+CONFIG_METHODSET(AltJitNgen, W("AltJitNgen")) // Enables AltJit for NGEN and selectively limits it
                                               // to the specified methods.
 
 #if defined(ALT_JIT)
-CONFIG_STRING(AltJitExcludeAssemblies, W("AltJitExcludeAssemblies")) // Do not use AltJit on this 
+CONFIG_STRING(AltJitExcludeAssemblies, W("AltJitExcludeAssemblies")) // Do not use AltJit on this
                                                                      // semicolon-delimited list of assemblies.
-#endif                                      // defined(ALT_JIT)
+#endif                                                               // defined(ALT_JIT)
 
 CONFIG_INTEGER(JitMeasureIR, W("JitMeasureIR"), 0) // If set, measure the IR size after some phases and report it in
                                                    // the time log.
