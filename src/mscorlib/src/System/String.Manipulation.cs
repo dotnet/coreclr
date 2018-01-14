@@ -14,7 +14,7 @@ namespace System
 {
     public partial class String
     {
-        private const int StackallocIntBufferSizeLimit = 512;
+        private const int StackallocIntBufferSizeLimit = 128;
 
         unsafe private static void FillStringChecked(String dest, int destPos, String src)
         {
@@ -1276,6 +1276,7 @@ namespace System
             ReadOnlySpan<int> sepList = sepListBuilder.AsReadOnlySpan();
             if (sepList.Length == 0)
             {
+                // there are no separators so sepListBuilder did not rent an array from pool and there is no need to dispose it
                 return new string[] { this };
             }
 
@@ -1468,24 +1469,21 @@ namespace System
         /// <param name="separator">separator string</param>
         /// <param name="sepListBuilder"><see cref="ValueListBuilder{T}"/> to store indexes</param>
         /// <returns></returns>
-        private unsafe void MakeSeparatorList(string separator, ref ValueListBuilder<int> sepListBuilder)
+        private void MakeSeparatorList(string separator, ref ValueListBuilder<int> sepListBuilder)
         {
             Debug.Assert(!IsNullOrEmpty(separator), "!string.IsNullOrEmpty(separator)");
 
             int currentSepLength = separator.Length;
 
-            fixed (char* pwzChars = &_firstChar)
+            for (int i = 0; i < Length; i++)
             {
-                for (int i = 0; i < Length; i++)
+                if (this[i] == separator[0] && currentSepLength <= Length - i)
                 {
-                    if (pwzChars[i] == separator[0] && currentSepLength <= Length - i)
+                    if (currentSepLength == 1
+                        || CompareOrdinal(this, i, separator, 0, currentSepLength) == 0)
                     {
-                        if (currentSepLength == 1
-                            || CompareOrdinal(this, i, separator, 0, currentSepLength) == 0)
-                        {
-                            sepListBuilder.Append(i);
-                            i += currentSepLength - 1;
-                        }
+                        sepListBuilder.Append(i);
+                        i += currentSepLength - 1;
                     }
                 }
             }
@@ -1497,34 +1495,31 @@ namespace System
         /// <param name="separators">separator strngs</param>
         /// <param name="sepListBuilder"><see cref="ValueListBuilder{T}"/> for separator indexes</param>
         /// <param name="lengthListBuilder"><see cref="ValueListBuilder{T}"/> for separator length values</param>        
-        private unsafe void MakeSeparatorList(string[] separators, ref ValueListBuilder<int> sepListBuilder, ref ValueListBuilder<int> lengthListBuilder)
+        private void MakeSeparatorList(string[] separators, ref ValueListBuilder<int> sepListBuilder, ref ValueListBuilder<int> lengthListBuilder)
         {
             Debug.Assert(separators != null && separators.Length > 0, "separators != null && separators.Length > 0");
 
             int sepCount = separators.Length;
 
-            fixed (char* pwzChars = &_firstChar)
+            for (int i = 0; i < Length; i++)
             {
-                for (int i = 0; i < Length; i++)
+                for (int j = 0; j < separators.Length; j++)
                 {
-                    for (int j = 0; j < separators.Length; j++)
+                    string separator = separators[j];
+                    if (IsNullOrEmpty(separator))
                     {
-                        string separator = separators[j];
-                        if (IsNullOrEmpty(separator))
+                        continue;
+                    }
+                    int currentSepLength = separator.Length;
+                    if (this[i] == separator[0] && currentSepLength <= Length - i)
+                    {
+                        if (currentSepLength == 1
+                            || CompareOrdinal(this, i, separator, 0, currentSepLength) == 0)
                         {
-                            continue;
-                        }
-                        int currentSepLength = separator.Length;
-                        if (pwzChars[i] == separator[0] && currentSepLength <= Length - i)
-                        {
-                            if (currentSepLength == 1
-                                || CompareOrdinal(this, i, separator, 0, currentSepLength) == 0)
-                            {
-                                sepListBuilder.Append(i);
-                                lengthListBuilder.Append(currentSepLength);
-                                i += currentSepLength - 1;
-                                break;
-                            }
+                            sepListBuilder.Append(i);
+                            lengthListBuilder.Append(currentSepLength);
+                            i += currentSepLength - 1;
+                            break;
                         }
                     }
                 }
