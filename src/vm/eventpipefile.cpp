@@ -25,12 +25,18 @@ EventPipeFile::EventPipeFile(
     }
     CONTRACTL_END;
 
-    SetObjectVersion(2);
+    SetObjectVersion(3);
     SetMinReaderVersion(0);
 
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
+
+    m_pointerSize = TARGET_POINTER_SIZE;
+
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    m_numberOfProcessors = sysinfo.dwNumberOfProcessors;
 
 #ifdef _DEBUG
     m_lockOnWrite = lockOnWrite;
@@ -56,6 +62,12 @@ EventPipeFile::EventPipeFile(
 
     // Write ClockFrequency
     m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
+
+    // Write Pointer Size
+    m_pSerializer->WriteBuffer((BYTE*)&m_pointerSize, sizeof(m_pointerSize));
+
+    // Write Number of Processors
+    m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
 }
 
 EventPipeFile::~EventPipeFile()

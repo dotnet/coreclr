@@ -65,6 +65,12 @@ class EventPipeFile : public FastSerializableObject
         // The frequency of the timestamps used for this file.
         LARGE_INTEGER m_timeStampFrequency;
 
+        // The pointer Size
+        unsigned int m_pointerSize;
+
+        // The number of processors
+        unsigned int m_numberOfProcessors;
+
         // The forward reference index that marks the beginning of the event stream.
         unsigned int m_beginEventsForwardReferenceIndex;
 
