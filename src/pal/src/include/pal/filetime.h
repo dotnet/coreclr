@@ -38,6 +38,14 @@ extern "C"
 
 #else /* HAVE_STAT_TIMESPEC */
 
+#if HAVE_STAT_TIM
+
+#define ST_ATIME_NSEC(statstruct) ((statstruct)->st_atim.tv_nsec)
+#define ST_MTIME_NSEC(statstruct) ((statstruct)->st_mtim.tv_nsec)
+#define ST_CTIME_NSEC(statstruct) ((statstruct)->st_ctim.tv_nsec)
+
+#else /* HAVE_STAT_TIM */
+
 #if HAVE_STAT_NSEC
 
 #define ST_ATIME_NSEC(statstruct) ((statstruct)->st_atimensec)
