@@ -4441,12 +4441,40 @@ extern "C"
 
         BOOLEAN bIsRundownTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimeRundownHandle);
 
-		// TypeSystemLog needs a notification when certain keywords are modified, so
-		// give it a hook here.
-		if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
-		{
-			ETW::TypeSystemLog::OnKeywordsChanged();
-		}
+        if (g_fEEStarted && !g_fEEShutDown)
+        {
+            // TypeSystemLog needs a notification when certain keywords are modified, so
+            // give it a hook here.
+            if (bIsPublicTraceHandle)
+            {
+                ETW::TypeSystemLog::OnKeywordsChanged();
+            }
+
+            if (ControlCode == EVENT_CONTROL_CODE_ENABLE_PROVIDER || ControlCode == EVENT_CONTROL_CODE_DISABLE_PROVIDER)
+            {
+                static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
+                static_assert(GCEventLevel_Fatal == TRACE_LEVEL_FATAL, "GCEventLevel_Fatal value mismatch");
+                static_assert(GCEventLevel_Error == TRACE_LEVEL_ERROR, "GCEventLevel_Error value mismatch");
+                static_assert(GCEventLevel_Warning == TRACE_LEVEL_WARNING, "GCEventLevel_Warning mismatch");
+                static_assert(GCEventLevel_Information == TRACE_LEVEL_INFORMATION, "GCEventLevel_Information mismatch");
+                static_assert(GCEventLevel_Verbose == TRACE_LEVEL_VERBOSE, "GCEventLevel_Verbose mismatch");
+
+                // The GC also needs to be informed of changes to keywords and levels.
+                IGCHeap *heap = GCHeapUtilities::GetGCHeap();
+                GCEventKeyword keywords = static_cast<GCEventKeyword>(MatchAnyKeyword);
+                GCEventLevel level = static_cast<GCEventLevel>(Level);
+                if (bIsPublicTraceHandle)
+                {
+                    heap->ControlEvents(keywords, level);
+                }
+                else if (bIsPrivateTraceHandle)
+                {
+                    heap->ControlPrivateEvents(keywords, level);
+                }
+
+                // the GC doesn't use the runtime rundown provider.
+            }
+        }
 
         // A manifest based provider can be enabled to multiple event tracing sessions
         // As long as there is atleast 1 enabled session, IsEnabled will be TRUE
