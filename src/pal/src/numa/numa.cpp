@@ -836,7 +836,7 @@ VirtualAllocExNuma(
             if (result != NULL && g_numaAvailable)
             {
                 int nodeMaskLength = (g_highestNumaNode + 1 + sizeof(unsigned long) - 1) / sizeof(unsigned long);
-                unsigned long *nodeMask = new unsigned long[nodeMaskLength];
+                unsigned long *nodeMask = (unsigned long*)malloc(nodeMaskLength * sizeof(unsigned long));
 
                 memset(nodeMask, 0, nodeMaskLength);
 
