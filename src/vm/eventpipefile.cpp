@@ -25,18 +25,12 @@ EventPipeFile::EventPipeFile(
     }
     CONTRACTL_END;
 
-    SetObjectVersion(3);
-    SetMinReaderVersion(0);
+    SetObjectVersion(2);
+    SetMinReaderVersion(1);
 
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
-
-    m_pointerSize = TARGET_POINTER_SIZE;
-
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    m_numberOfProcessors = sysinfo.dwNumberOfProcessors;
 
 #ifdef _DEBUG
     m_lockOnWrite = lockOnWrite;
@@ -47,10 +41,22 @@ EventPipeFile::EventPipeFile(
     QueryPerformanceCounter(&m_fileOpenTimeStamp);
     QueryPerformanceFrequency(&m_timeStampFrequency);
 
+    m_pointerSize = TARGET_POINTER_SIZE;
+
+    SYSTEM_INFO sysinfo = {};
+    GetSystemInfo(&sysinfo);
+    m_numberOfProcessors = sysinfo.dwNumberOfProcessors;
+
     // Write a forward reference to the beginning of the event stream.
-    // This also allows readers to know where the event stream ends and skip it if needed.
+    // This also allows readers to know where the event stream starts 
+    // and skip new metadata from the begining of the file if needed
     m_beginEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
     m_pSerializer->WriteForwardReference(m_beginEventsForwardReferenceIndex);
+
+    // Write a forward reference to the end of the event stream.
+    // This also allows readers to know where the event stream ends and skip it if needed.
+    m_endEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
+    m_pSerializer->WriteForwardReference(m_endEventsForwardReferenceIndex);
 
     // Write the header information into the file.
 
@@ -68,6 +74,10 @@ EventPipeFile::EventPipeFile(
 
     // Write Number of Processors
     m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
+
+    // define the start of the events
+    StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
+    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
 }
 
 EventPipeFile::~EventPipeFile()
@@ -83,8 +93,8 @@ EventPipeFile::~EventPipeFile()
     // Mark the end of the event stream.
     StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
 
-    // Define the event start forward reference.
-    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
+    // Define the event END forward reference.
+    m_pSerializer->DefineForwardReference(m_endEventsForwardReferenceIndex, currentLabel);
 
     // Close the serializer.
     if(m_pSerializer != NULL)
