@@ -845,18 +845,13 @@ PAL_GetSymbolModuleBase(void *symbol)
 
     Wrapper for dlerror() to be used by PAL functions
 
-Parameters:
-    IN nSize - the number of characters to copy to lpBuffer
-    OUT lpBuffer - the buffer to copy dlerror() to
-
 Return value:
 
-If the buffer pointed to by lpBuffer is not large enough, the return
-value is the buffer size required to hold the value string. Otherwise, return 0.
+A LPCSTR containing the output of dlerror()
 
 --*/
 PALIMPORT
-LPCWSTR
+LPCSTR
 PALAPI
 PAL_GetLoadLibraryError()
 {
@@ -864,7 +859,7 @@ PAL_GetLoadLibraryError()
     PERF_ENTRY(PAL_GetLoadLibraryError);
     ENTRY("PAL_GetLoadLibraryError");
 
-    LPCWSTR last_error = (LPCWSTR) dlerror();
+    LPCSTR last_error = dlerror();
 
     LOGEXIT("PAL_GetLoadLibraryError returns %p\n", last_error);
     PERF_EXIT(PAL_GetLoadLibraryError);

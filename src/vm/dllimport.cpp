@@ -5730,7 +5730,7 @@ public:
 #ifdef FEATURE_PAL
 
         LPCWSTR lpLastError = PAL_GetLoadLibraryError();
-        UpdateHRUnix(lpLastError);
+        SetMessage(lpLastError);
 #else
         
         DWORD dwLastError = GetLastError();
@@ -5755,14 +5755,14 @@ public:
                 priority = const_priorityCouldNotLoad;
                 break;
         }
-        UpdateHRWin(priority, HRESULT_FROM_WIN32(dwLastError));
+        UpdateHR(priority, HRESULT_FROM_WIN32(dwLastError));
 #endif
     }
 
     // Sets the error code to HRESULT as could not load DLL
     void TrackHR_CouldNotLoad(HRESULT hr)
     {
-        UpdateHRWin(const_priorityCouldNotLoad, hr);
+        UpdateHR(const_priorityCouldNotLoad, hr);
     }
     
     HRESULT GetHR()
@@ -5770,7 +5770,7 @@ public:
         return m_hr;
     }
 
-    SString GetMessage()
+    SString& GetMessage()
     {
         return m_message;
     }
@@ -5780,8 +5780,7 @@ public:
         STANDARD_VM_CONTRACT;
 
 #ifdef FEATURE_PAL
-        SString hrString = (SString) GetMessage();
-        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), GetMessage());
 #else
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
@@ -5800,7 +5799,7 @@ public:
     }
 
 private:
-    void UpdateHRWin(DWORD priority, HRESULT hr)
+    void UpdateHR(DWORD priority, HRESULT hr)
     {
         if (priority > m_priorityOfLastError)
         {
@@ -5809,7 +5808,7 @@ private:
         }
     }
 
-    void UpdateHRUnix(LPCWSTR message)
+    void SetMessage(LPCWSTR message)
     {
         m_message = SString(SString::Utf8, message);
     }
