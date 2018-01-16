@@ -5,6 +5,11 @@
 #ifndef _GCINTERFACE_EE_H_
 #define _GCINTERFACE_EE_H_
 
+class IGCToCLREventSink
+{
+    /* [LOCALGC TODO] This will be filled with events as they get ported */
+};
+
 // This interface provides the interface that the GC will use to speak to the rest
 // of the execution engine. Everything that the GC does that requires the EE
 // to be informed or that requires EE action must go through this interface.
@@ -251,6 +256,10 @@ public:
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
+
+    // Returns an IGCToCLREventSink instance that can be used to fire events.
+    virtual
+    IGCToCLREventSink* EventSink() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
