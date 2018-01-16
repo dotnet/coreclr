@@ -1036,6 +1036,13 @@ void EEStartupHelper(COINITIEE fFlags)
         EventPipe::EnableOnStartup();
 #endif // FEATURE_PERFTRACING
 
+#ifdef FEATURE_TIERED_COMPILATION
+        if (g_pConfig->TieredCompilation())
+        {
+            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
+        }
+#endif
+
 #endif // CROSSGEN_COMPILE
 
         SystemDomain::System()->Init();

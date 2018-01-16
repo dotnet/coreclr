@@ -81,8 +81,11 @@
 TieredCompilationManager::TieredCompilationManager() :
     m_isAppDomainShuttingDown(FALSE),
     m_countOptimizationThreadsRunning(0),
-    m_callCountOptimizationThreshhold(30),
-    m_optimizationQuantumMs(50)
+    m_callCountOptimizationThreshhold(g_pConfig->TieredCompilation_Tier1CallCountThreshold()),
+    m_optimizationQuantumMs(50),
+    m_methodsPendingCountingForTier1(nullptr),
+    m_tier1CountingDelayTimerHandle(nullptr),
+    m_wasTier0JitInvokedSinceCountingDelayReset(false)
 {
     LIMITED_METHOD_CONTRACT;
     m_lock.Init(LOCK_TYPE_DEFAULT);
@@ -105,26 +108,115 @@ void TieredCompilationManager::Init(ADID appDomainId)
     m_asyncWorkDoneEvent.CreateManualEventNoThrow(TRUE);
 }
 
+void TieredCompilationManager::InitiateTier1CountingDelay()
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(g_pConfig->TieredCompilation());
+    _ASSERTE(m_methodsPendingCountingForTier1 == nullptr);
+    _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
+
+    DWORD delayMs = g_pConfig->TieredCompilation_Tier1CallCountingDelayMs();
+    if (delayMs == 0)
+    {
+        return;
+    }
+
+    m_tier1CountingDelayLock.Init(LOCK_TYPE_DEFAULT);
+
+    NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
+    if (methodsPendingCountingHolder == nullptr)
+    {
+        return;
+    }
+
+    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new(nothrow) ThreadpoolMgr::TimerInfoContext();
+    if (timerContextHolder == nullptr)
+    {
+        return;
+    }
+
+    timerContextHolder->AppDomainId = m_domainId;
+    timerContextHolder->TimerId = 0;
+    if (!ThreadpoolMgr::CreateTimerQueueTimer(
+            &m_tier1CountingDelayTimerHandle,
+            Tier1DelayTimerCallback,
+            timerContextHolder,
+            delayMs,
+            (DWORD)-1 /* Period, non-repeating */,
+            0 /* flags */))
+    {
+        _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
+        return;
+    }
+
+    m_methodsPendingCountingForTier1 = methodsPendingCountingHolder.Extract();
+    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+}
+
+void TieredCompilationManager::OnTier0JitInvoked()
+{
+    STANDARD_VM_CONTRACT;
+
+    if (m_methodsPendingCountingForTier1 != nullptr)
+    {
+        m_wasTier0JitInvokedSinceCountingDelayReset = true;
+    }
+}
+
 // Called each time code in this AppDomain has been run. This is our sole entrypoint to begin
 // tiered compilation for now. Returns TRUE if no more notifications are necessary, but
 // more notifications may come anyways.
 //
 // currentCallCount is pre-incremented, that is to say the value is 1 on first call for a given
 //      method.
-BOOL TieredCompilationManager::OnMethodCalled(MethodDesc* pMethodDesc, DWORD currentCallCount)
+void TieredCompilationManager::OnMethodCalled(
+    MethodDesc* pMethodDesc,
+    DWORD currentCallCount,
+    BOOL* shouldStopCountingCallsRef,
+    BOOL* shouldPromoteToTier1Ref)
 {
     STANDARD_VM_CONTRACT;
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+    _ASSERTE(shouldStopCountingCallsRef != nullptr);
+    _ASSERTE(shouldPromoteToTier1Ref != nullptr);
 
-    if (currentCallCount < m_callCountOptimizationThreshhold)
+    *shouldStopCountingCallsRef =
+        m_methodsPendingCountingForTier1 != nullptr || currentCallCount >= m_callCountOptimizationThreshhold;
+    *shouldPromoteToTier1Ref = currentCallCount >= m_callCountOptimizationThreshhold;
+}
+
+void TieredCompilationManager::OnMethodTier0BackpatchAttempted(
+    MethodDesc* pMethodDesc,
+    BOOL shouldPromoteToTier1,
+    BOOL stoppedCallCounting)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(pMethodDesc != nullptr);
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+
+    if (shouldPromoteToTier1)
     {
-        return FALSE; // continue notifications for this method
+        AsyncPromoteMethodToTier1(pMethodDesc);
+        return;
     }
-    else if (currentCallCount > m_callCountOptimizationThreshhold)
+
+    if (!stoppedCallCounting || g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() == 0)
     {
-        return TRUE; // stop notifications for this method
+        return;
     }
-    AsyncPromoteMethodToTier1(pMethodDesc);
-    return TRUE;
+
+    {
+        SpinLockHolder holder(&m_tier1CountingDelayLock);
+        if (m_methodsPendingCountingForTier1 != nullptr)
+        {
+            // Record the method to resume counting later (see Tier1DelayTimerCallback)
+            m_methodsPendingCountingForTier1->Append(pMethodDesc);
+            return;
+        }
+    }
+
+    // Rare race condition with the timer callback
+    ResumeCountingCalls(pMethodDesc);
 }
 
 void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc)
@@ -256,6 +348,73 @@ void TieredCompilationManager::Shutdown(BOOL fBlockUntilAsyncWorkIsComplete)
     {
         m_asyncWorkDoneEvent.Wait(INFINITE, FALSE);
     }
+}
+
+VOID WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(timerFired);
+
+    ThreadpoolMgr::TimerInfoContext* timerContext = (ThreadpoolMgr::TimerInfoContext*)parameter;
+    ManagedThreadBase::ThreadPool(timerContext->AppDomainId, Tier1DelayTimerCallbackInAppDomain, nullptr);
+}
+
+void TieredCompilationManager::Tier1DelayTimerCallbackInAppDomain(LPVOID parameter)
+{
+    STANDARD_VM_CONTRACT;
+    GetAppDomain()->GetTieredCompilationManager()->Tier1DelayTimerCallbackWorker();
+}
+
+void TieredCompilationManager::Tier1DelayTimerCallbackWorker()
+{
+    STANDARD_VM_CONTRACT;
+
+    // Reschedule the timer if a tier 0 JIT has been invoked since the timer was started to further delay call counting
+    if (m_wasTier0JitInvokedSinceCountingDelayReset)
+    {
+        m_wasTier0JitInvokedSinceCountingDelayReset = false;
+
+        _ASSERTE(m_tier1CountingDelayTimerHandle != nullptr);
+        if (ThreadpoolMgr::ChangeTimerQueueTimer(
+                m_tier1CountingDelayTimerHandle,
+                g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                (DWORD)-1 /* Period, non-repeating */))
+        {
+            return;
+        }
+    }
+
+    // Exchange the list of methods pending counting for tier 1
+    SArray<MethodDesc*>* methodsPendingCountingForTier1;
+    {
+        SpinLockHolder holder(&m_tier1CountingDelayLock);
+        methodsPendingCountingForTier1 = m_methodsPendingCountingForTier1;
+        _ASSERTE(methodsPendingCountingForTier1 != nullptr);
+        m_methodsPendingCountingForTier1 = nullptr;
+    }
+
+    // Install call counters
+    MethodDesc** methods = methodsPendingCountingForTier1->GetElements();
+    COUNT_T methodCount = methodsPendingCountingForTier1->GetCount();
+    for (COUNT_T i = 0; i < methodCount; ++i)
+    {
+        ResumeCountingCalls(methods[i]);
+    }
+    delete methodsPendingCountingForTier1;
+
+    // Delete the timer
+    _ASSERTE(m_tier1CountingDelayTimerHandle != nullptr);
+    ThreadpoolMgr::DeleteTimerQueueTimer(m_tier1CountingDelayTimerHandle, nullptr);
+    m_tier1CountingDelayTimerHandle = nullptr;
+}
+
+void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(pMethodDesc != nullptr);
+    _ASSERTE(pMethodDesc->IsVersionableWithPrecode());
+
+    pMethodDesc->GetPrecode()->ResetTargetInterlocked();
 }
 
 // This is the initial entrypoint for the background thread, called by

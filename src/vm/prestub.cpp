@@ -1001,7 +1001,7 @@ BOOL PrepareCodeConfig::MayUsePrecompiledCode()
 VersionedPrepareCodeConfig::VersionedPrepareCodeConfig() {}
 
 VersionedPrepareCodeConfig::VersionedPrepareCodeConfig(NativeCodeVersion codeVersion) :
-    PrepareCodeConfig(codeVersion, TRUE, FALSE)
+    PrepareCodeConfig(codeVersion, TRUE, codeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1706,11 +1706,14 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // for this method only then do we back-patch it.
     BOOL fCanBackpatchPrestub = TRUE;
 #ifdef FEATURE_TIERED_COMPILATION
+    TieredCompilationManager* pTieredCompilationManager = nullptr;
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
+    BOOL fShouldPromoteToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
+        pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
         CallCounter * pCallCounter = GetCallCounter();
-        fCanBackpatchPrestub = pCallCounter->OnMethodCalled(this);
+        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fShouldPromoteToTier1);
     }
 #endif
 
@@ -1721,7 +1724,13 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     if (IsVersionableWithPrecode() ||
         (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
     {
-        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
+        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, pTieredCompilationManager, fCanBackpatchPrestub);
+
+        if (pTieredCompilationManager != nullptr && fCanBackpatchPrestub)
+        {
+            pTieredCompilationManager->OnMethodTier0BackpatchAttempted(this, fShouldPromoteToTier1, pCode != 0);
+        }
+
         fIsPointingToPrestub = IsPointingToPrestub();
     }
 #endif

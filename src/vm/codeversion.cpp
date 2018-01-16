@@ -2106,7 +2106,10 @@ HRESULT CodeVersionManager::AddNativeCodeVersion(ILCodeVersion ilCodeVersion, Me
     return S_OK;
 }
 
-PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub)
+PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(
+    MethodDesc* pMethodDesc,
+    TieredCompilationManager* pTieredCompilationManager,
+    BOOL fCanBackpatchPrestub)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!LockOwnedByCurrentThread());
@@ -2135,6 +2138,12 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         pCode = activeVersion.GetNativeCode();
         if (pCode == NULL)
         {
+            if (pTieredCompilationManager != nullptr &&
+                activeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
+            {
+                pTieredCompilationManager->OnTier0JitInvoked();
+            }
+
             pCode = pMethodDesc->PrepareCode(activeVersion);
         }
 
