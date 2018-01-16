@@ -2719,7 +2719,7 @@ LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
 
 PALIMPORT
-LPCWSTR
+LPCSTR
 PALAPI
 PAL_GetLoadLibraryError();
 
