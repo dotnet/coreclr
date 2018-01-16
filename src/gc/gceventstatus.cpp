@@ -7,3 +7,7 @@
 
 Volatile<GCEventLevel> GCEventStatus::enabledLevels[2] = {GCEventLevel_None, GCEventLevel_None};
 Volatile<GCEventKeyword> GCEventStatus::enabledKeywords[2] = {GCEventKeyword_None, GCEventKeyword_None};
+
+#define KNOWN_EVENT(name, provider, level, keyword) \
+  GCKnownEvent name##EventDescriptor(#name, provider, level, keyword);
+#include "gcevents.h"
