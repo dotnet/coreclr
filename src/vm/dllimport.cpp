@@ -5729,8 +5729,7 @@ public:
 
 #ifdef FEATURE_PAL
 
-        LPCWSTR lpLastError = PAL_GetLoadLibraryError();
-        SetMessage(lpLastError);
+        SetMessage(PAL_GetLoadLibraryError());
 #else
         
         DWORD dwLastError = GetLastError();
@@ -5808,7 +5807,7 @@ private:
         }
     }
 
-    void SetMessage(LPCWSTR message)
+    void SetMessage(LPCSTR message)
     {
         m_message = SString(SString::Utf8, message);
     }
