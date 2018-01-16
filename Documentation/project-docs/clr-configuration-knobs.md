@@ -329,6 +329,7 @@ Name | Description | Type | Class | Default Value | Flags
 `JitSlowDebugChecksEnabled` | Turn on slow debug checks | DWORD | INTERNAL | 1 | REGUTIL_default
 `JITPInvokeCheckEnabled` |  | DWORD | INTERNAL | 0 | REGUTIL_default
 `JITPInvokeEnabled` |  | DWORD | INTERNAL | 1 | 
+`JitPrintDevirtualizedMethods` |  | DWORD | INTERNAL | 0 | 
 `JitPrintInlinedMethods` |  | DWORD | EXTERNAL | 0 | REGUTIL_default
 `JitTelemetry` | If non-zero, gather JIT telemetry data | DWORD | EXTERNAL | 1 | 
 `JitRange` |  | STRING | INTERNAL | | REGUTIL_default
