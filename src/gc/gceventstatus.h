@@ -74,7 +74,8 @@ public:
         assert(level >= GCEventLevel_None && level < GCEventLevel_Max);
 
         size_t index = static_cast<size_t>(provider);
-        return (enabledLevels[index] >= level) && (enabledKeywords[index] & keyword);
+        return (enabledLevels[index].LoadWithoutBarrier() >= level)
+          && (enabledKeywords[index].LoadWithoutBarrier() & keyword);
     }
 
     /*
@@ -96,6 +97,7 @@ public:
 #endif // TRACE_GC_EVENT_STATE
     }
 
+#if TRACE_GC_EVENT_STATE
 private:
     static void DebugDumpState(GCEventProvider provider)
     {
@@ -179,6 +181,7 @@ private:
 
         fprintf(stderr, "\n");
     }
+#endif // TRACE_GC_EVENT_STATUS
 
     // This class is a singleton and can't be instantiated.
     GCEventStatus() = delete;
