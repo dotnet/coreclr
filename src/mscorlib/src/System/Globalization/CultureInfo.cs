@@ -113,7 +113,7 @@ namespace System.Globalization
         // Get in touch with the diagnostics team if you have questions.
 
         //The Invariant culture;
-        private static volatile CultureInfo s_InvariantCultureInfo;
+        private static CultureInfo s_InvariantCultureInfo = GetInvariantCulture();
 
         //These are defaults that we use if a thread has not opted into having an explicit culture
         private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
@@ -156,16 +156,16 @@ namespace System.Globalization
         private static readonly bool init = Init();
         private static bool Init()
         {
-            if (s_InvariantCultureInfo == null)
-            {
-                CultureInfo temp = new CultureInfo("", false);
-                temp._isReadOnly = true;
-                s_InvariantCultureInfo = temp;
-            }
-
             s_userDefaultCulture = GetUserDefaultCulture();
             s_userDefaultUICulture = GetUserDefaultUILanguage();
             return true;
+        }
+
+        private static CultureInfo GetInvariantCulture()
+        {
+            CultureInfo temp = new CultureInfo(CultureData.Invariant);
+            temp._isReadOnly = true;
+            return temp;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -508,6 +508,7 @@ namespace System.Globalization
         {
             get
             {
+                Debug.Assert(s_InvariantCultureInfo != null);
                 return (s_InvariantCultureInfo);
             }
         }
