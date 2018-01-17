@@ -271,7 +271,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         }
         Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
         Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-        Utilities.addArchival(newBuildJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+        Utilities.addArchival(newBuildJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so,bin/tests/**", "bin/Product/**/.nuget/**")
     }
 
 
