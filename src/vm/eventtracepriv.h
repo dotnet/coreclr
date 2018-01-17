@@ -341,11 +341,8 @@ public:
         }
         CONTRACTL_END;
 
-        if(m_pBulkTypeEventBuffer != NULL)
-        {
-            delete[] m_pBulkTypeEventBuffer;
-            m_pBulkTypeEventBuffer = NULL;
-        }
+        delete[] m_pBulkTypeEventBuffer;
+        m_pBulkTypeEventBuffer = NULL;
     }
 #endif
 
