@@ -25,8 +25,8 @@ EventPipeFile::EventPipeFile(
     }
     CONTRACTL_END;
 
-    SetObjectVersion(2);
-    SetMinReaderVersion(1);
+    SetObjectVersion(3);
+    SetMinReaderVersion(0);
 
     m_pSerializer = new FastSerializer(outputFilePath, *this);
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
@@ -42,6 +42,8 @@ EventPipeFile::EventPipeFile(
     QueryPerformanceFrequency(&m_timeStampFrequency);
 
     m_pointerSize = TARGET_POINTER_SIZE;
+
+    m_currentProcessId = GetCurrentProcessId();
 
     SYSTEM_INFO sysinfo = {};
     GetSystemInfo(&sysinfo);
@@ -69,13 +71,14 @@ EventPipeFile::EventPipeFile(
     // Write ClockFrequency
     m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
 
-    // Write Pointer Size
+// the beginning of V3
     m_pSerializer->WriteBuffer((BYTE*)&m_pointerSize, sizeof(m_pointerSize));
 
-    // Write Number of Processors
+    m_pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
+
     m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
 
-    // define the start of the events
+    // define the start of the events stream
     StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
     m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
 }
