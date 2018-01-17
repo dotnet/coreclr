@@ -113,7 +113,7 @@ namespace System.Globalization
         // Get in touch with the diagnostics team if you have questions.
 
         //The Invariant culture;
-        private static CultureInfo s_InvariantCultureInfo = GetInvariantCulture();
+        private static readonly CultureInfo s_InvariantCultureInfo = new CultureInfo(CultureData.Invariant, isReadOnly: true);
 
         //These are defaults that we use if a thread has not opted into having an explicit culture
         private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
@@ -161,13 +161,6 @@ namespace System.Globalization
             return true;
         }
 
-        private static CultureInfo GetInvariantCulture()
-        {
-            CultureInfo temp = new CultureInfo(CultureData.Invariant);
-            temp._isReadOnly = true;
-            return temp;
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         //  CultureInfo Constructors
@@ -192,12 +185,13 @@ namespace System.Globalization
             InitializeFromName(name, useUserOverride);
         }
 
-        private CultureInfo(CultureData cultureData)
+        private CultureInfo(CultureData cultureData, bool isReadOnly = false)
         {
             Debug.Assert(cultureData != null);
             _cultureData = cultureData;
             _name = cultureData.CultureName;
             _isInherited = false;
+            _isReadOnly = isReadOnly;
         }
 
         private static CultureInfo CreateCultureInfoNoThrow(string name, bool useUserOverride)
@@ -1056,7 +1050,7 @@ namespace System.Globalization
             if (temp == null)
             {
                 temp = CreateSpecificCulture(_cultureData.SCONSOLEFALLBACKNAME);
-                _isReadOnly = true;
+                temp._isReadOnly = true;
                 _consoleFallbackCulture = temp;
             }
             return (temp);
