@@ -120,7 +120,11 @@ public class Helper
     public static InnerArraySequential NewInnerArraySequential(int f1, float f2, string f3)
     {
         InnerArraySequential outer = new InnerArraySequential();
+#if USE_CLASS_INSTEAD_OF_STRUCT
+        outer.arr = new InnerSequentialStruct[Common.NumArrElements];
+#else
         outer.arr = new InnerSequential[Common.NumArrElements];
+#endif
         for (int i = 0; i < Common.NumArrElements; i++)
         {
             outer.arr[i].f1 = f1;
@@ -163,15 +167,19 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for InnerArrayExplicit struct
+#region methods for InnerArrayExplicit struct
     //	Returns new InnerArrayExplicit instance; the params are the fields of INNER; 
     //	all the INNER elements have the same field values
     public static InnerArrayExplicit NewInnerArrayExplicit(int f1, float f2, string f3, string f4)
     {
         InnerArrayExplicit outer = new InnerArrayExplicit();
+#if USE_CLASS_INSTEAD_OF_STRUCT
+        outer.arr = new InnerSequentialStruct[Common.NumArrElements];
+#else
         outer.arr = new InnerSequential[Common.NumArrElements];
+#endif
         for (int i = 0; i < Common.NumArrElements; i++)
         {
             outer.arr[i].f1 = f1;
@@ -219,15 +227,19 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for OUTER3 struct
+#region methods for OUTER3 struct
     //	Returns new OUTER3 instance; the params are the fields of INNER; 
     //	all the INNER elements have the same field values
     public static OUTER3 NewOUTER3(int f1, float f2, string f3, string f4)
     {
         OUTER3 outer = new OUTER3();
+#if USE_CLASS_INSTEAD_OF_STRUCT
+        outer.arr = new InnerSequentialStruct[Common.NumArrElements];
+#else
         outer.arr = new InnerSequential[Common.NumArrElements];
+#endif
         for (int i = 0; i < Common.NumArrElements; i++)
         {
             outer.arr[i].f1 = f1;
@@ -281,9 +293,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
      
-    #region methods for CharSetAnsiSequential struct
+#region methods for CharSetAnsiSequential struct
     //return CharSetAnsiSequential struct instance
     public static CharSetAnsiSequential NewCharSetAnsiSequential(string f1, char f2)
     {
@@ -317,9 +329,9 @@ public class Helper
         }
     }
 
-    #endregion
+#endregion
     
-    #region methods for CharSetUnicodeSequential struct
+#region methods for CharSetUnicodeSequential struct
     //return the struct CharSetUnicodeSequential instance
     public static CharSetUnicodeSequential NewCharSetUnicodeSequential(string f1, char f2)
     {
@@ -352,9 +364,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for NumberSequential struct
+#region methods for NumberSequential struct
     public static NumberSequential NewNumberSequential(int i32, uint ui32, short s1, ushort us1, Byte b, SByte sb, 
         Int16 i16, UInt16 ui16, Int64 i64, UInt64 ui64, Single sgl, Double d)
     {
@@ -408,9 +420,9 @@ public class Helper
             return true;
         }
     }
-    #endregion 
+#endregion
     
-    #region methods for S3 struct
+#region methods for S3 struct
     public static void InitialArray(int[] iarr, int[] icarr)
     {
         for (int i = 0; i < iarr.Length; i++)
@@ -475,9 +487,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for S5 struct
+#region methods for S5 struct
     public static S5 NewS5(int age, string name,Enum1 ef)
     {
         S4 s4 = new S4();
@@ -521,9 +533,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for StringStructSequentialAnsi struct
+#region methods for StringStructSequentialAnsi struct
     public static StringStructSequentialAnsi NewStringStructSequentialAnsi(string first, string last)
     {
         StringStructSequentialAnsi s6 = new StringStructSequentialAnsi();
@@ -554,9 +566,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for StringStructSequentialUnicode struct
+#region methods for StringStructSequentialUnicode struct
     public static StringStructSequentialUnicode NewStringStructSequentialUnicode(string first, string last)
     {
         StringStructSequentialUnicode s7 = new StringStructSequentialUnicode();
@@ -587,9 +599,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for S8 struct
+#region methods for S8 struct
     public static S8 NewS8(string name, bool gender, UInt16 jobNum, int i32, uint ui32, sbyte mySByte)
     {
         S8 s8 = new S8();
@@ -628,9 +640,9 @@ public class Helper
 
     }
 
-    #endregion
+#endregion
     
-    #region methods for S9 struct
+#region methods for S9 struct
     public static S9 NewS9(int i32, TestDelegate1 testDel1)
     {
         S9 s9 = new S9();
@@ -654,9 +666,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for IncludeOuterIntergerStructSequential struct
+#region methods for IncludeOuterIntergerStructSequential struct
     public static IncludeOuterIntergerStructSequential NewIncludeOuterIntergerStructSequential(int i321, int i322)
     {
         IncludeOuterIntergerStructSequential s10 = new IncludeOuterIntergerStructSequential();
@@ -686,9 +698,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for S11 struct
+#region methods for S11 struct
     unsafe public static void PrintS11(S11 str1, string name)
     {
         Console.WriteLine("\t{0}.i32 = {1}", name, (int)(str1.i32));
@@ -715,9 +727,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for U struct
+#region methods for U struct
     public static U NewU(int i32, uint ui32, IntPtr iPtr, UIntPtr uiPtr, short s, ushort us, byte b, sbyte sb, long l, ulong ul, float f, double d)
     {
         U u = new U();
@@ -768,9 +780,9 @@ public class Helper
         Console.WriteLine("\tPASSED!");
         return true;
     }
-    #endregion
+#endregion
     
-    #region methods for ByteStructPack2Explicit struct
+#region methods for ByteStructPack2Explicit struct
     public static ByteStructPack2Explicit NewByteStructPack2Explicit(byte b1, byte b2)
     {
         ByteStructPack2Explicit u1 = new ByteStructPack2Explicit();
@@ -801,9 +813,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for ShortStructPack4Explicit struct
+#region methods for ShortStructPack4Explicit struct
     public static ShortStructPack4Explicit NewShortStructPack4Explicit(short s1, short s2)
     {
         ShortStructPack4Explicit u2 = new ShortStructPack4Explicit();
@@ -834,9 +846,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
-    #region methods for IntStructPack8Explicit struct
+#region methods for IntStructPack8Explicit struct
     public static IntStructPack8Explicit NewIntStructPack8Explicit(int i1, int i2)
     {
         IntStructPack8Explicit u3 = new IntStructPack8Explicit();
@@ -867,9 +879,9 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
  
-    #region methods for LongStructPack16Explicit struct
+#region methods for LongStructPack16Explicit struct
     public static LongStructPack16Explicit NewLongStructPack16Explicit(long l1, long l2)
     {
         LongStructPack16Explicit u4 = new LongStructPack16Explicit();
@@ -900,6 +912,6 @@ public class Helper
             return true;
         }
     }
-    #endregion
+#endregion
     
 }

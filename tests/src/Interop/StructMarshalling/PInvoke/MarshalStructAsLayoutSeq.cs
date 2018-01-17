@@ -55,7 +55,7 @@ public class Managed
         RunMarshalSeqStructAsParamByRefOut();
         RunMarshalSeqStructAsParamByValInOut();
         RunMarshalSeqStructAsParamByRefInOut();
-        
+
         if (failures > 0)
         {
             Console.WriteLine("\nTEST FAILED!");
@@ -114,7 +114,11 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn3([In] ref CharSetAnsiSequential str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut3([In, Out] CharSetAnsiSequential str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut3([Out] CharSetAnsiSequential str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut3(out CharSetAnsiSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal3")]
@@ -163,14 +167,14 @@ public class Managed
     static extern bool MarshalStructAsParam_AsSeqByVal7(S3 str1);
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRef7(ref S3 str1);
-    [DllImport("MarshalStructAsParam",EntryPoint = "MarshalStructAsParam_AsSeqByVal7")]
+    [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal7")]
     static extern bool MarshalStructAsParam_AsSeqByValIn7([In] S3 str1);
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn7([In] ref S3 str1);
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut7(out S3 str1);
-    [DllImport("MarshalStructAsParam",EntryPoint = "MarshalStructAsParam_AsSeqByRef7")]
-    static extern bool MarshalStructAsParam_AsSeqByRefInOut7([In,Out] ref S3 str1);
+    [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef7")]
+    static extern bool MarshalStructAsParam_AsSeqByRefInOut7([In, Out] ref S3 str1);
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByValOut7([Out] S3 str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal7")]
@@ -204,7 +208,11 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn9([In] ref StringStructSequentialAnsi str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut9([In, Out] StringStructSequentialAnsi str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut9([Out] StringStructSequentialAnsi str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut9(out StringStructSequentialAnsi str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal9")]
@@ -222,7 +230,11 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn10([In] ref StringStructSequentialUnicode str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut10([In, Out] StringStructSequentialUnicode str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut10([Out] StringStructSequentialUnicode str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut10(out StringStructSequentialUnicode str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal10")]
@@ -240,7 +252,11 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn11([In] ref S8 str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut11([In, Out] S8 str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut11([Out] S8 str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut11(out S8 str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal11")]
@@ -258,15 +274,19 @@ public class Managed
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef12")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn12([In] ref S9 str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut12([In, Out] S9 str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut12([Out] S9 str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut12(out S9 str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal12")]
     static extern bool MarshalStructAsParam_AsSeqByValInOut12([In, Out] S9 str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef12")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut12([In, Out] ref S9 str1);
-    #endregion
-    #region Struct with Layout Sequential scenario12
+#endregion
+#region Struct with Layout Sequential scenario12
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByVal13(IncludeOuterIntergerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
@@ -276,15 +296,19 @@ public class Managed
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefIn13([In] ref IncludeOuterIntergerStructSequential str1);
     [DllImport("MarshalStructAsParam")]
+#if USE_CLASS_INSTEAD_OF_STRUCT
+    static extern bool MarshalStructAsParam_AsSeqByValOut13([In, Out] IncludeOuterIntergerStructSequential str1);
+#else
     static extern bool MarshalStructAsParam_AsSeqByValOut13([Out] IncludeOuterIntergerStructSequential str1);
+#endif
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByRefOut13(out IncludeOuterIntergerStructSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal13")]
     static extern bool MarshalStructAsParam_AsSeqByValInOut13([In, Out] IncludeOuterIntergerStructSequential str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef13")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut13([In, Out] ref IncludeOuterIntergerStructSequential str1);
-    #endregion
-    #region Struct with Layout Sequential scenario13
+#endregion
+#region Struct with Layout Sequential scenario13
     [DllImport("MarshalStructAsParam")]
     static extern bool MarshalStructAsParam_AsSeqByVal14(S11 str1);
     [DllImport("MarshalStructAsParam")]
@@ -301,9 +325,9 @@ public class Managed
     static extern bool MarshalStructAsParam_AsSeqByValInOut14([In, Out] S11 str1);
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef14")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut14([In, Out] ref S11 str1);
-    #endregion
+#endregion
 
-    #region Marshal struct method in PInvoke
+#region Marshal struct method in PInvoke
     [SecuritySafeCritical]
     unsafe private static void MarshalStructAsParam_AsSeqByVal(StructID id)
     {
@@ -381,10 +405,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByVal6.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateNumberSequential(source_ns, clone_ns, "MarshalStructAsParam_AsSeqByVal6"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -491,6 +517,7 @@ public class Managed
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByVal13...");
                     if (!MarshalStructAsParam_AsSeqByVal13(sourceIncludeOuterIntergerStructSequential))
                     {
@@ -501,6 +528,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
@@ -512,10 +540,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByVal14.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS11(sourceS11, cloneS11, "MarshalStructAsParam_AsSeqByVal14"))
                     {
                         failures++;
                     }
+#endif
                     break;
 
                 default:
@@ -558,6 +588,7 @@ public class Managed
                     InnerArraySequential source_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
                     InnerArraySequential change_ias = Helper.NewInnerArraySequential(77, 77.0F, "changed string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef2...");
                     if (!MarshalStructAsParam_AsSeqByRef2(ref source_ias))
                     {
@@ -567,11 +598,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
                     CharSetAnsiSequential changeStr1 = Helper.NewCharSetAnsiSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef3...");
                     if (!MarshalStructAsParam_AsSeqByRef3(ref source_csas))
                     {
@@ -582,11 +615,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
                     CharSetUnicodeSequential change_csus = Helper.NewCharSetUnicodeSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef4...");
                     if (!MarshalStructAsParam_AsSeqByRef4(ref source_csus))
                     {
@@ -597,11 +632,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
                     NumberSequential change_ns = Helper.NewNumberSequential(0, 32, 0, 16, 0, 8, 0, 16, 0, 64, 64.0F, 6.4);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef6...");
                     if (!MarshalStructAsParam_AsSeqByRef6(ref source_ns))
                     {
@@ -612,6 +649,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -655,6 +693,7 @@ public class Managed
                     StringStructSequentialAnsi source_sssa = Helper.NewStringStructSequentialAnsi(strOne, strTwo);
                     StringStructSequentialAnsi change_sssa = Helper.NewStringStructSequentialAnsi(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef9...");
                     if (!MarshalStructAsParam_AsSeqByRef9(ref source_sssa))
                     {
@@ -665,6 +704,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialUnicodeId:
                     strOne = new String('a', 256);
@@ -672,6 +712,7 @@ public class Managed
                     StringStructSequentialUnicode source_sssu = Helper.NewStringStructSequentialUnicode(strOne, strTwo);
                     StringStructSequentialUnicode change_sssu = Helper.NewStringStructSequentialUnicode(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef10...");
                     if (!MarshalStructAsParam_AsSeqByRef10(ref source_sssu))
                     {
@@ -682,11 +723,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S8Id:
                     S8 sourceS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
                     S8 changeS8 = Helper.NewS8("world", false, 1, 256, 256, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef11...");
                     if (!MarshalStructAsParam_AsSeqByRef11(ref sourceS8))
                     {
@@ -697,11 +740,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
                     S9 changeS9 = Helper.NewS9(256, null);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef12...");
                     if (!MarshalStructAsParam_AsSeqByRef12(ref sourceS9))
                     {
@@ -712,11 +757,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef13...");
                     if (!MarshalStructAsParam_AsSeqByRef13(ref sourceIncludeOuterIntergerStructSequential))
                     {
@@ -727,11 +774,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
                     S11 changeS11 = Helper.NewS11((int*)(32), 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRef14...");
                     if (!MarshalStructAsParam_AsSeqByRef14(ref sourceS11))
                     {
@@ -742,6 +791,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -833,10 +883,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValIn6.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateNumberSequential(source_ns, clone_ns, "MarshalStructAsParam_AsSeqByValIn6"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -942,6 +994,7 @@ public class Managed
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValIn13...");
                     if (!MarshalStructAsParam_AsSeqByValIn13(sourceIncludeOuterIntergerStructSequential))
                     {
@@ -952,6 +1005,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
@@ -963,10 +1017,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValIn14.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS11(sourceS11, cloneS11, "MarshalStructAsParam_AsSeqByValIn14"))
                     {
                         failures++;
                     }
+#endif
                     break;
 
                 default:
@@ -1008,6 +1064,7 @@ public class Managed
                     InnerArraySequential source_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
                     InnerArraySequential clone_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn2...");
                     if (!MarshalStructAsParam_AsSeqByRefIn2(ref source_ias))
                     {
@@ -1018,11 +1075,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
                     CharSetAnsiSequential clone_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn3...");
                     if (!MarshalStructAsParam_AsSeqByRefIn3(ref source_csas))
                     {
@@ -1033,11 +1092,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break; 
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
                     CharSetUnicodeSequential clone_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn4...");
                     if (!MarshalStructAsParam_AsSeqByRefIn4(ref source_csus))
                     {
@@ -1048,11 +1109,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
                     NumberSequential change_ns = Helper.NewNumberSequential(0, 32, 0, 16, 0, 8, 0, 16, 0, 64, 64.0F, 6.4);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn6...");
                     if (!MarshalStructAsParam_AsSeqByRefIn6(ref source_ns))
                     {
@@ -1063,6 +1126,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -1072,6 +1136,7 @@ public class Managed
                     S3 sourceS3 = Helper.NewS3(true, "some string", iarr);
                     S3 cloneS3 = Helper.NewS3(true, "some string", iarr);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn7...");
                     if (!MarshalStructAsParam_AsSeqByRefIn7(ref sourceS3))
                     {
@@ -1082,6 +1147,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S5Id:
                     Enum1 enums = Enum1.e1;
@@ -1089,6 +1155,7 @@ public class Managed
                     S5 sourceS5 = Helper.NewS5(32, "some string", enums);
                     S5 cloneS5 = Helper.NewS5(32, "some string", enumcl);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn8...");
                     if (!MarshalStructAsParam_AsSeqByRefIn8(ref sourceS5))
                     {
@@ -1099,6 +1166,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialAnsiId:
                     strOne = new String('a', 512);
@@ -1106,6 +1174,7 @@ public class Managed
                     StringStructSequentialAnsi source_sssa = Helper.NewStringStructSequentialAnsi(strOne, strTwo);
                     StringStructSequentialAnsi clone_sssa = Helper.NewStringStructSequentialAnsi(strOne, strTwo);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn9...");
                     if (!MarshalStructAsParam_AsSeqByRefIn9(ref source_sssa))
                     {
@@ -1116,6 +1185,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialUnicodeId:
                     strOne = new String('a', 256);
@@ -1123,6 +1193,7 @@ public class Managed
                     StringStructSequentialUnicode source_sssu = Helper.NewStringStructSequentialUnicode(strOne, strTwo);
                     StringStructSequentialUnicode clone_sssu = Helper.NewStringStructSequentialUnicode(strOne, strTwo);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn10...");
                     if (!MarshalStructAsParam_AsSeqByRefIn10(ref source_sssu))
                     {
@@ -1133,11 +1204,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S8Id:
                     S8 sourceS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
                     S8 cloneS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn11...");
                     if (!MarshalStructAsParam_AsSeqByRefIn11(ref sourceS8))
                     {
@@ -1148,11 +1221,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
                     S9 cloneS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn12...");
                     if (!MarshalStructAsParam_AsSeqByRefIn12(ref sourceS9))
                     {
@@ -1163,11 +1238,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn13...");
                     if (!MarshalStructAsParam_AsSeqByRefIn13(ref sourceIncludeOuterIntergerStructSequential))
                     {
@@ -1178,11 +1255,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
                     S11 changeS11 = Helper.NewS11((int*)(32), 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefIn14...");
                     if (!MarshalStructAsParam_AsSeqByRefIn14(ref sourceS11))
                     {
@@ -1193,6 +1272,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -1218,6 +1298,7 @@ public class Managed
                     InnerSequential source_is = Helper.NewInnerSequential(1, 1.0F, "some string");
                     InnerSequential clone_is = Helper.NewInnerSequential(1, 1.0F, "some string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut...");
                     if (!MarshalStructAsParam_AsSeqByValOut(source_is))
                     {
@@ -1228,11 +1309,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.InnerArraySequentialId:
                     InnerArraySequential source_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
                     InnerArraySequential clone_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut2...");
                     if (!MarshalStructAsParam_AsSeqByValOut2(source_ias))
                     {
@@ -1243,11 +1326,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
                     CharSetAnsiSequential clone_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut3...");
                     if (!MarshalStructAsParam_AsSeqByValOut3(source_csas))
                     {
@@ -1258,11 +1343,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
                     CharSetUnicodeSequential clone_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut4...");
                     if (!MarshalStructAsParam_AsSeqByValOut4(source_csus))
                     {
@@ -1273,6 +1360,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
@@ -1369,10 +1457,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValOut11.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS8(sourceS8, cloneS8, "MarshalStructAsParam_AsSeqByValOut11"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
@@ -1384,15 +1474,18 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValOut12.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS9(sourceS9, cloneS9, "MarshalStructAsParam_AsSeqByValOut12"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValOut13...");
                     if (!MarshalStructAsParam_AsSeqByValOut13(sourceIncludeOuterIntergerStructSequential))
                     {
@@ -1403,6 +1496,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)32, 32);
@@ -1414,10 +1508,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValOut14.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS11(sourceS11, cloneS11, "MarshalStructAsParam_AsSeqByValOut14"))
                     {
                         failures++;
                     }
+#endif
                     break;   
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -1459,6 +1555,7 @@ public class Managed
                     InnerArraySequential source_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
                     InnerArraySequential change_ias = Helper.NewInnerArraySequential(77, 77.0F, "changed string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut2...");
                     if (!MarshalStructAsParam_AsSeqByRefOut2(out source_ias))
                     {
@@ -1469,11 +1566,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
                     CharSetAnsiSequential changeStr1 = Helper.NewCharSetAnsiSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut3...");
                     if (!MarshalStructAsParam_AsSeqByRefOut3(out source_csas))
                     {
@@ -1484,11 +1583,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
                     CharSetUnicodeSequential change_csus = Helper.NewCharSetUnicodeSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut4...");
                     if (!MarshalStructAsParam_AsSeqByRefOut4(out source_csus))
                     {
@@ -1499,11 +1600,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
                     NumberSequential change_ns = Helper.NewNumberSequential(0, 32, 0, 16, 0, 8, 0, 16, 0, 64, 64.0F, 6.4);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut6...");
                     if (!MarshalStructAsParam_AsSeqByRefOut6(out source_ns))
                     {
@@ -1514,6 +1617,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -1557,6 +1661,7 @@ public class Managed
                     StringStructSequentialAnsi source_sssa = Helper.NewStringStructSequentialAnsi(strOne, strTwo);
                     StringStructSequentialAnsi change_sssa = Helper.NewStringStructSequentialAnsi(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut9...");
                     if (!MarshalStructAsParam_AsSeqByRefOut9(out source_sssa))
                     {
@@ -1567,6 +1672,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialUnicodeId:
                     strOne = new String('a', 256);
@@ -1574,6 +1680,7 @@ public class Managed
                     StringStructSequentialUnicode source_sssu = Helper.NewStringStructSequentialUnicode(strOne, strTwo);
                     StringStructSequentialUnicode change_sssu = Helper.NewStringStructSequentialUnicode(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut10...");
                     if (!MarshalStructAsParam_AsSeqByRefOut10(out source_sssu))
                     {
@@ -1584,11 +1691,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S8Id:
                     S8 sourceS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
                     S8 changeS8 = Helper.NewS8("world", false, 1, 256, 256, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut11...");
                     if (!MarshalStructAsParam_AsSeqByRefOut11(out sourceS8))
                     {
@@ -1599,10 +1708,12 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut12...");
                     if (!MarshalStructAsParam_AsSeqByRefOut12(out sourceS9))
                     {
@@ -1618,11 +1729,13 @@ public class Managed
                     {
                         Console.WriteLine("\tPASSED!");
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_OUT_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut13...");
                     if (!MarshalStructAsParam_AsSeqByRefOut13(out sourceIncludeOuterIntergerStructSequential))
                     {
@@ -1633,11 +1746,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
                     S11 changeS11 = Helper.NewS11((int*)(32), 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefOut14...");
                     if (!MarshalStructAsParam_AsSeqByRefOut14(out sourceS11))
                     {
@@ -1648,6 +1763,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;  
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -1694,10 +1810,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut2.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateInnerArraySequential(source_ias, clone_ias, "MarshalStructAsParam_AsSeqByValInOut2"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
@@ -1709,10 +1827,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut3.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateCharSetAnsiSequential(source_csas, clone_csas, "MarshalStructAsParam_AsSeqByValInOut3"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
@@ -1724,10 +1844,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut4.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateCharSetUnicodeSequential(source_csus, clone_csus, "MarshalStructAsParam_AsSeqByValInOut4"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
@@ -1739,10 +1861,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut6.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateNumberSequential(source_ns, clone_ns, "MarshalStructAsParam_AsSeqByValInOut6"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -1792,10 +1916,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut9.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateStringStructSequentialAnsi(source_sssa, clone_sssa, "MarshalStructAsParam_AsSeqByValInOut9"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialUnicodeId:
                     strOne = new String('a', 256);
@@ -1809,10 +1935,12 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut10.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateStringStructSequentialUnicode(source_sssu, clone_sssu, "MarshalStructAsParam_AsSeqByValInOut10"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S8Id:
                     S8 sourceS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
@@ -1824,15 +1952,18 @@ public class Managed
                         Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByValInOut11.Expected:True;Actual:False");
                         failures++;
                     }
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     if (!Helper.ValidateS8(sourceS8, cloneS8, "MarshalStructAsParam_AsSeqByValInOut11"))
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
                     S9 cloneS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValInOut12...");
                     if (!MarshalStructAsParam_AsSeqByValInOut12(sourceS9))
                     {
@@ -1843,11 +1974,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential cloneIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_COMPLEX_NESTED_SEQUENTIAL_CLASS_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValInOut13...");
                     if (!MarshalStructAsParam_AsSeqByValInOut13(sourceIncludeOuterIntergerStructSequential))
                     {
@@ -1858,11 +1991,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
                     S11 cloneS11 = Helper.NewS11((int*)new Int64(), 32);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_CLASS_SEQUENTIAL_BY_VAL_MARSHALLING_MAY_CHANGE_VALUE
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByValInOut14...");
                     if (!MarshalStructAsParam_AsSeqByValInOut14(sourceS11))
                     {
@@ -1873,6 +2008,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -1899,6 +2035,7 @@ public class Managed
                     InnerSequential source_is = Helper.NewInnerSequential(1, 1.0F, "some string");
                     InnerSequential change_is = Helper.NewInnerSequential(77, 77.0F, "changed string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut(ref source_is))
                     {
@@ -1909,11 +2046,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.InnerArraySequentialId:
                     InnerArraySequential source_ias = Helper.NewInnerArraySequential(1, 1.0F, "some string");
                     InnerArraySequential change_ias = Helper.NewInnerArraySequential(77, 77.0F, "changed string");
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut2...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut2(ref source_ias))
                     {
@@ -1924,11 +2063,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetAnsiSequentialId:
                     CharSetAnsiSequential source_csas = Helper.NewCharSetAnsiSequential("some string", 'c');
                     CharSetAnsiSequential changeStr1 = Helper.NewCharSetAnsiSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut3...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut3(ref source_csas))
                     {
@@ -1939,11 +2080,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.CharSetUnicodeSequentialId:
                     CharSetUnicodeSequential source_csus = Helper.NewCharSetUnicodeSequential("some string", 'c');
                     CharSetUnicodeSequential change_csus = Helper.NewCharSetUnicodeSequential("change string", 'n');
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut4...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut4(ref source_csus))
                     {
@@ -1954,11 +2097,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.NumberSequentialId:
                     NumberSequential source_ns = Helper.NewNumberSequential(Int32.MinValue, UInt32.MaxValue, short.MinValue, ushort.MaxValue, byte.MinValue, sbyte.MaxValue, Int16.MinValue, UInt16.MaxValue, -1234567890, 1234567890, 32.0F, 3.2);
                     NumberSequential change_ns = Helper.NewNumberSequential(0, 32, 0, 16, 0, 8, 0, 16, 0, 64, 64.0F, 6.4);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut6...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut6(ref source_ns))
                     {
@@ -1969,6 +2114,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S3Id:
                     int[] iarr = new int[256];
@@ -1978,6 +2124,7 @@ public class Managed
                     S3 sourceS3 = Helper.NewS3(true, "some string", iarr);
                     S3 changeS3 = Helper.NewS3(false, "change string", icarr);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut7...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut7(ref sourceS3))
                     {
@@ -1988,6 +2135,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S5Id:
                     Enum1 enums = Enum1.e1;
@@ -1995,6 +2143,7 @@ public class Managed
                     S5 sourceS5 = Helper.NewS5(32, "some string", enums);
                     S5 changeS5 = Helper.NewS5(64, "change string", enumch);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut8...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut8(ref sourceS5))
                     {
@@ -2005,6 +2154,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialAnsiId:
                     strOne = new String('a', 512);
@@ -2012,6 +2162,7 @@ public class Managed
                     StringStructSequentialAnsi source_sssa = Helper.NewStringStructSequentialAnsi(strOne, strTwo);
                     StringStructSequentialAnsi change_sssa = Helper.NewStringStructSequentialAnsi(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut9...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut9(ref source_sssa))
                     {
@@ -2022,6 +2173,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.StringStructSequentialUnicodeId:
                     strOne = new String('a', 256);
@@ -2029,6 +2181,7 @@ public class Managed
                     StringStructSequentialUnicode source_sssu = Helper.NewStringStructSequentialUnicode(strOne, strTwo);
                     StringStructSequentialUnicode change_sssu = Helper.NewStringStructSequentialUnicode(strTwo, strOne);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut10...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut10(ref source_sssu))
                     {
@@ -2039,11 +2192,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S8Id:
                     S8 sourceS8 = Helper.NewS8("hello", true, 10, 128, 128, 32);
                     S8 changeS8 = Helper.NewS8("world", false, 1, 256, 256, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut11...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut11(ref sourceS8))
                     {
@@ -2054,11 +2209,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S9Id:
                     S9 sourceS9 = Helper.NewS9(128, new TestDelegate1(testMethod));
                     S9 changeS9 = Helper.NewS9(256, null);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut12...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut12(ref sourceS9))
                     {
@@ -2069,11 +2226,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.IncludeOuterIntergerStructSequentialId:
                     IncludeOuterIntergerStructSequential sourceIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(32, 32);
                     IncludeOuterIntergerStructSequential changeIncludeOuterIntergerStructSequential = Helper.NewIncludeOuterIntergerStructSequential(64, 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut13...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut13(ref sourceIncludeOuterIntergerStructSequential))
                     {
@@ -2084,11 +2243,13 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 case StructID.S11Id:
                     S11 sourceS11 = Helper.NewS11((int*)new Int32(), 32);
                     S11 changeS11 = Helper.NewS11((int*)(32), 64);
 
+#if !USE_CLASS_INSTEAD_OF_STRUCT || _BUG_NO_REF_MARSHALING_FOR_SEQUENTIAL_CLASS
                     Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByRefInOut14...");
                     if (!MarshalStructAsParam_AsSeqByRefInOut14(ref sourceS11))
                     {
@@ -2099,6 +2260,7 @@ public class Managed
                     {
                         failures++;
                     }
+#endif
                     break;    
                 default:
                     Console.WriteLine("\tThere is not the struct id");
@@ -2112,7 +2274,7 @@ public class Managed
             failures++;
         }
     }
-    #endregion
+#endregion
 
     [SecuritySafeCritical]
     private static void RunMarshalSeqStructAsParamByVal()
@@ -2300,4 +2462,3 @@ public class Managed
 }
 
 
-   
