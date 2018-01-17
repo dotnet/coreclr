@@ -5,6 +5,8 @@
  #define KNOWN_EVENT(name, provider, level, keyword)
 #endif // KNOWN_EVENT
 
+KNOWN_EVENT(GCAllocationTick_V3, GCEventProvider_Default, GCEventLevel_Verbose, GCEventKeyword_GC)
+
 #ifndef DYNAMIC_EVENT
  #define DYNAMIC_EVENT(name, provider, level, keyword, ...)
 #endif // DYNAMIC_EVENT

@@ -9,7 +9,12 @@
 
 class GCToCLREventSink : public IGCToCLREventSink
 {
-    /* [LOCALGC TODO] This will be filled with events as they get ported */
+public:
+    void FireGCAllocationTick_V3(
+        uint64_t allocationAmount,
+        AllocationKind kind,
+        uint32_t heapIndex,
+        void* address);
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;

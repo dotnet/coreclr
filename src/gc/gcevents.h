@@ -53,11 +53,23 @@ class GCDynamicEvent : public GCEventBase
 
 } // namespace gc_events
 
+#if FEATURE_EVENT_TRACE
 #define KNOWN_EVENT(name, _provider, _level, _keyword)   \
   extern gc_events::GCKnownEvent name##EventDescriptor;
 #include "gcevents.def"
 
-#define EVENT_ENABLED(name) \
-  name##EventDescriptor.IsEnabled()
+#define EVENT_ENABLED(name) name##EventDescriptor.IsEnabled()
+#define FIRE_EVENT(name, ...)                               \
+  do {                                                      \
+    IGCToCLREventSink* sink = GCToEEInterface::EventSink(); \
+    assert(sink != nullptr);                                \
+    sink->Fire##name(__VA_ARGS__);                          \
+  } while(0)
+
+#else
+#define EVENT_ENABLED(name) false
+#define FIRE_EVENT(name, ...) 0
+#endif // FEATURE_EVENT_TRACE
+
 
 #endif // __GCEVENTS_H__

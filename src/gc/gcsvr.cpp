@@ -17,6 +17,7 @@
 #include "handletable.h"
 #include "handletable.inl"
 #include "gcenv.inl"
+#include "gcevents.h"
 
 #define SERVER_GC 1
 

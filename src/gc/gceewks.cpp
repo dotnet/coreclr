@@ -12,6 +12,7 @@
 #include "gcscan.h"
 #include "gchandletableimpl.h"
 #include "gceventstatus.h"
+#include "gcevents.h"
 
 #ifdef SERVER_GC
 #undef SERVER_GC

@@ -29,7 +29,7 @@
 #include "gc.h"
 
 // Uncomment this define to print out event state changes to standard error.
-// #define TRACE_GC_EVENT_STATE 1
+#define TRACE_GC_EVENT_STATE 1
 
 /*
  * GCEventProvider represents one of the two providers that the GC can

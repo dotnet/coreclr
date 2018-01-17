@@ -5,9 +5,31 @@
 #ifndef _GCINTERFACE_EE_H_
 #define _GCINTERFACE_EE_H_
 
+// AllocationKind for GCAllocationTick series of events,
+// indicating what kind of allocation occured (LOH or SOH).
+enum AllocationKind
+{
+    AllocationKind_Small = 0,
+    AllocationKind_Large = 1
+};
+
+// This interface provides functions that the GC can use to fire events.
+// Events fired on this interface are split into two categories: "known"
+// events and "dynamic" events. Known events are events that are baked-in
+// to the hosting runtime's event manifest and are part of the GC/EE interface.
+// There is one callback on IGCToCLREventSink for each known event.
+//
+// Dynamic events are constructed at runtime by the GC and are not known
+// to the EE. ([LOCALGC TODO dynamic event implementation])
 class IGCToCLREventSink
 {
-    /* [LOCALGC TODO] This will be filled with events as they get ported */
+public:
+    // Fires the GCAllocationTick_V3 event.
+    virtual void FireGCAllocationTick_V3(
+        uint64_t allocationAmount,
+        AllocationKind kind,
+        uint32_t heapIndex,
+        void* address) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

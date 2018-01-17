@@ -1355,9 +1355,6 @@ protected:
     void handle_failure_for_no_gc();
 
     PER_HEAP
-    void fire_etw_allocation_event (size_t allocation_amount, int gen_number, uint8_t* object_address);
-
-    PER_HEAP
     void fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject);
 
     PER_HEAP
