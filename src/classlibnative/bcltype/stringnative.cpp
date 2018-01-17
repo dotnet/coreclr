@@ -187,6 +187,25 @@ FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32
 }
 FCIMPLEND
 
+FCIMPL2(INT32, COMString::Marvin32HashPtr, WCHAR *pRawStr, INT32 strLen) {
+    FCALL_CONTRACT;
+
+    int iReturnHash = 0;
+
+    if (pRawStr == NULL) {
+        FCThrow(kNullReferenceException);
+    }
+
+    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
+    iReturnHash = GetCurrentNlsHashProvider()->HashString(pRawStr, strLen, TRUE, 0);
+    END_SO_INTOLERANT_CODE;
+
+    FC_GC_POLL_RET();
+
+    return iReturnHash;
+}
+FCIMPLEND
+
 BOOL QCALLTYPE COMString::UseRandomizedHashing() {
     QCALL_CONTRACT;
 

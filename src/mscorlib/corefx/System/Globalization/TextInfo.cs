@@ -406,52 +406,43 @@ namespace System.Globalization
                 throw new ArgumentNullException("str");
             }
 
+            // Do not allocate on the stack if string is empty
+            if (str.Length == 0)
+            {
+                return str.GetHashCode();
+            }
+
             // This code assumes that ASCII casing is safe for whatever context is passed in.
             // this is true today, because we only ever call these methods on Invariant.  It would be ideal to refactor
             // these methods so they were correct by construction and we could only ever use Invariant.
 
-            uint hash = 5381;
-            uint c;
+            // If the string contains Unicode characters or is longer than 250 characters
+            // we allocate on the heap --> slow path.
+            if (!str.IsAscii() || str.Length > 250)
+            {
+               return ToUpper(str).GetHashCode();
+            }
 
-            // Note: We assume that str contains only ASCII characters until
-            // we hit a non-ASCII character to optimize the common case.
+            // For the common case of ascii-only short strings (less than 250 characters) we can allocate on the stack
+            // and upper case the characters.
+            char* charArr = stackalloc char[str.Length];
+            char c;
+
             for (int i = 0; i < str.Length; i++)
             {
                 c = str[i];
-                if (c >= 0x80)
-                {
-                    return GetCaseInsensitiveHashCodeSlow(str);
-                }
 
                 // If we have a lowercase character, ANDing off 0x20
                 // will make it an uppercase character.
                 if ((c - 'a') <= ('z' - 'a'))
                 {
-                    c = (uint)((int)c & ~0x20);
+                    c = (char)(c & ~0x20);
                 }
 
-                hash = ((hash << 5) + hash) ^ c;
+                charArr[i] = c;
             }
 
-            return (int)hash;
-        }
-
-        private unsafe int GetCaseInsensitiveHashCodeSlow(String str)
-        {
-            Contract.Assert(str != null);
-
-            string upper = ToUpper(str);
-
-            uint hash = 5381;
-            uint c;
-
-            for (int i = 0; i < upper.Length; i++)
-            {
-                c = upper[i];
-                hash = ((hash << 5) + hash) ^ c;
-            }
-
-            return (int)hash;
+            return String.InternalMarvin32HashPtr(charArr, str.Length);
         }
     }
 }
