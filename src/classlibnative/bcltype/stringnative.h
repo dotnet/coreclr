@@ -91,6 +91,7 @@ public:
 
 #ifdef FEATURE_RANDOMIZED_STRING_HASHING
     static FCDECL3(INT32, Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen, INT64 additionalEntropy);
+    static FCDECL2(INT32, Marvin32HashPtr, WCHAR *pRawStr, INT32 strLen);
     static BOOL QCALLTYPE UseRandomizedHashing();
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
 
