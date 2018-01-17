@@ -28,6 +28,8 @@ public struct Knob
     public string DefaultValue;
     public string Description;
     public string Flags;
+    public int Line;
+    public string File;
 
     public string Name
     {
@@ -65,6 +67,8 @@ public struct Knob
         }
     }
 
+    public string Location => $"{File}:{Line}";
+
     private const string StringType = "STRING";
     private const string DWORD_Type = "DWORD";
     private const string SpaceSeparatedValues = "SSV";
@@ -81,7 +85,7 @@ public struct Knob
         LookupOptions
     }
 
-    public Knob(string line, bool isRetail, bool isClrConfigFile, StreamReader reader, out string nextLine)
+    public Knob(string line, bool isRetail, bool isClrConfigFile, StreamReader reader, ref int lineNum, out string nextLine)
     {
         nextLine = null;
 
@@ -94,6 +98,8 @@ public struct Knob
         DefaultValue = String.Empty;
         Description = String.Empty;
         Flags = String.Empty;
+        Line = -1;
+        File = isClrConfigFile ? "clrconfigvalues.h" : "jitconfigvalues.h";
 
         string[] parts0 = null;
         string[] parts1 = null;
@@ -196,6 +202,7 @@ public struct Knob
                 if (description.Length > 0)
                 {
                     nextLine = reader.ReadLine();
+                    lineNum++;
                     while (nextLine != null)
                     {
                         var workLine = nextLine.Trim();
@@ -203,6 +210,7 @@ public struct Knob
                         {
                             description += workLine.Substring(2).TrimEnd();
                             nextLine = reader.ReadLine();
+                            lineNum++;
                         }
                         else
                         {
@@ -304,7 +312,7 @@ public struct Knob
 
     public override string ToString()
     {
-        return $"{{Knob: Name: {Name}, Retail: {Retail}, Class: {Class}, Type: {Type}, DefaultValue: {DefaultValue}, Description: {Description}, Flags: {Flags}}}";
+        return $"{{Knob: Name: {Name}, Category: {Category}, Retail: {Retail}, Class: {Class}, Type: {Type}, DefaultValue: {DefaultValue}, Description: {Description}, Flags: {Flags}, Location: {File}:{Line}}}";
     }
 }
 
@@ -315,6 +323,7 @@ public static void ParseConfigFile(string filePath, bool isClrConfigFile, Sorted
         SortedDictionary<string, Knob> knobsDictionary = null;
         string currentCategory = null;
 
+        int lineNumber = 1;
         string line = clrReader.ReadLine();
         while (line != null)
         {
@@ -323,12 +332,20 @@ public static void ParseConfigFile(string filePath, bool isClrConfigFile, Sorted
 
             if (line.StartsWith("CONFIG_", StringComparison.Ordinal) || (isRetail = line.StartsWith("RETAIL_CONFIG_", StringComparison.Ordinal)))
             {
-                var clrKnob = new Knob(line, isRetail, isClrConfigFile, clrReader, out nextLine);
+                var clrKnob = new Knob(line, isRetail, isClrConfigFile, clrReader, ref lineNumber, out nextLine);
                 clrKnob.Category = currentCategory;
-
+                clrKnob.Line = lineNumber;
                 if (!knobsDictionary.ContainsKey(clrKnob.Name))
                 {
                     knobsDictionary.Add(clrKnob.Name, clrKnob);
+                }
+                else
+                {
+                    Knob dupKnob = knobsDictionary[clrKnob.Name];
+                    if (dupKnob.File != clrKnob.File && !dupKnob.Retail)
+                    {
+                        WriteLine($"Duplicate: {dupKnob.Location} {dupKnob.Name} -> {clrKnob.Location} {clrKnob.Name}");
+                    }
                 }
             }
             else if (line.StartsWith("///", StringComparison.Ordinal) && (line = line.Trim()).Length > 3)
@@ -354,6 +371,7 @@ public static void ParseConfigFile(string filePath, bool isClrConfigFile, Sorted
             else
             {
                 line = clrReader.ReadLine();
+                lineNumber++;
             }
         }
     }
@@ -380,7 +398,7 @@ public static class ConfigKnobsDoc
         "## Environment/Registry Configuration Knobs\n";
 
     public static string ClrConfigSectionInfo =
-        "This table was machine-generated from commit [GIT_SHORT_HASH](https://github.com/dotnet/coreclr/commit/GIT_LONG_HASH) on DATE_CREATED. It might be out of date.\n";
+        "This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [GIT_SHORT_HASH](https://github.com/dotnet/coreclr/commit/GIT_LONG_HASH) on DATE_CREATED. It might be out of date. To generate latest documentation run `{dotnet} csi clr-configuration-knobs.csx from this file directory.\n";
 
     public static string ClrConfigSectionUsage =
         "When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.\n\nSee also [Setting configuration variables](../building/viewing-jit-dumps.md#setting-configuration-variables) for more information.\n";
@@ -409,6 +427,9 @@ public static class ConfigKnobsDoc
     public static string WriteFile(SortedDictionary<string, SortedDictionary<string, Knob>> knobs, string filePath = "clr-configuration-knobs.md")
     {
         int count = 0;
+        var hashLong = GetRepoHeadHash();
+        var date = DateTime.UtcNow.ToShortDateString();
+
         using (StreamWriter writer = new StreamWriter(filePath, false, new UTF8Encoding(false)))
         {
             writer.NewLine = "\n";
@@ -421,10 +442,8 @@ public static class ConfigKnobsDoc
 
             writer.WriteLine(ClrConfigSectionHeader);
 
-            var hashLong = GetRepoHeadHash();
-            var date = DateTime.UtcNow.ToShortDateString();
             ClrConfigSectionInfo = ClrConfigSectionInfo.Replace("GIT_LONG_HASH", hashLong);
-            ClrConfigSectionInfo = ClrConfigSectionInfo.Replace("GIT_SHORT_HASH", hashLong.Substring(0, 8));
+            ClrConfigSectionInfo = ClrConfigSectionInfo.Replace("GIT_SHORT_HASH", hashLong.Substring(0, 7));
             ClrConfigSectionInfo = ClrConfigSectionInfo.Replace("DATE_CREATED", date);
 
             writer.WriteLine(ClrConfigSectionInfo);
@@ -460,7 +479,7 @@ public static class ConfigKnobsDoc
                 writer.WriteLine();
             }
         }
-        return $"{count} parsed knobs successfully written";
+        return $"Success: {count} parsed configuration knobs, documentation file {filePath} has been updated: commit {hashLong.Substring(0, 7)} date {date}.";
     }
 
     private static string EscapeMdId(string value)
