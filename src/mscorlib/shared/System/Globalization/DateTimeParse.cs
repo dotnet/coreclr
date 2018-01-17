@@ -3607,15 +3607,15 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             // change the code below.
             if (str.GetNext())
             {
-                if (str.GetChar() == dtfi.AMDesignator[0])
+                if (dtfi.AMDesignator.Length > 0 && str.GetChar() == dtfi.AMDesignator[0])
                 {
                     result = TM.AM;
-                    return (true);
+                    return true;
                 }
-                if (str.GetChar() == dtfi.PMDesignator[0])
+                if (dtfi.PMDesignator.Length > 0 && str.GetChar() == dtfi.PMDesignator[0])
                 {
                     result = TM.PM;
-                    return (true);
+                    return true;
                 }
             }
             return false;
