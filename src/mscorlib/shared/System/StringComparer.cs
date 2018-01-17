@@ -287,7 +287,7 @@ namespace System
 
             if (_ignoreCase)
             {
-                return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
+                return CompareInfo.Invariant.GetHashCode(obj, CompareOptions.OrdinalIgnoreCase);
             }
 
             return obj.GetHashCode();
@@ -363,7 +363,7 @@ namespace System
                 throw new ArgumentNullException(nameof(obj));
 #endif
             }
-            return TextInfo.GetHashCodeOrdinalIgnoreCase(obj);
+            return CompareInfo.Invariant.GetHashCode(obj, CompareOptions.OrdinalIgnoreCase);
         }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
