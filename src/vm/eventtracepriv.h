@@ -312,9 +312,9 @@ private:
 public:
     BulkTypeEventLogger() :
         m_nBulkTypeValueCount(0),
-        m_nBulkTypeValueByteCount(0),
+        m_nBulkTypeValueByteCount(0)
 #ifdef FEATURE_PAL
-        m_pBulkTypeEventBuffer(NULL)
+        , m_pBulkTypeEventBuffer(NULL)
 #endif
     {
         CONTRACTL
