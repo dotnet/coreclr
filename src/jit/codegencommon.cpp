@@ -2811,9 +2811,12 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
 
             noway_assert(failBlk->gtOper == GT_LABEL);
             tgtBlk = failBlk->gtLabel.gtLabBB;
-            noway_assert(
-                tgtBlk ==
-                compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB))->acdDstBlk);
+            Compiler::AddCodeDsc* add =
+                compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB));
+            noway_assert(tgtBlk == add->acdDstBlk);
+#if !FEATURE_FIXED_OUT_ARGS
+            assert(add->acdStkLvlInit || isFramePointerUsed());
+#endif // !FEATURE_FIXED_OUT_ARGS
         }
         else
         {
@@ -2823,6 +2826,9 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
                 compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB));
             PREFIX_ASSUME_MSG((add != nullptr), ("ERROR: failed to find exception throw block"));
             tgtBlk = add->acdDstBlk;
+#if !FEATURE_FIXED_OUT_ARGS
+            assert(add->acdStkLvlInit || isFramePointerUsed());
+#endif // !FEATURE_FIXED_OUT_ARGS
         }
 
         noway_assert(tgtBlk);

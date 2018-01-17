@@ -50,13 +50,6 @@ void StackLevelSetter::DoPhase()
         comp->codeGen->resetWritePhaseForFramePointerRequired();
         comp->codeGen->setFramePointerRequired(true);
     }
-
-#ifdef DEBUG
-    if (!framePointerRequired)
-    {
-        CheckAllEdgesProcessed();
-    }
-#endif
 #endif // !FEATURE_FIXED_OUT_ARGS
     assert(maxStackLevel <= comp->fgGetPtrArgCntMax());
     if (maxStackLevel != comp->fgGetPtrArgCntMax())
@@ -141,6 +134,13 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
             SetThrowHelperBlock(bndsChk->gtThrowKind, block);
         }
         break;
+        case GT_INDEX_ADDR:
+        case GT_ARR_ELEM:
+        case GT_ARR_INDEX:
+        {
+            SetThrowHelperBlock(SCK_RNGCHK_FAIL, block);
+        }
+        break;
 
         case GT_CKFINITE:
         {
@@ -161,8 +161,6 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
 // Notes:
 //   Set framePointerRequired if finds that the block has several incoming edges
 //   with different stack levels.
-//
-//   Decrease acdIncomingEdgesCount when finish processing of the incoming block.
 //
 // Arguments:
 //   kind - the special throw-helper kind;
@@ -190,23 +188,7 @@ void StackLevelSetter::SetThrowHelperBlock(SpecialCodeKind kind, BasicBlock* blo
 #endif // Debug
         add->acdStkLvl = currentStackLevel;
     }
-#ifdef DEBUG
-    add->acdIncomingEdgesCount--;
-#endif // DEBUG
 }
-
-#ifdef DEBUG
-//------------------------------------------------------------------------
-// CheckAllEdgesProcessed: Checks that all incoming edges to throw helper blocks were processed.
-//
-void StackLevelSetter::CheckAllEdgesProcessed()
-{
-    for (Compiler::AddCodeDsc* dsc = comp->fgGetAdditionalCodeDescriptors(); dsc != nullptr; dsc = dsc->acdNext)
-    {
-        assert(dsc->acdIncomingEdgesCount == 0);
-    }
-}
-#endif // DEBUG
 
 #endif // !FEATURE_FIXED_OUT_ARGS
 

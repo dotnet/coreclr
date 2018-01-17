@@ -18205,10 +18205,6 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     if (add) // found it
     {
 #if !FEATURE_FIXED_OUT_ARGS
-#ifdef DEBUG
-        add->acdIncomingEdgesCount++;
-#endif // DEBUG
-
         // If different range checks happen at different stack levels,
         // they can't all jump to the same "call @rngChkFailed" AND have
         // frameless methods, as the rngChkFailed may need to unwind the
@@ -18257,9 +18253,6 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 #if !FEATURE_FIXED_OUT_ARGS
     add->acdStkLvl     = stkDepth;
     add->acdStkLvlInit = false;
-#ifdef DEBUG
-    add->acdIncomingEdgesCount = 1;
-#endif // DEBUG
 #endif // !FEATURE_FIXED_OUT_ARGS
 
     fgAddCodeList = add;

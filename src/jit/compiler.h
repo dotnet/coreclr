@@ -5039,10 +5039,7 @@ public:
 #if !FEATURE_FIXED_OUT_ARGS
         bool     acdStkLvlInit; // has acdStkLvl value been already set?
         unsigned acdStkLvl;
-#ifdef DEBUG
-        unsigned acdIncomingEdgesCount; // unprocessed incoming edges count.
-#endif                                  // DEBUG
-#endif                                  // !FEATURE_FIXED_OUT_ARGS
+#endif // !FEATURE_FIXED_OUT_ARGS
     };
 
 private:
