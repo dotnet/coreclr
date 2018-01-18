@@ -15,7 +15,7 @@ The key things are:
 
 ## Where do I find the code?
 
-The code is splitted into two repositories: [CoreCLR](https://github.com/dotnet/coreclr) and [PerfView](https://github.com/Microsoft/perfview). The core of Event Pipe is implemented in CoreCLR. The most important files are:
+The code is split into two repositories: [CoreCLR](https://github.com/dotnet/coreclr) and [PerfView](https://github.com/Microsoft/perfview). The core of Event Pipe is implemented in CoreCLR. The most important files are:
 
 CoreCLR (the EventPipes are built-in feature of CoreCLR):
 
@@ -97,7 +97,7 @@ In case your CoreCLR changes break the consumer library you need to update the v
 
 Just open the Test Window in Visual Studio and run the test or run from the console:
 
-`dotnet test .\src\TraceEvent\TraceEvent.Tests\TraceEvent.Tests.csproj"
+`dotnet test .\src\TraceEvent\TraceEvent.Tests\TraceEvent.Tests.csproj`
 
 ## How to add new test
 
