@@ -583,27 +583,22 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
 //-----------------------------------------------------------------------------
 HRESULT CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
 {
-    HRESULT hr = S_OK;
+    PUBLIC_API_ENTRY(this);
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
 
-    PUBLIC_API_BEGIN(this);
-    {
-        VMPTR_ILCodeVersionNode vmILCodeVersionNode = VMPTR_ILCodeVersionNode::NullPtr();
-        GetProcess()->GetDAC()->GetActiveRejitILCodeVersionNode(GetModule()->m_vmModule, m_MDToken, &vmILCodeVersionNode);
-        if (!vmILCodeVersionNode.IsNull())
-        {
-            RSSmartPtr<CordbReJitILCode> pCode;
-            IfFailThrow(LookupOrCreateReJitILCode(vmILCodeVersionNode, &pCode));
-            IfFailThrow(pCode->CreateNativeBreakpoint(ppBreakpoint));
-        }
-        else
-        {
-            hr = E_FAIL;
-        }
+    HRESULT hr = S_OK;
+
+    RSExtSmartPtr<CordbILCode> pCode;
+
+    hr = GetILCode(&pCode);
+
+    if (SUCCEEDED(hr))
+    {        
+        hr = pCode->CreateNativeBreakpoint(ppBreakpoint);
     }
-    PUBLIC_API_END(hr);
+
     return hr;
 }
 

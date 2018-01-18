@@ -5745,6 +5745,8 @@ public:
     HRESULT GetLocalVariableType(DWORD dwIndex, const Instantiation * pInst, CordbType ** ppResultType);
     mdSignature GetLocalVarSigToken();
 
+    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
+
 private:
     // Read the actual bytes of IL code into the data member m_rgbCode.
     // Helper routine for GetCode
@@ -5778,8 +5780,7 @@ protected:
 
 class CordbReJitILCode : public CordbILCode, 
                          public ICorDebugILCode, 
-                         public ICorDebugILCode2, 
-                         public ICorDebugILCode3
+                         public ICorDebugILCode2
 {
 public:
     // Initialize a new CordbILCode instance
@@ -5804,11 +5805,6 @@ public:
     //-----------------------------------------------------------
     COM_METHOD GetLocalVarSigToken(mdSignature *pmdSig);
     COM_METHOD GetInstrumentedILMap(ULONG32 cMap, ULONG32 *pcMap, COR_IL_MAP map[]);
-
-    //-----------------------------------------------------------
-    // ICorDebugILCode3
-    //-----------------------------------------------------------
-    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
     
 private:
     HRESULT Init(DacSharedReJitInfo* pSharedReJitInfo);

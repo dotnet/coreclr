@@ -1998,7 +1998,6 @@ struct MSLAYOUT DebuggerIPCEvent
             SIZE_T       offset;
             SIZE_T       encVersion;
             LSPTR_METHODDESC  nativeCodeMethodDescToken; // points to the MethodDesc if !isIL
-            bool         nativeCodeBindAllVersions;
         } BreakpointData;
 
         struct MSLAYOUT

@@ -4981,10 +4981,13 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
     }
 #endif // DEBUG
 
+    // This is a special mode that sets a breakpoint at native offset 0 on all current and future native code bodies. 
+    // It's indicated by setting nativeCodeBindAllVersions and native=FALSE (i.e. an IL breakpoint).
     if (nativeCodeBindAllVersions && !native && offset == 0)
     {
         bindAcrossAllJittedInstances = TRUE;
         pGenericInstanceFilter = NULL;
+        native = true;
     }
 
     if (!bindAcrossAllJittedInstances)

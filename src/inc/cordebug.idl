@@ -5695,23 +5695,6 @@ interface ICorDebugILCode2 : IUnknown
         [out, size_is(cMap), length_is(*pcMap)] COR_IL_MAP map[]);
 }
 
-[
-    object,
-    local,
-    uuid(340abf6d-47fc-4dde-8598-ba64adad24b8),
-    pointer_default(unique)
-]
-interface ICorDebugILCode3 : IUnknown
-{
-    /*
-     * CreateNativeBreakpoint sets a breakpoint at offset 0 for all native code versions of a method.
-     *
-     */
-
-    HRESULT CreateNativeBreakpoint([out] ICorDebugFunctionBreakpoint **ppBreakpoint);
-}
-
-
 /*
  ICorDebugClass represents a Class (mdTypeDef) in the IL image.
  For generic types, it represents the generic type definition (eg. List<T>) not any of 
