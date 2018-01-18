@@ -6018,7 +6018,7 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
     return hmod;
 }
 
-const int MAX_LIBNAME_VARIATIONS = 4;
+static const int MAX_LIBNAME_VARIATIONS = 4;
 
 static void AddLibNameVariation(const char** libNameVariations, int* numberOfVariations, const char* const variation)
 {
