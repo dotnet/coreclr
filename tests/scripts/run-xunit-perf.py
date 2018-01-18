@@ -214,7 +214,6 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     log(" ".join(runArgs))
 
     error = 0
-    expectedOutputFile = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
     with open(benchnameLogFileName, 'wb') as out:
         proc = subprocess.Popen(' '.join(runArgs), shell=True, stdout=out, stderr=out, env=myEnv)
         proc.communicate()
@@ -249,11 +248,10 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
             warmupRun,
             '--append']
 
-    filename = os.path.join(benchmarkOutputDir, lvRunId + '-' + benchname + '.xml')
-
-    runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
-
-    run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1])
+    files = glob.iglob(os.path.join(benchmarkOutputDir, "*.xml"))
+    for filename in files:
+        runArgs = [python, os.path.join(benchviewPath, 'measurement.py')] + lvMeasurementArgs + [filename]
+        run_command(runArgs, os.environ, 'Call to %s failed' % runArgs[1])
 
 def upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, architecture):
     """ Upload results to benchview
@@ -435,6 +433,7 @@ def main(args):
     myEnv = dict(os.environ)
     myEnv['DOTNET_MULTILEVEL_LOOKUP'] = '0'
     myEnv['UseSharedCompilation'] = 'false'
+    myEnv['CORECLR_REPO'] = coreclrRepo
 
     # Setup directories
     log('Setting up directories')
