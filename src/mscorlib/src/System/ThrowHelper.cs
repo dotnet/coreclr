@@ -226,7 +226,7 @@ namespace System
 
         internal static void ThrowObjectDisposedException_MemoryDisposed()
         {
-            throw new ObjectDisposedException(nameof(OwnedMemory<T>), GetResourceString(ExceptionResource.MemoryDisposed));
+            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.MemoryDisposed));
         }
 
         internal static void ThrowNotSupportedException()
