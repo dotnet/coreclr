@@ -22,13 +22,6 @@ namespace System.IO
         /// it is not safe for being used to index
         /// the string without additional verification.
         /// </remarks>
-        internal static int FindFileNameIndex(string path)
-        {
-            Debug.Assert(path != null);
-
-            return FindFileNameIndex(path.AsReadOnlySpan());
-        }
-
         internal static int FindFileNameIndex(ReadOnlySpan<char> path)
         {
             for (int i = path.Length - 1; i >= 0; i--)

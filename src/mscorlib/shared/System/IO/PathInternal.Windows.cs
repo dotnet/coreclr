@@ -116,7 +116,7 @@ namespace System.IO
         /// <summary>
         /// Returns true if the path uses any of the DOS device path syntaxes. ("\\.\", "\\?\", or "\??\")
         /// </summary>
-        internal static bool IsDevice(string path)
+        internal static bool IsDevice(ReadOnlySpan<char> path)
         {
             // If the path begins with any two separators is will be recognized and normalized and prepped with
             // "\??\" for internal usage correctly. "\??\" is recognized and handled, "/??/" is not.
@@ -136,7 +136,7 @@ namespace System.IO
         /// path matches exactly (cannot use alternate directory separators) Windows will skip normalization
         /// and path length checks.
         /// </summary>
-        internal static bool IsExtended(string path)
+        internal static bool IsExtended(ReadOnlySpan<char> path)
         {
             // While paths like "//?/C:/" will work, they're treated the same as "\\.\" paths.
             // Skipping of normalization will *only* occur if back slashes ('\') are used.
@@ -150,7 +150,7 @@ namespace System.IO
         /// <summary>
         /// Check for known wildcard characters. '*' and '?' are the most common ones.
         /// </summary>
-        internal static bool HasWildCardCharacters(string path)
+        internal static bool HasWildCardCharacters(ReadOnlySpan<char> path)
         {
             // Question mark is part of dos device syntax so we have to skip if we are
             int startIndex = IsDevice(path) ? ExtendedPathPrefix.Length : 0;
