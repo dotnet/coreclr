@@ -149,7 +149,7 @@ def run_command(runArgs, environment, errorMessage):
         subprocess.check_output(runArgs, stderr=subprocess.PIPE, env=environment)
     except subprocess.CalledProcessError as e:
         log(e.output.decode('utf-8'))
-        raise RuntimeException(errorMessage);
+        raise RuntimeError(errorMessage);
 
 ##########################################################################
 # Execution Functions
@@ -241,12 +241,13 @@ def generate_results_for_benchview(python, lvRunId, benchname, isScenarioTest, b
         benchviewPath (str): path to benchview tools
     """
     benchviewMeasurementParser = 'xunitscenario' if isScenarioTest else 'xunit'
-    warmupRun = '--drop-first-value' if hasWarmupRun else ''
     lvMeasurementArgs = [benchviewMeasurementParser,
             '--better',
-            better,
-            warmupRun,
-            '--append']
+            better]
+    if hasWarmupRun:
+        lvMeasurementArgs = lvMeasurementArgs + ['--drop-first-value']
+
+    lvMeasurementArgs = lvMeasurementArgs + ['--append']
 
     files = glob.iglob(os.path.join(benchmarkOutputDir, "*.xml"))
     for filename in files:
@@ -421,7 +422,7 @@ def main(args):
     else:
         raise ValueError("Platform %s is not supported" % platform)
 
-    executable = ['cmd.exe', '/c'] if platform == 'Windows_NT' and stabilityPrefix is not None else []
+    executable = ['cmd.exe', '/c'] if platform == 'Windows_NT' else []
 
     coreclrRepo = os.getcwd()
     etwCollection = 'Off' if collectionFlags == 'stopwatch' else 'On'
