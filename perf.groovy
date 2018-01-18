@@ -79,7 +79,7 @@ def static getOSGroup(def os) {
 
                             batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
+                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH /AFFINITY 0x2\""
 
                             // Run with just stopwatch: Profile=Off
                             batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\perflab\\Perflab -library")
@@ -582,7 +582,7 @@ parallel(
 
                             batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH\" -scenarioTest"
+                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH\" -scenarioTest"
 
                             // Profile=Off
                             batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios")
