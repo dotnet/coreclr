@@ -1185,15 +1185,11 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
     {
         if (errorSource == NULL)
         {
-            PrintToStdErrA("FailFast: ");
+            PrintToStdErrA("FailFast:");
         }
-        else if (wcsstr(errorSource, L"Assert"))
+        else 
         {
-            PrintToStdErrA("Assertion Failed:");
-        }
-        else if (wcsstr(errorSource, L"Assume"))
-        {
-            PrintToStdErrA("Assumption Failed:");
+            PrintToStdErrW((WCHAR*)errorSource);
         }
 
         PrintToStdErrA("\n");

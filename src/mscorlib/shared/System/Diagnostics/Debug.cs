@@ -100,7 +100,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, "Assert");
+                s_ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
             }
         }
 
@@ -118,7 +118,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, "Assume");
+                s_ShowDialog(stackTrace, message, detailMessage, "Assumption Failed");
             }
         }
 

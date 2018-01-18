@@ -425,11 +425,16 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 
     WCHAR * errorSourceString = NULL;
 
-    if (errorSource != NULL) {
+    if (errorSource != NULL) 
+    {
         DWORD cchErrorSource = errorSource->GetStringLength();
         errorSourceString = new (nothrow) WCHAR[cchErrorSource + 1];
-        memcpyNoGCRefs(errorSourceString, errorSource->GetBuffer(), cchErrorSource * sizeof(WCHAR));
-        errorSourceString[cchErrorSource] = W('\0');
+
+        if (errorSourceString != NULL) 
+        {
+            memcpyNoGCRefs(errorSourceString, errorSource->GetBuffer(), cchErrorSource * sizeof(WCHAR));
+            errorSourceString[cchErrorSource] = W('\0');
+        }
     }
 
     if (cchMessage < FAIL_FAST_STATIC_BUFFER_LENGTH)
