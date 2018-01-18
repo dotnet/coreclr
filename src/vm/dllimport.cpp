@@ -5809,12 +5809,13 @@ private:
 
     void SetMessage(LPCSTR message)
     {
-        m_message = SString(SString::Utf8, message);
+        SString append_string = SString(SString::Utf8, message);
+        m_message = m_message.Append(append_string);
     }
 
     HRESULT m_hr;
     DWORD   m_priorityOfLastError;
-    SString  m_message;
+    SString  m_message = SString(SString::Utf8, "");
 };  // class LoadLibErrorTracker
 
 //  Local helper function for the LoadLibraryModule function below
