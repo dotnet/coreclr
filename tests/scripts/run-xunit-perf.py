@@ -226,9 +226,6 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
         if os.path.isfile(benchnameLogFileName):
             with open(benchnameLogFileName, 'r') as f:
                 print(f.read())
-        return error
-    elif not os.path.isfile(expectedOutputFile):
-        log("CoreRun.exe failed to generate results in %s." % expectedOutputFile)
         return 1
 
     return 0
