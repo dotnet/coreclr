@@ -5811,7 +5811,7 @@ private:
     {
         SString append_string = SString(SString::Utf8, message);
         SString newline = SString(SString::Utf8, "\n");
-        m_message.Appen(newline);
+        m_message.Append(newline);
         m_message.Append(append_string);
     }
 
