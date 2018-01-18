@@ -6018,53 +6018,61 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
     return hmod;
 }
 
-static const int MAX_LIBNAME_VARIATIONS = 4;
-
-static void AddLibNameVariation(const char** libNameVariations, int* numberOfVariations, const char* const variation)
-{
-    assert(*numberOfVariations < MAX_LIBNAME_VARIATIONS);
-    libNameVariations[*numberOfVariations] = variation;
-    *numberOfVariations = *numberOfVariations + 1;
-}
-
-static void DetermineLibNameVariations(const char** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
-{
-    *numberOfVariations = 0;
 #ifdef FEATURE_PAL
-    // P/Invokes are often declared with variations on the actual library name.
-    // For example, it's common to leave off the extension/suffix of the library
-    // even if it has one, or to leave off a prefix like "lib" even if it has one
-    // (both of these are typically done to smooth over cross-platform differences). 
-    // We try to dlopen with such variations on the original.
-    if (!libNameIsRelativePath)
-    {
-        AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s");       // name
-    }
-    else
+static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+{
+    if (libNameIsRelativePath)
     {
         // We check if the suffix is contained in the name, because on Linux it is common to append
         // a version number to the library name (e.g. 'libicuuc.so.57').
-        SString::CIterator begin = libName.Begin();
-        bool containsSuffix = libName.FindASCII(begin, PAL_SHLIB_SUFFIX);
-        if (containsSuffix)
+        bool containsSuffix;
+        SString::CIterator it = libName.Begin();
+        if (libName.FindASCII(it, PAL_SHLIB_SUFFIX))
         {
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s");   // name
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%s%s%.0s"); // prefix+name
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s%s"); // name+suffix
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%s%s%s");   // prefix+name+suffix
+            it += strlen(PAL_SHLIB_SUFFIX);
+            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
         }
         else
         {
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s%s"); // name+suffix
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%s%s%s");   // prefix+name+suffix
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s");   // name
-            AddLibNameVariation(libNameVariations, numberOfVariations, "%s%s%.0s"); // prefix+name
+            containsSuffix = false;
+        }
+
+        if (containsSuffix)
+        {
+            static const char* const SuffixLast[] =
+            {
+                "%.0s%s",   // name
+                "%s%s%.0s", // prefix+name
+                "%.0s%s%s", // name+suffix
+                "%s%s%s"    // prefix+name+suffix
+            };
+            *libNameVariations = SuffixLast;
+            *numberOfVariations = COUNTOF(SuffixLast);
+        }
+        else
+        {
+            static const char* const SuffixFirst[] =
+            {
+                "%.0s%s%s", // name+suffix
+                "%s%s%s",   // prefix+name+suffix
+                "%.0s%s",   // name
+                "%s%s%.0s"  // prefix+name
+            };
+            *libNameVariations = SuffixFirst;
+            *numberOfVariations = COUNTOF(SuffixFirst);
         }
     }
-#else
-    AddLibNameVariation(libNameVariations, numberOfVariations, "%.0s%s"); // name
-#endif
+    else
+    {
+        static const char* const NameOnly[] =
+        {
+            "%.0s%s"
+        };
+        *libNameVariations = NameOnly;
+        *numberOfVariations = COUNTOF(NameOnly);
+    }
 }
+#endif
 
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
@@ -6131,14 +6139,23 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     DWORD dllImportSearchPathFlag = 0;
-    const char* prefixSuffixCombinations[MAX_LIBNAME_VARIATIONS];
-    int numberOfVariations;
-    DetermineLibNameVariations(prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
+#ifdef FEATURE_PAL
+    // P/Invokes are often declared with variations on the actual library name.
+    // For example, it's common to leave off the extension/suffix of the library
+    // even if it has one, or to leave off a prefix like "lib" even if it has one
+    // (both of these are typically done to smooth over cross-platform differences). 
+    // We try to dlopen with such variations on the original.
+    const char* const* prefixSuffixCombinations = nullptr;
+    int numberOfVariations = 0;
+    DetermineLibNameVariations(&prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
     for (int i = 0; hmod == NULL && i < numberOfVariations; i++)
     {
         SString currLibNameVariation;
         currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
-
+#else
+    {
+        SString& currLibNameVariation = wszLibName;
+#endif
         if (hmod == NULL)
         {
             // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
