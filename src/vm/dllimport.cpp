@@ -6154,7 +6154,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
 #else
     {
-        SString& currLibNameVariation = wszLibName;
+        LPCWSTR currLibNameVariation = wszLibName;
 #endif
         if (hmod == NULL)
         {
