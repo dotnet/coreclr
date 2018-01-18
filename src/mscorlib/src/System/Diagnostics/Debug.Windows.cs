@@ -7,7 +7,7 @@ namespace System.Diagnostics
 {
     public static partial class Debug
     {
-        private static void ShowDialog(string stackTrace, string message, string detailMessage, uint errorSource)
+        private static void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
         {
             if (Debugger.IsAttached)
             {

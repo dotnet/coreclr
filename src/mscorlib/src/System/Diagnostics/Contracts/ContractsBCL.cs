@@ -317,7 +317,6 @@ namespace System.Runtime.CompilerServices
                 displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
             }
 
-            // TODO: https://github.com/dotnet/coreclr/issues/14867
             System.Diagnostics.Debug.Assume(false, displayMessage, string.Empty);
         }
 

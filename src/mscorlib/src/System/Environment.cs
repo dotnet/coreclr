@@ -116,7 +116,7 @@ namespace System
         public static extern void FailFast(String message, Exception exception);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(String message, Exception exception, uint failFromDebug);
+        public static extern void FailFast(String message, Exception exception, String errorMessage);
 
 #if FEATURE_WIN32_REGISTRY
         // This is only used by RegistryKey on Windows.

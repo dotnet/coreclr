@@ -13,7 +13,6 @@ namespace System.Diagnostics
     public static partial class Debug
     {
         private static readonly object s_lock = new object();
-        private enum ErrorSource { Assert=1, Assume }
 
         public static bool AutoFlush { get { return true; } set { } }
 
@@ -94,33 +93,32 @@ namespace System.Diagnostics
                 string stackTrace;
                 try
                 {
-                    stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
+                    stackTrace = new StackTrace(0, true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
                 }
                 catch
                 {
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, (uint)ErrorSource.Assert);
+                s_ShowDialog(stackTrace, message, detailMessage, "Assert");
             }
         }
 
-        [System.Diagnostics.Conditional("DEBUG")]
-        public static void Assume(bool condition, string message, string detailMessage)
+        internal static void Assume(bool condition, string message, string detailMessage)
         {
             if (!condition)
             {
                 string stackTrace;
                 try
                 {
-                    stackTrace = PopStackTrace(Internal.Runtime.Augments.EnvironmentAugments.StackTrace);
+                    stackTrace = new StackTrace(0, true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
                 }
                 catch
                 {
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, (uint)ErrorSource.Assume);
+                s_ShowDialog(stackTrace, message, detailMessage, "Assume");
             }
         }
 
@@ -134,18 +132,6 @@ namespace System.Diagnostics
         public static void Fail(string message, string detailMessage)
         {
             Assert(false, message, detailMessage);
-        }
-        
-        private static string PopStackTrace(string stackTrace)
-        {
-            string newStackTrace="";
-            string[] stackTraceSplit = stackTrace.Split(Environment.NewLine);
-            for (int count = 1; count < stackTraceSplit.Length; count++)
-            {
-                newStackTrace += stackTraceSplit[count];
-                newStackTrace += Environment.NewLine;
-            }
-            return newStackTrace;
         }
 
         private static string FormatAssert(string stackTrace, string message, string detailMessage)
@@ -345,7 +331,7 @@ namespace System.Diagnostics
         }
 
         // internal and not readonly so that the tests can swap this out.
-        internal static Action<string, string, string, uint> s_ShowDialog = ShowDialog;
+        internal static Action<string, string, string, string> s_ShowDialog = ShowDialog;
 
         internal static Action<string> s_WriteCore = WriteCore;
     }

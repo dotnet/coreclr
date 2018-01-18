@@ -1176,22 +1176,22 @@ inline void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, UINT errorSource)
+inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
-        if (errorSource == EEPolicy::FFES_FailFast)
+        if (errorSource == NULL)
         {
             PrintToStdErrA("FailFast: ");
         }
-        else if (errorSource == EEPolicy::FFES_FailFast)
+        else if (wcsstr(errorSource, L"Assert"))
         {
             PrintToStdErrA("Assertion Failed:");
         }
-        else if (errorSource == EEPolicy::FFES_FailFast)
+        else if (wcsstr(errorSource, L"Assume"))
         {
             PrintToStdErrA("Assumption Failed:");
         }
@@ -1200,7 +1200,7 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
         PrintToStdErrW((WCHAR*)pszMessage);
         PrintToStdErrA("\n");
 
-        if (pThread && errorSource == EEPolicy::FFES_FailFast)
+        if (pThread && errorSource == NULL)
         {
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
@@ -1216,7 +1216,7 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
 // Log an error to the event log if possible, then throw up a dialog box.
 //
 
-void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, UINT errorSource)
+void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -1482,7 +1482,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, UINT errorSource /* = 0 */)
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
