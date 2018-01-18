@@ -5810,7 +5810,7 @@ private:
     void SetMessage(LPCSTR message)
     {
         SString append_string = SString(SString::Utf8, message);
-        m_message = m_message.Append(append_string);
+        m_message.Append(append_string);
     }
 
     HRESULT m_hr;
