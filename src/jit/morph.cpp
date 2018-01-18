@@ -3044,7 +3044,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             assert(arg2 != nullptr);
             nonStandardArgs.Add(arg2, REG_LNGARG_HI);
         }
-#else  // !defined(_TARGET_X86_)
+#else  // !_TARGET_X86_
         // TODO-X86-CQ: Currently RyuJIT/x86 passes args on the stack, so this is not needed.
         // If/when we change that, the following code needs to be changed to correctly support the (TBD) managed calling
         // convention for x86/SSE.
@@ -3079,38 +3079,54 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
             nonStandardArgs.Add(cns, REG_PINVOKE_COOKIE_PARAM);
         }
-        else if (call->IsVirtualStub() && (call->gtCallType == CT_INDIRECT) && !call->IsTailCallViaHelper())
+        else if (call->IsVirtualStub())
         {
-            // indirect VSD stubs need the base of the indirection cell to be
-            // passed in addition.  At this point that is the value in gtCallAddr.
-            // The actual call target will be derived from gtCallAddr in call
-            // lowering.
-
-            // If it is a VSD call getting dispatched via tail call helper,
-            // fgMorphTailCall() would materialize stub addr as an additional
-            // parameter added to the original arg list and hence no need to
-            // add as a non-standard arg.
-
-            GenTree* arg = call->gtCallAddr;
-            if (arg->OperIsLocal())
+            if (!call->IsTailCallViaHelper())
             {
-                arg = gtClone(arg, true);
+                // VSD stubs need the base of the indirection cell to be
+                // passed in addition.
+                GenTree* addr;
+                if (call->gtCallType == CT_INDIRECT)
+                {
+                    // For indirect call the indirection cell is the value in gtCallAddr.
+                    // The actual call target will be derived from gtCallAddr in call
+                    // lowering.
+                    addr = call->gtCallAddr;
+                    assert(addr != nullptr);
+                    if (addr->OperIsLocal())
+                    {
+                        addr = gtClone(addr, true);
+                    }
+                    else
+                    {
+                        call->gtCallAddr = fgInsertCommaFormTemp(&addr);
+                        call->gtFlags |= GTF_ASG;
+                    }
+                }
+                else
+                {
+                    void* stubAddr = call->gtStubCallStubAddr;
+                    assert(stubAddr != nullptr);
+                    addr = gtNewIconHandleNode((ssize_t)stubAddr, GTF_ICON_FTN_ADDR);
+                    assert(addr != nullptr);
+                }
+                assert(addr != nullptr);
+                addr->gtRegNum = virtualStubParamInfo->GetReg();
+                // And push the stub address onto the list of arguments
+                call->gtCallArgs = gtNewListNode(addr, call->gtCallArgs);
+                numArgs++;
+                nonStandardArgs.Add(addr, virtualStubParamInfo->GetReg());
             }
             else
             {
-                call->gtCallAddr = fgInsertCommaFormTemp(&arg);
-                call->gtFlags |= GTF_ASG;
+                // If it is a VSD call getting dispatched via tail call helper,
+                // fgMorphTailCall() would materialize stub addr as an additional
+                // parameter added to the original arg list and hence no need to
+                // add as a non-standard arg.
             }
-            noway_assert(arg != nullptr);
-
-            // And push the stub address onto the list of arguments
-            call->gtCallArgs = gtNewListNode(arg, call->gtCallArgs);
-            numArgs++;
-
-            nonStandardArgs.Add(arg, virtualStubParamInfo->GetReg());
         }
         else
-#endif // defined(_TARGET_X86_)
+#endif // !_TARGET_X86_
         if (call->gtCallType == CT_INDIRECT && (call->gtCallCookie != nullptr))
         {
             assert(!call->IsUnmanaged());
@@ -7767,6 +7783,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call)
             call->gtStubCallStubAddr = NULL;
             call->gtCallType         = CT_INDIRECT;
         }
+        arg->gtRegNum = virtualStubParamInfo->GetReg();
         // Add the extra indirection to generate the real target
         call->gtCallAddr = gtNewOperNode(GT_IND, TYP_I_IMPL, call->gtCallAddr);
         call->gtFlags |= GTF_EXCEPT;

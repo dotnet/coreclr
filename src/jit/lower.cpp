@@ -4227,37 +4227,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
 
         if (result == nullptr)
         {
-            GenTree* indir = Ind(addr);
-
-// On x86 we generate this:
-//        call dword ptr [rel32]  ;  FF 15 ---rel32----
-// So we don't use a register.
-#ifndef _TARGET_X86_
-            // on x64 we must materialize the target using specific registers.
-            addr->gtRegNum = comp->virtualStubParamInfo->GetReg();
-
-// On ARM we must use a proper address in R12(thunk register) without dereferencing.
-// So for the jump we use the default register.
-// TODO: specifying register probably unnecessary for other platforms, too.
-#if !defined(_TARGET_UNIX_) && !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_)
-            indir->gtRegNum = REG_JUMP_THUNK_PARAM;
-#elif defined(_TARGET_ARM64_)
-            // Prevent indir->gtRegNum from colliding with addr->gtRegNum
-            indir->gtRegNum = REG_JUMP_THUNK_PARAM;
-
-            // Sanity checks
-            assert(addr->gtRegNum != indir->gtRegNum); // indir and addr registers must be different
-            static_assert_no_msg((RBM_JUMP_THUNK_PARAM & RBM_ARG_REGS) == 0);
-            static_assert_no_msg((RBM_JUMP_THUNK_PARAM & RBM_INT_CALLEE_TRASH) != 0);
-
-#elif defined(_TARGET_ARM_)
-            // TODO-ARM-Cleanup: This is a temporarey hotfix to fix a regression observed in Linux/ARM.
-            if (!comp->IsTargetAbi(CORINFO_CORERT_ABI))
-                indir->gtRegNum = REG_JUMP_THUNK_PARAM;
-#endif
-            indir->gtFlags |= GTF_IND_REQ_ADDR_IN_REG;
-#endif
-            result = indir;
+            result = Ind(addr);
         }
     }
 
