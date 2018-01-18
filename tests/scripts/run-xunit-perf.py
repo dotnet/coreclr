@@ -426,7 +426,7 @@ def main(args):
     else:
         raise ValueError("Platform %s is not supported" % platform)
 
-    executable = ['cmd.exe', '/c'] if platform == 'Windows_NT' else []
+    executable = ['cmd.exe', '/c'] if platform == 'Windows_NT' and stabilityPrefix is not None else []
 
     coreclrRepo = os.getcwd()
     etwCollection = 'Off' if collectionFlags == 'stopwatch' else 'On'
@@ -475,12 +475,13 @@ def main(args):
 
     else:
     # If slice was not specified, run everything in the coreclrPerf directory. Set benchmarks to an empty string
-        benchmarks = [{ 'directory' : '', 'extraFlags': ''}]
+        benchmarks = [{ 'directory' : '', 'extraFlags': '-library' if isLibrary else ''}]
 
     testFileExt = 'dll' if isLibrary else 'exe'
 
     # Run benchmarks
     failures = 0
+    totalBenchmarks = 0
     lvRunId = 'Perf-%s' % etwCollection
 
     for benchmark in benchmarks:
@@ -492,6 +493,7 @@ def main(args):
         for root, dirs, files in os.walk(testPath):
             for f in files:
                 if f.endswith(testFileExt):
+                    totalBenchmarks += 1
                     benchname, ext = os.path.splitext(f)
 
                     benchmarkOutputDir = os.path.join(sandboxOutputDir, 'Scenarios') if isScenarioTest else os.path.join(sandboxOutputDir, 'Microbenchmarks')
@@ -505,8 +507,8 @@ def main(args):
     # Setup variables for uploading to benchview
     pgoOptimized = 'pgo' if isPgoOptimized else 'nopgo'
 
-    # Upload to benchview
-    if benchviewPath is not None:
+    # Upload to benchview only if we did not fail all benchmarks
+    if benchviewPath is not None and failures != totalBenchmarks:
         upload_to_benchview(python, coreclrRepo, benchviewPath, uploadToBenchview, benchviewGroup, runType, configuration, operatingSystem, etwCollection, optLevel, jitName, pgoOptimized, arch)
 
     if failures != 0:
