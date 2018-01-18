@@ -305,7 +305,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
             def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
             def uploadString = '-uploadToBenchview'
 
-            def runXUnitCommonArgs = "-arch ${architecture} -os Ubuntu16.04 -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox/Logs\""
+            def runXUnitCommonArgs = "-arch ${architecture} -os Ubuntu16.04 -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
 
             steps {
                 shell("./tests/scripts/perf-prep.sh --nocorefx")
@@ -320,13 +320,11 @@ def static getFullPerfJobName(def project, def os, def isPR) {
                 "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission-metadata.py\" --name \" ${benchViewName} \" --user-email \"dotnet-bot@microsoft.com\"\n" +
                 "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/build.py\" git --branch \$GIT_BRANCH_WITHOUT_ORIGIN --type ${runType}")
                 shell("""python3 ./tests/scripts/run-xunit-perf.py -testBinLoc bin/tests/Windows_NT.${architecture}.${configuration}/JIT/Performance/CodeQuality ${runXUnitCommonArgs}""")
-                shell("mkdir -p bin/toArchive/sandbox/Logs/")
-                shell("rsync -a bin/sandbox/Logs/Perf-*.* bin/toArchive/sandbox/Logs/")
             }
         }
 
         def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/toArchive/**')
+        archiveSettings.addFiles('bin/sandbox_logs/**')
         archiveSettings.addFiles('machinedata.json')
 
         Utilities.addArchival(newJob, archiveSettings)
