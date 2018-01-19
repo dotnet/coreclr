@@ -226,7 +226,7 @@ namespace System
 
         internal static void ThrowObjectDisposedException_MemoryDisposed()
         {
-            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.MemoryDisposed));
+            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.Memory_ThrowIfDisposed));
         }
 
         internal static void ThrowNotSupportedException()
@@ -580,7 +580,6 @@ namespace System
         InvalidOperation_HandleIsNotInitialized,
         AsyncMethodBuilder_InstanceNotInitialized,
         ArgumentNull_SafeHandle,
-        MemoryDisposed,
     }
 }
 
