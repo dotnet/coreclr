@@ -89,6 +89,9 @@ namespace System.IO
 
         public static string GetFullPath(string path, string basePath)
         {
+            if (path == null)
+                throw new ArgumentException(nameof(path));
+
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
