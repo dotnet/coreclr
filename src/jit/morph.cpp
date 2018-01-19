@@ -7738,10 +7738,35 @@ void Compiler::fgMorphTailCall(GenTreeCall* call)
     if (call->IsVirtualStub())
     {
         flags = CORINFO_TAILCALL_STUB_DISPATCH_ARG;
+#ifdef LEGACY_BACKEND
+        GenTree* arg;
+        if (call->gtCallType == CT_INDIRECT)
+        {
+            arg = gtClone(call->gtCallAddr, true);
+            noway_assert(arg != nullptr);
+        }
+        else
+        {
+            noway_assert(call->gtCallMoreFlags & GTF_CALL_M_VIRTSTUB_REL_INDIRECT);
+            ssize_t addr = ssize_t(call->gtStubCallStubAddr);
+            arg          = gtNewIconHandleNode(addr, GTF_ICON_FTN_ADDR);
 
+            // Change the call type, so we can add the extra indirection here, rather than in codegen
+            call->gtCallAddr         = gtNewIconHandleNode(addr, GTF_ICON_FTN_ADDR);
+            call->gtStubCallStubAddr = NULL;
+            call->gtCallType         = CT_INDIRECT;
+        }
+        arg->gtRegNum = virtualStubParamInfo->GetReg();
+        // Add the extra indirection to generate the real target
+        call->gtCallAddr = gtNewOperNode(GT_IND, TYP_I_IMPL, call->gtCallAddr);
+        call->gtFlags |= GTF_EXCEPT;
+        call->gtCallArgs = gtNewListNode(arg, call->gtCallArgs);
+
+#else  // !LEGACY_BACKEND
         GenTree* stubAddrArg = fgGetStubAddrArg(call);
         // And push the stub address onto the list of arguments
         call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
+#endif // !LEGACY_BACKEND
     }
     else if (call->IsVirtualVtable())
     {
@@ -7801,7 +7826,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call)
     GenTree* arg = new (this, GT_NOP) GenTreeOp(GT_NOP, TYP_I_IMPL);
     codeGen->genMarkTreeInReg(arg, REG_TAILCALL_ADDR);
 #else  // !LEGACY_BACKEND
-    GenTree* arg = gtNewIconNode(0, TYP_I_IMPL);
+    GenTree* arg         = gtNewIconNode(0, TYP_I_IMPL);
 #endif // !LEGACY_BACKEND
     call->gtCallArgs = gtNewListNode(arg, call->gtCallArgs);
 
@@ -8045,6 +8070,19 @@ void Compiler::fgMorphTailCall(GenTreeCall* call)
     DISPTREE(call);
 }
 
+//------------------------------------------------------------------------
+// fgGetStubAddrArg: Return the virtual stub address for the given call.
+//
+// Notes:
+//    the JIT must place the address of the stub used to load the call target,
+//    the "stub indirection cell", in special call argument with special register.
+//
+// Arguments:
+//    call - a call that needs virtual stub dispatching.
+//
+// Return Value:
+//    addr tree with set resister requirements.
+//
 GenTree* Compiler::fgGetStubAddrArg(GenTreeCall* call)
 {
     assert(call->IsVirtualStub());
@@ -8059,7 +8097,7 @@ GenTree* Compiler::fgGetStubAddrArg(GenTreeCall* call)
         ssize_t addr = ssize_t(call->gtStubCallStubAddr);
         stubAddrArg  = gtNewIconHandleNode(addr, GTF_ICON_FTN_ADDR);
     }
-    assert(stubAddrArg != NULL);
+    assert(stubAddrArg != nullptr);
     stubAddrArg->gtRegNum = virtualStubParamInfo->GetReg();
     return stubAddrArg;
 }
