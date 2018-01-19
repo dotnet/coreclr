@@ -2057,10 +2057,29 @@ public:
 #endif
 
 #if FEATURE_HW_INTRINSICS
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
     GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(
         var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size);
     GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(
         var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size);
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 GenTree*       op1,
+                                                 GenTree*       op2,
+                                                 GenTree*       op3,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 GenTree*       op1,
+                                                 GenTree*       op2,
+                                                 GenTree*       op3,
+                                                 GenTree*       op4,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
     GenTreeHWIntrinsic* gtNewScalarHWIntrinsicNode(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID);
     GenTreeHWIntrinsic* gtNewScalarHWIntrinsicNode(var_types      type,
                                                    GenTree*       op1,
@@ -2088,6 +2107,7 @@ public:
     GenTreeArgList* gtNewArgList(GenTreePtr op);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3);
+    GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3, GenTreePtr op4);
 
     static fgArgTabEntryPtr gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum);
     static fgArgTabEntryPtr gtArgEntryByNode(GenTreeCall* call, GenTreePtr node);
@@ -3022,11 +3042,11 @@ protected:
     NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
 
 #if FEATURE_HW_INTRINSICS
-    InstructionSet lookupHWIntrinsicISA(const char* className);
-    NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
-    InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
-    bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
-    bool isFullyImplmentedISAClass(InstructionSet isa);
+    static InstructionSet lookupHWIntrinsicISA(const char* className);
+    static NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
+    static InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
+    static bool isFullyImplmentedISAClass(InstructionSet isa);
 #ifdef _TARGET_XARCH_
     GenTree* impUnsupportedHWIntrinsic(unsigned              helper,
                                        CORINFO_METHOD_HANDLE method,
@@ -3098,6 +3118,13 @@ protected:
                                 bool                  mustExpand);
     bool compSupportsHWIntrinsic(InstructionSet isa);
     bool isScalarISA(InstructionSet isa);
+    static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static int numArgsOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
+    static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
+    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
+    GenTreeArgList* buildArgList(CORINFO_SIG_INFO* sig);
 #endif // _TARGET_XARCH_
 #endif // FEATURE_HW_INTRINSICS
     GenTreePtr impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
@@ -3222,10 +3249,10 @@ public:
                                        unsigned*            typeSize,
                                        bool                 forReturn);
 
-    static bool IsIntrinsicImplementedByUserCall(CorInfoIntrinsics intrinsicId);
-    static bool IsTargetIntrinsic(CorInfoIntrinsics intrinsicId);
-    static bool IsMathIntrinsic(CorInfoIntrinsics intrinsicId);
-    static bool IsMathIntrinsic(GenTreePtr tree);
+    bool IsIntrinsicImplementedByUserCall(CorInfoIntrinsics intrinsicId);
+    bool IsTargetIntrinsic(CorInfoIntrinsics intrinsicId);
+    bool IsMathIntrinsic(CorInfoIntrinsics intrinsicId);
+    bool IsMathIntrinsic(GenTreePtr tree);
 
 private:
     //----------------- Importing the method ----------------------------------
@@ -7355,9 +7382,9 @@ private:
 #if defined(_TARGET_UNIX_)
     int mapRegNumToDwarfReg(regNumber reg);
     void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
-    void unwindPushCFI(regNumber reg);
+    void unwindPushPopCFI(regNumber reg);
     void unwindBegPrologCFI();
-    void unwindPushMaskCFI(regMaskTP regMask, bool isFloat);
+    void unwindPushPopMaskCFI(regMaskTP regMask, bool isFloat);
     void unwindAllocStackCFI(unsigned size);
     void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
     void unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdCode);

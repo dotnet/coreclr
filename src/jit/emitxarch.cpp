@@ -87,6 +87,8 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_andps:
         case INS_cmppd:
         case INS_cmpps:
+        case INS_cmpsd:
+        case INS_cmpss:
         case INS_cvtsi2sd:
         case INS_cvtsi2ss:
         case INS_divpd:
@@ -105,6 +107,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_minps:
         case INS_minsd:
         case INS_minss:
+        case INS_movhlps:
         case INS_movlhps:
         case INS_mulpd:
         case INS_mulps:
@@ -143,6 +146,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_pminub:
         case INS_pminud:
         case INS_pminuw:
+        case INS_pmuldq:
         case INS_pmulld:
         case INS_pmullw:
         case INS_pmuludq:
@@ -166,6 +170,8 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_subps:
         case INS_subsd:
         case INS_subss:
+        case INS_unpckhps:
+        case INS_unpcklps:
         case INS_vinsertf128:
         case INS_vinserti128:
         case INS_vperm2i128:
@@ -193,6 +199,12 @@ bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
         case INS_movlpd:
         case INS_movlps:
         case INS_movss:
+        case INS_rcpps:
+        case INS_rcpss:
+        case INS_roundsd:
+        case INS_roundss:
+        case INS_rsqrtps:
+        case INS_rsqrtss:
         case INS_sqrtsd:
         case INS_sqrtss:
             return IsAVXInstruction(ins);
@@ -1998,8 +2010,8 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
         // BT supports 16 bit operands and this code doesn't handle the necessary 66 prefix.
         assert(ins != INS_bt);
 
-        assert((attrSize == EA_4BYTE) || (attrSize == EA_PTRSIZE) // Only for x64
-               || (attrSize == EA_16BYTE)                         // only for x64
+        assert((attrSize == EA_4BYTE) || (attrSize == EA_PTRSIZE)    // Only for x64
+               || (attrSize == EA_16BYTE) || (attrSize == EA_32BYTE) // only for x64
                || (ins == INS_movzx) || (ins == INS_movsx));
         size = 3;
     }
@@ -2586,8 +2598,16 @@ emitter::insFormat emitter::emitMapFmtAtoM(insFormat fmt)
             return IF_RRD_MRD;
         case IF_RWR_ARD:
             return IF_RWR_MRD;
+        case IF_RWR_ARD_CNS:
+            return IF_RWR_MRD_CNS;
         case IF_RRW_ARD:
             return IF_RRW_MRD;
+        case IF_RRW_ARD_CNS:
+            return IF_RRW_MRD_CNS;
+        case IF_RWR_RRD_ARD:
+            return IF_RWR_RRD_MRD;
+        case IF_RWR_RRD_ARD_CNS:
+            return IF_RWR_RRD_MRD_CNS;
 
         case IF_ARD_RRD:
             return IF_MRD_RRD;
@@ -3889,6 +3909,166 @@ void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regN
     emitCurIGsize += sz;
 }
 
+#ifndef LEGACY_BACKEND
+void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, insFormat fmt)
+{
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmd(attr, offs);
+
+    id->idIns(ins);
+    id->idReg1(reg1);
+
+    emitHandleMemOp(indir, id, fmt, ins);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, int ival)
+{
+    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
+    assert(IsSSEOrAVXInstruction(ins));
+
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(reg1);
+
+    emitHandleMemOp(indir, id, IF_RRW_ARD_CNS, ins);
+
+    // Plus one for the 1-byte immediate (ival)
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_C_I(
+    instruction ins, emitAttr attr, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival)
+{
+    // Static always need relocs
+    if (!jitStaticFldIsGlobAddr(fldHnd))
+    {
+        attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
+    }
+
+    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
+    assert(IsSSEOrAVXInstruction(ins));
+
+    instrDesc*     id = emitNewInstrCnsDsp(attr, ival, offs);
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RRW_MRD_CNS);
+    id->idReg1(reg1);
+    id->idAddr()->iiaFieldHnd = fldHnd;
+
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int varx, int offs, int ival)
+{
+    noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
+    assert(IsSSEOrAVXInstruction(ins));
+
+    instrDesc*     id = emitNewInstrCns(attr, ival);
+    UNATIVE_OFFSET sz =
+        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RRW_SRD_CNS);
+    id->idReg1(reg1);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_R_A(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, insFormat fmt)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmd(attr, offs);
+
+    id->idIns(ins);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+
+    emitHandleMemOp(indir, id, fmt, ins);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+#endif // !LEGACY_BACKEND
+
+void emitter::emitIns_R_R_AR(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    instrDesc* id = emitNewInstrAmd(attr, offs);
+
+    id->idIns(ins);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+
+    id->idInsFmt(IF_RWR_RRD_ARD);
+    id->idAddr()->iiaAddrMode.amBaseReg = base;
+    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_R_C(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, CORINFO_FIELD_HANDLE fldHnd, int offs)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    // Static always need relocs
+    if (!jitStaticFldIsGlobAddr(fldHnd))
+    {
+        attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
+    }
+
+    instrDesc*     id = emitNewInstrDsp(attr, offs);
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RWR_RRD_MRD);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idAddr()->iiaFieldHnd = fldHnd;
+
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
 /*****************************************************************************
 *
 *  Add an instruction with three register operands.
@@ -3909,6 +4089,80 @@ void emitter::emitIns_R_R_R(instruction ins, emitAttr attr, regNumber targetReg,
     id->idReg1(targetReg);
     id->idReg2(reg1);
     id->idReg3(reg2);
+
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_R_S(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, int varx, int offs)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    instrDesc*     id = emitNewInstr(attr);
+    UNATIVE_OFFSET sz =
+        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RWR_RRD_SRD);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+#ifndef LEGACY_BACKEND
+void emitter::emitIns_R_R_A_I(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, int ival, insFormat fmt)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+
+    emitHandleMemOp(indir, id, fmt, ins);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+#endif // !LEGACY_BACKEND
+
+void emitter::emitIns_R_R_C_I(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    // Static always need relocs
+    if (!jitStaticFldIsGlobAddr(fldHnd))
+    {
+        attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
+    }
+
+    instrDesc*     id = emitNewInstrCnsDsp(attr, ival, offs);
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RWR_RRD_MRD_CNS);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idAddr()->iiaFieldHnd = fldHnd;
 
     id->idCodeSize(sz);
     dispIns(id);
@@ -3943,6 +4197,70 @@ void emitter::emitIns_R_R_R_I(
     id->idReg1(targetReg);
     id->idReg2(reg1);
     id->idReg3(reg2);
+
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+void emitter::emitIns_R_R_S_I(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, int varx, int offs, int ival)
+{
+    assert(IsSSEOrAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins));
+
+    instrDesc*     id = emitNewInstrCns(attr, ival);
+    UNATIVE_OFFSET sz =
+        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RWR_RRD_SRD_CNS);
+    id->idReg1(reg1);
+    id->idReg2(reg2);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+#ifdef DEBUG
+    id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
+#endif
+
+    id->idCodeSize(sz);
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+#ifdef DEBUG
+static bool isAvxBlendv(instruction ins)
+{
+    return ins == INS_vblendvps || ins == INS_vblendvpd || ins == INS_vpblendvb;
+}
+
+static bool isSse41Blendv(instruction ins)
+{
+    return ins == INS_blendvps || ins == INS_blendvpd || ins == INS_pblendvb;
+}
+#endif
+
+void emitter::emitIns_R_R_R_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber reg1, regNumber reg2, regNumber reg3)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+    // Currently vex prefix only use three bytes mode.
+    // size = vex + opcode + ModR/M + 1-byte-cns(Reg) = 3 + 1 + 1 + 1 = 6
+    // TODO-XArch-CQ: We should create function which can calculate all kinds of AVX instructions size in future
+    UNATIVE_OFFSET sz = 6;
+
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    int ival = (reg3 - XMMBASE) << 4; // convert reg3 to ival
+
+    instrDesc* id = emitNewInstrCns(attr, ival);
+    id->idIns(ins);
+    id->idInsFmt(IF_RWR_RRD_RRD_RRD);
+    id->idReg1(targetReg);
+    id->idReg2(reg1);
+    id->idReg3(reg2);
+    id->idReg4(reg3);
 
     id->idCodeSize(sz);
     dispIns(id);
@@ -4888,19 +5206,191 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 }
 
 #if FEATURE_HW_INTRINSICS
-void emitter::emitIns_SIMD_R_R_R(instruction ins, regNumber reg, regNumber reg1, regNumber reg2, var_types simdtype)
+void emitter::emitIns_SIMD_R_R_A(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir)
 {
-    if (UseVEXEncoding() && reg1 != reg)
+    if (UseVEXEncoding())
     {
-        emitIns_R_R_R(ins, emitTypeSize(simdtype), reg, reg1, reg2);
+        emitIns_R_R_A(ins, attr, reg, reg1, indir, IF_RWR_RRD_ARD);
     }
     else
     {
         if (reg1 != reg)
         {
-            emitIns_R_R(INS_movaps, emitTypeSize(simdtype), reg, reg1);
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
-        emitIns_R_R(ins, emitTypeSize(simdtype), reg, reg2);
+        emitIns_R_A(ins, attr, reg, indir, IF_RRW_ARD);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_AR(ins, attr, reg, reg1, base, 0);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_AR(ins, attr, reg, base, 0);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_C(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C(ins, attr, reg, reg1, fldHnd, offs);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_C(ins, attr, reg, fldHnd, offs);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R(ins, attr, reg, reg1, reg2);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_R(ins, attr, reg, reg2);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_R_R(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber reg3)
+{
+    assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+    if (UseVEXEncoding())
+    {
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+                ins = INS_vblendvps;
+                break;
+            case INS_blendvpd:
+                ins = INS_vblendvpd;
+                break;
+            case INS_pblendvb:
+                ins = INS_vpblendvb;
+                break;
+            default:
+                break;
+        }
+        emitIns_R_R_R_R(ins, attr, reg, reg1, reg2, reg3);
+    }
+    else
+    {
+        assert(isSse41Blendv(ins));
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (reg3 != REG_XMM0)
+        {
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, reg3);
+        }
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_R(ins, attr, reg, reg2);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_S(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S(ins, attr, reg, reg1, varx, offs);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_S(ins, attr, reg, varx, offs);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_A_I(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_A_I(ins, attr, reg, reg1, indir, ival, IF_RWR_RRD_ARD_CNS);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_A_I(ins, attr, reg, indir, ival);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_C_I(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C_I(ins, attr, reg, reg1, fldHnd, offs, ival);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_C_I(ins, attr, reg, fldHnd, offs, ival);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_R_I(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R_I(ins, attr, reg, reg1, reg2, ival);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_R_I(ins, attr, reg, reg2, ival);
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_S_I(
+    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S_I(ins, attr, reg, reg1, varx, offs, ival);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        emitIns_R_S_I(ins, attr, reg, varx, offs, ival);
     }
 }
 #endif
@@ -6918,6 +7408,54 @@ void emitter::emitDispIns(
             emitDispAddrMode(id);
             break;
 
+        case IF_RRW_ARD_CNS:
+        case IF_RWR_ARD_CNS:
+        {
+            printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
+            emitDispAddrMode(id);
+            emitGetInsAmdCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+
+            break;
+        }
+
+        case IF_RWR_RRD_ARD:
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            emitDispAddrMode(id);
+            break;
+
+        case IF_RWR_RRD_ARD_CNS:
+        {
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            emitDispAddrMode(id);
+            emitGetInsAmdCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+
+            break;
+        }
+
         case IF_ARD_RRD:
         case IF_AWR_RRD:
         case IF_ARW_RRD:
@@ -7061,6 +7599,55 @@ void emitter::emitDispIns(
 
             break;
 
+        case IF_RRW_SRD_CNS:
+        case IF_RWR_SRD_CNS:
+        {
+            printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+            emitGetInsCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+            break;
+        }
+
+        case IF_RWR_RRD_SRD:
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+            break;
+
+        case IF_RWR_RRD_SRD_CNS:
+        {
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+            emitGetInsCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+            break;
+        }
+
         case IF_RRD_RRD:
         case IF_RWR_RRD:
         case IF_RRW_RRD:
@@ -7139,6 +7726,14 @@ void emitter::emitDispIns(
             val = emitGetInsSC(id);
             goto PRINT_CONSTANT;
             break;
+        case IF_RWR_RRD_RRD_RRD:
+            assert(IsAVXOnlyInstruction(ins));
+            assert(UseVEXEncoding());
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+            printf("%s, ", emitRegName(id->idReg3(), attr));
+            printf("%s", emitRegName(id->idReg4(), attr));
+            break;
         case IF_RRW_RRW_CNS:
             printf("%s,", emitRegName(id->idReg1(), attr));
             printf(" %s", emitRegName(id->idReg2(), attr));
@@ -7188,6 +7783,55 @@ void emitter::emitDispIns(
             offs = emitGetInsDsp(id);
             emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
             break;
+
+        case IF_RRW_MRD_CNS:
+        case IF_RWR_MRD_CNS:
+        {
+            printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+            emitGetInsDcmCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+            break;
+        }
+
+        case IF_RWR_RRD_MRD:
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+            break;
+
+        case IF_RWR_RRD_MRD_CNS:
+        {
+            printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+            emitGetInsDcmCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+            break;
+        }
 
         case IF_RWR_MRD_OFF:
 
@@ -7636,11 +8280,21 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     code = AddVexPrefixIfNeededAndNotPresent(ins, code, size);
 
     // For this format, moves do not support a third operand, so we only need to handle the binary ops.
-    if (IsDstDstSrcAVXInstruction(ins))
+    if (IsDstDstSrcAVXInstruction(ins) && !Is4ByteAVXInstruction(ins))
     {
-        // Encode source operand reg in 'vvvv' bits in 1's complement form
-        // The order of operands are reversed, therefore use reg2 as the source.
-        code = insEncodeReg3456(ins, id->idReg1(), size, code);
+        regNumber src1 = id->idReg2();
+
+        if ((id->idInsFmt() != IF_RWR_RRD_ARD) && (id->idInsFmt() != IF_RWR_RRD_ARD_CNS))
+        {
+            src1 = id->idReg1();
+        }
+
+        // encode source operand reg in 'vvvv' bits in 1's compliement form
+        code = insEncodeReg3456(ins, src1, size, code);
+    }
+    else if (IsDstSrcSrcAVXInstruction(ins))
+    {
+        code = insEncodeReg3456(ins, id->idReg2(), size, code);
     }
 
     // Emit the REX prefix if required
@@ -7663,8 +8317,19 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
         rgx = (regNumber)RegEncoding(rgx);
     }
 
+    // Special case emitting AVX instructions
+    if (Is4ByteAVXInstruction(ins))
+    {
+        unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
+        dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
+
+        // Emit last opcode byte
+        assert((code & 0xFF) == 0);
+        dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        code = regcode;
+    }
     // Is this a 'big' opcode?
-    if (code & 0xFF000000)
+    else if (code & 0xFF000000)
     {
         // Output the REX prefix
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
@@ -7786,7 +8451,14 @@ GOT_DSP:
                     // The address is of the form "[disp]"
                     // On x86 - disp is relative to zero
                     // On Amd64 - disp is relative to RIP
-                    dst += emitOutputWord(dst, code | 0x0500);
+                    if (Is4ByteAVXInstruction(ins))
+                    {
+                        dst += emitOutputByte(dst, code | 0x05);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x0500);
+                    }
 
                     if (addc)
                     {
@@ -7835,7 +8507,14 @@ GOT_DSP:
                 else
                 {
 #ifdef _TARGET_X86_
-                    dst += emitOutputWord(dst, code | 0x0500);
+                    if (Is4ByteAVXInstruction(ins))
+                    {
+                        dst += emitOutputByte(dst, code | 0x05);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x0500);
+                    }
 #else  //_TARGET_AMD64_
                     // Amd64: addr fits within 32-bits and can be encoded as a displacement relative to zero.
                     // This addr mode should never be used while generating relocatable ngen code nor if
@@ -7845,7 +8524,14 @@ GOT_DSP:
                     noway_assert((int)dsp == dsp);
 
                     // This requires, specifying a SIB byte after ModRM byte.
-                    dst += emitOutputWord(dst, code | 0x0400);
+                    if (Is4ByteAVXInstruction(ins))
+                    {
+                        dst += emitOutputByte(dst, code | 0x04);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x0400);
+                    }
                     dst += emitOutputByte(dst, 0x25);
 #endif //_TARGET_AMD64_
                     dst += emitOutputLong(dst, dsp);
@@ -7853,20 +8539,42 @@ GOT_DSP:
                 break;
 
             case REG_EBP:
-                // Does the offset fit in a byte?
-                if (dspInByte)
+                if (Is4ByteAVXInstruction(ins))
                 {
-                    dst += emitOutputWord(dst, code | 0x4500);
-                    dst += emitOutputByte(dst, dsp);
+                    // Does the offset fit in a byte?
+                    if (dspInByte)
+                    {
+                        dst += emitOutputByte(dst, code | 0x45);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputByte(dst, code | 0x85);
+                        dst += emitOutputLong(dst, dsp);
+
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
+                    }
                 }
                 else
                 {
-                    dst += emitOutputWord(dst, code | 0x8500);
-                    dst += emitOutputLong(dst, dsp);
-
-                    if (id->idIsDspReloc())
+                    // Does the offset fit in a byte?
+                    if (dspInByte)
                     {
-                        emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        dst += emitOutputWord(dst, code | 0x4500);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x8500);
+                        dst += emitOutputLong(dst, dsp);
+
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
                     }
                 }
                 break;
@@ -7885,55 +8593,116 @@ GOT_DSP:
                        (ins == INS_or));
 #endif // LEGACY_BACKEND
 
-                // Is the offset 0 or does it at least fit in a byte?
-                if (dspIsZero)
+                if (Is4ByteAVXInstruction(ins))
                 {
-                    dst += emitOutputWord(dst, code | 0x0400);
-                    dst += emitOutputByte(dst, 0x24);
-                }
-                else if (dspInByte)
-                {
-                    dst += emitOutputWord(dst, code | 0x4400);
-                    dst += emitOutputByte(dst, 0x24);
-                    dst += emitOutputByte(dst, dsp);
+                    // Is the offset 0 or does it at least fit in a byte?
+                    if (dspIsZero)
+                    {
+                        dst += emitOutputByte(dst, code | 0x04);
+                        dst += emitOutputByte(dst, 0x24);
+                    }
+                    else if (dspInByte)
+                    {
+                        dst += emitOutputByte(dst, code | 0x44);
+                        dst += emitOutputByte(dst, 0x24);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputByte(dst, code | 0x84);
+                        dst += emitOutputByte(dst, 0x24);
+                        dst += emitOutputLong(dst, dsp);
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
+                    }
                 }
                 else
                 {
-                    dst += emitOutputWord(dst, code | 0x8400);
-                    dst += emitOutputByte(dst, 0x24);
-                    dst += emitOutputLong(dst, dsp);
-                    if (id->idIsDspReloc())
+                    // Is the offset 0 or does it at least fit in a byte?
+                    if (dspIsZero)
                     {
-                        emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        dst += emitOutputWord(dst, code | 0x0400);
+                        dst += emitOutputByte(dst, 0x24);
+                    }
+                    else if (dspInByte)
+                    {
+                        dst += emitOutputWord(dst, code | 0x4400);
+                        dst += emitOutputByte(dst, 0x24);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x8400);
+                        dst += emitOutputByte(dst, 0x24);
+                        dst += emitOutputLong(dst, dsp);
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
                     }
                 }
                 break;
 
             default:
-                // Put the register in the opcode
-                code |= insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) << 8;
+                if (Is4ByteAVXInstruction(ins))
+                {
+                    // Put the register in the opcode
+                    code |= insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr);
 
-                // Is there a displacement?
-                if (dspIsZero)
-                {
-                    // This is simply "[reg]"
-                    dst += emitOutputWord(dst, code);
-                }
-                else
-                {
-                    // This is [reg + dsp]" -- does the offset fit in a byte?
-                    if (dspInByte)
+                    // Is there a displacement?
+                    if (dspIsZero)
                     {
-                        dst += emitOutputWord(dst, code | 0x4000);
-                        dst += emitOutputByte(dst, dsp);
+                        // This is simply "[reg]"
+                        dst += emitOutputByte(dst, code);
                     }
                     else
                     {
-                        dst += emitOutputWord(dst, code | 0x8000);
-                        dst += emitOutputLong(dst, dsp);
-                        if (id->idIsDspReloc())
+                        // This is [reg + dsp]" -- does the offset fit in a byte?
+                        if (dspInByte)
                         {
-                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            dst += emitOutputByte(dst, code | 0x40);
+                            dst += emitOutputByte(dst, dsp);
+                        }
+                        else
+                        {
+                            dst += emitOutputByte(dst, code | 0x80);
+                            dst += emitOutputLong(dst, dsp);
+                            if (id->idIsDspReloc())
+                            {
+                                emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Put the register in the opcode
+                    code |= insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) << 8;
+
+                    // Is there a displacement?
+                    if (dspIsZero)
+                    {
+                        // This is simply "[reg]"
+                        dst += emitOutputWord(dst, code);
+                    }
+                    else
+                    {
+                        // This is [reg + dsp]" -- does the offset fit in a byte?
+                        if (dspInByte)
+                        {
+                            dst += emitOutputWord(dst, code | 0x4000);
+                            dst += emitOutputByte(dst, dsp);
+                        }
+                        else
+                        {
+                            dst += emitOutputWord(dst, code | 0x8000);
+                            dst += emitOutputLong(dst, dsp);
+                            if (id->idIsDspReloc())
+                            {
+                                emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            }
                         }
                     }
                 }
@@ -7958,30 +8727,63 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                // Emit [ebp + {2/4/8} * rgz] as [ebp + {2/4/8} * rgx + 0]
-                if (dspIsZero && reg != REG_EBP)
+                if (Is4ByteAVXInstruction(ins))
                 {
-                    // The address is "[reg + {2/4/8} * rgx]"
-                    dst += emitOutputWord(dst, code | 0x0400);
-                    dst += emitOutputByte(dst, regByte);
-                }
-                else
-                {
-                    // The address is "[reg + {2/4/8} * rgx + disp]"
-                    if (dspInByte)
+                    // Emit [ebp + {2/4/8} * rgz] as [ebp + {2/4/8} * rgx + 0]
+                    if (dspIsZero && reg != REG_EBP)
                     {
-                        dst += emitOutputWord(dst, code | 0x4400);
+                        // The address is "[reg + {2/4/8} * rgx]"
+                        dst += emitOutputByte(dst, code | 0x04);
                         dst += emitOutputByte(dst, regByte);
-                        dst += emitOutputByte(dst, dsp);
                     }
                     else
                     {
-                        dst += emitOutputWord(dst, code | 0x8400);
-                        dst += emitOutputByte(dst, regByte);
-                        dst += emitOutputLong(dst, dsp);
-                        if (id->idIsDspReloc())
+                        // The address is "[reg + {2/4/8} * rgx + disp]"
+                        if (dspInByte)
                         {
-                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            dst += emitOutputByte(dst, code | 0x44);
+                            dst += emitOutputByte(dst, regByte);
+                            dst += emitOutputByte(dst, dsp);
+                        }
+                        else
+                        {
+                            dst += emitOutputByte(dst, code | 0x84);
+                            dst += emitOutputByte(dst, regByte);
+                            dst += emitOutputLong(dst, dsp);
+                            if (id->idIsDspReloc())
+                            {
+                                emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Emit [ebp + {2/4/8} * rgz] as [ebp + {2/4/8} * rgx + 0]
+                    if (dspIsZero && reg != REG_EBP)
+                    {
+                        // The address is "[reg + {2/4/8} * rgx]"
+                        dst += emitOutputWord(dst, code | 0x0400);
+                        dst += emitOutputByte(dst, regByte);
+                    }
+                    else
+                    {
+                        // The address is "[reg + {2/4/8} * rgx + disp]"
+                        if (dspInByte)
+                        {
+                            dst += emitOutputWord(dst, code | 0x4400);
+                            dst += emitOutputByte(dst, regByte);
+                            dst += emitOutputByte(dst, dsp);
+                        }
+                        else
+                        {
+                            dst += emitOutputWord(dst, code | 0x8400);
+                            dst += emitOutputByte(dst, regByte);
+                            dst += emitOutputLong(dst, dsp);
+                            if (id->idIsDspReloc())
+                            {
+                                emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                            }
                         }
                     }
                 }
@@ -7992,7 +8794,15 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, REG_EBP, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                dst += emitOutputWord(dst, code | 0x0400);
+                if (Is4ByteAVXInstruction(ins))
+                {
+                    dst += emitOutputByte(dst, code | 0x04);
+                }
+                else
+                {
+                    dst += emitOutputWord(dst, code | 0x0400);
+                }
+
                 dst += emitOutputByte(dst, regByte);
 
                 // Special case: jump through a jump table
@@ -8013,29 +8823,61 @@ GOT_DSP:
             // The address is "[reg+rgx+dsp]"
             regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) | insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr);
 
-            if (dspIsZero && reg != REG_EBP)
+            if (Is4ByteAVXInstruction(ins))
             {
-                // This is [reg+rgx]"
-                dst += emitOutputWord(dst, code | 0x0400);
-                dst += emitOutputByte(dst, regByte);
-            }
-            else
-            {
-                // This is [reg+rgx+dsp]" -- does the offset fit in a byte?
-                if (dspInByte)
+                if (dspIsZero && reg != REG_EBP)
                 {
-                    dst += emitOutputWord(dst, code | 0x4400);
+                    // This is [reg+rgx]"
+                    dst += emitOutputByte(dst, code | 0x04);
                     dst += emitOutputByte(dst, regByte);
-                    dst += emitOutputByte(dst, dsp);
                 }
                 else
                 {
-                    dst += emitOutputWord(dst, code | 0x8400);
-                    dst += emitOutputByte(dst, regByte);
-                    dst += emitOutputLong(dst, dsp);
-                    if (id->idIsDspReloc())
+                    // This is [reg+rgx+dsp]" -- does the offset fit in a byte?
+                    if (dspInByte)
                     {
-                        emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        dst += emitOutputByte(dst, code | 0x44);
+                        dst += emitOutputByte(dst, regByte);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputByte(dst, code | 0x84);
+                        dst += emitOutputByte(dst, regByte);
+                        dst += emitOutputLong(dst, dsp);
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (dspIsZero && reg != REG_EBP)
+                {
+                    // This is [reg+rgx]"
+                    dst += emitOutputWord(dst, code | 0x0400);
+                    dst += emitOutputByte(dst, regByte);
+                }
+                else
+                {
+                    // This is [reg+rgx+dsp]" -- does the offset fit in a byte?
+                    if (dspInByte)
+                    {
+                        dst += emitOutputWord(dst, code | 0x4400);
+                        dst += emitOutputByte(dst, regByte);
+                        dst += emitOutputByte(dst, dsp);
+                    }
+                    else
+                    {
+                        dst += emitOutputWord(dst, code | 0x8400);
+                        dst += emitOutputByte(dst, regByte);
+                        dst += emitOutputLong(dst, dsp);
+                        if (id->idIsDspReloc())
+                        {
+                            emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_HIGHLOW);
+                        }
                     }
                 }
             }
@@ -9543,7 +10385,7 @@ BYTE* emitter::emitOutputRRR(BYTE* dst, instrDesc* id)
 
     instruction ins = id->idIns();
     assert(IsAVXInstruction(ins));
-    assert(IsThreeOperandAVXInstruction(ins));
+    assert(IsThreeOperandAVXInstruction(ins) || isAvxBlendv(ins));
     regNumber targetReg = id->idReg1();
     regNumber src1      = id->idReg2();
     regNumber src2      = id->idReg3();
@@ -10809,6 +11651,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             sz  = emitSizeOfInsDsc(id);
             break;
         case IF_RWR_RRD_RRD_CNS:
+        case IF_RWR_RRD_RRD_RRD:
             dst = emitOutputRRR(dst, id);
             sz  = emitSizeOfInsDsc(id);
             dst += emitOutputByte(dst, emitGetInsSC(id));
@@ -10985,15 +11828,47 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             break;
 
+        case IF_RRW_ARD_CNS:
+        case IF_RWR_ARD_CNS:
+            emitGetInsAmdCns(id, &cnsVal);
+            code = insCodeRM(ins);
+
+            // Special case 4-byte AVX instructions
+            if (Is4ByteAVXInstruction(ins))
+            {
+                dst = emitOutputAM(dst, id, code, &cnsVal);
+            }
+            else
+            {
+                code    = AddVexPrefixIfNeeded(ins, code, size);
+                regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+                dst     = emitOutputAM(dst, id, code | regcode, &cnsVal);
+            }
+
+            sz = emitSizeOfInsDsc(id);
+            break;
+
         case IF_RRD_ARD:
         case IF_RWR_ARD:
         case IF_RRW_ARD:
+        case IF_RWR_RRD_ARD:
             code    = insCodeRM(ins);
             code    = AddVexPrefixIfNeeded(ins, code, size);
             regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
             dst     = emitOutputAM(dst, id, code | regcode);
             sz      = emitSizeOfInsDsc(id);
             break;
+
+        case IF_RWR_RRD_ARD_CNS:
+        {
+            emitGetInsAmdCns(id, &cnsVal);
+            code    = insCodeRM(ins);
+            code    = AddVexPrefixIfNeeded(ins, code, size);
+            regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+            dst     = emitOutputAM(dst, id, code | regcode, &cnsVal);
+            sz      = emitSizeOfInsDsc(id);
+            break;
+        }
 
         case IF_ARD_RRD:
         case IF_AWR_RRD:
@@ -11079,16 +11954,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             sz  = emitSizeOfInsDsc(id);
             break;
 
-        case IF_RRD_SRD:
-        case IF_RWR_SRD:
-        case IF_RRW_SRD:
+        case IF_RRW_SRD_CNS:
+        case IF_RWR_SRD_CNS:
+            emitGetInsCns(id, &cnsVal);
             code = insCodeRM(ins);
 
-            // 4-byte AVX instructions are special cased inside emitOutputSV
-            // since they do not have space to encode ModRM byte.
+            // Special case 4-byte AVX instructions
             if (Is4ByteAVXInstruction(ins))
             {
-                dst = emitOutputSV(dst, id, code);
+                dst = emitOutputSV(dst, id, code, &cnsVal);
             }
             else
             {
@@ -11107,9 +11981,72 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
 
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+                dst     = emitOutputSV(dst, id, code | regcode, &cnsVal);
+            }
+
+            sz = emitSizeOfInsDsc(id);
+            break;
+
+        case IF_RRD_SRD:
+        case IF_RWR_SRD:
+        case IF_RRW_SRD:
+        case IF_RWR_RRD_SRD:
+            code = insCodeRM(ins);
+
+            // 4-byte AVX instructions are special cased inside emitOutputSV
+            // since they do not have space to encode ModRM byte.
+            if (Is4ByteAVXInstruction(ins))
+            {
+                dst = emitOutputSV(dst, id, code);
+            }
+            else
+            {
+                code = AddVexPrefixIfNeeded(ins, code, size);
+
+                if (IsDstDstSrcAVXInstruction(ins))
+                {
+                    regNumber src1 = id->idReg2();
+
+                    if (id->idInsFmt() != IF_RWR_RRD_SRD)
+                    {
+                        src1 = id->idReg1();
+                    }
+
+                    // encode source operand reg in 'vvvv' bits in 1's compliement form
+                    code = insEncodeReg3456(ins, src1, size, code);
+                }
+
+                regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputSV(dst, id, code | regcode);
             }
             break;
+
+        case IF_RWR_RRD_SRD_CNS:
+        {
+            emitGetInsCns(id, &cnsVal);
+            code = insCodeRM(ins);
+
+            // 4-byte AVX instructions are special cased inside emitOutputSV
+            // since they do not have space to encode ModRM byte.
+            if (Is4ByteAVXInstruction(ins))
+            {
+                dst = emitOutputSV(dst, id, code, &cnsVal);
+            }
+            else
+            {
+                code = AddVexPrefixIfNeeded(ins, code, size);
+
+                if (IsDstDstSrcAVXInstruction(ins))
+                {
+                    // encode source operand reg in 'vvvv' bits in 1's compliement form
+                    code = insEncodeReg3456(ins, id->idReg1(), size, code);
+                }
+
+                regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+                dst     = emitOutputSV(dst, id, code | regcode, &cnsVal);
+            }
+            break;
+        }
 
         case IF_SRD_RRD:
         case IF_SWR_RRD:
@@ -11162,14 +12099,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             dst = emitOutputCV(dst, id, insCodeMI(ins));
             break;
 
-        case IF_RRD_MRD:
-        case IF_RWR_MRD:
-        case IF_RRW_MRD:
+        case IF_RRW_MRD_CNS:
+        case IF_RWR_MRD_CNS:
+            emitGetInsDcmCns(id, &cnsVal);
             code = insCodeRM(ins);
+
             // Special case 4-byte AVX instructions
             if (Is4ByteAVXInstruction(ins))
             {
-                dst = emitOutputCV(dst, id, code);
+                dst = emitOutputCV(dst, id, code, &cnsVal);
             }
             else
             {
@@ -11188,10 +12126,71 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
 
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+                dst     = emitOutputCV(dst, id, code | regcode | 0x0500, &cnsVal);
+            }
+
+            sz = emitSizeOfInsDsc(id);
+            break;
+
+        case IF_RRD_MRD:
+        case IF_RWR_MRD:
+        case IF_RRW_MRD:
+        case IF_RWR_RRD_MRD:
+            code = insCodeRM(ins);
+            // Special case 4-byte AVX instructions
+            if (Is4ByteAVXInstruction(ins))
+            {
+                dst = emitOutputCV(dst, id, code);
+            }
+            else
+            {
+                code = AddVexPrefixIfNeeded(ins, code, size);
+
+                if (IsDstDstSrcAVXInstruction(ins))
+                {
+                    regNumber src1 = id->idReg2();
+
+                    if (id->idInsFmt() != IF_RWR_RRD_MRD)
+                    {
+                        src1 = id->idReg1();
+                    }
+
+                    // encode source operand reg in 'vvvv' bits in 1's compliement form
+                    code = insEncodeReg3456(ins, src1, size, code);
+                }
+
+                regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputCV(dst, id, code | regcode | 0x0500);
             }
             sz = emitSizeOfInsDsc(id);
             break;
+
+        case IF_RWR_RRD_MRD_CNS:
+        {
+            emitGetInsCns(id, &cnsVal);
+            code = insCodeRM(ins);
+
+            // Special case 4-byte AVX instructions
+            if (Is4ByteAVXInstruction(ins))
+            {
+                dst = emitOutputCV(dst, id, code, &cnsVal);
+            }
+            else
+            {
+                code = AddVexPrefixIfNeeded(ins, code, size);
+
+                if (IsDstDstSrcAVXInstruction(ins))
+                {
+                    // encode source operand reg in 'vvvv' bits in 1's compliement form
+                    code = insEncodeReg3456(ins, id->idReg1(), size, code);
+                }
+
+                regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
+                dst     = emitOutputCV(dst, id, code | regcode | 0x0500, &cnsVal);
+            }
+            sz = emitSizeOfInsDsc(id);
+            break;
+        }
 
         case IF_RWR_MRD_OFF:
             code = insCode(ins);

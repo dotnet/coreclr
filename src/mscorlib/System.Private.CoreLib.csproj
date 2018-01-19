@@ -253,8 +253,11 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector64.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector64DebugView.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector128.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector128DebugView.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector256.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector256DebugView.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Enums.cs" />
@@ -514,7 +517,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventSource_CoreCLR.cs" />
     <Compile Condition="'$(FeatureXplatEventSource)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\FrameworkEventSource.cs" />
-    <Compile Condition="'$(FeaturePerfTracing)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
     <Compile Condition="'$(FeaturePerfTracing)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -583,8 +586,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileSystemEnumerable.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\TextReader.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />

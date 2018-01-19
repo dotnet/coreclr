@@ -65,6 +65,9 @@ private:
 
     // Generates SSE2 code for the given tree as "Operand BitWiseOp BitMask"
     void genSSE2BitwiseOp(GenTreePtr treeNode);
+
+    // Generates SSE41 code for the given tree as a round operation
+    void genSSE41RoundOp(GenTreeOp* treeNode);
 #endif // defined(_TARGET_XARCH_) && !FEATURE_STACK_FP_X87
 
     void genPrepForCompiler();
@@ -269,7 +272,7 @@ protected:
     void genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize);
 #endif
 
-    void genGCWriteBarrier(GenTreePtr tree, GCInfo::WriteBarrierForm wbf);
+    void genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf);
 
     BasicBlock* genCreateTempLabel();
 
