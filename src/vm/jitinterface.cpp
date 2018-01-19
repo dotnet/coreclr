@@ -5398,7 +5398,7 @@ void CEEInfo::getCallInfo(
     }
     else
     // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->IsAbstract() && pTargetMD->GetMethodTable()->IsInterface())
+    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
     {
         directCall = false;
     }
