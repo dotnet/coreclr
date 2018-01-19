@@ -226,7 +226,7 @@ namespace System
 
         internal static void ThrowObjectDisposedException_MemoryDisposed()
         {
-            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.Memory_ThrowIfDisposed));
+            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.MemoryDisposed));
         }
 
         internal static void ThrowNotSupportedException()
@@ -563,7 +563,7 @@ namespace System
         TaskT_TransitionToFinal_AlreadyCompleted,
         TaskCompletionSourceT_TrySetException_NullException,
         TaskCompletionSourceT_TrySetException_NoExceptions,
-        Memory_ThrowIfDisposed,
+        MemoryDisposed,
         Memory_OutstandingReferences,
         InvalidOperation_WrongAsyncResultOrEndCalledMultiple,
         ConcurrentDictionary_ConcurrencyLevelMustBePositive,
