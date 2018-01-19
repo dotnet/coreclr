@@ -412,8 +412,6 @@ namespace System.IO
             return CombineNoChecksInternal(first, second, third, fourth);
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe static string CombineNoChecksInternal(ReadOnlySpan<char> first, ReadOnlySpan<char> second)
         {
             Debug.Assert(first.Length > 0 && second.Length > 0, "should have dealt with empty paths");
@@ -436,7 +434,6 @@ namespace System.IO
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe static string CombineNoChecksInternal(ReadOnlySpan<char> first, ReadOnlySpan<char> second, ReadOnlySpan<char> third)
         {
             Debug.Assert(first.Length > 0 && second.Length > 0 && third.Length > 0, "should have dealt with empty paths");
@@ -465,7 +462,6 @@ namespace System.IO
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private unsafe static string CombineNoChecksInternal(ReadOnlySpan<char> first, ReadOnlySpan<char> second, ReadOnlySpan<char> third, ReadOnlySpan<char> fourth)
         {
             Debug.Assert(first.Length > 0 && second.Length > 0 && third.Length > 0 && fourth.Length > 0, "should have dealt with empty paths");
