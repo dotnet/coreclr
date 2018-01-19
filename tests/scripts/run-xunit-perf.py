@@ -149,7 +149,7 @@ def run_command(runArgs, environment, errorMessage):
         subprocess.check_output(runArgs, stderr=subprocess.PIPE, env=environment)
     except subprocess.CalledProcessError as e:
         log(e.output.decode('utf-8'))
-        raise RuntimeError(errorMessage);
+        raise subprocess.CalledProcessError(errorMessage)
 
 ##########################################################################
 # Execution Functions
