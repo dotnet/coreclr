@@ -150,7 +150,7 @@ def run_command(runArgs, environment, errorMessage):
     except subprocess.CalledProcessError as e:
         log(errorMessage)
         log(e.output.decode('utf-8'))
-        raise e
+        raise
 
 ##########################################################################
 # Execution Functions
