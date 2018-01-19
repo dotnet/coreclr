@@ -1963,30 +1963,32 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         linuxCodeName="tizen"
                     }
 
-                    // Unzip the Windows test binaries first. Exit with 0
-                    buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x64.${configuration} || exit 0"
+                    if (os == 'Tizen') {
+                        // Unzip the Windows test binaries first. Exit with 0
+                        buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x64.${configuration} || exit 0"
 
-                    // Unpack the corefx binaries
-                    buildCommands += "mkdir ./bin/CoreFxBinDir"
-                    buildCommands += "tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir"
-                    if (os != 'Tizen') {
-                        buildCommands += "chmod a+x ./bin/CoreFxBinDir/corerun"
-                    }
-                    // Test environment emulation using docker and qemu has some problem to use lttng library.
-                    // We should remove libcoreclrtraceptprovider.so to avoid test hang.
-                    if (os == 'Ubuntu') {
-                        buildCommands += "rm -f -v ./bin/CoreFxBinDir/libcoreclrtraceptprovider.so"
-                    }
+                        // Unpack the corefx binaries
+                        buildCommands += "mkdir ./bin/CoreFxBinDir"
+                        buildCommands += "tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir"
+                        if (os != 'Tizen') {
+                            buildCommands += "chmod a+x ./bin/CoreFxBinDir/corerun"
+                        }
+                        // Test environment emulation using docker and qemu has some problem to use lttng library.
+                        // We should remove libcoreclrtraceptprovider.so to avoid test hang.
+                        if (os == 'Ubuntu') {
+                            buildCommands += "rm -f -v ./bin/CoreFxBinDir/libcoreclrtraceptprovider.so"
+                        }
 
-                    // Call the ARM CI script to cross build and test using docker
-                    buildCommands += """./tests/scripts/arm32_ci_script.sh \\
-                    --mode=docker \\
-                    --${arm_abi} \\
-                    --linuxCodeName=${linuxCodeName} \\
-                    --buildConfig=${lowerConfiguration} \\
-                    --testRootDir=./bin/tests/Windows_NT.x64.${configuration} \\
-                    --coreFxBinDir=./bin/CoreFxBinDir \\
-                    --testDirFile=./tests/testsRunningInsideARM.txt"""
+                        // Call the ARM CI script to cross build and test using docker
+                        buildCommands += """./tests/scripts/arm32_ci_script.sh \\
+                        --mode=docker \\
+                        --${arm_abi} \\
+                        --linuxCodeName=${linuxCodeName} \\
+                        --buildConfig=${lowerConfiguration} \\
+                        --testRootDir=./bin/tests/Windows_NT.x64.${configuration} \\
+                        --coreFxBinDir=./bin/CoreFxBinDir \\
+                        --testDirFile=./tests/testsRunningInsideARM.txt"""
+                    }
 
                     // Basic archiving of the build, no pal tests
                     Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
