@@ -1729,6 +1729,9 @@
         <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\*">
             <Issue>15919</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\*">
+            <Issue>15924</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are tests that fail on Windows -->
