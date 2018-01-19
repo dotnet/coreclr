@@ -95,6 +95,12 @@ namespace System.IO
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
 
+            if (basePath.Contains('\0'))
+                throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
+
+            if (path.Contains('\0'))
+                throw new ArgumentException(SR.Argument_InvalidPathChars);
+
             if (IsPathFullyQualified(path))
                 return GetFullPath(path);
 
@@ -102,25 +108,28 @@ namespace System.IO
 
             if (PathInternal.IsDevice(basePath))
             {
+                // paths starting with \\?\ & \\.\
                 return RemoveRelativeSegments(CombineNoChecks(basePath, path), PathInternal.GetRootLength(basePath));
             }
             else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
             {
+                // path is current drive rooted i.e. starts with \
                 return RemoveRelativeSegments(CombineNoChecks(GetPathRoot(basePath), path.Substring(1)));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
-                if (length == 2 || !PathInternal.IsDirectorySeparator(path[2]))
+                Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
+                
+                // same and different specific drive rooted path
+                if (GetPathRoot(path.AsReadOnlySpan()) == GetPathRoot(basePath.AsReadOnlySpan()))
                 {
-                    if (GetPathRoot(path) == GetPathRoot(basePath))
-                    {
-                        return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
-                    }
-                    else
-                    {
-                        return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
-                    }
+                    // paths such as C:foo
+                    return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
                 }
+                else
+                {
+                    return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
+                }   
             }
 
             return GetFullPath(CombineNoChecks(basePath, path));

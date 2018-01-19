@@ -52,6 +52,12 @@ namespace System.IO
             if (!IsPathFullyQualified(basePath))
                 throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
 
+            if (basePath.Contains('\0'))
+                throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
+
+            if (path.Contains('\0'))
+                throw new ArgumentException(SR.Argument_InvalidPathChars);
+
             if (IsPathFullyQualified(path))
                 return GetFullPath(path);
 
