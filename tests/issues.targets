@@ -1726,10 +1726,10 @@
         <ExcludeList Include="$(XunitTestBinBase)\managed\Compilation\Compilation\Compilation.cmd">
             <Issue>needs triage</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\*">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\**">
             <Issue>15919</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\*">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\**">
             <Issue>15924</Issue>
         </ExcludeList>
     </ItemGroup>
@@ -1737,7 +1737,7 @@
     <!-- The following are tests that fail on Windows -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource*">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource**">
             <Issue>15494</Issue>
         </ExcludeList>
     </ItemGroup>
