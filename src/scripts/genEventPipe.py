@@ -140,7 +140,7 @@ def generateClrEventPipeWriteEventsImpl(
         providerPrettyName +
         " = EventPipe::CreateProvider(SL(" +
         providerPrettyName +
-        "Name));\n")
+        "Name), EventPipeEtwCallback);\n")
     for eventNode in eventNodes:
         eventName = eventNode.getAttribute('symbol')
         templateName = eventNode.getAttribute('template')
@@ -440,6 +440,8 @@ bool WriteToBuffer(const T &value, char *&buffer, size_t& offset, size_t& size, 
     offset += sizeof(T);
     return true;
 }}
+
+extern VOID EventPipeEtwCallback(LPCGUID, ULONG, UCHAR, ULONGLONG, ULONGLONG, PVOID, PVOID);
 
 """.format(root=src_dirname.replace('\\', '/'))
 
