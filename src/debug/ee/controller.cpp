@@ -4956,41 +4956,7 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
     _ASSERTE(native || nativeJITInfo == NULL);
     _ASSERTE(!nativeJITInfo || nativeJITInfo->m_jitComplete); // this is sent by the left-side, and it couldn't have got the code if the JIT wasn't complete
 
-    BOOL bindAcrossAllJittedInstances = !native;
-    MethodDesc* pGenericInstanceFilter = NULL;
-
-#ifdef DEBUG
-    // Normally any breakpoint specified as a native offset only binds in one jitted instance of a method, however
-    // to better test the breakpoint binding logic in debug builds we allow the behavior to change. The test behavior
-    // binds native breakpoints in every code version of the same generic instance. Currently the only way to get more
-    // than one such version is to use tiered compilation, but even with only one version the code path is a little different.
-    //
-    // This covers the same code paths used to add a step-in breakpoint, because step-in needs to handle code version changes
-    // transparently but it is challenging to create a test case that ensures the code version will change exactly during the
-    // tiny window of time that the step-in breakpoint exists.
-    static ConfigDWORD config;
-    if(config.val(CLRConfig::INTERNAL_DbgNativeCodeBpBindsAcrossVersions))
-    {
-        LOG((LF_CORDB, LL_INFO1000, "DB::DB Test hook COMPLUS_DbgNativeCodeBpBindsAcrossVersions is active\n"));
-        if (native && offset == 0 && nativeMethodDesc)
-        {
-            LOG((LF_CORDB, LL_INFO1000, "DB::DB Test hook modification: native breakpoint at offset 0 binding to all code versions\n"));
-            bindAcrossAllJittedInstances = TRUE;
-            pGenericInstanceFilter = nativeMethodDesc;
-        }
-    }
-#endif // DEBUG
-
-    // This is a special mode that sets a breakpoint at native offset 0 on all current and future native code bodies. 
-    // It's indicated by setting nativeCodeBindAllVersions and native=FALSE (i.e. an IL breakpoint).
-    if (nativeCodeBindAllVersions && !native && offset == 0)
-    {
-        bindAcrossAllJittedInstances = TRUE;
-        pGenericInstanceFilter = NULL;
-        native = true;
-    }
-
-    if (!bindAcrossAllJittedInstances)
+    if (!nativeCodeBindAllVersions)
     {
         (*pSucceed) = AddBindAndActivateNativeManagedPatch(nativeMethodDesc, nativeJITInfo, offset, LEAF_MOST_FRAME, pAppDomain);
         return;
@@ -4998,7 +4964,7 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
     else
     {
         _ASSERTE(!native || offset == 0);
-        (*pSucceed) = AddILPatch(pAppDomain, module, md, pGenericInstanceFilter, ilEnCVersion, offset, !native);
+        (*pSucceed) = AddILPatch(pAppDomain, module, md, NULL, ilEnCVersion, offset, !native);
     }
 }
 

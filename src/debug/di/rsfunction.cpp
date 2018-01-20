@@ -573,7 +573,7 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
 //-----------------------------------------------------------------------------
 // CordbFunction::CreateNativeBreakpoint
 //  Public method for ICorDebugFunction4::CreateNativeBreakpoint.
-//   Sets a breakpoint at offset 0 for all native code versions of a method.
+//   Sets a breakpoint at native offset 0 for all native code versions of a method.
 // 
 // Parameters
 //   pnVersion - out parameter to hold the version number.

@@ -7569,7 +7569,7 @@ class CordbFunctionBreakpoint : public CordbBreakpoint,
                                 public ICorDebugFunctionBreakpoint
 {
 public:
-    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL bindToAllNativeCodeVersions = FALSE);
+    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL offsetIsIl = TRUE);
     ~CordbFunctionBreakpoint();
 
     virtual void Neuter();
@@ -7630,7 +7630,7 @@ public:
     // leaked.
     RSExtSmartPtr<CordbCode> m_code;
     SIZE_T          m_offset;
-    BOOL            m_bindToAllNativeCodeVersions;
+    BOOL            m_offsetIsIl;
 };
 
 /* ------------------------------------------------------------------------- *
