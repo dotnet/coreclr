@@ -1,3 +1,4 @@
+
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
@@ -1612,7 +1613,7 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif // FEATURE_SIMD
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         case GT_HWIntrinsic:
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
@@ -1651,7 +1652,7 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             }
             else
 #endif
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
                 if (blockNode->OperGet() == GT_HWIntrinsic && blockNode->AsHWIntrinsic()->isSIMD())
             {
                 parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
@@ -3378,6 +3379,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     bool              mustExpand  = false;
     bool              isSpecial   = false;
     CorInfoIntrinsics intrinsicID = CORINFO_INTRINSIC_Illegal;
+    NamedIntrinsic    ni          = NI_Illegal;
 
     if ((methodFlags & CORINFO_FLG_INTRINSIC) != 0)
     {
@@ -3388,6 +3390,20 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     {
         // The recursive calls to Jit intrinsics are must-expand by convention.
         mustExpand = mustExpand || gtIsRecursiveCall(method);
+
+        if (intrinsicID == CORINFO_INTRINSIC_Illegal)
+        {
+            ni = lookupNamedIntrinsic(method);
+
+#ifdef FEATURE_HW_INTRINSICS
+#ifdef _TARGET_XARCH_
+            if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
+            {
+                return impX86HWIntrinsic(ni, method, sig, mustExpand);
+            }
+#endif // _TARGET_XARCH_
+#endif // FEATURE_HW_INTRINSICS
+        }
     }
 
     *pIntrinsicID = intrinsicID;
@@ -3875,16 +3891,9 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     }
 
     // Look for new-style jit intrinsics by name
-    if ((intrinsicID == CORINFO_INTRINSIC_Illegal) && ((methodFlags & CORINFO_FLG_JIT_INTRINSIC) != 0))
+    if (ni != NI_Illegal)
     {
         assert(retNode == nullptr);
-        const NamedIntrinsic ni = lookupNamedIntrinsic(method);
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
-        if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
-        {
-            return impX86HWIntrinsic(ni, method, sig);
-        }
-#endif // FEATURE_HW_INTRINSICS
         switch (ni)
         {
             case NI_System_Enum_HasFlag:
@@ -4109,13 +4118,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         }
     }
 
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
     if ((namespaceName != nullptr) && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
     {
         InstructionSet isa = lookupHWIntrinsicISA(className);
         result             = lookupHWIntrinsic(methodName, isa);
     }
-#endif // FEATURE_HW_INTRINSICS
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
     return result;
 }
 
@@ -15830,6 +15839,31 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     assert(info.compRetNativeType != TYP_VOID &&
                            (fgMoreThanOneReturnBlock() || impInlineInfo->HasGcRefLocals()));
 
+                    // If this method returns a ref type, track the actual types seen
+                    // in the returns.
+                    if (info.compRetType == TYP_REF)
+                    {
+                        bool                 isExact      = false;
+                        bool                 isNonNull    = false;
+                        CORINFO_CLASS_HANDLE returnClsHnd = gtGetClassHandle(op2, &isExact, &isNonNull);
+
+                        if (impInlineInfo->retExpr == nullptr)
+                        {
+                            // This is the first return, so best known type is the type
+                            // of this return value.
+                            impInlineInfo->retExprClassHnd        = returnClsHnd;
+                            impInlineInfo->retExprClassHndIsExact = isExact;
+                        }
+                        else if (impInlineInfo->retExprClassHnd != returnClsHnd)
+                        {
+                            // This return site type differs from earlier seen sites,
+                            // so reset the info and we'll fall back to using the method's
+                            // declared return type for the return spill temp.
+                            impInlineInfo->retExprClassHnd        = nullptr;
+                            impInlineInfo->retExprClassHndIsExact = false;
+                        }
+                    }
+
                     // This is a bit of a workaround...
                     // If we are inlining a call that returns a struct, where the actual "native" return type is
                     // not a struct (for example, the struct is composed of exactly one int, and the native
@@ -15873,7 +15907,7 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     impAssignTempGen(lvaInlineeReturnSpillTemp, op2, se.seTypeInfo.GetClassHandle(),
                                      (unsigned)CHECK_SPILL_ALL);
 
-                    GenTreePtr tmpOp2 = gtNewLclvNode(lvaInlineeReturnSpillTemp, op2->TypeGet());
+                    GenTree* tmpOp2 = gtNewLclvNode(lvaInlineeReturnSpillTemp, op2->TypeGet());
 
                     if (restoreType)
                     {
@@ -19077,7 +19111,8 @@ bool Compiler::IsTargetIntrinsic(CorInfoIntrinsics intrinsicId)
 #if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
     switch (intrinsicId)
     {
-        // Amd64 only has SSE2 instruction to directly compute sqrt/abs.
+        // AMD64/x86 has SSE2 instructions to directly compute sqrt/abs and SSE4.1
+        // instructions to directly compute round/ceiling/floor.
         //
         // TODO: Because the x86 backend only targets SSE for floating-point code,
         //       it does not treat Sine, Cosine, or Round as intrinsics (JIT32
@@ -19088,6 +19123,12 @@ bool Compiler::IsTargetIntrinsic(CorInfoIntrinsics intrinsicId)
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
             return true;
+
+        case CORINFO_INTRINSIC_Round:
+        case CORINFO_INTRINSIC_Ceiling:
+        case CORINFO_INTRINSIC_Floor:
+            // TODO-XArch-CQ: Update to work on non-AVX machines: https://github.com/dotnet/coreclr/issues/15908
+            return compSupports(InstructionSet_SSE41) && canUseVexEncoding();
 
         default:
             return false;

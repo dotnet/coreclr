@@ -2116,7 +2116,17 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     SIMDVector3Handle = nullptr;
     SIMDVector4Handle = nullptr;
     SIMDVectorHandle  = nullptr;
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
+#if defined(_TARGET_ARM64_)
+    Vector64FloatHandle  = nullptr;
+    Vector64DoubleHandle = nullptr;
+    Vector64IntHandle    = nullptr;
+    Vector64UShortHandle = nullptr;
+    Vector64UByteHandle  = nullptr;
+    Vector64ShortHandle  = nullptr;
+    Vector64ByteHandle   = nullptr;
+    Vector64LongHandle   = nullptr;
+#endif // defined(_TARGET_ARM64_)
     Vector128FloatHandle  = nullptr;
     Vector128DoubleHandle = nullptr;
     Vector128IntHandle    = nullptr;
@@ -2730,6 +2740,15 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetUseSSE4(true);
         }
     }
+#endif
+#if defined(_TARGET_ARM64_)
+    // There is no JitFlag for Base instructions handle manually
+    opts.setSupportedISA(InstructionSet_Base);
+#define HARDWARE_INTRINSIC_CLASS(flag, isa)                                                                            \
+    if (jitFlags.IsSet(JitFlags::flag))                                                                                \
+        opts.setSupportedISA(InstructionSet_##isa);
+#include "hwintrinsiclistArm64.h"
+
 #endif
 }
 
@@ -4573,6 +4592,17 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
             /* Filter out unimported BBs */
 
             fgRemoveEmptyBlocks();
+
+            // Update type of return spill temp if we have gathered better info
+            // when importing the inlinee.
+            if (fgNeedReturnSpillTemp())
+            {
+                CORINFO_CLASS_HANDLE retExprClassHnd = impInlineInfo->retExprClassHnd;
+                if (retExprClassHnd != nullptr)
+                {
+                    lvaUpdateClass(lvaInlineeReturnSpillTemp, retExprClassHnd, impInlineInfo->retExprClassHndIsExact);
+                }
+            }
         }
 
         EndPhase(PHASE_POST_IMPORT);
@@ -5782,8 +5812,8 @@ void Compiler::compCompileFinish()
     {
         if (compJitHaltMethod())
         {
-#if !defined(_TARGET_ARM64_) && !defined(_HOST_UNIX_)
-            // TODO-ARM64-NYI: re-enable this when we have an OS that supports a pop-up dialog
+#if !defined(_HOST_UNIX_)
+            // TODO-UNIX: re-enable this when we have an OS that supports a pop-up dialog
 
             // Don't do an assert, but just put up the dialog box so we get just-in-time debugger
             // launching.  When you hit 'retry' it will continue and naturally stop at the INT 3

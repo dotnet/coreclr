@@ -1441,6 +1441,15 @@ MethodTableBuilder::BuildMethodTableThrowing(
         {
             SetUnsafeValueClass();
         }
+
+        hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
+            g_CompilerServicesIsByRefLikeAttribute,
+            NULL, NULL);
+        IfFailThrow(hr);
+        if (hr == S_OK)
+        {
+            bmtFP->fIsByRefLikeType = true;
+        }
     }
 
     // Check to see if the class is an enumeration. No fancy checks like the one immediately
@@ -1490,7 +1499,21 @@ MethodTableBuilder::BuildMethodTableThrowing(
         LPCUTF8 className;
         LPCUTF8 nameSpace;
         HRESULT hr = GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetTypeDefToken(), &className, &nameSpace);
-    
+
+        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics") == 0)
+        {
+            if (IsCompilationProcess())
+            {
+                // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
+                // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
+                // aggregate or union types. See https://github.com/dotnet/coreclr/issues/15943
+                //
+                // Once they are properly handled according to the ABI requirements, we can remove this check
+                // and allow them to be used in crossgen/AOT scenarios.
+                COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
+            }
+        }
+
 #if defined(_TARGET_ARM64_)
         // All the funtions in System.Runtime.Intrinsics.Arm.Arm64 are hardware intrinsics.
         if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
@@ -1603,11 +1626,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
             }
         }
     }
-
-
-
-    // Set the contextful or marshalbyref flag if necessary
-    SetContextfulOrByRef();
 
     // NOTE: This appears to be the earliest point during class loading that other classes MUST be loaded
     // resolve unresolved interfaces, determine an upper bound on the size of the interface map,
@@ -1840,6 +1858,24 @@ MethodTableBuilder::BuildMethodTableThrowing(
         pMT->SetIsByRefLike();
     }
 
+    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
+    // Currently, only SIMD types have [Intrinsic] attribute
+    //
+    // We check this here, before the SystemVAmd64CheckForPass[Native]StructInRegister calls to ensure the SIMD
+    // intrinsics are not enregistered incorrectly.
+    if ((GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly()) && IsValueClass() && bmtGenerics->HasInstantiation())
+    {
+        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(), 
+            g_CompilerServicesIntrinsicAttribute, 
+            NULL, 
+            NULL);
+
+        if (hr == S_OK)
+        {
+            pMT->SetIsIntrinsicType();
+        }
+    }
+
     if (IsValueClass())
     {
         if (bmtFP->NumInstanceFieldBytes != totalDeclaredFieldSize || HasOverLayedField())
@@ -1900,7 +1936,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     SetFinalizationSemantics();
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
     // Figure out if we're domain agile..
     // Note that this checks a bunch of field directly on the class & method table,
     // so it needs to come late in the game.
@@ -2021,21 +2057,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         pMT->SetICastable();
     }
 #endif // FEATURE_ICASTABLE       
- 
-    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
-    // Currently, only SIMD types have [Intrinsic] attribute
-    if ((GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly()) && IsValueClass() && bmtGenerics->HasInstantiation())
-    {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(), 
-            g_CompilerServicesIntrinsicAttribute, 
-            NULL, 
-            NULL);
-
-        if (hr == S_OK)
-        {
-            pMT->SetIsIntrinsicType();
-        }
-    }
 
     // Grow the typedef ridmap in advance as we can't afford to
     // fail once we set the resolve bit
@@ -4072,7 +4093,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                     goto GOT_ELEMENT_TYPE;
                 }
                 
-                // Inherit IsByRefLike characteristic from fields
+                // Check ByRefLike fields
                 if (!IsSelfRef(pByValueClass) && pByValueClass->IsByRefLike())
                 {
                     if (fIsStatic)
@@ -4085,8 +4106,10 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                         // Non-value-classes cannot contain by-ref-like instance fields
                         BuildMethodTableThrowException(IDS_CLASSLOAD_BYREFLIKE_NOTVALUECLASSFIELD);
                     }
-
-                    bmtFP->fIsByRefLikeType = true;
+                    if (!bmtFP->fIsByRefLikeType)
+                    {
+                        BuildMethodTableThrowException(IDS_CLASSLOAD_NOTBYREFLIKE);
+                    }
                 }
 
                 if (!IsSelfRef(pByValueClass) && pByValueClass->GetClass()->HasNonPublicFields())
@@ -9522,19 +9545,18 @@ void MethodTableBuilder::CheckForSystemTypes()
         _ASSERTE(g_pByReferenceClass != NULL);
         _ASSERTE(g_pByReferenceClass->IsByRefLike());
 
+#ifdef _TARGET_X86_
         if (GetCl() == g_pByReferenceClass->GetCl())
         {
-            pMT->SetIsByRefLike();
-#ifdef _TARGET_X86_
             // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
             // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
             // treated as a value type so that its field can be considered as a by-ref pointer.
             _ASSERTE(pMT->GetFlag(MethodTable::enum_flag_Category_Mask) == MethodTable::enum_flag_Category_PrimitiveValueType);
             pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
             pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
-#endif
             return;
         }
+#endif
 
         _ASSERTE(g_pNullableClass->IsNullable());
 
@@ -9580,41 +9602,27 @@ void MethodTableBuilder::CheckForSystemTypes()
             }
             LOG((LF_CLASSLOADER, LL_INFO10000, "%s::%s marked as primitive type %i\n", nameSpace, name, type));
 #endif // _DEBUG
-
-            if (type == ELEMENT_TYPE_TYPEDBYREF)
-            {
-                pMT->SetIsByRefLike();
-            }
         }
         else if (strcmp(name, g_NullableName) == 0)
         {
             pMT->SetIsNullable();
         }
+#ifdef _TARGET_X86_
         else if (strcmp(name, g_ByReferenceName) == 0)
         {
-            pMT->SetIsByRefLike();
-#ifdef _TARGET_X86_
             // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
             // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
             // treated as a value type so that its field can be considered as a by-ref pointer.
             _ASSERTE(pMT->GetFlag(MethodTable::enum_flag_Category_Mask) == MethodTable::enum_flag_Category_PrimitiveValueType);
             pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
             pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
+        }
 #endif
-        }
-        else if (strcmp(name, g_ArgIteratorName) == 0)
-        {
-            // Mark the special types that have embeded stack pointers in them
-            pMT->SetIsByRefLike();
-        }
+#ifndef _TARGET_X86_ 
         else if (strcmp(name, g_RuntimeArgumentHandleName) == 0)
         {
-            pMT->SetIsByRefLike();
-#ifndef _TARGET_X86_ 
             pMT->SetInternalCorElementType (ELEMENT_TYPE_I);
-#endif
         }
-#ifndef _TARGET_X86_ 
         else if (strcmp(name, g_RuntimeMethodHandleInternalName) == 0)
         {
             pMT->SetInternalCorElementType (ELEMENT_TYPE_I);
@@ -11153,24 +11161,6 @@ BOOL MethodTableBuilder::NeedsAlignedBaseOffset()
 }
 #endif // FEATURE_READYTORUN
 
-//*******************************************************************************
-//
-// Used by BuildMethodTable
-//
-// Set the contextful or marshaledbyref flag on the attributes of the class
-//
-VOID MethodTableBuilder::SetContextfulOrByRef()
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer(this));
-        PRECONDITION(CheckPointer(bmtInternal));
-
-    }
-    CONTRACTL_END;
-
-}
 //*******************************************************************************
 //
 // Used by BuildMethodTable

@@ -254,6 +254,9 @@ public:
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 
+    // Record observation for prior failure
+    virtual void NotePriorFailure(InlineObservation obs) = 0;
+
     // Name of the policy
     virtual const char* GetName() const = 0;
     // Detailed data value dump
@@ -397,6 +400,17 @@ public:
     {
         m_Policy->NoteInt(obs, value);
     }
+
+#if defined(DEBUG) || defined(INLINE_DATA)
+
+    // Record observation from an earlier failure.
+    void NotePriorFailure(InlineObservation obs)
+    {
+        m_Policy->NotePriorFailure(obs);
+        assert(IsFailure());
+    }
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
     // Determine if this inline is profitable
     void DetermineProfitability(CORINFO_METHOD_INFO* methodInfo)
@@ -548,7 +562,9 @@ struct InlineInfo
 
     InlineResult* inlineResult;
 
-    GenTreePtr retExpr; // The return expression of the inlined candidate.
+    GenTreePtr           retExpr; // The return expression of the inlined candidate.
+    CORINFO_CLASS_HANDLE retExprClassHnd;
+    bool                 retExprClassHndIsExact;
 
     CORINFO_CONTEXT_HANDLE tokenLookupContextHandle; // The context handle that will be passed to
                                                      // impTokenLookupContextHandle in Inlinee's Compiler.

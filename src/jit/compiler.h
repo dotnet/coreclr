@@ -2056,11 +2056,30 @@ public:
     void SetOpLclRelatedToSIMDIntrinsic(GenTreePtr op);
 #endif
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
     GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(
         var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size);
     GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(
         var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size);
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 GenTree*       op1,
+                                                 GenTree*       op2,
+                                                 GenTree*       op3,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
+    GenTreeHWIntrinsic* gtNewSimdHWIntrinsicNode(var_types      type,
+                                                 GenTree*       op1,
+                                                 GenTree*       op2,
+                                                 GenTree*       op3,
+                                                 GenTree*       op4,
+                                                 NamedIntrinsic hwIntrinsicID,
+                                                 var_types      baseType,
+                                                 unsigned       size);
     GenTreeHWIntrinsic* gtNewScalarHWIntrinsicNode(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID);
     GenTreeHWIntrinsic* gtNewScalarHWIntrinsicNode(var_types      type,
                                                    GenTree*       op1,
@@ -2088,6 +2107,7 @@ public:
     GenTreeArgList* gtNewArgList(GenTreePtr op);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3);
+    GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3, GenTreePtr op4);
 
     static fgArgTabEntryPtr gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum);
     static fgArgTabEntryPtr gtArgEntryByNode(GenTreeCall* call, GenTreePtr node);
@@ -3021,31 +3041,90 @@ protected:
                               bool                  tailCall);
     NamedIntrinsic lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method);
 
-#if FEATURE_HW_INTRINSICS
-    InstructionSet lookupHWIntrinsicISA(const char* className);
-    NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
-    InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
-    bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
-    bool isFullyImplmentedISAClass(InstructionSet isa);
+#ifdef FEATURE_HW_INTRINSICS
+    static InstructionSet lookupHWIntrinsicISA(const char* className);
+    static NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
+    static InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
+    static bool isFullyImplmentedISAClass(InstructionSet isa);
 #ifdef _TARGET_XARCH_
-    GenTree* impX86HWIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSEIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSE2Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSE3Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSSE3Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSE41Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impSSE42Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impAVXIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impAVX2Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impAESIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impBMI1Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impBMI2Intrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impFMAIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impLZCNTIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impPCLMULQDQIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
-    GenTree* impPOPCNTIntrinsic(NamedIntrinsic intrinsic, CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* sig);
+    GenTree* impUnsupportedHWIntrinsic(unsigned              helper,
+                                       CORINFO_METHOD_HANDLE method,
+                                       CORINFO_SIG_INFO*     sig,
+                                       bool                  mustExpand);
+    GenTree* impX86HWIntrinsic(NamedIntrinsic        intrinsic,
+                               CORINFO_METHOD_HANDLE method,
+                               CORINFO_SIG_INFO*     sig,
+                               bool                  mustExpand);
+    GenTree* impSSEIntrinsic(NamedIntrinsic        intrinsic,
+                             CORINFO_METHOD_HANDLE method,
+                             CORINFO_SIG_INFO*     sig,
+                             bool                  mustExpand);
+    GenTree* impSSE2Intrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
+    GenTree* impSSE3Intrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
+    GenTree* impSSSE3Intrinsic(NamedIntrinsic        intrinsic,
+                               CORINFO_METHOD_HANDLE method,
+                               CORINFO_SIG_INFO*     sig,
+                               bool                  mustExpand);
+    GenTree* impSSE41Intrinsic(NamedIntrinsic        intrinsic,
+                               CORINFO_METHOD_HANDLE method,
+                               CORINFO_SIG_INFO*     sig,
+                               bool                  mustExpand);
+    GenTree* impSSE42Intrinsic(NamedIntrinsic        intrinsic,
+                               CORINFO_METHOD_HANDLE method,
+                               CORINFO_SIG_INFO*     sig,
+                               bool                  mustExpand);
+    GenTree* impAVXIntrinsic(NamedIntrinsic        intrinsic,
+                             CORINFO_METHOD_HANDLE method,
+                             CORINFO_SIG_INFO*     sig,
+                             bool                  mustExpand);
+    GenTree* impAVX2Intrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
+    GenTree* impAESIntrinsic(NamedIntrinsic        intrinsic,
+                             CORINFO_METHOD_HANDLE method,
+                             CORINFO_SIG_INFO*     sig,
+                             bool                  mustExpand);
+    GenTree* impBMI1Intrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
+    GenTree* impBMI2Intrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_METHOD_HANDLE method,
+                              CORINFO_SIG_INFO*     sig,
+                              bool                  mustExpand);
+    GenTree* impFMAIntrinsic(NamedIntrinsic        intrinsic,
+                             CORINFO_METHOD_HANDLE method,
+                             CORINFO_SIG_INFO*     sig,
+                             bool                  mustExpand);
+    GenTree* impLZCNTIntrinsic(NamedIntrinsic        intrinsic,
+                               CORINFO_METHOD_HANDLE method,
+                               CORINFO_SIG_INFO*     sig,
+                               bool                  mustExpand);
+    GenTree* impPCLMULQDQIntrinsic(NamedIntrinsic        intrinsic,
+                                   CORINFO_METHOD_HANDLE method,
+                                   CORINFO_SIG_INFO*     sig,
+                                   bool                  mustExpand);
+    GenTree* impPOPCNTIntrinsic(NamedIntrinsic        intrinsic,
+                                CORINFO_METHOD_HANDLE method,
+                                CORINFO_SIG_INFO*     sig,
+                                bool                  mustExpand);
     bool compSupportsHWIntrinsic(InstructionSet isa);
     bool isScalarISA(InstructionSet isa);
+    static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static int numArgsOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
+    static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
+    GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
+    GenTreeArgList* buildArgList(CORINFO_SIG_INFO* sig);
 #endif // _TARGET_XARCH_
 #endif // FEATURE_HW_INTRINSICS
     GenTreePtr impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,
@@ -3170,10 +3249,10 @@ public:
                                        unsigned*            typeSize,
                                        bool                 forReturn);
 
-    static bool IsIntrinsicImplementedByUserCall(CorInfoIntrinsics intrinsicId);
-    static bool IsTargetIntrinsic(CorInfoIntrinsics intrinsicId);
-    static bool IsMathIntrinsic(CorInfoIntrinsics intrinsicId);
-    static bool IsMathIntrinsic(GenTreePtr tree);
+    bool IsIntrinsicImplementedByUserCall(CorInfoIntrinsics intrinsicId);
+    bool IsTargetIntrinsic(CorInfoIntrinsics intrinsicId);
+    bool IsMathIntrinsic(CorInfoIntrinsics intrinsicId);
+    bool IsMathIntrinsic(GenTreePtr tree);
 
 private:
     //----------------- Importing the method ----------------------------------
@@ -7303,9 +7382,9 @@ private:
 #if defined(_TARGET_UNIX_)
     int mapRegNumToDwarfReg(regNumber reg);
     void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
-    void unwindPushCFI(regNumber reg);
+    void unwindPushPopCFI(regNumber reg);
     void unwindBegPrologCFI();
-    void unwindPushMaskCFI(regMaskTP regMask, bool isFloat);
+    void unwindPushPopMaskCFI(regMaskTP regMask, bool isFloat);
     void unwindAllocStackCFI(unsigned size);
     void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
     void unwindEmitFuncCFI(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
@@ -7400,7 +7479,19 @@ private:
     CORINFO_CLASS_HANDLE SIMDVector4Handle;
     CORINFO_CLASS_HANDLE SIMDVectorHandle;
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
+#if defined(_TARGET_ARM64_)
+    CORINFO_CLASS_HANDLE Vector64FloatHandle;
+    CORINFO_CLASS_HANDLE Vector64DoubleHandle;
+    CORINFO_CLASS_HANDLE Vector64IntHandle;
+    CORINFO_CLASS_HANDLE Vector64UShortHandle;
+    CORINFO_CLASS_HANDLE Vector64UByteHandle;
+    CORINFO_CLASS_HANDLE Vector64ShortHandle;
+    CORINFO_CLASS_HANDLE Vector64ByteHandle;
+    CORINFO_CLASS_HANDLE Vector64LongHandle;
+    CORINFO_CLASS_HANDLE Vector64UIntHandle;
+    CORINFO_CLASS_HANDLE Vector64ULongHandle;
+#endif // defined(_TARGET_ARM64_)
     CORINFO_CLASS_HANDLE Vector128FloatHandle;
     CORINFO_CLASS_HANDLE Vector128DoubleHandle;
     CORINFO_CLASS_HANDLE Vector128IntHandle;
@@ -7739,7 +7830,7 @@ private:
     // AVX2: 32-byte Vector<T> and Vector256<T>
     unsigned int maxSIMDStructBytes()
     {
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
         if (compSupports(InstructionSet_AVX))
         {
             return YMM_REGSIZE_BYTES;
@@ -7888,7 +7979,7 @@ private:
 
     bool compSupports(InstructionSet isa) const
     {
-#ifdef _TARGET_XARCH_
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         return (opts.compSupportsISA & (1ULL << isa)) != 0;
 #else
         return false;
@@ -8014,7 +8105,7 @@ public:
         bool compCanUseSSE4; // Allow CodeGen to use SSE3, SSSE3, SSE4.1 and SSE4.2 instructions
 #endif                       // _TARGET_XARCH_
 
-#ifdef _TARGET_XARCH_
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         uint64_t compSupportsISA;
         void setSupportedISA(InstructionSet isa)
         {

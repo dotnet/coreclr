@@ -1645,24 +1645,6 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         BOOL fInstanceHelper = FALSE;
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->EnableFullDebug()
-            && pField->IsDangerousAppDomainAgileField()
-            && CorTypeInfo::IsObjRef(pField->GetFieldType()))
-        {
-            //
-            // In a checked field with all checks turned on, we use a helper to enforce the app domain
-            // agile invariant.
-            //
-            // <REVISIT_TODO>@todo: we'd like to check this for value type fields as well - we
-            // just need to add some code to iterate through the fields for
-            // references during the assignment.
-            // </REVISIT_TODO>
-            fInstanceHelper = TRUE;
-        }
-        else
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         if (fInstanceHelper)
         {
             if (flags & CORINFO_ACCESS_ADDRESS)
@@ -5397,7 +5379,8 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsVirtual())
+    // Backwards compat: calls to abstract interface methods are treated as callvirt
+    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
     {
         directCall = false;
     }
@@ -5439,6 +5422,12 @@ void CEEInfo::getCallInfo(
         }
         else
 #endif
+        if (pTargetMD->GetMethodTable()->IsInterface())
+        {
+            // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
+            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+        }
+        else
         {
             DWORD dwMethodAttrs = pTargetMD->GetAttrs();
             devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
@@ -6449,20 +6438,13 @@ CorInfoHelpFunc CEEInfo::getBoxHelper(CORINFO_CLASS_HANDLE clsHnd)
     }
     else 
     {
-        // Dev10 718281 - This has been functionally broken fora very long time (at least 2.0).
-        // The recent addition of the check for stack pointers has caused it to now AV instead
-        // of gracefully failing with an InvalidOperationException. Since nobody has noticed
-        // it being broken, we are choosing not to invest to fix it, and instead explicitly
-        // breaking it and failing early and consistently.
         if(VMClsHnd.IsTypeDesc())
-        {
             COMPlusThrow(kInvalidOperationException,W("InvalidOperation_TypeCannotBeBoxed"));
-        }
 
         // we shouldn't allow boxing of types that contains stack pointers
         // csc and vbc already disallow it.
         if (VMClsHnd.AsMethodTable()->IsByRefLike())
-            COMPlusThrow(kInvalidProgramException);
+            COMPlusThrow(kInvalidProgramException,W("NotSupported_ByRefLike"));
 
         result = CORINFO_HELP_BOX;
     }

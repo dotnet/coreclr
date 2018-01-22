@@ -74,9 +74,9 @@ namespace System
             }
             _displayName = _standardDisplayName;
 
-            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.Generic, ref _displayName);
-            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.Standard, ref _standardDisplayName);
-            GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType.DaylightSavings, ref _daylightDisplayName);
+            GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Generic, ref _displayName);
+            GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.Standard, ref _standardDisplayName);
+            GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType.DaylightSavings, ref _daylightDisplayName);
 
             // TZif supports seconds-level granularity with offsets but TimeZoneInfo only supports minutes since it aligns
             // with DateTimeOffset, SQL Server, and the W3C XML Specification
@@ -94,7 +94,7 @@ namespace System
             ValidateTimeZoneInfo(_id, _baseUtcOffset, _adjustmentRules, out _supportsDaylightSavingTime);
         }
 
-        private void GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType nameType, ref string displayName)
+        private void GetDisplayName(Interop.Globalization.TimeZoneDisplayNameType nameType, ref string displayName)
         {
             if (GlobalizationMode.Invariant)
             {
@@ -104,7 +104,7 @@ namespace System
 
             string timeZoneDisplayName;
             bool result = Interop.CallStringMethod(
-                (locale, id, type, stringBuilder) => Interop.GlobalizationInterop.GetTimeZoneDisplayName(
+                (locale, id, type, stringBuilder) => Interop.Globalization.GetTimeZoneDisplayName(
                     locale,
                     id,
                     type,
@@ -241,54 +241,50 @@ namespace System
         /// </remarks>
         private static List<string> GetTimeZoneIds(string timeZoneDirectory)
         {
-            string[] zoneTabFileLines = null;
+            List<string> timeZoneIds = new List<string>();
+
             try
             {
-                zoneTabFileLines = File.ReadAllLines(Path.Combine(timeZoneDirectory, ZoneTabFileName));
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-
-            if (zoneTabFileLines == null)
-            {
-                return new List<string>();
-            }
-
-            List<string> timeZoneIds = new List<string>(zoneTabFileLines.Length);
-
-            foreach (string zoneTabFileLine in zoneTabFileLines)
-            {
-                if (!string.IsNullOrEmpty(zoneTabFileLine) && zoneTabFileLine[0] != '#')
+                using (StreamReader sr = new StreamReader(Path.Combine(timeZoneDirectory, ZoneTabFileName), Encoding.UTF8))
                 {
-                    // the format of the line is "country-code \t coordinates \t TimeZone Id \t comments"
-
-                    int firstTabIndex = zoneTabFileLine.IndexOf('\t');
-                    if (firstTabIndex != -1)
+                    string zoneTabFileLine;
+                    while ((zoneTabFileLine = sr.ReadLine()) != null)
                     {
-                        int secondTabIndex = zoneTabFileLine.IndexOf('\t', firstTabIndex + 1);
-                        if (secondTabIndex != -1)
+                        if (!string.IsNullOrEmpty(zoneTabFileLine) && zoneTabFileLine[0] != '#')
                         {
-                            string timeZoneId;
-                            int startIndex = secondTabIndex + 1;
-                            int thirdTabIndex = zoneTabFileLine.IndexOf('\t', startIndex);
-                            if (thirdTabIndex != -1)
-                            {
-                                int length = thirdTabIndex - startIndex;
-                                timeZoneId = zoneTabFileLine.Substring(startIndex, length);
-                            }
-                            else
-                            {
-                                timeZoneId = zoneTabFileLine.Substring(startIndex);
-                            }
+                            // the format of the line is "country-code \t coordinates \t TimeZone Id \t comments"
 
-                            if (!string.IsNullOrEmpty(timeZoneId))
+                            int firstTabIndex = zoneTabFileLine.IndexOf('\t');
+                            if (firstTabIndex != -1)
                             {
-                                timeZoneIds.Add(timeZoneId);
+                                int secondTabIndex = zoneTabFileLine.IndexOf('\t', firstTabIndex + 1);
+                                if (secondTabIndex != -1)
+                                {
+                                    string timeZoneId;
+                                    int startIndex = secondTabIndex + 1;
+                                    int thirdTabIndex = zoneTabFileLine.IndexOf('\t', startIndex);
+                                    if (thirdTabIndex != -1)
+                                    {
+                                        int length = thirdTabIndex - startIndex;
+                                        timeZoneId = zoneTabFileLine.Substring(startIndex, length);
+                                    }
+                                    else
+                                    {
+                                        timeZoneId = zoneTabFileLine.Substring(startIndex);
+                                    }
+
+                                    if (!string.IsNullOrEmpty(timeZoneId))
+                                    {
+                                        timeZoneIds.Add(timeZoneId);
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
 
             return timeZoneIds;
         }

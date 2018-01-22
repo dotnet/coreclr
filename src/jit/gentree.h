@@ -1593,7 +1593,7 @@ public:
         return OperIsSIMD(gtOper);
     }
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
     inline bool OperIsSimdHWIntrinsic() const;
 #else
     inline bool OperIsSimdHWIntrinsic() const
@@ -1663,6 +1663,9 @@ public:
             case GT_LEA:
             case GT_RETFILT:
             case GT_NOP:
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HWIntrinsic:
+#endif // FEATURE_HW_INTRINSICS
                 return true;
             case GT_RETURN:
                 return gtType == TYP_VOID;
@@ -1688,7 +1691,7 @@ public:
             case GT_SIMD:
 #endif // !FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
             case GT_HWIntrinsic:
 #endif // FEATURE_HW_INTRINSICS
 
@@ -4220,10 +4223,15 @@ struct GenTreeSIMD : public GenTreeJitIntrinsic
 };
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
 {
     NamedIntrinsic gtHWIntrinsicId;
+
+    GenTreeHWIntrinsic(var_types type, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
+        : GenTreeJitIntrinsic(GT_HWIntrinsic, type, nullptr, nullptr, baseType, size), gtHWIntrinsicId(hwIntrinsicID)
+    {
+    }
 
     GenTreeHWIntrinsic(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
         : GenTreeJitIntrinsic(GT_HWIntrinsic, type, op1, nullptr, baseType, size), gtHWIntrinsicId(hwIntrinsicID)

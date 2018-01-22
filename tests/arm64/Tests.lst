@@ -21177,7 +21177,7 @@ RelativePath=GC\API\GC\GetGeneration\GetGeneration.cmd
 WorkingDir=GC\API\GC\GetGeneration
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS
+Categories=EXPECTED_PASS;GCSTRESS_EXCLUDE
 HostStyle=0
 
 [GetGeneration_box.cmd_2871]
@@ -90641,7 +90641,7 @@ RelativePath=GC\API\NoGCRegion\NoGC\NoGC.cmd
 WorkingDir=GC\API\NoGCRegion\NoGC
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;GCSTRESS_EXCLUDE
 HostStyle=0
 
 [DevDiv_397793.cmd_11701]
@@ -90803,3 +90803,20 @@ Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS
 HostStyle=0
+
+[GitHub_15077.cmd_11718]
+RelativePath=JIT\Regression\JitBlue\GitHub_15077\GitHub_15077\GitHub_15077.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_15077\GitHub_15077
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+
+[GitHub_15291.cmd_11719]
+RelativePath=JIT\Regression\JitBlue\GitHub_15291\GitHub_15291\GitHub_15291.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_15291\GitHub_15291
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+

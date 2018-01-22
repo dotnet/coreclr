@@ -396,8 +396,10 @@ public:
 typedef ListElementAllocator<Interval, CMK_LSRA_Interval>       LinearScanMemoryAllocatorInterval;
 typedef ListElementAllocator<RefPosition, CMK_LSRA_RefPosition> LinearScanMemoryAllocatorRefPosition;
 
-typedef jitstd::list<Interval, LinearScanMemoryAllocatorInterval>       IntervalList;
-typedef jitstd::list<RefPosition, LinearScanMemoryAllocatorRefPosition> RefPositionList;
+typedef jitstd::list<Interval, LinearScanMemoryAllocatorInterval>                         IntervalList;
+typedef jitstd::list<RefPosition, LinearScanMemoryAllocatorRefPosition>                   RefPositionList;
+typedef jitstd::list<RefPosition, LinearScanMemoryAllocatorRefPosition>::iterator         RefPositionIterator;
+typedef jitstd::list<RefPosition, LinearScanMemoryAllocatorRefPosition>::reverse_iterator RefPositionReverseIterator;
 
 class Referenceable
 {
@@ -1027,6 +1029,9 @@ private:
 
     static Compiler::fgWalkResult markAddrModeOperandsHelperMD(GenTree* tree, void* p);
 
+    // Helper for getKillSetForNode().
+    regMaskTP getKillSetForStoreInd(GenTreeStoreInd* tree);
+
     // Return the registers killed by the given tree node.
     regMaskTP getKillSetForNode(GenTree* tree);
 
@@ -1050,18 +1055,11 @@ private:
 
     var_types getDefType(GenTree* tree);
 
-    RefPosition* defineNewInternalTemp(GenTree*     tree,
-                                       RegisterType regType,
-                                       regMaskTP regMask DEBUGARG(unsigned minRegCandidateCount));
+    RefPosition* defineNewInternalTemp(GenTree* tree, RegisterType regType, regMaskTP regMask);
 
-    int buildInternalRegisterDefsForNode(GenTree*      tree,
-                                         TreeNodeInfo* info,
-                                         RefPosition* defs[] DEBUGARG(unsigned minRegCandidateCount));
+    int buildInternalRegisterDefsForNode(GenTree* tree, TreeNodeInfo* info, RefPosition* defs[]);
 
-    void buildInternalRegisterUsesForNode(GenTree*      tree,
-                                          TreeNodeInfo* info,
-                                          RefPosition*  defs[],
-                                          int total DEBUGARG(unsigned minRegCandidateCount));
+    void buildInternalRegisterUsesForNode(GenTree* tree, TreeNodeInfo* info, RefPosition* defs[], int total);
 
     void resolveLocalRef(BasicBlock* block, GenTree* treeNode, RefPosition* currentRefPosition);
 
@@ -1118,7 +1116,7 @@ private:
                                 RefType      theRefType,
                                 GenTree*     theTreeNode,
                                 regMaskTP    mask,
-                                unsigned multiRegIdx = 0 DEBUGARG(unsigned minRegCandidateCount = 1));
+                                unsigned     multiRegIdx = 0);
 
     RefPosition* newRefPosition(
         regNumber reg, LsraLocation theLocation, RefType theRefType, GenTree* theTreeNode, regMaskTP mask);
@@ -1589,7 +1587,7 @@ private:
     void TreeNodeInfoInitSIMD(GenTreeSIMD* tree, TreeNodeInfo* info);
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
     void TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, TreeNodeInfo* info);
 #endif // FEATURE_HW_INTRINSICS
 
