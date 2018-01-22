@@ -88,7 +88,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
         }
         else if (scenario == 'illink') {
             String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -scenarioTest"
-            bat "\"%VS140COMNTOOLS%\\..\\..\\VC\\vcvarsall.bat x86_amd64\"\n" +
+            bat "\"%VS140COMNTOOLS%\\..\\..\\VC\\vcvarsall.bat\" x86_amd64\n" +
                 "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup"
         }
         archiveArtifacts allowEmptyArchive: false, artifacts:'bin/sandbox_logs/**,machinedata.json'
