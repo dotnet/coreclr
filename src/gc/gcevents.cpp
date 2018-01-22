@@ -2,24 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
-
 #include "common.h"
-
-#include "gcenv.h"
-
-#include "gc.h"
-#include "gcscan.h"
-#include "gchandletableimpl.h"
-#include "gceventstatus.h"
 #include "gcevents.h"
 
-#ifdef SERVER_GC
-#undef SERVER_GC
-#endif
-
-namespace WKS { 
-#include "gcimpl.h"
-#include "gcee.cpp"
-}
-
+#define KNOWN_EVENT(name, provider, level, keyword) \
+  gc_events::GCKnownEvent name##EventDescriptor(#name, provider, level, keyword);
+#include "gcevents.def"

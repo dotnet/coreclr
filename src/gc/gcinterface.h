@@ -205,6 +205,41 @@ extern uint8_t* g_shadow_lowest_address;
 // For low memory notification from host
 extern int32_t g_bLowMemoryFromHost;
 
+// Event levels corresponding to events that can be fired by the GC.
+enum GCEventLevel
+{
+    GCEventLevel_None = 0,
+    GCEventLevel_Fatal = 1,
+    GCEventLevel_Error = 2,
+    GCEventLevel_Warning = 3,
+    GCEventLevel_Information = 4,
+    GCEventLevel_Verbose = 5,
+    GCEventLevel_Max = 6
+};
+
+enum GCEventKeyword
+{
+    GCEventKeyword_None                          =       0x0,
+    GCEventKeyword_GC                            =       0x1,
+    GCEventKeyword_GCHandle                      =       0x2,
+    GCEventKeyword_GCHeapDump                    =  0x100000,
+    GCEventKeyword_GCSampledObjectAllocationHigh =  0x200000,
+    GCEventKeyword_GCHeapSurvivalAndMovement     =  0x400000,
+    GCEventKeyword_GCHeapCollect                 =  0x800000,
+    GCEventKeyword_GCHeapAndTypeNames            = 0x1000000,
+    GCEventKeyword_GCSampledObjectAllocationLow  = 0x2000000,
+    GCEventKeyword_All = GCEventKeyword_GC
+      | GCEventKeyword_GCHandle
+      | GCEventKeyword_GCHeapDump
+      | GCEventKeyword_GCSampledObjectAllocationHigh
+      | GCEventKeyword_GCHeapDump
+      | GCEventKeyword_GCSampledObjectAllocationHigh
+      | GCEventKeyword_GCHeapSurvivalAndMovement
+      | GCEventKeyword_GCHeapCollect
+      | GCEventKeyword_GCHeapAndTypeNames
+      | GCEventKeyword_GCSampledObjectAllocationLow
+};
+
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
 // if you change this!
@@ -808,6 +843,18 @@ public:
 
     // Unregisters a frozen segment.
     virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
+
+    /*
+    ===========================================================================
+    Routines for informing the GC about which events are enabled.
+    ===========================================================================
+    */
+
+    // Enables or disables the given keyword or level on the default event provider.
+    virtual void ControlEvents(GCEventKeyword keyword, GCEventLevel level) = 0;
+
+    // Enables or disables the given keyword or level on the private event provider.
+    virtual void ControlPrivateEvents(GCEventKeyword keyword, GCEventLevel level) = 0;
 
     IGCHeap() {}
     virtual ~IGCHeap() {}

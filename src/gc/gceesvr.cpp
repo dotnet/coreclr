@@ -13,6 +13,8 @@
 #include "gc.h"
 #include "gcscan.h"
 #include "gchandletableimpl.h"
+#include "gceventstatus.h"
+#include "gcevents.h"
 
 #define SERVER_GC 1
 

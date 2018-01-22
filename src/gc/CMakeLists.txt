@@ -18,6 +18,8 @@ remove_definitions(-DWRITE_BARRIER_CHECK)
 add_definitions(-DFEATURE_REDHAWK)
 
 set( GC_SOURCES
+  gcevents.cpp
+  gceventstatus.cpp
   gcconfig.cpp
   gccommon.cpp
   gcscan.cpp
