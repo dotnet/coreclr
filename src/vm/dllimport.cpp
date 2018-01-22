@@ -5779,7 +5779,7 @@ public:
         STANDARD_VM_CONTRACT;
 
 #ifdef FEATURE_PAL
-        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), GetMessage());
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_UNIX, libraryNameOrPath.GetUnicode(), GetMessage());
 #else
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
@@ -5790,7 +5790,7 @@ public:
         {
             SString hrString;
             GetHRMsg(theHRESULT, hrString);
-            COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
+            COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_WIN, libraryNameOrPath.GetUnicode(), hrString);
         }
 #endif
 

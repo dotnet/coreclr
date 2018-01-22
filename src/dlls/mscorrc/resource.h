@@ -95,7 +95,7 @@
 #define IDS_EE_NDIRECT_UNSUPPORTED_SIG          0x1708
 #define IDS_EE_EXCEPTION_FROM_HRESULT           0x1709
 #define IDS_EE_NDIRECT_BADNATL                  0x170a
-#define IDS_EE_NDIRECT_LOADLIB                  0x170b
+#define IDS_EE_NDIRECT_LOADLIB_WIN              0x170b
 #define IDS_EE_NDIRECT_GETPROCADDRESS           0x170c
 #define IDS_EE_COM_UNSUPPORTED_SIG              0x170d
 #define IDS_EE_NOSYNCHRONIZED                   0x170f
@@ -893,3 +893,4 @@
 
 #define IDS_CLASSLOAD_BYREFLIKE_STATICFIELD        0x263b
 #define IDS_CLASSLOAD_BYREFLIKE_NOTVALUECLASSFIELD 0x263c
+#define IDS_EE_NDIRECT_LOADLIB_UNIX                0x263d
