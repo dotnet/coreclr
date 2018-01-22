@@ -80,6 +80,105 @@ HMODULE GCHeapUtilities::GetGCModule()
 namespace
 {
 
+// This block of code contains all of the state necessary to handle incoming
+// EtwCallbacks before the GC has been initialized. This is a tricky problem
+// because EtwCallbacks can appear at any time, even when we are just about
+// finished initializing the GC.
+//
+// The below lock is taken by the "main" thread (the thread in EEStartup) and
+// the "ETW" thread, the one calling EtwCallback. EtwCallback may or may not
+// be called on the main thread.
+CRITICAL_SECTION g_eventStashLock;
+
+// These two global fields are 64-bit integers so that loads and stores to them
+// can be atomic.
+LONG64 g_stashedKeywordAndLevel = 0;
+LONG64 g_stashedPrivateKeywordAndLevel = 0;
+
+// In order for loads and stores of the keyword and level state to be atomic,
+// these macros assist in packing and unpacking two 32-bit integer values into
+// a 64-bit value.
+#define STASH_KEY_AND_LEVEL(key, level) ((static_cast<LONG64>(key) << 32) | static_cast<LONG64>(level))
+#define UNSTASH_KEY(combined) (static_cast<GCEventKeyword>(combined >> 32))
+#define UNSTASH_VALUE(combined) (static_cast<GCEventLevel>(combined & 0xFFFFFFFF))
+
+// FinalizeLoad is called by the main thread to complete initialization of the GC.
+// At this point, the GC has provided us with an IGCHeap instance and we are preparing
+// to "publish" it by assigning it to g_pGCHeap.
+//
+// This function can proceed concurrently with StashKeywordAndLevel below.
+void FinalizeLoad(IGCHeap* gcHeap, IGCHandleManager* handleMgr, HMODULE gcModule)
+{
+    // at this point the GC has been initialized and is ready to go.
+    // the main thread is responsible for initializing the lock.
+    UnsafeInitializeCriticalSection(&g_eventStashLock);
+    UnsafeEnterCriticalSection(&g_eventStashLock);
+
+    // the compiler or hardware can't be allowed to reorder this write before
+    // the lock acquision. This is because StashKeywordAndLevel will acquire the
+    // lock if g_pGCHeap is not null and the lock must be initialized by that point.
+    VOLATILE_MEMORY_BARRIER();
+    g_pGCHeap = gcHeap;
+
+    // despite holding the lock, the ETW callback thread may still write to the stashed
+    // values. All writes are atomic.
+    //
+    // the values we read here may not necessarily be the most up-to-date.
+    // Between the time we read these values and we call ControlEvents, an ETW callback
+    // may have been fired and overwrote these values with more up-to-date ones.
+    // However, if this is the case, the ETW callback is now blocked waiting to acquire
+    // g_eventStashLock, so it will have a chance to call ControlEvents itself later
+    // once we release the lock.
+    LONG64 keyAndLevel = InterlockedExchange64(&g_stashedKeywordAndLevel, 0);
+    LONG64 privateKeyAndLevel = InterlockedExchange64(&g_stashedPrivateKeywordAndLevel, 0);
+
+    // Ultimately, g_eventStashLock ensures that no two threads call ControlEvents at any
+    // point in time.
+    g_pGCHeap->ControlEvents(UNSTASH_KEY(keyAndLevel), UNSTASH_VALUE(keyAndLevel));
+    g_pGCHeap->ControlPrivateEvents(UNSTASH_KEY(privateKeyAndLevel), UNSTASH_VALUE(privateKeyAndLevel));
+    UnsafeLeaveCriticalSection(&g_eventStashLock);
+
+    g_pGCHandleManager = handleMgr;
+    g_gcDacGlobals = &g_gc_dac_vars;
+    g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
+    g_gc_module = gcModule;
+    LOG((LF_GC, LL_INFO100, "GC load successful\n"));
+}
+
+void StashKeywordAndLevel(bool isPublicProvider, GCEventKeyword keywords, GCEventLevel level)
+{
+    volatile LONG64* stash = isPublicProvider ? &g_stashedKeywordAndLevel : &g_stashedPrivateKeywordAndLevel;
+    InterlockedExchange64(stash, STASH_KEY_AND_LEVEL(keywords, level));
+
+    VOLATILE_MEMORY_BARRIER();
+    if (g_pGCHeap != nullptr)
+    {
+        // observing that g_pGCHeap is not null means that g_eventStashLock has been
+        // initialized. At this point either the GC is still being initialized
+        // (the main thread will hold the lock) or the GC has already been initialized
+        // (the lock will be uncontested).
+        //
+        // At any rate, once we grab the lock, we're free to inform the GC of our changes
+        // to the event state.
+        UnsafeEnterCriticalSection(&g_eventStashLock);
+        if (isPublicProvider)
+        {
+            g_pGCHeap->ControlEvents(keywords, level);
+        }
+        else
+        {
+            g_pGCHeap->ControlPrivateEvents(keywords, level);
+        }
+
+        UnsafeLeaveCriticalSection(&g_eventStashLock);
+    }
+
+    // note that we will do nothing if g_pGCHeap is null. The main thread will read our stashed
+    // event state when initializing the GC, so by virtue of writing to the event stash we
+    // will ensure that the initializing GC will see the event state that we were just informed
+    // of by an ETW callback.
+}
+
 // Loads and initializes a standalone GC, given the path to the GC
 // that we should load. Returns S_OK on success and the failed HRESULT
 // on failure.
@@ -153,12 +252,7 @@ HRESULT LoadAndInitializeGC(LPWSTR standaloneGcLocation)
     HRESULT initResult = initFunc(gcToClr, &heap, &manager, &g_gc_dac_vars);
     if (initResult == S_OK)
     {
-        g_pGCHeap = heap;
-        g_pGCHandleManager = manager;
-        g_gcDacGlobals = &g_gc_dac_vars;
-        g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
-        g_gc_module = hMod;
-        LOG((LF_GC, LL_INFO100, "GC load successful\n"));
+        FinalizeLoad(heap, manager, hMod);
     }
     else
     {
@@ -198,12 +292,7 @@ HRESULT InitializeDefaultGC()
     HRESULT initResult = GC_Initialize(nullptr, &heap, &manager, &g_gc_dac_vars);
     if (initResult == S_OK)
     {
-        g_pGCHeap = heap;
-        g_pGCHandleManager = manager;
-        g_gcDacGlobals = &g_gc_dac_vars;
-        g_gc_load_status = GC_LOAD_STATUS_LOAD_COMPLETE;
-        g_gc_module = GetModuleInst();
-        LOG((LF_GC, LL_INFO100, "GC load successful\n"));
+        FinalizeLoad(heap, manager, GetModuleInst());
     }
     else
     {
@@ -242,6 +331,18 @@ HRESULT GCHeapUtilities::LoadAndInitialize()
     {
         return LoadAndInitializeGC(standaloneGcLocation);
     }
+}
+
+void GCHeapUtilities::RecordEventStateChange(bool isPublicProvider, GCEventKeyword keywords, GCEventLevel level)
+{
+    CONTRACTL {
+      MODE_ANY;
+      NOTHROW;
+      GC_NOTRIGGER;
+      CAN_TAKE_LOCK;
+    } CONTRACTL_END;
+
+    StashKeywordAndLevel(isPublicProvider, keywords, level);
 }
 
 #endif // DACCESS_COMPILE
