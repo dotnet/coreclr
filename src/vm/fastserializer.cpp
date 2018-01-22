@@ -148,7 +148,7 @@ void FastSerializer::WriteEntryObject()
     CONTRACTL_END;
 
     // Write begin entry object tag.
-    WriteTag(FastSerializerTags::BeginObject);
+    WriteTag(FastSerializerTags::BeginObject); // the caller must write EndObject tag
 
     // Write the type information for the entry object.
     WriteSerializationType(m_pEntryObject);

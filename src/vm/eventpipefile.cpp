@@ -28,7 +28,7 @@ EventPipeFile::EventPipeFile(
     SetObjectVersion(3);
     SetMinReaderVersion(0);
 
-    m_pSerializer = new FastSerializer(outputFilePath, *this);
+    m_pSerializer = new FastSerializer(outputFilePath, *this); // it calls FastSerializer::WriteEntryObject()
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
 
@@ -60,15 +60,10 @@ EventPipeFile::EventPipeFile(
     m_endEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
     m_pSerializer->WriteForwardReference(m_endEventsForwardReferenceIndex);
 
-    // Write the header information into the file.
-
-    // Write the current date and time.
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
 
-    // Write FileOpenTimeStamp
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
 
-    // Write ClockFrequency
     m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
 
 // the beginning of V3
@@ -77,6 +72,8 @@ EventPipeFile::EventPipeFile(
     m_pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
 
     m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
+
+    m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject()
 
     // define the start of the events stream
     StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
