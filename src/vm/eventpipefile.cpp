@@ -6,6 +6,7 @@
 #include "eventpipebuffer.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipefile.h"
+#include "sampleprofiler.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -49,6 +50,8 @@ EventPipeFile::EventPipeFile(
     GetSystemInfo(&sysinfo);
     m_numberOfProcessors = sysinfo.dwNumberOfProcessors;
 
+    m_samplingRateInNs = SampleProfiler::GetSamplingRate();
+
     // Write a forward reference to the beginning of the event stream.
     // This also allows readers to know where the event stream starts 
     // and skip new metadata from the begining of the file if needed
@@ -72,6 +75,8 @@ EventPipeFile::EventPipeFile(
     m_pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
 
     m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
+
+    m_pSerializer->WriteBuffer((BYTE*)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
 
     m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject()
 

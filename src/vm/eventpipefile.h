@@ -71,6 +71,8 @@ class EventPipeFile : public FastSerializableObject
 
         unsigned int m_numberOfProcessors;
 
+        unsigned int m_samplingRateInNs;
+
         // The forward reference index that marks the beginning of the event stream.
         unsigned int m_beginEventsForwardReferenceIndex;
 
