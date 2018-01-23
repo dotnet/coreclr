@@ -2177,12 +2177,14 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                 // attempt to publish the active version still under the lock
                 if (FAILED(hr = PublishNativeCodeVersion(pMethodDesc, activeVersion, fEESuspend)))
                 {
-                    // if we need an EESuspend to publish then start over. We have to leave the lock in order to suspend,
-                    // and when we leave the lock the active version might change again. However now we know that suspend
+                    // If we need an EESuspend to publish then start over. We have to leave the lock in order to suspend,
+                    // and when we leave the lock the active version might change again. However now we know that suspend is
+                    // necessary.
                     if (hr == CORPROF_E_RUNTIME_SUSPEND_REQUIRED)
                     {
                         _ASSERTE(!fEESuspend);
                         fEESuspend = true;
+                        continue; // skip RestartEE() below since SuspendEE() has not been called yet
                     }
                     else
                     {
@@ -2238,7 +2240,12 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
         {
             EX_TRY
             {
-                hr = pPrecode->SetTargetInterlocked(pCode, FALSE) ? S_OK : E_FAIL;
+                pPrecode->SetTargetInterlocked(pCode, FALSE);
+
+                // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
+                // can continue assuming it was successful, similarly to it successfully updating the target and another thread
+                // updating the target again shortly afterwards.
+                hr = S_OK;
             }
             EX_CATCH_HRESULT(hr);
             return hr;

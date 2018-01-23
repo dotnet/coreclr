@@ -110,7 +110,7 @@ void TieredCompilationManager::Init(ADID appDomainId)
 
 void TieredCompilationManager::InitiateTier1CountingDelay()
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
     _ASSERTE(m_methodsPendingCountingForTier1 == nullptr);
     _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
@@ -155,7 +155,7 @@ void TieredCompilationManager::InitiateTier1CountingDelay()
 
 void TieredCompilationManager::OnTier0JitInvoked()
 {
-    STANDARD_VM_CONTRACT;
+    LIMITED_METHOD_CONTRACT;
 
     if (m_methodsPendingCountingForTier1 != nullptr)
     {
@@ -175,7 +175,7 @@ void TieredCompilationManager::OnMethodCalled(
     BOOL* shouldStopCountingCallsRef,
     BOOL* wasPromotedToTier1Ref)
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
     _ASSERTE(shouldStopCountingCallsRef != nullptr);
     _ASSERTE(wasPromotedToTier1Ref != nullptr);
@@ -192,7 +192,7 @@ void TieredCompilationManager::OnMethodCalled(
 
 void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc)
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
@@ -348,22 +348,23 @@ void TieredCompilationManager::Shutdown(BOOL fBlockUntilAsyncWorkIsComplete)
 
 VOID WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(timerFired);
 
+    GCX_COOP();
     ThreadpoolMgr::TimerInfoContext* timerContext = (ThreadpoolMgr::TimerInfoContext*)parameter;
     ManagedThreadBase::ThreadPool(timerContext->AppDomainId, Tier1DelayTimerCallbackInAppDomain, nullptr);
 }
 
 void TieredCompilationManager::Tier1DelayTimerCallbackInAppDomain(LPVOID parameter)
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     GetAppDomain()->GetTieredCompilationManager()->Tier1DelayTimerCallbackWorker();
 }
 
 void TieredCompilationManager::Tier1DelayTimerCallbackWorker()
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
 
     // Reschedule the timer if a tier 0 JIT has been invoked since the timer was started to further delay call counting
     if (m_wasTier0JitInvokedSinceCountingDelayReset)
@@ -406,7 +407,7 @@ void TieredCompilationManager::Tier1DelayTimerCallbackWorker()
 
 void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsVersionableWithPrecode());
 

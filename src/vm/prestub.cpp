@@ -303,12 +303,6 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     }
     if (pCode == NULL)
     {
-        if (pConfig->GetMethodDesc()->IsEligibleForTieredCompilation() &&
-            pConfig->GetCodeVersion().IsDefaultVersion())
-        {
-            GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
-        }
-
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
         // Mark the code as hot in case the method ends up in the native image
@@ -742,6 +736,13 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
         }
 
     }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (g_pConfig->TieredCompilation() && !flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER1))
+    {
+        GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
+    }
+#endif // FEATURE_TIERED_COMPILATION
 
 #ifdef FEATURE_STACK_SAMPLING
     StackSampler::RecordJittingInfo(this, flags);
@@ -1755,10 +1756,10 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     
     if (pCode)
     {
-        // The only reason we are still pointing to prestub is because the call counter
-        // prevented it. We should still short circuit and return the code without
+        // The only reasons we are still pointing to prestub is because the call counter
+        // prevented it or this thread lost the race with another thread in updating the
+        // entry point. We should still short circuit and return the code without
         // backpatching.
-        _ASSERTE(!fCanBackpatchPrestub);
         RETURN pCode;
     }
     
