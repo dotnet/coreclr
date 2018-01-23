@@ -5670,8 +5670,6 @@ protected:
         BasicBlock*  tslBlock; // block containing the statement
     };
 
-    typedef struct treeStmtLst* treeStmtLstPtr;
-
     // The following logic keeps track of expressions via a simple hash table.
 
     struct CSEdsc
@@ -5693,8 +5691,8 @@ protected:
         GenTreePtr  csdStmt;  // stmt containing the 1st occurance
         BasicBlock* csdBlock; // block containing the 1st occurance
 
-        treeStmtLstPtr csdTreeList; // list of matching tree nodes: head
-        treeStmtLstPtr csdTreeLast; // list of matching tree nodes: tail
+        treeStmtLst* csdTreeList; // list of matching tree nodes: head
+        treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
 
         ValueNum defConservativeVN; // if all def occurrences share the same conservative value
                                     // number, this will reflect it; otherwise, NoVN.
