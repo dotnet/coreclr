@@ -35536,9 +35536,17 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
             GCToOSInterface::GetCacheSizePerLogicalCpu(FALSE),
             GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)));
 
+        int n_heaps = gc_heap::n_heaps;
+#else //SERVER_GC
+        size_t trueSize = GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE);
+        gen0size = max((4*trueSize/5),(256*1024));
+        trueSize = max(trueSize, (256*1024));
+        int n_heaps = 1;
+#endif //SERVER_GC
+
         // if the total min GC across heaps will exceed 1/6th of available memory,
         // then reduce the min GC size until it either fits or has been reduced to cache size.
-        while ((gen0size * gc_heap::n_heaps) > GCToOSInterface::GetPhysicalMemoryLimit() / 6)
+        while ((gen0size * n_heaps) > GCToOSInterface::GetPhysicalMemoryLimit() / 6)
         {
             gen0size = gen0size / 2;
             if (gen0size <= trueSize)
@@ -35547,9 +35555,6 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
                 break;
             }
         }
-#else //SERVER_GC
-        gen0size = max((4*GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)/5),(256*1024));
-#endif //SERVER_GC
     }
 
     // Generation 0 must never be more than 1/2 the segment size.
