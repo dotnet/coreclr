@@ -15760,7 +15760,7 @@ void gc_heap::gc1()
                     size_t min_gc_size = dd_min_gc_size(dd);
                     // if min GC size larger than true on die cache, then don't bother
                     // limiting the desired size
-                    if ((min_gc_size <= GCToOSInterface::GetLargestOnDieCacheSize(TRUE) / GCToOSInterface::GetLogicalCpuCount()) &&
+                    if ((min_gc_size <= GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)) &&
                         desired_per_heap <= 2*min_gc_size)
                     {
                         desired_per_heap = min_gc_size;
@@ -35527,15 +35527,14 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
 #ifdef SERVER_GC
         // performance data seems to indicate halving the size results
         // in optimal perf.  Ask for adjusted gen0 size.
-        gen0size = max(GCToOSInterface::GetLargestOnDieCacheSize(FALSE)/GCToOSInterface::GetLogicalCpuCount(),(256*1024));
+        gen0size = max(GCToOSInterface::GetCacheSizePerLogicalCpu(FALSE),(256*1024));
 
         // if gen0 size is too large given the available memory, reduce it.
         // Get true cache size, as we don't want to reduce below this.
-        size_t trueSize = max(GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/GCToOSInterface::GetLogicalCpuCount(),(256*1024));
+        size_t trueSize = max(GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE),(256*1024));
         dprintf (2, ("cache: %Id-%Id, cpu: %Id", 
-            GCToOSInterface::GetLargestOnDieCacheSize(FALSE),
-            GCToOSInterface::GetLargestOnDieCacheSize(TRUE),
-            GCToOSInterface::GetLogicalCpuCount()));
+            GCToOSInterface::GetCacheSizePerLogicalCpu(FALSE),
+            GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)));
 
         // if the total min GC across heaps will exceed 1/6th of available memory,
         // then reduce the min GC size until it either fits or has been reduced to cache size.
@@ -35549,7 +35548,7 @@ size_t GCHeap::GetValidGen0MaxSize(size_t seg_size)
             }
         }
 #else //SERVER_GC
-        gen0size = max((4*GCToOSInterface::GetLargestOnDieCacheSize(TRUE)/5),(256*1024));
+        gen0size = max((4*GCToOSInterface::GetCacheSizePerLogicalCpu(TRUE)/5),(256*1024));
 #endif //SERVER_GC
     }
 
