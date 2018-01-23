@@ -193,10 +193,10 @@
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest683\Generated683\*">
             <Issue>6707</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\*\*">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\**">
             <Issue>15919</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\*\*">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\**">
             <Issue>15924</Issue>
         </ExcludeList>
     </ItemGroup>
