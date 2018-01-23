@@ -5782,7 +5782,7 @@ public:
         COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_MAC, libraryNameOrPath.GetUnicode(), GetMessage());
 #elif defined(FEATURE_PAL)
         COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_LINUX, libraryNameOrPath.GetUnicode(), GetMessage());
-#else
+#else // __APPLE__
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
         {
@@ -5794,7 +5794,7 @@ public:
             GetHRMsg(theHRESULT, hrString);
             COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_WIN, libraryNameOrPath.GetUnicode(), hrString);
         }
-#endif
+#endif // FEATURE_PAL
 
         __UNREACHABLE();
     }
@@ -6321,8 +6321,14 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     if (!fSuccess)
     {
         if (pMD->GetLibName() == NULL)
-            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME);
-        
+        {
+#ifdef FEATURE_PAL
+            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME_UNIX);
+#else
+            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME_WIN);
+#endif
+        }
+
         StackSString ssLibName(SString::Utf8, pMD->GetLibName());
 
         if (!hmod)
@@ -6336,8 +6342,11 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
             wszEPName[0] = W('?');
             wszEPName[1] = W('\0');
         }
-
-        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS, ssLibName.GetUnicode(), wszEPName);
+#ifdef FEATURE_PAL
+        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_UNIX, ssLibName.GetUnicode(), wszEPName);
+#else
+        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_WIN, ssLibName.GetUnicode(), wszEPName);
+#endif
     }
 }
 
