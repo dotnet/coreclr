@@ -2106,10 +2106,7 @@ HRESULT CodeVersionManager::AddNativeCodeVersion(ILCodeVersion ilCodeVersion, Me
     return S_OK;
 }
 
-PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(
-    MethodDesc* pMethodDesc,
-    TieredCompilationManager* pTieredCompilationManager,
-    BOOL fCanBackpatchPrestub)
+PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!LockOwnedByCurrentThread());
@@ -2138,12 +2135,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(
         pCode = activeVersion.GetNativeCode();
         if (pCode == NULL)
         {
-            if (pTieredCompilationManager != nullptr &&
-                activeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
-            {
-                pTieredCompilationManager->OnTier0JitInvoked();
-            }
-
             pCode = pMethodDesc->PrepareCode(activeVersion);
         }
 
@@ -2224,6 +2215,8 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(
 
 HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, NativeCodeVersion nativeCodeVersion, BOOL fEESuspended)
 {
+    // TODO: This function needs to make sure it does not change the precode's target if call counting is in progress. Track
+    // whether call counting is currently being done for the method, and use a lock to ensure the expected precode target.
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(LockOwnedByCurrentThread());
     _ASSERTE(pMethod->IsVersionable());

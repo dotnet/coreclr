@@ -303,6 +303,12 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     }
     if (pCode == NULL)
     {
+        if (pConfig->GetMethodDesc()->IsEligibleForTieredCompilation() &&
+            pConfig->GetCodeVersion().IsDefaultVersion())
+        {
+            GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
+        }
+
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
         // Mark the code as hot in case the method ends up in the native image
@@ -1001,7 +1007,7 @@ BOOL PrepareCodeConfig::MayUsePrecompiledCode()
 VersionedPrepareCodeConfig::VersionedPrepareCodeConfig() {}
 
 VersionedPrepareCodeConfig::VersionedPrepareCodeConfig(NativeCodeVersion codeVersion) :
-    PrepareCodeConfig(codeVersion, TRUE, codeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
+    PrepareCodeConfig(codeVersion, TRUE, FALSE)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1708,12 +1714,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
     TieredCompilationManager* pTieredCompilationManager = nullptr;
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
-    BOOL fShouldPromoteToTier1 = FALSE;
+    BOOL fWasPromotedToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
         pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
         CallCounter * pCallCounter = GetCallCounter();
-        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fShouldPromoteToTier1);
+        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
     }
 #endif
 
@@ -1724,11 +1730,11 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     if (IsVersionableWithPrecode() ||
         (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
     {
-        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, pTieredCompilationManager, fCanBackpatchPrestub);
+        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
 
-        if (pTieredCompilationManager != nullptr && fCanBackpatchPrestub)
+        if (pTieredCompilationManager != nullptr && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
         {
-            pTieredCompilationManager->OnMethodTier0BackpatchAttempted(this, fShouldPromoteToTier1, pCode != 0);
+            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
         }
 
         fIsPointingToPrestub = IsPointingToPrestub();

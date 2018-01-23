@@ -36,14 +36,14 @@ void CallCounter::OnMethodCalled(
     MethodDesc* pMethodDesc,
     TieredCompilationManager *pTieredCompilationManager,
     BOOL* shouldStopCountingCallsRef,
-    BOOL* shouldPromoteToTier1Ref)
+    BOOL* wasPromotedToTier1Ref)
 {
     STANDARD_VM_CONTRACT;
 
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
     _ASSERTE(pTieredCompilationManager != nullptr);
     _ASSERTE(shouldStopCountingCallsRef != nullptr);
-    _ASSERTE(shouldPromoteToTier1Ref != nullptr);
+    _ASSERTE(wasPromotedToTier1Ref != nullptr);
 
     // PERF: This as a simple to implement, but not so performant, call counter
     // Currently this is only called until we reach a fixed call count and then
@@ -82,7 +82,7 @@ void CallCounter::OnMethodCalled(
         }
     }
 
-    pTieredCompilationManager->OnMethodCalled(pMethodDesc, callCount, shouldStopCountingCallsRef, shouldPromoteToTier1Ref);
+    pTieredCompilationManager->OnMethodCalled(pMethodDesc, callCount, shouldStopCountingCallsRef, wasPromotedToTier1Ref);
 }
 
 #endif // FEATURE_TIERED_COMPILATION

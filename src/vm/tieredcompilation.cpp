@@ -173,34 +173,30 @@ void TieredCompilationManager::OnMethodCalled(
     MethodDesc* pMethodDesc,
     DWORD currentCallCount,
     BOOL* shouldStopCountingCallsRef,
-    BOOL* shouldPromoteToTier1Ref)
+    BOOL* wasPromotedToTier1Ref)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
     _ASSERTE(shouldStopCountingCallsRef != nullptr);
-    _ASSERTE(shouldPromoteToTier1Ref != nullptr);
+    _ASSERTE(wasPromotedToTier1Ref != nullptr);
 
     *shouldStopCountingCallsRef =
         m_methodsPendingCountingForTier1 != nullptr || currentCallCount >= m_callCountOptimizationThreshhold;
-    *shouldPromoteToTier1Ref = currentCallCount >= m_callCountOptimizationThreshhold;
+    *wasPromotedToTier1Ref = currentCallCount >= m_callCountOptimizationThreshhold;
+
+    if (currentCallCount == m_callCountOptimizationThreshhold)
+    {
+        AsyncPromoteMethodToTier1(pMethodDesc);
+    }
 }
 
-void TieredCompilationManager::OnMethodTier0BackpatchAttempted(
-    MethodDesc* pMethodDesc,
-    BOOL shouldPromoteToTier1,
-    BOOL stoppedCallCounting)
+void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    if (shouldPromoteToTier1)
-    {
-        AsyncPromoteMethodToTier1(pMethodDesc);
-        return;
-    }
-
-    if (!stoppedCallCounting || g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() == 0)
+    if (g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() == 0)
     {
         return;
     }

@@ -29,8 +29,8 @@ public:
     void InitiateTier1CountingDelay();
     void OnTier0JitInvoked();
 
-    void OnMethodCalled(MethodDesc* pMethodDesc, DWORD currentCallCount, BOOL* shouldStopCountingCallsRef, BOOL* shouldPromoteToTier1Ref);
-    void OnMethodTier0BackpatchAttempted(MethodDesc* pMethodDesc, BOOL shouldPromoteToTier1, BOOL stoppedCallCounting);
+    void OnMethodCalled(MethodDesc* pMethodDesc, DWORD currentCallCount, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToTier1Ref);
+    void OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc);
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
     static void ShutdownAllDomains();
     void Shutdown(BOOL fBlockUntilAsyncWorkIsComplete);
