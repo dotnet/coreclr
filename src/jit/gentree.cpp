@@ -6816,7 +6816,7 @@ GenTreeArgList* Compiler::gtNewArgList(GenTreePtr arg1, GenTreePtr arg2, GenTree
 
 fgArgTabEntryPtr Compiler::gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
     unsigned          argCount       = argInfo->ArgCount();
@@ -6843,7 +6843,7 @@ fgArgTabEntryPtr Compiler::gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum
 
 fgArgTabEntryPtr Compiler::gtArgEntryByNode(GenTreeCall* call, GenTreePtr node)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
     unsigned          argCount       = argInfo->ArgCount();
@@ -6885,7 +6885,7 @@ fgArgTabEntryPtr Compiler::gtArgEntryByNode(GenTreeCall* call, GenTreePtr node)
  */
 fgArgTabEntryPtr Compiler::gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned lateArgInx)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
     unsigned          argCount       = argInfo->ArgCount();

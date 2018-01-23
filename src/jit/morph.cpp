@@ -999,7 +999,7 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned numArgs)
  */
 fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
 {
-    fgArgInfoPtr oldArgInfo = oldCall->gtCall.fgArgInfo;
+    fgArgInfo* oldArgInfo = oldCall->gtCall.fgArgInfo;
 
     compiler    = oldArgInfo->compiler;
     callTree    = newCall;
@@ -4631,7 +4631,7 @@ void Compiler::fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgumen
 
     if (hasStructArgument)
     {
-        fgArgInfoPtr allArgInfo = call->fgArgInfo;
+        fgArgInfo* allArgInfo = call->fgArgInfo;
 
         for (args = call->gtCallArgs; args != nullptr; args = args->gtOp.gtOp2)
         {
@@ -4815,10 +4815,10 @@ void Compiler::fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgumen
 //
 void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
 {
-    bool         foundStructArg = false;
-    unsigned     initialFlags   = call->gtFlags;
-    unsigned     flagsSummary   = 0;
-    fgArgInfoPtr allArgInfo     = call->fgArgInfo;
+    bool       foundStructArg = false;
+    unsigned   initialFlags   = call->gtFlags;
+    unsigned   flagsSummary   = 0;
+    fgArgInfo* allArgInfo     = call->fgArgInfo;
 
     // Currently ARM64/ARM is using this method to morph the MultiReg struct args
     //  in the future AMD64_UNIX will also use this method
