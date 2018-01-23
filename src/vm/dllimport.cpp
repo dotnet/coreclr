@@ -5778,8 +5778,10 @@ public:
     {
         STANDARD_VM_CONTRACT;
 
-#ifdef FEATURE_PAL
-        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_UNIX, libraryNameOrPath.GetUnicode(), GetMessage());
+#if defined(__APPLE__)
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_MAC, libraryNameOrPath.GetUnicode(), GetMessage());
+#elif defined(FEATURE_PAL)
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_LINUX, libraryNameOrPath.GetUnicode(), GetMessage());
 #else
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
@@ -5809,15 +5811,12 @@ private:
 
     void SetMessage(LPCSTR message)
     {
-        SString append_string = SString(SString::Utf8, message);
-        SString newline = SString(SString::Utf8, "\n");
-        m_message.Append(newline);
-        m_message.Append(append_string);
+        m_message = SString(SString::Utf8, message);
     }
 
     HRESULT m_hr;
     DWORD   m_priorityOfLastError;
-    SString  m_message = SString(SString::Utf8, "");
+    SString  m_message;
 };  // class LoadLibErrorTracker
 
 //  Local helper function for the LoadLibraryModule function below
