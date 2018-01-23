@@ -6321,13 +6321,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     if (!fSuccess)
     {
         if (pMD->GetLibName() == NULL)
-        {
-#ifdef FEATURE_PAL
-            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME_UNIX);
-#else
-            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME_WIN);
-#endif
-        }
+            COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME);
 
         StackSString ssLibName(SString::Utf8, pMD->GetLibName());
 
