@@ -1305,7 +1305,7 @@ void LinearScan::TreeNodeInfoInitCall(GenTreeCall* call, TreeNodeInfo* info)
 #ifdef DEBUG
         // In DEBUG only, check validity with respect to the arg table entry.
 
-        fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
+        fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
         if (curArgTabEntry->regNum == REG_STK)
