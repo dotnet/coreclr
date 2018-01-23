@@ -5662,8 +5662,6 @@ protected:
         GenTreePtr tlTree;
     };
 
-    typedef struct treeLst* treeLstPtr;
-
     struct treeStmtLst
     {
         treeStmtLst* tslNext;
