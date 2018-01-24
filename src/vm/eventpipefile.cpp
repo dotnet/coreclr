@@ -29,7 +29,7 @@ EventPipeFile::EventPipeFile(
     SetObjectVersion(3);
     SetMinReaderVersion(0);
 
-    m_pSerializer = new FastSerializer(outputFilePath, *this); // it calls FastSerializer::WriteEntryObject()
+    m_pSerializer = new FastSerializer(outputFilePath, *this); // it begins the object (which we need to end here)
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
 
@@ -52,17 +52,6 @@ EventPipeFile::EventPipeFile(
 
     m_samplingRateInNs = SampleProfiler::GetSamplingRate();
 
-    // Write a forward reference to the beginning of the event stream.
-    // This also allows readers to know where the event stream starts 
-    // and skip new metadata from the begining of the file if needed
-    m_beginEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
-    m_pSerializer->WriteForwardReference(m_beginEventsForwardReferenceIndex);
-
-    // Write a forward reference to the end of the event stream.
-    // This also allows readers to know where the event stream ends and skip it if needed.
-    m_endEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
-    m_pSerializer->WriteForwardReference(m_endEventsForwardReferenceIndex);
-
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
 
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
@@ -78,11 +67,7 @@ EventPipeFile::EventPipeFile(
 
     m_pSerializer->WriteBuffer((BYTE*)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
 
-    m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject()
-
-    // define the start of the events stream
-    StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
-    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
+    m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject() which is called from FastSerializer ctor
 }
 
 EventPipeFile::~EventPipeFile()
@@ -96,10 +81,7 @@ EventPipeFile::~EventPipeFile()
     CONTRACTL_END;
 
     // Mark the end of the event stream.
-    StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
-
-    // Define the event END forward reference.
-    m_pSerializer->DefineForwardReference(m_endEventsForwardReferenceIndex, currentLabel);
+    // TODO adsitnik
 
     // Close the serializer.
     if(m_pSerializer != NULL)

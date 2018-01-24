@@ -14,17 +14,19 @@ class FastSerializer;
 
 typedef unsigned int StreamLabel;
 
+// the enumeration has a specific set of values to keep it compatible with consumer library
+// it's sibling is defined in https://github.com/Microsoft/perfview/blob/10d1f92b242c98073b3817ac5ee6d98cd595d39b/src/FastSerialization/FastSerialization.cs#L2295
 enum class FastSerializerTags : BYTE 
 {
-    Error,              // To improve debugabilty, 0 is an illegal tag.  
-    NullReference,      // Tag for a null object forwardReference. 
-    ObjectReference,    // Followed by StreamLabel 
-    ForwardReference,   // Followed by an index (32-bit integer) into the Forward forwardReference array and a Type object
-    BeginObject,        // Followed by Type object, object data, tagged EndObject
-    BeginPrivateObject, // Like beginObject, but not placed in interning table on deserialiation 
-    EndObject,          // Placed after an object to mark its end. 
-    ForwardDefinition,  // Followed by a forward forwardReference index and an object definition (BeginObject)
-    Byte,
+    Error              = 0, // To improve debugabilty, 0 is an illegal tag.  
+    NullReference      = 1, // Tag for a null object forwardReference. 
+    ObjectReference    = 2, // Followed by StreamLabel 
+                            // 3 used to belong to ForwardReference, which got removed in V3 
+    BeginObject        = 4, // Followed by Type object, object data, tagged EndObject
+    BeginPrivateObject = 5, // Like beginObject, but not placed in interning table on deserialiation 
+    EndObject          = 6, // Placed after an object to mark its end. 
+                            // 7 used to belong to ForwardDefinition, which got removed in V3 
+    Byte               = 8,
     Int16,
     Int32,
     Int64,
@@ -47,26 +49,16 @@ public:
     void WriteTag(FastSerializerTags tag, BYTE *payload = NULL, unsigned int payloadLength = 0);
     void WriteString(const char *strContents, unsigned int length);
 
-    unsigned int AllocateForwardReference();
-    void DefineForwardReference(unsigned int index, StreamLabel value);
-    void WriteForwardReference(unsigned int index);
-
 private:
 
     void WriteEntryObject();
     void WriteSerializationType(FastSerializableObject *pObject);
     void WriteFileHeader();
-    StreamLabel WriteForwardReferenceTable();
-    void WriteTrailer(StreamLabel forwardReferencesTableStart);
 
     CFileStream *m_pFileStream;
     bool m_writeErrorEncountered;
     FastSerializableObject *m_pEntryObject;
     size_t m_currentPos;
-
-    static const unsigned int MaxForwardReferences = 100;
-    StreamLabel m_forwardReferences[MaxForwardReferences];
-    unsigned int m_nextForwardReference;
 };
 
 #endif // FEATURE_PERFTRACING
