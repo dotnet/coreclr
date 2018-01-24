@@ -259,13 +259,10 @@ namespace System
             nuint byteCount = (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>();
             if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
-                {
-                    fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
-                    {
-                        Buffer.Memmove(pDestination, pSource, byteCount);
-                    }
-                }
+                Buffer.Memmove(
+                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref destination)),
+                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref source)),
+                    byteCount);
             }
             else
             {
