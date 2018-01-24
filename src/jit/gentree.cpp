@@ -4515,7 +4515,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
         /* We try to swap operands if the second one is more expensive */
         bool       tryToSwap;
-        GenTreePtr opA, opB;
+        GenTreePtr opA;
+        GenTreePtr opB;
 
         if (tree->gtFlags & GTF_REVERSE_OPS)
         {
@@ -13005,7 +13006,8 @@ GenTreePtr Compiler::gtFoldExprSpecial(GenTreePtr tree)
     GenTreePtr op2  = tree->gtOp.gtOp2;
     genTreeOps oper = tree->OperGet();
 
-    GenTreePtr op, cons;
+    GenTreePtr op;
+    GenTreePtr cons;
     ssize_t    val;
 
     assert(tree->OperKind() & GTK_BINOP);

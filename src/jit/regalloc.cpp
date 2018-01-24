@@ -2826,7 +2826,8 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                         if (op1->gtOper == GT_IND)
                         {
-                            GenTreePtr rv1, rv2;
+                            GenTreePtr rv1;
+                            GenTreePtr rv2;
                             unsigned   mul, cns;
                             bool       rev;
 
@@ -3449,7 +3450,8 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 if (regMask == RBM_NONE)
                 {
                     rpPredictReg op1xPredictReg, op2xPredictReg;
-                    GenTreePtr   op1x, op2x;
+                    GenTreePtr   op1x;
+                    GenTreePtr   op2x;
                     if (tree->gtFlags & GTF_REVERSE_OPS) // TODO: do we really need to handle this case?
                     {
                         op1xPredictReg = op2PredictReg;

@@ -12509,7 +12509,8 @@ DONE_MORPHING_CHILDREN:
      */
 
     GenTreePtr    temp;
-    GenTreePtr    cns1, cns2;
+    GenTreePtr    cns1;
+    GenTreePtr    cns2;
     size_t        ival1, ival2;
     GenTreePtr    lclVarTree;
     FieldSeqNode* fieldSeq = nullptr;

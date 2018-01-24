@@ -1687,7 +1687,8 @@ void CodeGen::genCodeForTreeStackFP_Arithm(GenTreePtr tree)
     // here and tell genArithmStackFP to do the reverse operation
     bool bReverse;
 
-    GenTreePtr op1, op2;
+    GenTreePtr op1;
+    GenTreePtr op2;
 
     if (tree->gtFlags & GTF_REVERSE_OPS)
     {
@@ -1924,10 +1925,8 @@ void CodeGen::genCodeForTreeStackFP_AsgArithm(GenTreePtr tree)
     assert(tree->OperGet() == GT_ASG_ADD || tree->OperGet() == GT_ASG_SUB || tree->OperGet() == GT_ASG_MUL ||
            tree->OperGet() == GT_ASG_DIV);
 
-    GenTreePtr op1, op2;
-
-    op1 = tree->gtOp.gtOp1;
-    op2 = tree->gtGetOp2IfPresent();
+    GenTreePtr op1 = tree->gtOp.gtOp1;
+    GenTreePtr op2 = tree->gtGetOp2IfPresent();
 
     genSetupForOpStackFP(op1, op2, (tree->gtFlags & GTF_REVERSE_OPS) ? true : false, true, false, true);
 

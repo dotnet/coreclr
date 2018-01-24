@@ -6044,7 +6044,8 @@ bool CodeGen::genCodeForQmarkWithCMOV(GenTreePtr tree, regMaskTP destReg, regMas
     // Warning: this naming of the local vars is backwards!
     GenTreePtr thenNode = colon->gtOp.gtOp1;
     GenTreePtr elseNode = colon->gtOp.gtOp2;
-    GenTreePtr alwaysNode, predicateNode;
+    GenTreePtr alwaysNode;
+    GenTreePtr predicateNode;
     regNumber  reg;
     regMaskTP  needReg = destReg;
 
@@ -8717,7 +8718,8 @@ void CodeGen::genCodeForCopyObj(GenTreePtr tree, regMaskTP destReg)
     unsigned gcPtrCount = cpObjOp->gtGcPtrCount;
     assert(blkSize == cpObjOp->gtBlkSize);
 
-    GenTreePtr treeFirst, treeSecond;
+    GenTreePtr treeFirst;
+    GenTreePtr treeSecond;
     regNumber  regFirst, regSecond;
 
     // Check what order the object-ptrs have to be evaluated in ?

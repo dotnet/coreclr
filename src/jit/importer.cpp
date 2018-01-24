@@ -3442,7 +3442,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
     switch (intrinsicID)
     {
-        GenTreePtr op1, op2;
+        GenTreePtr op1;
+        GenTreePtr op2;
 
         case CORINFO_INTRINSIC_Sin:
         case CORINFO_INTRINSIC_Cbrt:
@@ -9629,7 +9630,8 @@ const static controlFlow_t controlFlow[] = {
 var_types Compiler::impGetByRefResultType(genTreeOps oper, bool fUnsigned, GenTreePtr* pOp1, GenTreePtr* pOp2)
 {
     var_types  type = TYP_UNDEF;
-    GenTreePtr op1 = *pOp1, op2 = *pOp2;
+    GenTreePtr op1  = *pOp1;
+    GenTreePtr op2  = *pOp2;
 
     // Arithemetic operations are generally only allowed with
     // primitive types, but certain operations are allowed
@@ -10115,7 +10117,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
     unsigned  nxtStmtIndex = impInitBlockLineInfo();
     IL_OFFSET nxtStmtOffs;
 
-    GenTreePtr                   arrayNodeFrom, arrayNodeTo, arrayNodeToIndex;
+    GenTreePtr                   arrayNodeFrom;
+    GenTreePtr                   arrayNodeTo;
+    GenTreePtr                   arrayNodeToIndex;
     CorInfoHelpFunc              helper;
     CorInfoIsAccessAllowedResult accessAllowedResult;
     CORINFO_HELPER_DESC          calloutHelper;
