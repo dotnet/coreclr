@@ -70,6 +70,14 @@ enum gc_reason
     reason_max
 };
 
+// Types of GCs, emitted by the GCStart ETW event.
+enum gc_etw_type
+{
+   gc_etw_type_ngc = 0,
+   gc_etw_type_bgc = 1,
+   gc_etw_type_fgc = 2
+};
+
 /* forward declerations */
 class CObjectHeader;
 class Object;

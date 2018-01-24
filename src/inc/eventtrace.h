@@ -325,7 +325,7 @@ namespace ETW
         static BOOL ShouldTrackMovementForEtw();
         static HRESULT ForceGCForDiagnostics();
         static VOID ForceGC(LONGLONG l64ClientSequenceNumber);
-        static VOID FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo);
+        static VOID FireGcStart(ETW_GC_INFO * pGcInfo);
         static VOID FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth);
         static VOID FireSingleGenerationRangeEvent(
             void * /* context */,

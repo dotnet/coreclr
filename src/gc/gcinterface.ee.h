@@ -25,6 +25,11 @@ public:
         const char* eventName,
         void* payload,
         uint32_t payloadSize) = 0;
+    virtual
+    void FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
+
+    virtual
+    void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

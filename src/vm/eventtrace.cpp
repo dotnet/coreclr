@@ -874,15 +874,14 @@ VOID ETW::GCLog::ForceGC(LONGLONG l64ClientSequenceNumber)
 //---------------------------------------------------------------------------------------
 //
 // Helper to fire the GCStart event.  Figures out which version of GCStart to fire, and
-// includes the client sequence number, if available.  Also logs the generation range
-// events.
+// includes the client sequence number, if available.
 //
 // Arguments:
 //      pGcInfo - ETW_GC_INFO containing details from GC about this collection
 //
 
 // static
-VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
+VOID ETW::GCLog::FireGcStart(ETW_GC_INFO * pGcInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -902,10 +901,6 @@ VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
         }
 
         FireEtwGCStart_V2(pGcInfo->GCStart.Count, pGcInfo->GCStart.Depth, pGcInfo->GCStart.Reason, pGcInfo->GCStart.Type, GetClrInstanceId(), l64ClientSequenceNumberToLog);
-
-        // Fire an event per range per generation
-        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
-        hp->DiagDescrGenerations(FireSingleGenerationRangeEvent, NULL /* context */);
     }
 }
 

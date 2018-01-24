@@ -11,6 +11,8 @@ class GCToCLREventSink : public IGCToCLREventSink
 {
 public:
     void FireDynamicEvent(const char* eventName, void* payload, uint32_t payloadSize);
+    void FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type);
+    void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength);
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;

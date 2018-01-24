@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "gctoclreventsink.h"
+#include "eventtrace.h"
 
 GCToCLREventSink g_gcToClrEventSink;
 
@@ -20,4 +21,23 @@ void GCToCLREventSink::FireDynamicEvent(const char* eventName, void* payload, ui
     }
 
     FireEtwGCDynamicEvent(wideEventName, payloadSize, (const BYTE*)payload, GetClrInstanceId());
+}
+
+void GCToCLREventSink::FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    ETW::GCLog::ETW_GC_INFO gcStartInfo;
+    gcStartInfo.GCStart.Count = count;
+    gcStartInfo.GCStart.Depth = depth;
+    gcStartInfo.GCStart.Reason = static_cast<ETW::GCLog::ETW_GC_INFO::GC_REASON>(reason);
+    gcStartInfo.GCStart.Type = static_cast<ETW::GCLog::ETW_GC_INFO::GC_TYPE>(type);
+    ETW::GCLog::FireGcStart(&gcStartInfo);
+}
+
+void GCToCLREventSink::FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCGenerationRange(generation, rangeStart, rangeUsedLength, rangeReservedLength, GetClrInstanceId());
 }
