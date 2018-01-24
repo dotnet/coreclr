@@ -11,10 +11,12 @@
       <TestAssemblyDir Condition="'$(TestAssemblyDir)' == ''">$(BaseOutputPathWithConfig)\tests\</TestAssemblyDir>
       <__TestRunHtmlLog Condition="'$(__TestRunHtmlLog)' == ''">$(__LogsDir)\TestRun.html</__TestRunHtmlLog>
       <__TestRunXmlLog Condition="'$(__TestRunXmlLog)' == ''">$(__LogsDir)\TestRun.xml</__TestRunXmlLog>
+      <UserTestAssemblies>$(__UserTestAssemblies)</UserTestAssemblies>
+      <UserTestAssemblies Condition="$(UserTestAssemblies) == ''">*</UserTestAssemblies>
   </PropertyGroup>
   <Target Name="FindTestDirectories">
     <ItemGroup>
-      <AllTestAssemblies Include="$(BaseOutputPathWithConfig)\**\*.XUnitWrapper.dll" />
+      <AllTestAssemblies Include="$(BaseOutputPathWithConfig)\**\$(UserTestAssemblies).XUnitWrapper.dll" />
       <TestAssemblies Include="@(AllTestAssemblies)" Exclude="@(_SkipTestAssemblies -> '$(TestAssemblyDir)%(Identity)\%(Identity).XUnitWrapper.dll')" />
     </ItemGroup>
     

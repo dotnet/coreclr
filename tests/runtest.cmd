@@ -68,6 +68,7 @@ set __IlasmRoundTrip=
 set __CollectDumps=
 set __DoCrossgen=
 set __CrossgenAltJit=
+set __UserTestAssemblies=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -111,6 +112,7 @@ if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift
 if /i "%1" == "tieredcompilation"     (set COMPLUS_EXPERIMENTAL_TieredCompilation=1&shift&goto Arg_Loop)
 if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "timeout"               (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "userassemblies"        (set __UserTestAssemblies=%2&shift&shift&goto Arg_Loop) 
 
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
@@ -481,6 +483,10 @@ echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
 echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
+echo userassemblies            - If specified with test assembly name tests will be run only for assembly / assemblies specified after switch
+echo                             selected assembly should be specified by it's 2 first name parts separated by dot
+echo                             all MSBuild globbing operators are accepted i.e. specify "userassemblies JIT.*" to run all JIT tests
+echo                             only one assembly selection string can be specified
 echo sequential                - Run tests sequentially (no parallelism).
 echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
 echo crossgenaltjit ^<altjit^>   - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests, using the given altjit.

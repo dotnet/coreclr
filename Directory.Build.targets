@@ -1,0 +1,41 @@
+ <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+ 
+  <!-- Verifies if targets are included into Visual Studio CoreCLR.sln in project which outputs 
+       *.dll or *.exe and sets ShouldCopyVSBuildArtifacts to true  -->
+  <Target Name="_ShouldCopyVSBuildArtifacts" BeforeTargets="CopyVSBuildArtifacts;PostBuildEvent">
+
+    <PropertyGroup>
+      <ShouldCopyVSBuildArtifacts>false</ShouldCopyVSBuildArtifacts>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="($(TargetFileName.EndsWith('.dll')) Or $(TargetFileName.EndsWith('.exe'))) And $(SolutionName) == 'CoreCLR'">
+      <ShouldCopyVSBuildArtifacts >true</ShouldCopyVSBuildArtifacts>
+    </PropertyGroup>
+  </Target>
+
+  <!-- Copies *.dll and *.exe files built in Visual Studio to output directory and test layout directory -->
+  <Target Name="CopyVSBuildArtifacts" 
+    DependsOnTargets="_ShouldCopyVSBuildArtifacts"
+    BeforeTargets="PostBuildEvent"
+    Condition="$(ShouldCopyVSBuildArtifacts)">
+
+    <Message Importance="High" Text="Copying build artifacts to output directory and test layout"/>
+        
+      <Copy SourceFiles="$(TargetPath)" 
+        Condition="Exists('$(MSBuildThisFileDirectory)bin\Product\$(OS).$(Platform).$(Configuration)')"
+        DestinationFiles="$(MSBuildThisFileDirectory)bin\Product\$(OS).$(Platform).$(Configuration)\$(TargetFileName)"/>
+
+      <Copy SourceFiles="$(TargetDir)\$(TargetName).pdb" 
+        Condition="Exists('$(MSBuildThisFileDirectory)bin\Product\$(OS).$(Platform).$(Configuration)\PDB')"
+        DestinationFiles="$(MSBuildThisFileDirectory)bin\Product\$(OS).$(Platform).$(Configuration)\PDB\$(TargetName).pdb"/>
+        
+      <Copy SourceFiles="$(TargetPath)" 
+        Condition="Exists('$(MSBuildThisFileDirectory)bin\tests\$(OS).$(Platform).$(Configuration)\Tests\Core_Root')"
+        DestinationFiles="$(MSBuildThisFileDirectory)bin\tests\$(OS).$(Platform).$(Configuration)\Tests\Core_Root\$(TargetFileName)"/>
+
+      <Copy SourceFiles="$(TargetDir)\$(TargetName).pdb" 
+        Condition="Exists('$(MSBuildThisFileDirectory)bin\tests\$(OS).$(Platform).$(Configuration)\Tests\Core_Root')"
+        DestinationFiles="$(MSBuildThisFileDirectory)bin\tests\$(OS).$(Platform).$(Configuration)\Tests\Core_Root\$(TargetName).pdb"/>
+
+  </Target>
+</Project>
