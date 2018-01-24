@@ -44,6 +44,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 RtlMoveMemory(
@@ -67,6 +68,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 HeapCreate(
@@ -115,6 +117,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 GetProcessHeap(
@@ -150,6 +153,7 @@ Abstract
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 HeapAlloc(
@@ -224,6 +228,7 @@ Abstract
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 HeapFree(
@@ -286,6 +291,7 @@ Abstract
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 HeapReAlloc(
@@ -355,6 +361,7 @@ done:
     return pMem;
 }
 
+PUB
 BOOL
 PALAPI
 HeapSetInformation(

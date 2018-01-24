@@ -26,7 +26,7 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
 #define NATIVE_STRING_RESOURCE_TABLE(name) CONCAT(nativeStringResourceTable_, name)
 
 #define DECLARE_NATIVE_STRING_RESOURCE_TABLE(name) \
-    extern const NativeStringResourceTable NATIVE_STRING_RESOURCE_TABLE(name)
+    extern const NativeStringResourceTable NATIVE_STRING_RESOURCE_TABLE(name) __attribute__((visibility("default")))
 
 #endif // __RESOURCE_STRING_H_
 

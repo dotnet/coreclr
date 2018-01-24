@@ -346,7 +346,7 @@ private:
     }
 };
 
-
+PUB
 size_t
 PALAPI
 PAL_GetRestrictedPhysicalMemoryLimit()
@@ -382,6 +382,7 @@ PAL_GetRestrictedPhysicalMemoryLimit()
     return physical_memory_limit;
 }
 
+PUB
 BOOL
 PALAPI
 PAL_GetWorkingSetSize(size_t* val)
@@ -415,6 +416,7 @@ PAL_GetWorkingSetSize(size_t* val)
     return result;
 }
 
+PUB
 BOOL
 PALAPI
 PAL_GetCpuLimit(UINT* val)

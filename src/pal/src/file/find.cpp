@@ -110,6 +110,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 FindFirstFileA(
@@ -246,6 +247,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 FindFirstFileW(
@@ -341,6 +343,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 FindNextFileA(
@@ -485,6 +488,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 FindNextFileW(
@@ -547,6 +551,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 FindClose(

@@ -76,6 +76,7 @@ Notes:
 // that can be supported cross-platform.
 //
 //-----------------------------------------------------------------------------
+PUB
 HRESULT
 CreateProcessForLaunch(
     __in LPWSTR lpCommandLine,
@@ -136,6 +137,7 @@ CreateProcessForLaunch(
 // ResumeProcess - to be used with the CreateProcessForLaunch resume handle
 //
 //-----------------------------------------------------------------------------
+PUB
 HRESULT
 ResumeProcess(
     __in HANDLE hResumeHandle)
@@ -154,6 +156,7 @@ ResumeProcess(
 // CloseResumeHandle - to be used with the CreateProcessForLaunch resume handle
 //
 //-----------------------------------------------------------------------------
+PUB
 HRESULT
 CloseResumeHandle(
     __in HANDLE hResumeHandle)
@@ -647,6 +650,7 @@ StartupHelperThread(LPVOID p)
 // ppUnregisterToken -- pointer to put the UnregisterForRuntimeStartup token.
 //
 //-----------------------------------------------------------------------------
+PUB
 HRESULT
 RegisterForRuntimeStartup(
     __in DWORD dwProcessId,
@@ -694,6 +698,7 @@ RegisterForRuntimeStartup(
 //
 // pUnregisterToken -- unregister token from RegisterForRuntimeStartup or NULL.
 //-----------------------------------------------------------------------------
+PUB
 HRESULT
 UnregisterForRuntimeStartup(
     __in PVOID pUnregisterToken)
@@ -729,7 +734,7 @@ const int cchEventNameBufferSize = (sizeof(StartupNotifyEventNamePrefix) + sizeo
                                     + 8  // + hex process id DWORD 
                                     + 10 // + decimal session id DWORD 
                                     + 1;  // '\' after session id
-                                        
+PUB                                        
 HRESULT 
 GetStartupNotificationEvent(
     __in DWORD debuggeePID,
@@ -1072,6 +1077,7 @@ IsCoreClrWithGoodHeader(
 // Notes:
 //   Callers use  code:CloseCLREnumeration to free the returned arrays.
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 EnumerateCLRs(
     DWORD debuggeePID, 
@@ -1209,6 +1215,7 @@ EnumerateCLRs(
 // dwArrayLength -- array length originally returned by EnumerateCLRs
 //
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 CloseCLREnumeration(
     __in HANDLE* pHandleArray,
@@ -1335,6 +1342,7 @@ const WCHAR *c_versionStrFormat = W("%08x;%08x;%p");
 //   The version string is an opaque string that can only be passed back to other 
 //   DbgShim APIs.
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 CreateVersionStringFromModule(
     __in DWORD pidDebuggee,
@@ -1569,6 +1577,7 @@ CheckDbiAndRuntimeVersion(
 //    the right debug pack is not installed.
 //  else Error. (*ppCordb will be null)
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 CreateDebuggingInterfaceFromVersionEx(
     __in int iDebuggerVersion,
@@ -1709,6 +1718,7 @@ Exit:
 //    the right debug pack is not installed.
 //  else Error. (*ppCordb will be null)
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 CreateDebuggingInterfaceFromVersion(
     __in LPCWSTR szDebuggeeVersion, 
@@ -1802,6 +1812,7 @@ GetContinueStartupEvent(
 // Return:
 //  S_OK on success.
 //-----------------------------------------------------------------------------
+PUB
 HRESULT 
 CLRCreateInstance(
     REFCLSID clsid,

@@ -189,7 +189,7 @@ static int __cdecl vnwscan_fn (
 *
 *******************************************************************************/
 
-int __cdecl sscanf_s (
+PUB int __cdecl sscanf_s (
         const char *string,
         const char *format,
         ...
@@ -203,7 +203,7 @@ int __cdecl sscanf_s (
         return ret;
 }
 
-int __cdecl _snscanf_s (
+PUB int __cdecl _snscanf_s (
         const char *string,
         size_t count,
         const char *format,
@@ -218,7 +218,7 @@ int __cdecl _snscanf_s (
         return ret;
 }
 
-int __cdecl swscanf_s (
+PUB int __cdecl swscanf_s (
         const wchar_t *string,
         const wchar_t *format,
         ...
@@ -232,7 +232,7 @@ int __cdecl swscanf_s (
         return ret;
 }
 
-int __cdecl _snwscanf_s (
+PUB int __cdecl _snwscanf_s (
         const wchar_t *string,
         size_t count,
         const wchar_t *format,

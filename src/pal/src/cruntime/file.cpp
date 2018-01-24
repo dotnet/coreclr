@@ -201,6 +201,7 @@ Function:
 see MSDN
 
 --*/
+PUB
 PAL_FILE *
 __cdecl
 _fdopen(
@@ -259,6 +260,7 @@ Function :
 see MSDN doc.
 
 --*/
+PUB
 PAL_FILE *
 __cdecl
 PAL_fopen(const char * fileName, const char * mode)
@@ -349,6 +351,7 @@ Function:
 see MSDN doc.
 
 --*/
+PUB
 PAL_FILE *
 __cdecl
 _wfopen(
@@ -396,6 +399,7 @@ _wfsopen
 see MSDN doc.
 
 --*/
+PUB
 PAL_FILE *
 __cdecl
 _wfsopen(
@@ -414,7 +418,7 @@ Function
 
     Returns the stdout stream.
 --*/
-PAL_FILE * __cdecl PAL_get_stdout(int caller)
+PUB PAL_FILE * __cdecl PAL_get_stdout(int caller)
 {
     PERF_ENTRY(get_stdout);
     ENTRY("PAL_get_stdout\n");
@@ -429,7 +433,7 @@ Function
 
     Returns the stdin stream.
 --*/
-PAL_FILE * __cdecl PAL_get_stdin(int caller)
+PUB PAL_FILE * __cdecl PAL_get_stdin(int caller)
 {
     PERF_ENTRY(get_stdin);
     ENTRY("PAL_get_stdin\n");
@@ -444,7 +448,7 @@ Function
 
     Returns the stderr stream.
 --*/
-PAL_FILE * __cdecl PAL_get_stderr(int caller)
+PUB PAL_FILE * __cdecl PAL_get_stderr(int caller)
 {
     PERF_ENTRY(get_stderr);
     ENTRY("PAL_get_stderr\n");
@@ -462,7 +466,7 @@ Function:
 
 See msdn for more details.
 --*/
-int __cdecl PAL__close(int handle)
+PUB int __cdecl PAL__close(int handle)
 {
     INT nRetVal = 0;
 
@@ -476,11 +480,12 @@ int __cdecl PAL__close(int handle)
     return nRetVal;
 }
 
- int __cdecl PAL__flushall()
+ PUB int __cdecl PAL__flushall()
  {
     return fflush(NULL);
  }
- 
+
+PUB
 wchar_16 *
 __cdecl
 PAL_fgetws(wchar_16 *s, int n, PAL_FILE *f)
@@ -498,6 +503,7 @@ Function :
     See MSDN for more details.
 --*/
 
+PUB
 size_t
 __cdecl
 PAL_fread(void * buffer, size_t size, size_t count, PAL_FILE * f)
@@ -559,6 +565,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_ferror(PAL_FILE * f)
@@ -590,6 +597,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_fclose(PAL_FILE * f)
@@ -618,6 +626,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 void
 _cdecl
 PAL_setbuf(PAL_FILE * f, char * buffer)
@@ -640,6 +649,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_fputs(const char * str,  PAL_FILE * f)
@@ -668,6 +678,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_fputc(int c,  PAL_FILE * f)
@@ -695,6 +706,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_putchar( int c )
@@ -718,6 +730,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 LONG
 _cdecl
 PAL_ftell(PAL_FILE * f)
@@ -753,6 +766,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_feof(PAL_FILE * f)
@@ -777,6 +791,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_getc(PAL_FILE * f)
@@ -817,6 +832,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_ungetc(int c, PAL_FILE * f)
@@ -857,6 +873,7 @@ Function :
 
     See MSDN for more details.
 --*/
+PUB
 int
 _cdecl
 PAL_setvbuf(PAL_FILE *f, char *buf, int type, size_t size)

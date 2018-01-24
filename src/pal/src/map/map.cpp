@@ -319,6 +319,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 CreateFileMappingA(
@@ -386,6 +387,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 CreateFileMappingW(
@@ -839,6 +841,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 OpenFileMappingA(
@@ -883,6 +886,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 OpenFileMappingW(
@@ -950,6 +954,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 MapViewOfFile(
@@ -991,6 +996,7 @@ MapViewOfFile(
     return pvMappedBaseAddress;
 }
 
+PUB
 LPVOID
 PALAPI
 MapViewOfFileEx(
@@ -1048,6 +1054,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 UnmapViewOfFile(

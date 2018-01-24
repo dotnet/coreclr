@@ -51,6 +51,7 @@ Value Meaning
 > 0   s1 is greater than s2
 
 --*/
+PUB
 int 
 __cdecl
 _strnicmp( const char *s1, const char *s2, size_t count )
@@ -87,6 +88,7 @@ Value Meaning
 > 0   s1 is greater than s2
 
 --*/
+PUB
 int 
 __cdecl
 _stricmp(
@@ -130,6 +132,7 @@ current locale. Other characters are not affected. For more
 information on LC_CTYPE, see setlocale.
 
 --*/
+PUB
 char *  
 __cdecl
 _strlwr(
@@ -200,6 +203,7 @@ Notes :
 returned from this function. If "unsigned long" is used instead of ULONG,
 then a 64 bit value could be returned on 64 bit platforms like HP-UX, thus
 breaking Windows behavior. */
+PUB
 ULONG 
 __cdecl 
 PAL_strtoul(const char *szNumber, char **pszEnd, int nBase)
@@ -270,6 +274,7 @@ szNumber  Null-terminated string to convert to a LONG
 returned from this function. If "long" is used instead of LONG, then a 64 bit 
 value could be returned on 64 bit platforms like HP-UX, thus breaking 
 Windows behavior. */
+PUB
 LONG 
 __cdecl
 PAL_atol(const char *szNumber)

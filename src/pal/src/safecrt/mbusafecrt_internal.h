@@ -21,6 +21,8 @@
 #include "pal_char16.h"
 #include "pal_mstypes.h"
 
+#define PUB __attribute__((visibility("default")))
+
 typedef __builtin_va_list va_list;
 
 // The ifdef below are to accommodate Unix build

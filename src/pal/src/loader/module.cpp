@@ -118,6 +118,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HMODULE
 PALAPI
 LoadLibraryA(
@@ -132,6 +133,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HMODULE
 PALAPI
 LoadLibraryW(
@@ -146,6 +148,7 @@ LoadLibraryExA
 
 See MSDN doc.
 --*/
+PUB
 HMODULE
 PALAPI
 LoadLibraryExA(
@@ -204,6 +207,7 @@ LoadLibraryExW
 
 See MSDN doc.
 --*/
+PUB
 HMODULE
 PALAPI
 LoadLibraryExW(
@@ -262,6 +266,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 FARPROC
 PALAPI
 GetProcAddress(
@@ -384,6 +389,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 FreeLibrary(
@@ -436,6 +442,7 @@ Notes :
     the short name as given to LoadLibrary. The exception is if hModule is
     NULL : in this case, the full path of the executable is always returned.
 --*/
+PUB
 DWORD
 PALAPI
 GetModuleFileNameA(
@@ -500,6 +507,7 @@ Notes :
     the short name as given to LoadLibrary. The exception is if hModule is
     NULL : in this case, the full path of the executable is always returned.
 --*/
+PUB
 DWORD
 PALAPI
 GetModuleFileNameW(
@@ -564,6 +572,7 @@ Function:
 
   Returns the system handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
+PUB
 void *
 PALAPI
 PAL_LoadLibraryDirect(
@@ -614,6 +623,7 @@ Function:
 
   Returns a PAL handle to the loaded library, or nullptr upon failure (error is set via SetLastError()).
 */
+PUB
 HMODULE
 PALAPI
 PAL_RegisterLibraryDirect(
@@ -669,6 +679,7 @@ Function:
   as part of calling DllMain in the calling module.
 
 --*/
+PUB
 HINSTANCE
 PALAPI
 PAL_RegisterModule(
@@ -706,6 +717,7 @@ Function:
 
   Used to cleanup the module HINSTANCE from PAL_RegisterModule.
 --*/
+PUB
 VOID
 PALAPI
 PAL_UnregisterModule(
@@ -733,6 +745,7 @@ Return value:
     non-NULL - the base address of the mapped image
     NULL - error, with last error set.
 --*/
+PUB
 void *
 PALAPI
 PAL_LOADLoadPEFile(HANDLE hFile)
@@ -775,6 +788,7 @@ Return value:
     TRUE - success
     FALSE - failure (incorrect ptr, etc.)
 --*/
+PUB
 BOOL 
 PALAPI
 PAL_LOADUnloadPEFile(void * ptr)
@@ -807,6 +821,7 @@ Parameters:
 Return value:
     module base address
 --*/
+PUB
 LPCVOID
 PALAPI
 PAL_GetSymbolModuleBase(void *symbol)
@@ -1193,6 +1208,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 DisableThreadLibraryCalls(

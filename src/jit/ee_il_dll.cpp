@@ -54,7 +54,7 @@ JitOptions jitOpts = {
 
 /*****************************************************************************/
 
-extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
+extern "C" PUB void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
     {
@@ -146,7 +146,7 @@ void jitShutdown()
 
 #ifndef FEATURE_MERGE_JIT_AND_ENGINE
 
-extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
+extern "C" PUB BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID pvReserved)
 {
     if (dwReason == DLL_PROCESS_ATTACH)
     {
@@ -166,7 +166,7 @@ HINSTANCE GetModuleInst()
     return (g_hInst);
 }
 
-extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
+extern "C" PUB void __stdcall sxsJitStartup(CoreClrCallbacks const& cccallbacks)
 {
 #ifndef SELF_NO_HOST
     InitUtilcode(cccallbacks);
@@ -191,7 +191,7 @@ void* __cdecl operator new(size_t, const CILJitSingletonAllocator&)
 
 ICorJitCompiler* g_realJitCompiler = nullptr;
 
-ICorJitCompiler* __stdcall getJit()
+PUB ICorJitCompiler* __stdcall getJit()
 {
     if (ILJitter == nullptr)
     {

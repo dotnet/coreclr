@@ -109,6 +109,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LONG
 PALAPI
 CompareFileTime(
@@ -154,6 +155,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 GetSystemTimeAsFileTime(
@@ -307,7 +309,7 @@ Function
     easier manipulation in FileTimeToDosTime.
         
 --*/
-BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime, 
+PUB BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime, 
                                   LPSYSTEMTIME lpSystemTime )
 {
     UINT64 FileTime = 0;

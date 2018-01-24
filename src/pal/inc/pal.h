@@ -5128,6 +5128,9 @@ PALIMPORT WCHAR __cdecl PAL_towupper(WCHAR);
 
 PALIMPORT WCHAR * __cdecl _wcslwr(WCHAR *);
 PALIMPORT ULONGLONG _wcstoui64(const WCHAR *, WCHAR **, int);
+#ifdef __cplusplus
+extern "C"
+#endif
 PALIMPORT errno_t __cdecl _i64tow_s(long long, WCHAR *, size_t, int);
 PALIMPORT int __cdecl _wtoi(const WCHAR *);
 

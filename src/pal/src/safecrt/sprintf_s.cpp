@@ -65,7 +65,7 @@
 *Exceptions:
 *
 *******************************************************************************/
-
+__attribute__((visibility("default")))
 int sprintf_s (
         char *string,
         size_t sizeInBytes,
@@ -81,6 +81,7 @@ int sprintf_s (
         return ret;
 }
 
+__attribute__((visibility("default")))
 int _snprintf_s (
         char *string,
         size_t sizeInBytes,

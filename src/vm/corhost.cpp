@@ -1092,6 +1092,7 @@ HRESULT CorRuntimeHostBase::EnumDomains(HDOMAINENUM *hEnum)
 #endif // FEATURE_COMINTEROP
 
 extern "C"
+PUB
 HRESULT  GetCLRRuntimeHost(REFIID riid, IUnknown **ppUnk)
 {
     WRAPPER_NO_CONTRACT;

@@ -15,6 +15,7 @@
 #include <palsuite.h>
 
 extern "C"
+__attribute__((visibility("default")))
 int InitializeDllTest1()
 {
     return PAL_InitializeDLL();
@@ -35,6 +36,7 @@ BOOL bTry    = FALSE;
 BOOL bExcept = FALSE;
 
 extern "C"
+__attribute__((visibility("default")))
 int DllTest1()
 {
     Trace("Starting pal_sxs test1 DllTest1\n");

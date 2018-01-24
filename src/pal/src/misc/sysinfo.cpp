@@ -95,7 +95,7 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 #endif
 #endif // __APPLE__
 
-
+PUB
 DWORD
 PALAPI
 PAL_GetLogicalCpuCountFromOS()
@@ -150,6 +150,7 @@ Note:
 Others are set to zero.
 
 --*/
+PUB
 VOID
 PALAPI
 GetSystemInfo(
@@ -216,6 +217,7 @@ Return Values
 This function returns a BOOL to indicate its success status.
 
 --*/
+PUB
 BOOL
 PALAPI
 GlobalMemoryStatusEx(
@@ -431,6 +433,7 @@ done:
     return result;
 }
 
+PUB
 size_t
 PALAPI
 PAL_GetLogicalProcessorCacheSizeFromOS()

@@ -1247,6 +1247,7 @@ Function:
   lpEndAddress - Exclusive end of range
   dwSize - Number of bytes to allocate
 --*/
+PUB
 LPVOID
 PALAPI
 PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(
@@ -1314,6 +1315,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 VirtualAlloc(
@@ -1433,6 +1435,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 VirtualFree(
@@ -1616,6 +1619,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 VirtualProtect(
@@ -1878,6 +1882,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 SIZE_T
 PALAPI
 VirtualQuery(
@@ -2016,6 +2021,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 UINT 
 PALAPI 
 GetWriteWatch(
@@ -2040,6 +2046,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 UINT 
 PALAPI 
 ResetWriteWatch(

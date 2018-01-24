@@ -174,6 +174,7 @@ enum FILETYPE
 };
 
 static
+PUB
 DWORD
 PALAPI
 StartupHelperThread(
@@ -208,6 +209,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetCurrentProcessId(
@@ -228,6 +230,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetCurrentSessionId(
@@ -248,6 +251,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 GetCurrentProcess(
@@ -273,6 +277,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 CreateProcessA(
@@ -428,6 +433,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 CreateProcessW(
@@ -1154,6 +1160,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetExitCodeProcess(
@@ -1220,6 +1227,7 @@ Function:
 See MSDN doc.
 --*/
 PAL_NORETURN
+PUB
 VOID
 PALAPI
 ExitProcess(
@@ -1296,6 +1304,7 @@ Note:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 TerminateProcess(
@@ -1792,6 +1801,7 @@ public:
 };
 
 static
+PUB
 DWORD 
 PALAPI
 StartupHelperThread(LPVOID p)
@@ -1825,6 +1835,7 @@ Note:
     Only the first coreclr module is currently supported.
 
 --*/
+PUB
 DWORD
 PALAPI
 PAL_RegisterForRuntimeStartup(
@@ -1864,6 +1875,7 @@ Parameters:
 Return value:
     PAL_ERROR
 --*/
+PUB
 DWORD
 PALAPI
 PAL_UnregisterForRuntimeStartup(
@@ -1890,6 +1902,7 @@ Parameters:
 Return value:
     TRUE - successfully launched by debugger, FALSE - not launched or some failure in the handshake
 --*/
+PUB
 BOOL
 PALAPI
 PAL_NotifyRuntimeStarted()
@@ -2090,6 +2103,7 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
   Builds the transport pipe names from the process id.
 --*/
+PUB
 VOID
 PALAPI
 PAL_GetTransportPipeName(
@@ -2115,6 +2129,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetProcessTimes(
@@ -2210,6 +2225,7 @@ win32threadpool.cpp of the CLR.
 
 See MSDN doc for GetSystemTimes.
 --*/
+PUB
 INT
 PALAPI
 PAL_GetCPUBusyTime(
@@ -2318,6 +2334,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LPWSTR
 PALAPI
 GetCommandLineW(
@@ -2346,6 +2363,7 @@ Notes :
 dwDesiredAccess is ignored (all supported operations will be allowed)
 bInheritHandle is ignored (no inheritance)
 --*/
+PUB
 HANDLE
 PALAPI
 OpenProcess(
@@ -2460,6 +2478,7 @@ Notes
   addresses of the modules. The module handles should only be used by GetModuleFileNameExW 
   below. 
 --*/
+PUB
 BOOL
 PALAPI
 EnumProcessModules(
@@ -2512,6 +2531,7 @@ Function:
   Used only with module handles returned from EnumProcessModule (for dbgshim). 
 
 --*/
+PUB
 DWORD
 PALAPI
 GetModuleFileNameExW(
@@ -3106,6 +3126,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID 
 PALAPI 
 FlushProcessWriteBuffers()

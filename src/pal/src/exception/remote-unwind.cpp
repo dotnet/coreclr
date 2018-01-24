@@ -1028,6 +1028,7 @@ Parameters:
     baseAddress - base address of the module to find the unwind info
     readMemoryCallback - reads memory from the target
 --*/
+PUB
 BOOL
 PALAPI
 PAL_VirtualUnwindOutOfProc(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback)
@@ -1075,7 +1076,7 @@ exit:
 }
 
 #else
-
+PUB
 BOOL
 PALAPI
 PAL_VirtualUnwindOutOfProc(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback)

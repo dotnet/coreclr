@@ -52,6 +52,7 @@ Return Values
 The return value is the previous state of the error-mode bit flags. 
 
 --*/
+PUB
 UINT
 PALAPI
 SetErrorMode(
@@ -88,6 +89,7 @@ function. The Return Value section of each reference page notes the
 conditions under which the function sets the last-error code.
 
 --*/
+PUB
 DWORD
 PALAPI
 GetLastError(
@@ -116,6 +118,7 @@ Return Values
 This function does not return a value.
 
 --*/
+PUB
 VOID
 PALAPI
 SetLastError(

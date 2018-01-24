@@ -200,7 +200,7 @@ Function:
 
 See MSDN doc.
 --*/
-void InitializeCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+PUB void InitializeCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
     PERF_ENTRY(InitializeCriticalSection);
     ENTRY("InitializeCriticalSection(lpCriticalSection=%p)\n", 
@@ -219,7 +219,7 @@ Function:
 
 See MSDN doc.
 --*/
-BOOL InitializeCriticalSectionEx(LPCRITICAL_SECTION lpCriticalSection, DWORD dwSpinCount, DWORD Flags)
+PUB BOOL InitializeCriticalSectionEx(LPCRITICAL_SECTION lpCriticalSection, DWORD dwSpinCount, DWORD Flags)
 {
     PERF_ENTRY(InitializeCriticalSection);
     ENTRY("InitializeCriticalSectionEx(lpCriticalSection=%p, dwSpinCount=%d, Flags=%d)\n",
@@ -238,7 +238,7 @@ Function:
 
 See MSDN doc.
 --*/
-BOOL InitializeCriticalSectionAndSpinCount(LPCRITICAL_SECTION lpCriticalSection,
+PUB BOOL InitializeCriticalSectionAndSpinCount(LPCRITICAL_SECTION lpCriticalSection,
                                            DWORD dwSpinCount)
 {
     BOOL bRet = TRUE;
@@ -261,7 +261,7 @@ Function:
 
 See MSDN doc.
 --*/
-void DeleteCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+PUB void DeleteCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
     PERF_ENTRY(DeleteCriticalSection);
     ENTRY("DeleteCriticalSection(lpCriticalSection=%p)\n", lpCriticalSection);
@@ -278,7 +278,7 @@ Function:
 
 See MSDN doc.
 --*/
-void EnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+PUB void EnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
     PERF_ENTRY(EnterCriticalSection);
     ENTRY("EnterCriticalSection(lpCriticalSection=%p)\n", lpCriticalSection);
@@ -297,7 +297,7 @@ Function:
 
 See MSDN doc.
 --*/
-BOOL TryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+PUB BOOL TryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
     PERF_ENTRY(TryEnterCriticalSection);
     ENTRY("TryEnterCriticalSection(lpCriticalSection=%p)\n", lpCriticalSection);
@@ -319,7 +319,7 @@ Function:
 
 See MSDN doc.
 --*/
-VOID LeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
+PUB VOID LeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 {
     PERF_ENTRY(LeaveCriticalSection);
     ENTRY("LeaveCriticalSection(lpCriticalSection=%p)\n", lpCriticalSection);
@@ -339,7 +339,7 @@ Function:
 Initializes a critical section. It assumes the CS is an internal one,
 i.e. thread entering it will be marked unsafe for suspension
 --*/
-VOID InternalInitializeCriticalSection(CRITICAL_SECTION *pcs)
+PUB VOID InternalInitializeCriticalSection(CRITICAL_SECTION *pcs)
 {
     InternalInitializeCriticalSectionAndSpinCount(pcs, 0, true);
 }
@@ -350,7 +350,7 @@ Function:
 
 Deletes a critical section
 --*/
-VOID InternalDeleteCriticalSection(
+PUB VOID InternalDeleteCriticalSection(
     PCRITICAL_SECTION pCriticalSection)
 {
     PAL_CRITICAL_SECTION * pPalCriticalSection = 
@@ -498,7 +498,7 @@ Function:
 Provides CorUnix's InternalEnterCriticalSection functionality to legacy C code,
 which has no knowledge of CPalThread, classes and namespaces.
 --*/
-VOID PALCEnterCriticalSection(CRITICAL_SECTION * pcs)
+PUB VOID PALCEnterCriticalSection(CRITICAL_SECTION * pcs)
 {
     CPalThread * pThread = 
         (PALIsThreadDataInitialized() ? GetCurrentPalThread() : NULL);
@@ -512,7 +512,7 @@ Function:
 Provides CorUnix's InternalLeaveCriticalSection functionality to legacy C code,
 which has no knowledge of CPalThread, classes and namespaces.
 --*/
-VOID PALCLeaveCriticalSection(CRITICAL_SECTION * pcs)
+PUB VOID PALCLeaveCriticalSection(CRITICAL_SECTION * pcs)
 {
     CPalThread * pThread = 
         (PALIsThreadDataInitialized() ? GetCurrentPalThread() : NULL);

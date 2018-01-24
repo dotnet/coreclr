@@ -51,6 +51,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 WaitForSingleObject(IN HANDLE hHandle,
@@ -80,6 +81,7 @@ Function:
 Similar to WaitForSingleObject, except uses a LIFO release policy for waiting threads by prioritizing new waiters (registering
 them at the beginning of the wait queue rather than at the end).
 --*/
+PUB
 DWORD
 PALAPI
 PAL_WaitForSingleObjectPrioritized(IN HANDLE hHandle,
@@ -108,6 +110,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 WaitForSingleObjectEx(IN HANDLE hHandle,
@@ -138,6 +141,7 @@ Function:
 See MSDN doc.
 
 --*/
+PUB
 DWORD
 PALAPI
 WaitForMultipleObjects(IN DWORD nCount,
@@ -168,6 +172,7 @@ Function:
 
 See MSDN doc for info about this function.
 --*/
+PUB
 DWORD
 PALAPI
 WaitForMultipleObjectsEx(IN DWORD nCount,
@@ -199,6 +204,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 VOID
 PALAPI
 Sleep(IN DWORD dwMilliseconds)
@@ -227,6 +233,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 SleepEx(IN DWORD dwMilliseconds,
@@ -253,6 +260,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 QueueUserAPC(

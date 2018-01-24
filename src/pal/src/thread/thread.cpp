@@ -375,6 +375,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 GetCurrentThreadId(
@@ -407,6 +408,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 HANDLE
 PALAPI
 PAL_GetCurrentThread(
@@ -428,6 +430,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SwitchToThread(
@@ -458,6 +461,7 @@ Note:
 See MSDN doc.
 
 --*/
+PUB
 HANDLE
 PALAPI
 CreateThread(
@@ -825,6 +829,7 @@ Function:
 See MSDN doc.
 --*/
 PAL_NORETURN
+PUB
 VOID
 PALAPI
 ExitThread(
@@ -982,6 +987,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 int
 PALAPI
 GetThreadPriority(
@@ -1060,6 +1066,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 SetThreadPriority(
@@ -1515,6 +1522,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 GetThreadTimes(
@@ -2638,6 +2646,7 @@ CPalThread::GetCachedStackLimit()
     return m_stackLimit;
 }
 
+PUB
 void *
 PALAPI
 PAL_GetStackBase()
@@ -2646,6 +2655,7 @@ PAL_GetStackBase()
     return thread->GetCachedStackBase();
 }
 
+PUB
 void *
 PALAPI
 PAL_GetStackLimit()
@@ -2694,6 +2704,7 @@ hThread            - handle of the target thread
 Return:
 TRUE if it succeeded, FALSE otherwise.
 --*/
+PUB
 BOOL
 PALAPI
 PAL_InjectActivation(

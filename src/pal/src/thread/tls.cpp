@@ -52,6 +52,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 DWORD
 PALAPI
 TlsAlloc(
@@ -101,6 +102,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 LPVOID
 PALAPI
 TlsGetValue(
@@ -136,6 +138,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 TlsSetValue(
@@ -170,6 +173,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 BOOL
 PALAPI
 TlsFree(

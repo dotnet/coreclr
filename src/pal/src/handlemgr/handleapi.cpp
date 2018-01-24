@@ -51,6 +51,7 @@ PAL-specific behavior :
                DUPLICATE_CLOSE_SOURCE
 
 --*/
+PUB
 BOOL
 PALAPI
 DuplicateHandle(
@@ -271,6 +272,7 @@ according to MSDN, closing an invalid handle raises an exception when running a
 debugger [or, alternately, if a special registry key is set]. This behavior is
 not required in the PAL, so we'll always return FALSE.
 --*/
+PUB
 BOOL
 PALAPI
 CloseHandle(

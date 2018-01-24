@@ -284,7 +284,7 @@ Function:
 
 See MSDN doc.
 --*/
-int Silent_WideCharToMultiByte(LPCWSTR lpWideCharStr, int cchWideChar,
+PUB int Silent_WideCharToMultiByte(LPCWSTR lpWideCharStr, int cchWideChar,
                                LPSTR lpMultiByteStr, int cbMultiByte)
 {
     INT retval =0;

@@ -126,6 +126,7 @@ Parameters:
 Return value:
     None
 --*/
+PUB
 VOID
 PALAPI 
 PAL_SetHardwareExceptionHandler(
@@ -148,6 +149,7 @@ Parameters:
 Return value:
     None
 --*/
+PUB
 VOID
 PALAPI 
 PAL_SetGetGcMarkerExceptionCode(
@@ -171,6 +173,7 @@ Parameters:
     CONTEXT* context - context from which the exception will be thrown
     PAL_SEHException* ex - the exception to throw.
 --*/
+PUB
 VOID
 PALAPI 
 PAL_ThrowExceptionFromContext(CONTEXT* context, PAL_SEHException* ex)
@@ -330,13 +333,13 @@ PAL_ERROR SEHDisable(CPalThread *pthrCurrent)
 
 --*/
 
-CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
+PUB CatchHardwareExceptionHolder::CatchHardwareExceptionHolder()
 {
     CPalThread *pThread = InternalGetCurrentThread();
     ++pThread->m_hardwareExceptionHolderCount;
 }
 
-CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
+PUB CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
 {
     CPalThread *pThread = InternalGetCurrentThread();
     --pThread->m_hardwareExceptionHolderCount;
@@ -361,13 +364,13 @@ __declspec(thread)
 #endif // !__llvm__
 static NativeExceptionHolderBase *t_nativeExceptionHolderHead = nullptr;
 
-NativeExceptionHolderBase::NativeExceptionHolderBase()
+PUB NativeExceptionHolderBase::NativeExceptionHolderBase()
 {
     m_head = nullptr;
     m_next = nullptr;
 }
 
-NativeExceptionHolderBase::~NativeExceptionHolderBase()
+PUB NativeExceptionHolderBase::~NativeExceptionHolderBase()
 {
     // Only destroy if Push was called
     if (m_head != nullptr)
@@ -378,6 +381,7 @@ NativeExceptionHolderBase::~NativeExceptionHolderBase()
     }
 }
 
+PUB
 void 
 NativeExceptionHolderBase::Push()
 {
@@ -387,6 +391,7 @@ NativeExceptionHolderBase::Push()
     *head = this;
 }
 
+PUB
 NativeExceptionHolderBase *
 NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHolder, void *stackLowAddress, void *stackHighAddress)
 {

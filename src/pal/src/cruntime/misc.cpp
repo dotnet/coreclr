@@ -48,6 +48,7 @@ Function:
 
 See MSDN doc.
 --*/
+PUB
 char * 
 __cdecl 
 _gcvt_s( char * buffer, int iSize, double value, int digits )
@@ -91,6 +92,7 @@ Function :
 
 See MSDN for more details.
 --*/
+PUB
 int
 __cdecl 
 __iscsym( int c )
@@ -120,7 +122,7 @@ Function :
     Returns the address of the errno.
 
 --*/
-int * __cdecl PAL_errno( int caller )
+PUB int * __cdecl PAL_errno( int caller )
 {
     int *retval;
     PERF_ENTRY(errno);
@@ -138,7 +140,7 @@ Function:
 
 See MSDN for more details.
 --*/
-
+PUB
 PAL_time_t 
 __cdecl
 PAL_mktime(struct PAL_tm *tm)
@@ -176,6 +178,7 @@ Function:
 
 See MSDN for more details.
 --*/
+PUB
 int
 __cdecl 
 PAL_rand(void)
@@ -199,6 +202,7 @@ Function:
 
 See MSDN for more details.
 --*/
+PUB
 PAL_time_t
 __cdecl
 PAL_time(PAL_time_t *tloc)
@@ -215,7 +219,7 @@ PAL_time(PAL_time_t *tloc)
     return result;
 }
 
-
+PUB
 PALIMPORT 
 void __cdecl 
 PAL_qsort(void *base, size_t nmemb, size_t size, 
@@ -245,6 +249,7 @@ PAL_qsort(void *base, size_t nmemb, size_t size,
     PERF_EXIT(qsort);
 }
 
+PUB
 PALIMPORT 
 void * __cdecl 
 PAL_bsearch(const void *key, const void *base, size_t nmemb, size_t size,
@@ -300,6 +305,7 @@ PAL_memcpy
 Overlapping buffer-safe version of memcpy.
 See MSDN doc for memcpy
 --*/
+PUB
 EXTERN_C
 PALIMPORT
 void *PAL_memcpy (void *dest, const void *src, size_t count)
