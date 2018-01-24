@@ -4,6 +4,7 @@
 
 #include "common.h"
 #include "eventpipebuffer.h"
+#include "eventpipeblock.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipefile.h"
 #include "sampleprofiler.h"
@@ -28,6 +29,8 @@ EventPipeFile::EventPipeFile(
 
     SetObjectVersion(3);
     SetMinReaderVersion(0);
+
+    m_pBlock = new EventPipeBlock(10000);
 
 #ifdef _DEBUG
     m_lockOnWrite = lockOnWrite;
@@ -65,7 +68,13 @@ EventPipeFile::~EventPipeFile()
     }
     CONTRACTL_END;
 
-    // Close the serializer.
+    if (m_pBlock != NULL)
+    {
+        m_pSerializer->WriteObject(m_pBlock); // write the remaining data to the disk
+        delete(m_pBlock);
+        m_pBlock = NULL;
+    }
+
     if(m_pSerializer != NULL)
     {
         delete(m_pSerializer);
@@ -83,16 +92,6 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     }
     CONTRACTL_END;
 
-#ifdef _DEBUG
-    if(m_lockOnWrite)
-    {
-        // Take the serialization lock.
-        // This is used for synchronous file writes.
-        // The circular buffer path only writes from one thread.
-        SpinLockHolder _slh(&m_serializationLock);
-    }
-#endif // _DEBUG
-
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.
     StreamLabel metadataLabel = GetMetadataLabel(*instance.GetEvent());
@@ -101,7 +100,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
         EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance);
 
         metadataLabel = m_pSerializer->GetStreamLabel();
-        pMetadataInstance->FastSerialize(m_pSerializer, (StreamLabel)0); // 0 breaks recursion and represents the metadata event.
+        Handle(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
         SaveMetadataLabel(*instance.GetEvent(), metadataLabel);
 
@@ -109,8 +108,35 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
         delete (pMetadataInstance);
     }
 
-    // Write the event to the stream.
-    instance.FastSerialize(m_pSerializer, metadataLabel);
+    Handle(instance, metadataLabel);
+}
+
+void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metadataId) // TODO adsitnik use the metadata ID!!
+{
+    if (m_pBlock->WriteEvent(instance))
+        return; // the block is not full, we added the event and continue
+
+#ifdef _DEBUG
+    if (m_lockOnWrite)
+    {
+        // Take the serialization lock.
+        // This is used for synchronous file writes.
+        // The circular buffer path only writes from one thread.
+        SpinLockHolder _slh(&m_serializationLock);
+    }
+#endif // _DEBUG
+
+    // we can't write this event to the current block (it's full)
+    // so we write what we have in the block to the serializer
+    m_pSerializer->WriteObject(m_pBlock);
+
+    m_pBlock->Clear();
+
+    bool result = m_pBlock->WriteEvent(instance);
+
+#ifdef _DEBUG
+    _ASSERTE(result == true); // we should never fail to add event to a clear block (if we do the max size is too small)
+#endif
 }
 
 StreamLabel EventPipeFile::GetMetadataLabel(EventPipeEvent &event)

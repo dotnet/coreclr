@@ -9,6 +9,7 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "eventpipe.h"
+#include "eventpipeblock.h"
 #include "eventpipeeventinstance.h"
 #include "fastserializableobject.h"
 #include "fastserializer.h"
@@ -55,8 +56,12 @@ class EventPipeFile : public FastSerializableObject
         // Save the metadata address in the file for an event.
         void SaveMetadataLabel(EventPipeEvent &event, StreamLabel label);
 
+        void Handle(EventPipeEventInstance &instance, unsigned int metadataId);
+
         // The object responsible for serialization.
         FastSerializer *m_pSerializer;
+
+        EventPipeBlock *m_pBlock;
 
         // The system time when the file was opened.
         SYSTEMTIME m_fileOpenSystemTime;

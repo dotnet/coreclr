@@ -183,6 +183,7 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeblock.cpp
     eventpipefile.cpp
     eventpipejsonfile.cpp
     eventpipeprovider.cpp
