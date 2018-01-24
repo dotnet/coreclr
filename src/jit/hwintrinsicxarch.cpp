@@ -526,6 +526,11 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
         }
     }
 
+    unsigned simdSize = simdSizeOfHWIntrinsic(intrinsic, sig);
+    GenTree* retNode  = nullptr;
+    GenTree* op1      = nullptr;
+    GenTree* op2      = nullptr;
+
     // table-driven importer of simple intrinsics
     if (impIsTableDrivenHWIntrinsic(category, flags))
     {
@@ -535,18 +540,13 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
             assert(baseType != TYP_UNKNOWN);
         }
 
-        unsigned                simdSize = simdSizeOfHWIntrinsic(intrinsic, sig);
-        CORINFO_ARG_LIST_HANDLE argList  = sig->args;
+        CORINFO_ARG_LIST_HANDLE argList = sig->args;
         CORINFO_CLASS_HANDLE    argClass;
         var_types               argType = TYP_UNKNOWN;
 
+        assert(simdSize == 32 || simdSize == 16);
         assert(numArgs >= 0);
         assert(insOfHWIntrinsic(intrinsic, baseType) != INS_invalid);
-        assert(simdSize == 32 || simdSize == 16);
-
-        GenTree* retNode = nullptr;
-        GenTree* op1     = nullptr;
-        GenTree* op2     = nullptr;
 
         switch (numArgs)
         {
@@ -589,6 +589,18 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
             default:
                 unreached();
         }
+        return retNode;
+    }
+
+    //
+    if (category == HW_Category_MemoryLoad && (flags & HW_Flag_NoCodeGen) != 0)
+    {
+        assert(numArgs == 1);
+        GenTree* addr = impPopStack().val;
+        assert(addr->TypeGet() == TYP_I_IMPL);
+        retNode         = gtNewSimdHWIntrinsicNode(retType, addr, intrinsic, baseType, simdSize);
+        retNode->gtOper = GT_IND;
+        retNode->gtFlags |= GTF_IND_HW_FLAGS;
         return retNode;
     }
 

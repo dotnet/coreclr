@@ -919,6 +919,10 @@ public:
 #define GTF_IND_INVARIANT           0x01000000 // GT_IND   -- the target is invariant (a prejit indirection)
 #define GTF_IND_ARR_INDEX           0x00800000 // GT_IND   -- the indirection represents an (SZ) array index
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
+#define GTF_IND_HW_FLAGS            GTF_UNSIGNED
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
+
 #define GTF_IND_FLAGS \
     (GTF_IND_VOLATILE | GTF_IND_TGTANYWHERE | GTF_IND_NONFAULTING | GTF_IND_TLS_REF |          \
      GTF_IND_UNALIGNED | GTF_IND_INVARIANT | GTF_IND_ARR_INDEX)

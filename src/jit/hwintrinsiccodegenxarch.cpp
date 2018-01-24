@@ -77,11 +77,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
             case 1:
                 genConsumeOperands(node);
                 op1Reg = op1->gtRegNum;
-                if (category == HW_Category_MemoryLoad)
-                {
-                    emit->emitIns_R_AR(ins, simdSize, targetReg, op1Reg, 0);
-                }
-                else if (category == HW_Category_SIMDScalar && (flags & HW_Flag_CopyUpperBits) != 0)
+                if (category == HW_Category_SIMDScalar && (flags & HW_Flag_CopyUpperBits) != 0)
                 {
                     emit->emitIns_SIMD_R_R_R(ins, simdSize, targetReg, op1Reg, op1Reg);
                 }
