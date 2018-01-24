@@ -195,6 +195,23 @@
         </ExcludeList>
     </ItemGroup>
 
+    <!-- Tests for features we are not shipping in this release -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\genericmethods\genericmethods\*">
+            <Issue>Not a shipping feature</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\methodimpl\methodimpl\*">
+            <Issue>Not a shipping feature</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\simple\simple\*">
+            <Issue>Not a shipping feature</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\valuetypes\valuetypes\*">
+            <Issue>Not a shipping feature</Issue>
+        </ExcludeList>
+    </ItemGroup>
+
     <!-- The following are x86 failures -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x86'">
