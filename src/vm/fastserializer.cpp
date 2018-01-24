@@ -11,7 +11,7 @@
 // As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed (https://github.com/dotnet/coreclr/pull/15871)
 // if you need it, please use git to restore it
 
-FastSerializer::FastSerializer(SString &outputFilePath, FastSerializableObject &object)
+FastSerializer::FastSerializer(SString &outputFilePath)
 {
     CONTRACTL
     {
@@ -22,7 +22,6 @@ FastSerializer::FastSerializer(SString &outputFilePath, FastSerializableObject &
     CONTRACTL_END;
 
     m_writeErrorEncountered = false;
-    m_pEntryObject = &object;
     m_currentPos = 0;
     m_pFileStream = new CFileStream();
     if(FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
@@ -34,9 +33,6 @@ FastSerializer::FastSerializer(SString &outputFilePath, FastSerializableObject &
 
     // Write the file header.
     WriteFileHeader();
-
-    // Write the entry object.
-    WriteEntryObject();
 }
 
 FastSerializer::~FastSerializer()
@@ -48,9 +44,6 @@ FastSerializer::~FastSerializer()
         MODE_ANY;
     }
     CONTRACTL_END;
-
-    // Write the end of the entry object.
-    WriteTag(FastSerializerTags::EndObject);
 
     if(m_pFileStream != NULL)
     {
@@ -134,25 +127,6 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     EX_END_CATCH(SwallowAllExceptions);
 }
 
-void FastSerializer::WriteEntryObject()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-    }
-    CONTRACTL_END;
-
-    // Write begin entry object tag.
-    WriteTag(FastSerializerTags::BeginObject); // the caller must write EndObject tag
-
-    // Write the type information for the entry object.
-    WriteSerializationType(m_pEntryObject);
-
-    // The object is now initialized.  Fields or other objects can now be written.
-}
-
 void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
 {
     CONTRACTL
@@ -203,7 +177,6 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
         WriteBuffer(payload, payloadLength);
     }
 }
-
 
 void FastSerializer::WriteFileHeader()
 {

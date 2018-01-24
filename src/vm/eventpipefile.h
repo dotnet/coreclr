@@ -25,23 +25,25 @@ class EventPipeFile : public FastSerializableObject
         );
         ~EventPipeFile();
 
-        // Write an event to the file.
         void WriteEvent(EventPipeEventInstance &instance);
 
-        // Serialize this object.
-        // Not supported - this is the entry object for the trace,
-        // which means that the contents hasn't yet been created.
-        void FastSerialize(FastSerializer *pSerializer)
-        {
-            LIMITED_METHOD_CONTRACT;
-            _ASSERTE(!"This function should never be called!");
-        }
-
-        // Get the type name of this object.
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
             return "Microsoft.DotNet.Runtime.EventPipeFile";
+        }
+
+        void FastSerialize(FastSerializer *pSerializer)
+        {
+            pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
+            pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
+            pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
+
+            // the beginning of V3
+            pSerializer->WriteBuffer((BYTE*)&m_pointerSize, sizeof(m_pointerSize));
+            pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
+            pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
+            pSerializer->WriteBuffer((BYTE*)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
         }
 
     private:

@@ -29,10 +29,6 @@ EventPipeFile::EventPipeFile(
     SetObjectVersion(3);
     SetMinReaderVersion(0);
 
-    m_pSerializer = new FastSerializer(outputFilePath, *this); // it begins the object (which we need to end here)
-    m_serializationLock.Init(LOCK_TYPE_DEFAULT);
-    m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
-
 #ifdef _DEBUG
     m_lockOnWrite = lockOnWrite;
 #endif // _DEBUG
@@ -52,22 +48,11 @@ EventPipeFile::EventPipeFile(
 
     m_samplingRateInNs = SampleProfiler::GetSamplingRate();
 
-    m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
+    m_pSerializer = new FastSerializer(outputFilePath); // it creates the file stream and writes the header
+    m_serializationLock.Init(LOCK_TYPE_DEFAULT);
+    m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
 
-    m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
-
-    m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
-
-// the beginning of V3
-    m_pSerializer->WriteBuffer((BYTE*)&m_pointerSize, sizeof(m_pointerSize));
-
-    m_pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
-
-    m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
-
-    m_pSerializer->WriteBuffer((BYTE*)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
-
-    m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject() which is called from FastSerializer ctor
+    m_pSerializer->WriteObject(this); // this is the first object in the file
 }
 
 EventPipeFile::~EventPipeFile()
@@ -79,9 +64,6 @@ EventPipeFile::~EventPipeFile()
         MODE_ANY;
     }
     CONTRACTL_END;
-
-    // Mark the end of the event stream.
-    // TODO adsitnik
 
     // Close the serializer.
     if(m_pSerializer != NULL)

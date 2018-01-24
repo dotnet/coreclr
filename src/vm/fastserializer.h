@@ -39,7 +39,7 @@ class FastSerializer
 {
 public:
 
-    FastSerializer(SString &outputFilePath, FastSerializableObject &object);
+    FastSerializer(SString &outputFilePath);
     ~FastSerializer();
 
     StreamLabel GetStreamLabel() const;
@@ -51,13 +51,11 @@ public:
 
 private:
 
-    void WriteEntryObject();
     void WriteSerializationType(FastSerializableObject *pObject);
     void WriteFileHeader();
 
     CFileStream *m_pFileStream;
     bool m_writeErrorEncountered;
-    FastSerializableObject *m_pEntryObject;
     size_t m_currentPos;
 };
 
