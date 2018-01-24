@@ -7569,7 +7569,7 @@ class CordbFunctionBreakpoint : public CordbBreakpoint,
                                 public ICorDebugFunctionBreakpoint
 {
 public:
-    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL offsetIsIl = TRUE);
+    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL offsetIsIl);
     ~CordbFunctionBreakpoint();
 
     virtual void Neuter();
