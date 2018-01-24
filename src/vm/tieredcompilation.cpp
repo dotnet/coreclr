@@ -81,7 +81,7 @@
 TieredCompilationManager::TieredCompilationManager() :
     m_isAppDomainShuttingDown(FALSE),
     m_countOptimizationThreadsRunning(0),
-    m_callCountOptimizationThreshhold(g_pConfig->TieredCompilation_Tier1CallCountThreshold()),
+    m_callCountOptimizationThreshhold(1),
     m_optimizationQuantumMs(50),
     m_methodsPendingCountingForTier1(nullptr),
     m_tier1CountingDelayTimerHandle(nullptr),
@@ -89,6 +89,8 @@ TieredCompilationManager::TieredCompilationManager() :
 {
     LIMITED_METHOD_CONTRACT;
     m_lock.Init(LOCK_TYPE_DEFAULT);
+
+    // On Unix, we can reach here before EEConfig is initialized, so defer config-based initialization to Init()
 }
 
 // Called at AppDomain Init
@@ -105,6 +107,7 @@ void TieredCompilationManager::Init(ADID appDomainId)
 
     SpinLockHolder holder(&m_lock);
     m_domainId = appDomainId;
+    m_callCountOptimizationThreshhold = g_pConfig->TieredCompilation_Tier1CallCountThreshold();
     m_asyncWorkDoneEvent.CreateManualEventNoThrow(TRUE);
 }
 
