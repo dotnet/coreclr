@@ -33,6 +33,22 @@ public:
 
     virtual
     void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength) = 0;
+
+    virtual
+    void FireGCHeapStats_V1(
+        uint64_t generationSize0,
+        uint64_t totalPromotedSize0,
+        uint64_t generationSize1,
+        uint64_t totalPromotedSize1,
+        uint64_t generationSize2,
+        uint64_t totalPromotedSize2,
+        uint64_t generationSize3,
+        uint64_t totalPromotedSize3,
+        uint64_t finalizationPromotedSize,
+        uint64_t finalizationPromotedCount,
+        uint32_t pinnedObjectCount,
+        uint32_t sinkBlockCount,
+        uint32_t gcHandleCount) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

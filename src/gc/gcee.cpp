@@ -194,6 +194,7 @@ void GCHeap::UpdatePostGCCounters()
     }
 #endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
+#ifdef FEATURE_EVENT_TRACE
     g_theGCHeap->DiagDescrGenerations([](void*, int generation, uint8_t* rangeStart, uint8_t* rangeEnd, uint8_t* rangeEndReserved)
     {
         uint64_t range = static_cast<uint64_t>(rangeEnd - rangeStart);
@@ -203,49 +204,25 @@ void GCHeap::UpdatePostGCCounters()
 
     FIRE_EVENT(GCEnd_V1, static_cast<uint32_t>(pSettings->gc_index), condemned_gen);
 
-#ifdef FEATURE_EVENT_TRACE
-    ETW::GCLog::ETW_GC_INFO Info;
-
-    Info.GCEnd.Depth = condemned_gen;
-    Info.GCEnd.Count = (uint32_t)pSettings->gc_index;
-    ETW::GCLog::ETW_GC_INFO HeapInfo;
-    ZeroMemory(&HeapInfo, sizeof(HeapInfo));
-
-    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
-    {
-        HeapInfo.HeapStats.GenInfo[gen_index].GenerationSize = g_GenerationSizes[gen_index];
-        HeapInfo.HeapStats.GenInfo[gen_index].TotalPromotedSize = g_GenerationPromotedSizes[gen_index];
-    }
-
 #ifdef SIMPLE_DPRINTF
     dprintf (2, ("GC#%d: 0: %Id(%Id); 1: %Id(%Id); 2: %Id(%Id); 3: %Id(%Id)", 
-        Info.GCEnd.Count,
-        HeapInfo.HeapStats.GenInfo[0].GenerationSize,
-        HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
-        HeapInfo.HeapStats.GenInfo[1].GenerationSize,
-        HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
-        HeapInfo.HeapStats.GenInfo[2].GenerationSize,
-        HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
-        HeapInfo.HeapStats.GenInfo[3].GenerationSize,
-        HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize));
+        pSettings->gc_index,
+        g_GenerationSizes[0], g_GenerationPromotedSizes[0],
+        g_GenerationSizes[1], g_GenerationPromotedSizes[1],
+        g_GenerationSizes[2], g_GenerationPromotedSizes[2],
+        g_GenerationSizes[3], g_GenerationPromotedSizes[3]));
 #endif //SIMPLE_DPRINTF
 
-    HeapInfo.HeapStats.FinalizationPromotedSize = promoted_finalization_mem;
-    HeapInfo.HeapStats.FinalizationPromotedCount = GetFinalizablePromotedCount();
-    HeapInfo.HeapStats.PinnedObjectCount = (uint32_t)total_num_pinned_objects;
-    HeapInfo.HeapStats.SinkBlockCount =  total_num_sync_blocks;
-    HeapInfo.HeapStats.GCHandleCount =  (uint32_t)total_num_gc_handles;
-
-    FireEtwGCHeapStats_V1(HeapInfo.HeapStats.GenInfo[0].GenerationSize, HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
-                    HeapInfo.HeapStats.GenInfo[1].GenerationSize, HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
-                    HeapInfo.HeapStats.GenInfo[2].GenerationSize, HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
-                    HeapInfo.HeapStats.GenInfo[3].GenerationSize, HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize,
-                    HeapInfo.HeapStats.FinalizationPromotedSize,
-                    HeapInfo.HeapStats.FinalizationPromotedCount,
-                    HeapInfo.HeapStats.PinnedObjectCount,
-                    HeapInfo.HeapStats.SinkBlockCount,
-                    HeapInfo.HeapStats.GCHandleCount, 
-                    GetClrInstanceId());
+    FIRE_EVENT(GCHeapStats_V1,
+        g_GenerationSizes[0], g_GenerationPromotedSizes[0],
+        g_GenerationSizes[1], g_GenerationPromotedSizes[1],
+        g_GenerationSizes[2], g_GenerationPromotedSizes[2],
+        g_GenerationSizes[3], g_GenerationPromotedSizes[3],
+        promoted_finalization_mem,
+        GetFinalizablePromotedCount(),
+        static_cast<uint32_t>(total_num_pinned_objects),
+        total_num_sync_blocks,
+        static_cast<uint32_t>(total_num_gc_handles));
 #endif // FEATURE_EVENT_TRACE
 
 #if defined(ENABLE_PERF_COUNTERS)
