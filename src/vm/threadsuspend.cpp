@@ -6191,9 +6191,84 @@ void Thread::UnhijackThread()
         // it.
 //       _ASSERTE(*m_ppvHJRetAddrPtr == OnHijackTripThread);
 
-        STRESS_LOG2(LF_SYNC, LL_INFO100, "Unhijacking return address 0x%p for thread %p\n", m_pvHJRetAddr, this);
+        bool unhijacked = false;
+
         // restore the return address and clear the flag
-        *m_ppvHJRetAddrPtr = m_pvHJRetAddr;
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+        // On ARM architectures, the return address is sometimes not stored on the stack, but it is only in the LR register.
+        // In a corner case when a function tail calls another one, there is a small window when even the hijacked address is 
+        // temporarily not on the stack (after the LR is poped from the stack in the epilog of the caller and before it is
+        // stored back to the stack in the the prolog of the callee).
+        // The ARM/ARM64 specific code below detects and handles that case.
+        if (this != GetThread())
+        {
+            // Unhijacking other thread than the current one
+            CONTEXT context, callerContext;
+            ZeroMemory(&context, sizeof(context));
+            context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_EXCEPTION_REQUEST;
+            if (!GetThreadContext(&context))
+            {
+                // The GetThreadContext should never fail since the thread is suspended. Failure is unrecoverable
+                _ASSERTE(!"Thread::UnhijackThread: GetThreadContext for suspended thread has failed");
+                EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+            }
+
+            CopyMemory(&callerContext, &context, sizeof(context));
+
+            T_KNONVOLATILE_CONTEXT_POINTERS contextPointers;
+            ZeroMemory(&contextPointers, sizeof(contextPointers));
+            VirtualUnwindCallFrame(&callerContext, &contextPointers);
+
+            if ((DWORD64)m_ppvHJRetAddrPtr <= callerContext.Sp)
+            {
+                // If the hijack location is below parent SP, it means that the current function is a leaf
+                // function that was hijacked or a function transitively tail-called by the function that 
+                // was hijacked.
+                if (contextPointers.Lr != NULL)
+                {
+                    // The current function has pushed LR, so the hijacked address is in the location where
+                    // the LR is stored.
+                    STRESS_LOG2(LF_SYNC, LL_INFO100, "Unhijacking return address 0x%p for thread %p using LR location on the stack\n", m_pvHJRetAddr, this);
+
+                    *contextPointers.Lr = (DWORD64)m_pvHJRetAddr;
+                }
+                else
+                {
+                    // The current function doesn't have LR on the stack (we are in prolog before the LR was 
+                    // saved or in epilog after the LR was restored), so the hijack address is in the LR register 
+                    // and so we need to patch the LR in the context.
+                    STRESS_LOG2(LF_SYNC, LL_INFO100, "Unhijacking return address 0x%p for thread %p by patching LR in the thread context\n", m_pvHJRetAddr, this);
+
+                    if((context.ContextFlags & (CONTEXT_EXCEPTION_REPORTING | CONTEXT_SERVICE_ACTIVE | CONTEXT_EXCEPTION_ACTIVE)) != CONTEXT_EXCEPTION_REPORTING)
+                    {
+                        // If there was a hardware exception being handled at this location, we would not be able to
+                        // modify the context and there would be no way to unhijack. But that should never happen at
+                        // this location.
+                        _ASSERTE(!"Thread::UnhijackThread: target thread is handling exception or syscall, cannot unhijack the thread");
+                        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+                    }
+                    context.Lr = (DWORD64)m_pvHJRetAddr;
+                    if (!SetThreadContext(&context))
+                    {
+                        // Setting the context should never fail since the thread is suspended and failure is unrecoverable
+                        _ASSERTE(!"Thread::UnhijackThread: failed to set LR in the target thread context, cannot unhijack the thread");
+                        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+                    }
+                }
+
+                unhijacked = true;
+            }
+        }
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
+        if (!unhijacked)
+        {
+            // Use the default way of unhijacking
+            STRESS_LOG2(LF_SYNC, LL_INFO100, "Unhijacking return address 0x%p for thread %p\n", m_pvHJRetAddr, this);
+
+            *m_ppvHJRetAddrPtr = m_pvHJRetAddr;               
+        }
+
         FastInterlockAnd((ULONG *) &m_State, ~TS_Hijacked);
 
         // But don't touch m_pvHJRetAddr.  We may need that to resume a thread that
