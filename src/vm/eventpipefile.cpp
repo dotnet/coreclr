@@ -73,6 +73,8 @@ EventPipeFile::~EventPipeFile()
     if (m_pBlock != NULL)
     {
         m_pSerializer->WriteObject(m_pBlock); // write the remaining data to the disk
+        m_pSerializer->WriteTag(FastSerializerTags::NullReference); // After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read.
+
         delete(m_pBlock);
         m_pBlock = NULL;
     }
