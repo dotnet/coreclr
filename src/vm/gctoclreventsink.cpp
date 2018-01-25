@@ -86,3 +86,17 @@ void GCToCLREventSink::FireGCFreeSegment_V1(void* address)
     FireEtwGCFreeSegment_V1((uint64_t)address, GetClrInstanceId());
 }
 
+void GCToCLREventSink::FireGCCreateConcurrentThread_V1()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCCreateConcurrentThread_V1(GetClrInstanceId());
+}
+
+void GCToCLREventSink::FireGCTerminateConcurrentThread_V1()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCTerminateConcurrentThread_V1(GetClrInstanceId());
+}
+

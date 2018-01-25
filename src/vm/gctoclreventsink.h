@@ -30,6 +30,8 @@ public:
         uint32_t gcHandleCount);
     void FireGCCreateSegment_V1(void* address, size_t size, uint32_t type);
     void FireGCFreeSegment_V1(void* address);
+    void FireGCCreateConcurrentThread_V1();
+    void FireGCTerminateConcurrentThread_V1();
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;

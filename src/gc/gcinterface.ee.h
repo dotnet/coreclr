@@ -55,6 +55,12 @@ public:
 
     virtual
     void FireGCFreeSegment_V1(void* address) = 0;
+
+    virtual
+    void FireGCCreateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTerminateConcurrentThread_V1() = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

@@ -26703,7 +26703,7 @@ BOOL gc_heap::prepare_bgc_thread(gc_heap* gh)
     gh->bgc_threads_timeout_cs.Leave();
 
     if(thread_created)
-        FireEtwGCCreateConcurrentThread_V1(GetClrInstanceId());
+        FIRE_EVENT(GCCreateConcurrentThread_V1);
 
     return success;
 }
@@ -27045,7 +27045,7 @@ void gc_heap::bgc_thread_function()
         //gc_heap::disable_preemptive (current_thread, TRUE);
     }
 
-    FireEtwGCTerminateConcurrentThread_V1(GetClrInstanceId());
+    FIRE_EVENT(GCTerminateConcurrentThread_V1);
 
     dprintf (3, ("bgc_thread thread exiting"));
     return;
