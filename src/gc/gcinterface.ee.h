@@ -52,6 +52,9 @@ public:
 
     virtual
     void FireGCCreateSegment_V1(void* address, size_t size, uint32_t type) = 0;
+
+    virtual
+    void FireGCFreeSegment_V1(void* address) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

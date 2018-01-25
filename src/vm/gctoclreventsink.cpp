@@ -79,4 +79,10 @@ void GCToCLREventSink::FireGCCreateSegment_V1(void* address, size_t size, uint32
     FireEtwGCCreateSegment_V1((uint64_t)address, static_cast<uint64_t>(size), type, GetClrInstanceId());
 }
 
+void GCToCLREventSink::FireGCFreeSegment_V1(void* address)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCFreeSegment_V1((uint64_t)address, GetClrInstanceId());
+}
 

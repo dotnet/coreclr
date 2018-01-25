@@ -4845,7 +4845,7 @@ gc_heap::get_segment (size_t size, BOOL loh_p)
 void release_segment (heap_segment* sg)
 {
     ptrdiff_t delta = 0;
-    FireEtwGCFreeSegment_V1((size_t)heap_segment_mem(sg), GetClrInstanceId());
+    FIRE_EVENT(GCFreeSegment_V1, heap_segment_mem(sg));
     virtual_free (sg, (uint8_t*)heap_segment_reserved (sg)-(uint8_t*)sg);
 }
 
