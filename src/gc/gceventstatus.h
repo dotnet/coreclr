@@ -194,7 +194,7 @@ class GCDynamicEvent
 
 #if FEATURE_EVENT_TRACE
 #define KNOWN_EVENT(name, _provider, _level, _keyword)   \
-  inline bool GCEventEnabled##name() { return GCEventStatus::IsEnabled(_provider, _level, _keyword); }
+  inline bool GCEventEnabled##name() { return GCEventStatus::IsEnabled(_provider, _keyword, _level); }
 #include "gcevents.h"
 
 #define EVENT_ENABLED(name) GCEventEnabled##name()
@@ -204,7 +204,7 @@ class GCDynamicEvent
     assert(sink != nullptr);                                \
     sink->Fire##name(__VA_ARGS__);                          \
   } while(0)
-#else
+#else // FEATURE_EVENT_TRACE
 #define EVENT_ENABLED(name) false
 #define FIRE_EVENT(name, ...) 0
 #endif // FEATURE_EVENT_TRACE
