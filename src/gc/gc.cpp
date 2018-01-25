@@ -3000,23 +3000,23 @@ void gc_history_global::print()
 void gc_heap::fire_per_heap_hist_event (gc_history_per_heap* current_gc_data_per_heap, int heap_num)
 {
     maxgen_size_increase* maxgen_size_info = &(current_gc_data_per_heap->maxgen_size_info);
-    FireEtwGCPerHeapHistory_V3(GetClrInstanceId(),
-                               (uint8_t*)(maxgen_size_info->free_list_allocated),
-                               (uint8_t*)(maxgen_size_info->free_list_rejected),
-                               (uint8_t*)(maxgen_size_info->end_seg_allocated),
-                               (uint8_t*)(maxgen_size_info->condemned_allocated),
-                               (uint8_t*)(maxgen_size_info->pinned_allocated),
-                               (uint8_t*)(maxgen_size_info->pinned_allocated_advance),
-                               maxgen_size_info->running_free_list_efficiency,
-                               current_gc_data_per_heap->gen_to_condemn_reasons.get_reasons0(),
-                               current_gc_data_per_heap->gen_to_condemn_reasons.get_reasons1(),
-                               current_gc_data_per_heap->mechanisms[gc_heap_compact],
-                               current_gc_data_per_heap->mechanisms[gc_heap_expand],
-                               current_gc_data_per_heap->heap_index,
-                               (uint8_t*)(current_gc_data_per_heap->extra_gen0_committed),
-                               (max_generation + 2),
-                               sizeof (gc_generation_data),
-                               &(current_gc_data_per_heap->gen_data[0]));
+    FIRE_EVENT(PerHeapHistory_V3, 
+               (uint8_t*)(maxgen_size_info->free_list_allocated),
+               (uint8_t*)(maxgen_size_info->free_list_rejected),                              
+               (uint8_t*)(maxgen_size_info->end_seg_allocated),
+               (uint8_t*)(maxgen_size_info->condemned_allocated),
+               (uint8_t*)(maxgen_size_info->pinned_allocated),
+               (uint8_t*)(maxgen_size_info->pinned_allocated_advance),
+               maxgen_size_info->running_free_list_efficiency,
+               current_gc_data_per_heap->gen_to_condemn_reasons.get_reasons0(),
+               current_gc_data_per_heap->gen_to_condemn_reasons.get_reasons1(),
+               current_gc_data_per_heap->mechanisms[gc_heap_compact],
+               current_gc_data_per_heap->mechanisms[gc_heap_expand],
+               current_gc_data_per_heap->heap_index,
+               (uint8_t*)(current_gc_data_per_heap->extra_gen0_committed),
+               (max_generation + 2),
+               sizeof (gc_generation_data),
+               &(current_gc_data_per_heap->gen_data[0]));
 
     current_gc_data_per_heap->print();
     current_gc_data_per_heap->gen_to_condemn_reasons.print (heap_num);
