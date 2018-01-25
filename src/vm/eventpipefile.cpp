@@ -6,6 +6,7 @@
 #include "eventpipebuffer.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipefile.h"
+#include "sampleprofiler.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -25,10 +26,10 @@ EventPipeFile::EventPipeFile(
     }
     CONTRACTL_END;
 
-    SetObjectVersion(2);
+    SetObjectVersion(3);
     SetMinReaderVersion(0);
 
-    m_pSerializer = new FastSerializer(outputFilePath, *this);
+    m_pSerializer = new FastSerializer(outputFilePath, *this); // it calls FastSerializer::WriteEntryObject()
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
     m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
 
@@ -41,21 +42,47 @@ EventPipeFile::EventPipeFile(
     QueryPerformanceCounter(&m_fileOpenTimeStamp);
     QueryPerformanceFrequency(&m_timeStampFrequency);
 
+    m_pointerSize = TARGET_POINTER_SIZE;
+
+    m_currentProcessId = GetCurrentProcessId();
+
+    SYSTEM_INFO sysinfo = {};
+    GetSystemInfo(&sysinfo);
+    m_numberOfProcessors = sysinfo.dwNumberOfProcessors;
+
+    m_samplingRateInNs = SampleProfiler::GetSamplingRate();
+
     // Write a forward reference to the beginning of the event stream.
-    // This also allows readers to know where the event stream ends and skip it if needed.
+    // This also allows readers to know where the event stream starts 
+    // and skip new metadata from the begining of the file if needed
     m_beginEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
     m_pSerializer->WriteForwardReference(m_beginEventsForwardReferenceIndex);
 
-    // Write the header information into the file.
+    // Write a forward reference to the end of the event stream.
+    // This also allows readers to know where the event stream ends and skip it if needed.
+    m_endEventsForwardReferenceIndex = m_pSerializer->AllocateForwardReference();
+    m_pSerializer->WriteForwardReference(m_endEventsForwardReferenceIndex);
 
-    // Write the current date and time.
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
 
-    // Write FileOpenTimeStamp
     m_pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
 
-    // Write ClockFrequency
     m_pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
+
+// the beginning of V3
+    m_pSerializer->WriteBuffer((BYTE*)&m_pointerSize, sizeof(m_pointerSize));
+
+    m_pSerializer->WriteBuffer((BYTE*)&m_currentProcessId, sizeof(m_currentProcessId));
+
+    m_pSerializer->WriteBuffer((BYTE*)&m_numberOfProcessors, sizeof(m_numberOfProcessors));
+
+    m_pSerializer->WriteBuffer((BYTE*)&m_samplingRateInNs, sizeof(m_samplingRateInNs));
+
+    m_pSerializer->WriteTag(FastSerializerTags::EndObject); // the entry object is written in FastSerializer::WriteEntryObject()
+
+    // define the start of the events stream
+    StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
+    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
 }
 
 EventPipeFile::~EventPipeFile()
@@ -71,8 +98,8 @@ EventPipeFile::~EventPipeFile()
     // Mark the end of the event stream.
     StreamLabel currentLabel = m_pSerializer->GetStreamLabel();
 
-    // Define the event start forward reference.
-    m_pSerializer->DefineForwardReference(m_beginEventsForwardReferenceIndex, currentLabel);
+    // Define the event END forward reference.
+    m_pSerializer->DefineForwardReference(m_endEventsForwardReferenceIndex, currentLabel);
 
     // Close the serializer.
     if(m_pSerializer != NULL)
