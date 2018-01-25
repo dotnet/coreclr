@@ -244,15 +244,6 @@ namespace System
 
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, nuint elementsCount)
         {
-            if (elementsCount <= 1)
-            {
-                if (elementsCount == 1)
-                {
-                    destination = source;
-                }
-                return;
-            }
-
             nuint byteCount = elementsCount * (nuint)Unsafe.SizeOf<T>();
             if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
@@ -263,6 +254,17 @@ namespace System
             }
             else
             {
+                // Try to avoid calling RhBulkMoveWithWriteBarrier if we can get away
+                // with a no-op or a simple write.
+                if (elementsCount <= 1)
+                {
+                    if (elementsCount == 1)
+                    {
+                        destination = source;
+                    }
+                    return;
+                }
+
                 RuntimeImports.RhBulkMoveWithWriteBarrier(
                     ref Unsafe.As<T, byte>(ref destination),
                     ref Unsafe.As<T, byte>(ref source),
