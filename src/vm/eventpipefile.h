@@ -49,12 +49,11 @@ class EventPipeFile : public FastSerializableObject
 
     private:
 
-        // Get the metadata address in the file for an event.
-        // The return value can be written into the file as a back-pointer to the event metadata.
-        StreamLabel GetMetadataLabel(EventPipeEvent &event);
+        unsigned int GenerateMetadataId();
 
-        // Save the metadata address in the file for an event.
-        void SaveMetadataLabel(EventPipeEvent &event, StreamLabel label);
+        unsigned int GetMetadataId(EventPipeEvent &event);
+
+        void SaveMetadataId(EventPipeEvent &event, unsigned int metadataId);
 
         void Handle(EventPipeEventInstance &instance, unsigned int metadataId);
 
@@ -85,7 +84,9 @@ class EventPipeFile : public FastSerializableObject
         SpinLock m_serializationLock;
 
         // Hashtable of metadata labels.
-        MapSHashWithRemove<EventPipeEvent*, StreamLabel> *m_pMetadataLabels;
+        MapSHashWithRemove<EventPipeEvent*, unsigned int> *m_pMetadataIds;
+
+        volatile unsigned int m_metadataIdCounter;
 
 #ifdef _DEBUG
         bool m_lockOnWrite;

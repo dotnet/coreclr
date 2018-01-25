@@ -53,7 +53,9 @@ EventPipeFile::EventPipeFile(
 
     m_pSerializer = new FastSerializer(outputFilePath); // it creates the file stream and writes the header
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
-    m_pMetadataLabels = new MapSHashWithRemove<EventPipeEvent*, StreamLabel>();
+    m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
+
+    m_metadataIdCounter = 0; // we start with 0, it's always gets incremented by generator so the first id will be 1, as specified in the docs
 
     m_pSerializer->WriteObject(this); // this is the first object in the file
 }
@@ -94,24 +96,24 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 
     // Check to see if we've seen this event type before.
     // If not, then write the event metadata to the event stream first.
-    StreamLabel metadataLabel = GetMetadataLabel(*instance.GetEvent());
-    if(metadataLabel == 0)
+    unsigned int metadataId = GetMetadataId(*instance.GetEvent());
+    if(metadataId == 0)
     {
         EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance);
 
-        metadataLabel = m_pSerializer->GetStreamLabel();
+        metadataId = GenerateMetadataId();
         Handle(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
-        SaveMetadataLabel(*instance.GetEvent(), metadataLabel);
+        SaveMetadataId(*instance.GetEvent(), metadataId);
 
         delete[] (pMetadataInstance->GetData());
         delete (pMetadataInstance);
     }
 
-    Handle(instance, metadataLabel);
+    Handle(instance, metadataId);
 }
 
-void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metadataId) // TODO adsitnik use the metadata ID!!
+void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metadataId)
 {
     CONTRACTL
     {
@@ -120,6 +122,8 @@ void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metada
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    instance.SetMetadataId(metadataId);
 
     if (m_pBlock->WriteEvent(instance))
         return; // the block is not full, we added the event and continue
@@ -147,7 +151,7 @@ void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metada
 #endif
 }
 
-StreamLabel EventPipeFile::GetMetadataLabel(EventPipeEvent &event)
+unsigned int EventPipeFile::GenerateMetadataId()
 {
     CONTRACTL
     {
@@ -157,36 +161,49 @@ StreamLabel EventPipeFile::GetMetadataLabel(EventPipeEvent &event)
     }
     CONTRACTL_END;
 
-    StreamLabel outLabel;
-    if(m_pMetadataLabels->Lookup(&event, &outLabel))
+    return InterlockedIncrement((volatile unsigned int *)&m_metadataIdCounter);
+}
+
+unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)
+{
+    CONTRACTL
     {
-        _ASSERTE(outLabel != 0);
-        return outLabel;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    unsigned int metadataId;
+    if(m_pMetadataIds->Lookup(&event, &metadataId))
+    {
+        _ASSERTE(metadataId != 0);
+        return metadataId;
     }
 
     return 0;
 }
 
-void EventPipeFile::SaveMetadataLabel(EventPipeEvent &event, StreamLabel label)
+void EventPipeFile::SaveMetadataId(EventPipeEvent &event, unsigned int metadataId)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(label > 0);
+        PRECONDITION(metadataId > 0);
     }
     CONTRACTL_END;
 
     // If a pre-existing metadata label exists, remove it.
-    StreamLabel outLabel;
-    if(m_pMetadataLabels->Lookup(&event, &outLabel))
+    unsigned int oldId;
+    if(m_pMetadataIds->Lookup(&event, &oldId))
     {
-        m_pMetadataLabels->Remove(&event);
+        m_pMetadataIds->Remove(&event);
     }
 
     // Add the metadata label.
-    m_pMetadataLabels->Add(&event, label);
+    m_pMetadataIds->Add(&event, metadataId);
 }
 
 #endif // FEATURE_PERFTRACING

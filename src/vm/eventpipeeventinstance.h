@@ -50,6 +50,13 @@ public:
         return m_metadataId;
     }
 
+    void SetMetadataId(unsigned int metadataId)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        m_metadataId = metadataId;
+    }
+
     DWORD GetThreadId() const
     {
         LIMITED_METHOD_CONTRACT;
