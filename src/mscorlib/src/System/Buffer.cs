@@ -429,9 +429,46 @@ namespace System
             PInvoke:
             _Memmove(dest, src, len);
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Memmove<T>(ref T destination, ref T source, int elementCount)
+        {
+            Debug.Assert(elementCount >= 0, "Element count must be non-negative.");
+            Memmove(ref destination, ref source, (nuint)elementCount);
+        }
+
         // This method has different signature for x64 and other platforms and is done for performance reasons.
-        internal static void Memmove(ByReference<byte> dest, ByReference<byte> src, nuint len)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void Memmove<T>(ref T destination, ref T source, nuint elementCount)
+        {
+            nuint byteCount = elementCount * (nuint)Unsafe.SizeOf<T>();
+            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                // Blittable memmove
+
+                Memmove(
+                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref destination)),
+                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref source)),
+                    byteCount);
+            }
+            else
+            {
+                // Non-blittable memmove
+
+                // Try to avoid calling RhBulkMoveWithWriteBarrier if we can get away
+                // with a no-op.
+                if (!Unsafe.AreSame(ref destination, ref source) && elementCount != 0)
+                {
+                    RuntimeImports.RhBulkMoveWithWriteBarrier(
+                        ref Unsafe.As<T, byte>(ref destination),
+                        ref Unsafe.As<T, byte>(ref source),
+                        byteCount);
+                }
+            }
+        }
+
+        // This method has different signature for x64 and other platforms and is done for performance reasons.
+        private static void Memmove(ByReference<byte> dest, ByReference<byte> src, nuint len)
         {
 #if AMD64 || (BIT32 && !ARM)
             const nuint CopyThreshold = 2048;

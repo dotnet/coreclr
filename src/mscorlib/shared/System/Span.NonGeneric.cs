@@ -241,37 +241,7 @@ namespace System
 
             return new ReadOnlySpan<char>(ref Unsafe.Add(ref text.GetRawStringData(), start), length);
         }
-
-        internal static unsafe void CopyTo<T>(ref T destination, ref T source, nuint elementsCount)
-        {
-            nuint byteCount = elementsCount * (nuint)Unsafe.SizeOf<T>();
-            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            {
-                Buffer.Memmove(
-                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref destination)),
-                    new ByReference<byte>(ref Unsafe.As<T, byte>(ref source)),
-                    byteCount);
-            }
-            else
-            {
-                // Try to avoid calling RhBulkMoveWithWriteBarrier if we can get away
-                // with a no-op or a simple write.
-                if (elementsCount <= 1)
-                {
-                    if (elementsCount == 1)
-                    {
-                        destination = source;
-                    }
-                    return;
-                }
-
-                RuntimeImports.RhBulkMoveWithWriteBarrier(
-                    ref Unsafe.As<T, byte>(ref destination),
-                    ref Unsafe.As<T, byte>(ref source),
-                    byteCount);
-            }
-        }
-
+        
         internal static unsafe void ClearWithoutReferences(ref byte b, nuint byteLength)
         {
             if (byteLength == 0)

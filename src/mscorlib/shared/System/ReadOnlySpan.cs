@@ -10,12 +10,6 @@ using Internal.Runtime.CompilerServices;
 
 #pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
 
-#if BIT64
-using nuint = System.UInt64;
-#else
-using nuint = System.UInt32;
-#endif
-
 namespace System
 {
     /// <summary>
@@ -220,7 +214,7 @@ namespace System
             bool retVal = false;
             if ((uint)_length <= (uint)destination.Length)
             {
-                Span.CopyTo<T>(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, (nuint)_length);
+                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, _length);
                 retVal = true;
             }
             return retVal;
@@ -327,7 +321,7 @@ namespace System
                 return Array.Empty<T>();
 
             var destination = new T[_length];
-            Span.CopyTo<T>(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
+            Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, _length);
             return destination;
         }
 
