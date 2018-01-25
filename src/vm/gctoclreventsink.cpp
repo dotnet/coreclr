@@ -8,76 +8,76 @@
 GCToCLREventSink g_gcToClrEventSink;
 
 void GCToCLREventSink::FireGCPerHeapHistory_V3(void *freeListAllocated,
-			    					     	   void *freeListRejected,
-			    					   		   void *endOfSegAllocated,
-				    					       void *condemnedAllocated,
-				    					   	   void *pinnedAllocated,
-				    					   	   void *pinnedAllocatedAdvance,
-			    						   	   uint32_t runningFreeListEfficiency,
-			    						   	   uint32_t condemnReasons0,
-			    						   	   uint32_t condemnReasons1,
-			    						   	   uint32_t compactMechanisms,
-			    						   	   uint32_t expandMechanisms,
-			    						   	   uint32_t heapIndex,
-				    					   	   void *extraGen0Commit,
-				    					   	   uint32_t count,
-				    					   	   uint32_t valuesLen,
-				    					   	   void *values)
-{	
+                                               void *freeListRejected,
+                                               void *endOfSegAllocated,
+                                               void *condemnedAllocated,
+                                               void *pinnedAllocated,
+                                               void *pinnedAllocatedAdvance,
+                                               uint32_t runningFreeListEfficiency,
+                                               uint32_t condemnReasons0,
+                                               uint32_t condemnReasons1,
+                                               uint32_t compactMechanisms,
+                                               uint32_t expandMechanisms,
+                                               uint32_t heapIndex,
+                                               void *extraGen0Commit,
+                                               uint32_t count,
+                                               uint32_t valuesLen,
+                                               void *values)
+{    
     FireEtwGCPerHeapHistory_V3(GetClrInstanceId(),
-	                           freeListAllocated,
-	                           freeListRejected,
-	                           endOfSegAllocated,
-	                           condemnedAllocated,
-	                           pinnedAllocated,
-	                           pinnedAllocatedAdvance,
-	                           runningFreeListEfficiency,
-	                           condemnReasons0,
-	                           condemnReasons1,
-	                           compactMechanisms,
-	                           expandMechanisms,
-	                           heapIndex,
-	                           extraGen0Commit,
-	                           count,
-	                           valuesLen,
-	                           values);
+                               freeListAllocated,
+                               freeListRejected,
+                               endOfSegAllocated,
+                               condemnedAllocated,
+                               pinnedAllocated,
+                               pinnedAllocatedAdvance,
+                               runningFreeListEfficiency,
+                               condemnReasons0,
+                               condemnReasons1,
+                               compactMechanisms,
+                               expandMechanisms,
+                               heapIndex,
+                               extraGen0Commit,
+                               count,
+                               valuesLen,
+                               values);
 }
 
 
 
 void GCToCLREventSink::FireBGCBegin()
 {
-	FireEtwBGCBegin(GetClrInstanceId());
+    FireEtwBGCBegin(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC1stNonConEnd()
 {
-	FireEtwBGC1stNonConEnd(GetClrInstanceId());
+    FireEtwBGC1stNonConEnd(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC1stConEnd()
 {
-	FireEtwBGC1stConEnd(GetClrInstanceId());
+    FireEtwBGC1stConEnd(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC2ndNonConBegin()
 {
-	FireEtwBGC2ndNonConBegin(GetClrInstanceId());
+    FireEtwBGC2ndNonConBegin(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC2ndNonConEnd()
 {
-	FireEtwBGC2ndNonConEnd(GetClrInstanceId());
+    FireEtwBGC2ndNonConEnd(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC2ndConBegin()
 {
-	FireEtwBGC2ndConBegin(GetClrInstanceId());
+    FireEtwBGC2ndConBegin(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGC2ndConEnd()
 {
-	FireEtwBGC2ndConEnd(GetClrInstanceId());
+    FireEtwBGC2ndConEnd(GetClrInstanceId());
 }
 
 void GCToCLREventSink::FireBGCDrainMark(uint64_t objects)
@@ -122,10 +122,10 @@ void GCToCLREventSink::FirePrvSetGCHandle(void *handleID, void *objectID, uint32
 
 void GCToCLREventSink::FireDestroyGCHandle(void *handleID)
 {
-	FireEtwDestroyGCHandle(handleID, GetClrInstanceId());
+    FireEtwDestroyGCHandle(handleID, GetClrInstanceId());
 }
 
 void GCToCLREventSink::FirePrvDestroyGCHandle(void *handleID)
 {
-	FireEtwPrvDestroyGCHandle(handleID, GetClrInstanceId());
+    FireEtwPrvDestroyGCHandle(handleID, GetClrInstanceId());
 }

@@ -444,8 +444,8 @@ void HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle)
 
     STRESS_LOG2(LF_GC, LL_INFO1000, "DestroyHandle: *%p->%p\n", handle, *(_UNCHECKED_OBJECTREF *)handle);
 
-    FIRE_EVENT(DestroyGCHandle, (void *) handle);
-    FIRE_EVENT(PrvDestroyGCHandle, (void *) handle);
+    FIRE_EVENT(DestroyGCHandle, (void *)handle);
+    FIRE_EVENT(PrvDestroyGCHandle, (void *)handle);
 
     // sanity check handle we are being asked to free
     _ASSERTE(handle);
