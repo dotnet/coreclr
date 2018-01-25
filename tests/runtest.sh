@@ -90,6 +90,8 @@ function print_results {
     echo "======================="
 }
 
+export COMPlus_EXPERIMENTAL_TieredCompilation=1
+
 # Initialize counters for bookkeeping.
 countTotalTests=0
 countPassedTests=0
