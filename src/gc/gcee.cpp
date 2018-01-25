@@ -584,22 +584,18 @@ void GCHeap::DiagTraceGCSegments()
 
         for (seg = generation_start_segment (h->generation_of (max_generation)); seg != 0; seg = heap_segment_next(seg))
         {
-            ETW::GCLog::ETW_GC_INFO Info;
-            Info.GCCreateSegment.Address = (size_t)heap_segment_mem(seg);
-            Info.GCCreateSegment.Size = (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg));
-            Info.GCCreateSegment.Type = (heap_segment_read_only_p (seg) ? 
-                                         ETW::GCLog::ETW_GC_INFO::READ_ONLY_HEAP :
-                                         ETW::GCLog::ETW_GC_INFO::SMALL_OBJECT_HEAP);
-            FireEtwGCCreateSegment_V1(Info.GCCreateSegment.Address, Info.GCCreateSegment.Size, Info.GCCreateSegment.Type, GetClrInstanceId());
+            uint8_t* address = heap_segment_mem (seg);
+            size_t size = heap_segment_reserved (seg) - heap_segment_mem (seg);
+            gc_etw_segment_type type = heap_segment_read_only_p (seg) ? gc_etw_segment_read_only_heap : gc_etw_segment_small_object_heap;
+            FIRE_EVENT(GCCreateSegment_V1, address, size, static_cast<uint32_t>(type));
         }
 
         // large obj segments
         for (seg = generation_start_segment (h->generation_of (max_generation+1)); seg != 0; seg = heap_segment_next(seg))
         {
-            FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(seg), 
-                                   (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg)), 
-                                   ETW::GCLog::ETW_GC_INFO::LARGE_OBJECT_HEAP, 
-                                   GetClrInstanceId());
+            uint8_t* address = heap_segment_mem (seg);
+            size_t size = heap_segment_reserved (seg) - heap_segment_mem (seg);
+            FIRE_EVENT(GCCreateSegment_V1, address, size, static_cast<uint32_t>(gc_etw_segment_large_object_heap));
         }
     }
 #endif // FEATURE_EVENT_TRACE

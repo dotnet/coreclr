@@ -4677,10 +4677,9 @@ gc_heap::soh_get_segment_to_expand()
         }
 #endif //BACKGROUND_GC
 
-        FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(result), 
-                                  (size_t)(heap_segment_reserved (result) - heap_segment_mem(result)), 
-                                  ETW::GCLog::ETW_GC_INFO::SMALL_OBJECT_HEAP, 
-                                  GetClrInstanceId());
+        FIRE_EVENT(GCCreateSegment_V1, heap_segment_mem(result),
+                                  (size_t)(heap_segment_reserved (result) - heap_segment_mem(result)),
+                                  gc_etw_segment_small_object_heap);
     }
 
     get_gc_data_per_heap()->set_mechanism (gc_heap_expand, (result ? expand_new_seg : expand_no_memory));
@@ -4867,7 +4866,7 @@ heap_segment* gc_heap::get_segment_for_loh (size_t size
 #endif //MULTIPLE_HEAPS
         res->flags |= heap_segment_flags_loh;
 
-        FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(res), (size_t)(heap_segment_reserved (res) - heap_segment_mem(res)), ETW::GCLog::ETW_GC_INFO::LARGE_OBJECT_HEAP, GetClrInstanceId());
+        FIRE_EVENT(GCCreateSegment_V1, heap_segment_mem(res), (size_t)(heap_segment_reserved (res) - heap_segment_mem(res)), gc_etw_segment_large_object_heap);
 
         GCToEEInterface::DiagUpdateGenerationBounds();
 
@@ -7837,7 +7836,7 @@ BOOL gc_heap::insert_ro_segment (heap_segment* seg)
         set_ro_segment_in_range (seg);
     }
 
-    FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(seg), (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg)), ETW::GCLog::ETW_GC_INFO::READ_ONLY_HEAP, GetClrInstanceId());
+    FIRE_EVENT(GCCreateSegment_V1, heap_segment_mem(seg), (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg)), gc_etw_segment_read_only_heap);
 
     leave_spin_lock (&gc_heap::gc_lock);
     return TRUE;
@@ -10448,10 +10447,9 @@ gc_heap::init_gc_heap (int  h_number)
     if (!seg)
         return 0;
 
-    FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(seg), 
-                              (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg)), 
-                              ETW::GCLog::ETW_GC_INFO::SMALL_OBJECT_HEAP, 
-                              GetClrInstanceId());
+    FIRE_EVENT(GCCreateSegment_V1, heap_segment_mem(seg),
+                              (size_t)(heap_segment_reserved (seg) - heap_segment_mem(seg)),
+                              gc_etw_segment_small_object_heap);
     
 #ifdef SEG_MAPPING_TABLE
     seg_mapping_table_add_segment (seg, __this);
@@ -10514,10 +10512,9 @@ gc_heap::init_gc_heap (int  h_number)
         return 0;
     lseg->flags |= heap_segment_flags_loh;
 
-    FireEtwGCCreateSegment_V1((size_t)heap_segment_mem(lseg), 
-                              (size_t)(heap_segment_reserved (lseg) - heap_segment_mem(lseg)), 
-                              ETW::GCLog::ETW_GC_INFO::LARGE_OBJECT_HEAP, 
-                              GetClrInstanceId());
+    FIRE_EVENT(GCCreateSegment_V1, heap_segment_mem(lseg),
+                              (size_t)(heap_segment_reserved (lseg) - heap_segment_mem(lseg)),
+                              gc_etw_segment_large_object_heap);
 
 #ifdef SEG_MAPPING_TABLE
     seg_mapping_table_add_segment (lseg, __this);

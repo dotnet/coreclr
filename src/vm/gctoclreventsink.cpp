@@ -72,4 +72,11 @@ void GCToCLREventSink::FireGCHeapStats_V1(
                           sinkBlockCount, gcHandleCount, GetClrInstanceId());
 }
 
+void GCToCLREventSink::FireGCCreateSegment_V1(void* address, size_t size, uint32_t type)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCCreateSegment_V1((uint64_t)address, static_cast<uint64_t>(size), type, GetClrInstanceId());
+}
+
 

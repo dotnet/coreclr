@@ -78,6 +78,14 @@ enum gc_etw_type
    gc_etw_type_fgc = 2
 };
 
+// Types of segments, emitted by the GCCreateSegment ETW event.
+enum gc_etw_segment_type
+{
+    gc_etw_segment_small_object_heap = 0,
+    gc_etw_segment_large_object_heap = 1,
+    gc_etw_segment_read_only_heap = 2
+};
+
 /* forward declerations */
 class CObjectHeader;
 class Object;

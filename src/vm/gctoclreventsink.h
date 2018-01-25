@@ -28,7 +28,7 @@ public:
         uint32_t pinnedObjectCount,
         uint32_t sinkBlockCount,
         uint32_t gcHandleCount);
-
+    void FireGCCreateSegment_V1(void* address, size_t size, uint32_t type);
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;
