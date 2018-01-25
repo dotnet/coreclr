@@ -10,6 +10,7 @@
 #endif // DYNAMIC_EVENT
 
 KNOWN_EVENT(GCStart_V2, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
+KNOWN_EVENT(GCEnd_V1, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 KNOWN_EVENT(GCGenerationRange, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GCHeapSurvivalAndMovement)
 
 #undef KNOWN_EVENT

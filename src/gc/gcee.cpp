@@ -194,13 +194,20 @@ void GCHeap::UpdatePostGCCounters()
     }
 #endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
+    g_theGCHeap->DiagDescrGenerations([](void*, int generation, uint8_t* rangeStart, uint8_t* rangeEnd, uint8_t* rangeEndReserved)
+    {
+        uint64_t range = static_cast<uint64_t>(rangeEnd - rangeStart);
+        uint64_t rangeReserved = static_cast<uint64_t>(rangeEndReserved - rangeStart);
+        FIRE_EVENT(GCGenerationRange, generation, rangeStart, range, rangeReserved);
+    }, nullptr);
+
+    FIRE_EVENT(GCEnd_V1, static_cast<uint32_t>(pSettings->gc_index), condemned_gen);
+
 #ifdef FEATURE_EVENT_TRACE
     ETW::GCLog::ETW_GC_INFO Info;
 
     Info.GCEnd.Depth = condemned_gen;
     Info.GCEnd.Count = (uint32_t)pSettings->gc_index;
-    ETW::GCLog::FireGcEndAndGenerationRanges(Info.GCEnd.Count, Info.GCEnd.Depth);
-
     ETW::GCLog::ETW_GC_INFO HeapInfo;
     ZeroMemory(&HeapInfo, sizeof(HeapInfo));
 
@@ -623,9 +630,7 @@ void GCHeap::DiagTraceGCSegments()
 
 void GCHeap::DiagDescrGenerations (gen_walk_fn fn, void *context)
 {
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     pGenGCHeap->descr_generations_to_profiler(fn, context);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 }
 
 segment_handle GCHeap::RegisterFrozenSegment(segment_info *pseginfo)

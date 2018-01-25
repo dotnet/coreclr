@@ -29,6 +29,9 @@ public:
     void FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
 
     virtual
+    void FireGCEnd_V1(uint32_t count, uint32_t depth) = 0;
+
+    virtual
     void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength) = 0;
 };
 

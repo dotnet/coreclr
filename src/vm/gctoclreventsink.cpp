@@ -41,3 +41,13 @@ void GCToCLREventSink::FireGCGenerationRange(uint8_t generation, void* rangeStar
 
     FireEtwGCGenerationRange(generation, rangeStart, rangeUsedLength, rangeReservedLength, GetClrInstanceId());
 }
+
+void GCToCLREventSink::FireGCEnd_V1(uint32_t count, uint32_t depth)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCEnd_V1(count, depth, GetClrInstanceId());
+}
+
+
+

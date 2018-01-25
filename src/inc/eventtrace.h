@@ -326,13 +326,6 @@ namespace ETW
         static HRESULT ForceGCForDiagnostics();
         static VOID ForceGC(LONGLONG l64ClientSequenceNumber);
         static VOID FireGcStart(ETW_GC_INFO * pGcInfo);
-        static VOID FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth);
-        static VOID FireSingleGenerationRangeEvent(
-            void * /* context */,
-            int generation, 
-            BYTE * rangeStart, 
-            BYTE * rangeEnd,
-            BYTE * rangeEndReserved);
         static VOID RootReference(
             LPVOID pvHandle,
             Object * pRootedNode,
