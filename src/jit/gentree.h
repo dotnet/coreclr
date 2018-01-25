@@ -313,7 +313,8 @@ class GenTreeOperandIterator;
 
 /*****************************************************************************/
 
-typedef struct GenTree* GenTreePtr;
+typedef struct GenTree*  GenTreePtr;
+typedef const GenTreePtr constGenTreePtr;
 
 // Forward declarations of the subtypes
 #define GTSTRUCT_0(fn, en) struct GenTree##fn;

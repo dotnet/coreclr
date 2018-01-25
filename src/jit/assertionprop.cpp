@@ -2843,7 +2843,7 @@ GenTreePtr Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
  *  be nullptr. Returns the modified tree, or nullptr if no assertion prop took place.
  */
 
-GenTreePtr Compiler::optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     assert(tree->gtOper == GT_LCL_VAR);
     // If we have a var definition then bail or
@@ -3006,7 +3006,7 @@ AssertionIndex Compiler::optGlobalAssertionIsEqualOrNotEqual(ASSERT_VALARG_TP as
  *  Returns the modified tree, or nullptr if no assertion prop took place
  */
 
-GenTreePtr Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     assert(tree->OperKind() & GTK_RELOP);
 
@@ -3037,8 +3037,8 @@ GenTreePtr Compiler::optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, const G
  *
  */
 GenTreePtr Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions,
-                                                  const GenTreePtr tree,
-                                                  const GenTreePtr stmt)
+                                                  constGenTreePtr  tree,
+                                                  constGenTreePtr  stmt)
 {
     assert(tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE);
 
@@ -3220,8 +3220,8 @@ GenTreePtr Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions,
  *
  */
 GenTreePtr Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions,
-                                                 const GenTreePtr tree,
-                                                 const GenTreePtr stmt)
+                                                 constGenTreePtr  tree,
+                                                 constGenTreePtr  stmt)
 {
     assert(tree->OperGet() == GT_EQ || tree->OperGet() == GT_NE);
 
@@ -3315,7 +3315,7 @@ GenTreePtr Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions,
  *
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  */
-GenTreePtr Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     assert(tree->gtOper == GT_CAST);
 
@@ -3412,7 +3412,7 @@ GenTreePtr Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, const Ge
  *  Given a tree with an array bounds check node, eliminate it because it was
  *  checked already in the program.
  */
-GenTreePtr Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     // Remove the bounds check as part of the GT_COMMA node since we need parent pointer to remove nodes.
     // When processing visits the bounds check, it sets the throw kind to None if the check is redundant.
@@ -3435,7 +3435,7 @@ GenTreePtr Compiler::optAssertionProp_Comma(ASSERT_VALARG_TP assertions, const G
  *
  */
 
-GenTreePtr Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_Ind(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     assert(tree->OperIsIndir());
 
@@ -3582,7 +3582,7 @@ AssertionIndex Compiler::optAssertionIsNonNullInternal(GenTreePtr op, ASSERT_VAL
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  *
  */
-GenTreePtr Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, const GenTreePtr stmt)
+GenTreePtr Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, constGenTreePtr stmt)
 {
     if ((call->gtFlags & GTF_CALL_NULLCHECK) == 0)
     {
@@ -3629,7 +3629,7 @@ GenTreePtr Compiler::optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, G
  *
  */
 
-GenTreePtr Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, constGenTreePtr stmt)
 {
     if (optNonNullAssertionProp_Call(assertions, call, stmt))
     {
@@ -3686,7 +3686,7 @@ GenTreePtr Compiler::optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeC
  *  Given a tree consisting of a comma node with a bounds check, remove any
  *  redundant bounds check that has already been checked in the program flow.
  */
-GenTreePtr Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     if (optLocalAssertionProp)
     {
@@ -3821,7 +3821,7 @@ GenTreePtr Compiler::optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, const
  *
  */
 
-GenTreePtr Compiler::optAssertionProp_Update(const GenTreePtr newTree, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp_Update(constGenTreePtr newTree, constGenTreePtr tree, constGenTreePtr stmt)
 {
     noway_assert(newTree != nullptr);
 
@@ -3880,7 +3880,7 @@ GenTreePtr Compiler::optAssertionProp_Update(const GenTreePtr newTree, const Gen
  *  Returns the modified tree, or nullptr if no assertion prop took place.
  */
 
-GenTreePtr Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt)
+GenTreePtr Compiler::optAssertionProp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt)
 {
     switch (tree->gtOper)
     {
