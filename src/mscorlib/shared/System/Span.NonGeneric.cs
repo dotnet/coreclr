@@ -244,9 +244,6 @@ namespace System
 
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, nuint elementsCount)
         {
-            if (Unsafe.AreSame(ref destination, ref source))
-                return;
-
             if (elementsCount <= 1)
             {
                 if (elementsCount == 1)

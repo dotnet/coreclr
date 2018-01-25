@@ -452,9 +452,20 @@ namespace System
 
             // P/Invoke into the native version when the buffers are overlapping.
 
-            if (((nuint)Unsafe.ByteOffset(ref src.Value, ref dest.Value) < len) || ((nuint)Unsafe.ByteOffset(ref dest.Value, ref src.Value) < len))
             {
-                goto PInvoke;
+                // It's faster to compute both the delta and its negative before the
+                // first branch, as it allows the processor pipeline to compute the
+                // two values in parallel. In the common case of a non-overlapping source
+                // and destination we'll end up having computed both values anyway,
+                // so the only scenario where this performs extra computations is the
+                // case where the two buffers overlap, which is rare anyway.
+
+                nuint delta1 = (nuint)Unsafe.ByteOffset(ref src.Value, ref dest.Value);
+                nuint delta2 = (nuint)Unsafe.ByteOffset(ref dest.Value, ref src.Value);
+                if (delta1 < len || delta2 < len)
+                {
+                    goto BuffersOverlap;
+                }
             }
             
             ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)len);
@@ -620,6 +631,13 @@ MCPY06:
             Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -4) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -4));
 #endif
             return;
+
+BuffersOverlap:
+            // If the buffers overlap perfectly, there's no point to copying the data.
+            if (Unsafe.AreSame(ref dest.Value, ref src.Value))
+            {
+                return;
+            }
 
 PInvoke:
             _Memmove(ref dest.Value, ref src.Value, len);
