@@ -322,16 +322,6 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree, TreeNodeInfo* info)
 #endif
         case GT_ADD:
         case GT_SUB:
-            // SSE2 arithmetic instructions doesn't support the form "op mem, xmm".
-            // Rather they only support "op xmm, mem/xmm" form.
-            if (varTypeIsFloating(tree->TypeGet()))
-            {
-                info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
-                break;
-            }
-
-            __fallthrough;
-
         case GT_AND:
         case GT_OR:
         case GT_XOR:
@@ -372,7 +362,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree, TreeNodeInfo* info)
             break;
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         case GT_HWIntrinsic:
             TreeNodeInfoInitHWIntrinsic(tree->AsHWIntrinsic(), info);
             break;
@@ -1305,7 +1295,7 @@ void LinearScan::TreeNodeInfoInitCall(GenTreeCall* call, TreeNodeInfo* info)
 #ifdef DEBUG
         // In DEBUG only, check validity with respect to the arg table entry.
 
-        fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
+        fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
         if (curArgTabEntry->regNum == REG_STK)
@@ -2395,7 +2385,6 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
             }
             break;
 
-        case SIMDIntrinsicConvertToUInt32:
         case SIMDIntrinsicConvertToInt32:
             assert(info->srcCount == 1);
             break;
@@ -2413,7 +2402,6 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
             break;
 
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
             assert(info->srcCount == 1);
             // We need an internal register different from targetReg.
             info->isInternalRegDelayFree = true;
@@ -2491,7 +2479,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
 }
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 //------------------------------------------------------------------------
 // TreeNodeInfoInitHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
 //
@@ -2504,13 +2492,11 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
 void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, TreeNodeInfo* info)
 {
     NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
-    InstructionSet isa         = compiler->isaOfHWIntrinsic(intrinsicID);
-
+    InstructionSet isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
     if (isa == InstructionSet_AVX || isa == InstructionSet_AVX2)
     {
         SetContainsAVXFlags(true, 32);
     }
-
     GenTree* op1   = intrinsicTree->gtOp.gtOp1;
     GenTree* op2   = intrinsicTree->gtOp.gtOp2;
     info->srcCount = 0;
@@ -2519,15 +2505,10 @@ void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, 
     {
         if (op1->OperIsList())
         {
-            int srcCount = 0;
-
             for (GenTreeArgList* list = op1->AsArgList(); list != nullptr; list = list->Rest())
             {
-                GenTree* listItem = list->Current();
-                srcCount += GetOperandInfo(listItem);
+                info->srcCount += GetOperandInfo(list->Current());
             }
-
-            info->srcCount += srcCount;
         }
         else
         {
@@ -2571,7 +2552,6 @@ void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, 
 
                 info->internalIntCount = 2;
                 info->setInternalCandidates(this, allRegs(TYP_INT));
-                break;
             }
             break;
         }
@@ -2581,6 +2561,19 @@ void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, 
             assert(info->srcCount == 1);
             assert(info->dstCount == 1);
             useList.Last()->info.isTgtPref = true;
+            break;
+
+        case NI_SSE41_BlendVariable:
+            if (!compiler->canUseVexEncoding())
+            {
+                // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op2Info->info.isDelayFree     = true;
+                op3Info->info.isDelayFree     = true;
+                op3Info->info.setSrcCandidates(this, RBM_XMM0);
+                info->hasDelayFreeSrc = true;
+            }
             break;
 
 #ifdef _TARGET_X86_

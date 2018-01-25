@@ -169,9 +169,6 @@
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape\*">
             <Issue>15591</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics\*">
-            <Issue>15591</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\constrainedcall\constrainedcall\*">
             <Issue>15353</Issue>
         </ExcludeList>
@@ -192,6 +189,12 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest683\Generated683\*">
             <Issue>6707</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\**">
+            <Issue>15919</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\**">
+            <Issue>15924</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -1725,6 +1728,14 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\managed\Compilation\Compilation\Compilation.cmd">
             <Issue>needs triage</Issue>
+        </ExcludeList>
+    </ItemGroup>
+
+    <!-- The following are tests that fail on Windows -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource**">
+            <Issue>15494</Issue>
         </ExcludeList>
     </ItemGroup>
 

@@ -165,7 +165,6 @@ namespace System
         /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when index less than 0 or index greater than or equal to Length
         /// </exception>
-
         public ref readonly T this[int index]
         {
 #if PROJECTN
@@ -259,6 +258,11 @@ namespace System
         {
             throw new NotSupportedException(SR.NotSupported_CannotCallGetHashCodeOnSpan);
         }
+
+        /// <summary>
+        /// Returns a <see cref="String"/> with the name of the type and the number of elements
+        /// </summary>
+        public override string ToString() => "System.Span[" + Length.ToString() + "]";
 
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="ReadOnlySpan{T}"/>

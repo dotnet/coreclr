@@ -1160,7 +1160,7 @@ void GenTreeCall::ReplaceCallOperand(GenTree** useEdge, GenTree* replacement)
         {
             assert((replacement->gtFlags & GTF_LATE_ARG) == 0);
 
-            fgArgTabEntryPtr fp = Compiler::gtArgEntryByNode(this, originalOperand);
+            fgArgTabEntry* fp = Compiler::gtArgEntryByNode(this, originalOperand);
             assert(fp->node == originalOperand);
             fp->node = replacement;
         }
@@ -1425,7 +1425,7 @@ AGAIN:
                     break;
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
                 case GT_HWIntrinsic:
                     if ((op1->AsHWIntrinsic()->gtHWIntrinsicId != op2->AsHWIntrinsic()->gtHWIntrinsicId) ||
                         (op1->AsHWIntrinsic()->gtSIMDBaseType != op2->AsHWIntrinsic()->gtSIMDBaseType) ||
@@ -2110,7 +2110,7 @@ AGAIN:
                     break;
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
                 case GT_HWIntrinsic:
                     hash += tree->gtHWIntrinsic.gtHWIntrinsicId;
                     hash += tree->gtHWIntrinsic.gtSIMDBaseType;
@@ -6814,14 +6814,14 @@ GenTreeArgList* Compiler::gtNewArgList(GenTreePtr arg1, GenTreePtr arg2, GenTree
  *  that has the matching argNum and return the fgArgTableEntryPtr
  */
 
-fgArgTabEntryPtr Compiler::gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum)
+fgArgTabEntry* Compiler::gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
-    unsigned          argCount       = argInfo->ArgCount();
-    fgArgTabEntryPtr* argTable       = argInfo->ArgTable();
-    fgArgTabEntryPtr  curArgTabEntry = nullptr;
+    unsigned        argCount       = argInfo->ArgCount();
+    fgArgTabEntry** argTable       = argInfo->ArgTable();
+    fgArgTabEntry*  curArgTabEntry = nullptr;
 
     for (unsigned i = 0; i < argCount; i++)
     {
@@ -6841,14 +6841,14 @@ fgArgTabEntryPtr Compiler::gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum
  *  that has the matching node and return the fgArgTableEntryPtr
  */
 
-fgArgTabEntryPtr Compiler::gtArgEntryByNode(GenTreeCall* call, GenTreePtr node)
+fgArgTabEntry* Compiler::gtArgEntryByNode(GenTreeCall* call, GenTreePtr node)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
-    unsigned          argCount       = argInfo->ArgCount();
-    fgArgTabEntryPtr* argTable       = argInfo->ArgTable();
-    fgArgTabEntryPtr  curArgTabEntry = nullptr;
+    unsigned        argCount       = argInfo->ArgCount();
+    fgArgTabEntry** argTable       = argInfo->ArgTable();
+    fgArgTabEntry*  curArgTabEntry = nullptr;
 
     for (unsigned i = 0; i < argCount; i++)
     {
@@ -6883,14 +6883,14 @@ fgArgTabEntryPtr Compiler::gtArgEntryByNode(GenTreeCall* call, GenTreePtr node)
  *  Find and return the entry with the given "lateArgInx".  Requires that one is found
  *  (asserts this).
  */
-fgArgTabEntryPtr Compiler::gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned lateArgInx)
+fgArgTabEntry* Compiler::gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned lateArgInx)
 {
-    fgArgInfoPtr argInfo = call->fgArgInfo;
+    fgArgInfo* argInfo = call->fgArgInfo;
     noway_assert(argInfo != nullptr);
 
-    unsigned          argCount       = argInfo->ArgCount();
-    fgArgTabEntryPtr* argTable       = argInfo->ArgTable();
-    fgArgTabEntryPtr  curArgTabEntry = nullptr;
+    unsigned        argCount       = argInfo->ArgCount();
+    fgArgTabEntry** argTable       = argInfo->ArgTable();
+    fgArgTabEntry*  curArgTabEntry = nullptr;
 
     for (unsigned i = 0; i < argCount; i++)
     {
@@ -6906,9 +6906,9 @@ fgArgTabEntryPtr Compiler::gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned 
 
 /*****************************************************************************
  *
- *  Given an fgArgTabEntryPtr, return true if it is the 'this' pointer argument.
+ *  Given an fgArgTabEntry*, return true if it is the 'this' pointer argument.
  */
-bool Compiler::gtArgIsThisPtr(fgArgTabEntryPtr argEntry)
+bool Compiler::gtArgIsThisPtr(fgArgTabEntry* argEntry)
 {
     return (argEntry->parent == nullptr);
 }
@@ -7319,7 +7319,11 @@ void Compiler::gtBlockOpInit(GenTreePtr result, GenTreePtr dst, GenTreePtr srcOr
         {
             src = src->AsIndir()->Addr()->gtGetOp1();
         }
+#ifdef FEATURE_HW_INTRINSICS
+        if ((src->OperGet() == GT_SIMD) || (src->OperGet() == GT_HWIntrinsic))
+#else
         if (src->OperGet() == GT_SIMD)
+#endif // FEATURE_HW_INTRINSICS
         {
             if (dst->OperIsBlk() && (dst->AsIndir()->Addr()->OperGet() == GT_ADDR))
             {
@@ -7925,7 +7929,7 @@ GenTreePtr Compiler::gtCloneExpr(
             break;
 #endif
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
             case GT_HWIntrinsic:
             {
                 GenTreeHWIntrinsic* hwintrinsicOp = tree->AsHWIntrinsic();
@@ -8598,10 +8602,10 @@ GenTreePtr Compiler::gtGetThisArg(GenTreeCall* call)
 
         if (call->gtCallLateArgs)
         {
-            regNumber        thisReg         = REG_ARG_0;
-            unsigned         argNum          = 0;
-            fgArgTabEntryPtr thisArgTabEntry = gtArgEntryByArgNum(call, argNum);
-            GenTreePtr       result          = thisArgTabEntry->node;
+            regNumber      thisReg         = REG_ARG_0;
+            unsigned       argNum          = 0;
+            fgArgTabEntry* thisArgTabEntry = gtArgEntryByArgNum(call, argNum);
+            GenTreePtr     result          = thisArgTabEntry->node;
 
 #if !FEATURE_FIXED_OUT_ARGS
             GenTreePtr lateArgs = call->gtCallLateArgs;
@@ -9231,7 +9235,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         case GT_HWIntrinsic:
             if (m_node->AsHWIntrinsic()->gtOp1 == nullptr)
             {
@@ -11264,7 +11268,7 @@ extern const char* const simdIntrinsicNames[] = {
 };
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 extern const char* getHWIntrinsicName(NamedIntrinsic intrinsic);
 #endif // FEATURE_HW_INTRINSICS
 
@@ -11602,7 +11606,7 @@ void Compiler::gtDispTree(GenTreePtr   tree,
         }
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         if (tree->gtOper == GT_HWIntrinsic)
         {
             printf(" %s %s",
@@ -11885,7 +11889,7 @@ void Compiler::gtGetArgMsg(
 {
     if (call->gtCallLateArgs != nullptr)
     {
-        fgArgTabEntryPtr curArgTabEntry = gtArgEntryByArgNum(call, argNum);
+        fgArgTabEntry* curArgTabEntry = gtArgEntryByArgNum(call, argNum);
         assert(curArgTabEntry);
 
         if (arg->gtFlags & GTF_LATE_ARG)
@@ -12003,7 +12007,7 @@ void Compiler::gtGetLateArgMsg(
 {
     assert(!argx->IsArgPlaceHolderNode()); // No place holders nodes are in gtCallLateArgs;
 
-    fgArgTabEntryPtr curArgTabEntry = gtArgEntryByLateArgIndex(call, lateArgIndex);
+    fgArgTabEntry* curArgTabEntry = gtArgEntryByLateArgIndex(call, lateArgIndex);
     assert(curArgTabEntry);
     regNumber argReg = curArgTabEntry->regNum;
 
@@ -12297,7 +12301,7 @@ void Compiler::gtDispLIRNode(GenTree* node, const char* prefixMsg /* = nullptr *
             }
             else
             {
-                fgArgTabEntryPtr curArgTabEntry = gtArgEntryByNode(call, operand);
+                fgArgTabEntry* curArgTabEntry = gtArgEntryByNode(call, operand);
                 assert(curArgTabEntry);
 
                 if (operand->OperGet() == GT_LIST)
@@ -17098,7 +17102,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                 structHnd = gtGetStructHandleForSIMD(tree->gtType, tree->AsSIMD()->gtSIMDBaseType);
                 break;
 #endif // FEATURE_SIMD
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
             case GT_HWIntrinsic:
                 structHnd = gtGetStructHandleForHWSIMD(tree->gtType, tree->AsHWIntrinsic()->gtSIMDBaseType);
                 break;
@@ -17850,10 +17854,7 @@ GenTreeSIMD* Compiler::gtNewSIMDNode(
 {
     assert(op1 != nullptr);
     SetOpLclRelatedToSIMDIntrinsic(op1);
-    if (op2 != nullptr)
-    {
-        SetOpLclRelatedToSIMDIntrinsic(op2);
-    }
+    SetOpLclRelatedToSIMDIntrinsic(op2);
 
     return new (this, GT_SIMD) GenTreeSIMD(type, op1, op2, simdIntrinsicID, baseType, size);
 }
@@ -17867,14 +17868,17 @@ GenTreeSIMD* Compiler::gtNewSIMDNode(
 //
 void Compiler::SetOpLclRelatedToSIMDIntrinsic(GenTreePtr op)
 {
-    if (op->OperIsLocal())
+    if (op != nullptr)
     {
-        setLclRelatedToSIMDIntrinsic(op);
-    }
-    else if ((op->OperGet() == GT_OBJ) && (op->gtOp.gtOp1->OperGet() == GT_ADDR) &&
-             op->gtOp.gtOp1->gtOp.gtOp1->OperIsLocal())
-    {
-        setLclRelatedToSIMDIntrinsic(op->gtOp.gtOp1->gtOp.gtOp1);
+        if (op->OperIsLocal())
+        {
+            setLclRelatedToSIMDIntrinsic(op);
+        }
+        else if ((op->OperGet() == GT_OBJ) && (op->gtOp.gtOp1->OperGet() == GT_ADDR) &&
+                 op->gtOp.gtOp1->gtOp.gtOp1->OperIsLocal())
+        {
+            setLclRelatedToSIMDIntrinsic(op->gtOp.gtOp1->gtOp.gtOp1);
+        }
     }
 }
 
@@ -17900,7 +17904,7 @@ bool GenTree::isCommutativeSIMDIntrinsic()
 }
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
                                                        NamedIntrinsic hwIntrinsicID,
                                                        var_types      baseType,
@@ -17910,15 +17914,20 @@ GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
 }
 
 GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(
-    var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
+    var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned simdSize)
 {
-    return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, hwIntrinsicID, baseType, size);
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+
+    return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, hwIntrinsicID, baseType, simdSize);
 }
 
 GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(
-    var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned size)
+    var_types type, GenTree* op1, GenTree* op2, NamedIntrinsic hwIntrinsicID, var_types baseType, unsigned simdSize)
 {
-    return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, op2, hwIntrinsicID, baseType, size);
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+    SetOpLclRelatedToSIMDIntrinsic(op2);
+
+    return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, op2, hwIntrinsicID, baseType, simdSize);
 }
 
 GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
@@ -17929,6 +17938,10 @@ GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
                                                        var_types      baseType,
                                                        unsigned       size)
 {
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+    SetOpLclRelatedToSIMDIntrinsic(op2);
+    SetOpLclRelatedToSIMDIntrinsic(op3);
+
     return new (this, GT_HWIntrinsic)
         GenTreeHWIntrinsic(type, gtNewArgList(op1, op2, op3), hwIntrinsicID, baseType, size);
 }
@@ -17942,12 +17955,19 @@ GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
                                                        var_types      baseType,
                                                        unsigned       size)
 {
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+    SetOpLclRelatedToSIMDIntrinsic(op2);
+    SetOpLclRelatedToSIMDIntrinsic(op3);
+    SetOpLclRelatedToSIMDIntrinsic(op4);
+
     return new (this, GT_HWIntrinsic)
         GenTreeHWIntrinsic(type, gtNewArgList(op1, op2, op3, op4), hwIntrinsicID, baseType, size);
 }
 
 GenTreeHWIntrinsic* Compiler::gtNewScalarHWIntrinsicNode(var_types type, GenTree* op1, NamedIntrinsic hwIntrinsicID)
 {
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+
     return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, hwIntrinsicID, TYP_UNKNOWN, 0);
 }
 
@@ -17956,6 +17976,9 @@ GenTreeHWIntrinsic* Compiler::gtNewScalarHWIntrinsicNode(var_types      type,
                                                          GenTree*       op2,
                                                          NamedIntrinsic hwIntrinsicID)
 {
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+    SetOpLclRelatedToSIMDIntrinsic(op2);
+
     return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, op2, hwIntrinsicID, TYP_UNKNOWN, 0);
 }
 
