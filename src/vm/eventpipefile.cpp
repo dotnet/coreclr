@@ -113,6 +113,14 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 
 void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metadataId) // TODO adsitnik use the metadata ID!!
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     if (m_pBlock->WriteEvent(instance))
         return; // the block is not full, we added the event and continue
 

@@ -64,7 +64,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pObject != NULL);
     }
@@ -132,7 +132,7 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         PRECONDITION(pObject != NULL);
     }
@@ -165,7 +165,7 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -183,7 +183,7 @@ void FastSerializer::WriteFileHeader()
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -198,7 +198,7 @@ void FastSerializer::WriteString(const char *strContents, unsigned int length)
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
