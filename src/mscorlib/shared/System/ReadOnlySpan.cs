@@ -198,8 +198,18 @@ namespace System
         /// </summary>
         public void CopyTo(Span<T> destination)
         {
-            if (!TryCopyTo(destination))
+            // Using "if (!TryCopyTo(...))" results in two branches: one for the length
+            // check, and one for the result of TryCopyTo. Since these checks are equivalent,
+            // we can optimize by performing the check once ourselves then calling Memmove directly.
+
+            if ((uint)_length <= (uint)destination.Length)
+            {
+                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, _length);
+            }
+            else
+            {
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
         }
 
         /// Copies the contents of this read-only span into destination span. If the source
