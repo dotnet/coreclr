@@ -432,11 +432,10 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     const SString &providerName = sourceEvent.GetProvider()->GetProviderName();
     unsigned int eventID = sourceEvent.GetEventID();
     unsigned int eventVersion = sourceEvent.GetEventVersion();
-    INT64 keywords = sourceEvent.GetKeywords();
     BYTE *pPayloadData = sourceEvent.GetMetadata();
     unsigned int payloadLength = sourceEvent.GetMetadataLength();
     unsigned int providerNameLength = (providerName.GetCount() + 1) * sizeof(WCHAR);
-    unsigned int instancePayloadSize = providerNameLength + sizeof(eventID) + sizeof(eventVersion) + sizeof(keywords) + sizeof(payloadLength) + payloadLength;
+    unsigned int instancePayloadSize = providerNameLength + sizeof(eventID) + sizeof(eventVersion) + sizeof(payloadLength) + payloadLength;
 
     // Allocate the payload.
     BYTE *pInstancePayload = new BYTE[instancePayloadSize];
@@ -455,10 +454,6 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // Write the event version.
     memcpy(currentPtr, &eventVersion, sizeof(eventVersion));
     currentPtr += sizeof(eventVersion);
-
-    // Write the event keywords.
-    memcpy(currentPtr, &keywords, sizeof(keywords));
-    currentPtr += sizeof(keywords);
 
     // Write the size of the metadata.
     memcpy(currentPtr, &payloadLength, sizeof(payloadLength));
