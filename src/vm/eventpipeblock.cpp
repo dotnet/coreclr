@@ -56,6 +56,7 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     CONTRACTL_END;
 
     unsigned int totalSize = instance.GetAlignedTotalSize();
+    totalSize += sizeof(totalSize);
 
     if (m_pWritePointer + totalSize >= m_pEndOfTheBuffer)
     {
