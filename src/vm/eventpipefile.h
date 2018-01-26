@@ -28,10 +28,12 @@ class EventPipeFile : public FastSerializableObject
 
         void WriteEvent(EventPipeEventInstance &instance);
 
+        void WriteEnd();
+
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
-            return "Microsoft.DotNet.Runtime.EventPipeFile";
+            return "EventTrace";
         }
 
         void FastSerialize(FastSerializer *pSerializer)

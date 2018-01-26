@@ -29,16 +29,17 @@ class EventPipeBlock : public FastSerializableObject
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
-            return "Microsoft.DotNet.Runtime.EventPipeBlock";
+            return "EventBlock";
         }
 
         void FastSerialize(FastSerializer *pSerializer)
         {
-            unsigned int blockSize = GetSize();
-            pSerializer->WriteBuffer((BYTE*)&blockSize, sizeof(blockSize));
-            if (blockSize > 0)
+            unsigned int eventsSize = (unsigned int)(m_pWritePointer - m_pBlock);
+
+            pSerializer->WriteBuffer((BYTE*)&eventsSize, sizeof(eventsSize));
+            if (eventsSize > 0)
             {
-                pSerializer->WriteBuffer(m_pBlock, blockSize);
+                pSerializer->WriteBuffer(m_pBlock, eventsSize);
             }
         }
 

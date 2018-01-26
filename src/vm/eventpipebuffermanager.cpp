@@ -456,6 +456,8 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
         // Pop the event from the buffer.
         pOldestContainingList->PopNextEvent(stopTimeStamp);
     }
+
+    pFile->WriteEnd(); // write the rest of the events and end tag to the file
 }
 
 void EventPipeBufferManager::DeAllocateBuffers()
