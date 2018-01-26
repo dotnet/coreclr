@@ -488,8 +488,26 @@ namespace System
             const nuint CopyThreshold = 512;
 #endif // AMD64 || (BIT32 && !ARM)
 
+            // Use "(IntPtr)(nint)len" to avoid overflow checking on the explicit cast to IntPtr
+            ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)(nint)len);
+            ref byte destEnd = ref Unsafe.Add(ref dest.Value, (IntPtr)(nint)len);
+
             // P/Invoke into the native version when the buffers are overlapping.
 
+            // One quick check to see if the buffers are disjoint is to check that
+            // srcEnd <= destBegin or destEnd <= srcBegin. If either condition is true,
+            // then the buffers are definitely disjoint. If both conditions are false,
+            // the buffers *might* be disjoint, and we fall back to a slower but always
+            // correct check. One reason that both conditions might be false even if
+            // the buffers are disjoint is that a GC could occur and relocate the
+            // buffers at the same time we're checking boundary conditions.
+
+            // if ((srcEnd <= destBegin) || (destEnd <= srcBegin)) { DISJOINT; }
+            // if (!((srcEnd <= destBegin) || (destEnd <= srcBegin))) { MAYBE_OVERLAPPING; }
+            // if (!(srcEnd <= destBegin) && !(destEnd <= srcBegin)) { MAYBE_OVERLAPPING; }
+            // if ((srcEnd > destBegin) && (destEnd > srcBegin)) { MAYBE_OVERLAPPING; }
+
+            if (Unsafe.IsAddressGreaterThan(ref srcEnd, ref dest.Value) && Unsafe.IsAddressGreaterThan(ref destEnd, ref src.Value))
             {
                 // It's faster to compute both the delta and its negative before the
                 // first branch, as it allows the processor pipeline to compute the
@@ -505,10 +523,6 @@ namespace System
                     goto BuffersOverlap;
                 }
             }
-            
-            // Use "(IntPtr)(nint)len" to avoid overflow checking on the explicit cast to IntPtr
-            ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)(nint)len);
-            ref byte destEnd = ref Unsafe.Add(ref dest.Value, (IntPtr)(nint)len);
 
             if (len <= 16)
                 goto MCPY02;
