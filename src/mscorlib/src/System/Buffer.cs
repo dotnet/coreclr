@@ -441,7 +441,6 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Memmove<T>(ref T destination, ref T source, nuint elementCount)
         {
-            nuint byteCount = elementCount * (nuint)Unsafe.SizeOf<T>();
             if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 // Blittable memmove
@@ -449,7 +448,7 @@ namespace System
                 Memmove(
                     new ByReference<byte>(ref Unsafe.As<T, byte>(ref destination)),
                     new ByReference<byte>(ref Unsafe.As<T, byte>(ref source)),
-                    byteCount);
+                    elementCount * (nuint)Unsafe.SizeOf<T>());
             }
             else
             {
@@ -462,7 +461,7 @@ namespace System
                     RuntimeImports.RhBulkMoveWithWriteBarrier(
                         ref Unsafe.As<T, byte>(ref destination),
                         ref Unsafe.As<T, byte>(ref source),
-                        byteCount);
+                        elementCount * (nuint)Unsafe.SizeOf<T>());
                 }
             }
         }
