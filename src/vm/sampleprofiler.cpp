@@ -278,7 +278,7 @@ void SampleProfiler::SetTimeGranularity()
     // the OS is on-CPU, decreasing overall system performance and increasing power consumption
     if(s_timeBeginPeriodFn != NULL)
     {
-        if(((TimePeriodFnPtr) s_timeBeginPeriodFn)(s_samplingRateInNs / (1* MILLION)) == TIMERR_NOERROR)
+        if(((TimePeriodFnPtr) s_timeBeginPeriodFn)(s_samplingRateInNs / (1 * MILLION)) == TIMERR_NOERROR)
         {
             s_timePeriodIsSet = TRUE;
         }
@@ -300,7 +300,7 @@ void SampleProfiler::ResetTimeGranularity()
     // End the modifications we had to the timer period in Enable
     if(s_timeEndPeriodFn != NULL)
     {
-        if(((TimePeriodFnPtr) s_timeEndPeriodFn)(s_samplingRateInNs / (1 * MILLION) == TIMERR_NOERROR)
+        if(((TimePeriodFnPtr) s_timeEndPeriodFn)(s_samplingRateInNs / (1 * MILLION)) == TIMERR_NOERROR)
         {
             s_timePeriodIsSet = FALSE;
         }
