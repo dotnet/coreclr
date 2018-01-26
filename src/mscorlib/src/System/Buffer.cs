@@ -494,10 +494,10 @@ namespace System
 
             // P/Invoke into the native version when the buffers are overlapping.
 
-            // One quick check to see if the buffers are disjoint is to check that
+            // One quick test to see if the buffers are disjoint is to check that
             // srcEnd <= destBegin or destEnd <= srcBegin. If either condition is true,
             // then the buffers are definitely disjoint. If both conditions are false,
-            // the buffers *might* be disjoint, and we fall back to a slower but always
+            // the buffers *might* overlap, and we fall back to a slower but always
             // correct check. One reason that both conditions might be false even if
             // the buffers are disjoint is that a GC could occur and relocate the
             // buffers at the same time we're checking boundary conditions.
