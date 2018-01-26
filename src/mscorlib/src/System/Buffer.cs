@@ -431,14 +431,7 @@ namespace System
             PInvoke:
             _Memmove(dest, src, len);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Memmove<T>(ref T destination, ref T source, int elementCount)
-        {
-            Debug.Assert(elementCount >= 0, "Element count must be non-negative.");
-            Memmove(ref destination, ref source, (nuint)elementCount);
-        }
-
+        
         // This method has different signature for x64 and other platforms and is done for performance reasons.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Memmove<T>(ref T destination, ref T source, nuint elementCount)

@@ -284,7 +284,7 @@ namespace System
 
             if ((uint)_length <= (uint)destination.Length)
             {
-                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, _length);
+                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, (nuint)_length);
             }
             else
             {
@@ -305,7 +305,7 @@ namespace System
             bool retVal = false;
             if ((uint)_length <= (uint)destination.Length)
             {
-                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, _length);
+                Buffer.Memmove(ref destination.DangerousGetPinnableReference(), ref _pointer.Value, (nuint)_length);
                 retVal = true;
             }
             return retVal;
@@ -418,7 +418,7 @@ namespace System
                 return Array.Empty<T>();
 
             var destination = new T[_length];
-            Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, _length);
+            Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
             return destination;
         }
 
