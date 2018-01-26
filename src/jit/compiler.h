@@ -7148,6 +7148,7 @@ public:
         codeGen->setInterruptible(value);
     }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
     bool getHasTailCalls()
     {
@@ -7157,6 +7158,7 @@ public:
     {
         codeGen->setHasTailCalls(value);
     }
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
 
 #if DOUBLE_ALIGN
     const bool genDoubleAlign()

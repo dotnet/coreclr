@@ -18970,6 +18970,7 @@ void Compiler::fgSetBlockOrder()
             genInterruptible = true;
         }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         GenTreePtr tailCall                 = nullptr;
         bool fastTailCallsOnly              = true;
         bool tailCallsConvertibleToLoopOnly = false;        
@@ -18977,6 +18978,8 @@ void Compiler::fgSetBlockOrder()
         {
             hasTailCalls = true;
         }
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL
 

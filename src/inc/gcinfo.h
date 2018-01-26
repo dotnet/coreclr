@@ -34,7 +34,7 @@ const unsigned   this_OFFSET_FLAG  = 0x2;  // the offset is "this"
 // The current GCInfo Version
 //-----------------------------------------------------------------------------
 
-#define GCINFO_VERSION 3
+#define GCINFO_VERSION 2
 
 #define MIN_GCINFO_VERSION_WITH_RETURN_KIND 2
 #define MIN_GCINFO_VERSION_WITH_REV_PINVOKE_FRAME 2

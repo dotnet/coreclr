@@ -203,7 +203,9 @@ enum GcInfoDecoderFlags
     DECODE_EDIT_AND_CONTINUE     = 0x800,
     DECODE_REVERSE_PINVOKE_VAR   = 0x1000,
     DECODE_RETURN_KIND           = 0x2000,
-    DECODE_HAS_TAILCALLS         = 0x4000
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    DECODE_HAS_TAILCALLS         = 0x4000,
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 };
 
 enum GcInfoHeaderFlags
@@ -218,14 +220,16 @@ enum GcInfoHeaderFlags
     GC_INFO_HAS_GENERICS_INST_CONTEXT_MD     = 0x20,
     GC_INFO_HAS_GENERICS_INST_CONTEXT_THIS   = 0x30,
     GC_INFO_HAS_STACK_BASE_REGISTER     = 0x40,
+#ifdef _TARGET_AMD64_
     GC_INFO_WANTS_REPORT_ONLY_LEAF      = 0x80,
+#else // _TARGET_AMD64_
+    GC_INFO_HAS_TAILCALLS               = 0x80,
+#endif // _TARGET_AMD64_
     GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS = 0x100,
     GC_INFO_REVERSE_PINVOKE_FRAME = 0x200,
-    GC_INFO_HAS_TAILCALLS = 0x400,
 
     GC_INFO_FLAGS_BIT_SIZE_VERSION_1    = 9,
-    GC_INFO_FLAGS_BIT_SIZE_VERSION_2    = 10,
-    GC_INFO_FLAGS_BIT_SIZE              = 11,
+    GC_INFO_FLAGS_BIT_SIZE              = 10,
 };
 
 class BitStreamReader
@@ -523,7 +527,9 @@ public:
     bool    HasMethodTableGenericsInstContext();
     bool    GetIsVarArg();
     bool    WantsReportOnlyLeaf();
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     bool    HasTailCalls();
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
     ReturnKind GetReturnKind();
     UINT32  GetCodeLength();
     UINT32  GetStackBaseRegister();
@@ -542,10 +548,13 @@ private:
     // Pre-decoded information
     bool    m_IsInterruptible;
     bool    m_IsVarArg;
-    bool    m_HasTailCalls;
     bool    m_GenericSecretParamIsMD;
     bool    m_GenericSecretParamIsMT;
+#ifdef _TARGET_AMD64_
     bool    m_WantsReportOnlyLeaf;
+#else // _TARGET_AMD64_
+    bool    m_HasTailCalls;
+#endif // _TARGET_AMD64_
     INT32   m_SecurityObjectStackSlot;
     INT32   m_GSCookieStackSlot;
     INT32   m_ReversePInvokeFrameStackSlot;

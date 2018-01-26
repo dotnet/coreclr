@@ -180,7 +180,9 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     /* Assume that we not fully interruptible */
 
     genInterruptible = false;
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     hasTailCalls = false;
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
 #ifdef DEBUG
     genInterruptibleUsed = false;
     genCurDispOffset     = (unsigned)-1;

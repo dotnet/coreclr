@@ -6109,7 +6109,9 @@ struct ExecutionState
     IJitManager    *m_pJitManager;
     METHODTOKEN     m_MethodToken;
     BOOL            m_IsInterruptible;  // is this code interruptible?
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     BOOL            m_HasTailCalls;     // does this code perform tail calls?
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
 
     ExecutionState() : m_FirstPass(TRUE) {LIMITED_METHOD_CONTRACT;  }
 };
@@ -6230,7 +6232,9 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
             pES->m_IsInterruptible = pCF->IsGcSafe();
             pES->m_RelOffset = pCF->GetRelOffset();
             pES->m_pJitManager = pCF->GetJitManager();
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
             pES->m_HasTailCalls = pCF->HasTailCalls();
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
 
             STRESS_LOG3(LF_SYNC, LL_INFO1000, "Stopped in Jitted code at pc = %p sp = %p fullyInt=%d\n",
                 GetControlPC(pCF->GetRegisterSet()), GetRegdisplaySP(pCF->GetRegisterSet()), pES->m_IsInterruptible);

@@ -3908,6 +3908,7 @@ public:
         }
     }
 
+#ifdef _TARGET_AMD64_
     void SetWantsReportOnlyLeaf()
     {
         m_gcInfoEncoder->SetWantsReportOnlyLeaf();
@@ -3916,7 +3917,7 @@ public:
             printf("Set WantsReportOnlyLeaf.\n");
         }
     }
-
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     void SetHasTailCalls()
     {
         m_gcInfoEncoder->SetHasTailCalls();
@@ -3925,6 +3926,7 @@ public:
             printf("Set HasTailCalls.\n");
         }
     }
+#endif // _TARGET_AMD64_
 
     void SetSizeOfStackOutgoingAndScratchArea(UINT32 size)
     {
@@ -4059,18 +4061,23 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 #endif // !_TARGET_AMD64_
     }
 
+#ifdef _TARGET_AMD64_
     if (compiler->ehAnyFunclets())
     {
         // Set this to avoid double-reporting the parent frame (unlike JIT64)
         gcInfoEncoderWithLog->SetWantsReportOnlyLeaf();
     }
+#endif // _TARGET_AMD64_
+
 #endif // FEATURE_EH_FUNCLETS
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     if (compiler->codeGen->hasTailCalls)
     {
         gcInfoEncoderWithLog->SetHasTailCalls();
     }
-    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+
 #if FEATURE_FIXED_OUT_ARGS
     // outgoing stack area size
     gcInfoEncoderWithLog->SetSizeOfStackOutgoingAndScratchArea(compiler->lvaOutgoingArgSpaceSize);
