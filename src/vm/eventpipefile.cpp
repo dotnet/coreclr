@@ -30,7 +30,7 @@ EventPipeFile::EventPipeFile(
     SetObjectVersion(3);
     SetMinReaderVersion(0);
 
-    m_pBlock = new EventPipeBlock(10000);
+    m_pBlock = new EventPipeBlock(100 * 1024);
 
 #ifdef _DEBUG
     m_lockOnWrite = lockOnWrite;
