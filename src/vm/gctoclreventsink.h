@@ -34,6 +34,7 @@ public:
     void FireGCTerminateConcurrentThread_V1();
     void FireGCTriggered(uint32_t reason);
     void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes);
+    void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId);
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;

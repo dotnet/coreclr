@@ -67,6 +67,9 @@ public:
 
     virtual
     void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes) = 0;
+
+    virtual
+    void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

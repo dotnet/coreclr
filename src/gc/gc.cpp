@@ -816,7 +816,7 @@ public:
 
     inline void fire_event (int heap, join_time time, join_type type, int join_id)
     {
-        FireEtwGCJoin_V2(heap, time, type, GetClrInstanceId(), join_id);
+        FIRE_EVENT(GCJoin_V2, heap, time, type, join_id);
     }
 
     void join (gc_heap* gch, int join_id)

@@ -114,3 +114,9 @@ void GCToCLREventSink::FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint6
     FireEtwGCMarkWithType(heapNum, GetClrInstanceId(), type, bytes);
 }
 
+void GCToCLREventSink::FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCJoin_V2(heap, joinTime, joinType, GetClrInstanceId(), joinId);
+}
