@@ -21,8 +21,10 @@ namespace System
     using Internal.Runtime.CompilerServices;
 
 #if BIT64
+    using nint = System.Int64;
     using nuint = System.UInt64;
 #else // BIT64
+    using nint = System.Int32;
     using nuint = System.UInt32;
 #endif // BIT64
 
@@ -496,16 +498,17 @@ namespace System
                 // so the only scenario where this performs extra computations is the
                 // case where the two buffers overlap, which is rare anyway.
 
-                nuint delta1 = (nuint)Unsafe.ByteOffset(ref src.Value, ref dest.Value);
-                nuint delta2 = (nuint)Unsafe.ByteOffset(ref dest.Value, ref src.Value);
+                nuint delta1 = (nuint)(nint)Unsafe.ByteOffset(ref src.Value, ref dest.Value);
+                nuint delta2 = (nuint)(nint)Unsafe.ByteOffset(ref dest.Value, ref src.Value);
                 if (delta1 < len || delta2 < len)
                 {
                     goto BuffersOverlap;
                 }
             }
             
-            ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)len);
-            ref byte destEnd = ref Unsafe.Add(ref dest.Value, (IntPtr)len);
+            // Use "(IntPtr)(nint)len" to avoid overflow checking on the explicit cast to IntPtr
+            ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)(nint)len);
+            ref byte destEnd = ref Unsafe.Add(ref dest.Value, (IntPtr)(nint)len);
 
             if (len <= 16)
                 goto MCPY02;
