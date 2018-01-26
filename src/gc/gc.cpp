@@ -35082,7 +35082,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
     // We want to get a stack from the user thread that triggered the GC
     // instead of on the GC thread which is the case for Server GC.
     // But we are doing it for Workstation GC as well to be uniform.
-    FireEtwGCTriggered((int) reason, GetClrInstanceId());
+    FIRE_EVENT(GCTriggered, static_cast<uint32_t>(reason));
 
 #ifdef MULTIPLE_HEAPS
     GcCondemnedGeneration = condemned_generation_number;

@@ -100,3 +100,9 @@ void GCToCLREventSink::FireGCTerminateConcurrentThread_V1()
     FireEtwGCTerminateConcurrentThread_V1(GetClrInstanceId());
 }
 
+void GCToCLREventSink::FireGCTriggered(uint32_t reason)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCTriggered(reason, GetClrInstanceId());
+}

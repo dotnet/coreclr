@@ -32,6 +32,7 @@ public:
     void FireGCFreeSegment_V1(void* address);
     void FireGCCreateConcurrentThread_V1();
     void FireGCTerminateConcurrentThread_V1();
+    void FireGCTriggered(uint32_t reason);
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;

@@ -61,6 +61,9 @@ public:
 
     virtual
     void FireGCTerminateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTriggered(uint32_t reason) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest
