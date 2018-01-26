@@ -43,6 +43,7 @@ public:
         uint32_t globalMechanisms,
         uint32_t pauseMode,
         uint32_t memoryPressure);
+    void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress);
 
 };
 

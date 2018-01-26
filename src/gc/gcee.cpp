@@ -442,41 +442,10 @@ bool GCHeap::IsConcurrentGCInProgress()
 #ifdef FEATURE_EVENT_TRACE
 void gc_heap::fire_etw_allocation_event (size_t allocation_amount, int gen_number, uint8_t* object_address)
 {
-    void * typeId = nullptr;
-    const WCHAR * name = nullptr;
-#ifdef FEATURE_REDHAWK
-    typeId = RedhawkGCInterface::GetLastAllocEEType();
-#else
-    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
-
-    EX_TRY
-    {
-        TypeHandle th = GCToEEInterface::GetThread()->GetTHAllocContextObj();
-
-        if (th != 0)
-        {
-            th.GetName(strTypeName);
-            name = strTypeName.GetUnicode();
-            typeId = th.GetMethodTable();
-        }
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions)
-#endif
-
-    if (typeId != nullptr)
-    {
-        FireEtwGCAllocationTick_V3((uint32_t)allocation_amount,
-                                   ((gen_number == 0) ? ETW::GCLog::ETW_GC_INFO::AllocationSmall : ETW::GCLog::ETW_GC_INFO::AllocationLarge), 
-                                   GetClrInstanceId(),
-                                   allocation_amount,
-                                   typeId, 
-                                   name,
-                                   heap_number,
-                                   object_address
-                                   );
-    }
+    gc_etw_alloc_kind kind = gen_number == 0 ? gc_etw_alloc_soh : gc_etw_alloc_loh;
+    FIRE_EVENT(GCAllocationTick_V3, static_cast<uint64_t>(allocation_amount), kind, heap_number, object_address);
 }
+
 void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 {
 #ifdef FEATURE_REDHAWK

@@ -136,3 +136,39 @@ void GCToCLREventSink::FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
         globalMechanisms, GetClrInstanceId(), pauseMode, memoryPressure);
 }
 
+void GCToCLREventSink::FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    void * typeId = nullptr;
+    const WCHAR * name = nullptr;
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
+    EX_TRY
+    {
+        TypeHandle th = GetThread()->GetTHAllocContextObj();
+
+        if (th != 0)
+        {
+            th.GetName(strTypeName);
+            name = strTypeName.GetUnicode();
+            typeId = th.GetMethodTable();
+        }
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+
+    if (typeId != nullptr)
+    {
+        FireEtwGCAllocationTick_V3(static_cast<uint32_t>(allocationAmount),
+            allocationKind,
+            GetClrInstanceId(),
+            allocationAmount,
+            typeId,
+            name,
+            heapIndex,
+            objectAddress);
+    }
+}
+
+
+

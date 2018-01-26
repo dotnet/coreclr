@@ -80,6 +80,9 @@ public:
         uint32_t globalMechanisms,
         uint32_t pauseMode,
         uint32_t memoryPressure) = 0;
+
+    virtual
+    void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest
