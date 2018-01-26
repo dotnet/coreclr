@@ -64,6 +64,9 @@ public:
 
     virtual
     void FireGCTriggered(uint32_t reason) = 0;
+
+    virtual
+    void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

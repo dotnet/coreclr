@@ -18,6 +18,7 @@ KNOWN_EVENT(GCFreeSegment_V1, GCEventProvider_Default, GCEventLevel_Information,
 KNOWN_EVENT(GCCreateConcurrentThread_V1, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 KNOWN_EVENT(GCTerminateConcurrentThread_V1, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 KNOWN_EVENT(GCTriggered, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
+KNOWN_EVENT(GCMarkWithType, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 
 #undef KNOWN_EVENT
 #undef DYNAMIC_EVENT

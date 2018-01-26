@@ -19164,7 +19164,7 @@ void gc_heap::get_memory_info (uint32_t* memory_load,
 void fire_mark_event (int heap_num, int root_type, size_t bytes_marked)
 {
     dprintf (DT_LOG_0, ("-----------[%d]mark %d: %Id", heap_num, root_type, bytes_marked));
-    FireEtwGCMarkWithType (heap_num, GetClrInstanceId(), root_type, bytes_marked);
+    FIRE_EVENT(GCMarkWithType, heap_num, root_type, bytes_marked);
 }
 
 //returns TRUE is an overflow happened.

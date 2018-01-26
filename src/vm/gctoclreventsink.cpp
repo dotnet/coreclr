@@ -106,3 +106,11 @@ void GCToCLREventSink::FireGCTriggered(uint32_t reason)
 
     FireEtwGCTriggered(reason, GetClrInstanceId());
 }
+
+void GCToCLREventSink::FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCMarkWithType(heapNum, GetClrInstanceId(), type, bytes);
+}
+
