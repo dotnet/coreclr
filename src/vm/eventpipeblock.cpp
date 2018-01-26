@@ -55,12 +55,14 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     }
     CONTRACTL_END;
 
-    unsigned int totalSize = instance.GetTotalSize();
+    unsigned int totalSize = instance.GetAlignedTotalSize();
 
     if (m_pWritePointer + totalSize >= m_pEndOfTheBuffer)
     {
         return false;
     }
+
+    BYTE* alignedEnd = m_pWritePointer + totalSize;
 
     memcpy(m_pWritePointer, &totalSize, sizeof(totalSize));
     m_pWritePointer += sizeof(totalSize);
@@ -104,6 +106,9 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
         memcpy(m_pWritePointer, instance.GetStack(), stackSize);
         m_pWritePointer += stackSize;
     }
+
+    while (m_pWritePointer < alignedEnd)
+        *m_pWritePointer++ = (BYTE)0; // put 0s at the end to get 4 bytes alignment
 
     return true;
 }

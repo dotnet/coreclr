@@ -99,7 +99,7 @@ public:
         return m_stackContents.GetSize();
     }
 
-    unsigned int GetTotalSize() const;
+    unsigned int GetAlignedTotalSize() const;
 
 #ifdef _DEBUG
     // Serialize this event to the JSON file.

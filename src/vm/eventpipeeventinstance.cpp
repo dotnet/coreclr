@@ -63,7 +63,7 @@ EventPipeEventInstance::EventPipeEventInstance(
 #endif // _DEBUG
 }
 
-unsigned int EventPipeEventInstance::GetTotalSize() const
+unsigned int EventPipeEventInstance::GetAlignedTotalSize() const
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -78,6 +78,14 @@ unsigned int EventPipeEventInstance::GetTotalSize() const
         m_dataLength +                  // Event payload data
         sizeof(unsigned int) +          // Prepended stack payload size in bytes
         m_stackContents.GetSize();      // Stack payload size
+
+    // round up to 4 bytes
+    if (payloadLength % 4 != 0)
+    {
+        payloadLength += 4 - (payloadLength % 4);
+    }
+
+    _ASSERTE(payloadLength % 4 == 0);
 
     return payloadLength;
 }
