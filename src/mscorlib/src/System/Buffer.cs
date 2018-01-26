@@ -602,7 +602,7 @@ MCPY04:
             Debug.Assert(len < 4);
             if (len == 0)
                 return;
-            dest = src;
+            dest.Value = src.Value;
             if ((len & 2) == 0)
                 return;
             Unsafe.As<byte, short>(ref Unsafe.Add(ref destEnd, -2)) = Unsafe.As<byte, short>(ref Unsafe.Add(ref srcEnd, -2));
