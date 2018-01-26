@@ -702,14 +702,12 @@ namespace System.Diagnostics.Tracing
                 Int64 keywords = m_eventData[i].Descriptor.Keywords;
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
-
-                // evnetID          : 4 bytes
-                // eventName        : (eventName.Length + 1) * 2 bytes
-                // keywords         : 8 bytes
-                // eventVersion     : 4 bytes
-                // level            : 4 bytes
-                // parameterCount   : 4 bytes
-                uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
+        
+                uint metadataLength = 
+                    ((uint)eventName.Length + 1) * 2 + // event name is a null terminated unicode string
+                    sizeof(Int64) +                    // keywords
+                    sizeof(uint) +                     // level
+                    sizeof(int);                       // parameter count
 
                 // Increase the metadataLength for the types of all parameters.
                 metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
@@ -723,17 +721,15 @@ namespace System.Diagnostics.Tracing
 
                 byte[] metadata = new byte[metadataLength];
 
-                // Write metadata: evnetID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
+                // Write metadata: eventName, keywords, level, parameterCount, param1 type, param1 name...
                 fixed (byte *pMetadata = metadata)
                 {
                     uint offset = 0;
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventID);
                     fixed(char *pEventName = eventName)
                     {
                         WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pEventName, ((uint)eventName.Length + 1) * 2);
                     }
                     WriteToBuffer(pMetadata, metadataLength, ref offset, keywords);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventVersion);
                     WriteToBuffer(pMetadata, metadataLength, ref offset, level);
                     WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)m_eventData[i].Parameters.Length);
                     foreach (var parameter in m_eventData[i].Parameters)
