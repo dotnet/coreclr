@@ -7148,6 +7148,16 @@ public:
         codeGen->setInterruptible(value);
     }
 
+    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
+    bool getHasTailCalls()
+    {
+        return codeGen->hasTailCalls;
+    }
+    void setHasTailCalls(bool value)
+    {
+        codeGen->setHasTailCalls(value);
+    }
+
 #if DOUBLE_ALIGN
     const bool genDoubleAlign()
     {

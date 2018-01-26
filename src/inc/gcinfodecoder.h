@@ -202,7 +202,8 @@ enum GcInfoDecoderFlags
     DECODE_PROLOG_LENGTH         = 0x400,   // length of the prolog (used to avoid reporting generics context)
     DECODE_EDIT_AND_CONTINUE     = 0x800,
     DECODE_REVERSE_PINVOKE_VAR   = 0x1000,
-    DECODE_RETURN_KIND           = 0x2000
+    DECODE_RETURN_KIND           = 0x2000,
+    DECODE_HAS_TAILCALLS         = 0x4000
 };
 
 enum GcInfoHeaderFlags
@@ -220,9 +221,11 @@ enum GcInfoHeaderFlags
     GC_INFO_WANTS_REPORT_ONLY_LEAF      = 0x80,
     GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS = 0x100,
     GC_INFO_REVERSE_PINVOKE_FRAME = 0x200,
+    GC_INFO_HAS_TAILCALLS = 0x400,
 
     GC_INFO_FLAGS_BIT_SIZE_VERSION_1    = 9,
-    GC_INFO_FLAGS_BIT_SIZE              = 10,
+    GC_INFO_FLAGS_BIT_SIZE_VERSION_2    = 10,
+    GC_INFO_FLAGS_BIT_SIZE              = 11,
 };
 
 class BitStreamReader
@@ -520,6 +523,7 @@ public:
     bool    HasMethodTableGenericsInstContext();
     bool    GetIsVarArg();
     bool    WantsReportOnlyLeaf();
+    bool    HasTailCalls();
     ReturnKind GetReturnKind();
     UINT32  GetCodeLength();
     UINT32  GetStackBaseRegister();
@@ -538,6 +542,7 @@ private:
     // Pre-decoded information
     bool    m_IsInterruptible;
     bool    m_IsVarArg;
+    bool    m_HasTailCalls;
     bool    m_GenericSecretParamIsMD;
     bool    m_GenericSecretParamIsMT;
     bool    m_WantsReportOnlyLeaf;

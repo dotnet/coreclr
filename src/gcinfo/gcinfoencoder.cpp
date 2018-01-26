@@ -488,6 +488,7 @@ GcInfoEncoder::GcInfoEncoder(
     m_SizeOfEditAndContinuePreservedArea = NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA;
     m_ReversePInvokeFrameSlot = NO_REVERSE_PINVOKE_FRAME;
     m_WantsReportOnlyLeaf = false;
+    m_HasTailCalls = false;
     m_IsVarArg = false;
     m_pLastInterruptibleRange = NULL;
     
@@ -757,6 +758,11 @@ void GcInfoEncoder::SetWantsReportOnlyLeaf()
     m_WantsReportOnlyLeaf = true;
 }
 
+void GcInfoEncoder::SetHasTailCalls()
+{
+    m_HasTailCalls = true;
+}
+
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
 void GcInfoEncoder::SetSizeOfStackOutgoingAndScratchArea( UINT32 size )
 {
@@ -1013,7 +1019,7 @@ void GcInfoEncoder::Build()
         !hasContextParamType && !m_WantsReportOnlyLeaf && (m_InterruptibleRanges.Count() == 0) && !hasReversePInvokeFrame &&
         ((m_StackBaseRegister == NO_STACK_BASE_REGISTER) || (NORMALIZE_STACK_BASE_REGISTER(m_StackBaseRegister) == 0))) &&
         (m_SizeOfEditAndContinuePreservedArea == NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) && 
-        !IsStructReturnKind(m_ReturnKind);
+        !IsStructReturnKind(m_ReturnKind) && !m_HasTailCalls;
 
     // All new code is generated for the latest GCINFO_VERSION.
     // So, always encode RetunrKind and encode ReversePInvokeFrameSlot where applicable.
@@ -1037,6 +1043,7 @@ void GcInfoEncoder::Build()
         GCINFO_WRITE(m_Info1, (m_WantsReportOnlyLeaf ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, ((m_SizeOfEditAndContinuePreservedArea != NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, (hasReversePInvokeFrame ? 1 : 0), 1, FlagsSize);
+        GCINFO_WRITE(m_Info1, (m_HasTailCalls ? 1 : 0), 1, FlagsSize);
 
         GCINFO_WRITE(m_Info1, m_ReturnKind, SIZE_OF_RETURN_KIND_IN_FAT_HEADER, RetKindSize);
     }

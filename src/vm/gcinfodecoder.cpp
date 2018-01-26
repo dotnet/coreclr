@@ -113,7 +113,19 @@ GcInfoDecoder::GcInfoDecoder(
     }
     else
     {
-        int numFlagBits = (m_Version == 1) ? GC_INFO_FLAGS_BIT_SIZE_VERSION_1 : GC_INFO_FLAGS_BIT_SIZE;
+        int numFlagBits;
+        switch (m_Version)
+        {
+            case 1:
+                numFlagBits = GC_INFO_FLAGS_BIT_SIZE_VERSION_1;
+                break;
+            case 2:
+                numFlagBits = GC_INFO_FLAGS_BIT_SIZE_VERSION_2;
+                break;
+            default:
+                numFlagBits = GC_INFO_FLAGS_BIT_SIZE;
+                break;
+        }
         headerFlags = (GcInfoHeaderFlags) m_Reader.Read(numFlagBits);
     }
 
@@ -126,6 +138,7 @@ GcInfoDecoder::GcInfoDecoder(
     m_GenericSecretParamIsMT   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MT;
     int hasStackBaseRegister   = headerFlags & GC_INFO_HAS_STACK_BASE_REGISTER;
     m_WantsReportOnlyLeaf      = ((headerFlags & GC_INFO_WANTS_REPORT_ONLY_LEAF) != 0);
+    m_HasTailCalls             = ((headerFlags & GC_INFO_HAS_TAILCALLS) != 0);
     int hasSizeOfEditAndContinuePreservedArea = headerFlags & GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS;
     
     int hasReversePInvokeFrame = false;
@@ -344,6 +357,12 @@ bool GcInfoDecoder::IsInterruptible()
 {
     _ASSERTE( m_Flags & DECODE_INTERRUPTIBILITY );
     return m_IsInterruptible;
+}
+
+bool GcInfoDecoder::HasTailCalls()
+{
+    _ASSERTE( m_Flags & DECODE_HAS_TAILCALLS );
+    return m_HasTailCalls;
 }
 
 bool GcInfoDecoder::HasMethodDescGenericsInstContext()

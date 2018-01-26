@@ -6109,6 +6109,7 @@ struct ExecutionState
     IJitManager    *m_pJitManager;
     METHODTOKEN     m_MethodToken;
     BOOL            m_IsInterruptible;  // is this code interruptible?
+    BOOL            m_HasTailCalls;     // does this code perform tail calls?
 
     ExecutionState() : m_FirstPass(TRUE) {LIMITED_METHOD_CONTRACT;  }
 };
@@ -6229,6 +6230,7 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
             pES->m_IsInterruptible = pCF->IsGcSafe();
             pES->m_RelOffset = pCF->GetRelOffset();
             pES->m_pJitManager = pCF->GetJitManager();
+            pES->m_HasTailCalls = pCF->HasTailCalls();
 
             STRESS_LOG3(LF_SYNC, LL_INFO1000, "Stopped in Jitted code at pc = %p sp = %p fullyInt=%d\n",
                 GetControlPC(pCF->GetRegisterSet()), GetRegdisplaySP(pCF->GetRegisterSet()), pES->m_IsInterruptible);
@@ -6302,6 +6304,19 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                             // For (1) we can use CallerContext->ControlPC to be used as the return address
                             // since we know that leaf frames will return back to their caller.
                             // For this, we may need JIT support to do so.
+                            notJittedCase = true;
+                        }
+                        else if (pES->m_HasTailCalls)
+                        {
+                            // Do not hijack functions that have tail calls, since there are two problems:
+                            // 1. When a function that tail calls another one is hijacked, the LR may be
+                            //    stored at a different location in the stack frame of the tail call target.
+                            //    So just by performing tail call, the hijacked location becomes invalid and
+                            //    unhijacking would corrupt stack by writing to that location.
+                            // 2. There is a small window after the caller pops LR from the stack in its
+                            //    epilog and before the tail called function pushes LR in its prolog when
+                            //    the hijacked return address would not be not on the stack and so we would
+                            //    not be able to unhijack.
                             notJittedCase = true;
                         }
                         else

@@ -18969,6 +18969,14 @@ void Compiler::fgSetBlockOrder()
             // JIT64 does.
             genInterruptible = true;
         }
+
+        GenTreePtr tailCall                 = nullptr;
+        bool fastTailCallsOnly              = true;
+        bool tailCallsConvertibleToLoopOnly = false;        
+        if (!hasTailCalls && block->endsWithTailCall(this, fastTailCallsOnly, tailCallsConvertibleToLoopOnly, &tailCall))
+        {
+            hasTailCalls = true;
+        }
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL
 

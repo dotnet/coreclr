@@ -434,7 +434,8 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
                                     : GetRegName(hdrdecoder.GetStackBaseRegister()));
 
     gcPrintf("Wants Report Only Leaf: %u\n", hdrdecoder.WantsReportOnlyLeaf());
-    
+    gcPrintf("Has tailcalls: %u\n", hdrdecoder.HasTailCalls());
+        
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     gcPrintf("Size of parameter area: %x\n", hdrdecoder.GetSizeOfStackParameterArea());
 #endif

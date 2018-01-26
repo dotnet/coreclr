@@ -310,6 +310,7 @@ public:
      */
     bool IsGcSafe();
 
+    bool HasTailCalls();
 
     PREGDISPLAY GetRegisterSet()
     {

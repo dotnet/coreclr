@@ -3917,6 +3917,15 @@ public:
         }
     }
 
+    void SetHasTailCalls()
+    {
+        m_gcInfoEncoder->SetHasTailCalls();
+        if (m_doLogging)
+        {
+            printf("Set HasTailCalls.\n");
+        }
+    }
+
     void SetSizeOfStackOutgoingAndScratchArea(UINT32 size)
     {
         m_gcInfoEncoder->SetSizeOfStackOutgoingAndScratchArea(size);
@@ -4057,6 +4066,11 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
     }
 #endif // FEATURE_EH_FUNCLETS
 
+    if (compiler->codeGen->hasTailCalls)
+    {
+        gcInfoEncoderWithLog->SetHasTailCalls();
+    }
+    
 #if FEATURE_FIXED_OUT_ARGS
     // outgoing stack area size
     gcInfoEncoderWithLog->SetSizeOfStackOutgoingAndScratchArea(compiler->lvaOutgoingArgSpaceSize);

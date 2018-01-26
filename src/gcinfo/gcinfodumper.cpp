@@ -650,7 +650,8 @@ PORTABILITY_ASSERT("GcInfoDumper::EnumerateStateChanges is not implemented on th
                                (GcInfoDecoderFlags)(  DECODE_SECURITY_OBJECT
                                                     | DECODE_CODE_LENGTH
                                                     | DECODE_VARARG
-                                                    | DECODE_INTERRUPTIBILITY),
+                                                    | DECODE_INTERRUPTIBILITY
+                                                    | DECODE_HAS_TAILCALLS),
                                offset);
 
         fNewInterruptible = decoder1.IsInterruptible();

@@ -1451,6 +1451,23 @@ bool EECodeManager::IsGcSafe( EECodeInfo     *pCodeInfo,
     return gcInfoDecoder.IsInterruptible();
 }
 
+bool EECodeManager::HasTailCalls( EECodeInfo     *pCodeInfo)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+
+    GcInfoDecoder gcInfoDecoder(
+            gcInfoToken,
+            DECODE_HAS_TAILCALLS,
+            0
+            );
+
+    return gcInfoDecoder.HasTailCalls();
+}
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 

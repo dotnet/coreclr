@@ -441,6 +441,8 @@ public:
     // Called only by RyuJIT (not JIT64)
     void SetWantsReportOnlyLeaf();
 
+    void SetHasTailCalls();
+
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     void SetSizeOfStackOutgoingAndScratchArea( UINT32 size );
 #endif // FIXED_STACK_PARAMETER_SCRATCH_AREA
@@ -491,6 +493,7 @@ private:
     GcInfoArrayList<LifetimeTransition, 64> m_LifetimeTransitions;
 
     bool   m_IsVarArg;
+    bool   m_HasTailCalls;
     bool   m_WantsReportOnlyLeaf;
     INT32  m_SecurityObjectStackSlot;
     INT32  m_GSCookieStackSlot;
