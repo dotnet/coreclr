@@ -268,12 +268,6 @@ void EventPipe::Enable(
         return;
     }
 
-    // If the state or aurguments are invalid, bail
-    if(pProviders == NULL || numProviders <= 0)
-    {
-        return;
-    }
-
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
 

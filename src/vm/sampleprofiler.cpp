@@ -256,7 +256,7 @@ void SampleProfiler::PlatformSleep(unsigned long nanoseconds)
 #ifdef FEATURE_PAL
     PAL_nanosleep(nanoseconds);
 #else //FEATURE_PAL
-    ClrSleepEx(s_samplingRateInNs / 1 MILLION, FALSE);
+    ClrSleepEx(s_samplingRateInNs / (1 MILLION), FALSE);
 #endif //FEATURE_PAL
 }
 
@@ -278,7 +278,7 @@ void SampleProfiler::SetTimeGranularity()
     // the OS is on-CPU, decreasing overall system performance and increasing power consumption
     if(s_timeBeginPeriodFn != NULL)
     {
-        if(((TimePeriodFnPtr) s_timeBeginPeriodFn)(s_samplingRateInNs / 1 MILLION) == TIMERR_NOERROR)
+        if(((TimePeriodFnPtr) s_timeBeginPeriodFn)(s_samplingRateInNs / (1 MILLION)) == TIMERR_NOERROR)
         {
             s_timePeriodIsSet = TRUE;
         }
