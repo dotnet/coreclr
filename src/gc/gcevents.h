@@ -6,7 +6,7 @@
 #endif // KNOWN_EVENT
 
 #ifndef DYNAMIC_EVENT
- #define DYNAMIC_EVENT(name, provider, level, keyword, ...)
+ #define DYNAMIC_EVENT(name, level, keyword, ...)
 #endif // DYNAMIC_EVENT
 
 KNOWN_EVENT(SetGCHandle, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GCHandle)

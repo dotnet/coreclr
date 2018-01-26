@@ -424,6 +424,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       if (${__ASAN_POS} GREATER -1)
         set(CLR_SANITIZE_CXX_FLAGS "${CLR_SANITIZE_CXX_FLAGS}address,")
         set(CLR_SANITIZE_LINK_FLAGS "${CLR_SANITIZE_LINK_FLAGS}address,")
+        add_definitions(-DHAS_ASAN)
         message("Address Sanitizer (asan) enabled")
       endif ()
       if (${__UBSAN_POS} GREATER -1)
@@ -587,6 +588,13 @@ if(WIN32)
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
 
+#------------------------------
+# Add Test Directory
+#------------------------------
+if(CLR_CMAKE_BUILD_TESTS)
+  add_subdirectory(tests)
+endif(CLR_CMAKE_BUILD_TESTS)
+
 #--------------------------------
 # Definition directives
 #  - all clr specific compile definitions should be included in this file
@@ -620,17 +628,5 @@ set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR
 # Add Product Directory
 #------------------------------
 add_subdirectory(src)
-
-#------------------------------
-# Add Test Directory
-#------------------------------
-if(CLR_CMAKE_BUILD_TESTS)
-  # remove some definitions for test build
-  remove_definitions(-D_SECURE_SCL=0)
-  remove_definitions(-DUNICODE)
-  remove_definitions(-D_UNICODE)
-
-  add_subdirectory(tests)
-endif(CLR_CMAKE_BUILD_TESTS)
 
 include(definitionsconsistencycheck.cmake)
