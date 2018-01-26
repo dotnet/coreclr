@@ -664,10 +664,10 @@ MCPY06:
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -16));
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -8)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -8));
 #else
-            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -16) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -16));
-            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -12) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -12));
-            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -8) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -8));
-            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -4) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -4));
+            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -16));
+            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -12)) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -12));
+            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -8)) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -8));
+            Unsafe.As<byte, int>(ref Unsafe.Add(ref destEnd, -4)) = Unsafe.As<byte, int>(ref Unsafe.Add(ref srcEnd, -4));
 #endif
             return;
 
