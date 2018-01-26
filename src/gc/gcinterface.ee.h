@@ -82,6 +82,8 @@ public:
         uint32_t memoryPressure) = 0;
 
     virtual
+    void FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind) = 0;
+    virtual
     void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress) = 0;
 };
 

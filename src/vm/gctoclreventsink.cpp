@@ -136,6 +136,13 @@ void GCToCLREventSink::FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
         globalMechanisms, GetClrInstanceId(), pauseMode, memoryPressure);
 }
 
+void GCToCLREventSink::FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCAllocationTick_V1(allocationAmount, allocationKind, GetClrInstanceId());
+}
+
 void GCToCLREventSink::FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress)
 {
     LIMITED_METHOD_CONTRACT;

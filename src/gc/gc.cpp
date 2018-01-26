@@ -13225,9 +13225,8 @@ int gc_heap::try_allocate_more_space (alloc_context* acontext, size_t size,
         if (etw_allocation_running_amount[etw_allocation_index] > etw_allocation_tick)
         {
 #ifdef FEATURE_REDHAWK
-            FireEtwGCAllocationTick_V1((uint32_t)etw_allocation_running_amount[etw_allocation_index], 
-                                    ((gen_number == 0) ? ETW::GCLog::ETW_GC_INFO::AllocationSmall : ETW::GCLog::ETW_GC_INFO::AllocationLarge), 
-                                    GetClrInstanceId());
+            FIRE_EVENT(GCAllocationTick_V1, (uint32_t)etw_allocation_running_amount[etw_allocation_index],
+                                            (gen_number == 0) ? gc_etw_alloc_soh : gc_etw_alloc_loh);
 #else
             // Unfortunately some of the ETW macros do not check whether the ETW feature is enabled.
             // The ones that do are much less efficient.
