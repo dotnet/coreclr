@@ -120,3 +120,19 @@ void GCToCLREventSink::FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t 
 
     FireEtwGCJoin_V2(heap, joinTime, joinType, GetClrInstanceId(), joinId);
 }
+
+void GCToCLREventSink::FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
+        int32_t numHeaps,
+        uint32_t condemnedGeneration,
+        uint32_t gen0reductionCount,
+        uint32_t reason,
+        uint32_t globalMechanisms,
+        uint32_t pauseMode,
+        uint32_t memoryPressure)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FireEtwGCGlobalHeapHistory_V2(finalYoungestDesired, numHeaps, condemnedGeneration, gen0reductionCount, reason,
+        globalMechanisms, GetClrInstanceId(), pauseMode, memoryPressure);
+}
+

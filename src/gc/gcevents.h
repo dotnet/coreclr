@@ -20,6 +20,7 @@ KNOWN_EVENT(GCTerminateConcurrentThread_V1, GCEventProvider_Default, GCEventLeve
 KNOWN_EVENT(GCTriggered, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 KNOWN_EVENT(GCMarkWithType, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 KNOWN_EVENT(GCJoin_V2, GCEventProvider_Default, GCEventLevel_Verbose, GCEventKeyword_GC)
+KNOWN_EVENT(GCGlobalHeapHistory_V2, GCEventProvider_Default, GCEventLevel_Information, GCEventKeyword_GC)
 
 #undef KNOWN_EVENT
 #undef DYNAMIC_EVENT

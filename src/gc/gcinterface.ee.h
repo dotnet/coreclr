@@ -70,6 +70,16 @@ public:
 
     virtual
     void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId) = 0;
+
+    virtual
+    void FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
+        int32_t numHeaps,
+        uint32_t condemnedGeneration,
+        uint32_t gen0reductionCount,
+        uint32_t reason,
+        uint32_t globalMechanisms,
+        uint32_t pauseMode,
+        uint32_t memoryPressure) = 0;
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

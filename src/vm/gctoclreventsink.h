@@ -35,6 +35,15 @@ public:
     void FireGCTriggered(uint32_t reason);
     void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes);
     void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId);
+    void FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
+        int32_t numHeaps,
+        uint32_t condemnedGeneration,
+        uint32_t gen0reductionCount,
+        uint32_t reason,
+        uint32_t globalMechanisms,
+        uint32_t pauseMode,
+        uint32_t memoryPressure);
+
 };
 
 extern GCToCLREventSink g_gcToClrEventSink;
