@@ -124,6 +124,8 @@ void EventPipeFile::WriteEnd()
 
     m_pSerializer->WriteObject(m_pBlock); // we write current block to the disk, whether it's full or not
 
+    m_pBlock->Clear();
+
     // "After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read."
     m_pSerializer->WriteTag(FastSerializerTags::NullReference); 
 }
