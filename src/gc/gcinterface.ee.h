@@ -83,8 +83,13 @@ public:
 
     virtual
     void FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind) = 0;
+
     virtual
     void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress) = 0;
+
+    virtual
+    void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
+
 };
 
 // This interface provides the interface that the GC will use to speak to the rest

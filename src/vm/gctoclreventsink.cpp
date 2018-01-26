@@ -177,5 +177,32 @@ void GCToCLREventSink::FireGCAllocationTick_V3(uint64_t allocationAmount, uint32
     }
 }
 
+void GCToCLREventSink::FirePinObjectAtGCTime(void* object, uint8_t** ppObject)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Object* obj = (Object*)object;
+
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName; 
+
+    EX_TRY
+    {
+        FAULT_NOT_FATAL();
+
+        TypeHandle th = obj->GetGCSafeTypeHandleIfPossible();
+        if(th != NULL)
+        {
+            th.GetName(strTypeName);
+        }
+
+        FireEtwPinObjectAtGCTime(ppObject,
+                             object,
+                             obj->GetSize(),
+                             strTypeName.GetUnicode(),
+                             GetClrInstanceId());
+    }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
+}
 
 
