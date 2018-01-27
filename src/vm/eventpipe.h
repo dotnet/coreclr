@@ -384,6 +384,10 @@ public:
     static void QCALLTYPE DeleteProvider(
         INT_PTR provHandle);
 
+    static void QCALLTYPE EventActivityIdControl(
+        uint controlCode,
+        GUID *pActivityId);
+
     static void QCALLTYPE WriteEvent(
         INT_PTR eventHandle,
         UINT32 eventID,

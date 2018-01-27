@@ -962,6 +962,18 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
     END_QCALL;
 }
 
+void QCALLTYPE EventPipeInternal::EventActivityIdControl(
+    uint controlCode,
+    GUID *pActivityId)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    memset(pActivityId, 1, sizeof(GUID));
+
+    END_QCALL;
+}
+
 void QCALLTYPE EventPipeInternal::WriteEvent(
     INT_PTR eventHandle,
     UINT32 eventID,
