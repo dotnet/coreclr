@@ -481,16 +481,15 @@ namespace System
             const nuint CopyThreshold = 512;
 #endif // AMD64 || (BIT32 && !ARM)
 
+            // P/Invoke into the native version when the buffers are overlapping.            
 
-            // P/Invoke into the native version when the buffers are overlapping.
-            
             if (((nuint)Unsafe.ByteOffset(ref src.Value, ref dest.Value) < len) || ((nuint)Unsafe.ByteOffset(ref dest.Value, ref src.Value) < len))
             {
                 goto BuffersOverlap;
             }
 
-
             // Use "(IntPtr)(nint)len" to avoid overflow checking on the explicit cast to IntPtr
+
             ref byte srcEnd = ref Unsafe.Add(ref src.Value, (IntPtr)(nint)len);
             ref byte destEnd = ref Unsafe.Add(ref dest.Value, (IntPtr)(nint)len);
 
