@@ -411,7 +411,7 @@ void EventPipeConfiguration::EnableRundown()
     Enable(1 /* circularBufferSizeInMB */, rundownProviders, numRundownProviders);
 }
 
-EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance)
+EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metadataId)
 {
     CONTRACTL
     {
@@ -422,20 +422,17 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     CONTRACTL_END;
 
     // The payload of the event should contain:
+    // - Metadata ID
     // - GUID ProviderID.
-    // - unsigned int EventID.
-    // - unsigned int EventVersion.
     // - Optional event description payload.
 
     // Calculate the size of the event.
     EventPipeEvent &sourceEvent = *sourceInstance.GetEvent();
     const SString &providerName = sourceEvent.GetProvider()->GetProviderName();
-    unsigned int eventID = sourceEvent.GetEventID();
-    unsigned int eventVersion = sourceEvent.GetEventVersion();
     BYTE *pPayloadData = sourceEvent.GetMetadata();
     unsigned int payloadLength = sourceEvent.GetMetadataLength();
     unsigned int providerNameLength = (providerName.GetCount() + 1) * sizeof(WCHAR);
-    unsigned int instancePayloadSize = providerNameLength + sizeof(eventID) + sizeof(eventVersion) + sizeof(payloadLength) + payloadLength;
+    unsigned int instancePayloadSize = sizeof(metadataId) + providerNameLength + sizeof(payloadLength) + payloadLength;
 
     // Allocate the payload.
     BYTE *pInstancePayload = new BYTE[instancePayloadSize];
@@ -443,17 +440,11 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // Fill the buffer with the payload.
     BYTE *currentPtr = pInstancePayload;
 
-    // Write the provider ID.
+    memcpy(currentPtr, &metadataId, sizeof(metadataId));
+    currentPtr += sizeof(metadataId);
+
     memcpy(currentPtr, (BYTE*)providerName.GetUnicode(), providerNameLength);
     currentPtr += providerNameLength;
-
-    // Write the event name as null-terminated unicode.
-    memcpy(currentPtr, &eventID, sizeof(eventID));
-    currentPtr += sizeof(eventID);
-
-    // Write the event version.
-    memcpy(currentPtr, &eventVersion, sizeof(eventVersion));
-    currentPtr += sizeof(eventVersion);
 
     // Write the size of the metadata.
     memcpy(currentPtr, &payloadLength, sizeof(payloadLength));

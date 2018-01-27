@@ -98,9 +98,10 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
     unsigned int metadataId = GetMetadataId(*instance.GetEvent());
     if(metadataId == 0)
     {
-        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance);
-
         metadataId = GenerateMetadataId();
+
+        EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
+        
         Handle(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
         SaveMetadataId(*instance.GetEvent(), metadataId);
