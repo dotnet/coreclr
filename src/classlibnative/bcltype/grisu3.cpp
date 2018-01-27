@@ -12,7 +12,7 @@
 #include <math.h>
 
 // 1/lg(10)
-const double Grisu3::D_1_LOG2_10 = 0.30102999566398114;
+const double Grisu3::D_1_LOG2_10 = 0.30102999566398120;
 
 constexpr UINT32 Grisu3::m_cachedPowerOfTen[CACHED_POWER_OF_TEN_NUM]; 
 constexpr PowerOfTen Grisu3::m_cachedPowers[CACHED_POWER_NUM];
@@ -23,7 +23,7 @@ bool Grisu3::Run(double value, int count, int* dec, int* sign, wchar_t* digits)
     // This implementation is based on the paper: http://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf
     // You must read this paper to fully understand the code.
     //
-    // Note: Instead of generating shortest digits, we generate the digits according to the input count.
+    // Deviation: Instead of generating shortest digits, we generate the digits according to the input count.
     // Therefore, we do not need m+ and m- which are used to determine the exact range of values.
     // ======================================================================================================================================== 
     //
@@ -166,6 +166,11 @@ bool Grisu3::DigitGen(const DiyFp& mp, int count, wchar_t* buffer, int* len, int
     UINT32 p1 = static_cast<UINT32>(mp.f() >> -one.e());
     UINT64 p2 = mp.f() & (one.f() - 1);
 
+    // When p2 (fractional part) is zero, we can predicate if p1 is good to produce the numbers in requested digit count:
+    //
+    // - When requested digit count >= 11, p1 is not be able to exhaust the count as 10^(11 - 1) > UINT32_MAX >= p1.
+    // - When p1 < 10^(count - 1), p1 is not be able to exhaust the count.
+    // - Otherwise, p1 may have chance to exhaust the count.
     if (p2 == 0 && (count >= 11 || p1 < m_cachedPowerOfTen[count - 1]))
     {
         return false;
