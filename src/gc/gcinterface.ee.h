@@ -90,6 +90,7 @@ public:
     virtual
     void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
 
+    virtual
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
                                  void *endOfSegAllocated,
