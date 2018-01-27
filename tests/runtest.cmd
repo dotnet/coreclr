@@ -1,6 +1,8 @@
 @if not defined _echo @echo off
 setlocal EnableDelayedExpansion
 
+set COMPlus_EXPERIMENTAL_TieredCompilation=1
+
 :: Set the default arguments
 set __BuildArch=x64
 set __BuildType=Debug
