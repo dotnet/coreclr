@@ -1737,6 +1737,9 @@
         <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource**">
             <Issue>15494</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventactivityidcontrol\eventactivityidcontrol\eventactivityidcontrol.cmd">
+            <Issue>15494</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Failures while testing via ILLINK -->

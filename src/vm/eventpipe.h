@@ -394,7 +394,7 @@ public:
     static void QCALLTYPE DeleteProvider(
         INT_PTR provHandle);
 
-    static ULONG QCALLTYPE EventActivityIdControl(
+    static int QCALLTYPE EventActivityIdControl(
         uint controlCode,
         GUID *pActivityId);
 

@@ -968,14 +968,14 @@ void QCALLTYPE EventPipeInternal::DeleteProvider(
     END_QCALL;
 }
 
-ULONG QCALLTYPE EventPipeInternal::EventActivityIdControl(
+int QCALLTYPE EventPipeInternal::EventActivityIdControl(
     uint controlCode,
     GUID *pActivityId)
 {
 
     QCALL_CONTRACT;
 
-    ULONG retVal = 0;
+    int retVal = 0;
 
     BEGIN_QCALL;
 
@@ -1022,7 +1022,6 @@ ULONG QCALLTYPE EventPipeInternal::EventActivityIdControl(
                 break;
 
             default:
-                _ASSERTE(FALSE);
                 retVal = 1;
         };
     }
