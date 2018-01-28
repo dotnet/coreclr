@@ -23,7 +23,7 @@ namespace System.Buffers
         }
 
         // The ArrayPoolEventSource GUID is {0866b2b8-5cef-5db9-2612-0c0ffd814a44}
-        private ArrayPoolEventSource() : base(new Guid(0x0866b2b8, 0x5cef, 0x5db9, 0x26, 0x12, 0x0c, 0x0f, 0xfd, 0x81, 0x4a, 0x44), "System.Buffers.ArrayPoolEventSourc") { }
+        private ArrayPoolEventSource() : base(new Guid(0x0866b2b8, 0x5cef, 0x5db9, 0x26, 0x12, 0x0c, 0x0f, 0xfd, 0x81, 0x4a, 0x44), "System.Buffers.ArrayPoolEventSource") { }
 
         /// <summary>
         /// Event for when a buffer is rented.  This is invoked once for every successful call to Rent,
