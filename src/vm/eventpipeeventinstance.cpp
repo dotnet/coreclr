@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "eventpipeconfiguration.h"
 #include "eventpipeeventinstance.h"
 #include "eventpipejsonfile.h"
 #include "fastserializer.h"
@@ -11,6 +12,7 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeEventInstance::EventPipeEventInstance(
+    EventPipeEventSession &session,
     EventPipeEvent &event,
     DWORD threadID,
     BYTE *pData,
@@ -53,7 +55,7 @@ EventPipeEventInstance::EventPipeEventInstance(
     m_dataLength = length;
     QueryPerformanceCounter(&m_timeStamp);
 
-    if(event.NeedStack())
+    if(event.NeedStack() && !session.RundownEnabled())
     {
         EventPipe::WalkManagedStackForCurrentThread(m_stackContents);
     }

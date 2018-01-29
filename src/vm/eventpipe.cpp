@@ -521,6 +521,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        PRECONDITION(s_pSession != NULL);
     }
     CONTRACTL_END;
 
@@ -546,7 +547,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
 
     if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
     {
-        if(!s_pBufferManager->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId))
+        if(!s_pBufferManager->WriteEvent(pThread, *s_pSession, event, payload, pActivityId, pRelatedActivityId))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
             return;
@@ -564,6 +565,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             // B) It is unclear there is a benefit to multiple file write calls
             //    as opposed a a buffer copy here
             EventPipeEventInstance instance(
+                *s_pSession,
                 event,
                 pThread->GetOSThreadId(),
                 pData,
