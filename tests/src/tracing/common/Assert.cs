@@ -16,7 +16,7 @@ namespace Tracing.Tests.Common
                 throw new Exception(
                     string.Format("Values are not equal!  Left='{0}' Right=NULL", left));
             }
-            else (!left.Equals(right))
+            else if (!left.Equals(right))
             {
                 throw new Exception(
                     string.Format("Values are not equal! Left='{0}' Right='{1}'", left, right));
@@ -25,7 +25,7 @@ namespace Tracing.Tests.Common
 
         public static void NotEqual<T>(T left, T right) where T : IEquatable<T>
         {
-            if (left == right && left == NULL)
+            if (left == null && right == null)
             {
                 throw new Exception(
                     "Values are equal! Left=NULL Right=NULL");
