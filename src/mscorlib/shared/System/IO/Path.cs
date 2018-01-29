@@ -134,7 +134,11 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            return new string(GetFileName(path.AsReadOnlySpan()));
+            ReadOnlySpan<char> result = GetFileName(path.AsReadOnlySpan());
+            if (path.AsReadOnlySpan() == result)
+                return path;
+
+            return new string(result);
         }
 
         public static ReadOnlySpan<char> GetFileName(ReadOnlySpan<char> path)
