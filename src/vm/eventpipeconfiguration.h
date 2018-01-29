@@ -6,7 +6,6 @@
 
 #ifdef FEATURE_PERFTRACING
 
-#include "eventpipe.h"
 #include "slist.h"
 
 class EventPipeEnabledProvider;
@@ -35,12 +34,6 @@ public:
 
     // Perform initialization that cannot be performed in the constructor.
     void Initialize();
-
-    // Create a new provider.
-    EventPipeProvider* CreateProvider(const GUID &providerID, EventPipeCallback pCallbackFunction, void *pCallbackData);
-
-    // Delete a provider.
-    void DeleteProvider(EventPipeProvider *pProvider);
 
     // Register a provider.
     bool RegisterProvider(EventPipeProvider &provider);
