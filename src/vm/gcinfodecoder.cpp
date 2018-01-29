@@ -127,7 +127,7 @@ GcInfoDecoder::GcInfoDecoder(
     int hasStackBaseRegister   = headerFlags & GC_INFO_HAS_STACK_BASE_REGISTER;
 #ifdef _TARGET_AMD64_
     m_WantsReportOnlyLeaf      = ((headerFlags & GC_INFO_WANTS_REPORT_ONLY_LEAF) != 0);
-#else // _TARGET_AMD64_
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     m_HasTailCalls             = ((headerFlags & GC_INFO_HAS_TAILCALLS) != 0);
 #endif // _TARGET_AMD64_
     int hasSizeOfEditAndContinuePreservedArea = headerFlags & GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS;

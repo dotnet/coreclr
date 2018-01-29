@@ -222,7 +222,7 @@ enum GcInfoHeaderFlags
     GC_INFO_HAS_STACK_BASE_REGISTER     = 0x40,
 #ifdef _TARGET_AMD64_
     GC_INFO_WANTS_REPORT_ONLY_LEAF      = 0x80,
-#else // _TARGET_AMD64_
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     GC_INFO_HAS_TAILCALLS               = 0x80,
 #endif // _TARGET_AMD64_
     GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS = 0x100,
@@ -552,7 +552,7 @@ private:
     bool    m_GenericSecretParamIsMT;
 #ifdef _TARGET_AMD64_
     bool    m_WantsReportOnlyLeaf;
-#else // _TARGET_AMD64_
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     bool    m_HasTailCalls;
 #endif // _TARGET_AMD64_
     INT32   m_SecurityObjectStackSlot;

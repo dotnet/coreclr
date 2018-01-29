@@ -435,7 +435,7 @@ size_t      GCDump::DumpGCTable(PTR_CBYTE      gcInfoBlock,
 
 #ifdef _TARGET_AMD64_
     gcPrintf("Wants Report Only Leaf: %u\n", hdrdecoder.WantsReportOnlyLeaf());
-#else // _TARGET_AMD64_
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     gcPrintf("Has tailcalls: %u\n", hdrdecoder.HasTailCalls());
 #endif // _TARGET_AMD64_
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA

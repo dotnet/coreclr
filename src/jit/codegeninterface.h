@@ -417,7 +417,7 @@ public:
     void setHasTailCalls(bool value)
     {
         m_cgHasTailCalls = value;
-    }    
+    }
 #endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 private:
