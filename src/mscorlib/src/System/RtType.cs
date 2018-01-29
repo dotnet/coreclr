@@ -580,25 +580,24 @@ namespace System
 
                             #region Loop through all methods on the interface
                             Debug.Assert(!methodHandle.IsNullHandle());
-                            // Except for .ctor, .cctor, IL_STUB*, and static methods, all interface methods should be abstract, virtual, and non-RTSpecialName.
-                            // Note that this assumption will become invalid when we add support for non-abstract or static methods on interfaces.
+
+                            MethodAttributes methodAttributes = RuntimeMethodHandle.GetAttributes(methodHandle);
+
+                            #region Continue if this is a constructor
                             Debug.Assert(
-                                (RuntimeMethodHandle.GetAttributes(methodHandle) & (MethodAttributes.RTSpecialName | MethodAttributes.Abstract | MethodAttributes.Virtual)) == (MethodAttributes.Abstract | MethodAttributes.Virtual) ||
-                                (RuntimeMethodHandle.GetAttributes(methodHandle) & MethodAttributes.Static) == MethodAttributes.Static ||
-                                RuntimeMethodHandle.GetName(methodHandle).Equals(".ctor") ||
-                                RuntimeMethodHandle.GetName(methodHandle).Equals(".cctor") ||
-                                RuntimeMethodHandle.GetName(methodHandle).StartsWith("IL_STUB", StringComparison.Ordinal));
+                                (RuntimeMethodHandle.GetAttributes(methodHandle) & MethodAttributes.RTSpecialName) == 0 ||
+                                RuntimeMethodHandle.GetName(methodHandle).Equals(".cctor"));
+
+                            if ((methodAttributes & MethodAttributes.RTSpecialName) != 0)
+                                continue;
+                            #endregion
 
                             #region Calculate Binding Flags
-                            MethodAttributes methodAttributes = RuntimeMethodHandle.GetAttributes(methodHandle);
                             bool isPublic = (methodAttributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public;
                             bool isStatic = (methodAttributes & MethodAttributes.Static) != 0;
                             bool isInherited = false;
                             BindingFlags bindingFlags = RuntimeType.FilterPreCalculate(isPublic, isInherited, isStatic);
                             #endregion
-
-                            if ((methodAttributes & MethodAttributes.RTSpecialName) != 0)
-                                continue;
 
                             // get the unboxing stub or instantiating stub if needed
                             RuntimeMethodHandleInternal instantiatedHandle = RuntimeMethodHandle.GetStubIfNeeded(methodHandle, declaringType, null);
