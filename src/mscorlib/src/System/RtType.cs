@@ -2749,7 +2749,8 @@ namespace System
                 // If the impl is null, then virtual stub dispatch is active.
                 RuntimeMethodHandleInternal classRtMethodHandle = GetTypeHandleInternal().GetInterfaceMethodImplementation(ifaceRtTypeHandle, ifaceRtMethodHandle);
 
-                if (classRtMethodHandle.IsNullHandle()) continue;
+                if (classRtMethodHandle.IsNullHandle())
+                    continue;
 
                 // If we resolved to an interface method, use the interface type as reflected type. Otherwise use `this`.
                 RuntimeType reflectedType = RuntimeMethodHandle.GetDeclaringType(classRtMethodHandle);
