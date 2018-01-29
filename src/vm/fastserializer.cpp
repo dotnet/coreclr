@@ -7,8 +7,8 @@
 
 #ifdef FEATURE_PERFTRACING
 
-// Event Pipe has previously used mechanism called "forward references"
-// As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed (https://github.com/dotnet/coreclr/pull/15871)
+// Event Pipe has previously implemented a feature called "forward references"
+// As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed
 // if you need it, please use git to restore it
 
 FastSerializer::FastSerializer(SString &outputFilePath)
@@ -31,7 +31,6 @@ FastSerializer::FastSerializer(SString &outputFilePath)
         return;
     }
 
-    // Write the file header.
     WriteFileHeader();
 }
 
@@ -61,26 +60,30 @@ StreamLabel FastSerializer::GetStreamLabel() const
 
 void FastSerializer::WriteObject(FastSerializableObject *pObject)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pObject != NULL);
+        PRECONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
+        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    // Write a BeginObject tag.
     WriteTag(FastSerializerTags::BeginObject);
 
-    // Write object begin tag.
     WriteSerializationType(pObject);
 
     // Ask the object to serialize itself using the current serializer.
     pObject->FastSerialize(this);
 
-    // Write object end tag.
+    while ((m_currentPos + sizeof(FastSerializerTags::EndObject)) % ALIGNMENT_SIZE != 0)
+        WriteTag(FastSerializerTags::Padding);
+
     WriteTag(FastSerializerTags::EndObject);
+
+    RETURN;
 }
 
 void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
@@ -129,14 +132,15 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
 
 void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         PRECONDITION(pObject != NULL);
+        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Write the BeginObject tag.
     WriteTag(FastSerializerTags::BeginObject);
@@ -153,10 +157,29 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     // Write the SerializationType TypeName field.
     const char *strTypeName = pObject->GetTypeName();
     unsigned int length = (unsigned int)strlen(strTypeName);
+
+#if DEBUG
+    /* Ensure the length is multiplication of ALIGNMENT_SIZE (4). 
+        <BeginObject> size is 1
+            <BeginObject> size is 2
+                <NullReference> size is 3
+                <objectVersion> size is 7
+                <minReaderVersion> size is 11
+                <stringLength> size is 15
+                <string> size is 15 + stringLength
+            </EndObject> size is 16 + stringLength
+            <Content /> <-- this must be aligned, so stringLength has to be aligned too ;)
+        </EndObject>
+    */
+    _ASSERTE(length % ALIGNMENT_SIZE == 0);
+#endif
+
     WriteString(strTypeName, length);
 
     // Write the EndObject tag.
     WriteTag(FastSerializerTags::EndObject);
+
+    RETURN;
 }
 
 
@@ -180,17 +203,20 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
 
 void FastSerializer::WriteFileHeader()
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    const char *strSignature = "!FastSerialization.1";
+    const char *strSignature = "!FastSerialization.1"; // the consumer lib expects exactly the same string, it should not be changed
     unsigned int length = (unsigned int)strlen(strSignature);
     WriteString(strSignature, length);
+
+    RETURN;
 }
 
 void FastSerializer::WriteString(const char *strContents, unsigned int length)

@@ -5,6 +5,8 @@
 #ifndef __FASTSERIALIZER_H__
 #define __FASTSERIALIZER_H__
 
+#define ALIGNMENT_SIZE 4
+
 #ifdef FEATURE_PERFTRACING
 
 #include "fastserializableobject.h"
@@ -32,7 +34,9 @@ enum class FastSerializerTags : BYTE
     Int64,
     SkipRegion,
     String,
-    Limit,              // Just past the last valid tag, used for asserts.  
+    Blob,
+    Padding,                // used to fill the missing bytes to get data ALIGNMENT_SIZE (4) byte aligned
+    Limit,                  // Just past the last valid tag, used for asserts.  
 };
 
 class FastSerializer

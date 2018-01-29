@@ -65,7 +65,14 @@ EventPipeEventInstance::EventPipeEventInstance(
 
 unsigned int EventPipeEventInstance::GetAlignedTotalSize() const
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACT(unsigned int)
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        POSTCONDITION(RETVAL % ALIGNMENT_SIZE == 0);
+    }
+    CONTRACT_END;
 
     // Calculate the size of the total payload so that it can be written to the file.
     unsigned int payloadLength =
@@ -79,15 +86,13 @@ unsigned int EventPipeEventInstance::GetAlignedTotalSize() const
         sizeof(unsigned int) +          // Prepended stack payload size in bytes
         m_stackContents.GetSize();      // Stack payload size
 
-    // round up to 4 bytes
-    if (payloadLength % 4 != 0)
+    // round up to ALIGNMENT_SIZE bytes
+    if (payloadLength % ALIGNMENT_SIZE != 0)
     {
-        payloadLength += 4 - (payloadLength % 4);
+        payloadLength += ALIGNMENT_SIZE - (payloadLength % ALIGNMENT_SIZE);
     }
 
-    _ASSERTE(payloadLength % 4 == 0);
-
-    return payloadLength;
+    RETURN payloadLength;
 }
 
 #ifdef _DEBUG

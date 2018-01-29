@@ -29,7 +29,7 @@ class EventPipeBlock : public FastSerializableObject
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
-            return "EventBlock";
+            return "!EventBlock."; // the length has to be a multiplication of 4 ;)
         }
 
         void FastSerialize(FastSerializer *pSerializer)
