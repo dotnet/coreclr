@@ -987,7 +987,6 @@ int QCALLTYPE EventPipeInternal::EventActivityIdControl(
     else
     {
         ActivityControlCode activityControlCode = (ActivityControlCode)controlCode;
-        GUID *pCurrentActivityId;
         GUID currentActivityId;
         switch(activityControlCode)
         {
