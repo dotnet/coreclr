@@ -12,7 +12,7 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeEventInstance::EventPipeEventInstance(
-    EventPipeEventSession &session,
+    EventPipeSession &session,
     EventPipeEvent &event,
     DWORD threadID,
     BYTE *pData,
@@ -223,8 +223,8 @@ bool EventPipeEventInstance::EnsureConsistency()
 }
 #endif // _DEBUG
 
-SampleProfilerEventInstance::SampleProfilerEventInstance(EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length)
-    :EventPipeEventInstance(event, pThread->GetOSThreadId(), pData, length, NULL /* pActivityId */, NULL /* pRelatedActivityId */)
+SampleProfilerEventInstance::SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length)
+    :EventPipeEventInstance(session, event, pThread->GetOSThreadId(), pData, length, NULL /* pActivityId */, NULL /* pRelatedActivityId */)
 {
     LIMITED_METHOD_CONTRACT;
 }

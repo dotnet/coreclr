@@ -639,7 +639,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
     {
         // Specify the sampling thread as the "current thread", so that we select the right buffer.
         // Specify the target thread so that the event gets properly attributed.
-        if(!s_pBufferManager->WriteEvent(pSamplingThread, *pEvent, payload, NULL /* pActivityId */, NULL /* pRelatedActivityId */, pTargetThread, &stackContents))
+        if(!s_pBufferManager->WriteEvent(pSamplingThread, *s_pSession, *pEvent, payload, NULL /* pActivityId */, NULL /* pRelatedActivityId */, pTargetThread, &stackContents))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.
             return;
@@ -651,7 +651,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         GCX_PREEMP();
 
         // Create an instance for the synchronous path.
-        SampleProfilerEventInstance instance(*pEvent, pTargetThread, pData, length);
+        SampleProfilerEventInstance instance(*s_pSession, *pEvent, pTargetThread, pData, length);
         stackContents.CopyTo(instance.GetStack());
 
         // Write to the EventPipeFile.

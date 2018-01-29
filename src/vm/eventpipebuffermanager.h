@@ -10,7 +10,7 @@
 #include "eventpipe.h"
 #include "eventpipefile.h"
 #include "eventpipebuffer.h"
-#includ  "eventpipesession.h"
+#include "eventpipesession.h"
 #include "spinlock.h"
 
 class EventPipeBufferList;
