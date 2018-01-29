@@ -159,9 +159,6 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 return ReadOnlySpan<char>.Empty;
 
-            // Need to return the normalized directory separator
-            path = PathInternal.NormalizeDirectorySeparators(path);
-
             int pathRoot = PathInternal.GetRootLength(path);
             return pathRoot <= 0 ? ReadOnlySpan<char>.Empty : path.Slice(0, pathRoot);
         }

@@ -89,7 +89,6 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 return ReadOnlySpan<char>.Empty;
 
-            path = PathInternal.NormalizeDirectorySeparators(path);
             int end = PathInternal.GetDirectoryNameOffset(path);
             return end >= 0 ? path.Slice(0, end) : ReadOnlySpan<char>.Empty;
         }
@@ -135,7 +134,7 @@ namespace System.IO
                 return null;
 
             ReadOnlySpan<char> result = GetFileName(path.AsReadOnlySpan());
-            if (path.AsReadOnlySpan() == result)
+            if (path.Length == result.Length)
                 return path;
 
             return new string(result);
@@ -153,7 +152,11 @@ namespace System.IO
             if (path == null)
                 return null;
 
-            return new string(GetFileNameWithoutExtension(path.AsReadOnlySpan()));
+            ReadOnlySpan<char> result = GetFileNameWithoutExtension(path.AsReadOnlySpan());
+            if (path.Length == result.Length)
+                return path;
+
+            return new string(result);
         }
 
         public static ReadOnlySpan<char> GetFileNameWithoutExtension(ReadOnlySpan<char> path)
