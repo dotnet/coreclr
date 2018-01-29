@@ -578,6 +578,21 @@
     <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\ConstantHelper.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\JitIntrinsicAttribute.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Matrix3x2.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Matrix4x4.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Plane.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Quaternion.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Register.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector_Operations.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector2.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector2_Intrinsics.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector3.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector3_Intrinsics.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector4.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Numerics\Vector4_Intrinsics.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
