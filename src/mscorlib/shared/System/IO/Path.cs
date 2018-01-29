@@ -80,8 +80,15 @@ namespace System.IO
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
             path = PathInternal.NormalizeDirectorySeparators(path);
-            int end = PathInternal.GetDirectoryNameOffset(path);
-            return end >= 0 ? path.Substring(0, end) : null;
+            ReadOnlySpan<char> result = GetDirectoryName(path.AsReadOnlySpan());
+
+            if (result.IsEmpty)
+                return null;
+
+            if (path.Length == result.Length && object.ReferenceEquals(result.DangerousGetPinnableReference(), path))
+                return path;
+
+            return new string(result);
         }
 
         public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)

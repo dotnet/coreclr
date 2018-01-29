@@ -39,10 +39,10 @@ namespace System.IO
         /// <summary>
         /// Normalize separators in the given path. Compresses forward slash runs.
         /// </summary>
-        internal unsafe static string NormalizeDirectorySeparatorsIfNecessary(ReadOnlySpan<char> path)
+        internal unsafe static string NormalizeDirectorySeparators(string path)
         {
-            if (path.IsEmpty)
-                return string.Empty;
+            if (string.IsNullOrEmpty(path))
+                return path;
 
             // Make a pass to see if we need to normalize so we can potentially skip allocating
             bool normalized = true;
@@ -58,9 +58,9 @@ namespace System.IO
             }
 
             if (normalized)
-                return null;
+                return path;
 
-            fixed (char* f = &MemoryMarshal.GetReference(path))
+            fixed (char* f = path)
             {
                 return string.Create(path.Length, (Path: (IntPtr)f, PathLength: path.Length), (dst, state) =>
                 {

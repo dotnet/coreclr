@@ -337,10 +337,10 @@ namespace System.IO
         ///   3. Doesn't play nice with string logic
         ///   4. Isn't a cross-plat friendly concept/behavior
         /// </remarks>
-        internal unsafe static string NormalizeDirectorySeparatorsIfNecessary(ReadOnlySpan<char> path)
+        internal unsafe static string NormalizeDirectorySeparators(string path)
         {
-            if (path.IsEmpty)
-                return string.Empty;
+            if (string.IsNullOrEmpty(path))
+                return path;
 
             char current;
             int start = PathStartSkip(path);
@@ -364,10 +364,10 @@ namespace System.IO
                 }
 
                 if (normalized)
-                    return null;
+                    return path;
             }
 
-            fixed (char* f = &MemoryMarshal.GetReference(path))
+            fixed (char* f = path)
             {
                 return string.Create(path.Length, (Path: (IntPtr)f, Start: start, PathLength: path.Length), (dst, state) =>
                 {

@@ -134,20 +134,6 @@ namespace System.IO
             }
         }
 
-        internal static string NormalizeDirectorySeparators(string path)
-        {
-            if (path == null)
-                return path;
-
-            return NormalizeDirectorySeparatorsIfNecessary(path) ?? path;
-        }
-
-        internal static ReadOnlySpan<char> NormalizeDirectorySeparators(ReadOnlySpan<char> path)
-        {
-            string result = NormalizeDirectorySeparatorsIfNecessary(path);
-            return result == null ? path : result.AsReadOnlySpan();
-        }
-
         internal static int GetDirectoryNameOffset(ReadOnlySpan<char> path)
         {
             int root = GetRootLength(path);
