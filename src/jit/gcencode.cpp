@@ -4076,7 +4076,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
     {
         gcInfoEncoderWithLog->SetHasTailCalls();
     }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if FEATURE_FIXED_OUT_ARGS
     // outgoing stack area size

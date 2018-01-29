@@ -1469,7 +1469,7 @@ bool EECodeManager::HasTailCalls( EECodeInfo     *pCodeInfo)
 
     return gcInfoDecoder.HasTailCalls();
 }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 

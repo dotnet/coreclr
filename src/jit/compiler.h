@@ -7158,7 +7158,7 @@ public:
     {
         codeGen->setHasTailCalls(value);
     }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if DOUBLE_ALIGN
     const bool genDoubleAlign()

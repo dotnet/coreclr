@@ -418,13 +418,13 @@ public:
     {
         m_cgHasTailCalls = value;
     }    
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 private:
     bool m_cgInterruptible;
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     bool m_cgHasTailCalls;
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
     //  The following will be set to true if we've determined that we need to
     //  generate a full-blown pointer register map for the current method.

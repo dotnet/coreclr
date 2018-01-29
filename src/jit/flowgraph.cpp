@@ -18971,14 +18971,15 @@ void Compiler::fgSetBlockOrder()
         }
 
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-        GenTreePtr tailCall                 = nullptr;
-        bool fastTailCallsOnly              = true;
-        bool tailCallsConvertibleToLoopOnly = false;        
-        if (!hasTailCalls && block->endsWithTailCall(this, fastTailCallsOnly, tailCallsConvertibleToLoopOnly, &tailCall))
+        GenTreePtr tailCall                       = nullptr;
+        bool       fastTailCallsOnly              = true;
+        bool       tailCallsConvertibleToLoopOnly = false;
+        if (!hasTailCalls &&
+            block->endsWithTailCall(this, fastTailCallsOnly, tailCallsConvertibleToLoopOnly, &tailCall))
         {
             hasTailCalls = true;
         }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL

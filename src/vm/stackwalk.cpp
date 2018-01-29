@@ -364,7 +364,7 @@ bool CrawlFrame::HasTailCalls()
 
     return GetCodeManager()->HasTailCalls(&codeInfo);
 }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_    
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 inline void CrawlFrame::GotoNextFrame()
 {
