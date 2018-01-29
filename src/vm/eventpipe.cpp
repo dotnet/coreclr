@@ -991,22 +991,22 @@ int QCALLTYPE EventPipeInternal::EventActivityIdControl(
         GUID currentActivityId;
         switch(activityControlCode)
         {
-            case ActivityControlCode::EVENT_ACTIVITY_CTRL_GET_ID:
+            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_ID:
 
                 *pActivityId = *pThread->GetActivityId();
                 break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CTRL_SET_ID:
+            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_SET_ID:
 
                 pThread->SetActivityId(pActivityId);
                 break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CTRL_CREATE_ID:
+            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_ID:
 
                 CoCreateGuid(pActivityId);
                 break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CTRL_GET_SET_ID:
+            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_GET_SET_ID:
 
                 currentActivityId = *pThread->GetActivityId();
                 pThread->SetActivityId(pActivityId);
@@ -1014,7 +1014,7 @@ int QCALLTYPE EventPipeInternal::EventActivityIdControl(
 
                 break;
 
-            case ActivityControlCode::EVENT_ACTIVITY_CTRL_CREATE_SET_ID:
+            case ActivityControlCode::EVENT_ACTIVITY_CONTROL_CREATE_SET_ID:
 
                 *pActivityId = *pThread->GetActivityId();
                 CoCreateGuid(&currentActivityId);
