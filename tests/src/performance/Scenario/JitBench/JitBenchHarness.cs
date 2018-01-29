@@ -137,6 +137,10 @@ namespace JitBench
             s_musicStoreDirectory = Path.Combine(s_jitBenchDevDirectory, "src", "MusicStore");
 
             s_localJitBenchRepo = options.LocalJitBenchRepo;
+            if(!Directory.Exists(s_localJitBenchRepo))
+            {
+                throw new Exception("Requested local JitBench repo " + s_localJitBenchRepo + " does not exist");
+            }
         }
 
         private static void DownloadAndExtractJitBenchRepo()
@@ -162,10 +166,7 @@ namespace JitBench
 
                     // This step will create s_JitBenchDevDirectory.
                     ZipFile.ExtractToDirectory(zipFile, s_temporaryDirectory);
-                    if (s_localJitBenchRepo == null)
-                    {
-                        Directory.Move(Path.Combine(s_temporaryDirectory, $"JitBench-{JitBenchCommitSha1Id}"), s_jitBenchDevDirectory);
-                    }
+                    Directory.Move(Path.Combine(s_temporaryDirectory, $"JitBench-{JitBenchCommitSha1Id}"), s_jitBenchDevDirectory);
                 }
             }
             else
@@ -687,6 +688,5 @@ namespace JitBench
         private static string s_musicStoreDirectory;
         private static string s_targetArchitecture;
         private static string s_localJitBenchRepo;
-
     }
 }
