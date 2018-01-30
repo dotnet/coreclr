@@ -46,14 +46,14 @@ public:
     static void SyncBlockCachePromotionsGranted(int max_gen);
 
     // Thread functions
-    static bool IsPreemptiveGCDisabled(Thread * pThread);
-    static void EnablePreemptiveGC(Thread * pThread);
-    static void DisablePreemptiveGC(Thread * pThread);
+    static bool IsPreemptiveGCDisabled();
+    static void EnablePreemptiveGC();
+    static void DisablePreemptiveGC();
     static bool TrapReturningThreads();
     static Thread* GetThread();
 
-    static gc_alloc_context * GetAllocContext(Thread * pThread);
-    static bool CatchAtSafePoint(Thread * pThread);
+    static gc_alloc_context * GetAllocContext();
+    static bool CatchAtSafePoint();
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
     // Diagnostics methods.

@@ -88,9 +88,9 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (NULL != pCurThread)
         {
-            if (GCToEEInterface::IsPreemptiveGCDisabled(pCurThread))
+            if (GCToEEInterface::IsPreemptiveGCDisabled())
             {
-                GCToEEInterface::EnablePreemptiveGC(pCurThread);
+                GCToEEInterface::EnablePreemptiveGC();
                 disablePreemptive = true;
             }
         }
@@ -99,7 +99,7 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (disablePreemptive)
         {
-            GCToEEInterface::DisablePreemptiveGC(pCurThread);
+            GCToEEInterface::DisablePreemptiveGC();
         }
     }
 
@@ -175,18 +175,21 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
     return false;
 }
 
-bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
+bool GCToEEInterface::IsPreemptiveGCDisabled()
 {
+    Thread* pThread = ::GetThread();
     return pThread->PreemptiveGCDisabled();
 }
 
-void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::EnablePreemptiveGC()
 {
+    Thread* pThread = ::GetThread();
     return pThread->EnablePreemptiveGC();
 }
 
-void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::DisablePreemptiveGC()
 {
+    Thread* pThread = ::GetThread();
     pThread->DisablePreemptiveGC();
 }
 
@@ -200,13 +203,15 @@ bool GCToEEInterface::TrapReturningThreads()
     return !!g_TrapReturningThreads;
 }
 
-gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
+    Thread* pThread = ::GetThread();
     return pThread->GetAllocContext();
 }
 
-bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
+bool GCToEEInterface::CatchAtSafePoint()
 {
+    Thread* pThread = ::GetThread();
     return pThread->CatchAtSafePoint();
 }
 

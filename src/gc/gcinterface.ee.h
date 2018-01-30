@@ -138,17 +138,17 @@ public:
     virtual
     void SyncBlockCachePromotionsGranted(int max_gen) = 0;
 
-    // Queries whether or not the given thread has preemptive GC disabled.
+    // Queries whether or not the current thread has preemptive GC disabled.
     virtual
-    bool IsPreemptiveGCDisabled(Thread * pThread) = 0;
+    bool IsPreemptiveGCDisabled() = 0;
 
-    // Enables preemptive GC on the given thread.
+    // Enables preemptive GC on the current thread.
     virtual
-    void EnablePreemptiveGC(Thread * pThread) = 0;
+    void EnablePreemptiveGC() = 0;
 
-    // Disables preemptive GC on the given thread.
+    // Disables preemptive GC on the current thread.
     virtual
-    void DisablePreemptiveGC(Thread * pThread) = 0;
+    void DisablePreemptiveGC() = 0;
 
     // Gets the Thread instance for the current thread, or null if no thread
     // instance is associated with this thread.
@@ -162,13 +162,13 @@ public:
     virtual
     bool TrapReturningThreads() = 0;
 
-    // Retrieves the alloc context associated with a given thread.
+    // Retrieves the alloc context associated with the current thread.
     virtual
-    gc_alloc_context * GetAllocContext(Thread * pThread) = 0;
+    gc_alloc_context * GetAllocContext() = 0;
 
     // Returns true if this thread is waiting to reach a safe point.
     virtual
-    bool CatchAtSafePoint(Thread * pThread) = 0;
+    bool CatchAtSafePoint() = 0;
 
     // Calls the given enum_alloc_context_func with every active alloc context.
     virtual

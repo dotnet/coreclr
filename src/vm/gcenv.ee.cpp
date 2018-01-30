@@ -169,7 +169,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
         STRESS_LOG2(LF_GC | LF_GCROOTS, LL_INFO100, "{ Starting scan of Thread %p ID = %x\n", pThread, pThread->GetThreadId());
 
         if (GCHeapUtilities::GetGCHeap()->IsThreadUsingAllocationContextHeap(
-            GCToEEInterface::GetAllocContext(pThread), sc->thread_number))
+            pThread->GetAllocContext(), sc->thread_number))
         {
             sc->thread_under_crawl = pThread;
 #ifdef FEATURE_EVENT_TRACE
@@ -303,15 +303,21 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     SyncBlockCache::GetSyncBlockCache()->GCDone(FALSE, max_gen);
 }
 
-gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
     WRAPPER_NO_CONTRACT;
+    
+    Thread* pThread = ::GetThread();
+    assert(pThread != nullptr);
     return pThread->GetAllocContext();
 }
 
-bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
+bool GCToEEInterface::CatchAtSafePoint()
 {
     WRAPPER_NO_CONTRACT;
+
+    Thread* pThread = ::GetThread();
+    assert(pThread != nullptr);
     return !!pThread->CatchAtSafePoint();
 }
 
@@ -338,22 +344,39 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
 }
 
-bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
+bool GCToEEInterface::IsPreemptiveGCDisabled()
 {
     WRAPPER_NO_CONTRACT;
-    return !!pThread->PreemptiveGCDisabled();
+
+    Thread* pThread = ::GetThread();
+    if (pThread)
+    {
+        return !!pThread->PreemptiveGCDisabled();
+    }
+
+    return false;
 }
 
-void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::EnablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
-    pThread->EnablePreemptiveGC();
+
+    Thread* pThread = ::GetThread();
+    if (pThread)
+    {
+        pThread->EnablePreemptiveGC();
+    }
 }
 
-void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::DisablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
-    pThread->DisablePreemptiveGC();
+
+    Thread* pThread = ::GetThread();
+    if (pThread)
+    {
+        pThread->DisablePreemptiveGC();
+    }
 }
 
 Thread* GCToEEInterface::GetThread()
