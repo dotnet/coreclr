@@ -7999,9 +7999,8 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 #endif //_DEBUG
 
     //I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-                                     TRACE_LEVEL_VERBOSE,
-                                     CLR_JITTRACING_KEYWORD))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodJitInliningFailed)
+     || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodJitInliningSucceeded))
     {
         SString methodBeingCompiledNames[3];
         SString inlinerNames[3];
@@ -8323,9 +8322,8 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
 #endif //_DEBUG
 
     // I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-                                     TRACE_LEVEL_VERBOSE,
-                                     CLR_JITTRACING_KEYWORD))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodJitTailCallFailed)
+     || ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, MethodJitTailCallSucceeded))
     {
         SString methodBeingCompiledNames[3];
         SString callerNames[3];
