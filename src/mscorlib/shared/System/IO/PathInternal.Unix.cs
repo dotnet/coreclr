@@ -60,7 +60,7 @@ namespace System.IO
             if (normalized)
                 return path;
 
-            return string.Create(path.Length, Path: path, (dst, state) =>
+            return string.Create(path.Length, (Path: path), (dst, state) =>
             {
                 int j = 0;
                 
