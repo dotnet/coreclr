@@ -492,13 +492,6 @@ COR_ILMETHOD_DECODER* MethodDesc::GetAndVerifyMetadataILHeader(PrepareCodeConfig
         COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
     }
 
-#ifdef _VER_EE_VERIFICATION_ENABLED 
-    static ConfigDWORD peVerify;
-
-    if (peVerify.val(CLRConfig::EXTERNAL_PEVerify))
-        m_pMethod->Verify(pHeader, TRUE, FALSE);   // Throws a VerifierException if verification fails
-#endif // _VER_EE_VERIFICATION_ENABLED
-
     return pHeader;
 }
 
@@ -736,6 +729,13 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
         }
 
     }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (g_pConfig->TieredCompilation() && !flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER1))
+    {
+        GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
+    }
+#endif // FEATURE_TIERED_COMPILATION
 
 #ifdef FEATURE_STACK_SAMPLING
     StackSampler::RecordJittingInfo(this, flags);
@@ -1706,11 +1706,14 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // for this method only then do we back-patch it.
     BOOL fCanBackpatchPrestub = TRUE;
 #ifdef FEATURE_TIERED_COMPILATION
+    TieredCompilationManager* pTieredCompilationManager = nullptr;
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
+    BOOL fWasPromotedToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
+        pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
         CallCounter * pCallCounter = GetCallCounter();
-        fCanBackpatchPrestub = pCallCounter->OnMethodCalled(this);
+        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
     }
 #endif
 
@@ -1722,6 +1725,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
     {
         pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
+
+        if (pTieredCompilationManager != nullptr && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
+        {
+            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
+        }
+
         fIsPointingToPrestub = IsPointingToPrestub();
     }
 #endif
@@ -1740,10 +1749,10 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     
     if (pCode)
     {
-        // The only reason we are still pointing to prestub is because the call counter
-        // prevented it. We should still short circuit and return the code without
+        // The only reasons we are still pointing to prestub is because the call counter
+        // prevented it or this thread lost the race with another thread in updating the
+        // entry point. We should still short circuit and return the code without
         // backpatching.
-        _ASSERTE(!fCanBackpatchPrestub);
         RETURN pCode;
     }
     

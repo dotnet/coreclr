@@ -285,6 +285,12 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree, TreeNodeInfo* info)
             break;
 #endif // FEATURE_SIMD
 
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            TreeNodeInfoInitHWIntrinsic(tree->AsHWIntrinsic(), info);
+            break;
+#endif // FEATURE_HW_INTRINSICS
+
         case GT_CAST:
         {
             // TODO-ARM64-CQ: Int-To-Int conversions - castOp cannot be a memory op and must have an assigned
@@ -830,10 +836,8 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
         case SIMDIntrinsicAbs:
         case SIMDIntrinsicConvertToSingle:
         case SIMDIntrinsicConvertToInt32:
-        case SIMDIntrinsicConvertToUInt32:
         case SIMDIntrinsicConvertToDouble:
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
         case SIMDIntrinsicWidenLo:
         case SIMDIntrinsicWidenHi:
             assert(info->srcCount == 1);
@@ -976,6 +980,27 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
     }
 }
 #endif // FEATURE_SIMD
+
+#ifdef FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// TreeNodeInfoInitHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+//
+// Arguments:
+//    tree       - The GT_HWIntrinsic node of interest
+//
+// Return Value:
+//    None.
+
+void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, TreeNodeInfo* info)
+{
+    NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
+    info->srcCount += GetOperandInfo(intrinsicTree->gtOp.gtOp1);
+    if (intrinsicTree->gtGetOp2IfPresent() != nullptr)
+    {
+        info->srcCount += GetOperandInfo(intrinsicTree->gtOp.gtOp2);
+    }
+}
+#endif
 
 #endif // _TARGET_ARM64_
 

@@ -721,17 +721,57 @@ void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
     Interval* theInterval = rp->getInterval();
 
 #ifdef DEBUG
-    if (doReverseCallerCallee())
-    {
-        regMaskTP calleeSaveMask = calleeSaveRegs(theInterval->registerType);
-        rp->registerAssignment =
-            getConstrainedRegMask(rp->registerAssignment, calleeSaveMask, rp->minRegCandidateCount);
-    }
-    else
+    if (!doReverseCallerCallee())
 #endif // DEBUG
     {
         // Set preferences so that this register set will be preferred for earlier refs
         theInterval->updateRegisterPreferences(rp->registerAssignment);
+    }
+}
+
+//------------------------------------------------------------------------
+// checkConflictingDefUse: Ensure that we have consistent def/use on SDSU temps.
+//
+// Arguments:
+//    useRP - The use RefPosition of a tree temp (SDSU Interval)
+//
+// Notes:
+//    There are a couple of cases where this may over-constrain allocation:
+//    1. In the case of a non-commutative rmw def (in which the rmw source must be delay-free), or
+//    2. In the case where the defining node requires a temp distinct from the target (also a
+//       delay-free case).
+//    In those cases, if we propagate a single-register restriction from the consumer to the producer
+//    the delayed uses will not see a fixed reference in the PhysReg at that position, and may
+//    incorrectly allocate that register.
+//    TODO-CQ: This means that we may often require a copy at the use of this node's result.
+//    This case could be moved to BuildRefPositionsForNode, at the point where the def RefPosition is
+//    created, causing a RefTypeFixedRef to be added at that location. This, however, results in
+//    more PhysReg RefPositions (a throughput impact), and a large number of diffs that require
+//    further analysis to determine benefit.
+//    See Issue #11274.
+//
+void LinearScan::checkConflictingDefUse(RefPosition* useRP)
+{
+    assert(useRP->refType == RefTypeUse);
+    Interval* theInterval = useRP->getInterval();
+    assert(!theInterval->isLocalVar);
+
+    RefPosition* defRP = theInterval->firstRefPosition;
+
+    // All defs must have a valid treeNode, but we check it below to be conservative.
+    assert(defRP->treeNode != nullptr);
+    regMaskTP prevAssignment = defRP->registerAssignment;
+    regMaskTP newAssignment  = (prevAssignment & useRP->registerAssignment);
+    if (newAssignment != RBM_NONE)
+    {
+        if (!isSingleRegister(newAssignment) || !theInterval->hasInterferingUses)
+        {
+            defRP->registerAssignment = newAssignment;
+        }
+    }
+    else
+    {
+        theInterval->hasConflictingDefUse = true;
     }
 }
 
@@ -765,38 +805,7 @@ void LinearScan::associateRefPosWithInterval(RefPosition* rp)
             }
             else if (rp->refType == RefTypeUse)
             {
-                // Ensure that we have consistent def/use on SDSU temps.
-                // However, there are a couple of cases where this may over-constrain allocation:
-                // 1. In the case of a non-commutative rmw def (in which the rmw source must be delay-free), or
-                // 2. In the case where the defining node requires a temp distinct from the target (also a
-                //    delay-free case).
-                // In those cases, if we propagate a single-register restriction from the consumer to the producer
-                // the delayed uses will not see a fixed reference in the PhysReg at that position, and may
-                // incorrectly allocate that register.
-                // TODO-CQ: This means that we may often require a copy at the use of this node's result.
-                // This case could be moved to BuildRefPositionsForNode, at the point where the def RefPosition is
-                // created, causing a RefTypeFixedRef to be added at that location. This, however, results in
-                // more PhysReg RefPositions (a throughput impact), and a large number of diffs that require
-                // further analysis to determine benefit.
-                // See Issue #11274.
-                RefPosition* prevRefPosition = theInterval->recentRefPosition;
-                assert(prevRefPosition != nullptr && theInterval->firstRefPosition == prevRefPosition);
-                // All defs must have a valid treeNode, but we check it below to be conservative.
-                assert(prevRefPosition->treeNode != nullptr);
-                regMaskTP prevAssignment = prevRefPosition->registerAssignment;
-                regMaskTP newAssignment  = (prevAssignment & rp->registerAssignment);
-                if (newAssignment != RBM_NONE)
-                {
-                    if (!isSingleRegister(newAssignment) || !theInterval->hasInterferingUses)
-                    {
-                        prevRefPosition->registerAssignment = newAssignment;
-                    }
-                }
-                else
-                {
-                    theInterval->hasConflictingDefUse = true;
-                }
-
+                checkConflictingDefUse(rp);
                 rp->lastUse = true;
             }
         }
@@ -2787,6 +2796,47 @@ void LinearScan::addRefsForPhysRegMask(regMaskTP mask, LsraLocation currentLoc, 
 }
 
 //------------------------------------------------------------------------
+// getKillSetForStoreInd: Determine the liveness kill set for a GT_STOREIND node.
+// If the GT_STOREIND will generate a write barrier, determine the specific kill
+// set required by the case-specific, platform-specific write barrier. If no
+// write barrier is required, the kill set will be RBM_NONE.
+//
+// Arguments:
+//    tree - the GT_STOREIND node
+//
+// Return Value:    a register mask of the registers killed
+//
+regMaskTP LinearScan::getKillSetForStoreInd(GenTreeStoreInd* tree)
+{
+    assert(tree->OperIs(GT_STOREIND));
+
+    regMaskTP killMask = RBM_NONE;
+
+    GenTree* data = tree->Data();
+
+    GCInfo::WriteBarrierForm writeBarrierForm = compiler->codeGen->gcInfo.gcIsWriteBarrierCandidate(tree, data);
+    if (writeBarrierForm != GCInfo::WBF_NoBarrier)
+    {
+        if (compiler->codeGen->genUseOptimizedWriteBarriers(writeBarrierForm))
+        {
+            // We can't determine the exact helper to be used at this point, because it depends on
+            // the allocated register for the `data` operand. However, all the (x86) optimized
+            // helpers have the same kill set: EDX.
+            killMask = RBM_CALLEE_TRASH_NOGC;
+        }
+        else
+        {
+            // Figure out which helper we're going to use, and then get the kill set for that helper.
+            CorInfoHelpFunc helper =
+                compiler->codeGen->genWriteBarrierHelperForWriteBarrierForm(tree, writeBarrierForm);
+            killMask = compiler->compHelperCallKillSet(helper);
+        }
+    }
+
+    return killMask;
+}
+
+//------------------------------------------------------------------------
 // getKillSetForNode:   Return the registers killed by the given tree node.
 //
 // Arguments:
@@ -2936,10 +2986,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             }
             break;
         case GT_STOREIND:
-            if (compiler->codeGen->gcInfo.gcIsWriteBarrierAsgNode(tree))
-            {
-                killMask = RBM_CALLEE_TRASH_NOGC;
-            }
+            killMask = getKillSetForStoreInd(tree->AsStoreInd());
             break;
 
 #if defined(PROFILING_SUPPORTED)
@@ -3962,7 +4009,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 #ifdef DEBUG
     // If we are constraining registers, modify all the RefPositions we've just built to specify the
     // minimum reg count required.
-    if (getStressLimitRegs() != LSRA_LIMIT_NONE)
+    if ((getStressLimitRegs() != LSRA_LIMIT_NONE) || (getSelectionHeuristics() != LSRA_SELECT_DEFAULT))
     {
         // The number of registers required for a tree node is the sum of
         // consume + produce + internalCount.  This is the minimum
@@ -3997,6 +4044,19 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
                 }
             }
             newRefPosition->minRegCandidateCount = minRegCountForRef;
+            if (newRefPosition->IsActualRef() && doReverseCallerCallee())
+            {
+                Interval* interval       = newRefPosition->getInterval();
+                regMaskTP oldAssignment  = newRefPosition->registerAssignment;
+                regMaskTP calleeSaveMask = calleeSaveRegs(interval->registerType);
+                newRefPosition->registerAssignment =
+                    getConstrainedRegMask(oldAssignment, calleeSaveMask, minRegCountForRef);
+                if ((newRefPosition->registerAssignment != oldAssignment) && (newRefPosition->refType == RefTypeUse) &&
+                    !interval->isLocalVar)
+                {
+                    checkConflictingDefUse(newRefPosition);
+                }
+            }
         }
     }
 #endif // DEBUG
@@ -5248,8 +5308,8 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
             {
                 relatedInterval = nullptr;
             }
-            // Is the relatedInterval simply a copy to another relatedInterval?
-            else if ((relatedInterval->relatedInterval != nullptr) &&
+            // Is the relatedInterval not assigned and simply a copy to another relatedInterval?
+            else if ((relatedInterval->assignedReg == nullptr) && (relatedInterval->relatedInterval != nullptr) &&
                      (nextRelatedRefPosition->nextRefPosition != nullptr) &&
                      (nextRelatedRefPosition->nextRefPosition->nextRefPosition == nullptr) &&
                      (nextRelatedRefPosition->nextRefPosition->nodeLocation <

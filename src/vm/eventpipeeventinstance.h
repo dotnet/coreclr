@@ -9,6 +9,7 @@
 
 #include "eventpipe.h"
 #include "eventpipeevent.h"
+#include "eventpipesession.h"
 #include "eventpipeblock.h"
 #include "fastserializableobject.h"
 #include "fastserializer.h"
@@ -20,7 +21,7 @@ class EventPipeEventInstance
 
 public:
 
-    EventPipeEventInstance(EventPipeEvent &event, DWORD threadID, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+    EventPipeEventInstance(EventPipeSession &session, EventPipeEvent &event, DWORD threadID, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     StackContents* GetStack()
     {
@@ -145,7 +146,7 @@ class SampleProfilerEventInstance : public EventPipeEventInstance
 
 public:
 
-    SampleProfilerEventInstance(EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length);
+    SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length);
 };
 
 #endif // FEATURE_PERFTRACING

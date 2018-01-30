@@ -1029,6 +1029,9 @@ private:
 
     static Compiler::fgWalkResult markAddrModeOperandsHelperMD(GenTree* tree, void* p);
 
+    // Helper for getKillSetForNode().
+    regMaskTP getKillSetForStoreInd(GenTreeStoreInd* tree);
+
     // Return the registers killed by the given tree node.
     regMaskTP getKillSetForNode(GenTree* tree);
 
@@ -1119,6 +1122,8 @@ private:
         regNumber reg, LsraLocation theLocation, RefType theRefType, GenTree* theTreeNode, regMaskTP mask);
 
     void applyCalleeSaveHeuristics(RefPosition* rp);
+
+    void checkConflictingDefUse(RefPosition* rp);
 
     void associateRefPosWithInterval(RefPosition* rp);
 
@@ -1584,7 +1589,7 @@ private:
     void TreeNodeInfoInitSIMD(GenTreeSIMD* tree, TreeNodeInfo* info);
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
     void TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, TreeNodeInfo* info);
 #endif // FEATURE_HW_INTRINSICS
 

@@ -16,6 +16,7 @@
 #include "gcenv.h"
 
 #include "gc.h"
+#include "gceventstatus.h"
 
 #include "objecthandle.h"
 #include "handletablepriv.h"
@@ -368,15 +369,6 @@ void ValidateFetchObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
     _ASSERTE(pDomain != NULL);
     _ASSERTE(!pDomain->NoAccessToHandleTable());
 
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks() && objref != NULL)
-    {
-        if (appDomainIndex.m_dwIndex)
-            objref->TryAssignAppDomain(pDomain);
-        else
-            objref->TrySetAppDomainAgile();
-    }
-#endif
     END_DEBUG_ONLY_CODE;
 }
 
@@ -398,15 +390,6 @@ void ValidateAssignObjrefForHandle(OBJECTREF objref, ADIndex appDomainIndex)
     _ASSERTE(pDomain != NULL);
     _ASSERTE(!pDomain->NoAccessToHandleTable());
 
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks() && objref != NULL)
-    {
-        if (appDomainIndex.m_dwIndex)
-            objref->TryAssignAppDomain(pDomain);
-        else
-            objref->TrySetAppDomainAgile();
-    }
-#endif
     END_DEBUG_ONLY_CODE;
 }
 
@@ -461,8 +444,8 @@ void HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle)
 
     STRESS_LOG2(LF_GC, LL_INFO1000, "DestroyHandle: *%p->%p\n", handle, *(_UNCHECKED_OBJECTREF *)handle);
 
-    FireEtwDestroyGCHandle((void*) handle, GetClrInstanceId());
-    FireEtwPrvDestroyGCHandle((void*) handle, GetClrInstanceId());
+    FIRE_EVENT(DestroyGCHandle, (void *)handle);
+    FIRE_EVENT(PrvDestroyGCHandle, (void *)handle);
 
     // sanity check handle we are being asked to free
     _ASSERTE(handle);
@@ -619,8 +602,8 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
         ADIndex appDomainIndex = HndGetHandleADIndex(handle);   
         AppDomain* pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
         uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
-        FireEtwSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
-        FireEtwPrvSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
+        FIRE_EVENT(SetGCHandle, (void *)handle, (void *)value, hndType, generation, (uint64_t)pAppDomain);
+        FIRE_EVENT(PrvSetGCHandle, (void *) handle, (void *)value, hndType, generation, (uint64_t)pAppDomain);
 
         // Also fire the things pinned by Async pinned handles
         if (hndType == HNDTYPE_ASYNCPINNED)
@@ -644,7 +627,7 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
             {
                 ClosureCapture* captured = reinterpret_cast<ClosureCapture*>(ctx);
                 uint32_t generation = to != nullptr ? g_theGCHeap->WhichGeneration(to) : 0;
-                FireEtwSetGCHandle(captured->overlapped, to, HNDTYPE_PINNED, generation, (int64_t) captured->pAppDomain, GetClrInstanceId());
+                FIRE_EVENT(SetGCHandle, (void *)captured->overlapped, (void *)to, HNDTYPE_PINNED, generation, (uint64_t)captured->pAppDomain);
             });
         }
     }

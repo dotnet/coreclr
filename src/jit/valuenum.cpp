@@ -408,13 +408,27 @@ T ValueNumStore::EvalOpIntegral(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
         case GT_AND:
             return v0 & v1;
         case GT_LSH:
-            return v0 << v1;
+            if (sizeof(T) == 8)
+            {
+                return v0 << (v1 & 0x3F);
+            }
+            else
+            {
+                return v0 << v1;
+            }
         case GT_RSH:
-            return v0 >> v1;
+            if (sizeof(T) == 8)
+            {
+                return v0 >> (v1 & 0x3F);
+            }
+            else
+            {
+                return v0 >> v1;
+            }
         case GT_RSZ:
             if (sizeof(T) == 8)
             {
-                return UINT64(v0) >> v1;
+                return UINT64(v0) >> (v1 & 0x3F);
             }
             else
             {
@@ -3491,7 +3505,7 @@ ValueNum ValueNumStore::EvalMathFuncUnary(var_types typ, CorInfoIntrinsics gtMat
     // If the math intrinsic is not implemented by target-specific instructions, such as implemented
     // by user calls, then don't do constant folding on it. This minimizes precision loss.
 
-    if (IsVNConstant(arg0VN) && Compiler::IsTargetIntrinsic(gtMathFN))
+    if (IsVNConstant(arg0VN) && m_pComp->IsTargetIntrinsic(gtMathFN))
     {
         assert(varTypeIsFloating(TypeOfVN(arg0VN)));
 
@@ -5614,7 +5628,7 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
     }
 #endif
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
     if (oper == GT_HWIntrinsic)
     {
         // TODO-CQ: For now hardware intrinsics are not handled by value numbering to be amenable for CSE'ing.

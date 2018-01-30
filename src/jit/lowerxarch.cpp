@@ -2167,7 +2167,11 @@ void Lowering::ContainCheckBoundsChk(GenTreeBoundsChk* node)
 void Lowering::ContainCheckIntrinsic(GenTreeOp* node)
 {
     assert(node->OperIs(GT_INTRINSIC));
-    if (node->gtIntrinsic.gtIntrinsicId == CORINFO_INTRINSIC_Sqrt)
+
+    CorInfoIntrinsics intrinsicId = node->gtIntrinsic.gtIntrinsicId;
+
+    if (intrinsicId == CORINFO_INTRINSIC_Sqrt || intrinsicId == CORINFO_INTRINSIC_Round ||
+        intrinsicId == CORINFO_INTRINSIC_Ceiling || intrinsicId == CORINFO_INTRINSIC_Floor)
     {
         GenTree* op1 = node->gtGetOp1();
         if (IsContainableMemoryOp(op1) || op1->IsCnsNonZeroFltOrDbl())
@@ -2300,15 +2304,40 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
 //
 void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 {
-    NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
-    GenTree*       op1         = node->gtOp.gtOp1;
-    GenTree*       op2         = node->gtOp.gtOp2;
+    NamedIntrinsic      intrinsicID = node->gtHWIntrinsicId;
+    HWIntrinsicCategory category    = Compiler::categoryOfHWIntrinsic(intrinsicID);
+    HWIntrinsicFlag     flags       = Compiler::flagsOfHWIntrinsic(intrinsicID);
+    int                 numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicID);
+    GenTree*            op1         = node->gtGetOp1();
+    GenTree*            op2         = node->gtGetOp2();
 
-    switch (node->gtHWIntrinsicId)
+    // TODO-XArch-CQ: Non-VEX encoded instructions can have both ops contained
+    // TODO-XArch-CQ: Non-VEX encoded instructions require memory ops to be aligned
+
+    if (comp->canUseVexEncoding() && numArgs == 2 && (flags & HW_Flag_NoContainment) == 0 &&
+        category == HW_Category_SimpleSIMD)
     {
-        default:
-            assert((intrinsicID > NI_HW_INTRINSIC_START) && (intrinsicID < NI_HW_INTRINSIC_END));
-            break;
+        if (IsContainableMemoryOp(op2))
+        {
+            MakeSrcContained(node, op2);
+        }
+        else
+        {
+            // TODO-XArch-CQ: Commutative operations can have op1 be contained
+            op2->SetRegOptional();
+        }
+    }
+
+    // TODO - change to all IMM intrinsics
+    if (intrinsicID == NI_SSE_Shuffle)
+    {
+        assert(op1->OperIsList());
+        GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
+
+        if (op3->IsCnsIntOrI())
+        {
+            MakeSrcContained(node, op3);
+        }
     }
 }
 #endif // FEATURE_HW_INTRINSICS

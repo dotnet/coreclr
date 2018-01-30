@@ -322,16 +322,6 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree, TreeNodeInfo* info)
 #endif
         case GT_ADD:
         case GT_SUB:
-            // SSE2 arithmetic instructions doesn't support the form "op mem, xmm".
-            // Rather they only support "op xmm, mem/xmm" form.
-            if (varTypeIsFloating(tree->TypeGet()))
-            {
-                info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
-                break;
-            }
-
-            __fallthrough;
-
         case GT_AND:
         case GT_OR:
         case GT_XOR:
@@ -372,7 +362,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree, TreeNodeInfo* info)
             break;
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         case GT_HWIntrinsic:
             TreeNodeInfoInitHWIntrinsic(tree->AsHWIntrinsic(), info);
             break;
@@ -1305,7 +1295,7 @@ void LinearScan::TreeNodeInfoInitCall(GenTreeCall* call, TreeNodeInfo* info)
 #ifdef DEBUG
         // In DEBUG only, check validity with respect to the arg table entry.
 
-        fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
+        fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode);
         assert(curArgTabEntry);
 
         if (curArgTabEntry->regNum == REG_STK)
@@ -2069,10 +2059,17 @@ void LinearScan::TreeNodeInfoInitIntrinsic(GenTree* tree, TreeNodeInfo* info)
 #ifdef _TARGET_X86_
         case CORINFO_INTRINSIC_Cos:
         case CORINFO_INTRINSIC_Sin:
-        case CORINFO_INTRINSIC_Round:
-            NYI_X86("Math intrinsics Cos, Sin and Round");
+            NYI_X86("Math intrinsics Cos and Sin");
             break;
 #endif // _TARGET_X86_
+
+        case CORINFO_INTRINSIC_Round:
+        case CORINFO_INTRINSIC_Ceiling:
+        case CORINFO_INTRINSIC_Floor:
+#if defined(LEGACY_BACKEND)
+            NYI_X86("Math intrinsics Round, Ceiling, and Floor");
+#endif // LEGACY_BACKEND
+            break;
 
         default:
             // Right now only Sqrt/Abs are treated as math intrinsics
@@ -2388,7 +2385,6 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
             }
             break;
 
-        case SIMDIntrinsicConvertToUInt32:
         case SIMDIntrinsicConvertToInt32:
             assert(info->srcCount == 1);
             break;
@@ -2406,7 +2402,6 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
             break;
 
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
             assert(info->srcCount == 1);
             // We need an internal register different from targetReg.
             info->isInternalRegDelayFree = true;
@@ -2484,7 +2479,7 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
 }
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 //------------------------------------------------------------------------
 // TreeNodeInfoInitHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
 //
@@ -2497,32 +2492,111 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree, TreeNodeInfo* info)
 void LinearScan::TreeNodeInfoInitHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree, TreeNodeInfo* info)
 {
     NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
-    InstructionSet isa         = compiler->isaOfHWIntrinsic(intrinsicID);
+    InstructionSet isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
     if (isa == InstructionSet_AVX || isa == InstructionSet_AVX2)
     {
         SetContainsAVXFlags(true, 32);
     }
-    info->srcCount += GetOperandInfo(intrinsicTree->gtOp.gtOp1);
-    if (intrinsicTree->gtGetOp2IfPresent() != nullptr)
-    {
-        info->srcCount += GetOperandInfo(intrinsicTree->gtOp.gtOp2);
-    }
+    GenTree* op1   = intrinsicTree->gtOp.gtOp1;
+    GenTree* op2   = intrinsicTree->gtOp.gtOp2;
+    info->srcCount = 0;
 
-#ifdef _TARGET_X86_
-    if (intrinsicTree->gtHWIntrinsicId == NI_SSE42_Crc32)
+    if (op1 != nullptr)
     {
-        // CRC32 may operate over "byte" but on x86 only RBM_BYTE_REGS can be used as byte registers.
-        //
-        // TODO - currently we use the BaseType to bring the type of the second argument
-        // to the code generator. May encode the overload info in other way.
-        var_types srcType = intrinsicTree->gtSIMDBaseType;
-        if (varTypeIsByte(srcType))
+        if (op1->OperIsList())
         {
-            LocationInfoListNode* op2Info = useList.GetSecond(INDEBUG(intrinsicTree->gtGetOp2()));
-            op2Info->info.setSrcCandidates(this, RBM_BYTE_REGS);
+            for (GenTreeArgList* list = op1->AsArgList(); list != nullptr; list = list->Rest())
+            {
+                info->srcCount += GetOperandInfo(list->Current());
+            }
+        }
+        else
+        {
+            info->srcCount += GetOperandInfo(op1);
         }
     }
-#endif
+
+    if (op2 != nullptr)
+    {
+        info->srcCount += GetOperandInfo(op2);
+    }
+
+    switch (intrinsicID)
+    {
+        case NI_SSE_CompareEqualOrderedScalar:
+        case NI_SSE_CompareEqualUnorderedScalar:
+        case NI_SSE_CompareNotEqualOrderedScalar:
+        case NI_SSE_CompareNotEqualUnorderedScalar:
+            info->internalIntCount = 1;
+            info->setInternalCandidates(this, allRegs(TYP_INT));
+            break;
+
+        case NI_SSE_SetScalar:
+            // Need an internal register to stitch together all the values into a single vector in a SIMD reg.
+            info->internalFloatCount = 1;
+            info->setInternalCandidates(this, allSIMDRegs());
+            break;
+
+        case NI_SSE_Shuffle:
+        {
+            assert(op1->OperIsList());
+            GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
+
+            if (!op3->isContainedIntOrIImmed())
+            {
+                assert(!op3->IsCnsIntOrI());
+
+                // We need two extra reg when op3 isn't a constant so
+                // the offset into the jump table for the fallback path
+                // can be computed.
+
+                info->internalIntCount = 2;
+                info->setInternalCandidates(this, allRegs(TYP_INT));
+            }
+            break;
+        }
+
+        case NI_SSE_ConvertToSingle:
+        case NI_SSE_StaticCast:
+            assert(info->srcCount == 1);
+            assert(info->dstCount == 1);
+            useList.Last()->info.isTgtPref = true;
+            break;
+
+        case NI_SSE41_BlendVariable:
+            if (!compiler->canUseVexEncoding())
+            {
+                // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op2Info->info.isDelayFree     = true;
+                op3Info->info.isDelayFree     = true;
+                op3Info->info.setSrcCandidates(this, RBM_XMM0);
+                info->hasDelayFreeSrc = true;
+            }
+            break;
+
+#ifdef _TARGET_X86_
+        case NI_SSE42_Crc32:
+        {
+            // CRC32 may operate over "byte" but on x86 only RBM_BYTE_REGS can be used as byte registers.
+            //
+            // TODO - currently we use the BaseType to bring the type of the second argument
+            // to the code generator. May encode the overload info in other way.
+            var_types srcType = intrinsicTree->gtSIMDBaseType;
+            if (varTypeIsByte(srcType))
+            {
+                LocationInfoListNode* op2Info = useList.GetSecond(INDEBUG(intrinsicTree->gtGetOp2()));
+                op2Info->info.setSrcCandidates(this, RBM_BYTE_REGS);
+            }
+            break;
+        }
+#endif // _TARGET_X86_
+
+        default:
+            assert((intrinsicID > NI_HW_INTRINSIC_START) && (intrinsicID < NI_HW_INTRINSIC_END));
+            break;
+    }
 }
 #endif
 
@@ -2595,20 +2669,11 @@ void LinearScan::TreeNodeInfoInitGCWriteBarrier(GenTree* tree, TreeNodeInfo* inf
     info->srcCount = 2;
     assert(info->dstCount == 0);
 
-    bool useOptimizedWriteBarrierHelper = false; // By default, assume no optimized write barriers.
+    bool useOptimizedWriteBarrierHelper = compiler->codeGen->genUseOptimizedWriteBarriers(tree, src);
 
 #if NOGC_WRITE_BARRIERS
 
 #if defined(_TARGET_X86_)
-
-    useOptimizedWriteBarrierHelper = true; // On x86, use the optimized write barriers by default.
-#ifdef DEBUG
-    GCInfo::WriteBarrierForm wbf = compiler->codeGen->gcInfo.gcIsWriteBarrierCandidate(tree, src);
-    if (wbf == GCInfo::WBF_NoBarrier_CheckNotHeapInDebug) // This one is always a call to a C++ method.
-    {
-        useOptimizedWriteBarrierHelper = false;
-    }
-#endif
 
     if (useOptimizedWriteBarrierHelper)
     {

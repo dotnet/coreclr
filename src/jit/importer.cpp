@@ -1,4 +1,3 @@
-
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
@@ -1613,7 +1612,7 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
 #endif // FEATURE_SIMD
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
         case GT_HWIntrinsic:
             assert(varTypeIsSIMD(structVal) && (structVal->gtType == structType));
             break;
@@ -1652,7 +1651,7 @@ GenTreePtr Compiler::impNormStructVal(GenTreePtr           structVal,
             }
             else
 #endif
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
                 if (blockNode->OperGet() == GT_HWIntrinsic && blockNode->AsHWIntrinsic()->isSIMD())
             {
                 parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
@@ -3395,11 +3394,17 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         {
             ni = lookupNamedIntrinsic(method);
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 #ifdef _TARGET_XARCH_
             if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
             {
                 return impX86HWIntrinsic(ni, method, sig, mustExpand);
+            }
+#endif // _TARGET_XARCH_
+#ifdef _TARGET_ARM64_
+            if (ni > NI_HW_INTRINSIC_START && ni < NI_HW_INTRINSIC_END)
+            {
+                return impHWIntrinsic(ni, method, sig, mustExpand);
             }
 #endif // _TARGET_XARCH_
 #endif // FEATURE_HW_INTRINSICS
@@ -4118,12 +4123,21 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         }
     }
 
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+#ifdef FEATURE_HW_INTRINSICS
+#if defined(_TARGET_XARCH_)
     if ((namespaceName != nullptr) && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
     {
         InstructionSet isa = lookupHWIntrinsicISA(className);
         result             = lookupHWIntrinsic(methodName, isa);
     }
+#elif defined(_TARGET_ARM64_)
+    if ((namespaceName != nullptr) && strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
+    {
+        result = lookupHWIntrinsic(className, methodName);
+    }
+#else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
+#error Unsupported platform
+#endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #endif // FEATURE_HW_INTRINSICS
     return result;
 }
@@ -8739,6 +8753,18 @@ REDO_RETURN_NODE:
             return op;
         }
     }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    else if ((op->gtOper == GT_HWIntrinsic) && varTypeIsSIMD(op->gtType))
+    {
+        // TODO-ARM64-FIXME Implement ARM64 ABI for Short Vectors properly
+        // assert(op->gtType == info.compRetNativeType)
+        if (op->gtType != info.compRetNativeType)
+        {
+            // Insert a register move to keep target type of SIMD intrinsic intact
+            op = gtNewScalarHWIntrinsicNode(info.compRetNativeType, op, NI_ARM64_NONE_MOV);
+        }
+    }
+#endif
     else if (op->gtOper == GT_COMMA)
     {
         op->gtOp.gtOp2 = impFixupStructReturnType(op->gtOp.gtOp2, retClsHnd);
@@ -19111,7 +19137,8 @@ bool Compiler::IsTargetIntrinsic(CorInfoIntrinsics intrinsicId)
 #if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
     switch (intrinsicId)
     {
-        // Amd64 only has SSE2 instruction to directly compute sqrt/abs.
+        // AMD64/x86 has SSE2 instructions to directly compute sqrt/abs and SSE4.1
+        // instructions to directly compute round/ceiling/floor.
         //
         // TODO: Because the x86 backend only targets SSE for floating-point code,
         //       it does not treat Sine, Cosine, or Round as intrinsics (JIT32
@@ -19122,6 +19149,12 @@ bool Compiler::IsTargetIntrinsic(CorInfoIntrinsics intrinsicId)
         case CORINFO_INTRINSIC_Sqrt:
         case CORINFO_INTRINSIC_Abs:
             return true;
+
+        case CORINFO_INTRINSIC_Round:
+        case CORINFO_INTRINSIC_Ceiling:
+        case CORINFO_INTRINSIC_Floor:
+            // TODO-XArch-CQ: Update to work on non-AVX machines: https://github.com/dotnet/coreclr/issues/15908
+            return compSupports(InstructionSet_SSE41) && canUseVexEncoding();
 
         default:
             return false;
