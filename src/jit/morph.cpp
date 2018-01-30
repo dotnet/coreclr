@@ -10054,13 +10054,13 @@ GenTree* Compiler::fgMorphBlkNode(GenTreePtr tree, bool isDest)
         addr                  = tree;
         GenTree* effectiveVal = tree->gtEffectiveVal();
 
-        jitstd::vector<GenTree*> commas(getAllocator());
+        GenTreePtrStack commas(this);
         for (GenTree* comma = tree; comma != nullptr && comma->gtOper == GT_COMMA; comma = comma->gtGetOp2())
         {
-            commas.push_back(comma);
+            commas.Push(comma);
         }
 
-        GenTree* lastComma = commas.back();
+        GenTree* lastComma = commas.Top();
         noway_assert(lastComma->gtGetOp2() == effectiveVal);
         GenTree* effectiveValAddr = gtNewOperNode(GT_ADDR, TYP_BYREF, effectiveVal);
 #ifdef DEBUG
@@ -10068,9 +10068,9 @@ GenTree* Compiler::fgMorphBlkNode(GenTreePtr tree, bool isDest)
 #endif
         lastComma->gtOp.gtOp2 = effectiveValAddr;
 
-        for (auto i = commas.rbegin(); i != commas.rend(); i++)
+        while (commas.Height() > 0)
         {
-            GenTree* comma = *i;
+            GenTree* comma = commas.Pop();
             comma->gtType  = TYP_BYREF;
             gtUpdateNodeSideEffects(comma);
         }
