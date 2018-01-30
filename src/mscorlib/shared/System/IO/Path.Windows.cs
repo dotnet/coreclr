@@ -154,6 +154,9 @@ namespace System.IO
             return PathInternal.NormalizeDirectorySeparators(new string(result));
         }
 
+        /// <remarks>
+        /// Unlike the string overload, this method will not normalize directory separators.
+        /// </remarks>
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
             if (PathInternal.IsEffectivelyEmpty(path))

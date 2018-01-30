@@ -84,6 +84,14 @@ namespace System.IO
             return end >= 0 ? path.Substring(0, end) : null;
         }
 
+        /// <summary>
+        /// Returns the directory path of a file path.
+        /// The returned value the an empty ReadOnlySpan if path is empty or 
+        /// if the file path denotes as root  (such as "\", "C:", or "\\server\share"). 
+        /// </summary>
+        /// <remarks>
+        /// Unlike the string overload, this method will not normalize directory separators.
+        /// </remarks>
         public static ReadOnlySpan<char> GetDirectoryName(ReadOnlySpan<char> path)
         {
             if (PathInternal.IsEffectivelyEmpty(path))
@@ -105,6 +113,12 @@ namespace System.IO
             return new string(GetExtension(path.AsReadOnlySpan()));
         }
 
+        /// <summary>
+        /// Returns the extension of the given path.
+        /// </summary>
+        /// <remarks> 
+        /// The returned value is an empty ReadOnlySpan if the given path doesnot include an extension.
+        /// </remarks>
         public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
         {
             int length = path.Length;
@@ -140,6 +154,9 @@ namespace System.IO
             return new string(result);
         }
 
+        /// <summary> 
+        /// The returned ReadOnlySpan contains the characters of the path that follows the last separator in path.
+        /// </summary>
         public static ReadOnlySpan<char> GetFileName(ReadOnlySpan<char> path)
         {
             int offset = PathInternal.FindFileNameIndex(path);
@@ -159,6 +176,9 @@ namespace System.IO
             return new string(result);
         }
 
+        /// <summary>
+        /// Returns the characters between the last separator and last (.) in the path.
+        /// </summary>
         public static ReadOnlySpan<char> GetFileNameWithoutExtension(ReadOnlySpan<char> path)
         {
             int length = path.Length;
