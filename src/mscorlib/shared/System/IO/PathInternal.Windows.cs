@@ -378,7 +378,7 @@ namespace System.IO
                     dst[j++] = DirectorySeparatorChar;
                 }
 
-                for (; i < path.Length; i++)
+                for (; i < state.Path.Length; i++)
                 {
                     current = path[i];
 
@@ -386,7 +386,7 @@ namespace System.IO
                     if (IsDirectorySeparator(current))
                     {
                         // If the next is a separator, skip adding this
-                        if (i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))
+                        if (i + 1 < state.Path.Length && IsDirectorySeparator(state.Path[i + 1]))
                         {
                             continue;
                         }

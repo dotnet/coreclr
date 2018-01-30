@@ -117,11 +117,7 @@ namespace System.IO
         // if it starts with a backslash ("\") or a valid drive letter and a colon (":").
         public static bool IsPathRooted(string path)
         {
-            if (path != null)
-            {
-                return IsPathRooted(path.AsReadOnlySpan());
-            }
-            return false;
+            return path == null ? false : IsPathRooted(path.AsReadOnlySpan());
         }
 
         public static bool IsPathRooted(ReadOnlySpan<char> path)

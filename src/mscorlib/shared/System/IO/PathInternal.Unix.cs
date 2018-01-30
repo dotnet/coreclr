@@ -64,13 +64,13 @@ namespace System.IO
             {
                 int j = 0;
                 
-                for (int i = 0; i < path.Length; i++)
+                for (int i = 0; i < state.Path.Length; i++)
                 {
                     char current = path[i];
 
                     // Skip if we have another separator following
                     if (IsDirectorySeparator(current)
-                        && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                        && (i + 1 < state.Path.Length && IsDirectorySeparator(state.Path[i + 1])))
                         continue;
 
                     dst[j++] = current;
