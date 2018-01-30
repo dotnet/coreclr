@@ -6246,24 +6246,24 @@ public:
     GenTree* optCopyAssertionProp(AssertionDsc* curAssertion,
                                   GenTree*      tree,
                                   GenTree* stmt DEBUGARG(AssertionIndex index));
-    GenTree* optConstantAssertionProp(AssertionDsc*   curAssertion,
-                                      constGenTreePtr tree,
-                                      constGenTreePtr stmt DEBUGARG(AssertionIndex index));
-    GenTree* optVnConstantAssertionProp(constGenTreePtr tree, constGenTreePtr stmt);
+    GenTree* optConstantAssertionProp(AssertionDsc* curAssertion,
+                                      GenTree*      tree,
+                                      GenTree* stmt DEBUGARG(AssertionIndex index));
+    GenTree* optVnConstantAssertionProp(GenTree* tree, GenTree* stmt);
 
     // Assertion propagation functions.
-    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_Ind(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_Cast(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, constGenTreePtr stmt);
-    GenTree* optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_Comma(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optAssertionProp_Update(constGenTreePtr newTree, constGenTreePtr tree, constGenTreePtr stmt);
-    GenTree* optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, constGenTreePtr stmt);
+    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt);
+    GenTree* optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTree* stmt);
+    GenTree* optAssertionProp_Update(GenTree* newTree, GenTree* tree, GenTree* stmt);
+    GenTree* optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTree* stmt);
 
     // Implied assertion functions.
     void optImpliedAssertions(AssertionIndex assertionIndex, ASSERT_TP& activeAssertions);
