@@ -6,8 +6,8 @@
 .assembly GitHub_16041 { }
 
 // The test originally hit a problem with "Extra flags on tree" on amd64,
-// because "fgMorphBlockOperand" did not set flags when morphed comma for addr exposed lcl_Var.
-// "StructY" is struct with exposed addr, it needs to be large than 8 bytes for amd64.
+// because "fgMorphBlockOperand" did not set flags when morphing comma for addr exposed lcl_Var.
+// "StructY" is struct with exposed addr, it needs to be larger than 8 bytes for amd64.
 
 
 .class private auto ansi beforefieldinit Test
