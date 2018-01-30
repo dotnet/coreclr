@@ -191,7 +191,7 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
