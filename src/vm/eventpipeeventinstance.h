@@ -115,7 +115,7 @@ protected:
 #endif // _DEBUG
 
     EventPipeEvent *m_pEvent;
-    unsigned int m_metadataId; // TODO adsitnik get it here
+    unsigned int m_metadataId;
     DWORD m_threadID;
     LARGE_INTEGER m_timeStamp;
     GUID m_activityId;
