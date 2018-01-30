@@ -72,6 +72,12 @@
       "values": [],
       "defaultValue": "/flp:v=normal"
     },
+    "MsBuildEventLogging": {
+      "description": "MsBuild logging options.",
+      "valueType": "passThrough",
+      "values": [],
+      "defaultValue": "/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
+    },
     "FilterToOSGroup": {
       "description": "Specifies the OSGroup.",
       "valueType": "property",
@@ -523,6 +529,7 @@
           "MsBuildLog": "default",
           "MsBuildWrn": "default",
           "MsBuildErr": "default",
+          "MsBuildEventLogging": "default",
           "RestoreDefaultOptimizationDataPackage": "false",
           "PortableBuild": "true",
           "UsePartialNGENOptimization": "false",
@@ -743,6 +750,7 @@
         "settings": {
           "__BuildOS": "default",
           "MsBuildFileLogging": "/flp:v=detailed;Append;LogFile=build-packages.log",
+          "MsBuildEventLogging": "default",
           "PortableBuild": "true",
           "Project": "src/.nuget/packages.builds"
         }
@@ -753,12 +761,12 @@
     "msbuild": {
       "osSpecific": {
         "windows": {
-            "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /nodeReuse:false /l:BinClashLogger,Tools\\net46\\Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log",
-            "path": "Tools/msbuild.cmd"
+          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /nodeReuse:false",
+          "path": "Tools/msbuild.cmd"
         },
         "unix": {
-            "defaultParameters": "/nologo /verbosity:minimal /clp:Summary /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log",
-            "path": "Tools/msbuild.sh"
+          "defaultParameters": "/nologo /verbosity:minimal /clp:Summary",
+          "path": "Tools/msbuild.sh"
         }
       },
       "valueTypes": {
