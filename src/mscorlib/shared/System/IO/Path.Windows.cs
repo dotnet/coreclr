@@ -147,13 +147,11 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            path = PathInternal.NormalizeDirectorySeparators(path);
             ReadOnlySpan<char> result = GetPathRoot(path.AsReadOnlySpan());
-
-            if (path.Length == result.Length && object.ReferenceEquals(result.DangerousGetPinnableReference(), path))
-                return path;
+            if (path.Length == result.Length)
+                return PathInternal.NormalizeDirectorySeparators(path);
            
-            return new string(result);
+            return PathInternal.NormalizeDirectorySeparators(new string(result));
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
