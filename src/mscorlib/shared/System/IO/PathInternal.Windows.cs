@@ -337,7 +337,7 @@ namespace System.IO
         ///   3. Doesn't play nice with string logic
         ///   4. Isn't a cross-plat friendly concept/behavior
         /// </remarks>
-        internal unsafe static string NormalizeDirectorySeparators(string path)
+        internal static string NormalizeDirectorySeparators(string path)
         {
             if (string.IsNullOrEmpty(path))
                 return path;
@@ -367,41 +367,36 @@ namespace System.IO
                     return path;
             }
 
-            fixed (char* f = path)
+            return string.Create(path.Length, (Path: path, Start: start), (dst, state) =>
             {
-                return string.Create(path.Length, (Path: (IntPtr)f, Start: start, PathLength: path.Length), (dst, state) =>
+                int i = state.Start;
+                int j = 0;
+
+                if (IsDirectorySeparator(path[state.Start]))
                 {
-                    int i = state.Start;
-                    int j = 0;
+                    i++;
+                    dst[j++] = DirectorySeparatorChar;
+                }
 
-                    ReadOnlySpan<char> temp = new ReadOnlySpan<char>((char*)state.Path, state.PathLength);
+                for (; i < path.Length; i++)
+                {
+                    current = path[i];
 
-                    if (IsDirectorySeparator(temp[state.Start]))
+                    // If we have a separator
+                    if (IsDirectorySeparator(current))
                     {
-                        i++;
-                        dst[j++] = DirectorySeparatorChar;
-                    }
-
-                    for (; i < temp.Length; i++)
-                    {
-                        current = temp[i];
-
-                        // If we have a separator
-                        if (IsDirectorySeparator(current))
+                        // If the next is a separator, skip adding this
+                        if (i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))
                         {
-                            // If the next is a separator, skip adding this
-                            if (i + 1 < temp.Length && IsDirectorySeparator(temp[i + 1]))
-                            {
-                                continue;
-                            }
-
-                            // Ensure it is the primary separator
-                            current = DirectorySeparatorChar;
+                            continue;
                         }
-                        dst[j++] = current;
+
+                        // Ensure it is the primary separator
+                        current = DirectorySeparatorChar;
                     }
-                });
-            }
+                    dst[j++] = current;
+                }
+            });           
         }
 
         /// <summary>

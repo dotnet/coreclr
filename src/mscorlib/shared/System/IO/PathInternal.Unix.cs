@@ -39,7 +39,7 @@ namespace System.IO
         /// <summary>
         /// Normalize separators in the given path. Compresses forward slash runs.
         /// </summary>
-        internal unsafe static string NormalizeDirectorySeparators(string path)
+        internal static string NormalizeDirectorySeparators(string path)
         {
             if (string.IsNullOrEmpty(path))
                 return path;
@@ -60,26 +60,22 @@ namespace System.IO
             if (normalized)
                 return path;
 
-            fixed (char* f = path)
+            return string.Create(path.Length, Path: path, (dst, state) =>
             {
-                return string.Create(path.Length, (Path: (IntPtr)f, PathLength: path.Length), (dst, state) =>
+                int j = 0;
+                
+                for (int i = 0; i < path.Length; i++)
                 {
-                    int j = 0;
-                    ReadOnlySpan<char> temp = new ReadOnlySpan<char>((char*)state.Path, state.PathLength);
+                    char current = path[i];
 
-                    for (int i = 0; i < temp.Length; i++)
-                    {
-                        char current = temp[i];
+                    // Skip if we have another separator following
+                    if (IsDirectorySeparator(current)
+                        && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                        continue;
 
-                        // Skip if we have another separator following
-                        if (IsDirectorySeparator(current)
-                            && (i + 1 < temp.Length && IsDirectorySeparator(temp[i + 1])))
-                            continue;
-
-                        dst[j++] = current;
-                    }
-                });
-            }
+                    dst[j++] = current;
+                }
+            });            
         }
         
         /// <summary>
