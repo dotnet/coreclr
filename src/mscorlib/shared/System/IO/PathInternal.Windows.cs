@@ -180,8 +180,8 @@ namespace System.IO
             int volumeSeparatorLength = 2;  // Length to the colon "C:"
             int uncRootLength = 2;          // Length to the start of the server name "\\"
 
-            bool extendedSyntax = StartsWithOrdinal(path, pathLength, ExtendedPathPrefix);
-            bool extendedUncSyntax = StartsWithOrdinal(path, pathLength, UncExtendedPathPrefix);
+            bool extendedSyntax = StartsWithOrdinal(path, ExtendedPathPrefix);
+            bool extendedUncSyntax = StartsWithOrdinal(path, UncExtendedPathPrefix);
             if (extendedSyntax)
             {
                 // Shift the position we look for the root from to account for the extended prefix
@@ -223,10 +223,11 @@ namespace System.IO
             return i;
         }
 
-        private static bool StartsWithOrdinal(ReadOnlySpan<char> source, int sourceLength, string value)
+        private static bool StartsWithOrdinal(ReadOnlySpan<char> source, string value)
         {
-            if (sourceLength < value.Length)
+            if (source.Length < value.Length)
                 return false;
+
             for (int i = 0; i < value.Length; i++)
             {
                 if (value[i] != source[i])

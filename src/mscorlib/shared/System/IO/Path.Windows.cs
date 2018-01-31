@@ -117,17 +117,13 @@ namespace System.IO
         // if it starts with a backslash ("\") or a valid drive letter and a colon (":").
         public static bool IsPathRooted(string path)
         {
-            return path == null ? false : IsPathRooted(path.AsReadOnlySpan());
+            return path != null && IsPathRooted(path.AsReadOnlySpan());
         }
 
         public static bool IsPathRooted(ReadOnlySpan<char> path)
         {
             int length = path.Length;
-            if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])) ||
-                (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar))
-                return true;
-
-            return false;
+            return (length >= 1 && PathInternal.IsDirectorySeparator(path[0])) || (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar);
         }
 
         // Returns the root portion of the given path. The resulting string

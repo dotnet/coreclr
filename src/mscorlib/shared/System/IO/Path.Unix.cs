@@ -196,10 +196,7 @@ namespace System.IO
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
-            if (PathInternal.IsEffectivelyEmpty(path))
-                return ReadOnlySpan<char>.Empty;
-
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsReadOnlySpan() : ReadOnlySpan<char>.Empty;
+            return PathInternal.IsEffectivelyEmpty(path) && IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsReadOnlySpan() : ReadOnlySpan<char>.Empty;
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>

@@ -137,16 +137,12 @@ namespace System.IO
         internal static int GetDirectoryNameOffset(ReadOnlySpan<char> path)
         {
             int root = GetRootLength(path);
-
             int i = path.Length;
-            if (i > root)
-            {
-                while (i > root && !IsDirectorySeparator(path[--i]))
-                    ;
-                return i;
-            }
+            if (i <= root)
+                return -1;
 
-            return -1;
+            while (i > root && !IsDirectorySeparator(path[--i]));
+            return i;
         }
     }
 }
