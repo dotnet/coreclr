@@ -31352,7 +31352,9 @@ void gc_heap::background_sweep()
 #endif //MULTIPLE_HEAPS
     {
 #ifdef FEATURE_EVENT_TRACE
-        bgc_heap_walk_for_etw_p = ETW::GCLog::ShouldTrackMovementForEtw();
+        bgc_heap_walk_for_etw_p = GCEventStatus::IsEnabled(GCEventProvider_Default, 
+                                                           GCEventKeyword_GCHeapSurvivalAndMovement, 
+                                                           GCEventLevel_Information);
 #endif //FEATURE_EVENT_TRACE
 
         leave_spin_lock (&gc_lock);
