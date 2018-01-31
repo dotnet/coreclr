@@ -1287,9 +1287,9 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            IThreadPoolWorkItem tpcallBack = (context == null || !context.IsDefault) ?
-                new QueueUserWorkItemCallback(callBack, state, context) :
-                (IThreadPoolWorkItem)new QueueUserWorkItemCallbackDefaultContext(callBack, state);
+            IThreadPoolWorkItem tpcallBack = (context != null && context.IsDefault) ?
+                new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
+                (IThreadPoolWorkItem)new QueueUserWorkItemCallback(callBack, state, context);
 
             ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: !preferLocal);
 
