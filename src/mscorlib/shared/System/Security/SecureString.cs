@@ -105,20 +105,14 @@ namespace System.Security
 
         public bool IsReadOnly()
         {
-            lock (_methodLock)
-            {
-                EnsureNotDisposed();
-                return _readOnly;
-            }
+            EnsureNotDisposed();
+            return Volatile.Read(ref _readOnly);
         }
 
         public void MakeReadOnly()
         {
-            lock (_methodLock)
-            {
-                EnsureNotDisposed();
-                _readOnly = true;
-            }
+            EnsureNotDisposed();
+            Volatile.Write(ref _readOnly, true);
         }
 
         public void RemoveAt(int index)
