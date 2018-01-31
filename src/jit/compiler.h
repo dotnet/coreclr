@@ -3126,7 +3126,6 @@ protected:
     static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
     static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    GenTreeArgList* buildArgList(CORINFO_SIG_INFO* sig);
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);

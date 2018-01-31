@@ -4644,7 +4644,16 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     else
     {
         genConsumeAddress(addr);
-        emit->emitInsLoadInd(ins_Load(targetType), emitTypeSize(tree), tree->gtRegNum, tree);
+        instruction ins = ins_Load(targetType);
+#ifdef FEATURE_HW_INTRINSICS
+        if ((tree->gtFlags & GTF_IND_HW_FLAGS) != 0)
+        {
+            GenTreeHWIntrinsic* hwIntrinsicNode = (GenTreeHWIntrinsic*)tree;
+            ins = Compiler::insOfHWIntrinsic(hwIntrinsicNode->gtHWIntrinsicId, hwIntrinsicNode->gtSIMDBaseType);
+            assert(ins != INS_invalid);
+        }
+#endif
+        emit->emitInsLoadInd(ins, emitTypeSize(tree), tree->gtRegNum, tree);
     }
 
     genProduceReg(tree);
