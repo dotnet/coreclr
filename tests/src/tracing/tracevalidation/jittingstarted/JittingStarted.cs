@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Tracing.Tests.Common;
 using Microsoft.Diagnostics.Tracing;
@@ -10,6 +12,9 @@ namespace Tracing.Tests
 {
     public static class TraceValidationJittingStarted
     {
+        // Delegate declaration matching the signature of the dynamic method.
+        private delegate void DynamicallyCompiledMethodInvoker();
+
         public static int Main(string[] args)
         {
             bool pass = true;
@@ -34,7 +39,8 @@ namespace Tracing.Tests
                 Console.WriteLine("\tEnd: Enable tracing.\n");
 
                 Console.WriteLine("\tStart: Generate some events.");
-                CompiledMethod();
+                DynamicallyCompiledMethodInvoker invoker = BuildDynamicMethod();
+                invoker.Invoke();
                 Console.WriteLine("\tEnd: Generate some events.\n");
 
                 Console.WriteLine("\tStart: Disable tracing.");
@@ -48,8 +54,9 @@ namespace Tracing.Tests
 
                 using (var trace = TraceEventDispatcher.GetDispatcherFromFileName(outputFilename))
                 {
-                    string methodNamespace = "Tracing.Tests.TraceValidationJittingStarted";
-                    string methodName = "CompiledMethod";
+                    string methodNamespace = "dynamicClass";
+                    string methodName = "DynamicallyCompiledMethod";
+                    string methodSignature = "void  ()";
                     string providerName = "Microsoft-Windows-DotNETRuntime";
                     string gcTriggeredEventName = "Method/JittingStarted";
 
@@ -57,6 +64,7 @@ namespace Tracing.Tests
                     {
                         if(methodNamespace.Equals(data.MethodNamespace) &&
                            methodName.Equals(data.MethodName) &&
+                           methodSignature.Equals(data.MethodSignature) &&
                            providerName.Equals(data.ProviderName) &&
                            gcTriggeredEventName.Equals(data.EventName))
                         {
@@ -93,9 +101,19 @@ namespace Tracing.Tests
             return 100;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void CompiledMethod()
+        private static DynamicallyCompiledMethodInvoker BuildDynamicMethod()
         {
+            Type[] methodArgs = { };
+
+            DynamicMethod dynamicMethod = new DynamicMethod(
+                "DynamicallyCompiledMethod",
+                typeof(void),
+                methodArgs);
+
+            ILGenerator il = dynamicMethod.GetILGenerator();
+            il.Emit(OpCodes.Ret);
+
+            return (DynamicallyCompiledMethodInvoker)dynamicMethod.CreateDelegate(typeof(DynamicallyCompiledMethodInvoker));
         }
     }
 }
