@@ -5,6 +5,9 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+#if CORERT
+using Thread = Internal.Runtime.Augments.RuntimeThread;
+#endif
 
 namespace System.Runtime.CompilerServices
 {
@@ -20,7 +23,39 @@ namespace System.Runtime.CompilerServices
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
             }
+#if CORERT // doesn't use try/finally, so no need for extra enregistrering work and no finally cloning
+            if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+            }
 
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContext previousExecutionCtx = currentThread.ExecutionContext;
+            SynchronizationContext previousSyncCtx = currentThread.SynchronizationContext;
+
+            // Async state machines are required not to throw, so no need for try/finally here.
+            stateMachine.MoveNext();
+
+            // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+            if (previousSyncCtx != currentThread.SynchronizationContext)
+            {
+                // Restore changed SynchronizationContext back to previous
+                currentThread.SynchronizationContext = previousSyncCtx;
+            }
+
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+            if (previousExecutionCtx != currentExecutionCtx)
+            {
+                // Restore changed ExecutionContext back to previous
+                currentThread.ExecutionContext = previousExecutionCtx;
+                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
+                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
+                {
+                    // There are change notifications; trigger any affected
+                    ExecutionContext.OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
+                }
+            }
+#else
             // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
             Thread currentThread0 = Thread.CurrentThread;
@@ -63,6 +98,7 @@ namespace System.Runtime.CompilerServices
                     }
                 }
             }
+#endif
         }
     }
 }
