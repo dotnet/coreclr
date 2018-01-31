@@ -72,8 +72,8 @@ namespace Tracing.Tests
                 }
                 Console.WriteLine("\tEnd: Processing events from file.\n");
 
-                Assert.Equal(InducedGCIterations, matchingEventCount);
-                Assert.Equal(nonMatchingEventCount, 0);
+                Assert.Equal(nameof(matchingEventCount), InducedGCIterations, matchingEventCount);
+                Assert.Equal(nameof(nonMatchingEventCount), nonMatchingEventCount, 0);
             }
             finally {
                 if (keepOutput)

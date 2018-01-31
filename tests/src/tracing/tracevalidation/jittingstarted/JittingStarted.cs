@@ -73,10 +73,10 @@ namespace Tracing.Tests
                 Console.WriteLine("\tEnd: Processing events from file.\n");
 
                 // CompiledMethod
-                Assert.Equal(matchingEventCount, 1);
+                Assert.Equal(nameof(matchingEventCount), matchingEventCount, 1);
 
                 // EventPipe.Disable
-                Assert.Equal(nonMatchingEventCount, 1);
+                Assert.Equal(nameof(matchingEventCount), nonMatchingEventCount, 1);
             }
             finally
             {
