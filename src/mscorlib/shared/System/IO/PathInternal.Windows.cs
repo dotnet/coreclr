@@ -367,36 +367,35 @@ namespace System.IO
                     return path;
             }
 
-            return string.Create(path.Length, (Path: path, Start: start), (dst, state) =>
+            StringBuilder builder = new StringBuilder(path.Length);
+
+            if (IsDirectorySeparator(path[start]))
             {
-                int i = state.Start;
-                int j = 0;
+                start++;
+                builder.Append(DirectorySeparatorChar);
+            }
 
-                if (IsDirectorySeparator(path[state.Start]))
+            for (int i = start; i < path.Length; i++)
+            {
+                current = path[i];
+
+                // If we have a separator
+                if (IsDirectorySeparator(current))
                 {
-                    i++;
-                    dst[j++] = DirectorySeparatorChar;
-                }
-
-                for (; i < state.Path.Length; i++)
-                {
-                    current = path[i];
-
-                    // If we have a separator
-                    if (IsDirectorySeparator(current))
+                    // If the next is a separator, skip adding this
+                    if (i + 1 < path.Length && IsDirectorySeparator(path[i + 1]))
                     {
-                        // If the next is a separator, skip adding this
-                        if (i + 1 < state.Path.Length && IsDirectorySeparator(state.Path[i + 1]))
-                        {
-                            continue;
-                        }
-
-                        // Ensure it is the primary separator
-                        current = DirectorySeparatorChar;
+                        continue;
                     }
-                    dst[j++] = current;
+
+                    // Ensure it is the primary separator
+                    current = DirectorySeparatorChar;
                 }
-            });           
+
+                builder.Append(current);
+            }
+
+            return builder.ToString();
         }
 
         /// <summary>
