@@ -317,7 +317,7 @@ namespace System.Runtime.CompilerServices
                 displayMessage = GetDisplayMessage(kind, userMessage, conditionText);
             }
 
-            System.Diagnostics.Debug.Assume(false, displayMessage, string.Empty);
+            System.Diagnostics.Debug.ContractFailure(false, displayMessage, string.Empty, GetResourceNameForFailure(kind));
         }
 
         private static String GetResourceNameForFailure(ContractFailureKind failureKind)

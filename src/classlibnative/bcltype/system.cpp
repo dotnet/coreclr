@@ -377,7 +377,7 @@ WCHAR g_szFailFastBuffer[256];
 
 // This is the common code for FailFast processing that is wrapped by the two
 // FailFast FCalls below.
-void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF errorSource)
+void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF refErrorSourceString)
 {
     CONTRACTL
     {
@@ -391,6 +391,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     {
         STRINGREF refMesgString;
         EXCEPTIONREF refExceptionForWatsonBucketing;
+        STRINGREF refErrorSourceString;
     } gc;
     ZeroMemory(&gc, sizeof(gc));
 
@@ -398,6 +399,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     
     gc.refMesgString = refMesgString;
     gc.refExceptionForWatsonBucketing = refExceptionForWatsonBucketing;
+    gc.refErrorSourceString = refErrorSourceString;
 
     // Managed code injected FailFast maps onto the unmanaged version
     // (EEPolicy::HandleFatalError) in the following manner: the exit code is
@@ -425,14 +427,14 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 
     WCHAR * errorSourceString = NULL;
 
-    if (errorSource != NULL) 
+    if (gc.refErrorSourceString != NULL) 
     {
-        DWORD cchErrorSource = errorSource->GetStringLength();
+        DWORD cchErrorSource = gc.refErrorSourceString->GetStringLength();
         errorSourceString = new (nothrow) WCHAR[cchErrorSource + 1];
 
         if (errorSourceString != NULL) 
         {
-            memcpyNoGCRefs(errorSourceString, errorSource->GetBuffer(), cchErrorSource * sizeof(WCHAR));
+            memcpyNoGCRefs(errorSourceString, gc.refErrorSourceString->GetBuffer(), cchErrorSource * sizeof(WCHAR));
             errorSourceString[cchErrorSource] = W('\0');
         }
     }
@@ -567,7 +569,7 @@ FCIMPL3(VOID, SystemNative::FailFastWithExceptionAndSource, StringObject* refMes
     EXCEPTIONREF refException = (EXCEPTIONREF)refExceptionUNSAFE;
     STRINGREF errorSource = (STRINGREF)errorSourceUNSAFE;
 
-    HELPER_METHOD_FRAME_BEGIN_2(refMessage, refException);
+    HELPER_METHOD_FRAME_BEGIN_3(refMessage, refException, errorSource);
 
     // The HelperMethodFrame knows how to get the return address.
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();

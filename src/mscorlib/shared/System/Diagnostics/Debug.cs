@@ -4,6 +4,8 @@
 
 // Do not remove this, it is needed to retain calls to these conditional methods in release builds
 #define DEBUG
+using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 
 namespace System.Diagnostics
 {
@@ -104,7 +106,7 @@ namespace System.Diagnostics
             }
         }
 
-        internal static void Assume(bool condition, string message, string detailMessage)
+        internal static void ContractFailure(bool condition, string message, string detailMessage, string failureKindMessage)
         {
             if (!condition)
             {
@@ -118,7 +120,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, "Assumption Failed");
+                s_ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
             }
         }
 
