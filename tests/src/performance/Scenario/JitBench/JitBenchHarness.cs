@@ -209,7 +209,6 @@ namespace JitBench
                 FileName = "powershell.exe",
                 Arguments = $"-Command \".\\RunBenchmark.ps1 " +
                             $"-SetupOnly " +
-                            $"-PrecompiledViews " +
                             $"-Architecture {s_targetArchitecture} " +
                             $"-Rid win7-{s_targetArchitecture} " +
                             $"-FrameworkVersion: {VersioningConstants.MicrosoftNetCoreAppPackageVersion} " +
