@@ -929,9 +929,7 @@ struct ScanContext
 #ifdef GC_PROFILING
         pMD = NULL;
 #endif //GC_PROFILING
-#ifdef FEATURE_EVENT_TRACE
         dwEtwRootKind = kEtwGCRootKindOther;
-#endif // FEATURE_EVENT_TRACE
     }
 };
 
