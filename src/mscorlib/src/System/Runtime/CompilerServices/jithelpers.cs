@@ -191,5 +191,27 @@ namespace System.Runtime.CompilerServices
             typeof(ArrayPinningHelper).ToString(); // Type used by the actual method body
             throw new InvalidOperationException();
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static internal byte BoolToByteNonNormalized(bool value)
+        {
+            // The body of this function will be replaced by the EE.
+
+            // Per ECMA 335, Sec III.1.1.2, the Boolean data type occupies 1 byte
+            // of memory. Per Sec. I.8.2.2 and I.8.7, the Boolean data type is internally
+            // treated as a one-byte integer interchangeable with Byte / SByte. This
+            // means that "casting" a Boolean to a Byte is both verifiable and free.
+
+            // n.b. The return value of this method isn't limited to 0 or 1. It'll contain
+            // the raw value behind the input Boolean, and technically 'true' could correspond
+            // to any non-zero value. If the caller doesn't know where the Boolean value
+            // came from and needs to normalize 'true' to 1, the caller should instead use
+            // Convert.ToInt32(Boolean), which performs normalization.
+
+            // ldarg.0
+            // ret
+
+            throw new InvalidOperationException();
+        }
     }
 }

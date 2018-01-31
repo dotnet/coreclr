@@ -767,6 +767,7 @@ DEFINE_METHOD(JIT_HELPERS,          UNSAFE_ENUM_CAST_LONG,  UnsafeEnumCastLong, 
 DEFINE_METHOD(JIT_HELPERS,          UNSAFE_CAST_TO_STACKPTR,UnsafeCastToStackPointer, NoSig)
 #endif // _DEBUG
 DEFINE_METHOD(JIT_HELPERS,          GET_RAW_SZ_ARRAY_DATA,  GetRawSzArrayData, NoSig)
+DEFINE_METHOD(JIT_HELPERS,          BOOL_TO_BYTE_NON_NORMALIZED, BoolToByteNonNormalized, NoSig)
 
 DEFINE_CLASS(UNSAFE,                InternalCompilerServices,       Unsafe)
 DEFINE_METHOD(UNSAFE,               AS_POINTER,             AsPointer, NoSig)

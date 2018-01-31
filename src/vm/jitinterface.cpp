@@ -6973,6 +6973,17 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__JIT_HELPERS__BOOL_TO_BYTE_NON_NORMALIZED)->GetMemberDef())
+    {
+        static BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };
+
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
 
     return false;
 }
