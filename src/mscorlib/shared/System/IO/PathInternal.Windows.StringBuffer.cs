@@ -32,7 +32,7 @@ namespace System.IO
             if (path.Length == 0)
                 return 0;
 
-            return GetRootLength(new ReadOnlySpan<char>(path.UnderlyingArray));
+            return GetRootLength(new ReadOnlySpan<char>(path.UnderlyingArray, 0, path.Length));
         }
 
         /// <summary>
