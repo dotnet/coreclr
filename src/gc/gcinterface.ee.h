@@ -218,6 +218,9 @@ public:
     virtual
     void SyncBlockCachePromotionsGranted(int max_gen) = 0;
 
+    virtual
+    uint32_t GetActiveSyncBlockCount() = 0;
+
     // Queries whether or not the given thread has preemptive GC disabled.
     virtual
     bool IsPreemptiveGCDisabled(Thread * pThread) = 0;
