@@ -36,52 +36,52 @@ namespace System.IO
             return c == DirectorySeparatorChar;
         }
 
-		/// <summary>
-		/// Normalize separators in the given path. Compresses forward slash runs.
-		/// </summary>
-		internal static string NormalizeDirectorySeparators(string path)
-		{
-			if (string.IsNullOrEmpty(path))
-				return path;
+        /// <summary>
+        /// Normalize separators in the given path. Compresses forward slash runs.
+        /// </summary>
+        internal static string NormalizeDirectorySeparators(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
 
-			// Make a pass to see if we need to normalize so we can potentially skip allocating
-			bool normalized = true;
+            // Make a pass to see if we need to normalize so we can potentially skip allocating
+            bool normalized = true;
 
-			for (int i = 0; i < path.Length; i++)
-			{
-				if (IsDirectorySeparator(path[i])
-					&& (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
-				{
-					normalized = false;
-					break;
-				}
-			}
+            for (int i = 0; i < path.Length; i++)
+            {
+                if (IsDirectorySeparator(path[i])
+                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                {
+                    normalized = false;
+                    break;
+                }
+            }
 
-			if (normalized)
-				return path;
+            if (normalized)
+                return path;
 
-			StringBuilder builder = new StringBuilder(path.Length);
+            StringBuilder builder = new StringBuilder(path.Length);
 
-			for (int i = 0; i < path.Length; i++)
-			{
-				char current = path[i];
+            for (int i = 0; i < path.Length; i++)
+            {
+                char current = path[i];
 
-				// Skip if we have another separator following
-				if (IsDirectorySeparator(current)
-					&& (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
-					continue;
+                // Skip if we have another separator following
+                if (IsDirectorySeparator(current)
+                    && (i + 1 < path.Length && IsDirectorySeparator(path[i + 1])))
+                    continue;
 
-				builder.Append(current);
-			}
+                builder.Append(current);
+            }
 
-			return builder.ToString();
-		}
+            return builder.ToString();
+        }
 
-		/// <summary>
-		/// Returns true if the character is a directory or volume separator.
-		/// </summary>
-		/// <param name="ch">The character to test.</param>
-		internal static bool IsDirectoryOrVolumeSeparator(char ch)
+        /// <summary>
+        /// Returns true if the character is a directory or volume separator.
+        /// </summary>
+        /// <param name="ch">The character to test.</param>
+        internal static bool IsDirectoryOrVolumeSeparator(char ch)
         {
             // The directory separator, volume separator, and the alternate directory
             // separator should be the same on Unix, so we only need to check one.
