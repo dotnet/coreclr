@@ -2878,6 +2878,559 @@ GenTree* Lowering::LowerCompare(GenTree* cmp)
     return cmp->gtNext;
 }
 
+class IfConversion
+{
+    Compiler*   m_comp;
+    BasicBlock* m_block;
+    GenTreeOp*  m_relop;
+    GenTree*    m_jtrue;
+    BasicBlock* m_falseBlock;
+    BasicBlock* m_trueBlock;
+    BasicBlock* m_joinBlock;
+
+public:
+    static GenTree* FirstInstruction(BasicBlock* block)
+    {
+        GenTree* first = LIR::AsRange(block).FirstNonPhiNode();
+
+        while ((first != nullptr) && first->OperIs(GT_IL_OFFSET))
+        {
+            first = first->gtNext;
+        }
+
+        return first;
+    }
+
+    static GenTree* NextInstruction(GenTree* node)
+    {
+        node = node->gtNext;
+
+        while ((node != nullptr) && node->OperIs(GT_IL_OFFSET))
+        {
+            node = node->gtNext;
+        }
+
+        return node;
+    }
+
+    static GenTree* PreviousInstruction(GenTree* node)
+    {
+        node = node->gtPrev;
+
+        while ((node != nullptr) && node->OperIs(GT_IL_OFFSET))
+        {
+            node = node->gtPrev;
+        }
+
+        return node;
+    }
+
+    static GenTree* LastInstruction(BasicBlock* block)
+    {
+        GenTree* last = block->lastNode();
+
+        while ((last != nullptr) && last->OperIs(GT_IL_OFFSET))
+        {
+            last = last->gtPrev;
+        }
+
+        return last;
+    }
+
+    static BasicBlock* SingleSuccessorBlock(BasicBlock* block)
+    {
+        if (block->bbJumpKind == BBJ_NONE)
+        {
+            return block->bbNext;
+        }
+
+        if (block->bbJumpKind == BBJ_ALWAYS)
+        {
+            return block->bbJumpDest;
+        }
+
+        return nullptr;
+    }
+
+    static GenTree* CloneNode(Compiler* comp, GenTree* node)
+    {
+        if (node->OperIs(GT_STORE_LCL_VAR))
+        {
+            GenTreeLclVar* clone = new (comp, GT_STORE_LCL_VAR)
+                GenTreeLclVar(GT_STORE_LCL_VAR, node->TypeGet(), node->AsLclVar()->GetLclNum(), -1);
+            clone->gtFlags = node->gtFlags & GTF_LIVENESS_MASK;
+            return clone;
+        }
+        else if (node->OperIs(GT_LCL_VAR))
+        {
+            GenTree* clone = comp->gtClone(node);
+            return clone;
+        }
+        else if (node->OperIs(GT_RETURN))
+        {
+            return comp->gtNewOperNode(GT_RETURN, node->TypeGet(), node->gtGetOp1());
+        }
+        else
+        {
+            assert(node->OperIs(GT_CNS_INT));
+            return comp->gtClone(node);
+        }
+    }
+
+    void UnlinkBlocks(BasicBlock* falseBlock) const
+    {
+        assert(m_joinBlock != nullptr);
+
+        m_comp->fgRemoveRefPred(falseBlock, m_block);
+
+        m_block->bbJumpKind = BBJ_ALWAYS;
+        m_block->bbJumpDest = m_joinBlock;
+
+        m_comp->fgAddRefPred(m_joinBlock, m_block);
+    }
+
+    void UnlinkBlocks(BasicBlock* falseBlock, BasicBlock* trueBlock) const
+    {
+        m_comp->fgRemoveRefPred(falseBlock, m_block);
+        m_comp->fgRemoveRefPred(trueBlock, m_block);
+
+        if (m_joinBlock == nullptr)
+        {
+            m_block->bbJumpKind = BBJ_RETURN;
+        }
+        else
+        {
+            m_block->bbJumpKind = BBJ_ALWAYS;
+            m_block->bbJumpDest = m_joinBlock;
+            m_joinBlock->bbFlags |= BBF_JMP_TARGET;
+            m_comp->fgAddRefPred(m_joinBlock, m_block);
+        }
+    }
+
+    LIR::Range& BlockRange() const
+    {
+        return LIR::AsRange(m_block);
+    }
+
+    enum class HammockKind
+    {
+        None,
+        Half,
+        Full
+    };
+
+    HammockKind MakeHammock()
+    {
+        m_falseBlock = m_block->bbNext;
+        m_trueBlock  = m_block->bbJumpDest;
+
+        BasicBlock* joinBlock = SingleSuccessorBlock(m_falseBlock);
+
+        if (joinBlock == m_block->bbJumpDest)
+        {
+            if (LastInstruction(m_falseBlock) == nullptr)
+            {
+                // The block is empty, fg optimizations should have taken care of this.
+                return HammockKind::None;
+            }
+
+            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) || !BasicBlock::sameEHRegion(m_block, m_falseBlock))
+            {
+                return HammockKind::None;
+            }
+
+            // We have something like "if (cond) { falseBlock: ... } joinBlock: ..."
+
+            m_joinBlock = joinBlock;
+            return HammockKind::Half;
+        }
+        else
+        {
+            if ((LastInstruction(m_falseBlock) == nullptr) || (LastInstruction(m_trueBlock) == nullptr))
+            {
+                // Either or both blocks are empty, fg optimizations should have taken care of this.
+                // If only one block is empty we actually have a half hammock but to keep things
+                // simple this special case is not handled.
+                return HammockKind::None;
+            }
+
+            if ((m_falseBlock->bbJumpKind == BBJ_RETURN) && (m_trueBlock->bbJumpKind == BBJ_RETURN))
+            {
+#ifdef JIT32_GCENCODER
+                // If the return blocks have other predecessors we won't be able to remove them and
+                // instead of replacing 2 return blocks with a single one we may end up creating an
+                // additional return block. In turn this may result in reaching the 4 return block
+                // limit imposed by the x86 GC encoding.
+                return HammockKind::None;
+#endif
+                m_joinBlock = nullptr;
+            }
+            else if ((joinBlock != nullptr) && (joinBlock == SingleSuccessorBlock(m_trueBlock)))
+            {
+                m_joinBlock = joinBlock;
+            }
+            else
+            {
+                return HammockKind::None;
+            }
+
+            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) ||
+                m_comp->fgInDifferentRegions(m_block, m_trueBlock))
+            {
+                return HammockKind::None;
+            }
+
+            if (!BasicBlock::sameEHRegion(m_block, m_falseBlock) || !BasicBlock::sameEHRegion(m_block, m_trueBlock))
+            {
+                return HammockKind::None;
+            }
+
+            // We have something like "if (cond) { falseBlock: ... } else { trueBlock: ... } joinBlock: ..."
+
+            return HammockKind::Full;
+        }
+    }
+
+    class BlockSummary
+    {
+        BasicBlock*  m_block;
+        GenTreeUnOp* m_op;    // The operation performed by this block - RETURN or STORE_LCL_VAR
+        GenTree*     m_opSrc; // The operation source - LCL_VAR or CNS_INT
+        unsigned     m_copyCount;
+
+        LIR::Range& BlockRange(Compiler* comp) const
+        {
+            return LIR::AsRange(comp->compCurBB);
+        }
+
+    public:
+        BlockSummary(BasicBlock* block) : m_block(block)
+        {
+        }
+
+        bool Summarize(HammockKind kind)
+        {
+            // A suitable block should consist of a single assignment involving local variables and constants.
+            // For full hammocks it's also possible to have a return of a local variable or a constant.
+            // Examples:
+            //     - if (cond) { lcl1 = lclX; } else { lcl1 = lclY; }
+            //     - if (cond) { return lclX; } else { return 42; }
+            //     - if (cond) { lcl1 = 42; }
+
+            GenTree* op = LastInstruction(m_block);
+
+            if ((kind == HammockKind::Half) && op->OperIs(GT_RETURN))
+            {
+                return false;
+            }
+
+            if ((op == nullptr) || !op->OperIs(GT_STORE_LCL_VAR, GT_RETURN))
+            {
+                // TODO Indirs would also work provided that both blocks store to the same address.
+                // How to detect that?
+                return false;
+            }
+
+            if (!varTypeIsIntOrI(op))
+            {
+                // SSE doesn't have a conditional move instruction. In some cases it may be possible
+                // to simulate one by using SSE bitwise ops.
+                return false;
+            }
+
+            GenTree* opSrc = op->gtGetOp1();
+
+            if (!opSrc->OperIs(GT_LCL_VAR, GT_CNS_INT))
+            {
+                // TODO Indirs might be valid sources if we know that the addresses are valid.
+                // Perhaps we can handle "if (cond) { lcl = obj.fld1; } else { lcl = obj.fld2; }" ?
+                return false;
+            }
+
+            if (PreviousInstruction(op) != opSrc)
+            {
+                // There's some other instruction between the lclvar store and its source operand.
+                return false;
+            }
+
+            GenTree* first = FirstInstruction(m_block);
+
+            if (opSrc == first)
+            {
+                m_copyCount = 0;
+            }
+            else
+            {
+                if (kind == HammockKind::Half)
+                {
+                    return false;
+                }
+
+                // It's possible that both blocks of a full hammock to start with a series of lclvar
+                // copies that are generated when the importer spills a non-empty stack at the start
+                // of a block. Try to identify and clone such copies.
+
+                GenTree* copyDst   = PreviousInstruction(opSrc);
+                unsigned copyCount = 0;
+
+                while (true)
+                {
+                    if (!copyDst->OperIs(GT_STORE_LCL_VAR))
+                    {
+                        return false;
+                    }
+
+#ifndef _TARGET_64BIT_
+                    if (varTypeIsLong(copyDst))
+                    {
+                        // Can't clone 64 bit copies on 32 bit targets. They need decomposition but
+                        // decomposition has already ran on the current block.
+                        return false;
+                    }
+#endif
+
+                    GenTree* copySrc = copyDst->gtGetOp1();
+
+                    if (!copySrc->OperIs(GT_LCL_VAR))
+                    {
+                        return false;
+                    }
+
+                    if (PreviousInstruction(copyDst) != copySrc)
+                    {
+                        return false;
+                    }
+
+                    copyCount++;
+
+                    if (copySrc == first)
+                    {
+                        break;
+                    }
+
+                    copyDst = PreviousInstruction(copySrc);
+
+                    if (copyDst == nullptr)
+                    {
+                        return false;
+                    }
+                }
+
+                m_copyCount = copyCount;
+            }
+
+            m_opSrc = opSrc;
+            m_op    = op->AsUnOp();
+            return true;
+        }
+
+        bool OpEqual(const BlockSummary& other) const
+        {
+            GenTreeUnOp* falseOp = m_op;
+            GenTreeUnOp* trueOp  = other.m_op;
+
+            assert((falseOp != nullptr) && (trueOp != nullptr));
+
+            if (falseOp->OperGet() != trueOp->OperGet())
+            {
+                return false;
+            }
+
+            if (falseOp->TypeGet() != trueOp->TypeGet())
+            {
+                return false;
+            }
+
+            if (falseOp->OperIs(GT_STORE_LCL_VAR))
+            {
+                if (falseOp->AsLclVar()->GetLclNum() != trueOp->AsLclVar()->GetLclNum())
+                {
+                    return false;
+                }
+            }
+
+            if (m_copyCount != other.m_copyCount)
+            {
+                return false;
+            }
+
+            if (m_copyCount > 0)
+            {
+                GenTree* falseCopyDst = PreviousInstruction(m_opSrc);
+                GenTree* trueCopyDst  = PreviousInstruction(other.m_opSrc);
+
+                for (unsigned i = 0; i < m_copyCount; i++)
+                {
+                    if (falseCopyDst->TypeGet() != trueCopyDst->TypeGet() ||
+                        falseCopyDst->AsLclVar()->GetLclNum() != trueCopyDst->AsLclVar()->GetLclNum())
+                    {
+                        return false;
+                    }
+
+                    GenTree* falseCopySrc = falseCopyDst->gtGetOp1();
+                    GenTree* trueCopySrc  = trueCopyDst->gtGetOp1();
+
+                    if (falseCopySrc->TypeGet() != trueCopySrc->TypeGet() ||
+                        falseCopySrc->AsLclVar()->GetLclNum() != trueCopySrc->AsLclVar()->GetLclNum())
+                    {
+                        return false;
+                    }
+
+                    if (i != m_copyCount - 1)
+                    {
+                        falseCopyDst = PreviousInstruction(falseCopySrc);
+                        trueCopyDst  = PreviousInstruction(trueCopySrc);
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        void CloneCopies(Compiler* comp, GenTree* insertBefore) const
+        {
+            if (m_copyCount == 0)
+            {
+                return;
+            }
+
+            GenTree* copyDst = PreviousInstruction(m_opSrc);
+            assert(copyDst->OperIs(GT_STORE_LCL_VAR));
+
+            for (unsigned i = 0; i < m_copyCount; i++)
+            {
+                GenTree* copySrc         = copyDst->gtGetOp1();
+                GenTree* copyDstClone    = CloneNode(comp, copyDst);
+                GenTree* copySrcClone    = CloneNode(comp, copySrc);
+                copyDstClone->gtOp.gtOp1 = copySrcClone;
+
+                BlockRange(comp).InsertBefore(insertBefore, copySrcClone, copyDstClone);
+                insertBefore = copySrcClone;
+
+                if (i != m_copyCount - 1)
+                {
+                    copyDst = PreviousInstruction(copySrc);
+                    assert(copyDst->OperIs(GT_STORE_LCL_VAR));
+                }
+            }
+        }
+
+        GenTree* CloneOpSrc(Compiler* comp, GenTree* insertBefore) const
+        {
+            GenTree* clone = CloneNode(comp, m_opSrc);
+            BlockRange(comp).InsertBefore(insertBefore, clone);
+            return clone;
+        }
+
+        GenTreeUnOp* CloneOp(Compiler* comp, GenTree* insertAfter) const
+        {
+            GenTreeUnOp* clone = CloneNode(comp, m_op)->AsUnOp();
+            BlockRange(comp).InsertAfter(insertAfter, clone);
+            return clone;
+        }
+
+        GenTreeLclVar* CloneOpAsLclVar(Compiler* comp, GenTree* insertBefore) const
+        {
+            assert(m_op->OperIs(GT_STORE_LCL_VAR));
+
+            GenTreeLclVar* clone = comp->gtNewLclvNode(m_op->AsLclVar()->GetLclNum(), m_op->TypeGet())->AsLclVar();
+            BlockRange(comp).InsertBefore(insertBefore, clone);
+            return clone;
+        }
+    };
+
+public:
+    IfConversion(Compiler* comp, BasicBlock* block, GenTreeOp* relop, GenTree* jtrue)
+        : m_comp(comp), m_block(block), m_relop(relop), m_jtrue(jtrue)
+    {
+        assert(m_block->bbJumpKind == BBJ_COND);
+        assert(relop->OperIsCompare());
+        assert(jtrue->OperIs(GT_JTRUE));
+    }
+
+    GenTreeOpCC* TryIfConversion()
+    {
+        GenCondition condition    = GenCondition::FromRelop(m_relop);
+        GenTree*     conditionDef = m_relop;
+        HammockKind  kind         = MakeHammock();
+
+        if (kind == HammockKind::Half)
+        {
+            BlockSummary summary(m_falseBlock);
+
+            if (!summary.Summarize(kind))
+            {
+                return nullptr;
+            }
+
+            condition = GenCondition::Reverse(condition);
+
+            m_relop->ChangeOper(GT_CMP);
+            m_relop->gtType = TYP_VOID;
+            m_jtrue->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = m_jtrue->AsOpCC();
+
+            GenTree* trueSrc  = summary.CloneOpSrc(m_comp, selcc);
+            GenTree* falseSrc = summary.CloneOpAsLclVar(m_comp, selcc);
+
+            selcc->gtCondition    = condition;
+            selcc->gtConditionDef = conditionDef;
+            selcc->gtType         = falseSrc->TypeGet();
+            selcc->gtOp1          = falseSrc;
+            selcc->gtOp2          = trueSrc;
+
+            GenTreeUnOp* op = summary.CloneOp(m_comp, selcc);
+            assert(op->OperIs(GT_STORE_LCL_VAR));
+            op->gtOp1 = selcc;
+
+            UnlinkBlocks(m_falseBlock);
+
+            return selcc;
+        }
+
+        if (kind == HammockKind::Full)
+        {
+            BlockSummary falseSummary(m_falseBlock);
+            BlockSummary trueSummary(m_trueBlock);
+
+            if (!falseSummary.Summarize(kind) || !trueSummary.Summarize(kind))
+            {
+                return nullptr;
+            }
+
+            if (!falseSummary.OpEqual(trueSummary))
+            {
+                return nullptr;
+            }
+
+            m_relop->ChangeOper(GT_CMP);
+            m_relop->gtType = TYP_VOID;
+            m_jtrue->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = m_jtrue->AsOpCC();
+
+            falseSummary.CloneCopies(m_comp, selcc);
+
+            GenTree* falseSrc = falseSummary.CloneOpSrc(m_comp, selcc);
+            GenTree* trueSrc  = trueSummary.CloneOpSrc(m_comp, selcc);
+
+            selcc->gtCondition    = condition;
+            selcc->gtConditionDef = conditionDef;
+            selcc->gtType         = falseSrc->TypeGet();
+            selcc->gtOp1          = falseSrc;
+            selcc->gtOp2          = trueSrc;
+
+            GenTreeUnOp* op = trueSummary.CloneOp(m_comp, selcc);
+            op->gtOp1       = selcc;
+
+            UnlinkBlocks(m_falseBlock, m_trueBlock);
+
+            return selcc;
+        }
+
+        return nullptr;
+    }
+};
+
 //------------------------------------------------------------------------
 // Lowering::LowerJTrue: Lowers a JTRUE node.
 //
@@ -2931,6 +3484,20 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
         }
     }
 #endif // _TARGET_ARM64_
+
+#ifdef _TARGET_AMD64_
+    GenTreeOp* relop = jtrue->gtGetOp1()->AsOp();
+    if (!relop->OperIs(GT_TEST_EQ, GT_TEST_NE) && !varTypeIsFloating(relop->gtGetOp1()->TypeGet()))
+    {
+        IfConversion ifConversion(comp, m_block, relop, jtrue);
+        GenTreeOpCC* selcc = ifConversion.TryIfConversion();
+
+        if (selcc != nullptr)
+        {
+            return selcc;
+        }
+    }
+#endif
 
     ContainCheckJTrue(jtrue);
 
@@ -5747,6 +6314,38 @@ void Lowering::ContainCheckJTrue(GenTreeOp* node)
 
 GenTree* Lowering::LowerSelCC(GenTreeOpCC* selcc)
 {
+    assert(selcc->OperIs(GT_SELCC));
+
+    GenTree* falseOp = selcc->gtGetOp1();
+    GenTree* trueOp  = selcc->gtGetOp2();
+
+    // Put constants in the second operand, this appears to improve register allocation.
+
+    if (falseOp->IsIntegralConst() && !trueOp->IsIntegralConst())
+    {
+        std::swap(selcc->gtOp1, selcc->gtOp2);
+        selcc->gtCondition = GenCondition::Reverse(selcc->gtCondition);
+    }
+
+    // CMOV doesn't support immediate operands so constants need to be loaded in registers.
+    // Attempting to load a 0 in a register usually results in a "xor reg, reg" instruction
+    // which changes EFLAGS. Avoid this by moving the constant node before the compare node:
+    //     xor eax, eax
+    //     cmp ebx, ecx
+    //     cmove edx, eax
+
+    if (falseOp->IsIntegralConst(0))
+    {
+        BlockRange().Remove(falseOp);
+        BlockRange().InsertBefore(selcc->gtConditionDef, falseOp);
+    }
+
+    if (trueOp->IsIntegralConst(0))
+    {
+        BlockRange().Remove(trueOp);
+        BlockRange().InsertBefore(selcc->gtConditionDef, trueOp);
+    }
+
     ContainCheckSelCC(selcc);
     return selcc->gtNext;
 }
@@ -5754,7 +6353,11 @@ GenTree* Lowering::LowerSelCC(GenTreeOpCC* selcc)
 void Lowering::ContainCheckSelCC(GenTreeOpCC* selcc)
 {
 #ifdef _TARGET_XARCH_
+    GenTree* op1 = selcc->gtGetOp1();
     GenTree* op2 = selcc->gtGetOp2();
+
+    op1->ClearContained();
+    op2->ClearContained();
 
     if (IsContainableMemoryOp(op2))
     {
@@ -5769,7 +6372,7 @@ void Lowering::ContainCheckSelCC(GenTreeOpCC* selcc)
             MakeSrcContained(selcc, op2);
         }
     }
-    else
+    else if (op2->OperIs(GT_LCL_VAR))
     {
         op2->SetRegOptional();
     }
