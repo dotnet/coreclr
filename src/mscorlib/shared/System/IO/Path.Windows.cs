@@ -105,34 +105,49 @@ namespace System.IO
                 return GetFullPath(path);
 
             int length = path.Length;
+            string combinedPath = null;
 
-            if (PathInternal.IsDevice(basePath))
+            if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
             {
-                // paths starting with \\?\ & \\.\
-                return RemoveRelativeSegments(CombineNoChecks(basePath, path), PathInternal.GetRootLength(basePath));
-            }
-            else if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
-            {
-                // path is current drive rooted i.e. starts with \
-                return RemoveRelativeSegments(CombineNoChecks(GetPathRoot(basePath), path.Substring(1)));
+                // Path is current drive rooted i.e. starts with \:
+                // "\Foo" and "C:\Bar" => "C:\Foo"
+                // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
+                combinedPath = CombineNoChecks(GetPathRoot(basePath), path.AsReadOnlySpan().Slice(1));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
+                // Drive relative paths
                 Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
                 
-                // same and different specific drive rooted path
                 if (GetPathRoot(path.AsReadOnlySpan()) == GetPathRoot(basePath.AsReadOnlySpan()))
                 {
-                    // paths such as C:foo
-                    return RemoveRelativeSegments(CombineNoChecks(basePath, path.Substring(2)), basePath.Length);
+                    // Matching root
+                    // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
+                    // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
+                    combinedPath = CombineNoChecks(basePath, path.AsReadOnlySpan().Slice(2));
                 }
                 else
                 {
-                    return RemoveRelativeSegments(path.Insert(2, "\\"), PathInternal.GetRootLength(path));
+                    // No matching root, root to specified drive
+                    // "D:Foo" and "C:\Bar" => "D:Foo"
+                    // "D:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar"
+                    combinedPath = path.Insert(2, "\\");
                 }   
             }
+            else
+            {
+                // "Simple" relative path
+                // "Foo" and "C:\Bar" => "C:\Bar\Foo"
+                // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
+                combinedPath = CombineNoChecks(basePath, path);
+            }
 
-            return GetFullPath(CombineNoChecks(basePath, path));
+            // Device paths are normalized by definition, so passing something of this format
+            // to GetFullPath() won't do anything by design. Additionally, GetFullPathName() in
+            // Windows doesn't root them properly. As such we need to manually remove segments.
+            return PathInternal.IsDevice(combinedPath)
+                ? RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath))
+                : GetFullPath(combinedPath);
         }
 
         public static string GetTempPath()
