@@ -130,7 +130,7 @@ namespace System.IO
                 {
                     // No matching root, root to specified drive
                     // "D:Foo" and "C:\Bar" => "D:Foo"
-                    // "D:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar"
+                    // "D:\Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
                     combinedPath = path.Insert(2, "\\");
                 }   
             }
