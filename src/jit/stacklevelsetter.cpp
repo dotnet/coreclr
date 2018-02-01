@@ -31,7 +31,7 @@ StackLevelSetter::StackLevelSetter(Compiler* compiler)
 //   that calls inside this method can push on the stack.
 //   This value is used for sanity checks in the emitter.
 //
-//   Stack slots are pointer-sized: 4 bytes for x86, 8 bytes for amd64.
+//   Stack slots are pointer-sized: 4 bytes for 32-bit platforms, 8 bytes for 64-bit platforms.
 //
 //   For x86 it also sets throw-helper blocks incoming stack depth and set
 //   framePointerRequired when it is necessary. These values are used to pop
@@ -80,7 +80,7 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
         GenTree* node = *i;
         if (node->OperIsPutArgStkOrSplit())
         {
-            GenTreePutArgStk* putArg   = static_cast<GenTreePutArgStk*>(node);
+            GenTreePutArgStk* putArg   = node->AsPutArgStk();
             unsigned          numSlots = putArgNumSlots[putArg];
             putArgNumSlots.Remove(putArg);
             SubStackLevel(numSlots);
@@ -89,7 +89,7 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
 #if !FEATURE_FIXED_OUT_ARGS
         // Set throw blocks incoming stack depth for x86.
         bool operMightThrow = ((node->gtFlags & GTF_EXCEPT) != 0);
-        if (!framePointerRequired && comp->fgUseThrowHelperBlocks() && operMightThrow)
+        if (operMightThrow && !framePointerRequired && comp->fgUseThrowHelperBlocks())
         {
             SetThrowHelperBlocks(node, block);
         }

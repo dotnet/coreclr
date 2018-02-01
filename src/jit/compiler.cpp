@@ -5022,7 +5022,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     m_pLowering = new (this, CMK_LSRA) Lowering(this, m_pLinearScan); // PHASE_LOWERING
     m_pLowering->Run();
 
-    StackLevelSetter stackLevelSetter(this);
+    StackLevelSetter stackLevelSetter(this); // PHASE_STACK_LEVEL_SETTER
     stackLevelSetter.Run();
 
     assert(lvaSortAgain == false); // We should have re-run fgLocalVarLiveness() in lower.Run()

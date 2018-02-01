@@ -4834,7 +4834,7 @@ public:
     // can push on the stack. This value is calculated during morph.
     //
     // Return Value:
-    //    Returns fgPtrArgCntMax, that is private fields.
+    //    Returns fgPtrArgCntMax, that is a private field.
     //
     unsigned fgGetPtrArgCntMax() const
     {
@@ -4843,7 +4843,7 @@ public:
 
     //------------------------------------------------------------------------
     // fgSetPtrArgCntMax: Set the maximum number of pointer-sized stack arguments that calls inside this method
-    // can push on the stack. This function is used to correct wrong morph calculations during StackLevelSetter.
+    // can push on the stack. This function is used during StackLevelSetter to fix incorrect morph calculations.
     //
     void fgSetPtrArgCntMax(unsigned argCntMax)
     {
