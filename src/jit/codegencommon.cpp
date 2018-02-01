@@ -9671,6 +9671,10 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     if (jmpEpilog)
     {
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+        hasTailCalls = true;
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
         noway_assert(block->bbJumpKind == BBJ_RETURN);
         noway_assert(block->bbTreeList != nullptr);
 
