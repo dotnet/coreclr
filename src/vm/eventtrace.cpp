@@ -874,15 +874,14 @@ VOID ETW::GCLog::ForceGC(LONGLONG l64ClientSequenceNumber)
 //---------------------------------------------------------------------------------------
 //
 // Helper to fire the GCStart event.  Figures out which version of GCStart to fire, and
-// includes the client sequence number, if available.  Also logs the generation range
-// events.
+// includes the client sequence number, if available.
 //
 // Arguments:
 //      pGcInfo - ETW_GC_INFO containing details from GC about this collection
 //
 
 // static
-VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
+VOID ETW::GCLog::FireGcStart(ETW_GC_INFO * pGcInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -902,80 +901,7 @@ VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
         }
 
         FireEtwGCStart_V2(pGcInfo->GCStart.Count, pGcInfo->GCStart.Depth, pGcInfo->GCStart.Reason, pGcInfo->GCStart.Type, GetClrInstanceId(), l64ClientSequenceNumberToLog);
-
-        // Fire an event per range per generation
-        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
-        hp->DiagDescrGenerations(FireSingleGenerationRangeEvent, NULL /* context */);
     }
-}
-
-
-//---------------------------------------------------------------------------------------
-//
-// Helper to fire the GCEnd event and the generation range events.
-// 
-// Arguments:
-//      Count - (matching Count from corresponding GCStart event0
-//      Depth - (matching Depth from corresponding GCStart event0
-//
-//
-
-// static
-VOID ETW::GCLog::FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (ETW_TRACING_CATEGORY_ENABLED(
-        MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_GC_KEYWORD))
-    {
-        // Fire an event per range per generation
-        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
-        hp->DiagDescrGenerations(FireSingleGenerationRangeEvent, NULL /* context */);
-
-        // GCEnd
-        FireEtwGCEnd_V1(Count, Depth, GetClrInstanceId());
-    }
-}
- 
-//---------------------------------------------------------------------------------------
-//
-// Callback made by GC when we call GCHeapUtilities::DiagDescrGenerations().  This is
-// called once per range per generation, and results in a single ETW event per range per
-// generation.
-//
-// Arguments:
-//      context - unused
-//      generation - Generation number
-//      rangeStart - Where does this range start?
-//      rangeEnd - How large is the used portion of this range?
-//      rangeEndReserved - How large is the reserved portion of this range?
-//
-
-// static
-VOID ETW::GCLog::FireSingleGenerationRangeEvent(
-    void * /* context */,
-    int generation, 
-    BYTE * rangeStart, 
-    BYTE * rangeEnd,
-    BYTE * rangeEndReserved)
-{
-    CONTRACT_VOID
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY; // can be called even on GC threads        
-        PRECONDITION(0 <= generation && generation <= 3);
-        PRECONDITION(CheckPointer(rangeStart));
-        PRECONDITION(CheckPointer(rangeEnd));
-        PRECONDITION(CheckPointer(rangeEndReserved));
-    } 
-    CONTRACT_END;
-
-    FireEtwGCGenerationRange((BYTE) generation, rangeStart, rangeEnd - rangeStart, rangeEndReserved - rangeStart, GetClrInstanceId());
-
-    RETURN;
 }
 
 //---------------------------------------------------------------------------------------
@@ -5351,7 +5277,7 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
-VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID)
+VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         NOTHROW;
@@ -5364,7 +5290,7 @@ VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrC
                                         TRACE_LEVEL_INFORMATION, 
                                         CLR_JIT_KEYWORD))
         {
-            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pCode, rejitID);
+            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pCode, rejitID, bProfilerRejectedPrecompiledCode, bReadyToRunRejectedPrecompiledCode); 
         }
 
         if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
@@ -5877,6 +5803,7 @@ VOID ETW::LoaderLog::SendAssemblyEvent(Assembly *pAssembly, DWORD dwEventOptions
     BOOL bIsCollectibleAssembly = pAssembly->IsCollectible();
     BOOL bIsDomainNeutral = pAssembly->IsDomainNeutral() ;
     BOOL bHasNativeImage = pAssembly->GetManifestFile()->HasNativeImage();
+    BOOL bIsReadyToRun = pAssembly->GetManifestFile()->IsILImageReadyToRun();
 
     ULONGLONG ullAssemblyId = (ULONGLONG)pAssembly;
     ULONGLONG ullDomainId = (ULONGLONG)pAssembly->GetDomain();
@@ -5884,7 +5811,8 @@ VOID ETW::LoaderLog::SendAssemblyEvent(Assembly *pAssembly, DWORD dwEventOptions
     ULONG ulAssemblyFlags = ((bIsDomainNeutral ? ETW::LoaderLog::LoaderStructs::DomainNeutralAssembly : 0) |
                              (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicAssembly : 0) |
                              (bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeAssembly : 0) |
-                             (bIsCollectibleAssembly ? ETW::LoaderLog::LoaderStructs::CollectibleAssembly : 0));
+                             (bIsCollectibleAssembly ? ETW::LoaderLog::LoaderStructs::CollectibleAssembly : 0) |
+                             (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunAssembly : 0));
 
     SString sAssemblyPath;
     pAssembly->GetDisplayName(sAssemblyPath);
@@ -6201,12 +6129,14 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
     {
         bIsIbcOptimized = pModule->IsIbcOptimized();
     }
+    BOOL bIsReadyToRun = pModule->IsReadyToRun();
     ULONG ulReservedFlags = 0;
     ULONG ulFlags = ((bIsDomainNeutral ? ETW::LoaderLog::LoaderStructs::DomainNeutralModule : 0) |
                      (bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeModule : 0) |
                      (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicModule : 0) |
                      (bIsManifestModule ? ETW::LoaderLog::LoaderStructs::ManifestModule : 0) |
-                     (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0));
+                     (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0) |
+                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0));
 
     // Grab PDB path, guid, and age for managed PDB and native (NGEN) PDB when
     // available.  Any failures are not fatal.  The corresponding PDB info will remain
@@ -6392,7 +6322,7 @@ VOID ETW::MethodLog::SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *n
 /****************************************************************************/
 /* This routine is used to send a method load/unload or rundown event                              */
 /****************************************************************************/
-VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID)
+VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         THROWS;
@@ -6466,7 +6396,9 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
         (bHasSharedGenericCode ? ETW::MethodLog::MethodStructs::SharedGenericCode : 0) |
         (bIsGenericMethod ? ETW::MethodLog::MethodStructs::GenericMethod : 0) |
         (bIsDynamicMethod ? ETW::MethodLog::MethodStructs::DynamicMethod : 0) |
-        (bIsJit ? ETW::MethodLog::MethodStructs::JittedMethod : 0)));
+        (bIsJit ? ETW::MethodLog::MethodStructs::JittedMethod : 0) |
+        (bProfilerRejectedPrecompiledCode ? ETW::MethodLog::MethodStructs::ProfilerRejectedPrecompiledCode : 0) |
+        (bReadyToRunRejectedPrecompiledCode ? ETW::MethodLog::MethodStructs::ReadyToRunRejectedPrecompiledCode : 0)));
 
     // Intentionally set the extent flags (cold vs. hot) only after all the other common
     // flags (above) have been set.

@@ -38,22 +38,6 @@ void InitializeEventTracing();
 // These flags need to be defined either when FEATURE_EVENT_TRACE is enabled or the 
 // PROFILING_SUPPORTED is set, since they are used both by event tracing and profiling.
 
-enum EtwGCRootFlags
-{
-    kEtwGCRootFlagsPinning =            0x1,
-    kEtwGCRootFlagsWeakRef =            0x2,
-    kEtwGCRootFlagsInterior =           0x4,
-    kEtwGCRootFlagsRefCounted =         0x8,
-};
-
-enum EtwGCRootKind
-{
-    kEtwGCRootKindStack =               0,
-    kEtwGCRootKindFinalizer =           1,
-    kEtwGCRootKindHandle =              2,
-    kEtwGCRootKindOther =               3,
-};
-
 enum EtwTypeFlags
 {
     kEtwTypeFlagsDelegate =                         0x1,
@@ -534,6 +518,7 @@ namespace ETW
                 DynamicAssembly=0x2,
                 NativeAssembly=0x4,
                 CollectibleAssembly=0x8,
+                ReadyToRunAssembly=0x10,
             }AssemblyFlags;
 
             typedef enum _ModuleFlags
@@ -542,7 +527,8 @@ namespace ETW
                 NativeModule=0x2,
                 DynamicModule=0x4,
                 ManifestModule=0x8,
-                IbcOptimized=0x10
+                IbcOptimized=0x10,
+                ReadyToRunModule=0x20,
             }ModuleFlags;
 
             typedef enum _RangeFlags
@@ -591,7 +577,7 @@ namespace ETW
         static VOID SendEventsForNgenMethods(Module *pModule, DWORD dwEventOptions);
         static VOID SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, SIZE_T pCode, ReJITID rejitID);
-        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0);
+        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHelperSize, LPCWSTR pHelperName);
     public:
         typedef union _MethodStructs
@@ -602,7 +588,9 @@ namespace ETW
                 GenericMethod=0x2,
                 SharedGenericCode=0x4,
                 JittedMethod=0x8,
-                JitHelperMethod=0x10
+                JitHelperMethod=0x10,
+                ProfilerRejectedPrecompiledCode=0x20,
+                ReadyToRunRejectedPrecompiledCode=0x40,
             }MethodFlags;
 
             typedef enum _MethodExtent
@@ -614,7 +602,7 @@ namespace ETW
         }MethodStructs;
 
         static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0);
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName);
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers);
         static VOID MethodRestored(MethodDesc * pMethodDesc);

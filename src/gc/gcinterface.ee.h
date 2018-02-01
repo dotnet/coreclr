@@ -5,6 +5,21 @@
 #ifndef _GCINTERFACE_EE_H_
 #define _GCINTERFACE_EE_H_
 
+enum EtwGCRootFlags
+{
+    kEtwGCRootFlagsPinning =            0x1,
+    kEtwGCRootFlagsWeakRef =            0x2,
+    kEtwGCRootFlagsInterior =           0x4,
+    kEtwGCRootFlagsRefCounted =         0x8,
+};
+
+enum EtwGCRootKind
+{
+    kEtwGCRootKindStack =               0,
+    kEtwGCRootKindFinalizer =           1,
+    kEtwGCRootKindHandle =              2,
+    kEtwGCRootKindOther =               3,
+};
 
 // This interface provides functions that the GC can use to fire events.
 // Events fired on this interface are split into two categories: "known"
@@ -25,6 +40,71 @@ public:
         const char* eventName,
         void* payload,
         uint32_t payloadSize) = 0;
+    virtual
+    void FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
+
+    virtual
+    void FireGCEnd_V1(uint32_t count, uint32_t depth) = 0;
+
+    virtual
+    void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength) = 0;
+
+    virtual
+    void FireGCHeapStats_V1(
+        uint64_t generationSize0,
+        uint64_t totalPromotedSize0,
+        uint64_t generationSize1,
+        uint64_t totalPromotedSize1,
+        uint64_t generationSize2,
+        uint64_t totalPromotedSize2,
+        uint64_t generationSize3,
+        uint64_t totalPromotedSize3,
+        uint64_t finalizationPromotedSize,
+        uint64_t finalizationPromotedCount,
+        uint32_t pinnedObjectCount,
+        uint32_t sinkBlockCount,
+        uint32_t gcHandleCount) = 0;
+
+    virtual
+    void FireGCCreateSegment_V1(void* address, size_t size, uint32_t type) = 0;
+
+    virtual
+    void FireGCFreeSegment_V1(void* address) = 0;
+
+    virtual
+    void FireGCCreateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTerminateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTriggered(uint32_t reason) = 0;
+
+    virtual
+    void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes) = 0;
+
+    virtual
+    void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId) = 0;
+
+    virtual
+    void FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
+        int32_t numHeaps,
+        uint32_t condemnedGeneration,
+        uint32_t gen0reductionCount,
+        uint32_t reason,
+        uint32_t globalMechanisms,
+        uint32_t pauseMode,
+        uint32_t memoryPressure) = 0;
+
+    virtual
+    void FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind) = 0;
+
+    virtual
+    void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress) = 0;
+
+    virtual
+    void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
+
     virtual
     void FireGCPerHeapHistory_V3(void *freeListAllocated,
                                  void *freeListRejected,
@@ -137,6 +217,9 @@ public:
     // Indicates to the EE that the GC has granted promotion to objects in the sync block cache.
     virtual
     void SyncBlockCachePromotionsGranted(int max_gen) = 0;
+
+    virtual
+    uint32_t GetActiveSyncBlockCount() = 0;
 
     // Queries whether or not the given thread has preemptive GC disabled.
     virtual

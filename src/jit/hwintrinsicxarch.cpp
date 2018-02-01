@@ -384,50 +384,6 @@ static bool isTypeSupportedForIntrinsic(var_types type)
 }
 
 //------------------------------------------------------------------------
-// impUnsupportedHWIntrinsic: returns a node for an unsupported HWIntrinsic
-//
-// Arguments:
-//    helper     - JIT helper ID for the exception to be thrown
-//    method     - method handle of the intrinsic function.
-//    sig        - signature of the intrinsic call
-//    mustExpand - true if the intrinsic must return a GenTree*; otherwise, false
-//
-// Return Value:
-//    a gtNewMustThrowException if mustExpand is true; otherwise, nullptr
-//
-GenTree* Compiler::impUnsupportedHWIntrinsic(unsigned              helper,
-                                             CORINFO_METHOD_HANDLE method,
-                                             CORINFO_SIG_INFO*     sig,
-                                             bool                  mustExpand)
-{
-    // We've hit some error case and may need to return a node for the given error.
-    //
-    // When `mustExpand=false`, we are attempting to inline the intrinsic directly into another method. In this
-    // scenario, we need to return `nullptr` so that a GT_CALL to the intrinsic is emitted instead. This is to
-    // ensure that everything continues to behave correctly when optimizations are enabled (e.g. things like the
-    // inliner may expect the node we return to have a certain signature, and the `MustThrowException` node won't
-    // match that).
-    //
-    // When `mustExpand=true`, we are in a GT_CALL to the intrinsic and are attempting to JIT it. This will generally
-    // be in response to an indirect call (e.g. done via reflection) or in response to an earlier attempt returning
-    // `nullptr` (under `mustExpand=false`). In that scenario, we are safe to return the `MustThrowException` node.
-
-    if (mustExpand)
-    {
-        for (unsigned i = 0; i < sig->numArgs; i++)
-        {
-            impPopStack();
-        }
-
-        return gtNewMustThrowException(helper, JITtype2varType(sig->retType), sig->retTypeClass);
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
-//------------------------------------------------------------------------
 // impIsTableDrivenHWIntrinsic:
 //
 // Arguments:
@@ -443,7 +399,7 @@ static bool impIsTableDrivenHWIntrinsic(HWIntrinsicCategory category, HWIntrinsi
 }
 
 //------------------------------------------------------------------------
-// impX86HWIntrinsic: dispatch hardware intrinsics to their own implementation
+// impHWIntrinsic: dispatch hardware intrinsics to their own implementation
 //
 // Arguments:
 //    intrinsic -- id of the intrinsic function.
@@ -453,10 +409,10 @@ static bool impIsTableDrivenHWIntrinsic(HWIntrinsicCategory category, HWIntrinsi
 // Return Value:
 //    the expanded intrinsic.
 //
-GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
-                                     CORINFO_METHOD_HANDLE method,
-                                     CORINFO_SIG_INFO*     sig,
-                                     bool                  mustExpand)
+GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
+                                  CORINFO_METHOD_HANDLE method,
+                                  CORINFO_SIG_INFO*     sig,
+                                  bool                  mustExpand)
 {
     InstructionSet      isa      = isaOfHWIntrinsic(intrinsic);
     HWIntrinsicCategory category = categoryOfHWIntrinsic(intrinsic);
@@ -501,7 +457,7 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
         }
     }
 
-    if ((flags & HW_Flag_Generic) != 0)
+    if ((flags & (HW_Flag_OneTypeGeneric | HW_Flag_TwoTypeGeneric)) != 0)
     {
         assert(baseType != TYP_UNKNOWN);
         // When the type argument is not a numeric type (and we are not being forced to expand), we need to
@@ -529,7 +485,7 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
     // table-driven importer of simple intrinsics
     if (impIsTableDrivenHWIntrinsic(category, flags))
     {
-        if (!varTypeIsSIMD(retType))
+        if (!varTypeIsSIMD(retType) || (flags & HW_Flag_BaseTypeFromArg))
         {
             if (retType != TYP_VOID)
             {
@@ -641,68 +597,6 @@ GenTree* Compiler::impX86HWIntrinsic(NamedIntrinsic        intrinsic,
     }
 }
 
-CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleForHWSIMD(var_types simdType, var_types simdBaseType)
-{
-    if (simdType == TYP_SIMD16)
-    {
-        switch (simdBaseType)
-        {
-            case TYP_FLOAT:
-                return Vector128FloatHandle;
-            case TYP_DOUBLE:
-                return Vector128DoubleHandle;
-            case TYP_INT:
-                return Vector128IntHandle;
-            case TYP_USHORT:
-                return Vector128UShortHandle;
-            case TYP_UBYTE:
-                return Vector128UByteHandle;
-            case TYP_SHORT:
-                return Vector128ShortHandle;
-            case TYP_BYTE:
-                return Vector128ByteHandle;
-            case TYP_LONG:
-                return Vector128LongHandle;
-            case TYP_UINT:
-                return Vector128UIntHandle;
-            case TYP_ULONG:
-                return Vector128ULongHandle;
-            default:
-                assert(!"Didn't find a class handle for simdType");
-        }
-    }
-    else if (simdType == TYP_SIMD32)
-    {
-        switch (simdBaseType)
-        {
-            case TYP_FLOAT:
-                return Vector256FloatHandle;
-            case TYP_DOUBLE:
-                return Vector256DoubleHandle;
-            case TYP_INT:
-                return Vector256IntHandle;
-            case TYP_USHORT:
-                return Vector256UShortHandle;
-            case TYP_UBYTE:
-                return Vector256UByteHandle;
-            case TYP_SHORT:
-                return Vector256ShortHandle;
-            case TYP_BYTE:
-                return Vector256ByteHandle;
-            case TYP_LONG:
-                return Vector256LongHandle;
-            case TYP_UINT:
-                return Vector256UIntHandle;
-            case TYP_ULONG:
-                return Vector256ULongHandle;
-            default:
-                assert(!"Didn't find a class handle for simdType");
-        }
-    }
-
-    return NO_CLASS_HANDLE;
-}
-
 GenTree* Compiler::impSSEIntrinsic(NamedIntrinsic        intrinsic,
                                    CORINFO_METHOD_HANDLE method,
                                    CORINFO_SIG_INFO*     sig,
@@ -791,9 +685,38 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
     GenTree*  retNode  = nullptr;
     GenTree*  op1      = nullptr;
     GenTree*  op2      = nullptr;
+    int       ival     = -1;
+    int       simdSize = simdSizeOfHWIntrinsic(intrinsic, sig);
     var_types baseType = TYP_UNKNOWN;
+    var_types retType  = TYP_UNKNOWN;
+
     switch (intrinsic)
     {
+        case NI_SSE2_CompareLessThan:
+            assert(sig->numArgs == 2);
+            op2      = impSIMDPopStack(TYP_SIMD16);
+            op1      = impSIMDPopStack(TYP_SIMD16);
+            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+            if (baseType == TYP_DOUBLE)
+            {
+                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, intrinsic, baseType, simdSize);
+            }
+            else
+            {
+                retNode =
+                    gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE2_CompareGreaterThan, baseType, simdSize);
+            }
+            break;
+
+        case NI_SSE2_MoveMask:
+            assert(sig->numArgs == 1);
+            retType = JITtype2varType(sig->retType);
+            assert(retType == TYP_INT);
+            op1      = impSIMDPopStack(TYP_SIMD16);
+            baseType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
+            retNode  = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
+            break;
+
         default:
             JITDUMP("Not implemented hardware intrinsic");
             break;

@@ -41,15 +41,15 @@ enum HWIntrinsicFlag : unsigned int
     HW_Flag_Commutative = 0x1,
 
     // Full range IMM intrinsic
-    // - the immediate value is vaild on the full range of imm8 (0-255)
+    // - the immediate value is valid on the full range of imm8 (0-255)
     HW_Flag_FullRangeIMM = 0x2,
 
     // Generic
     // - must throw NotSupportException if the type argument is not numeric type
-    HW_Flag_Generic = 0x4,
+    HW_Flag_OneTypeGeneric = 0x4,
     // Two-type Generic
     // - the intrinsic has two type parameters
-    HW_Flag_TwoTypeGeneric = 0xC,
+    HW_Flag_TwoTypeGeneric = 0x8,
 
     // NoCodeGen
     // - should be transformed in the compiler front-end, cannot reach CodeGen
@@ -74,6 +74,9 @@ enum HWIntrinsicFlag : unsigned int
     // Copy Upper bits
     // some SIMD scalar intrinsics need the semantics of copying upper bits from the source operand
     HW_Flag_CopyUpperBits = 0x200,
+
+    // Select base type using argument type
+    HW_Flag_BaseTypeFromArg = 0x400,
 };
 
 inline HWIntrinsicFlag operator|(HWIntrinsicFlag c1, HWIntrinsicFlag c2)
