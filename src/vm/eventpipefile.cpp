@@ -164,9 +164,7 @@ void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metada
 
     bool result = m_pBlock->WriteEvent(instance);
 
-#ifdef _DEBUG
     _ASSERTE(result == true); // we should never fail to add event to a clear block (if we do the max size is too small)
-#endif
 }
 
 unsigned int EventPipeFile::GenerateMetadataId()

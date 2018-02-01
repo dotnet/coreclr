@@ -29,18 +29,28 @@ class EventPipeBlock : public FastSerializableObject
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
-            return "!EventBlock."; // the length has to be a multiplication of 4 ;)
+            return "EventBlock";
         }
 
         void FastSerialize(FastSerializer *pSerializer)
         {
             unsigned int eventsSize = (unsigned int)(m_pWritePointer - m_pBlock);
-
             pSerializer->WriteBuffer((BYTE*)&eventsSize, sizeof(eventsSize));
-            if (eventsSize > 0)
+
+            if (eventsSize == 0)
+                return;
+
+            size_t currentPosition = pSerializer->GetCurrentPosition();
+            if (currentPosition % ALIGNMENT_SIZE != 0)
             {
-                pSerializer->WriteBuffer(m_pBlock, eventsSize);
+                BYTE maxPadding[ALIGNMENT_SIZE - 1] = {}; // it's longest possible padding, we are going to use only part of it
+                unsigned int paddingLength = ALIGNMENT_SIZE - (currentPosition % ALIGNMENT_SIZE);
+                pSerializer->WriteBuffer(maxPadding, paddingLength); // we write zeros here, the reader is going to always read from the first aligned address of the serialized content 
+
+                _ASSERTE(pSerializer->GetCurrentPosition() % ALIGNMENT_SIZE == 0);
             }
+
+            pSerializer->WriteBuffer(m_pBlock, eventsSize);
         }
 
     private:

@@ -35,8 +35,7 @@ enum class FastSerializerTags : BYTE
     SkipRegion,
     String,
     Blob,
-    Padding,                // used to fill the missing bytes to get data ALIGNMENT_SIZE (4) byte aligned
-    Limit,                  // Just past the last valid tag, used for asserts.  
+    Limit                   // Just past the last valid tag, used for asserts.  
 };
 
 class FastSerializer
@@ -52,6 +51,13 @@ public:
     void WriteBuffer(BYTE *pBuffer, unsigned int length);
     void WriteTag(FastSerializerTags tag, BYTE *payload = NULL, unsigned int payloadLength = 0);
     void WriteString(const char *strContents, unsigned int length);
+
+    size_t GetCurrentPosition() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_currentPos;
+    }
 
 private:
 

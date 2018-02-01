@@ -60,16 +60,14 @@ StreamLabel FastSerializer::GetStreamLabel() const
 
 void FastSerializer::WriteObject(FastSerializableObject *pObject)
 {
-    CONTRACT_VOID
+    CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pObject != NULL);
-        PRECONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
-        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACT_END;
+    CONTRACTL_END;
 
     WriteTag(FastSerializerTags::BeginObject);
 
@@ -78,12 +76,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     // Ask the object to serialize itself using the current serializer.
     pObject->FastSerialize(this);
 
-    while ((m_currentPos + sizeof(FastSerializerTags::EndObject)) % ALIGNMENT_SIZE != 0)
-        WriteTag(FastSerializerTags::Padding);
-
     WriteTag(FastSerializerTags::EndObject);
-
-    RETURN;
 }
 
 void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
@@ -132,15 +125,14 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
 
 void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
 {
-    CONTRACT_VOID
+    CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         PRECONDITION(pObject != NULL);
-        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACT_END;
+    CONTRACTL_END;
 
     // Write the BeginObject tag.
     WriteTag(FastSerializerTags::BeginObject);
@@ -158,28 +150,10 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     const char *strTypeName = pObject->GetTypeName();
     unsigned int length = (unsigned int)strlen(strTypeName);
 
-#if DEBUG
-    /* Ensure the length is multiplication of ALIGNMENT_SIZE (4). 
-        <BeginObject> size is 1
-            <BeginObject> size is 2
-                <NullReference> size is 3
-                <objectVersion> size is 7
-                <minReaderVersion> size is 11
-                <stringLength> size is 15
-                <string> size is 15 + stringLength
-            </EndObject> size is 16 + stringLength
-            <Content /> <-- this must be aligned, so stringLength has to be aligned too ;)
-        </EndObject>
-    */
-    _ASSERTE(length % ALIGNMENT_SIZE == 0);
-#endif
-
     WriteString(strTypeName, length);
 
     // Write the EndObject tag.
     WriteTag(FastSerializerTags::EndObject);
-
-    RETURN;
 }
 
 
@@ -203,20 +177,17 @@ void FastSerializer::WriteTag(FastSerializerTags tag, BYTE *payload, unsigned in
 
 void FastSerializer::WriteFileHeader()
 {
-    CONTRACT_VOID
+    CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        POSTCONDITION(m_currentPos % ALIGNMENT_SIZE == 0);
     }
-    CONTRACT_END;
+    CONTRACTL_END;
 
-    const char *strSignature = "!FastSerialization.1"; // the consumer lib expects exactly the same string, it should not be changed
+    const char *strSignature = "!FastSerialization.1"; // the consumer lib expects exactly the same string, it must not be changed
     unsigned int length = (unsigned int)strlen(strSignature);
     WriteString(strSignature, length);
-
-    RETURN;
 }
 
 void FastSerializer::WriteString(const char *strContents, unsigned int length)

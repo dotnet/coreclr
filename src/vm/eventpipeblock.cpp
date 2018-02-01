@@ -107,7 +107,7 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     }
 
     while (m_pWritePointer < alignedEnd)
-        *m_pWritePointer++ = (BYTE)FastSerializerTags::Padding; // put padding at the end to get 4 bytes alignment of the payload
+        *m_pWritePointer++ = (BYTE)0; // put padding at the end to get 4 bytes alignment of the payload
 
     return true;
 }

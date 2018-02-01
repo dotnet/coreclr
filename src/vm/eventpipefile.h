@@ -33,7 +33,7 @@ class EventPipeFile : public FastSerializableObject
         const char* GetTypeName()
         {
             LIMITED_METHOD_CONTRACT;
-            return "!EventTrace."; // the length has to be a multiplication of 4 ;)
+            return "Trace";
         }
 
         void FastSerialize(FastSerializer *pSerializer)
