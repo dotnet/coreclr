@@ -326,14 +326,18 @@ namespace System
         }
 
         /// <summary>
-        /// For <see cref="ReadOnlySpan{Char}"/>, returns a new instance of string that represents the characters pointed to by the span.
+        /// For <see cref="Span{Char}"/>, returns a new instance of string that represents the characters pointed to by the span.
         /// Otherwise, returns a <see cref="String"/> with the name of the type and the number of elements.
         /// </summary>
         public override string ToString()
         {
             if (typeof(T) == typeof(char))
             {
-                return new string(this);
+                unsafe
+                {
+                    fixed (char* src = &Unsafe.As<T, char>(ref DangerousGetPinnableReference()))
+                        return new string(src, 0, _length);
+                }
             }
             return string.Format("System.Span<{0}>[{1}]", typeof(T).Name, _length);
         }
