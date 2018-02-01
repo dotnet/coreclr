@@ -14138,6 +14138,9 @@ bool Debugger::GetILOffsetFromNative (MethodDesc *pFunc, const BYTE *pbAddr,
     }
     CONTRACTL_END;
 
+    _ASSERTE(pFunc != NULL);
+    _ASSERTE(pbAddr != NULL);
+
     if (!HasLazyData())
     {
         DebuggerLockHolder dbgLockHolder(this);
@@ -14151,23 +14154,36 @@ bool Debugger::GetILOffsetFromNative (MethodDesc *pFunc, const BYTE *pbAddr,
         pFunc = pFunc->GetWrappedMethodDesc();
     }
 
-    DebuggerJitInfo *jitInfo =
-            GetJitInfo(pFunc, (const BYTE *)pbAddr);
-
-    if (jitInfo != NULL)
+    if (pFunc->IsDynamicMethod())
     {
-        CorDebugMappingResult map;
-        DWORD whichIDontCare;
-
-        *ilOffset = jitInfo->MapNativeOffsetToIL(
-                                        nativeOffset,
-                                        &map,
-                                        &whichIDontCare);
-
-        return true;
+        return false;
     }
 
-    return false;
+    DebuggerMethodInfo *methodInfo = GetOrCreateMethodInfo(pFunc->GetModule(), pFunc->GetMemberDef());
+    if (methodInfo == NULL)
+    {
+        return false;
+    }
+
+    PCODE methodStartAddress = g_pEEInterface->GetNativeCodeStartAddress((PCODE)pbAddr);
+    if (methodStartAddress == NULL)
+    {
+        return false;
+    }
+
+    DebuggerJitInfo *jitInfo = methodInfo->FindOrCreateInitAndAddJitInfo(pFunc, methodStartAddress);
+    if (jitInfo == NULL)
+    {
+        return false;
+    }
+
+    CorDebugMappingResult map;
+    DWORD whichIDontCare;
+    *ilOffset = jitInfo->MapNativeOffsetToIL(
+                                    nativeOffset,
+                                    &map,
+                                    &whichIDontCare);
+    return true;
 }
 
 /******************************************************************************
