@@ -70,10 +70,6 @@ namespace Tracing.Tests
                         {
                             matchingEventCount++;
                         }
-                        else
-                        {
-                            nonMatchingEventCount++;
-                        }
                     };
 
                     trace.Process();
@@ -82,9 +78,6 @@ namespace Tracing.Tests
 
                 // CompiledMethod
                 Assert.Equal(nameof(matchingEventCount), matchingEventCount, 1);
-
-                // EventPipe.Disable
-                Assert.Equal(nameof(matchingEventCount), nonMatchingEventCount, 1);
             }
             finally
             {
