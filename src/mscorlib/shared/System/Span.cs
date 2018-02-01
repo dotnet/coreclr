@@ -335,7 +335,7 @@ namespace System
             {
                 unsafe
                 {
-                    fixed (char* src = &Unsafe.As<T, char>(ref DangerousGetPinnableReference()))
+                    fixed (char* src = &Unsafe.As<T, char>(ref _pointer.Value))
                         return new string(src, 0, _length);
                 }
             }
