@@ -180,9 +180,9 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     /* Assume that we not fully interruptible */
 
     genInterruptible = false;
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#ifdef _TARGET_ARMARCH_
     hasTailCalls = false;
-#endif // _TARGET_ARM_ || _TARGET_ARM64_
+#endif // _TARGET_ARMARCH_
 #ifdef DEBUG
     genInterruptibleUsed = false;
     genCurDispOffset     = (unsigned)-1;
@@ -9671,9 +9671,9 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     if (jmpEpilog)
     {
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#ifdef _TARGET_ARMARCH_
         hasTailCalls = true;
-#endif // _TARGET_ARM_ || _TARGET_ARM64_
+#endif // _TARGET_ARMARCH_
 
         noway_assert(block->bbJumpKind == BBJ_RETURN);
         noway_assert(block->bbTreeList != nullptr);
