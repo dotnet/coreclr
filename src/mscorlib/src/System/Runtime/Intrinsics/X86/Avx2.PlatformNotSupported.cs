@@ -1395,7 +1395,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_sllv_epi32 (__m256i a, __m256i count)
         ///   VPSLLVD ymm, ymm, ymm/m256
         /// </summary>
-        public static Vector256<int> ShiftLeftLogicalVariable(Vector256<int> value, Vector256<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector256<int> ShiftLeftLogicalVariable(Vector256<int> value, Vector256<int> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_sllv_epi32 (__m256i a, __m256i count)
         ///   VPSLLVD ymm, ymm, ymm/m256
@@ -1405,7 +1405,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_sllv_epi64 (__m256i a, __m256i count)
         ///   VPSLLVQ ymm, ymm, ymm/m256
         /// </summary>
-        public static Vector256<long> ShiftLeftLogicalVariable(Vector256<long> value, Vector256<ulong> count) { throw new PlatformNotSupportedException(); }
+        public static Vector256<long> ShiftLeftLogicalVariable(Vector256<long> value, Vector256<long> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_sllv_epi64 (__m256i a, __m256i count)
         ///   VPSLLVQ ymm, ymm, ymm/m256
@@ -1416,7 +1416,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_sllv_epi32 (__m128i a, __m128i count)
         ///   VPSLLVD xmm, ymm, xmm/m128
         /// </summary>
-        public static Vector128<int> ShiftLeftLogicalVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ShiftLeftLogicalVariable(Vector128<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_sllv_epi32 (__m128i a, __m128i count)
         ///   VPSLLVD xmm, ymm, xmm/m128
@@ -1426,7 +1426,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_sllv_epi64 (__m128i a, __m128i count)
         ///   VPSLLVQ xmm, ymm, xmm/m128
         /// </summary>
-        public static Vector128<long> ShiftLeftLogicalVariable(Vector128<long> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ShiftLeftLogicalVariable(Vector128<long> value, Vector128<long> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_sllv_epi64 (__m128i a, __m128i count)
         ///   VPSLLVQ xmm, ymm, xmm/m128
@@ -1459,13 +1459,13 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_srav_epi32 (__m256i a, __m256i count)
         ///   VPSRAVD ymm, ymm, ymm/m256
         /// </summary>
-        public static Vector256<int> ShiftRightArithmeticVariable(Vector256<int> value, Vector256<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector256<int> ShiftRightArithmeticVariable(Vector256<int> value, Vector256<int> count) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm_srav_epi32 (__m128i a, __m128i count)
         ///   VPSRAVD xmm, xmm, xmm/m128
         /// </summary>
-        public static Vector128<int> ShiftRightArithmeticVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ShiftRightArithmeticVariable(Vector128<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256i _mm256_srl_epi16 (__m256i a, __m128i count)
@@ -1574,7 +1574,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_srlv_epi32 (__m256i a, __m256i count)
         ///   VPSRLVD ymm, ymm, ymm/m256
         /// </summary>
-        public static Vector256<int> ShiftRightLogicalVariable(Vector256<int> value, Vector256<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector256<int> ShiftRightLogicalVariable(Vector256<int> value, Vector256<int> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_srlv_epi32 (__m256i a, __m256i count)
         ///   VPSRLVD ymm, ymm, ymm/m256
@@ -1584,7 +1584,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_srlv_epi64 (__m256i a, __m256i count)
         ///   VPSRLVQ ymm, ymm, ymm/m256
         /// </summary>
-        public static Vector256<long> ShiftRightLogicalVariable(Vector256<long> value, Vector256<ulong> count) { throw new PlatformNotSupportedException(); }
+        public static Vector256<long> ShiftRightLogicalVariable(Vector256<long> value, Vector256<long> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m256i _mm256_srlv_epi64 (__m256i a, __m256i count)
         ///   VPSRLVQ ymm, ymm, ymm/m256
@@ -1595,7 +1595,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_srlv_epi32 (__m128i a, __m128i count)
         ///   VPSRLVD xmm, xmm, xmm/m128
         /// </summary>
-        public static Vector128<int> ShiftRightLogicalVariable(Vector128<int> value, Vector128<uint> count) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ShiftRightLogicalVariable(Vector128<int> value, Vector128<int> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_srlv_epi32 (__m128i a, __m128i count)
         ///   VPSRLVD xmm, xmm, xmm/m128
@@ -1605,7 +1605,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_srlv_epi64 (__m128i a, __m128i count)
         ///   VPSRLVQ xmm, xmm, xmm/m128
         /// </summary>
-        public static Vector128<long> ShiftRightLogicalVariable(Vector128<long> value, Vector128<ulong> count) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ShiftRightLogicalVariable(Vector128<long> value, Vector128<long> count) { throw new PlatformNotSupportedException(); }
         /// <summary>
         /// __m128i _mm_srlv_epi64 (__m128i a, __m128i count)
         ///   VPSRLVQ xmm, xmm, xmm/m128
