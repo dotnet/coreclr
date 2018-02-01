@@ -994,23 +994,21 @@ private:
     // The JitInfos contain back pointers to this MethodInfo.  They should never be associated
     // with any other MethodInfo.
     //
-    // USE ACCESSOR FUNCTION GetLatestJitInfo(), as it does lazy init of this field.
+    // USE ACCESSOR FUNCTION GetLatestJitInfo()
     //
 
     PTR_DebuggerJitInfo m_latestJitInfo;
 
 public:
 
-    PTR_DebuggerJitInfo GetLatestJitInfo(MethodDesc *fd);
-
-    DebuggerJitInfo * GetLatestJitInfo_NoCreate();
+    DebuggerJitInfo *GetLatestJitInfo();
 
 
     // Find the DJI corresponding to the specified MD and native start address.
-    DebuggerJitInfo * FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
+    DebuggerJitInfo *FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
 
     // Creating the Jit-infos.
-    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd);
+    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr);
     DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 

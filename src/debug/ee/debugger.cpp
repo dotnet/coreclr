@@ -2860,17 +2860,14 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
         LOG((LF_CORDB, LL_EVERYTHING, "Debugger::GetJitInfo, addr=0x%p - null fd - returning null\n", pbAddr));
         return NULL;
     }
-    else
-    {
-        CONSISTENCY_CHECK_MSGF(!fd->IsWrapperStub(), ("Can't get Jit-info for wrapper MDesc,'%s'", fd->m_pszDebugMethodName));
-    }
+
+    CONSISTENCY_CHECK_MSGF(!fd->IsWrapperStub(), ("Can't get Jit-info for wrapper MDesc,'%s'", fd->m_pszDebugMethodName));
 
     // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
     if (fd->IsDynamicMethod())
     {
         return NULL;
     }
-
 
     // initialize our out param
     if (pMethInfo)
@@ -2897,14 +2894,28 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
         return NULL;
     }
 
-
+#ifdef DACCESS_COMPILE
+    dji = dmi->GetLatestJitInfo();
+#else // !DACCESS_COMPILE
     // This may take the lock and lazily create an entry, so we do it up front.
-    dji = dmi->GetLatestJitInfo(fd);
-
+    if (pbAddr == NULL)
+    {
+        dji = dmi->FindOrCreateInitAndAddJitInfo(fd, NULL /* startAddr */);
+    }
+    else
+    {
+        TADDR startAddr = g_pEEInterface->GetNativeCodeStartAddress((TADDR)pbAddr);
+        if (startAddr != NULL)
+        {
+            dji = dmi->FindOrCreateInitAndAddJitInfo(fd, startAddr);
+            _ASSERTE(dji == NULL || PTR_TO_TADDR(dji->m_fd) == PTR_HOST_TO_TADDR(fd));
+        }
+    }
+#endif // DACCESS_COMPILE
 
     DebuggerDataLockHolder debuggerDataLockHolder(this);
 
-    // Note the call to GetLatestJitInfo() will lazily create the first DJI if we don't already have one.
+#ifdef DACCESS_COMPILE
     for (; dji != NULL; dji = dji->m_prevJitInfo)
     {
         if (PTR_TO_TADDR(dji->m_fd) == PTR_HOST_TO_TADDR(fd))
@@ -2912,55 +2923,53 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
             break;
         }
     }
+#endif // DACCESS_COMPILE
+
     LOG((LF_CORDB, LL_INFO1000, "D::GJI: for md:0x%x (%s::%s), got dmi:0x%x.\n",
          fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
          dmi));
 
+    // Log stuff
 
-
-
-    // Log stuff - fd may be null; so we don't want to AV in the log.
-
-    LOG((LF_CORDB, LL_INFO1000, "D::GJI: for md:0x%x (%s::%s), got dmi:0x%x, dji:0x%x, latest dji:0x%x, latest fd:0x%x, prev dji:0x%x\n",
+    LOG((LF_CORDB, LL_INFO1000, "D::GJI: for md:0x%x (%s::%s), got dmi:0x%x, dji:0x%x, latest dji:0x%x, prev dji:0x%x\n",
         fd, fd->m_pszDebugClassName, fd->m_pszDebugMethodName,
-        dmi, dji, (dmi ? dmi->GetLatestJitInfo_NoCreate() : 0),
-        ((dmi && dmi->GetLatestJitInfo_NoCreate()) ? dmi->GetLatestJitInfo_NoCreate()->m_fd:0),
-        (dji?dji->m_prevJitInfo:0)));
+        dmi, dji, dmi->GetLatestJitInfo(),
+        (dji ? dji->m_prevJitInfo : 0)));
 
+#ifdef DACCESS_COMPILE
     if ((dji != NULL) && (pbAddr != NULL))
     {
         dji = dji->GetJitInfoByAddress(pbAddr);
-
-        // XXX Microsoft - dac doesn't support stub tracing
-        // so this just results in not-impl exceptions.
-#ifndef DACCESS_COMPILE
-        if (dji == NULL) //may have been given address of a thunk
-        {
-            LOG((LF_CORDB,LL_INFO1000,"Couldn't find a DJI by address 0x%p, "
-                "so it might be a stub or thunk\n", pbAddr));
-            TraceDestination trace;
-
-            g_pEEInterface->TraceStub((const BYTE *)pbAddr, &trace);
-
-            if ((trace.GetTraceType() == TRACE_MANAGED) && (pbAddr != (const BYTE *)trace.GetAddress()))
-            {
-                LOG((LF_CORDB,LL_INFO1000,"Address thru thunk"
-                    ": 0x%p\n", trace.GetAddress()));
-                dji = GetJitInfo(fd, dac_cast<PTR_CBYTE>(trace.GetAddress()));
-            }
-#ifdef LOGGING
-            else
-            {
-                _ASSERTE(trace.GetTraceType() != TRACE_UNJITTED_METHOD ||
-                    (fd == trace.GetMethodDesc()));
-                LOG((LF_CORDB,LL_INFO1000,"Address not thunked - "
-                    "must be to unJITted method, or normal managed "
-                    "method lacking a DJI!\n"));
-            }
-#endif //LOGGING
-        }
-#endif // #ifndef DACCESS_COMPILE
     }
+#else // !DACCESS_COMPILE
+    // XXX Microsoft - dac doesn't support stub tracing
+    // so this just results in not-impl exceptions.
+    if (dji == NULL) //may have been given address of a thunk
+    {
+        LOG((LF_CORDB,LL_INFO1000,"Couldn't find a DJI by address 0x%p, "
+            "so it might be a stub or thunk\n", pbAddr));
+        TraceDestination trace;
+
+        g_pEEInterface->TraceStub((const BYTE *)pbAddr, &trace);
+
+        if ((trace.GetTraceType() == TRACE_MANAGED) && (pbAddr != (const BYTE *)trace.GetAddress()))
+        {
+            LOG((LF_CORDB,LL_INFO1000,"Address thru thunk"
+                ": 0x%p\n", trace.GetAddress()));
+            dji = GetJitInfo(fd, dac_cast<PTR_CBYTE>(trace.GetAddress()));
+        }
+#ifdef LOGGING
+        else
+        {
+            _ASSERTE(trace.GetTraceType() != TRACE_UNJITTED_METHOD ||
+                (fd == trace.GetMethodDesc()));
+            LOG((LF_CORDB,LL_INFO1000,"Address not thunked - "
+                "must be to unJITted method, or normal managed "
+                "method lacking a DJI!\n"));
+        }
+#endif // LOGGING
+    }
+#endif // DACCESS_COMPILE
 
     if (pMethInfo)
     {
@@ -10747,7 +10756,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             DebuggerJitInfo * pDJI =  NULL;
             if ((pMethodDesc != NULL) && (pDMI != NULL))
             {
-                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc);
+                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, NULL /* startAddr */);
             }
 
             {
@@ -11135,14 +11144,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 {
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
-                    pDJI = pDMI->FindJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(), 
-                                             (TADDR)pEvent->SetIP.startAddress);
-                    if (pDJI == NULL)
-                    {
-                        // In the case of other functions, we may need to lazily create a DJI, so we need 
-                        // FindOrCreate semantics for those. 
-                        pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr());
-                    }
+                    pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
+                                                               (TADDR)pEvent->SetIP.startAddress);
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))

@@ -1536,17 +1536,19 @@ DebuggerJitInfo * DebuggerMethodInfo::FindJitInfo(MethodDesc * pMD,
 /*
  * FindOrCreateInitAndAddJitInfo
  *
- * This routine allocates a new DJI, adding it to the DMI.
+ * This routine tries to find an existing DJI based on the method desc and start address, or allocates a new DJI, adding it to
+ * the DMI.
  *
  * Parameters:
- *   fd - the method desc to create a DJI for.
+ *   fd - the method desc to find or create a DJI for.
+ *   startAddr - the start address to find or create the DJI for.
  *
  * Returns
- *   A pointer to the created DJI, or NULL.
+ *   A pointer to the found or created DJI, or NULL.
  *
  */
 
-DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* fd)
+DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr)
 {
     CONTRACTL
     {
@@ -1558,11 +1560,34 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
 
     _ASSERTE(fd != NULL);
 
-    // This will grab the latest EnC version.
-    TADDR addr = (TADDR) g_pEEInterface->GetFunctionAddress(fd);
-
-    if (addr == NULL)
+    // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
+    if (fd->IsDynamicMethod())
+    {
         return NULL;
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    bool isStartAddrLatest = false;
+#endif
+    if (startAddr == NULL)
+    {
+        // This will grab the latest EnC version.
+        startAddr = (TADDR)g_pEEInterface->GetFunctionAddress(fd);
+        if (startAddr == NULL)
+        {
+            return NULL;
+        }
+#ifdef FEATURE_CODE_VERSIONING
+        isStartAddrLatest = true;
+#endif
+    }
+#ifndef FEATURE_CODE_VERSIONING
+    else if (startAddr != (TADDR)g_pEEInterface->GetFunctionAddress(fd))
+    {
+        // Only one code version is available and the requested start address does not match
+        return NULL;
+    }
+#endif
 
     // Check the lsit to see if we've already populated an entry for this JitInfo.
     // If we didn't have a JitInfo before, lazily create it now.
@@ -1570,18 +1595,42 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     //
     // We haven't got the lock yet so we'll repeat this lookup once
     // we've taken the lock.
-    DebuggerJitInfo * pResult = FindJitInfo(fd, addr);
+    DebuggerJitInfo * pResult = FindJitInfo(fd, startAddr);
     if (pResult != NULL)
     {
-        // Found!
         return pResult;
     }
 
+#ifdef FEATURE_CODE_VERSIONING
+    if (!isStartAddrLatest)
+    {
+        // Iterate over available versions of the code (inside a lock) to validate 'startAddr'
+        bool foundStartAddr = false;
+        {
+            CodeVersionManager* pCodeVersionManager = fd->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            NativeCodeVersionCollection nativeCodeVersions = pCodeVersionManager->GetNativeCodeVersions(fd);
 
-    // CreateInitAndAddJitInfo takes a lock and checks the list again, which
-    // makes this  thread-safe.
-    BOOL unused;
-    return CreateInitAndAddJitInfo(fd, addr, &unused);
+            for (NativeCodeVersionIterator itr = nativeCodeVersions.Begin(), end = nativeCodeVersions.End(); itr != end; itr++)
+            {
+                if (itr->GetNativeCode() == startAddr)
+                {
+                    foundStartAddr = true;
+                    break;
+                }
+            }
+        }
+        if (!foundStartAddr)
+        {
+            return NULL;
+        }
+    }
+#endif
+
+    // The DJI may already be populated in the cache, if so CreateInitAndAddJitInfo is a no-op and that is fine.
+    // CreateInitAndAddJitInfo takes a lock and checks the list again, which makes this thread-safe.
+    BOOL jitInfoWasCreated;
+    return CreateInitAndAddJitInfo(fd, startAddr, &jitInfoWasCreated);
 }
 
 // Create a DJI around a method-desc. The EE already has all the information we need for a DJI,
@@ -2082,26 +2131,6 @@ void DebuggerMethodInfo::CreateDJIsForMethodDesc(MethodDesc * pMethodDesc)
 #endif
 }
 
-/*
- * GetLatestJitInfo
- *
- * This routine returns the lastest DJI we have for a particular DMI.
- * DJIs are lazily created.
- * Parameters:
- *   None.
- *
- * Returns
- *   a possibly NULL pointer to a DJI.
- *
- */
-
-// For logging and other internal purposes, provide a non-initializing accessor.
-DebuggerJitInfo* DebuggerMethodInfo::GetLatestJitInfo_NoCreate()
-{
-    return m_latestJitInfo;
-}
-
-
 DebuggerMethodInfoTable::DebuggerMethodInfoTable() : CHashTableAndData<CNewZeroData>(101)
 {
     CONTRACTL
@@ -2253,7 +2282,7 @@ void DebuggerMethodInfoTable::ClearMethodsOfModule(Module *pModule)
             DebuggerMethodInfo * dmi = entry->mi;
             while (dmi != NULL)
             {
-                DebuggerJitInfo * dji = dmi->GetLatestJitInfo_NoCreate();
+                DebuggerJitInfo * dji = dmi->GetLatestJitInfo();
                 while (dji != NULL)
                 {
                     DebuggerJitInfo * djiPrev = dji->m_prevJitInfo;;
@@ -2332,31 +2361,9 @@ DebuggerJitInfo *DebuggerJitInfo::GetJitInfoByAddress(const BYTE *pbAddr )
     return dji;
 }
 
-PTR_DebuggerJitInfo DebuggerMethodInfo::GetLatestJitInfo(MethodDesc *mdesc)
+DebuggerJitInfo *DebuggerMethodInfo::GetLatestJitInfo()
 {
-    // dac checks ngen'ed image content first, so
-    // only check for existing JIT info.
-#ifndef DACCESS_COMPILE
-
-    CONTRACTL
-    {
-        SO_INTOLERANT;
-        THROWS;
-        CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
-        PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
-    }
-    CONTRACTL_END;
-
-
-    if (m_latestJitInfo && m_latestJitInfo->m_fd == mdesc && !m_latestJitInfo->m_fd->HasClassOrMethodInstantiation())
-        return m_latestJitInfo;
-
-    // This ensures that there is an entry in the DJI list for this particular MethodDesc.
-    // in the case of generic code it may not be the first entry in the list.
-    FindOrCreateInitAndAddJitInfo(mdesc);
-
-#endif // #ifndef DACCESS_COMPILE
-
+    LIMITED_METHOD_CONTRACT;
     return m_latestJitInfo;
 }
 
