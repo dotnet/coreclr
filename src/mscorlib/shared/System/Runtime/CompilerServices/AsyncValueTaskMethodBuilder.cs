@@ -68,6 +68,7 @@ namespace System.Runtime.CompilerServices
         /// <summary>Gets the task for this builder.</summary>
         public ValueTask<TResult> Task
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (_haveResult)

@@ -14,6 +14,7 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
         {
             if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
@@ -21,46 +22,30 @@ namespace System.Runtime.CompilerServices
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
             }
 
-            // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
-            // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
-            ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+            Thread currentThread = Thread.CurrentThread;
+            ExecutionContext previousExecutionCtx = currentThread.ExecutionContext;
+            SynchronizationContext previousSyncCtx = currentThread.SynchronizationContext;
 
-            // Store current ExecutionContext and SynchronizationContext as "previousXxx".
-            // This allows us to restore them and undo any Context changes made in stateMachine.MoveNext
-            // so that they won't "leak" out of the first await.
-            ExecutionContext previousExecutionCtx = previousExecutionCtx0;
-            SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
+            // Async state machines are required not to throw, so no need for try/finally here.
+            stateMachine.MoveNext();
 
-            try
+            // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+            if (previousSyncCtx != currentThread.SynchronizationContext)
             {
-                stateMachine.MoveNext();
+                // Restore changed SynchronizationContext back to previous
+                currentThread.SynchronizationContext = previousSyncCtx;
             }
-            finally
-            {
-                // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
-                SynchronizationContext previousSyncCtx1 = previousSyncCtx;
-                Thread currentThread1 = currentThread;
-                // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
-                if (previousSyncCtx1 != currentThread1.SynchronizationContext)
-                {
-                    // Restore changed SynchronizationContext back to previous
-                    currentThread1.SynchronizationContext = previousSyncCtx1;
-                }
 
-                ExecutionContext previousExecutionCtx1 = previousExecutionCtx;
-                ExecutionContext currentExecutionCtx1 = currentThread1.ExecutionContext;
-                if (previousExecutionCtx1 != currentExecutionCtx1)
+            ExecutionContext currentExecutionCtx = currentThread.ExecutionContext;
+            if (previousExecutionCtx != currentExecutionCtx)
+            {
+                // Restore changed ExecutionContext back to previous
+                currentThread.ExecutionContext = previousExecutionCtx;
+                if ((currentExecutionCtx != null && currentExecutionCtx.HasChangeNotifications) ||
+                    (previousExecutionCtx != null && previousExecutionCtx.HasChangeNotifications))
                 {
-                    // Restore changed ExecutionContext back to previous
-                    currentThread1.ExecutionContext = previousExecutionCtx1;
-                    if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
-                        (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
-                    {
-                        // There are change notifications; trigger any affected
-                        ExecutionContext.OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
-                    }
+                    // There are change notifications; trigger any affected
+                    ExecutionContext.OnValuesChanged(currentExecutionCtx, previousExecutionCtx);
                 }
             }
         }
