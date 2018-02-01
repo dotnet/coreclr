@@ -118,8 +118,8 @@ namespace System.IO
             {
                 // Drive relative paths
                 Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
-                
-                if (GetPathRoot(path.AsReadOnlySpan()) == GetPathRoot(basePath.AsReadOnlySpan()))
+
+                if (GetPathRoot(path.AsReadOnlySpan())[0] == GetPathRoot(basePath.AsReadOnlySpan())[0])
                 {
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
