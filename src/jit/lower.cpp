@@ -181,6 +181,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_JTRUE:
             return LowerJTrue(node->AsOp());
 
+        case GT_SELCC:
+            return LowerSelCC(node->AsOpCC());
+
         case GT_JMP:
             LowerJmpMethod(node);
             break;
@@ -5740,4 +5743,35 @@ void Lowering::ContainCheckJTrue(GenTreeOp* node)
     GenTree* cmp = node->gtGetOp1();
     cmp->gtType  = TYP_VOID;
     cmp->gtFlags |= GTF_SET_FLAGS;
+}
+
+GenTree* Lowering::LowerSelCC(GenTreeOpCC* selcc)
+{
+    ContainCheckSelCC(selcc);
+    return selcc->gtNext;
+}
+
+void Lowering::ContainCheckSelCC(GenTreeOpCC* selcc)
+{
+#ifdef _TARGET_XARCH_
+    GenTree* op2 = selcc->gtGetOp2();
+
+    if (IsContainableMemoryOp(op2))
+    {
+        //
+        // There's no byte-sized CMOV so we can't contain a memory operand unless it's
+        // TYP_INT (and TYP_LONG on x64). There's a word-sized CMOV but to use it we
+        // we would likely need to widen the result of CMOV the same way a GT_IND does.
+        //
+
+        if (varTypeIsIntOrI(op2))
+        {
+            MakeSrcContained(selcc, op2);
+        }
+    }
+    else
+    {
+        op2->SetRegOptional();
+    }
+#endif
 }

@@ -1026,6 +1026,7 @@ protected:
     void genCodeForReturnTrap(GenTreeOp* tree);
     void genCodeForJcc(GenTreeCC* tree);
     void genCodeForSetcc(GenTreeCC* setcc);
+    void genCodeForSelCC(GenTreeOpCC* selcc);
     void genCodeForStoreInd(GenTreeStoreInd* tree);
     void genCodeForSwap(GenTreeOp* tree);
     void genCodeForCpObj(GenTreeObj* cpObjNode);
@@ -1381,6 +1382,7 @@ public:
 
     void inst_JCC(GenCondition condition, BasicBlock* target);
     void inst_SETCC(GenCondition condition, var_types type, regNumber dstReg);
+    void inst_CMOVCC(GenCondition condition, var_types type, GenTree* op1, GenTree* op2);
 };
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

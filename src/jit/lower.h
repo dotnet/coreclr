@@ -85,6 +85,7 @@ private:
     void ContainCheckLclHeap(GenTreeOp* node);
     void ContainCheckRet(GenTreeOp* node);
     void ContainCheckJTrue(GenTreeOp* node);
+    void ContainCheckSelCC(GenTreeOpCC* selcc);
 
     void ContainCheckCallOperands(GenTreeCall* call);
     void ContainCheckIndir(GenTreeIndir* indirNode);
@@ -299,6 +300,7 @@ private:
     GenTree* LowerArrElem(GenTree* node);
     void LowerRotate(GenTree* tree);
     void LowerShift(GenTreeOp* shift);
+    GenTree* LowerSelCC(GenTreeOpCC* selcc);
 #ifdef FEATURE_SIMD
     void LowerSIMD(GenTreeSIMD* simdNode);
 #endif // FEATURE_SIMD

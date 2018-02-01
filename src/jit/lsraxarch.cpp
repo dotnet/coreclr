@@ -255,6 +255,12 @@ int LinearScan::BuildNode(GenTree* tree)
             BuildDef(tree, allByteRegs());
             break;
 
+        case GT_SELCC:
+            srcCount = BuildBinaryUses(tree->AsOp());
+            assert(dstCount == 1);
+            BuildDef(tree);
+            break;
+
         case GT_JMP:
             srcCount = 0;
             assert(dstCount == 0);

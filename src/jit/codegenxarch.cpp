@@ -1456,6 +1456,93 @@ void CodeGen::inst_SETCC(GenCondition condition, var_types type, regNumber dstRe
 }
 
 //------------------------------------------------------------------------
+// inst_CMOVCC: Generate a CMOVcc instruction sequence.
+//
+// Arguments:
+//   condition - The condition
+//   type      - The type of the value to be produced
+//   op1       - First input operand
+//   op2       - Second input operand
+//
+// Notes:
+//    CMOV is used if available, otherwise a conditional branch and a normal
+//    MOV is used instead.
+//
+void CodeGen::inst_CMOVCC(GenCondition condition, var_types type, GenTree* op1, GenTree* op2)
+{
+    const instruction EJtoCMOV[]{INS_nop,   INS_nop,    INS_cmovo,  INS_cmovno, INS_cmovb,  INS_cmovae,
+                                 INS_cmove, INS_cmovne, INS_cmovbe, INS_cmova,  INS_cmovs,  INS_cmovns,
+                                 INS_cmovp, INS_cmovnp, INS_cmovl,  INS_cmovge, INS_cmovle, INS_cmovg};
+
+    const GenConditionDesc& desc = GenConditionDesc::Get(condition);
+
+    if (desc.oper == GT_NONE)
+    {
+        getEmitter()->emitInsBinary(EJtoCMOV[desc.jumpKind1], emitTypeSize(type), op1, op2);
+    }
+    else if (desc.oper == GT_OR)
+    {
+        getEmitter()->emitInsBinary(EJtoCMOV[desc.jumpKind1], emitTypeSize(type), op1, op2);
+        getEmitter()->emitInsBinary(EJtoCMOV[desc.jumpKind2], emitTypeSize(type), op1, op2);
+    }
+    else // if (desc.oper == GT_AND)
+    {
+        // TODO-CQ? We could emit 2 CMOVs like in the above case but one of the CMOVs needs
+        // to have its operands swapped. This result in special register requirements and it's
+        // clear if this is actually useful since conditions that trigger this case can be
+        // avoided by swapping/reversing.
+        BasicBlock* nextLabel = genCreateTempLabel();
+        inst_JMP(emitter::emitReverseJumpKind(desc.jumpKind1), nextLabel);
+        getEmitter()->emitInsBinary(EJtoCMOV[desc.jumpKind2], emitTypeSize(type), op1, op2);
+        genDefineTempLabel(nextLabel);
+    }
+}
+//------------------------------------------------------------------------
+// genCodeForSelCC: Generate code for selecting a value based on a condition.
+//
+// Arguments:
+//    select - A GT_SELCC node
+//
+// Notes:
+//    CMOV is used if available, otherwise a conditional branch and a normal
+//    MOV is used instead.
+
+void CodeGen::genCodeForSelCC(GenTreeOpCC* selcc)
+{
+    assert(selcc->OperIs(GT_SELCC));
+
+    genConsumeOperands(selcc);
+
+    GenTree* op1 = selcc->gtGetOp1();
+    GenTree* op2 = selcc->gtGetOp2();
+
+    var_types srcType = op1->TypeGet();
+    var_types dstType = selcc->TypeGet();
+
+    assert(varTypeIsIntOrI(dstType));
+    assert(srcType == op2->TypeGet());
+    assert(op1->isUsedFromReg());
+    assert(op2->isUsedFromReg() || op2->isUsedFromMemory());
+
+    regNumber srcReg1 = op1->gtRegNum;
+    regNumber srcReg2 = op2->isUsedFromReg() ? op2->gtRegNum : REG_NA;
+    regNumber dstReg  = selcc->gtRegNum;
+
+    assert(genIsValidIntReg(srcReg1));
+    assert(op2->isUsedFromMemory() || genIsValidIntReg(srcReg2));
+    assert(genIsValidIntReg(dstReg));
+
+    if (dstReg != srcReg1)
+    {
+        inst_RV_RV(INS_mov, dstReg, srcReg1, dstType);
+        op1 = selcc;
+    }
+
+    inst_CMOVCC(selcc->gtCondition, selcc->TypeGet(), op1, op2);
+    genProduceReg(selcc);
+}
+
+//------------------------------------------------------------------------
 // genCodeForReturnTrap: Produce code for a GT_RETURNTRAP node.
 //
 // Arguments:
@@ -1770,6 +1857,10 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
 
         case GT_SETCC:
             genCodeForSetcc(treeNode->AsCC());
+            break;
+
+        case GT_SELCC:
+            genCodeForSelCC(treeNode->AsOpCC());
             break;
 
         case GT_BT:
