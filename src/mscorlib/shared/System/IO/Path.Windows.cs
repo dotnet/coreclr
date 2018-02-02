@@ -132,7 +132,7 @@ namespace System.IO
                     // "D:Foo" and "C:\Bar" => "D:Foo"
                     // "D:\Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
                     combinedPath = path.Insert(2, "\\");
-                }   
+                }
             }
             else
             {
@@ -205,7 +205,7 @@ namespace System.IO
             ReadOnlySpan<char> result = GetPathRoot(path.AsReadOnlySpan());
             if (path.Length == result.Length)
                 return PathInternal.NormalizeDirectorySeparators(path);
-           
+
             return PathInternal.NormalizeDirectorySeparators(new string(result));
         }
 
@@ -224,6 +224,10 @@ namespace System.IO
         /// <summary>Gets whether the system is case-sensitive.</summary>
         internal static bool IsCaseSensitive { get { return false; } }
 
+
+        /// <summary>
+        /// Returns the volume name for dos, UNC and device paths.
+        /// </summary>
         internal static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
         {
             if (!IsPathFullyQualified(path))
@@ -231,34 +235,57 @@ namespace System.IO
 
             // 3 cases: UNC ("\\server\share"), Device ("\\?\C:\"), or Dos ("C:\")
             ReadOnlySpan<char> root = GetPathRoot(path);
-            if (!PathInternal.IsDevice(path))
-                return TrimEndingDirectorySeparator(root); // e.g. "C:"
+            int offset = GetUncRootLength(path);
 
-            if (IsUnc(path))
+            if (offset >= 0)
             {
                 // Cut from "\\?\UNC\Server\Share" to "Server\Share"
-                return TrimEndingDirectorySeparator(root.Slice(8));
+                // Cut from  "\\Server\Share" to "Server\Share"
+                return TrimEndingDirectorySeparator(root.Slice(offset));
             }
-            else
+            else if (PathInternal.IsDevice(path))
             {
-                // Cut from "\\?\C:\" to "C:"
-                return TrimEndingDirectorySeparator(root.Slice(4));
+                return TrimEndingDirectorySeparator(root.Slice(4)); // Cut from "\\?\C:\" to "C:"
+            }
+            {
+                return TrimEndingDirectorySeparator(root); // e.g. "C:"
             }
         }
 
+        /// <summary>
+        /// Returns true if the path ends in a directory separator.
+        /// </summary>
         internal static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
         {
             return path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
         }
 
+        /// <summary>
+        /// Trims the ending directory separator if present.
+        /// </summary>
+        /// <param name="path"></param>
         internal static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
             EndsInDirectorySeparator(path) ?
                 path.Slice(0, path.Length - 1) :
                 path;
 
-        internal static bool IsUnc(ReadOnlySpan<char> path) =>
-            path.Length >= 8 ?
-            StringSpanHelpers.Equals(path.Slice(0, 8), PathInternal.UncExtendedPathPrefix) || StringSpanHelpers.Equals(path.Slice(0, 8), @"\\.\UNC\") 
-            : false;
+        /// <summary>
+        /// Returns offset as -1 if the path is not in Unc format, otherwise returns the root length.
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        internal static int GetUncRootLength(ReadOnlySpan<char> path)
+        {
+            bool isDevice = PathInternal.IsDevice(path);
+
+            if (!isDevice && StringSpanHelpers.Equals(path.Slice(0, 2), @"\\") )
+                return 2;
+            else if (isDevice && path.Length >= 8
+                && (StringSpanHelpers.Equals(path.Slice(0, 8), PathInternal.UncExtendedPathPrefix)
+                || StringSpanHelpers.Equals(path.Slice(0, 8), @"\\.\UNC\")))
+                return 8;
+
+            return -1;
+        }
     }
 }
