@@ -205,13 +205,13 @@ void StackLevelSetter::SetThrowHelperBlock(SpecialCodeKind kind, BasicBlock* blo
 //   the number of stack slots in stack arguments for the call.
 unsigned StackLevelSetter::PopArgumentsFromCall(GenTreeCall* call)
 {
-    unsigned     usedStackSlotsCount = 0;
-    fgArgInfoPtr argInfo             = call->fgArgInfo;
+    unsigned   usedStackSlotsCount = 0;
+    fgArgInfo* argInfo             = call->fgArgInfo;
     if (argInfo->HasStackArgs())
     {
         for (unsigned i = 0; i < argInfo->ArgCount(); ++i)
         {
-            fgArgTabEntryPtr argTab = argInfo->ArgTable()[i];
+            fgArgTabEntry* argTab = argInfo->ArgTable()[i];
             if (argTab->numSlots != 0)
             {
                 GenTree* node = argTab->node;
