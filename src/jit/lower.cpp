@@ -6319,6 +6319,99 @@ GenTree* Lowering::LowerSelCC(GenTreeOpCC* selcc)
     GenTree* falseOp = selcc->gtGetOp1();
     GenTree* trueOp  = selcc->gtGetOp2();
 
+    if (falseOp->OperIs(GT_CNS_INT) && trueOp->OperIs(GT_CNS_INT))
+    {
+        //
+        // SELCC(c1, c2) can sometimes be replaced with SETCC which avoids the need for 2 registers
+        // to load the constants:
+        //     - SELCC(0, 1)  -> SETCC
+        //     - SELCC(0, -1) -> NEG(SETCC)
+        //     - SELCC(3, 4)  -> SETCC + 3
+        //     - SELCC(0, 2)  -> RSH(SETCC, 1)
+        //
+
+        var_types    type       = genActualType(selcc->TypeGet());
+        GenCondition condition  = selcc->gtCondition;
+        size_t       falseValue = static_cast<size_t>(falseOp->AsIntCon()->IconValue());
+        size_t       trueValue  = static_cast<size_t>(trueOp->AsIntCon()->IconValue());
+
+        if (falseValue > trueValue)
+        {
+            std::swap(falseValue, trueValue);
+            condition = GenCondition::Reverse(condition);
+        }
+
+        LIR::Use use;
+        bool     isUsed = BlockRange().TryGetUse(selcc, &use);
+        GenTree* result = nullptr;
+
+        if ((falseValue == 0) && (trueValue == SIZE_T_MAX))
+        {
+            result = comp->gtNewOperNode(GT_NEG, type, selcc);
+            BlockRange().InsertAfter(selcc, result);
+        }
+        else
+        {
+            size_t zeroOffset = 0;
+
+            if (falseValue != 0)
+            {
+                zeroOffset = falseValue;
+                falseValue = 0;
+                trueValue -= zeroOffset;
+            }
+
+            if (isPow2(trueValue) && ((zeroOffset == 0) || (genLog2(trueValue) <= 3)))
+            {
+                if (zeroOffset > 0)
+                {
+                    if (trueValue == 1)
+                    {
+                        GenTree* offset = comp->gtNewIconNode(zeroOffset, type);
+                        result          = comp->gtNewOperNode(GT_ADD, type, selcc, offset);
+                        BlockRange().InsertAfter(selcc, offset, result);
+                    }
+                    else
+                    {
+                        result =
+                            new (comp, GT_LEA) GenTreeAddrMode(type, nullptr, selcc, static_cast<unsigned>(trueValue),
+                                                               static_cast<unsigned>(zeroOffset));
+                        BlockRange().InsertAfter(selcc, result);
+                    }
+                }
+                else if (trueValue > 1)
+                {
+                    GenTree* shiftBy = comp->gtNewIconNode(genLog2(trueValue), type);
+                    result           = comp->gtNewOperNode(GT_LSH, type, selcc, shiftBy);
+                    BlockRange().InsertAfter(selcc, shiftBy, result);
+                }
+                else
+                {
+                    result = selcc;
+                }
+            }
+        }
+
+        if (result != nullptr)
+        {
+            selcc->ChangeOper(GT_SETCC);
+
+            GenTreeCC* setcc   = selcc->AsCC();
+            setcc->gtType      = type;
+            setcc->gtCondition = condition;
+
+            BlockRange().Remove(falseOp);
+            BlockRange().Remove(trueOp);
+
+            if (isUsed && (result != selcc))
+            {
+                use.ReplaceWith(comp, result);
+            }
+
+            return selcc->gtNext;
+        }
+    }
+
     // Put constants in the second operand, this appears to improve register allocation.
 
     if (falseOp->IsIntegralConst() && !trueOp->IsIntegralConst())
