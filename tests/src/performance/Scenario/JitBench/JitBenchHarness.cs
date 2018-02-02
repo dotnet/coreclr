@@ -137,7 +137,7 @@ namespace JitBench
             s_musicStoreDirectory = Path.Combine(s_jitBenchDevDirectory, "src", "MusicStore");
 
             s_localJitBenchRepo = options.LocalJitBenchRepo;
-            if(!Directory.Exists(s_localJitBenchRepo))
+            if(s_localJitBenchRepo != null && !Directory.Exists(s_localJitBenchRepo))
             {
                 throw new Exception("Requested local JitBench repo " + s_localJitBenchRepo + " does not exist");
             }
