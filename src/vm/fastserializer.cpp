@@ -62,7 +62,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pObject != NULL);

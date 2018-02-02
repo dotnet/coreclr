@@ -70,6 +70,11 @@ EventPipeFile::~EventPipeFile()
     }
     CONTRACTL_END;
 
+    if (m_pBlock != NULL && m_pSerializer != NULL)
+    {
+        WriteEnd();
+    }
+
     if (m_pBlock != NULL)
     {
         delete(m_pBlock);
@@ -102,7 +107,7 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
 
         EventPipeEventInstance* pMetadataInstance = EventPipe::GetConfiguration()->BuildEventMetadataEvent(instance, metadataId);
         
-        Handle(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
+        WriteToBlock(*pMetadataInstance, 0); // 0 breaks recursion and represents the metadata event.
 
         SaveMetadataId(*instance.GetEvent(), metadataId);
 
@@ -110,14 +115,14 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance)
         delete (pMetadataInstance);
     }
 
-    Handle(instance, metadataId);
+    WriteToBlock(instance, metadataId);
 }
 
 void EventPipeFile::WriteEnd()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
@@ -128,10 +133,11 @@ void EventPipeFile::WriteEnd()
     m_pBlock->Clear();
 
     // "After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read."
+    // see https://github.com/Microsoft/perfview/blob/master/src/TraceEvent/EventPipe/EventPipeFormat.md for more
     m_pSerializer->WriteTag(FastSerializerTags::NullReference); 
 }
 
-void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metadataId)
+void EventPipeFile::WriteToBlock(EventPipeEventInstance &instance, unsigned int metadataId)
 {
     CONTRACTL
     {
@@ -144,7 +150,9 @@ void EventPipeFile::Handle(EventPipeEventInstance &instance, unsigned int metada
     instance.SetMetadataId(metadataId);
 
     if (m_pBlock->WriteEvent(instance))
+    {
         return; // the block is not full, we added the event and continue
+    }
 
 #ifdef _DEBUG
     if (m_lockOnWrite)
@@ -177,7 +185,7 @@ unsigned int EventPipeFile::GenerateMetadataId()
     }
     CONTRACTL_END;
 
-    return InterlockedIncrement((volatile unsigned int *)&m_metadataIdCounter);
+    return InterlockedIncrement(&m_metadataIdCounter);
 }
 
 unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)

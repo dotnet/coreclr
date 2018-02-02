@@ -498,7 +498,7 @@ EventPipeEventInstance* EventPipeConfiguration::BuildEventMetadataEvent(EventPip
 
     // Set the timestamp to match the source event, because the metadata event
     // will be emitted right before the source event.
-    pInstance->SetTimeStamp(sourceInstance.GetTimeStamp());
+    pInstance->SetTimeStamp(*sourceInstance.GetTimeStamp());
 
     return pInstance;
 }

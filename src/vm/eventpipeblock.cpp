@@ -14,13 +14,18 @@ EventPipeBlock::EventPipeBlock(unsigned int maxBlockSize)
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
 
-    m_pBlock = new BYTE[maxBlockSize];
+    m_pBlock = new (nothrow) BYTE[maxBlockSize];
+    if (m_pBlock == NULL)
+    {
+        return;
+    }
+
     memset(m_pBlock, 0, maxBlockSize);
     m_pWritePointer = m_pBlock;
     m_pEndOfTheBuffer = m_pBlock + maxBlockSize;
@@ -55,6 +60,11 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     }
     CONTRACTL_END;
 
+    if (m_pBlock == NULL)
+    {
+        return false;
+    }
+
     unsigned int totalSize = instance.GetAlignedTotalSize();
     if (m_pWritePointer + totalSize >= m_pEndOfTheBuffer)
     {
@@ -74,17 +84,17 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     memcpy(m_pWritePointer, &threadId, sizeof(threadId));
     m_pWritePointer += sizeof(threadId);
 
-    LARGE_INTEGER timpeStamp = instance.GetTimeStamp();
-    memcpy(m_pWritePointer, &timpeStamp, sizeof(timpeStamp));
-    m_pWritePointer += sizeof(timpeStamp);
+    LARGE_INTEGER* timeStamp = instance.GetTimeStamp();
+    memcpy(m_pWritePointer, timeStamp, sizeof(*timeStamp));
+    m_pWritePointer += sizeof(*timeStamp);
 
-    GUID activityId = instance.GetActivityId();
-    memcpy(m_pWritePointer, &activityId, sizeof(activityId));
-    m_pWritePointer += sizeof(activityId);
+    GUID* activityId = instance.GetActivityId();
+    memcpy(m_pWritePointer, activityId, sizeof(*activityId));
+    m_pWritePointer += sizeof(*activityId);
 
-    GUID relatedActivityId = instance.GetRelatedActivityId();
-    memcpy(m_pWritePointer, &relatedActivityId, sizeof(relatedActivityId));
-    m_pWritePointer += sizeof(relatedActivityId);
+    GUID* relatedActivityId = instance.GetRelatedActivityId();
+    memcpy(m_pWritePointer, relatedActivityId, sizeof(*relatedActivityId));
+    m_pWritePointer += sizeof(*relatedActivityId);
 
     unsigned int dataLength = instance.GetDataLength();
     memcpy(m_pWritePointer, &dataLength, sizeof(dataLength));
@@ -107,7 +117,9 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     }
 
     while (m_pWritePointer < alignedEnd)
+    {
         *m_pWritePointer++ = (BYTE)0; // put padding at the end to get 4 bytes alignment of the payload
+    }
 
     return true;
 }
@@ -121,6 +133,11 @@ void EventPipeBlock::Clear()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    if (m_pBlock == NULL)
+    {
+        return;
+    }
 
     memset(m_pBlock, 0, GetSize());
     m_pWritePointer = m_pBlock;

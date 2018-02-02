@@ -37,11 +37,11 @@ public:
         return m_pEvent;
     }
 
-    LARGE_INTEGER GetTimeStamp() const
+    LARGE_INTEGER* const GetTimeStamp()
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_timeStamp;
+        return &m_timeStamp;
     }
 
     unsigned int GetMetadataId() const
@@ -65,18 +65,18 @@ public:
         return m_threadID;
     }
 
-    GUID GetActivityId() const
+    GUID* const GetActivityId()
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_activityId;
+        return &m_activityId;
     }
 
-    GUID GetRelatedActivityId() const
+    GUID* const GetRelatedActivityId()
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_relatedActivityId;
+        return &m_relatedActivityId;
     }
 
     BYTE* GetData() const

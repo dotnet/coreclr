@@ -97,7 +97,7 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
         }
 
         // Save the most recent event timestamp.
-        m_mostRecentTimeStamp = pInstance->GetTimeStamp();
+        m_mostRecentTimeStamp = *pInstance->GetTimeStamp();
 
     }
     EX_CATCH
@@ -184,7 +184,7 @@ EventPipeEventInstance* EventPipeBuffer::GetNext(EventPipeEventInstance *pEvent,
     }
 
     // Ensure that the timestamp is valid.  The buffer is zero'd before use, so a zero timestamp is invalid.
-    LARGE_INTEGER nextTimeStamp = pNextInstance->GetTimeStamp();
+    LARGE_INTEGER nextTimeStamp = *pNextInstance->GetTimeStamp();
     if(nextTimeStamp.QuadPart == 0)
     {
         return NULL;

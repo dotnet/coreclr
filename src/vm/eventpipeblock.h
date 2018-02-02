@@ -34,11 +34,22 @@ class EventPipeBlock : public FastSerializableObject
 
         void FastSerialize(FastSerializer *pSerializer)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_NOTRIGGER;
+                MODE_PREEMPTIVE;
+                PRECONDITION(pSerializer != NULL);
+            }
+            CONTRACTL_END;
+
             unsigned int eventsSize = (unsigned int)(m_pWritePointer - m_pBlock);
             pSerializer->WriteBuffer((BYTE*)&eventsSize, sizeof(eventsSize));
 
             if (eventsSize == 0)
+            {
                 return;
+            }
 
             size_t currentPosition = pSerializer->GetCurrentPosition();
             if (currentPosition % ALIGNMENT_SIZE != 0)

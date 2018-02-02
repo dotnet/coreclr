@@ -396,8 +396,6 @@ void EventPipe::Disable()
             s_pSession = NULL;
         }
 
-        s_pFile->WriteEnd(); // write the rest of the events and end tag to the file
-
         if(s_pFile != NULL)
         {
             delete(s_pFile);

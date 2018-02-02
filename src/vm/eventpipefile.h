@@ -38,6 +38,15 @@ class EventPipeFile : public FastSerializableObject
 
         void FastSerialize(FastSerializer *pSerializer)
         {
+            CONTRACTL
+            {
+                NOTHROW;
+                GC_NOTRIGGER;
+                MODE_PREEMPTIVE;
+                PRECONDITION(pSerializer != NULL);
+            }
+            CONTRACTL_END;
+
             pSerializer->WriteBuffer((BYTE*)&m_fileOpenSystemTime, sizeof(m_fileOpenSystemTime));
             pSerializer->WriteBuffer((BYTE*)&m_fileOpenTimeStamp, sizeof(m_fileOpenTimeStamp));
             pSerializer->WriteBuffer((BYTE*)&m_timeStampFrequency, sizeof(m_timeStampFrequency));
@@ -57,7 +66,7 @@ class EventPipeFile : public FastSerializableObject
 
         void SaveMetadataId(EventPipeEvent &event, unsigned int metadataId);
 
-        void Handle(EventPipeEventInstance &instance, unsigned int metadataId);
+        void WriteToBlock(EventPipeEventInstance &instance, unsigned int metadataId);
 
         // The object responsible for serialization.
         FastSerializer *m_pSerializer;
@@ -88,7 +97,7 @@ class EventPipeFile : public FastSerializableObject
         // Hashtable of metadata labels.
         MapSHashWithRemove<EventPipeEvent*, unsigned int> *m_pMetadataIds;
 
-        volatile unsigned int m_metadataIdCounter;
+        Volatile<unsigned int> m_metadataIdCounter;
 
 #ifdef _DEBUG
         bool m_lockOnWrite;
