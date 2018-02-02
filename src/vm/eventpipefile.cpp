@@ -185,7 +185,10 @@ unsigned int EventPipeFile::GenerateMetadataId()
     }
     CONTRACTL_END;
 
-    return InterlockedIncrement(&m_metadataIdCounter);
+    // PAL does not support 32 bit InterlockedIncrement, so we are using the LONG version and cast to int
+    // https://github.com/dotnet/coreclr/blob/master/src/pal/inc/pal.h#L4159
+    // it's ok because the metadataId will never be bigger than 32 bit
+    return (unsigned int)InterlockedIncrement(&m_metadataIdCounter);
 }
 
 unsigned int EventPipeFile::GetMetadataId(EventPipeEvent &event)

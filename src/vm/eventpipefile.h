@@ -97,7 +97,7 @@ class EventPipeFile : public FastSerializableObject
         // Hashtable of metadata labels.
         MapSHashWithRemove<EventPipeEvent*, unsigned int> *m_pMetadataIds;
 
-        Volatile<unsigned int> m_metadataIdCounter;
+        Volatile<LONG> m_metadataIdCounter;
 
 #ifdef _DEBUG
         bool m_lockOnWrite;
