@@ -119,7 +119,7 @@ namespace System.IO
                 // Drive relative paths
                 Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
 
-                if (GetPathRoot(path.AsReadOnlySpan())[0] == GetPathRoot(basePath.AsReadOnlySpan())[0])
+                if (StringSpanHelpers.Equals(GetPathRoot(path.AsReadOnlySpan()), GetVolumeName(basePath.AsReadOnlySpan())))
                 {
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
@@ -223,5 +223,42 @@ namespace System.IO
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
         internal static bool IsCaseSensitive { get { return false; } }
+
+        internal static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
+        {
+            if (!IsPathFullyQualified(path))
+                return default;
+
+            // 3 cases: UNC ("\\server\share"), Device ("\\?\C:\"), or Dos ("C:\")
+            ReadOnlySpan<char> root = GetPathRoot(path);
+            if (!PathInternal.IsDevice(path))
+                return TrimEndingDirectorySeparator(root); // e.g. "C:"
+
+            if (IsUnc(path))
+            {
+                // Cut from "\\?\UNC\Server\Share" to "Server\Share"
+                return TrimEndingDirectorySeparator(root.Slice(8));
+            }
+            else
+            {
+                // Cut from "\\?\C:\" to "C:"
+                return TrimEndingDirectorySeparator(root.Slice(4));
+            }
+        }
+
+        internal static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
+        {
+            return path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
+        }
+
+        internal static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
+            EndsInDirectorySeparator(path) ?
+                path.Slice(0, path.Length - 1) :
+                path;
+
+        internal static bool IsUnc(ReadOnlySpan<char> path) =>
+            path.Length >= 8 ?
+            StringSpanHelpers.Equals(path.Slice(0, 8), PathInternal.UncExtendedPathPrefix) || StringSpanHelpers.Equals(path.Slice(0, 8), @"\\.\UNC\") 
+            : false;
     }
 }
