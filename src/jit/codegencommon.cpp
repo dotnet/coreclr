@@ -2784,21 +2784,27 @@ void CodeGen::genExitCode(BasicBlock* block)
     genReserveEpilog(block);
 }
 
-/*****************************************************************************
- *
- * Generate code for an out-of-line exception.
- * For debuggable code, we generate the 'throw' inline.
- * For non-dbg code, we share the helper blocks created by fgAddCodeRef().
- */
-
+//------------------------------------------------------------------------
+// genJumpToThrowHlpBlk: Generate code for an out-of-line exception.
+//
+// Notes:
+//   For code that uses throw helper blocks, we share the helper blocks created by fgAddCodeRef().
+//   Otherwise, we generate the 'throw' inline.
+//
+// Arguments:
+//   jumpKind - jump kind to generate;
+//   codeKind - the special throw-helper kind;
+//   failBlk  - optional fail target block;
+//
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk)
 {
+    bool useThrowHlpBlk = compiler->fgUseThrowHelperBlocks();
 #if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
     // Inline exception-throwing code in funclet to make it possible to unwind funclet frames.
     useThrowHlpBlk = useThrowHlpBlk && (compiler->funCurrentFunc()->funKind == FUNC_ROOT);
 #endif // UNIX_X86_ABI && FEATURE_EH_FUNCLETS
 
-    if (compiler->fgUseThrowHelperBlocks())
+    if (useThrowHlpBlk)
     {
         /* For non-debuggable code, find and use the helper block for
            raising the exception. The block may be shared by other trees too. */
