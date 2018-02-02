@@ -1566,28 +1566,19 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
         return NULL;
     }
 
-#ifdef FEATURE_CODE_VERSIONING
-    bool isStartAddrLatest = false;
-#endif
     if (startAddr == NULL)
     {
-        // This will grab the latest EnC version.
+        // This will grab the start address for the current code version.
         startAddr = (TADDR)g_pEEInterface->GetFunctionAddress(fd);
         if (startAddr == NULL)
         {
             return NULL;
         }
-#ifdef FEATURE_CODE_VERSIONING
-        isStartAddrLatest = true;
-#endif
     }
-#ifndef FEATURE_CODE_VERSIONING
-    else if (startAddr != (TADDR)g_pEEInterface->GetFunctionAddress(fd))
+    else
     {
-        // Only one code version is available and the requested start address does not match
-        return NULL;
+        _ASSERTE(g_pEEInterface->GetNativeCodeMethodDesc((PCODE)startAddr) == fd);
     }
-#endif
 
     // Check the lsit to see if we've already populated an entry for this JitInfo.
     // If we didn't have a JitInfo before, lazily create it now.
@@ -1600,32 +1591,6 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     {
         return pResult;
     }
-
-#ifdef FEATURE_CODE_VERSIONING
-    if (!isStartAddrLatest)
-    {
-        // Iterate over available versions of the code (inside a lock) to validate 'startAddr'
-        bool foundStartAddr = false;
-        {
-            CodeVersionManager* pCodeVersionManager = fd->GetCodeVersionManager();
-            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
-            NativeCodeVersionCollection nativeCodeVersions = pCodeVersionManager->GetNativeCodeVersions(fd);
-
-            for (NativeCodeVersionIterator itr = nativeCodeVersions.Begin(), end = nativeCodeVersions.End(); itr != end; itr++)
-            {
-                if (itr->GetNativeCode() == startAddr)
-                {
-                    foundStartAddr = true;
-                    break;
-                }
-            }
-        }
-        if (!foundStartAddr)
-        {
-            return NULL;
-        }
-    }
-#endif
 
     // The DJI may already be populated in the cache, if so CreateInitAndAddJitInfo is a no-op and that is fine.
     // CreateInitAndAddJitInfo takes a lock and checks the list again, which makes this thread-safe.
@@ -2131,6 +2096,26 @@ void DebuggerMethodInfo::CreateDJIsForMethodDesc(MethodDesc * pMethodDesc)
 #endif
 }
 
+/*
+ * GetLatestJitInfo
+ *
+ * This routine returns the lastest DJI we have for a particular DMI.
+ * DJIs are lazily created.
+ * Parameters:
+ *   None.
+ *
+ * Returns
+ *   a possibly NULL pointer to a DJI.
+ *
+ */
+
+// For logging and other internal purposes, provide a non-initializing accessor.
+DebuggerJitInfo* DebuggerMethodInfo::GetLatestJitInfo_NoCreate()
+{
+    return m_latestJitInfo;
+}
+
+
 DebuggerMethodInfoTable::DebuggerMethodInfoTable() : CHashTableAndData<CNewZeroData>(101)
 {
     CONTRACTL
@@ -2282,7 +2267,7 @@ void DebuggerMethodInfoTable::ClearMethodsOfModule(Module *pModule)
             DebuggerMethodInfo * dmi = entry->mi;
             while (dmi != NULL)
             {
-                DebuggerJitInfo * dji = dmi->GetLatestJitInfo();
+                DebuggerJitInfo * dji = dmi->GetLatestJitInfo_NoCreate();
                 while (dji != NULL)
                 {
                     DebuggerJitInfo * djiPrev = dji->m_prevJitInfo;;
@@ -2361,9 +2346,31 @@ DebuggerJitInfo *DebuggerJitInfo::GetJitInfoByAddress(const BYTE *pbAddr )
     return dji;
 }
 
-DebuggerJitInfo *DebuggerMethodInfo::GetLatestJitInfo()
+PTR_DebuggerJitInfo DebuggerMethodInfo::GetLatestJitInfo(MethodDesc *mdesc)
 {
-    LIMITED_METHOD_CONTRACT;
+    // dac checks ngen'ed image content first, so
+    // only check for existing JIT info.
+#ifndef DACCESS_COMPILE
+
+    CONTRACTL
+    {
+        SO_INTOLERANT;
+        THROWS;
+        CALLED_IN_DEBUGGERDATALOCK_HOLDER_SCOPE_MAY_GC_TRIGGERS_CONTRACT;
+        PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
+    }
+    CONTRACTL_END;
+
+
+    if (m_latestJitInfo && m_latestJitInfo->m_fd == mdesc && !m_latestJitInfo->m_fd->HasClassOrMethodInstantiation())
+        return m_latestJitInfo;
+
+    // This ensures that there is an entry in the DJI list for this particular MethodDesc.
+    // in the case of generic code it may not be the first entry in the list.
+    FindOrCreateInitAndAddJitInfo(mdesc, NULL /* startAddr */);
+
+#endif // #ifndef DACCESS_COMPILE
+
     return m_latestJitInfo;
 }
 
