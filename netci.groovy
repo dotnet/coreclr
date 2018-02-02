@@ -56,7 +56,13 @@ class Constants {
                'Fedora24',
                'Tizen']
 
-    def static crossList = ['Ubuntu', 'OSX10.12', 'CentOS7.1', 'RHEL7.2', 'Debian8.4', 'Windows_NT']
+    def static crossList = [
+               'Ubuntu',
+               'Debian8.4',
+               'OSX10.12',
+               'Windows_NT',
+               'CentOS7.1',
+               'RHEL7.2']
 
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
@@ -482,9 +488,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     // Windows_NT
     // 
     // Arm32 (Build) -> latest-arm64
-    //       |-> os == "Windows_NT" && architecture == "arm" || architecture == "armlb" && options['use_arm64_build_machine'] == true
+    //       |-> os == "Windows_NT" && (architecture == "arm" || architecture == "armlb") && options['use_arm64_build_machine'] == true
     // Arm32 (Test)  -> arm64-windows_nt
-    //       |-> os == "Windows_NT" && architecture == "arm" || architecture == "armlb" && options['use_arm64_build_machine'] == false
+    //       |-> os == "Windows_NT" && (architecture == "arm" || architecture == "armlb") && options['use_arm64_build_machine'] == false
     //
     // Arm64 (Build) -> latest-arm64
     //       |-> os == "Windows_NT" && architecture == "arm64" && options['use_arm64_build_machine'] == true
@@ -494,9 +500,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     // Ubuntu
     //
     // Arm32 (Build) -> arm-cross-latest
-    //       |-> os in supportedArmLinuxOs && architecture == "arm" || architecture == "armlb"
+    //       |-> os in supportedArmLinuxOs && (architecture == "arm" || architecture == "armlb")
     // Arm32 (Test)  -> NYI Arch not supported
-    //       |->
+    //       |-> TODO: arm linux hardware!
     //
     // Arm64 (Build) -> arm64-cross-latest
     //       |-> os != "Windows_NT" && architecture == "arm64" && options['is_build_only'] == true
@@ -798,6 +804,7 @@ def static isNeedDocker(def architecture, def os, def isBuild) {
             return true
         }
         else if (architecture == 'arm') {
+        // TODO: is this true for arm/Linux hardware?
             if (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen') {
                 return true
             }
@@ -2523,7 +2530,8 @@ Constants.allScenarios.each { scenario ->
 } // scenario
 
 
-// Create jobs requiring flow jobs. This includes x64 non-Windows, arm64 Ubuntu, and arm/arm64/armlb Windows.
+// Create jobs requiring flow jobs. This includes x64 non-Windows, arm and arm64 Ubuntu, and arm/arm64/armlb Windows.
+// Note: no armlb non-Windows; we expect to deprecate/remove armlb soon, so don't want to add new testing for it.
 Constants.allScenarios.each { scenario ->
     def isNormalOrInnerloop = (scenario == 'innerloop' || scenario == 'normal')
 
@@ -2534,7 +2542,11 @@ Constants.allScenarios.each { scenario ->
                     if (os != "Ubuntu" && os != "Windows_NT") {
                         return
                     }
-                } else if (architecture == 'arm' || architecture == 'armlb') {
+                } else if (architecture == 'arm') {
+                    if (os != "Ubuntu" && os != "Windows_NT") {
+                        return
+                    }
+                } else if (architecture == 'armlb') {
                     if (os != 'Windows_NT') {
                         return
                     }
