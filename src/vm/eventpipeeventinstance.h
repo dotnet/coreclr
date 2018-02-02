@@ -37,7 +37,7 @@ public:
         return m_pEvent;
     }
 
-    LARGE_INTEGER* const GetTimeStamp()
+    const LARGE_INTEGER* const GetTimeStamp() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -65,21 +65,21 @@ public:
         return m_threadID;
     }
 
-    GUID* const GetActivityId()
+    const GUID* const GetActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_activityId;
     }
 
-    GUID* const GetRelatedActivityId()
+    const GUID* const GetRelatedActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_relatedActivityId;
     }
 
-    BYTE* GetData() const
+    const BYTE* const GetData() const
     {
         LIMITED_METHOD_CONTRACT;
 

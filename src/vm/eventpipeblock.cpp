@@ -84,15 +84,15 @@ bool EventPipeBlock::WriteEvent(EventPipeEventInstance &instance)
     memcpy(m_pWritePointer, &threadId, sizeof(threadId));
     m_pWritePointer += sizeof(threadId);
 
-    LARGE_INTEGER* timeStamp = instance.GetTimeStamp();
+    const LARGE_INTEGER* timeStamp = instance.GetTimeStamp();
     memcpy(m_pWritePointer, timeStamp, sizeof(*timeStamp));
     m_pWritePointer += sizeof(*timeStamp);
 
-    GUID* activityId = instance.GetActivityId();
+    const GUID* activityId = instance.GetActivityId();
     memcpy(m_pWritePointer, activityId, sizeof(*activityId));
     m_pWritePointer += sizeof(*activityId);
 
-    GUID* relatedActivityId = instance.GetRelatedActivityId();
+    const GUID* relatedActivityId = instance.GetRelatedActivityId();
     memcpy(m_pWritePointer, relatedActivityId, sizeof(*relatedActivityId));
     m_pWritePointer += sizeof(*relatedActivityId);
 

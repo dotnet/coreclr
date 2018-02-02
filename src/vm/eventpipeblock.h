@@ -43,6 +43,11 @@ class EventPipeBlock : public FastSerializableObject
             }
             CONTRACTL_END;
 
+            if (m_pBlock == NULL)
+            {
+                return;
+            }
+
             unsigned int eventsSize = (unsigned int)(m_pWritePointer - m_pBlock);
             pSerializer->WriteBuffer((BYTE*)&eventsSize, sizeof(eventsSize));
 
@@ -72,6 +77,12 @@ class EventPipeBlock : public FastSerializableObject
         unsigned int GetSize() const
         {
             LIMITED_METHOD_CONTRACT;
+
+            if (m_pBlock == NULL)
+            {
+                return 0;
+            }
+
             return (unsigned int)(m_pEndOfTheBuffer - m_pBlock);
         }
 };
