@@ -71,6 +71,8 @@ namespace System
         {
             if (array == null)
             {
+                if (start != 0 || length != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
                 this = default;
                 return; // returns default
             }

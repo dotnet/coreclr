@@ -517,7 +517,7 @@ namespace System
             return;
 #endif
 
-PInvoke:
+        PInvoke:
             RuntimeImports.RhZeroMemory(ref b, byteLength);
         }
 
