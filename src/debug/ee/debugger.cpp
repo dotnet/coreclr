@@ -2861,6 +2861,8 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
         return NULL;
     }
 
+    // TODO: Currently, this method does not handle code versioning properly (at least in some profiler scenarios), it may need
+    // to take pbAddr into account and lazily create a DJI for that particular version of the method.
 
     // This may take the lock and lazily create an entry, so we do it up front.
     dji = dmi->GetLatestJitInfo(fd);
@@ -3022,7 +3024,19 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
     _ASSERTE(CORProfilerPresent());
 #endif // PROFILING_SUPPORTED
 
-    DebuggerJitInfo *pDJI = GetJitInfoFromAddr(pNativeCodeStartAddress);
+    MethodDesc *fd = g_pEEInterface->GetNativeCodeMethodDesc(pNativeCodeStartAddress);
+    if (fd == NULL || fd->IsWrapperStub() || fd->IsDynamicMethod())
+    {
+        return E_FAIL;
+    }
+
+    DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(fd->GetModule(), fd->GetMemberDef());
+    if (pDMI == NULL)
+    {
+        return E_FAIL;
+    }
+
+    DebuggerJitInfo *pDJI = pDMI->FindOrCreateInitAndAddJitInfo(fd, pNativeCodeStartAddress);
 
     // Dunno what went wrong
     if (pDJI == NULL)
@@ -10714,7 +10728,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             DebuggerJitInfo * pDJI =  NULL;
             if ((pMethodDesc != NULL) && (pDMI != NULL))
             {
-                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc);
+                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, NULL /* startAddr */);
             }
 
             {
@@ -11102,14 +11116,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 {
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
-                    pDJI = pDMI->FindJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(), 
-                                             (TADDR)pEvent->SetIP.startAddress);
-                    if (pDJI == NULL)
-                    {
-                        // In the case of other functions, we may need to lazily create a DJI, so we need 
-                        // FindOrCreate semantics for those. 
-                        pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr());
-                    }
+                    pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
+                                                               (TADDR)pEvent->SetIP.startAddress);
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))
