@@ -5721,11 +5721,18 @@ public:
         m_priorityOfLastError = 0;
     }
 
-    VOID TrackErrorCode(DWORD dwLastError)
+    VOID TrackErrorCode()
     {
         LIMITED_METHOD_CONTRACT;
 
         DWORD priority;
+
+#ifdef FEATURE_PAL
+
+        SetMessage(PAL_GetLoadLibraryError());
+#else
+        
+        DWORD dwLastError = GetLastError();
 
         switch (dwLastError)
         {
@@ -5747,8 +5754,8 @@ public:
                 priority = const_priorityCouldNotLoad;
                 break;
         }
-
         UpdateHR(priority, HRESULT_FROM_WIN32(dwLastError));
+#endif
     }
 
     // Sets the error code to HRESULT as could not load DLL
@@ -5762,10 +5769,20 @@ public:
         return m_hr;
     }
 
+    SString& GetMessage()
+    {
+        return m_message;
+    }
+
     void DECLSPEC_NORETURN Throw(SString &libraryNameOrPath)
     {
         STANDARD_VM_CONTRACT;
 
+#if defined(__APPLE__)
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_MAC, libraryNameOrPath.GetUnicode(), GetMessage());
+#elif defined(FEATURE_PAL)
+        COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_LINUX, libraryNameOrPath.GetUnicode(), GetMessage());
+#else // __APPLE__
         HRESULT theHRESULT = GetHR();
         if (theHRESULT == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT))
         {
@@ -5775,8 +5792,9 @@ public:
         {
             SString hrString;
             GetHRMsg(theHRESULT, hrString);
-            COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB, libraryNameOrPath.GetUnicode(), hrString);
+            COMPlusThrow(kDllNotFoundException, IDS_EE_NDIRECT_LOADLIB_WIN, libraryNameOrPath.GetUnicode(), hrString);
         }
+#endif // FEATURE_PAL
 
         __UNREACHABLE();
     }
@@ -5791,8 +5809,14 @@ private:
         }
     }
 
+    void SetMessage(LPCSTR message)
+    {
+        m_message = SString(SString::Utf8, message);
+    }
+
     HRESULT m_hr;
     DWORD   m_priorityOfLastError;
+    SString  m_message;
 };  // class LoadLibErrorTracker
 
 //  Local helper function for the LoadLibraryModule function below
@@ -5819,7 +5843,7 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         DWORD dwLastError = GetLastError();
         if (dwLastError != ERROR_INVALID_PARAMETER)
         {
-            pErrorTracker->TrackErrorCode(dwLastError);
+            pErrorTracker->TrackErrorCode();
             return hmod;
         }
     }
@@ -5832,7 +5856,7 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         
     if (hmod == NULL)
     {
-        pErrorTracker->TrackErrorCode(GetLastError());
+        pErrorTracker->TrackErrorCode();
     }
     
     return hmod;
@@ -5852,7 +5876,7 @@ static HMODULE LocalLoadLibraryDirectHelper(LPCWSTR name, DWORD flags, LoadLibEr
 
     if (hmod == NULL)
     {
-        pErrorTracker->TrackErrorCode(GetLastError());
+        pErrorTracker->TrackErrorCode();
     }
 
     return hmod;
@@ -6018,6 +6042,62 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
     return hmod;
 }
 
+#ifdef FEATURE_PAL
+static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+{
+    if (libNameIsRelativePath)
+    {
+        // We check if the suffix is contained in the name, because on Linux it is common to append
+        // a version number to the library name (e.g. 'libicuuc.so.57').
+        bool containsSuffix;
+        SString::CIterator it = libName.Begin();
+        if (libName.FindASCII(it, PAL_SHLIB_SUFFIX))
+        {
+            it += strlen(PAL_SHLIB_SUFFIX);
+            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
+        }
+        else
+        {
+            containsSuffix = false;
+        }
+
+        if (containsSuffix)
+        {
+            static const char* const SuffixLast[] =
+            {
+                "%.0s%s",   // name
+                "%s%s%.0s", // prefix+name
+                "%.0s%s%s", // name+suffix
+                "%s%s%s"    // prefix+name+suffix
+            };
+            *libNameVariations = SuffixLast;
+            *numberOfVariations = COUNTOF(SuffixLast);
+        }
+        else
+        {
+            static const char* const SuffixFirst[] =
+            {
+                "%.0s%s%s", // name+suffix
+                "%s%s%s",   // prefix+name+suffix
+                "%.0s%s",   // name
+                "%s%s%.0s"  // prefix+name
+            };
+            *libNameVariations = SuffixFirst;
+            *numberOfVariations = COUNTOF(SuffixFirst);
+        }
+    }
+    else
+    {
+        static const char* const NameOnly[] =
+        {
+            "%.0s%s"
+        };
+        *libNameVariations = NameOnly;
+        *numberOfVariations = COUNTOF(NameOnly);
+    }
+}
+#endif
+
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
@@ -6081,66 +6161,82 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     }
 #endif // FEATURE_CORESYSTEM && !FEATURE_PAL
 
-    if (hmod == NULL)
-    {
-        // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
-        hmod = LoadFromNativeDllSearchDirectories(pDomain, wszLibName, loadWithAlteredPathFlags, pErrorTracker);
-    }
-
-    DWORD dllImportSearchPathFlag = 0;
-    BOOL searchAssemblyDirectory = TRUE;
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
-    if (hmod == NULL)
+    DWORD dllImportSearchPathFlag = 0;
+#ifdef FEATURE_PAL
+    // P/Invokes are often declared with variations on the actual library name.
+    // For example, it's common to leave off the extension/suffix of the library
+    // even if it has one, or to leave off a prefix like "lib" even if it has one
+    // (both of these are typically done to smooth over cross-platform differences). 
+    // We try to dlopen with such variations on the original.
+    const char* const* prefixSuffixCombinations = nullptr;
+    int numberOfVariations = 0;
+    DetermineLibNameVariations(&prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
+    for (int i = 0; hmod == NULL && i < numberOfVariations; i++)
     {
-        // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
-        // then dllImportSearchPathFlag is set to its value.
-        // Otherwise checks if the assembly has the attribute. 
-        // If assembly has the attribute then flag ise set to its value.
-        BOOL attributeIsFound = FALSE;
-
-        if (pMD->HasDefaultDllImportSearchPathsAttribute())
+        SString currLibNameVariation;
+        currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
+#else
+    {
+        LPCWSTR currLibNameVariation = wszLibName;
+#endif
+        if (hmod == NULL)
         {
-            dllImportSearchPathFlag = pMD->DefaultDllImportSearchPathsAttributeCachedValue();
-            searchAssemblyDirectory = pMD->DllImportSearchAssemblyDirectory();
-            attributeIsFound = TRUE;
+            // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
+            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
         }
-        else 
-        {
-            Module * pModule = pMD->GetModule();
 
-            if(pModule->HasDefaultDllImportSearchPathsAttribute())
+        BOOL searchAssemblyDirectory = TRUE;
+        if (hmod == NULL)
+        {
+            // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
+            // then dllImportSearchPathFlag is set to its value.
+            // Otherwise checks if the assembly has the attribute. 
+            // If assembly has the attribute then flag ise set to its value.
+            BOOL attributeIsFound = FALSE;
+
+            if (pMD->HasDefaultDllImportSearchPathsAttribute())
             {
-                dllImportSearchPathFlag = pModule->DefaultDllImportSearchPathsAttributeCachedValue();
-                searchAssemblyDirectory = pModule->DllImportSearchAssemblyDirectory();
+                dllImportSearchPathFlag = pMD->DefaultDllImportSearchPathsAttributeCachedValue();
+                searchAssemblyDirectory = pMD->DllImportSearchAssemblyDirectory();
                 attributeIsFound = TRUE;
             }
-        }
-
-
-        if (!libNameIsRelativePath)
-        {
-            DWORD flags = loadWithAlteredPathFlags;
-            if ((dllImportSearchPathFlag & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) != 0)
+            else 
             {
-                // LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR is the only flag affecting absolute path. Don't OR the flags
-                // unconditionally as all absolute path P/Invokes could then lose LOAD_WITH_ALTERED_SEARCH_PATH.
-                flags |= dllImportSearchPathFlag;
+                Module * pModule = pMD->GetModule();
+
+                if(pModule->HasDefaultDllImportSearchPathsAttribute())
+                {
+                    dllImportSearchPathFlag = pModule->DefaultDllImportSearchPathsAttributeCachedValue();
+                    searchAssemblyDirectory = pModule->DllImportSearchAssemblyDirectory();
+                    attributeIsFound = TRUE;
+                }
             }
 
-            hmod = LocalLoadLibraryHelper(wszLibName, flags, pErrorTracker);
+            if (!libNameIsRelativePath)
+            {
+                DWORD flags = loadWithAlteredPathFlags;
+                if ((dllImportSearchPathFlag & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) != 0)
+                {
+                    // LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR is the only flag affecting absolute path. Don't OR the flags
+                    // unconditionally as all absolute path P/Invokes could then lose LOAD_WITH_ALTERED_SEARCH_PATH.
+                    flags |= dllImportSearchPathFlag;
+                }
+
+                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, pErrorTracker);
+            }
+            else if (searchAssemblyDirectory)
+            {
+                Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
+                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
+            }
         }
-        else if (searchAssemblyDirectory)
+
+        // This call searches the application directory instead of the location for the library.
+        if (hmod == NULL)
         {
-            Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
-            hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, wszLibName, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
-
+            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, pErrorTracker);
         }
-    }
-
-    // This call searches the application directory instead of the location for the library.
-    if (hmod == NULL)
-    {
-        hmod = LocalLoadLibraryHelper(wszLibName, dllImportSearchPathFlag, pErrorTracker);
     }
 
     // This may be an assembly name
@@ -6171,49 +6267,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
             }
         }
     }
-
-#ifdef FEATURE_PAL
-    if (hmod == NULL)
-    {
-        // P/Invokes are often declared with variations on the actual library name.
-        // For example, it's common to leave off the extension/suffix of the library
-        // even if it has one, or to leave off a prefix like "lib" even if it has one
-        // (both of these are typically done to smooth over cross-platform differences). 
-        // We try to dlopen with such variations on the original.
-        const char* const prefixSuffixCombinations[] =
-        {
-            "%s%s%s",     // prefix+name+suffix
-            "%.0s%s%s",   // name+suffix
-            "%s%s%.0s",   // prefix+name
-        };
-
-        const int NUMBER_OF_LIB_NAME_VARIATIONS = COUNTOF(prefixSuffixCombinations);
-
-        // Try to load from places we tried above, but this time with variations on the
-        // name including the prefix, suffix, and both.
-        for (int i = 0; i < NUMBER_OF_LIB_NAME_VARIATIONS; i++)
-        {
-            SString currLibNameVariation;
-            currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
-
-            if (libNameIsRelativePath && searchAssemblyDirectory)
-            {
-                Assembly *pAssembly = pMD->GetMethodTable()->GetAssembly();
-                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
-                if (hmod != NULL)
-                    break;
-            }
-
-            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
-            if (hmod != NULL)
-                break;
-
-            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, pErrorTracker);
-            if (hmod != NULL)
-                break;
-        }
-    }
-#endif // FEATURE_PAL
 
     // After all this, if we have a handle add it to the cache.
     if (hmod)
@@ -6298,7 +6351,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     {
         if (pMD->GetLibName() == NULL)
             COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_NONAME);
-        
+
         StackSString ssLibName(SString::Utf8, pMD->GetLibName());
 
         if (!hmod)
@@ -6312,8 +6365,11 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
             wszEPName[0] = W('?');
             wszEPName[1] = W('\0');
         }
-
-        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS, ssLibName.GetUnicode(), wszEPName);
+#ifdef FEATURE_PAL
+        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_UNIX, ssLibName.GetUnicode(), wszEPName);
+#else
+        COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDRESS_WIN, ssLibName.GetUnicode(), wszEPName);
+#endif
     }
 }
 

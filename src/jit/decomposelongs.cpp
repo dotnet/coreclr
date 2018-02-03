@@ -877,12 +877,12 @@ GenTree* DecomposeLongs::DecomposeInd(LIR::Use& use)
     indLow->gtType = TYP_INT;
 
     // Create tree of ind(addr+4)
-    GenTreePtr addrBase     = indLow->gtGetOp1();
-    GenTreePtr addrBaseHigh = new (m_compiler, GT_LCL_VAR)
+    GenTree* addrBase     = indLow->gtGetOp1();
+    GenTree* addrBaseHigh = new (m_compiler, GT_LCL_VAR)
         GenTreeLclVar(GT_LCL_VAR, addrBase->TypeGet(), addrBase->AsLclVarCommon()->GetLclNum(), BAD_IL_OFFSET);
-    GenTreePtr addrHigh =
+    GenTree* addrHigh =
         new (m_compiler, GT_LEA) GenTreeAddrMode(TYP_REF, addrBaseHigh, nullptr, 0, genTypeSize(TYP_INT));
-    GenTreePtr indHigh = new (m_compiler, GT_IND) GenTreeIndir(GT_IND, TYP_INT, addrHigh, nullptr);
+    GenTree* indHigh = new (m_compiler, GT_IND) GenTreeIndir(GT_IND, TYP_INT, addrHigh, nullptr);
     indHigh->gtFlags |= (indLow->gtFlags & (GTF_GLOB_REF | GTF_EXCEPT | GTF_IND_FLAGS));
 
     m_compiler->lvaIncRefCnts(addrBaseHigh);
@@ -1087,7 +1087,9 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
     // If we are shifting by a constant int, we do not want to use a helper, instead, we decompose.
     if (shiftByOper == GT_CNS_INT)
     {
-        unsigned int count = shiftByOp->gtIntCon.gtIconVal;
+        // Reduce count modulo 64 to match behavior found in the shift helpers,
+        // Compiler::gtFoldExpr and ValueNumStore::EvalOpIntegral.
+        unsigned int count = shiftByOp->gtIntCon.gtIconVal & 0x3F;
         Range().Remove(shiftByOp);
 
         if (count == 0)
@@ -1157,7 +1159,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 }
                 else
                 {
-                    assert(count >= 32);
+                    assert(count >= 32 && count < 64);
 
                     // Since we're left shifting at least 32 bits, we can remove the hi part of the shifted value iff
                     // it has no side effects.
@@ -1173,57 +1175,30 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                         hiOp1->SetUnusedValue();
                     }
 
-                    if (count < 64)
+                    if (count == 32)
                     {
-                        if (count == 32)
-                        {
-                            // Move loOp1 into hiResult (shift of 32 bits is just a mov of lo to hi)
-                            // We need to make sure that we save lo to a temp variable so that we don't overwrite lo
-                            // before saving it to hi in the case that we are doing an inplace shift. I.e.:
-                            // x = x << 32
+                        // Move loOp1 into hiResult (shift of 32 bits is just a mov of lo to hi)
+                        // We need to make sure that we save lo to a temp variable so that we don't overwrite lo
+                        // before saving it to hi in the case that we are doing an inplace shift. I.e.:
+                        // x = x << 32
 
-                            LIR::Use loOp1Use(Range(), &gtLong->gtOp.gtOp1, gtLong);
-                            loOp1Use.ReplaceWithLclVar(m_compiler, m_blockWeight);
+                        LIR::Use loOp1Use(Range(), &gtLong->gtOp.gtOp1, gtLong);
+                        loOp1Use.ReplaceWithLclVar(m_compiler, m_blockWeight);
 
-                            hiResult = loOp1Use.Def();
-                            Range().Remove(gtLong);
-                        }
-                        else
-                        {
-                            Range().Remove(gtLong);
-                            assert(count > 32 && count < 64);
-
-                            // Move loOp1 into hiResult, do a GT_LSH with count - 32.
-                            // We will compute hiResult before loResult in this case, so we don't need to store lo to a
-                            // temp
-                            GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
-                            hiResult         = m_compiler->gtNewOperNode(oper, TYP_INT, loOp1, shiftBy);
-                            Range().InsertBefore(shift, shiftBy, hiResult);
-                        }
+                        hiResult = loOp1Use.Def();
+                        Range().Remove(gtLong);
                     }
                     else
                     {
-                        assert(count >= 64);
-
                         Range().Remove(gtLong);
+                        assert(count > 32 && count < 64);
 
-                        // Since we're left shifting at least 64 bits, we can remove the lo part of the shifted value
-                        // iff it has no side effects.
-                        //
-                        // TODO-CQ: we could go perform this removal transitively (i.e. iteratively remove everything
-                        // that feeds the lo operand while there are no side effects)
-                        if ((loOp1->gtFlags & (GTF_ALL_EFFECT | GTF_SET_FLAGS)) == 0)
-                        {
-                            Range().Remove(loOp1, true);
-                        }
-                        else
-                        {
-                            loOp1->SetUnusedValue();
-                        }
-
-                        // Zero out hi (shift of >= 64 bits moves all the bits out of the two registers)
-                        hiResult = m_compiler->gtNewZeroConNode(TYP_INT);
-                        Range().InsertBefore(shift, hiResult);
+                        // Move loOp1 into hiResult, do a GT_LSH with count - 32.
+                        // We will compute hiResult before loResult in this case, so we don't need to store lo to a
+                        // temp
+                        GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
+                        hiResult         = m_compiler->gtNewOperNode(oper, TYP_INT, loOp1, shiftBy);
+                        Range().InsertBefore(shift, shiftBy, hiResult);
                     }
 
                     // Zero out loResult (shift of >= 32 bits shifts all lo bits to hiResult)
@@ -1267,6 +1242,8 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 }
                 else
                 {
+                    assert(count >= 32 && count < 64);
+
                     // Since we're right shifting at least 32 bits, we can remove the lo part of the shifted value iff
                     // it has no side effects.
                     //
@@ -1281,45 +1258,19 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                         loOp1->SetUnusedValue();
                     }
 
-                    assert(count >= 32);
-                    if (count < 64)
+                    if (count == 32)
                     {
-                        if (count == 32)
-                        {
-                            // Move hiOp1 into loResult.
-                            loResult = hiOp1;
-                        }
-                        else
-                        {
-                            assert(count > 32 && count < 64);
-
-                            // Move hiOp1 into loResult, do a GT_RSZ with count - 32.
-                            GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
-                            loResult         = m_compiler->gtNewOperNode(oper, TYP_INT, hiOp1, shiftBy);
-                            Range().InsertBefore(shift, shiftBy, loResult);
-                        }
+                        // Move hiOp1 into loResult.
+                        loResult = hiOp1;
                     }
                     else
                     {
-                        assert(count >= 64);
+                        assert(count > 32 && count < 64);
 
-                        // Since we're right shifting at least 64 bits, we can remove the hi part of the shifted value
-                        // iff it has no side effects.
-                        //
-                        // TODO-CQ: we could go perform this removal transitively (i.e. iteratively remove everything
-                        // that feeds the hi operand while there are no side effects)
-                        if ((hiOp1->gtFlags & GTF_ALL_EFFECT) == 0)
-                        {
-                            Range().Remove(hiOp1, true);
-                        }
-                        else
-                        {
-                            hiOp1->SetUnusedValue();
-                        }
-
-                        // Zero out lo
-                        loResult = m_compiler->gtNewZeroConNode(TYP_INT);
-                        Range().InsertBefore(shift, loResult);
+                        // Move hiOp1 into loResult, do a GT_RSZ with count - 32.
+                        GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
+                        loResult         = m_compiler->gtNewOperNode(oper, TYP_INT, hiOp1, shiftBy);
+                        Range().InsertBefore(shift, shiftBy, loResult);
                     }
 
                     // Zero out hi
@@ -1363,7 +1314,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                 }
                 else
                 {
-                    assert(count >= 32);
+                    assert(count >= 32 && count < 64);
 
                     // Since we're right shifting at least 32 bits, we can remove the lo part of the shifted value iff
                     // it has no side effects.
@@ -1379,47 +1330,28 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
                         loOp1->SetUnusedValue();
                     }
 
-                    if (count < 64)
+                    if (count == 32)
                     {
-                        if (count == 32)
-                        {
-                            // Move hiOp1 into loResult.
-                            loResult = hiOp1;
-                            Range().InsertBefore(shift, loResult);
-                        }
-                        else
-                        {
-                            assert(count > 32 && count < 64);
-
-                            // Move hiOp1 into loResult, do a GT_RSH with count - 32.
-                            GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
-                            loResult         = m_compiler->gtNewOperNode(oper, TYP_INT, hiOp1, shiftBy);
-                            Range().InsertBefore(shift, hiOp1, shiftBy, loResult);
-                        }
-
-                        // Propagate sign bit in hiResult
-                        GenTree* shiftBy = m_compiler->gtNewIconNode(31, TYP_INT);
-                        hiResult         = m_compiler->gtNewOperNode(GT_RSH, TYP_INT, hiCopy, shiftBy);
-                        Range().InsertBefore(shift, shiftBy, hiCopy, hiResult);
-
-                        m_compiler->lvaIncRefCnts(hiCopy);
+                        // Move hiOp1 into loResult.
+                        loResult = hiOp1;
+                        Range().InsertBefore(shift, loResult);
                     }
                     else
                     {
-                        assert(count >= 64);
+                        assert(count > 32 && count < 64);
 
-                        // Propagate sign bit in loResult
-                        GenTree* loShiftBy = m_compiler->gtNewIconNode(31, TYP_INT);
-                        loResult           = m_compiler->gtNewOperNode(GT_RSH, TYP_INT, hiCopy, loShiftBy);
-                        Range().InsertBefore(shift, hiCopy, loShiftBy, loResult);
-
-                        // Propagate sign bit in hiResult
-                        GenTree* shiftBy = m_compiler->gtNewIconNode(31, TYP_INT);
-                        hiResult         = m_compiler->gtNewOperNode(GT_RSH, TYP_INT, hiOp1, shiftBy);
-                        Range().InsertBefore(shift, shiftBy, hiOp1, hiResult);
-
-                        m_compiler->lvaIncRefCnts(hiCopy);
+                        // Move hiOp1 into loResult, do a GT_RSH with count - 32.
+                        GenTree* shiftBy = m_compiler->gtNewIconNode(count - 32, TYP_INT);
+                        loResult         = m_compiler->gtNewOperNode(oper, TYP_INT, hiOp1, shiftBy);
+                        Range().InsertBefore(shift, hiOp1, shiftBy, loResult);
                     }
+
+                    // Propagate sign bit in hiResult
+                    GenTree* shiftBy = m_compiler->gtNewIconNode(31, TYP_INT);
+                    hiResult         = m_compiler->gtNewOperNode(GT_RSH, TYP_INT, hiCopy, shiftBy);
+                    Range().InsertBefore(shift, shiftBy, hiCopy, hiResult);
+
+                    m_compiler->lvaIncRefCnts(hiCopy);
                 }
 
                 insertAfter = hiResult;

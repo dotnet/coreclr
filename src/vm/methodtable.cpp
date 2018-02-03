@@ -1788,7 +1788,7 @@ TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
             if (pMT == pTargetMT)
                 return TypeHandle::CanCast;
 
-            pMT = MethodTable::GetParentMethodTable(pMT);
+            pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
         } while (pMT);
     }
 
@@ -2340,6 +2340,25 @@ bool MethodTable::ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassi
                nestingLevel * 5, "", this->GetDebugClassName()));
         return false;
     }
+
+    // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
+    if (IsIntrinsicType())
+    {
+        LPCUTF8 namespaceName;
+        LPCUTF8 className = GetFullyQualifiedNameInfo(&namespaceName);
+
+        if ((strcmp(className, "Vector256`1") == 0) || (strcmp(className, "Vector128`1") == 0) ||
+            (strcmp(className, "Vector64`1") == 0))
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+
+            LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithManagedLayout: struct %s is a SIMD intrinsic type; will not be enregistered\n",
+                nestingLevel * 5, "", this->GetDebugClassName()));
+
+            return false;
+        }
+    }
+
 #ifdef _DEBUG
     LOG((LF_JIT, LL_EVERYTHING, "%*s**** Classify %s (%p), startOffset %d, total struct size %d\n",
         nestingLevel * 5, "", this->GetDebugClassName(), this, startOffsetOfStruct, helperPtr->structSize));
@@ -2617,6 +2636,24 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s has explicit layout; will not be enregistered\n",
             nestingLevel * 5, "", this->GetDebugClassName()));
         return false;
+    }
+
+    // The SIMD Intrinsic types are meant to be handled specially and should not be passed as struct registers
+    if (IsIntrinsicType())
+    {
+        LPCUTF8 namespaceName;
+        LPCUTF8 className = GetFullyQualifiedNameInfo(&namespaceName);
+
+        if ((strcmp(className, "Vector256`1") == 0) || (strcmp(className, "Vector128`1") == 0) ||
+            (strcmp(className, "Vector64`1") == 0))
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+
+            LOG((LF_JIT, LL_EVERYTHING, "%*s**** ClassifyEightBytesWithNativeLayout: struct %s is a SIMD intrinsic type; will not be enregistered\n",
+                nestingLevel * 5, "", this->GetDebugClassName()));
+
+            return false;
+        }
     }
 
 #ifdef _DEBUG
@@ -4779,17 +4816,7 @@ void MethodTable::Fixup(DataImage *image)
 #endif // _DEBUG
 
     MethodTable * pParentMT = GetParentMethodTable();
-    _ASSERTE(!pNewMT->m_pParentMethodTable.IsIndirectPtrMaybeNull());
-
-    ZapRelocationType relocType;
-    if (decltype(MethodTable::m_pParentMethodTable)::isRelative)
-    {
-        relocType = IMAGE_REL_BASED_RELPTR;
-    }
-    else
-    {
-        relocType = IMAGE_REL_BASED_PTR;
-    }
+    _ASSERTE(!pNewMT->GetFlag(enum_flag_HasIndirectParent));
 
     if (pParentMT != NULL)
     {
@@ -4801,8 +4828,7 @@ void MethodTable::Fixup(DataImage *image)
         {
             if (image->CanHardBindToZapModule(pParentMT->GetLoaderModule()))
             {
-                _ASSERTE(!m_pParentMethodTable.IsIndirectPtr());
-                image->FixupField(this, offsetof(MethodTable, m_pParentMethodTable), pParentMT, 0, relocType);
+                image->FixupPointerField(this, offsetof(MethodTable, m_pParentMethodTable));
             }
             else
             {
@@ -4838,7 +4864,8 @@ void MethodTable::Fixup(DataImage *image)
 
         if (pImport != NULL)
         {
-            image->FixupFieldToNode(this, offsetof(MethodTable, m_pParentMethodTable), pImport, FIXUP_POINTER_INDIRECTION, relocType);
+            image->FixupFieldToNode(this, offsetof(MethodTable, m_pParentMethodTable), pImport, -(SSIZE_T)offsetof(MethodTable, m_pParentMethodTable));
+            pNewMT->SetFlag(enum_flag_HasIndirectParent);
         }
     }
 
@@ -6101,7 +6128,7 @@ void MethodTable::Restore()
     //
     // Restore parent method table
     //
-    Module::RestoreMethodTablePointer(&m_pParentMethodTable, GetLoaderModule(), CLASS_LOAD_APPROXPARENTS);
+    Module::RestoreMethodTablePointerRaw(GetParentMethodTablePtr(), GetLoaderModule(), CLASS_LOAD_APPROXPARENTS);
 
     //
     // Restore interface classes
@@ -8156,8 +8183,13 @@ BOOL MethodTable::IsParentMethodTablePointerValid()
     if (!GetWriteableData_NoLogging()->IsParentMethodTablePointerValid())
         return FALSE;
 
-    TADDR base = dac_cast<TADDR>(this) + offsetof(MethodTable, m_pParentMethodTable);
-    return !m_pParentMethodTable.IsTagged(base);
+    if (!GetFlag(enum_flag_HasIndirectParent))
+    {
+        return TRUE;
+    }
+    TADDR pMT;
+    pMT = *PTR_TADDR(m_pParentMethodTable + offsetof(MethodTable, m_pParentMethodTable));
+    return !CORCOMPILE_IS_POINTER_TAGGED(pMT);
 }
 #endif
 

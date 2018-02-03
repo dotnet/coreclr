@@ -25,6 +25,7 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assert.cs" />
     <Compile Include="TraceControl.cs" />
     <Compile Include="TraceConfiguration.cs" />
   </ItemGroup>

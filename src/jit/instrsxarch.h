@@ -180,9 +180,10 @@ INSTMUL(imul_15, "imul", 0, IUM_RD, 0, 1, BAD_CODE, 0x4400003868, BAD_CODE)
 INST3(FIRST_SSE2_INSTRUCTION, "FIRST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 // These are the SSE instructions used on x86
-INST3( mov_i2xmm,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x6E)) // Move int reg to a xmm reg. reg1=xmm reg, reg2=int reg 
-INST3( mov_xmm2i,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x7E)) // Move xmm reg to an int reg. reg1=xmm reg, reg2=int reg 
+INST3( mov_i2xmm,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x6E)) // Move int reg to a xmm reg. reg1=xmm reg, reg2=int reg
+INST3( mov_xmm2i,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x7E)) // Move xmm reg to an int reg. reg1=xmm reg, reg2=int reg
 INST3( pmovmskb,    "pmovmskb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xD7)) // Move the MSB bits of all bytes in a xmm reg to an int reg
+INST3( movmskpd,    "movmskpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x50)) // Extract 2-bit sign mask from xmm and store in reg. The upper bits of r32 or r64 are filled with zeros.
 INST3( movq,        "movq"        , 0, IUM_WR, 0, 0, PCKDBL(0xD6), BAD_CODE, SSEFLT(0x7E))
 INST3( movsdsse2,   "movsd"       , 0, IUM_WR, 0, 0, SSEDBL(0x11), BAD_CODE, SSEDBL(0x10))
 
@@ -193,6 +194,7 @@ INST3( xorps,       "xorps"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( cvttsd2si,   "cvttsd2si"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x2C)) // cvt with trunc scalar double to signed DWORDs
 
 #ifndef LEGACY_BACKEND
+INST3( movntps,     "movntps"     , 0, IUM_WR, 0, 0, PCKFLT(0x2B), BAD_CODE, BAD_CODE)
 INST3( movdqu,      "movdqu"      , 0, IUM_WR, 0, 0, SSEFLT(0x7F), BAD_CODE, SSEFLT(0x6F))
 INST3( movdqa,      "movdqa"      , 0, IUM_WR, 0, 0, PCKDBL(0x7F), BAD_CODE, PCKDBL(0x6F))
 INST3( movlpd,      "movlpd"      , 0, IUM_WR, 0, 0, PCKDBL(0x13), BAD_CODE, PCKDBL(0x12))
@@ -204,7 +206,11 @@ INST3( movapd,      "movapd"      , 0, IUM_WR, 0, 0, PCKDBL(0x29), BAD_CODE, PCK
 INST3( movaps,      "movaps"      , 0, IUM_WR, 0, 0, PCKFLT(0x29), BAD_CODE, PCKFLT(0x28))
 INST3( movupd,      "movupd"      , 0, IUM_WR, 0, 0, PCKDBL(0x11), BAD_CODE, PCKDBL(0x10))
 INST3( movups,      "movups"      , 0, IUM_WR, 0, 0, PCKFLT(0x11), BAD_CODE, PCKFLT(0x10))
+INST3( movhlps,     "movhlps"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x12))
 INST3( movlhps,     "movlhps"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x16))
+INST3( movmskps,    "movmskps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x50))
+INST3( unpckhps,    "unpckhps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x15))
+INST3( unpcklps,    "unpcklps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0x14))
 
 INST3( shufps,      "shufps"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKFLT(0xC6))
 INST3( shufpd,      "shufpd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xC6))
@@ -249,6 +255,12 @@ INST3( orps,   "orps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x56))    /
 INST3( orpd,   "orpd",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x56))    // Or packed doubles
 INST3( haddpd, "haddpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x7C))    // Horizontal add packed doubles
 
+// SSE 2 approx arith
+INST3( rcpps,   "rcpps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x53))    // Reciprocal of packed singles
+INST3( rcpss,   "rcpss",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0x53))    // Reciprocal of scalar single
+INST3( rsqrtps, "rsqrtps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x52))    // Reciprocal Sqrt of packed singles
+INST3( rsqrtss, "rsqrtss", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0x52))    // Reciprocal Sqrt of scalar single
+
 // SSE2 conversions
 INST3( cvtpi2ps,  "cvtpi2ps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x2A))   // cvt packed DWORDs to singles
 INST3( cvtsi2ss,  "cvtsi2ss",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0x2A))   // cvt DWORD to scalar single
@@ -273,6 +285,8 @@ INST3( cvttpd2dq, "cvttpd2dq",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0xE6
 INST3( cvtdq2pd,  "cvtdq2pd",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0xE6))   // cvt packed DWORDs to doubles
 
 // SSE2 comparison instructions
+INST3( comiss,    "comiss",     0, IUM_RD, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x2F))    // ordered compare singles
+INST3( comisd,    "comisd",     0, IUM_RD, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x2F))    // ordered compare doubles
 INST3( ucomiss,   "ucomiss",    0, IUM_RD, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x2E))    // unordered compare singles
 INST3( ucomisd,   "ucomisd",    0, IUM_RD, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x2E))    // unordered compare doubles
 
@@ -280,22 +294,38 @@ INST3( ucomisd,   "ucomisd",    0, IUM_RD, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x2E
 // Note that these instructions not only compare but also overwrite the first source.
 INST3( cmpps,     "cmpps",      0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0xC2))    // compare packed singles
 INST3( cmppd,     "cmppd",      0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0xC2))    // compare packed doubles
+INST3( cmpss,     "cmpss",      0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0xC2))    // compare scalar singles
+INST3( cmpsd,     "cmpsd",      0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0xC2))    // compare scalar doubles
 
 //SSE2 packed integer operations
 INST3( paddb,       "paddb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xFC))   // Add packed byte integers
 INST3( paddw,       "paddw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xFD))   // Add packed word (16-bit) integers
 INST3( paddd,       "paddd"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xFE))   // Add packed double-word (32-bit) integers
 INST3( paddq,       "paddq"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xD4))   // Add packed quad-word (64-bit) integers
+INST3( paddsb,      "paddsb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEC))   // Add packed signed byte integers and saturate the results
+INST3( paddsw,      "paddsw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xED))   // Add packed signed word integers and saturate the results
+INST3( paddusb,     "paddusb"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDC))   // Add packed unsigned byte integers and saturate the results
+INST3( paddusw,     "paddusw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDD))   // Add packed unsigned word integers and saturate the results
+INST3( pavgb,       "pavgb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE0))   // Average of packed byte integers
+INST3( pavgw,       "pavgw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE3))   // Average of packed word integers
 INST3( psubb,       "psubb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xF8))   // Subtract packed word (16-bit) integers
 INST3( psubw,       "psubw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xF9))   // Subtract packed word (16-bit) integers
 INST3( psubd,       "psubd"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xFA))   // Subtract packed double-word (32-bit) integers
 INST3( psubq,       "psubq"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xFB))   // subtract packed quad-word (64-bit) integers
+INST3( pmaddwd,     "pmaddwd"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xF5))   // Multiply packed signed 16-bit integers in a and b, producing intermediate signed 32-bit integers. Horizontally add adjacent pairs of intermediate 32-bit integers, and pack the results in dst
+INST3( pmulhw,      "pmulhw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE5))   // Multiply high the packed 16-bit signed integers
+INST3( pmulhuw,     "pmulhuw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE4))   // Multiply high the packed 16-bit unsigned integers
 INST3( pmuludq,     "pmuludq"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xF4))   // packed multiply 32-bit unsigned integers and store 64-bit result
 INST3( pmullw,      "pmullw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xD5))   // Packed multiply 16 bit unsigned integers and store lower 16 bits of each result
 INST3( pand,        "pand"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDB))   // Packed bit-wise AND of two xmm regs
 INST3( pandn,       "pandn"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDF))   // Packed bit-wise AND NOT of two xmm regs
 INST3( por,         "por"         , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEB))   // Packed bit-wise OR of two xmm regs
 INST3( pxor,        "pxor"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xEF))   // Packed bit-wise XOR of two xmm regs
+INST3( psadbw,      "psadbw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xF6))   // Compute the sum of absolute differences of packed unsigned 8-bit integers
+INST3( psubsb,      "psubsb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE8))   // Subtract packed 8-bit integers in b from packed 8-bit integers in a using saturation
+INST3( psubusb,     "psubusb"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xD8))   // Subtract packed unsigned 8-bit integers in b from packed unsigned 8-bit integers in a using saturation
+INST3( psubsw,      "psubsw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xE9))   // Subtract packed 16-bit integers in b from packed 16-bit integers in a using saturation
+INST3( psubusw,     "psubusw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xD9))   // Subtract packed unsigned 16-bit integers in b from packed unsigned 16-bit integers in a using saturation
 
 // Note that the shift immediates share the same encoding between left and right-shift, and are distinguished by the Reg/Opcode,
 // which is handled in emitxarch.cpp.
@@ -308,6 +338,7 @@ INST3( psrld,       "psrld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),
 INST3( psllw,       "psllw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift left logical of 16-bit integers
 INST3( psrlw,       "psrlw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift right logical of 16-bit integers
 INST3( psrad,       "psrad"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift right arithmetic of 32-bit integers
+INST3( psraw,       "psraw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift right arithmetic of 16-bit integers
 
 INST3( pmaxub,      "pmaxub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDE))   // packed maximum unsigned bytes
 INST3( pminub,      "pminub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDA))   // packed minimum unsigned bytes
@@ -330,6 +361,8 @@ INST3( punpckhqdq,  "punpckhqdq"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,    
 INST3( punpcklqdq,  "punpcklqdq"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6C))   // Packed logical (unsigned) widen uint to ulong (lo)
 INST3( punpckhwd,   "punpckhwd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x69))   // Packed logical (unsigned) widen ushort to uint (hi)
 INST3( punpcklwd,   "punpcklwd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x61))   // Packed logical (unsigned) widen ushort to uint (lo)
+INST3( unpckhpd,    "unpckhpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x15))   // Packed logical (unsigned) widen ubyte to ushort (hi)
+INST3( unpcklpd,    "unpcklpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x14))   // Packed logical (unsigned) widen ubyte to ushort (hi)
 
 INST3( packssdw,    "packssdw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6B))   // Pack (narrow) int to short with saturation
 INST3( packsswb,    "packsswb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x63))   // Pack (narrow) short to byte with saturation
@@ -363,6 +396,14 @@ INST3( pmovsxbw,     "pmovsxbw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( pmovsxwd,     "pmovsxwd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x23))   // Packed sign extend short to int
 INST3( pmovsxdq,     "pmovsxdq"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x25))   // Packed sign extend int to long
 INST3( packusdw,     "packusdw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2B))   // Pack (narrow) int to unsigned short with saturation
+INST3( roundps,      "roundps"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x08))   // Round packed single precision floating-point values
+INST3( roundss,      "roundss"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x0A))   // Round scalar single precision floating-point values
+INST3( roundpd,      "roundpd"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x09))   // Round packed double precision floating-point values
+INST3( roundsd,      "roundsd"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x0B))   // Round scalar double precision floating-point values
+INST3( pmuldq,       "pmuldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x28))   // packed multiply 32-bit signed integers and store 64-bit result
+INST3( blendvps,     "blendvps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x14))   // Variable Blend Packed Singles
+INST3( blendvpd,     "blendvpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x15))   // Variable Blend Packed Doubles
+INST3( pblendvb,     "pblendvb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x10))   // Variable Blend Packed Bytes
 
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
@@ -381,6 +422,9 @@ INST3( vinserti128,  "inserti128"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vzeroupper,   "zeroupper"   , 0, IUM_WR, 0, 0, 0xC577F8,     BAD_CODE, BAD_CODE)      // Zero upper 128-bits of all YMM regs (includes 2-byte fixed VEX prefix)
 INST3( vperm2i128,   "perm2i128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x46))   // Permute 128-bit halves of input register
 INST3( vpermq,       "permq"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x00))   // Permute 64-bit of input register
+INST3( vblendvps,    "blendvps"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4A))   // Variable Blend Packed Singles
+INST3( vblendvpd,    "blendvpd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4B))   // Variable Blend Packed Doubles
+INST3( vpblendvb,    "pblendvb"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4C))   // Variable Blend Packed Bytes
 INST3(LAST_AVX_INSTRUCTION, "LAST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 // Scalar instructions in SSE4.2

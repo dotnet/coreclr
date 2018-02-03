@@ -456,7 +456,7 @@ HCIMPLEND
 HCIMPL2_VV(UINT64, JIT_LLsh, UINT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num << shift;
+    return num << (shift & 0x3F);
 }
 HCIMPLEND
 
@@ -464,7 +464,7 @@ HCIMPLEND
 HCIMPL2_VV(INT64, JIT_LRsh, INT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num >> shift;
+    return num >> (shift & 0x3F);
 }
 HCIMPLEND
 
@@ -472,7 +472,7 @@ HCIMPLEND
 HCIMPL2_VV(UINT64, JIT_LRsz, UINT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num >> shift;
+    return num >> (shift & 0x3F);
 }
 HCIMPLEND
 #endif // !BIT64 && !_TARGET_X86_
@@ -2396,7 +2396,7 @@ HCIMPL2(Object*, JIT_ChkCastClass_Portable, MethodTable* pTargetMT, Object* pObj
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     } while (pMT);
 
     ENDFORBIDGC();
@@ -2416,14 +2416,14 @@ HCIMPL2(Object*, JIT_ChkCastClassSpecial_Portable, MethodTable* pTargetMT, Objec
         PRECONDITION(pObject->GetMethodTable() != pTargetMT);
     } CONTRACTL_END;
 
-    PTR_VOID pMT = MethodTable::GetParentMethodTable(pObject->GetMethodTable());
+    PTR_VOID pMT = MethodTable::GetParentMethodTableOrIndirection(pObject->GetMethodTable());
 
     while (pMT)
     {
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     }
 
     ENDFORBIDGC();
@@ -2450,7 +2450,7 @@ HCIMPL2(Object*, JIT_IsInstanceOfClass_Portable, MethodTable* pTargetMT, Object*
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     } while (pMT);
 
     if (!pObject->GetMethodTable()->HasTypeEquivalence())
@@ -2777,13 +2777,6 @@ HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
         _ASSERTE(object->HasEmptySyncBlockInfo());
         object->SetMethodTable(methodTable);
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            object->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         return object;
     } while (false);
 
@@ -2879,13 +2872,6 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
         stringObject->SetMethodTable(g_pStringClass);
         stringObject->SetStringLength(stringLength);
         _ASSERTE(stringObject->GetBuffer()[stringLength] == W('\0'));
-
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            stringObject->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
 
         return stringObject;
     } while (false);
@@ -3055,13 +3041,6 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, IN
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            array->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         return array;
     } while (false);
 
@@ -3120,13 +3099,6 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, I
         array->SetArrayMethodTable(pArrayMT);
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
-
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            array->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
 
         return array;
     } while (false);
@@ -3369,11 +3341,6 @@ HCIMPL2(LPVOID, ArrayStoreCheck, Object** pElement, PtrArray** pArray)
 
     GCStress<cfg_any, EeconfigFastGcSPolicy>::MaybeTrigger();
 
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
-      (*pElement)->AssignAppDomain((*pArray)->GetAppDomain());
-#endif // CHECK_APP_DOMAIN_LEAKS
-
     if (!ObjIsInstanceOf(*pElement, (*pArray)->GetArrayElementTypeHandle()))
         COMPlusThrow(kArrayTypeMismatchException);
 
@@ -3404,22 +3371,6 @@ HCIMPL3(void, JIT_Stelem_Ref_Portable, PtrArray* array, unsigned idx, Object *va
         MethodTable *valMT = val->GetMethodTable();
         TypeHandle arrayElemTH = array->GetArrayElementTypeHandle();
 
-#if CHECK_APP_DOMAIN_LEAKS
-        // If the instance is agile or check agile
-        if (g_pConfig->AppDomainLeaks() && !arrayElemTH.IsAppDomainAgile() && !arrayElemTH.IsCheckAppDomainAgile())
-        {
-            // FCALL_CONTRACT increase ForbidGC count.  Normally, HELPER_METHOD_FRAME macros decrease the count.
-            // But to avoid perf hit, we manually decrease the count here before calling another HCCALL.
-            ENDFORBIDGC();
-
-            if (HCCALL2(ArrayStoreCheck,(Object**)&val, (PtrArray**)&array) != NULL)
-            {
-                // This return is never executed. It helps epilog walker to find its way out.
-                return;
-            }
-        }
-        else
-#endif
         if (arrayElemTH != TypeHandle(valMT) && arrayElemTH != TypeHandle(g_pObjectClass))
         {   
             TypeHandle::CastResult result = ObjIsInstanceOfNoGC(val, arrayElemTH);
@@ -5012,6 +4963,24 @@ HCIMPL0(void, JIT_ThrowPlatformNotSupportedException)
     HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
 
     COMPlusThrow(kPlatformNotSupportedException);
+
+    HELPER_METHOD_FRAME_END();
+}
+HCIMPLEND
+
+/*********************************************************************/
+HCIMPL0(void, JIT_ThrowTypeNotSupportedException)
+{
+    FCALL_CONTRACT;
+
+    /* Make no assumptions about the current machine state */
+    ResetCurrentContext();
+
+    FC_GC_POLL_NOT_NEEDED();    // throws always open up for GC
+
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
+
+    COMPlusThrow(kNotSupportedException, W("Arg_TypeNotSupported"));
 
     HELPER_METHOD_FRAME_END();
 }

@@ -202,8 +202,49 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
-// For low memory notification from host
-extern int32_t g_bLowMemoryFromHost;
+// Event levels corresponding to events that can be fired by the GC.
+enum GCEventLevel
+{
+    GCEventLevel_None = 0,
+    GCEventLevel_Fatal = 1,
+    GCEventLevel_Error = 2,
+    GCEventLevel_Warning = 3,
+    GCEventLevel_Information = 4,
+    GCEventLevel_Verbose = 5,
+    GCEventLevel_Max = 6
+};
+
+// Event keywords corresponding to events that can be fired by the GC. These
+// numbers come from the ETW manifest itself - please make changes to this enum
+// if you add, remove, or change keyword sets that are used by the GC!
+enum GCEventKeyword
+{
+    GCEventKeyword_None                          =       0x0,
+    GCEventKeyword_GC                            =       0x1,
+    // Duplicate on purpose, GCPrivate is the same keyword as GC, 
+    // with a different provider
+    GCEventKeyword_GCPrivate                     =       0x1,
+    GCEventKeyword_GCHandle                      =       0x2,
+    GCEventKeyword_GCHandlePrivate               =    0x4000,
+    GCEventKeyword_GCHeapDump                    =  0x100000,
+    GCEventKeyword_GCSampledObjectAllocationHigh =  0x200000,
+    GCEventKeyword_GCHeapSurvivalAndMovement     =  0x400000,
+    GCEventKeyword_GCHeapCollect                 =  0x800000,
+    GCEventKeyword_GCHeapAndTypeNames            = 0x1000000,
+    GCEventKeyword_GCSampledObjectAllocationLow  = 0x2000000,
+    GCEventKeyword_All = GCEventKeyword_GC
+      | GCEventKeyword_GCPrivate
+      | GCEventKeyword_GCHandle
+      | GCEventKeyword_GCHandlePrivate
+      | GCEventKeyword_GCHeapDump
+      | GCEventKeyword_GCSampledObjectAllocationHigh
+      | GCEventKeyword_GCHeapDump
+      | GCEventKeyword_GCSampledObjectAllocationHigh
+      | GCEventKeyword_GCHeapSurvivalAndMovement
+      | GCEventKeyword_GCHeapCollect
+      | GCEventKeyword_GCHeapAndTypeNames
+      | GCEventKeyword_GCSampledObjectAllocationLow
+};
 
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
@@ -809,6 +850,18 @@ public:
     // Unregisters a frozen segment.
     virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
 
+    /*
+    ===========================================================================
+    Routines for informing the GC about which events are enabled.
+    ===========================================================================
+    */
+
+    // Enables or disables the given keyword or level on the default event provider.
+    virtual void ControlEvents(GCEventKeyword keyword, GCEventLevel level) = 0;
+
+    // Enables or disables the given keyword or level on the private event provider.
+    virtual void ControlPrivateEvents(GCEventKeyword keyword, GCEventLevel level) = 0;
+
     IGCHeap() {}
     virtual ~IGCHeap() {}
 };
@@ -844,11 +897,11 @@ struct ScanContext
     uintptr_t stack_limit; // Lowest point on the thread stack that the scanning logic is permitted to read
     bool promotion; //TRUE: Promotion, FALSE: Relocation.
     bool concurrent; //TRUE: concurrent scanning 
-#if CHECK_APP_DOMAIN_LEAKS || defined (FEATURE_APPDOMAIN_RESOURCE_MONITORING) || defined (DACCESS_COMPILE)
+#if defined (FEATURE_APPDOMAIN_RESOURCE_MONITORING) || defined (DACCESS_COMPILE)
     AppDomain *pCurrentDomain;
 #else
     void* _unused1;
-#endif //CHECK_APP_DOMAIN_LEAKS || FEATURE_APPDOMAIN_RESOURCE_MONITORING || DACCESS_COMPILE
+#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING || DACCESS_COMPILE
 
 #if defined(GC_PROFILING) || defined (DACCESS_COMPILE)
     MethodDesc *pMD;
@@ -858,7 +911,7 @@ struct ScanContext
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     EtwGCRootKind dwEtwRootKind;
 #else
-    int _unused3;
+    EtwGCRootKind _unused3;
 #endif // GC_PROFILING || FEATURE_EVENT_TRACE
     
     ScanContext()
@@ -873,9 +926,9 @@ struct ScanContext
 #ifdef GC_PROFILING
         pMD = NULL;
 #endif //GC_PROFILING
-#ifdef FEATURE_EVENT_TRACE
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
         dwEtwRootKind = kEtwGCRootKindOther;
-#endif // FEATURE_EVENT_TRACE
+#endif
     }
 };
 

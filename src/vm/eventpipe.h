@@ -20,6 +20,7 @@ class EventPipeProvider;
 class MethodDesc;
 class SampleProfilerEventInstance;
 struct EventPipeProviderConfiguration;
+class EventPipeSession;
 
 // Define the event pipe callback to match the ETW callback signature.
 typedef void (*EventPipeCallback)(
@@ -275,6 +276,13 @@ class EventPipe
 
     private:
 
+        // Enable the specified EventPipe session.
+        static void Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+
+        // Get the EnableOnStartup configuration from environment.
+        static void GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession);
+
+
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
@@ -288,6 +296,7 @@ class EventPipe
         static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static EventPipeConfiguration *s_pConfig;
+        static EventPipeSession *s_pSession;
         static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
 #ifdef _DEBUG
@@ -347,6 +356,16 @@ public:
 
 class EventPipeInternal
 {
+private:
+
+    enum class ActivityControlCode
+    {
+        EVENT_ACTIVITY_CONTROL_GET_ID = 1,
+        EVENT_ACTIVITY_CONTROL_SET_ID = 2,
+        EVENT_ACTIVITY_CONTROL_CREATE_ID = 3,
+        EVENT_ACTIVITY_CONTROL_GET_SET_ID = 4,
+        EVENT_ACTIVITY_CONTROL_CREATE_SET_ID = 5
+    };
 
 public:
 
@@ -374,6 +393,10 @@ public:
 
     static void QCALLTYPE DeleteProvider(
         INT_PTR provHandle);
+
+    static int QCALLTYPE EventActivityIdControl(
+        uint controlCode,
+        GUID *pActivityId);
 
     static void QCALLTYPE WriteEvent(
         INT_PTR eventHandle,

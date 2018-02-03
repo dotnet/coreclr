@@ -83,6 +83,13 @@ inline void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     g_theGCToCLR->SyncBlockCachePromotionsGranted(max_gen);
 }
 
+
+inline uint32_t GCToEEInterface::GetActiveSyncBlockCount()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetActiveSyncBlockCount();
+}
+
 inline bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
 {
     assert(g_theGCToCLR != nullptr);
@@ -268,6 +275,12 @@ inline void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void
 {
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->WalkAsyncPinned(object, context, callback);
+}
+
+inline IGCToCLREventSink* GCToEEInterface::EventSink()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->EventSink();
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

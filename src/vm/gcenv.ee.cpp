@@ -303,6 +303,18 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     SyncBlockCache::GetSyncBlockCache()->GCDone(FALSE, max_gen);
 }
 
+uint32_t GCToEEInterface::GetActiveSyncBlockCount()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    return SyncBlockCache::GetSyncBlockCache()->GetActiveCount();   
+}
+
 gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 {
     WRAPPER_NO_CONTRACT;
@@ -1383,4 +1395,11 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
             }
         }
     }
+}
+
+IGCToCLREventSink* GCToEEInterface::EventSink()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return &g_gcToClrEventSink;
 }

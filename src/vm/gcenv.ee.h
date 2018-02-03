@@ -28,6 +28,7 @@ public:
     void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
     void SyncBlockCacheDemote(int max_gen);
     void SyncBlockCachePromotionsGranted(int max_gen);
+    uint32_t GetActiveSyncBlockCount();
     bool IsPreemptiveGCDisabled(Thread * pThread);
     void EnablePreemptiveGC(Thread * pThread);
     void DisablePreemptiveGC(Thread * pThread);
@@ -62,6 +63,7 @@ public:
     bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
     void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    IGCToCLREventSink* EventSink();
 };
 
 } // namespace standalone

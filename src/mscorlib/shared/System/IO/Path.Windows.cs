@@ -27,10 +27,6 @@ namespace System.IO
             (char)31
         };
 
-        // The max total path is 260, and the max individual component length is 255. 
-        // For example, D:\<256 char file name> isn't legal, even though it's under 260 chars.
-        internal const int MaxPath = 260;
-
         // Expands the given path to a fully qualified path. 
         public static string GetFullPath(string path)
         {
@@ -93,8 +89,8 @@ namespace System.IO
 
         public static string GetTempPath()
         {
-            StringBuilder sb = StringBuilderCache.Acquire(MaxPath);
-            uint r = Interop.Kernel32.GetTempPathW(MaxPath, sb);
+            StringBuilder sb = StringBuilderCache.Acquire(Interop.Kernel32.MAX_PATH);
+            uint r = Interop.Kernel32.GetTempPathW(Interop.Kernel32.MAX_PATH, sb);
             if (r == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return GetFullPath(StringBuilderCache.GetStringAndRelease(sb));
@@ -106,7 +102,7 @@ namespace System.IO
         {
             string path = GetTempPath();
 
-            StringBuilder sb = StringBuilderCache.Acquire(MaxPath);
+            StringBuilder sb = StringBuilderCache.Acquire(Interop.Kernel32.MAX_PATH);
             uint r = Interop.Kernel32.GetTempFileNameW(path, "tmp", 0, sb);
             if (r == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
@@ -117,14 +113,13 @@ namespace System.IO
         // if it starts with a backslash ("\") or a valid drive letter and a colon (":").
         public static bool IsPathRooted(string path)
         {
-            if (path != null)
-            {
-                int length = path.Length;
-                if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])) ||
-                    (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar))
-                    return true;
-            }
-            return false;
+            return path != null && IsPathRooted(path.AsReadOnlySpan());
+        }
+
+        public static bool IsPathRooted(ReadOnlySpan<char> path)
+        {
+            int length = path.Length;
+            return (length >= 1 && PathInternal.IsDirectorySeparator(path[0])) || (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar);
         }
 
         // Returns the root portion of the given path. The resulting string
@@ -138,15 +133,29 @@ namespace System.IO
         // only contains whitespace characters an ArgumentException gets thrown.
         public static string GetPathRoot(string path)
         {
-            if (path == null) return null;
+            if (path == null)
+                return null;
+
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            // Need to return the normalized directory separator
-            path = PathInternal.NormalizeDirectorySeparators(path);
+            ReadOnlySpan<char> result = GetPathRoot(path.AsReadOnlySpan());
+            if (path.Length == result.Length)
+                return PathInternal.NormalizeDirectorySeparators(path);
+           
+            return PathInternal.NormalizeDirectorySeparators(new string(result));
+        }
+
+        /// <remarks>
+        /// Unlike the string overload, this method will not normalize directory separators.
+        /// </remarks>
+        public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
+        {
+            if (PathInternal.IsEffectivelyEmpty(path))
+                return ReadOnlySpan<char>.Empty;
 
             int pathRoot = PathInternal.GetRootLength(path);
-            return pathRoot <= 0 ? string.Empty : path.Substring(0, pathRoot);
+            return pathRoot <= 0 ? ReadOnlySpan<char>.Empty : path.Slice(0, pathRoot);
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
