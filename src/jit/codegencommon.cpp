@@ -186,7 +186,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
 #endif
 }
 
-void CodeGenInterface::genMarkTreeInReg(GenTreePtr tree, regNumber reg)
+void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 {
     tree->gtRegNum = reg;
 #ifdef LEGACY_BACKEND
@@ -195,7 +195,7 @@ void CodeGenInterface::genMarkTreeInReg(GenTreePtr tree, regNumber reg)
 }
 
 #if CPU_LONG_USES_REGPAIR
-void CodeGenInterface::genMarkTreeInRegPair(GenTreePtr tree, regPairNo regPair)
+void CodeGenInterface::genMarkTreeInRegPair(GenTree* tree, regPairNo regPair)
 {
     tree->gtRegPair = regPair;
 #ifdef LEGACY_BACKEND
@@ -463,7 +463,7 @@ void CodeGen::genPrepForEHCodegen()
 #endif        // FEATURE_EH_CALLFINALLY_THUNKS
 }
 
-void CodeGenInterface::genUpdateLife(GenTreePtr tree)
+void CodeGenInterface::genUpdateLife(GenTree* tree)
 {
     compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
 }
@@ -478,10 +478,10 @@ void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
 // "tree" MUST occur in the current statement, AFTER the most recent
 // update of compiler->compCurLifeTree and compiler->compCurLife.
 //
-VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTreePtr tree)
+VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTree* tree)
 {
-    VARSET_TP  startLiveSet(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
-    GenTreePtr startNode;
+    VARSET_TP startLiveSet(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
+    GenTree*  startNode;
     assert(tree != compiler->compCurLifeTree);
     if (compiler->compCurLifeTree == nullptr)
     {
@@ -501,7 +501,7 @@ VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTreePtr tree)
 // 1. "first" must occur after compiler->compCurLifeTree in execution order for the current statement
 // 2. "second" must occur after "first" in the current statement
 //
-regMaskTP CodeGen::genNewLiveRegMask(GenTreePtr first, GenTreePtr second)
+regMaskTP CodeGen::genNewLiveRegMask(GenTree* first, GenTree* second)
 {
     // First, compute the liveset after "first"
     VARSET_TP firstLiveSet = genUpdateLiveSetForward(first);
@@ -537,7 +537,7 @@ regMaskTP CodeGenInterface::genGetRegMask(const LclVarDsc* varDsc)
 
 // Return the register mask for the given lclVar or regVar tree node
 // inline
-regMaskTP CodeGenInterface::genGetRegMask(GenTreePtr tree)
+regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
 {
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_REG_VAR);
 
@@ -565,7 +565,7 @@ regMaskTP CodeGenInterface::genGetRegMask(GenTreePtr tree)
 // It might be both going live and dying (that is, it is a dead store) under MinOpts.
 // Update regSet.rsMaskVars accordingly.
 // inline
-void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTreePtr tree))
+void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTree* tree))
 {
 #if FEATURE_STACK_FP_X87
     // The stack fp reg vars are handled elsewhere
@@ -600,8 +600,11 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
     }
 }
 
-// Gets a register mask that represent the kill set for a helper call since
-// not all JIT Helper calls follow the standard ABI on the target architecture.
+//----------------------------------------------------------------------
+// compNoGCHelperCallKillSet:
+//
+// Gets a register mask that represents the kill set for a helper call.
+// Not all JIT Helper calls follow the standard ABI on the target architecture.
 //
 // TODO-CQ: Currently this list is incomplete (not all helpers calls are
 //          enumerated) and not 100% accurate (some killsets are bigger than
@@ -624,19 +627,24 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
 //
 //         The interim solution is to only add known helper calls that don't
 //         follow the AMD64 ABI and actually trash registers that are supposed to be non-volatile.
+//
+// Arguments:
+//   helper - The helper being inquired about
+//
+// Return Value:
+//   Mask of register kills -- registers whose value is no longer guaranteed to be the same.
+//
 regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 {
     switch (helper)
     {
         case CORINFO_HELP_ASSIGN_BYREF:
 #if defined(_TARGET_AMD64_)
-            return RBM_RSI | RBM_RDI | RBM_CALLEE_TRASH;
-#elif defined(_TARGET_ARM64_)
+            return RBM_RSI | RBM_RDI | RBM_CALLEE_TRASH_NOGC;
+#elif defined(_TARGET_ARMARCH_)
             return RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF | RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_X86_)
             return RBM_ESI | RBM_EDI | RBM_ECX;
-#elif defined(_TARGET_ARM_)
-            return RBM_ARG_1 | RBM_ARG_0 | RBM_CALLEE_TRASH_NOGC;
 #else
             NYI("Model kill set for CORINFO_HELP_ASSIGN_BYREF on target arch");
             return RBM_CALLEE_TRASH;
@@ -663,6 +671,29 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
             NYI("Model kill set for CORINFO_HELP_PROF_FCN_TAILCALL on target arch");
 #endif
 
+#ifdef _TARGET_X86_
+        case CORINFO_HELP_ASSIGN_REF_EAX:
+        case CORINFO_HELP_ASSIGN_REF_ECX:
+        case CORINFO_HELP_ASSIGN_REF_EBX:
+        case CORINFO_HELP_ASSIGN_REF_EBP:
+        case CORINFO_HELP_ASSIGN_REF_ESI:
+        case CORINFO_HELP_ASSIGN_REF_EDI:
+
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_EAX:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_ECX:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_EBX:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_EBP:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_ESI:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF_EDI:
+            return RBM_EDX;
+
+#ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
+        case CORINFO_HELP_ASSIGN_REF:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF:
+            return RBM_EAX | RBM_EDX;
+#endif // FEATURE_USE_ASM_GC_WRITE_BARRIERS
+#endif
+
         case CORINFO_HELP_STOP_FOR_GC:
             return RBM_STOP_FOR_GC_TRASH;
 
@@ -674,11 +705,22 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
     }
 }
 
+//----------------------------------------------------------------------
+// compNoGCHelperCallKillSet: Gets a register mask that represents the set of registers that no longer
+// contain GC or byref pointers, for "NO GC" helper calls. This is used by the emitter when determining
+// what registers to remove from the current live GC/byref sets (and thus what to report as dead in the
+// GC info). Note that for the CORINFO_HELP_ASSIGN_BYREF helper, in particular, the kill set reported by
+// compHelperCallKillSet() doesn't match this kill set. compHelperCallKillSet() reports the dst/src
+// address registers as killed for liveness purposes, since their values change. However, they still are
+// valid byref pointers after the call, so the dst/src address registers are NOT reported as killed here.
 //
-// Gets a register mask that represents the kill set for "NO GC" helper calls since
-// not all JIT Helper calls follow the standard ABI on the target architecture.
+// Note: This list may not be complete and defaults to the default RBM_CALLEE_TRASH_NOGC registers.
 //
-// Note: This list may not be complete and defaults to the default NOGC registers.
+// Arguments:
+//   helper - The helper being inquired about
+//
+// Return Value:
+//   Mask of GC register kills
 //
 regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 {
@@ -686,7 +728,7 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 
     switch (helper)
     {
-#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+#if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_ENTER:
             return RBM_PROFILER_ENTER_TRASH;
 
@@ -695,18 +737,15 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 
         case CORINFO_HELP_PROF_FCN_TAILCALL:
             return RBM_PROFILER_TAILCALL_TRASH;
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+#endif // defined(_TARGET_XARCH_)
 
         case CORINFO_HELP_ASSIGN_BYREF:
 #if defined(_TARGET_AMD64_)
-            // this helper doesn't trash RSI and RDI
-            return RBM_CALLEE_TRASH_NOGC & ~(RBM_RSI | RBM_RDI);
+            return RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_X86_)
             // This helper only trashes ECX.
             return RBM_ECX;
-#elif defined(_TARGET_ARM64_)
-            return RBM_CALLEE_TRASH_NOGC & ~(RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF);
-#else
+#elif defined(_TARGET_ARMARCH_)
             return RBM_CALLEE_TRASH_NOGC;
 #endif // defined(_TARGET_AMD64_)
 
@@ -719,13 +758,13 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 // regSet.rsMaskVars as well)
 // if the given lclVar (or indir(addr(local)))/regVar node is going live (being born) or dying.
 template <bool ForCodeGen>
-void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
+void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
 {
-    GenTreePtr indirAddrLocal = fgIsIndirOfAddrOfLocal(tree);
+    GenTree* indirAddrLocal = fgIsIndirOfAddrOfLocal(tree);
     assert(tree->OperIsNonPhiLocal() || indirAddrLocal != nullptr);
 
     // Get the local var tree -- if "tree" is "Ldobj(addr(x))", or "ind(addr(x))" this is "x", else it's "tree".
-    GenTreePtr lclVarTree = indirAddrLocal;
+    GenTree* lclVarTree = indirAddrLocal;
     if (lclVarTree == nullptr)
     {
         lclVarTree = tree;
@@ -758,7 +797,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
         // ifdef'ed out for AMD64).
         else if (!varDsc->lvIsStructField)
         {
-            GenTreePtr prevTree;
+            GenTree* prevTree;
             for (prevTree = tree->gtPrev;
                  prevTree != NULL && prevTree != compCurLifeTree;
                  prevTree = prevTree->gtPrev)
@@ -1037,10 +1076,10 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compUpdateLifeVar<false>(GenTreePtr tree, VARSET_TP* pLastUseVars);
+template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
-void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree))
+void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
 {
     LclVarDsc* varDsc;
 
@@ -1180,7 +1219,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree));
+template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree));
 
 #ifdef LEGACY_BACKEND
 
@@ -1192,11 +1231,11 @@ template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(G
  *  The output is the mask of integer registers that are currently
  *  alive and holding the enregistered local variables.
  */
-regMaskTP CodeGenInterface::genLiveMask(GenTreePtr tree)
+regMaskTP CodeGenInterface::genLiveMask(GenTree* tree)
 {
     regMaskTP liveMask = regSet.rsMaskVars;
 
-    GenTreePtr nextNode;
+    GenTree* nextNode;
     if (compiler->compCurLifeTree == nullptr)
     {
         assert(compiler->compCurStmt != nullptr);
@@ -1687,7 +1726,7 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
 #ifdef _TARGET_ARMARCH_
 // return size
 // alignmentWB is out param
-unsigned CodeGenInterface::InferOpSizeAlign(GenTreePtr op, unsigned* alignmentWB)
+unsigned CodeGenInterface::InferOpSizeAlign(GenTree* op, unsigned* alignmentWB)
 {
     unsigned alignment = 0;
     unsigned opSize    = 0;
@@ -1710,7 +1749,7 @@ unsigned CodeGenInterface::InferOpSizeAlign(GenTreePtr op, unsigned* alignmentWB
 }
 // return size
 // alignmentWB is out param
-unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* alignmentWB)
+unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignmentWB)
 {
     unsigned alignment = 0;
     unsigned opSize    = 0;
@@ -1746,7 +1785,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
     }
     else if (op->OperIsCopyBlkOp())
     {
-        GenTreePtr op2 = op->gtOp.gtOp2;
+        GenTree* op2 = op->gtOp.gtOp2;
 
         if (op2->OperGet() == GT_CNS_INT)
         {
@@ -1759,10 +1798,10 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
             }
             else
             {
-                opSize         = (unsigned)op2->gtIntCon.gtIconVal;
-                GenTreePtr op1 = op->gtOp.gtOp1;
+                opSize       = (unsigned)op2->gtIntCon.gtIconVal;
+                GenTree* op1 = op->gtOp.gtOp1;
                 assert(op1->OperGet() == GT_LIST);
-                GenTreePtr dstAddr = op1->gtOp.gtOp1;
+                GenTree* dstAddr = op1->gtOp.gtOp1;
                 if (dstAddr->OperGet() == GT_ADDR)
                 {
                     InferStructOpSizeAlign(dstAddr->gtOp.gtOp1, &alignment);
@@ -1851,13 +1890,13 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
  *                  form an address mode later on.
  */
 
-bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
-                                int         mode,
-                                bool        fold,
-                                regMaskTP   regMask,
-                                bool*       revPtr,
-                                GenTreePtr* rv1Ptr,
-                                GenTreePtr* rv2Ptr,
+bool CodeGen::genCreateAddrMode(GenTree*  addr,
+                                int       mode,
+                                bool      fold,
+                                regMaskTP regMask,
+                                bool*     revPtr,
+                                GenTree** rv1Ptr,
+                                GenTree** rv2Ptr,
 #if SCALED_ADDR_MODES
                                 unsigned* mulPtr,
 #endif
@@ -1910,18 +1949,18 @@ bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
         return false;
     }
 
-    GenTreePtr rv1 = nullptr;
-    GenTreePtr rv2 = nullptr;
+    GenTree* rv1 = nullptr;
+    GenTree* rv2 = nullptr;
 
-    GenTreePtr op1;
-    GenTreePtr op2;
+    GenTree* op1;
+    GenTree* op2;
 
     ssize_t cns;
 #if SCALED_ADDR_MODES
     unsigned mul;
 #endif
 
-    GenTreePtr tmp;
+    GenTree* tmp;
 
     /* What order are the sub-operands to be evaluated */
 
@@ -2408,8 +2447,8 @@ FOUND_AM:
 
         if (fold)
         {
-            ssize_t    tmpMul;
-            GenTreePtr index;
+            ssize_t  tmpMul;
+            GenTree* index;
 
             if ((rv2->gtOper == GT_MUL || rv2->gtOper == GT_LSH) && (rv2->gtOp.gtOp2->IsCnsIntOrI()))
             {
@@ -2752,7 +2791,7 @@ void CodeGen::genExitCode(BasicBlock* block)
  * For non-dbg code, we share the helper blocks created by fgAddCodeRef().
  */
 
-void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTreePtr failBlk)
+void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk)
 {
     bool useThrowHlpBlk = !compiler->opts.compDbgCode;
 
@@ -2825,7 +2864,7 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
  */
 
 // inline
-void CodeGen::genCheckOverflow(GenTreePtr tree)
+void CodeGen::genCheckOverflow(GenTree* tree)
 {
     // Overflow-check should be asked for this tree
     noway_assert(tree->gtOverflow());
@@ -3912,7 +3951,77 @@ void CodeGen::genReportEH()
     assert(XTnum == EHCount);
 }
 
-void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
+//----------------------------------------------------------------------
+// genUseOptimizedWriteBarriers: Determine if an optimized write barrier
+// helper should be used.
+//
+// Arguments:
+//   wbf - The WriteBarrierForm of the write (GT_STOREIND) that is happening.
+//
+// Return Value:
+//   true if an optimized write barrier helper should be used, false otherwise.
+//   Note: only x86 implements (register-specific source) optimized write
+//   barriers currently).
+//
+bool CodeGenInterface::genUseOptimizedWriteBarriers(GCInfo::WriteBarrierForm wbf)
+{
+#if defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
+#ifdef DEBUG
+    return (wbf != GCInfo::WBF_NoBarrier_CheckNotHeapInDebug); // This one is always a call to a C++ method.
+#else
+    return true;
+#endif
+#else
+    return false;
+#endif
+}
+
+//----------------------------------------------------------------------
+// genUseOptimizedWriteBarriers: Determine if an optimized write barrier
+// helper should be used.
+//
+// This has the same functionality as the version of
+// genUseOptimizedWriteBarriers that takes a WriteBarrierForm, but avoids
+// determining what the required write barrier form is, if possible.
+//
+// Arguments:
+//   tgt - target tree of write (e.g., GT_STOREIND)
+//   assignVal - tree with value to write
+//
+// Return Value:
+//   true if an optimized write barrier helper should be used, false otherwise.
+//   Note: only x86 implements (register-specific source) optimized write
+//   barriers currently).
+//
+bool CodeGenInterface::genUseOptimizedWriteBarriers(GenTree* tgt, GenTree* assignVal)
+{
+#if defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
+#ifdef DEBUG
+    GCInfo::WriteBarrierForm wbf = compiler->codeGen->gcInfo.gcIsWriteBarrierCandidate(tgt, assignVal);
+    return (wbf != GCInfo::WBF_NoBarrier_CheckNotHeapInDebug); // This one is always a call to a C++ method.
+#else
+    return true;
+#endif
+#else
+    return false;
+#endif
+}
+
+//----------------------------------------------------------------------
+// genWriteBarrierHelperForWriteBarrierForm: Given a write node requiring a write
+// barrier, and the write barrier form required, determine the helper to call.
+//
+// Arguments:
+//   tgt - target tree of write (e.g., GT_STOREIND)
+//   wbf - already computed write barrier form to use
+//
+// Return Value:
+//   Write barrier helper to use.
+//
+// Note: do not call this function to get an optimized write barrier helper (e.g.,
+// for x86).
+//
+CorInfoHelpFunc CodeGenInterface::genWriteBarrierHelperForWriteBarrierForm(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
 {
 #ifndef LEGACY_BACKEND
     noway_assert(tgt->gtOper == GT_STOREIND);
@@ -3920,8 +4029,8 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
     noway_assert(tgt->gtOper == GT_IND || tgt->gtOper == GT_CLS_VAR); // enforced by gcIsWriteBarrierCandidate
 #endif // LEGACY_BACKEND
 
-    /* Call the proper vm helper */
-    int helper = CORINFO_HELP_ASSIGN_REF;
+    CorInfoHelpFunc helper = CORINFO_HELP_ASSIGN_REF;
+
 #ifdef DEBUG
     if (wbf == GCInfo::WBF_NoBarrier_CheckNotHeapInDebug)
     {
@@ -3949,6 +4058,20 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
            ((helper == CORINFO_HELP_ASSIGN_REF) &&
             (wbf == GCInfo::WBF_BarrierUnchecked || wbf == GCInfo::WBF_BarrierUnknown)));
 
+    return helper;
+}
+
+//----------------------------------------------------------------------
+// genGCWriteBarrier: Generate a write barrier for a node.
+//
+// Arguments:
+//   tgt - target tree of write (e.g., GT_STOREIND)
+//   wbf - already computed write barrier form to use
+//
+void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
+{
+    CorInfoHelpFunc helper = genWriteBarrierHelperForWriteBarrierForm(tgt, wbf);
+
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
     // We classify the "tgt" trees as follows:
     // If "tgt" is of the form (where [ x ] indicates an optional x, and { x1, ..., xn } means "one of the x_i forms"):
@@ -3964,9 +4087,9 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
     CheckedWriteBarrierKinds wbKind = CWBKind_Unclassified;
     if (tgt->gtOper == GT_IND)
     {
-        GenTreePtr lcl = NULL;
+        GenTree* lcl = NULL;
 
-        GenTreePtr indArg = tgt->gtOp.gtOp1;
+        GenTree* indArg = tgt->gtOp.gtOp1;
         if (indArg->gtOper == GT_ADDR && indArg->gtOp.gtOp1->gtOper == GT_IND)
         {
             indArg = indArg->gtOp.gtOp1->gtOp.gtOp1;
@@ -11001,7 +11124,7 @@ void CodeGen::genGenerateStackProbe()
  *  Record the constant and return a tree node that yields its address.
  */
 
-GenTreePtr CodeGen::genMakeConst(const void* cnsAddr, var_types cnsType, GenTreePtr cnsTree, bool dblAlign)
+GenTree* CodeGen::genMakeConst(const void* cnsAddr, var_types cnsType, GenTree* cnsTree, bool dblAlign)
 {
     // Assign the constant an offset in the data section
     UNATIVE_OFFSET cnsSize = genTypeSize(cnsType);
@@ -11249,7 +11372,7 @@ bool Compiler::IsHfa(CORINFO_CLASS_HANDLE hClass)
 #endif
 }
 
-bool Compiler::IsHfa(GenTreePtr tree)
+bool Compiler::IsHfa(GenTree* tree)
 {
 #ifdef FEATURE_HFA
     return IsHfa(gtGetStructHandleIfPresent(tree));
@@ -11258,7 +11381,7 @@ bool Compiler::IsHfa(GenTreePtr tree)
 #endif
 }
 
-var_types Compiler::GetHfaType(GenTreePtr tree)
+var_types Compiler::GetHfaType(GenTree* tree)
 {
 #ifdef FEATURE_HFA
     return GetHfaType(gtGetStructHandleIfPresent(tree));
@@ -11267,7 +11390,7 @@ var_types Compiler::GetHfaType(GenTreePtr tree)
 #endif
 }
 
-unsigned Compiler::GetHfaCount(GenTreePtr tree)
+unsigned Compiler::GetHfaCount(GenTree* tree)
 {
     return GetHfaCount(gtGetStructHandleIfPresent(tree));
 }

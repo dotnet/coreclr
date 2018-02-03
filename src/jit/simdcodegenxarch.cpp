@@ -497,13 +497,11 @@ instruction CodeGen::getOpForSIMDIntrinsic(SIMDIntrinsicID intrinsicId, var_type
             break;
 
         case SIMDIntrinsicConvertToInt32:
-        case SIMDIntrinsicConvertToUInt32:
             assert(baseType == TYP_FLOAT);
             result = INS_cvttps2dq;
             break;
 
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
             assert(baseType == TYP_DOUBLE);
             result = INS_cvttsd2si;
             break;
@@ -1062,8 +1060,7 @@ void CodeGen::genSIMDIntrinsicUnOp(GenTreeSIMD* simdNode)
 void CodeGen::genSIMDIntrinsic32BitConvert(GenTreeSIMD* simdNode)
 {
     SIMDIntrinsicID intrinsicID = simdNode->gtSIMDIntrinsicID;
-    assert((intrinsicID == SIMDIntrinsicConvertToSingle) || (intrinsicID == SIMDIntrinsicConvertToInt32) ||
-           (intrinsicID == SIMDIntrinsicConvertToUInt32));
+    assert((intrinsicID == SIMDIntrinsicConvertToSingle) || (intrinsicID == SIMDIntrinsicConvertToInt32));
 
     GenTree*  op1       = simdNode->gtGetOp1();
     var_types baseType  = simdNode->gtSIMDBaseType;
@@ -1198,8 +1195,7 @@ void CodeGen::genSIMDLo64BitConvert(SIMDIntrinsicID intrinsicID,
 void CodeGen::genSIMDIntrinsic64BitConvert(GenTreeSIMD* simdNode)
 {
     SIMDIntrinsicID intrinsicID = simdNode->gtSIMDIntrinsicID;
-    assert((intrinsicID == SIMDIntrinsicConvertToDouble) || (intrinsicID == SIMDIntrinsicConvertToInt64) ||
-           (intrinsicID == SIMDIntrinsicConvertToUInt64));
+    assert((intrinsicID == SIMDIntrinsicConvertToDouble) || (intrinsicID == SIMDIntrinsicConvertToInt64));
 
     GenTree*  op1       = simdNode->gtGetOp1();
     var_types baseType  = simdNode->gtSIMDBaseType;
@@ -2859,8 +2855,8 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_IND);
 
-    regNumber  targetReg = treeNode->gtRegNum;
-    GenTreePtr op1       = treeNode->gtOp.gtOp1;
+    regNumber targetReg = treeNode->gtRegNum;
+    GenTree*  op1       = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -2904,7 +2900,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
         offs = treeNode->gtLclFld.gtLclOffs;
     }
 
-    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -3008,7 +3004,7 @@ void CodeGen::genPutArgStkSIMD12(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_PUTARG_STK);
 
-    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -3139,13 +3135,11 @@ void CodeGen::genSIMDIntrinsic(GenTreeSIMD* simdNode)
 
         case SIMDIntrinsicConvertToSingle:
         case SIMDIntrinsicConvertToInt32:
-        case SIMDIntrinsicConvertToUInt32:
             genSIMDIntrinsic32BitConvert(simdNode);
             break;
 
         case SIMDIntrinsicConvertToDouble:
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
             genSIMDIntrinsic64BitConvert(simdNode);
             break;
 

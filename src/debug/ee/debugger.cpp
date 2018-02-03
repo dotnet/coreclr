@@ -67,6 +67,10 @@ GPTR_IMPL(Debugger,         g_pDebugger);
 GPTR_IMPL(EEDebugInterface, g_pEEInterface);
 SVAL_IMPL_INIT(BOOL, Debugger, s_fCanChangeNgenFlags, TRUE);
 
+// This is a public export so debuggers can read and determine if the coreclr 
+// process is waiting for JIT debugging attach.
+GVAL_IMPL_INIT(ULONG, CLRJitAttachState, 0);
+
 bool g_EnableSIS = false;
 
 // The following instances are used for invoking overloaded new/delete
@@ -941,9 +945,7 @@ Debugger::Debugger()
 #endif //_DEBUG
     m_threadsAtUnsafePlaces(0),
     m_jitAttachInProgress(FALSE),
-    m_attachingForManagedEvent(FALSE),
     m_launchingDebugger(FALSE),
-    m_userRequestedDebuggerLaunch(FALSE),
     m_LoggingEnabled(TRUE),
     m_pAppDomainCB(NULL),
     m_dClassLoadCallbackCount(0),
@@ -2895,6 +2897,8 @@ DebuggerJitInfo *Debugger::GetJitInfoWorker(MethodDesc *fd, const BYTE *pbAddr, 
         return NULL;
     }
 
+    // TODO: Currently, this method does not handle code versioning properly (at least in some profiler scenarios), it may need
+    // to take pbAddr into account and lazily create a DJI for that particular version of the method.
 
     // This may take the lock and lazily create an entry, so we do it up front.
     dji = dmi->GetLatestJitInfo(fd);
@@ -3056,7 +3060,19 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
     _ASSERTE(CORProfilerPresent());
 #endif // PROFILING_SUPPORTED
 
-    DebuggerJitInfo *pDJI = GetJitInfoFromAddr(pNativeCodeStartAddress);
+    MethodDesc *fd = g_pEEInterface->GetNativeCodeMethodDesc(pNativeCodeStartAddress);
+    if (fd == NULL || fd->IsWrapperStub() || fd->IsDynamicMethod())
+    {
+        return E_FAIL;
+    }
+
+    DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(fd->GetModule(), fd->GetMemberDef());
+    if (pDMI == NULL)
+    {
+        return E_FAIL;
+    }
+
+    DebuggerJitInfo *pDJI = pDMI->FindOrCreateInitAndAddJitInfo(fd, pNativeCodeStartAddress);
 
     // Dunno what went wrong
     if (pDJI == NULL)
@@ -6772,9 +6788,8 @@ DebuggerLaunchSetting Debugger::GetDbgJITDebugLaunchSetting()
 CLR_DEBUGGING_PROCESS_FLAGS Debugger::GetAttachStateFlags()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return (CLR_DEBUGGING_PROCESS_FLAGS)
-        ((m_attachingForManagedEvent ? CLR_DEBUGGING_MANAGED_EVENT_PENDING : 0)
-         | (m_userRequestedDebuggerLaunch ? CLR_DEBUGGING_MANAGED_EVENT_DEBUGGER_LAUNCH : 0));
+    ULONG flags = CLRJitAttachState;
+    return (CLR_DEBUGGING_PROCESS_FLAGS)flags;
 }
 
 #ifndef DACCESS_COMPILE
@@ -6999,9 +7014,8 @@ BOOL Debugger::PreJitAttach(BOOL willSendManagedEvent, BOOL willLaunchDebugger, 
         if (!m_jitAttachInProgress)
         {
             m_jitAttachInProgress = TRUE;
-            m_attachingForManagedEvent = willSendManagedEvent;
             m_launchingDebugger = willLaunchDebugger;
-            m_userRequestedDebuggerLaunch = explicitUserRequest;
+            CLRJitAttachState = (willSendManagedEvent ? CLR_DEBUGGING_MANAGED_EVENT_PENDING : 0) | (explicitUserRequest ? CLR_DEBUGGING_MANAGED_EVENT_DEBUGGER_LAUNCH : 0);
             ResetEvent(GetUnmanagedAttachEvent());
             ResetEvent(GetAttachEvent());
             LOG( (LF_CORDB, LL_INFO10000, "D::PreJA: Leaving - first thread\n") );
@@ -7173,9 +7187,9 @@ void Debugger::PostJitAttach()
 
     // clear the attaching flags which allows other threads to initiate jit attach if needed
     m_jitAttachInProgress = FALSE;
-    m_attachingForManagedEvent = FALSE;
     m_launchingDebugger = FALSE;
-    m_userRequestedDebuggerLaunch = FALSE;
+    CLRJitAttachState = 0;
+
     // set the attaching events to unblock other threads waiting on this attach
     // regardless of whether or not it completed
     SetEvent(GetUnmanagedAttachEvent());
@@ -10747,7 +10761,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
             DebuggerJitInfo * pDJI =  NULL;
             if ((pMethodDesc != NULL) && (pDMI != NULL))
             {
-                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc);
+                pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, NULL /* startAddr */);
             }
 
             {
@@ -11136,14 +11150,8 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                 {
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
-                    pDJI = pDMI->FindJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(), 
-                                             (TADDR)pEvent->SetIP.startAddress);
-                    if (pDJI == NULL)
-                    {
-                        // In the case of other functions, we may need to lazily create a DJI, so we need 
-                        // FindOrCreate semantics for those. 
-                        pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr());
-                    }
+                    pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
+                                                               (TADDR)pEvent->SetIP.startAddress);
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))

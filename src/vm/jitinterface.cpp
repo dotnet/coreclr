@@ -369,35 +369,6 @@ inline static CorInfoType toJitType(TypeHandle typeHnd, CORINFO_CLASS_HANDLE *cl
     return CEEInfo::asCorInfoType(typeHnd.GetInternalCorElementType(), typeHnd, clsRet);
 }
 
-#ifdef _DEBUG
-void DebugSecurityCalloutStress(CORINFO_METHOD_HANDLE methodBeingCompiledHnd,
-                                CorInfoIsAccessAllowedResult& currentAnswer,
-                                CorInfoSecurityRuntimeChecks& currentRuntimeChecks)
-{
-    WRAPPER_NO_CONTRACT;
-    if (currentAnswer != CORINFO_ACCESS_ALLOWED)
-    {
-        return;
-    }
-    static ConfigDWORD AlwaysInsertCallout;
-    switch (AlwaysInsertCallout.val(CLRConfig::INTERNAL_Security_AlwaysInsertCallout))
-    {
-    case 0: //No stress
-        return;
-    case 1: //Always
-        break;
-    default: //2 (or anything else), do so half the time
-        if (((size_t(methodBeingCompiledHnd) / sizeof(void*)) % 64) < 32)
-            return;
-    }
-    //Do the stress
-    currentAnswer = CORINFO_ACCESS_RUNTIME_CHECK;
-    currentRuntimeChecks = CORINFO_ACCESS_SECURITY_NONE;
-}
-#else
-#define DebugSecurityCalloutStress(a, b, c) do {} while(0)
-#endif //_DEBUG
-
 void CheckForEquivalenceAndLoadTypeBeforeCodeIsRun(Module *pModule, mdToken token, Module *pDefModule, mdToken defToken, const SigParser *ptr, SigTypeContext *pTypeContext, void *pData)
 {
     CONTRACTL
@@ -1645,24 +1616,6 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
     {
         BOOL fInstanceHelper = FALSE;
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->EnableFullDebug()
-            && pField->IsDangerousAppDomainAgileField()
-            && CorTypeInfo::IsObjRef(pField->GetFieldType()))
-        {
-            //
-            // In a checked field with all checks turned on, we use a helper to enforce the app domain
-            // agile invariant.
-            //
-            // <REVISIT_TODO>@todo: we'd like to check this for value type fields as well - we
-            // just need to add some code to iterate through the fields for
-            // references during the assignment.
-            // </REVISIT_TODO>
-            fInstanceHelper = TRUE;
-        }
-        else
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         if (fInstanceHelper)
         {
             if (flags & CORINFO_ACCESS_ADDRESS)
@@ -1794,37 +1747,6 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                     //see code:CEEInfo::getCallInfo for more information.
                     if (pCallerForSecurity->ContainsGenericVariables())
                         COMPlusThrowNonLocalized(kNotSupportedException, W("Cannot embed generic MethodDesc"));
-                }
-            }
-            else
-            {
-                CorInfoIsAccessAllowedResult isAccessAllowed = CORINFO_ACCESS_ALLOWED;
-                CorInfoSecurityRuntimeChecks runtimeChecks = CORINFO_ACCESS_SECURITY_NONE;
-
-                DebugSecurityCalloutStress(getMethodBeingCompiled(), isAccessAllowed, runtimeChecks);
-                if (isAccessAllowed == CORINFO_ACCESS_RUNTIME_CHECK)
-                {
-                    pResult->accessAllowed = isAccessAllowed;
-                    //Explain the callback to the JIT.
-                    pResult->accessCalloutHelper.helperNum = CORINFO_HELP_FIELD_ACCESS_CHECK;
-                    pResult->accessCalloutHelper.numArgs = 3;
-
-                    pResult->accessCalloutHelper.args[0].Set(CORINFO_METHOD_HANDLE(pCallerForSecurity));
-
-                    /* REVISIT_TODO Wed 4/8/2009
-                     * This field handle is not useful on its own.  We also need to embed the enclosing class
-                     * handle.
-                     */
-                    pResult->accessCalloutHelper.args[1].Set(CORINFO_FIELD_HANDLE(pField));
-
-                    pResult->accessCalloutHelper.args[2].Set(runtimeChecks);
-
-                    if (IsCompilingForNGen())
-                    {
-                        //see code:CEEInfo::getCallInfo for more information.
-                        if (pCallerForSecurity->ContainsGenericVariables())
-                            COMPlusThrowNonLocalized(kNotSupportedException, W("Cannot embed generic MethodDesc"));
-                    }
                 }
             }
         }
@@ -4507,10 +4429,10 @@ CorInfoType CEEInfo::getTypeForPrimitiveValueClass(
 CorInfoType CEEInfo::getTypeForPrimitiveNumericClass(
         CORINFO_CLASS_HANDLE clsHnd)
 {
-    CONTRACTL {
+    CONTRACTL{
         SO_TOLERANT;
-        THROWS;
-        GC_TRIGGERS;
+        NOTHROW;
+        GC_NOTRIGGER;
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
@@ -4524,21 +4446,40 @@ CorInfoType CEEInfo::getTypeForPrimitiveNumericClass(
     CorElementType ty = th.GetSignatureCorElementType();
     switch (ty)
     {
-        case ELEMENT_TYPE_I1:
-        case ELEMENT_TYPE_U1:
-        case ELEMENT_TYPE_I2:
-        case ELEMENT_TYPE_U2:
-        case ELEMENT_TYPE_I4:
-        case ELEMENT_TYPE_U4:
-        case ELEMENT_TYPE_I8:
-        case ELEMENT_TYPE_U8:
-        case ELEMENT_TYPE_R4:
-        case ELEMENT_TYPE_R8:
-            result = asCorInfoType(ty);
-            break;
+    case ELEMENT_TYPE_I1:
+        result = CORINFO_TYPE_BYTE;
+        break;
+    case ELEMENT_TYPE_U1:
+        result = CORINFO_TYPE_UBYTE;
+        break;
+    case ELEMENT_TYPE_I2:
+        result = CORINFO_TYPE_SHORT;
+        break;
+    case ELEMENT_TYPE_U2:
+        result = CORINFO_TYPE_USHORT;
+        break;
+    case ELEMENT_TYPE_I4:
+        result = CORINFO_TYPE_INT;
+        break;
+    case ELEMENT_TYPE_U4:
+        result = CORINFO_TYPE_UINT;
+        break;
+    case ELEMENT_TYPE_I8:
+        result = CORINFO_TYPE_LONG;
+        break;
+    case ELEMENT_TYPE_U8:
+        result = CORINFO_TYPE_ULONG;
+        break;
+    case ELEMENT_TYPE_R4:
+        result = CORINFO_TYPE_FLOAT;
+        break;
+    case ELEMENT_TYPE_R8:
+        result = CORINFO_TYPE_DOUBLE;
+        break;
 
-        default:
-            break;
+    default:
+        // Error case, we will return CORINFO_TYPE_UNDEF
+        break;
     }
 
     JIT_TO_EE_TRANSITION_LEAF();
@@ -5170,35 +5111,6 @@ CorInfoIsAccessAllowedResult CEEInfo::canAccessClass(
         }
     }
 
-    if (isAccessAllowed == CORINFO_ACCESS_ALLOWED)
-    {
-        //Finally let's get me some transparency checks.
-        CorInfoSecurityRuntimeChecks runtimeChecks = CORINFO_ACCESS_SECURITY_NONE; 
-
-
-        DebugSecurityCalloutStress(getMethodBeingCompiled(), isAccessAllowed,
-                                   runtimeChecks);
-
-        if (isAccessAllowed != CORINFO_ACCESS_ALLOWED)
-        {
-            _ASSERTE(isAccessAllowed == CORINFO_ACCESS_RUNTIME_CHECK);
-            //Well, time for the runtime helper
-            pAccessHelper->helperNum = CORINFO_HELP_CLASS_ACCESS_CHECK;
-            pAccessHelper->numArgs = 3;
-
-            pAccessHelper->args[0].Set(CORINFO_METHOD_HANDLE(pCallerForSecurity));
-            pAccessHelper->args[1].Set(CORINFO_CLASS_HANDLE(pCalleeForSecurity.AsPtr()));
-            pAccessHelper->args[2].Set(runtimeChecks);
-
-            if (IsCompilingForNGen())
-            {
-                //see code:CEEInfo::getCallInfo for more information.
-                if (pCallerForSecurity->ContainsGenericVariables() || pCalleeForSecurity.ContainsGenericVariables())
-                    COMPlusThrowNonLocalized(kNotSupportedException, W("Cannot embed generic TypeHandle"));
-            }
-        }
-    }
-
     EE_TO_JIT_TRANSITION();
     return isAccessAllowed;
 }
@@ -5397,7 +5309,8 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsVirtual())
+    // Backwards compat: calls to abstract interface methods are treated as callvirt
+    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
     {
         directCall = false;
     }
@@ -5439,6 +5352,12 @@ void CEEInfo::getCallInfo(
         }
         else
 #endif
+        if (pTargetMD->GetMethodTable()->IsInterface())
+        {
+            // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
+            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+        }
+        else
         {
             DWORD dwMethodAttrs = pTargetMD->GetAttrs();
             devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
@@ -6449,20 +6368,13 @@ CorInfoHelpFunc CEEInfo::getBoxHelper(CORINFO_CLASS_HANDLE clsHnd)
     }
     else 
     {
-        // Dev10 718281 - This has been functionally broken fora very long time (at least 2.0).
-        // The recent addition of the check for stack pointers has caused it to now AV instead
-        // of gracefully failing with an InvalidOperationException. Since nobody has noticed
-        // it being broken, we are choosing not to invest to fix it, and instead explicitly
-        // breaking it and failing early and consistently.
         if(VMClsHnd.IsTypeDesc())
-        {
             COMPlusThrow(kInvalidOperationException,W("InvalidOperation_TypeCannotBeBoxed"));
-        }
 
         // we shouldn't allow boxing of types that contains stack pointers
         // csc and vbc already disallow it.
         if (VMClsHnd.AsMethodTable()->IsByRefLike())
-            COMPlusThrow(kInvalidProgramException);
+            COMPlusThrow(kInvalidProgramException,W("NotSupported_ByRefLike"));
 
         result = CORINFO_HELP_BOX;
     }
@@ -7203,6 +7115,28 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     {
         // Compare the two arguments
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_IS_ADDRESS_GREATER_THAN)->GetMemberDef())
+    {
+        // Compare the two arguments
+        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CGT_UN & 0xFF), CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_IS_ADDRESS_LESS_THAN)->GetMemberDef())
+    {
+        // Compare the two arguments
+        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_PREFIX1, (CEE_CLT_UN & 0xFF), CEE_RET };
         methInfo->ILCode = const_cast<BYTE*>(ilcode);
         methInfo->ILCodeSize = sizeof(ilcode);
         methInfo->maxStack = 2;
@@ -8755,6 +8689,7 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
 }
 
 /*********************************************************************/
+// TODO: This method should probably be renamed to something like "isSIMDType"
 bool CEEInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
 {
 CONTRACTL {
@@ -8768,9 +8703,22 @@ CONTRACTL {
     JIT_TO_EE_TRANSITION_LEAF();
 
     TypeHandle VMClsHnd(classHnd);
-    if (VMClsHnd.GetMethodTable()->GetAssembly()->IsSIMDVectorAssembly())
+    PTR_MethodTable methodTable = VMClsHnd.GetMethodTable();
+    if (methodTable->GetAssembly()->IsSIMDVectorAssembly())
     {
         result = true;
+    }
+    else if (methodTable->IsIntrinsicType())
+    {
+        LPCUTF8 namespaceName;
+        LPCUTF8 className = methodTable->GetFullyQualifiedNameInfo(&namespaceName);
+
+        if (strcmp(className, "Vector`1") == 0 || strcmp(className, "Vector") == 0)
+        {
+            assert(strcmp(namespaceName, "System.Numerics") == 0);
+
+            result = true;
+        }
     }
     EE_TO_JIT_TRANSITION_LEAF();
 
@@ -8878,13 +8826,40 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
                 pOwnerMT = pOwnerMT->GetCanonicalMethodTable();
             }
 
-            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD);
+            // In a try block because the interface method resolution might end up being
+            // ambiguous (diamond inheritance case of default interface methods).
+            EX_TRY
+            {
+                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(TypeHandle(pOwnerMT), pBaseMD);
+            }
+            EX_CATCH
+            {
+            }
+            EX_END_CATCH(RethrowTransientExceptions)
         }
         else if (!pBaseMD->HasClassOrMethodInstantiation())
         {
-            pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD);
+            // In a try block because the interface method resolution might end up being
+            // ambiguous (diamond inheritance case of default interface methods).
+            EX_TRY
+            {
+                pDevirtMD = pDerivedMT->GetMethodDescForInterfaceMethod(pBaseMD);
+            }
+            EX_CATCH
+            {
+            }
+            EX_END_CATCH(RethrowTransientExceptions)
         }
-        else
+        
+        if (pDevirtMD == nullptr)
+        {
+            return nullptr;
+        }
+
+        // If we devirtualized into a default interface method on a generic type, we should actually return an
+        // instantiating stub but this is not happening.
+        // Making this work is tracked by https://github.com/dotnet/coreclr/issues/15977
+        if (pDevirtMD->GetMethodTable()->IsInterface() && pDevirtMD->HasClassInstantiation())
         {
             return nullptr;
         }

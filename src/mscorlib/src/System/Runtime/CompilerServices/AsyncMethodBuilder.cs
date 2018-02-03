@@ -49,8 +49,9 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="stateMachine"/> argument was null (Nothing in Visual Basic).</exception>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
-            _builder.Start(ref stateMachine);
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -198,8 +199,9 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
-            m_builder.Start(ref stateMachine);
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -312,29 +314,9 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
-        public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
-        {
-            if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
-            }
-
-            // Run the MoveNext method within a copy-on-write ExecutionContext scope.
-            // This allows us to undo any ExecutionContext changes made in MoveNext,
-            // so that they won't "leak" out of the first await.
-
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -413,8 +395,8 @@ namespace System.Runtime.CompilerServices
             }
             else if ((null != (object)default(TAwaiter)) && (awaiter is IConfiguredValueTaskAwaiter))
             {
-                (Task task, bool continueOnCapturedContext) t = ((IConfiguredValueTaskAwaiter)awaiter).GetTask();
-                TaskAwaiter.UnsafeOnCompletedInternal(t.task, box, t.continueOnCapturedContext);
+                Task t = ((IConfiguredValueTaskAwaiter)awaiter).GetTask(out bool continueOnCapturedContext);
+                TaskAwaiter.UnsafeOnCompletedInternal(t, box, continueOnCapturedContext);
             }
             // The awaiter isn't specially known. Fall back to doing a normal await.
             else
@@ -548,13 +530,14 @@ namespace System.Runtime.CompilerServices
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext()
             {
-                if (Context == null)
+                ExecutionContext context = Context;
+                if (context == null)
                 {
                     StateMachine.MoveNext();
                 }
                 else
                 {
-                    ExecutionContext.Run(Context, s_callback, this);
+                    ExecutionContext.RunInternal(context, s_callback, this);
                 }
 
                 // In case this is a state machine box with a finalizer, suppress its finalization
@@ -911,6 +894,61 @@ namespace System.Runtime.CompilerServices
     /// <summary>Shared helpers for manipulating state related to async state machines.</summary>
     internal static class AsyncMethodBuilderCore // debugger depends on this exact name
     {
+        /// <summary>Initiates the builder's execution with the associated state machine.</summary>
+        /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
+        /// <param name="stateMachine">The state machine instance, passed by reference.</param>
+        [DebuggerStepThrough]
+        public static void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
+        {
+            if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+            }
+
+            // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
+            // Capture references to Thread Contexts
+            Thread currentThread0 = Thread.CurrentThread;
+            Thread currentThread = currentThread0;
+            ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+
+            // Store current ExecutionContext and SynchronizationContext as "previousXxx".
+            // This allows us to restore them and undo any Context changes made in stateMachine.MoveNext
+            // so that they won't "leak" out of the first await.
+            ExecutionContext previousExecutionCtx = previousExecutionCtx0;
+            SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
+
+            try
+            {
+                stateMachine.MoveNext();
+            }
+            finally
+            {
+                // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
+                SynchronizationContext previousSyncCtx1 = previousSyncCtx;
+                Thread currentThread1 = currentThread;
+                // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+                if (previousSyncCtx1 != currentThread1.SynchronizationContext)
+                {
+                    // Restore changed SynchronizationContext back to previous
+                    currentThread1.SynchronizationContext = previousSyncCtx1;
+                }
+
+                ExecutionContext previousExecutionCtx1 = previousExecutionCtx;
+                ExecutionContext currentExecutionCtx1 = currentThread1.ExecutionContext;
+                if (previousExecutionCtx1 != currentExecutionCtx1)
+                {
+                    // Restore changed ExecutionContext back to previous
+                    currentThread1.ExecutionContext = previousExecutionCtx1;
+                    if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
+                        (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
+                    {
+                        // There are change notifications; trigger any affected
+                        ExecutionContext.OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
+                    }
+                }
+            }
+        }
+
         /// <summary>Gets whether we should be tracking async method completions for eventing.</summary>
         internal static bool TrackAsyncMethodCompletion
         {

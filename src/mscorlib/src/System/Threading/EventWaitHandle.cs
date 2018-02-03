@@ -50,9 +50,9 @@ namespace System.Threading
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
+                if (Interop.Kernel32.MAX_PATH < name.Length)
                 {
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
                 }
 #endif
             }
@@ -78,7 +78,7 @@ namespace System.Threading
                 int errorCode = Marshal.GetLastWin32Error();
 
                 _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
@@ -98,9 +98,9 @@ namespace System.Threading
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
+                if (Interop.Kernel32.MAX_PATH < name.Length)
                 {
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
                 }
 #endif
             }
@@ -126,12 +126,12 @@ namespace System.Threading
             if (_handle.IsInvalid)
             {
                 _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
-            createdNew = errorCode != Win32Native.ERROR_ALREADY_EXISTS;
+            createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
             SetHandleInternal(_handle);
         }
 
@@ -157,7 +157,7 @@ namespace System.Threading
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 case OpenExistingResult.PathNotFound:
-                    throw Win32Marshal.GetExceptionForWin32Error(Win32Native.ERROR_PATH_NOT_FOUND, "");
+                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, "");
 
                 default:
                     return result;
@@ -184,9 +184,9 @@ namespace System.Threading
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             }
 
-            if (null != name && System.IO.Path.MaxPath < name.Length)
+            if (null != name && Interop.Kernel32.MAX_PATH < name.Length)
             {
-                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
             }
 
 
@@ -198,11 +198,11 @@ namespace System.Threading
             {
                 int errorCode = Marshal.GetLastWin32Error();
 
-                if (Win32Native.ERROR_FILE_NOT_FOUND == errorCode || Win32Native.ERROR_INVALID_NAME == errorCode)
+                if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
                     return OpenExistingResult.NameNotFound;
-                if (Win32Native.ERROR_PATH_NOT_FOUND == errorCode)
+                if (Interop.Errors.ERROR_PATH_NOT_FOUND == errorCode)
                     return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     return OpenExistingResult.NameInvalid;
                 //this is for passed through Win32Native Errors
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, "");

@@ -18,34 +18,34 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview1</PreReleaseLabel>
+    <PreReleaseLabel>preview2</PreReleaseLabel>
   </PropertyGroup>
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>9e139ff8b42ada255340e6270c1964ca63ddc595</CoreFxCurrentRef>
-    <CoreClrCurrentRef>9e139ff8b42ada255340e6270c1964ca63ddc595</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>9e139ff8b42ada255340e6270c1964ca63ddc595</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>c2ca1a1f9adb12a1b8a5a5f322bc13b1a0d1ed23</PgoDataCurrentRef>
+    <CoreFxCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</CoreFxCurrentRef>
+    <CoreClrCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>fb8aaa87581eafdad52a1997540471169cf1b6bb</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview1-26102-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview1-26102-01</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20171215-0045</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview1-26102-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview2-26202-05</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview2-26202-05</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20180131-0033</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26203-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
-    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.2</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
   </PropertyGroup>
 
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.1.0-prerelease-02402-01</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.1.0-preview2-02502-01</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -53,6 +53,12 @@
     <BaseDotNetBuildInfo>build-info/dotnet/</BaseDotNetBuildInfo>
     <DependencyBranch>master</DependencyBranch>
     <CurrentRefXmlPath>$(MSBuildThisFileFullPath)</CurrentRefXmlPath>
+  </PropertyGroup>
+
+  <!-- ILLinik.Tasks package version -->
+  <PropertyGroup>
+    <ILLinkTasksPackage>ILLink.Tasks</ILLinkTasksPackage>
+    <ILLinkTasksPackageVersion>0.1.4-preview-1317495</ILLinkTasksPackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

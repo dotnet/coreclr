@@ -21,7 +21,22 @@ namespace System.Text
             _pos = 0;
         }
 
-        public int Length => _pos;
+        public int Length
+        {
+            get => _pos;
+            set
+            {
+                int delta = value - _pos;
+                if (delta > 0)
+                {
+                    Append('\0', delta);
+                }
+                else
+                {
+                    _pos = value;
+                }
+            }
+        }
 
         public override string ToString()
         {
@@ -97,8 +112,7 @@ namespace System.Text
                 Grow(s.Length);
             }
 
-            bool copied = s.AsReadOnlySpan().TryCopyTo(_chars.Slice(pos));
-            Debug.Assert(copied, "Grow should have made enough room to successfully copy");
+            s.AsReadOnlySpan().CopyTo(_chars.Slice(pos));
             _pos += s.Length;
         }
 
@@ -160,8 +174,7 @@ namespace System.Text
 
             char[] poolArray = ArrayPool<char>.Shared.Rent(Math.Max(_pos + requiredAdditionalCapacity, _chars.Length * 2));
 
-            bool success = _chars.TryCopyTo(poolArray);
-            Debug.Assert(success);
+            _chars.CopyTo(poolArray);
 
             char[] toReturn = _arrayToReturnToPool;
             _chars = _arrayToReturnToPool = poolArray;

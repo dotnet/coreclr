@@ -244,7 +244,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern static RuntimeModule GetModule(RuntimeType type);
 
-        [CLSCompliant(false)]
         public ModuleHandle GetModuleHandle()
         {
             return new ModuleHandle(RuntimeTypeHandle.GetModule(m_type));
@@ -359,11 +358,11 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private extern static int GetInterfaceMethodImplementationSlot(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
+        private extern static RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle handle, RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle);
 
-        internal int GetInterfaceMethodImplementationSlot(RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle)
+        internal RuntimeMethodHandleInternal GetInterfaceMethodImplementation(RuntimeTypeHandle interfaceHandle, RuntimeMethodHandleInternal interfaceMethodHandle)
         {
-            return GetInterfaceMethodImplementationSlot(GetNativeHandle(), interfaceHandle.GetNativeHandle(), interfaceMethodHandle);
+            return GetInterfaceMethodImplementation(GetNativeHandle(), interfaceHandle.GetNativeHandle(), interfaceMethodHandle);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

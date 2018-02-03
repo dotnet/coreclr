@@ -143,7 +143,7 @@ namespace System.Collections.Generic
         {
             get
             {
-                return _comparer;
+                return (_comparer is NonRandomizedStringEqualityComparer) ? (IEqualityComparer<TKey>)EqualityComparer<string>.Default : _comparer;
             }
         }
 
@@ -373,7 +373,7 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        private void Initialize(int capacity)
+        private int Initialize(int capacity)
         {
             int size = HashHelpers.GetPrime(capacity);
             int[] buckets = new int[size];
@@ -385,6 +385,8 @@ namespace System.Collections.Generic
             _freeList = -1;
             _buckets = buckets;
             _entries = new Entry[size];
+
+            return size;
         }
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
@@ -757,6 +759,78 @@ namespace System.Collections.Generic
         IEnumerator IEnumerable.GetEnumerator()
         {
             return new Enumerator(this, Enumerator.KeyValuePair);
+        }
+
+        /// <summary>
+        /// Ensures that the dictionary can hold up to 'capacity' entries without any further expansion of its backing storage
+        /// </summary>
+        public int EnsureCapacity(int capacity)
+        {
+            if (capacity < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
+            int currentCapacity = _entries == null ? 0 : _entries.Length;
+            if (currentCapacity >= capacity)
+                return currentCapacity;
+            if (_buckets == null)
+                return Initialize(capacity);
+            int newSize = HashHelpers.GetPrime(capacity);
+            Resize(newSize, forceNewHashCodes: false);
+            return newSize;
+        }
+
+        /// <summary>
+        /// Sets the capacity of this dictionary to what it would be if it had been originally initialized with all its entries
+        /// 
+        /// This method can be used to minimize the memory overhead 
+        /// once it is known that no new elements will be added. 
+        /// 
+        /// To allocate minimum size storage array, execute the following statements:
+        /// 
+        /// dictionary.Clear();
+        /// dictionary.TrimExcess();
+        /// </summary>
+        public void TrimExcess()
+        {
+            TrimExcess(Count);
+        }
+
+        /// <summary>
+        /// Sets the capacity of this dictionary to hold up 'capacity' entries without any further expansion of its backing storage
+        /// 
+        /// This method can be used to minimize the memory overhead 
+        /// once it is known that no new elements will be added. 
+        /// </summary>
+        public void TrimExcess(int capacity)
+        {
+            if (capacity < Count)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
+            int newSize = HashHelpers.GetPrime(capacity);
+
+            Entry[] oldEntries = _entries;
+            int currentCapacity = oldEntries == null ? 0 : oldEntries.Length;
+            if (newSize >= currentCapacity)
+                return;
+
+            int oldCount = _count;
+            Initialize(newSize);
+            Entry[] entries = _entries;
+            int[] buckets = _buckets;
+            int count = 0;
+            for (int i = 0; i < oldCount; i++)
+            {
+                int hashCode = oldEntries[i].hashCode;
+                if (hashCode >= 0)
+                {
+                    ref Entry entry = ref entries[count];
+                    entry = oldEntries[i];
+                    int bucket = hashCode % newSize;
+                    entry.next = buckets[bucket];
+                    buckets[bucket] = count;
+                    count++;
+                }
+            }
+            _count = count;
+            _freeCount = 0;
         }
 
         bool ICollection.IsSynchronized

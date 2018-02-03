@@ -110,6 +110,7 @@ typedef DPTR(struct DebuggerIPCControlBlock) PTR_DebuggerIPCControlBlock;
 
 GPTR_DECL(Debugger,         g_pDebugger);
 GPTR_DECL(EEDebugInterface, g_pEEInterface);
+GVAL_DECL(ULONG,            CLRJitAttachState);
 #ifndef FEATURE_PAL
 GVAL_DECL(HANDLE,           g_hContinueStartupEvent);
 #endif
@@ -1009,7 +1010,7 @@ public:
     DebuggerJitInfo * FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
 
     // Creating the Jit-infos.
-    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd);
+    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr);
     DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 
@@ -2849,13 +2850,7 @@ private:
 #endif
     LONG                  m_threadsAtUnsafePlaces;
     Volatile<BOOL>        m_jitAttachInProgress;
-
-    // True if after the jit attach we plan to send a managed non-catchup
-    // debug event
-    BOOL                  m_attachingForManagedEvent;
     BOOL                  m_launchingDebugger;
-    BOOL                  m_userRequestedDebuggerLaunch;
-
     BOOL                  m_LoggingEnabled;
     AppDomainEnumerationIPCBlock    *m_pAppDomainCB;
 

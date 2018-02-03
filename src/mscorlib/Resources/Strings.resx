@@ -1240,9 +1240,6 @@
   <data name="Argument_InvalidPathChars" xml:space="preserve">
     <value>Illegal characters in path.</value>
   </data>
-  <data name="Argument_InvalidREG_TZI_FORMAT" xml:space="preserve">
-    <value>The REG_TZI_FORMAT structure is corrupt.</value>
-  </data>
   <data name="Argument_InvalidRegistryViewCheck" xml:space="preserve">
     <value>The specified RegistryView value is invalid.</value>
   </data>
@@ -1577,7 +1574,7 @@
     <value>The unmanaged Version information is too large to persist.</value>
   </data>
   <data name="Argument_WaitHandleNameTooLong" xml:space="preserve">
-    <value>The name can be no more than {0} characters in length.</value>
+    <value>The name '{0}' can be no more than {1} characters in length.</value>
   </data>
   <data name="Argument_WinRTSystemRuntimeType" xml:space="preserve">
     <value>Cannot marshal type '{0}' to Windows Runtime. Only 'System.RuntimeType' is supported.</value>
@@ -2968,9 +2965,6 @@
   <data name="NotSupported_CollectibleDelegateMarshal" xml:space="preserve">
     <value>Delegate marshaling for types within collectible assemblies is not supported.</value>
   </data>
-  <data name="NotSupported_Constructor" xml:space="preserve">
-    <value>Object cannot be created through this constructor.</value>
-  </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>
   </data>
@@ -3147,6 +3141,9 @@
   </data>
   <data name="ObjectDisposed_ObjectName_Name" xml:space="preserve">
     <value>Object name: '{0}'.</value>
+  </data>
+  <data name="ObjectDisposed_WriterClosed" xml:space="preserve">
+    <value>Cannot write to a closed TextWriter.</value>
   </data>
   <data name="ObjectDisposed_ReaderClosed" xml:space="preserve">
     <value>Cannot read from a closed TextReader.</value>
@@ -3685,7 +3682,7 @@
   <data name="NotSupported_SignatureType" xml:space="preserve">
     <value>This method is not supported on signature types.</value>
   </data>
-  <data name="Memory_ThrowIfDisposed" xml:space="preserve">
+  <data name="MemoryDisposed" xml:space="preserve">
     <value>Memory&lt;T&gt; has been disposed.</value>
   </data>
   <data name="Memory_OutstandingReferences" xml:space="preserve">
@@ -3699,5 +3696,14 @@
   </data>
   <data name="Arg_TypeNotSupported" xml:space="preserve">
     <value>Specified type is not supported</value>
+  </data>
+  <data name="IO_InvalidReadLength" xml:space="preserve">
+    <value>The read operation returned an invalid length.</value>
+  </data>
+  <data name="Arg_ElementsInSourceIsGreaterThanDestination" xml:space="preserve">
+    <value>Number of elements in source vector is greater than the destination array</value>
+  </data>
+  <data name="Arg_NullArgumentNullRef" xml:space="preserve">
+    <value>The method was called with a null array argument.</value>
   </data>
 </root>
