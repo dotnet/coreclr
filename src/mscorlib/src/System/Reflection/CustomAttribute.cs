@@ -1557,7 +1557,7 @@ namespace System.Reflection
                 // Create custom attribute object
                 if (ctorHasParameters)
                 {
-                    attribute = CreateCaObject(decoratedModule, ctor, ref blobStart, blobEnd, out cNamedArgs);
+                    attribute = CreateCaObject(decoratedModule, attributeType, ctor, ref blobStart, blobEnd, out cNamedArgs);
                 }
                 else
                 {
@@ -1848,13 +1848,13 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern Object _CreateCaObject(RuntimeModule pModule, IRuntimeMethodInfo pCtor, byte** ppBlob, byte* pEndBlob, int* pcNamedArgs);
-        private static unsafe Object CreateCaObject(RuntimeModule module, IRuntimeMethodInfo ctor, ref IntPtr blob, IntPtr blobEnd, out int namedArgs)
+        private static unsafe extern Object _CreateCaObject(RuntimeModule pModule, RuntimeType type, IRuntimeMethodInfo pCtor, byte** ppBlob, byte* pEndBlob, int* pcNamedArgs);
+        private static unsafe Object CreateCaObject(RuntimeModule module, RuntimeType type, IRuntimeMethodInfo ctor, ref IntPtr blob, IntPtr blobEnd, out int namedArgs)
         {
             byte* pBlob = (byte*)blob;
             byte* pBlobEnd = (byte*)blobEnd;
             int cNamedArgs;
-            object ca = _CreateCaObject(module, ctor, &pBlob, pBlobEnd, &cNamedArgs);
+            object ca = _CreateCaObject(module, type, ctor, &pBlob, pBlobEnd, &cNamedArgs);
             blob = (IntPtr)pBlob;
             namedArgs = cNamedArgs;
             return ca;

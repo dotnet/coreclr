@@ -727,16 +727,20 @@ FCIMPL2(Object*, RuntimeTypeHandle::CreateCaInstance, ReflectClassBaseObject* pC
 }
 FCIMPLEND
 
-FCIMPL5(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAttributedModuleUNSAFE, ReflectMethodObject *pMethodUNSAFE, BYTE** ppBlob, BYTE* pEndBlob, INT32* pcNamedArgs)
+FCIMPL6(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAttributedModuleUNSAFE, ReflectClassBaseObject* pCaTypeUNSAFE, ReflectMethodObject *pMethodUNSAFE, BYTE** ppBlob, BYTE* pEndBlob, INT32* pcNamedArgs)
 {
     FCALL_CONTRACT;
 
     struct
     {
+        REFLECTCLASSBASEREF refCaType;
         OBJECTREF ca;
         REFLECTMETHODREF refCtor;
         REFLECTMODULEBASEREF refAttributedModule;
     } gc;
+    gc.refCaType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pCaTypeUNSAFE);
+    TypeHandle th = gc.refCaType->GetType();
+
     gc.ca = NULL;
     gc.refCtor = (REFLECTMETHODREF)ObjectToOBJECTREF(pMethodUNSAFE);
     gc.refAttributedModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pAttributedModuleUNSAFE);
@@ -745,10 +749,10 @@ FCIMPL5(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAt
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
     MethodDesc* pCtorMD = gc.refCtor->GetMethod();
-
+    
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
     {
-        MethodDescCallSite ctorCallSite(pCtorMD);
+        MethodDescCallSite ctorCallSite(pCtorMD, th);
         MetaSig* pSig = ctorCallSite.GetMetaSig();
         BYTE* pBlob = *ppBlob;
 
