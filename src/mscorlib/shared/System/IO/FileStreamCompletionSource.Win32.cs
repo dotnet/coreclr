@@ -48,9 +48,10 @@ namespace System.IO
                 // thus is already pinned) and if no one else is currently using the preallocated overlapped.  This is the fast-path
                 // for cases where the user-provided buffer is smaller than the FileStream's buffer (such that the FileStream's
                 // buffer is used) and where operations on the FileStream are not being performed concurrently.
-                _overlapped = (bytes == null || ReferenceEquals(bytes, _stream._buffer)) && _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
+                Debug.Assert((bytes == null || ReferenceEquals(bytes, _stream._buffer)));
+                _overlapped = _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
                     _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(_stream._preallocatedOverlapped) :
-                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, bytes);
+                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, null);
                 Debug.Assert(_overlapped != null, "AllocateNativeOverlapped returned null");
             }
 
@@ -220,25 +221,13 @@ namespace System.IO
 
             public static FileStreamCompletionSource Create(FileStream stream, int numBufferedBytesRead, ReadOnlyMemory<byte> memory)
             {
-                if (MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> arraySegment))
-                {
-                    byte[] buffer = arraySegment.Array;
-
-                    // If the memory passed in isn't the stream's internal buffer, then delegate to
-                    // memory.Retain instead of passing the buffer to AllocateNativeOverlapped. In 
-                    // some cases, this will result in less pinning (in case the underlying memory is backed
-                    // by pre-pinned buffers)
-                    if (!ReferenceEquals(buffer, stream._buffer))
-                    {
-                        // Nothing to pin here, fall through to the MemoryFileStreamCompletionSource path
-                    }
-                    else
-                    {
-                        return new FileStreamCompletionSource(stream, numBufferedBytesRead, buffer);
-                    }
-                }
-
-                return new MemoryFileStreamCompletionSource(stream, numBufferedBytesRead, memory);
+                // If the memory passed in is the stream's internal buffer, we can use the base FileStreamCompletionSource,
+                // which has a PreAllocatedOverlapped with the memory already pinned.  Otherwise, we use the derived
+                // MemoryFileStreamCompletionSource, which Retains the memory, which will result in less pinning in the case
+                // where the underlying memory is backed by pre-pinned buffers.
+                return MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> buffer) && ReferenceEquals(buffer.Array, stream._buffer) ?
+                    new FileStreamCompletionSource(stream, numBufferedBytesRead, buffer.Array) :
+                    new MemoryFileStreamCompletionSource(stream, numBufferedBytesRead, memory);
             }
         }
 
