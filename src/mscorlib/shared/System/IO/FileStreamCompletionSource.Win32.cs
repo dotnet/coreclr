@@ -35,33 +35,13 @@ namespace System.IO
             private NativeOverlapped* _overlapped; // Overlapped class responsible for operations in progress when an appdomain unload occurs
             private long _result; // Using long since this needs to be used in Interlocked APIs
 
-            private MemoryHandle _handle; // mutable struct; do not make this readonly
-
             // Using RunContinuationsAsynchronously for compat reasons (old API used Task.Factory.StartNew for continuations)
-            internal FileStreamCompletionSource(FileStream stream, int numBufferedBytes, ReadOnlyMemory<byte> memory)
+            protected FileStreamCompletionSource(FileStream stream, int numBufferedBytes, byte[] bytes)
                 : base(TaskCreationOptions.RunContinuationsAsynchronously)
             {
                 _numBufferedBytes = numBufferedBytes;
                 _stream = stream;
                 _result = NoResult;
-                byte[] bytes = null;
-
-                if (MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> buffer))
-                {
-                    bytes = buffer.Array;
-
-                    // If the memory passed in isn't the stream's internal buffer, then delegate to
-                    // memory.Retain instead of passing the buffer to AllocateNativeOverlapped. In 
-                    // some cases, this will result in less pinning (in case the underlying memory is backed)
-                    // by pre-pinned buffers
-                    if (!ReferenceEquals(bytes, _stream._buffer))
-                    {
-                        // Nothing to pin here
-                        bytes = null;
-
-                        _handle = memory.Retain(pin: true);
-                    }
-                }
 
                 // Create the native overlapped. We try to use the preallocated overlapped if possible: it's possible if the byte
                 // buffer is null (there's nothing to pin) or the same one that's associated with the preallocated overlapped (and
@@ -123,10 +103,8 @@ namespace System.IO
                 }
             }
 
-            internal void ReleaseNativeResource()
+            internal virtual void ReleaseNativeResource()
             {
-                _handle.Dispose();
-
                 // Ensure that cancellation has been completed and cleaned up.
                 _cancellationRegistration.Dispose();
 
@@ -238,6 +216,51 @@ namespace System.IO
                         throw Win32Marshal.GetExceptionForWin32Error(errorCode);
                     }
                 }
+            }
+
+            public static FileStreamCompletionSource Create(FileStream stream, int numBufferedBytesRead, ReadOnlyMemory<byte> memory)
+            {
+                if (MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> arraySegment))
+                {
+                    byte[] buffer = arraySegment.Array;
+
+                    // If the memory passed in isn't the stream's internal buffer, then delegate to
+                    // memory.Retain instead of passing the buffer to AllocateNativeOverlapped. In 
+                    // some cases, this will result in less pinning (in case the underlying memory is backed
+                    // by pre-pinned buffers)
+                    if (!ReferenceEquals(buffer, stream._buffer))
+                    {
+                        // Nothing to pin here, fall through to the MemoryFileStreamCompletionSource path
+                    }
+                    else
+                    {
+                        return new FileStreamCompletionSource(stream, numBufferedBytesRead, buffer);
+                    }
+                }
+
+                return new MemoryFileStreamCompletionSource(stream, numBufferedBytesRead, memory);
+            }
+        }
+
+        /// <summary>
+        /// Extends <see cref="FileStreamCompletionSource"/> with to support disposing of a
+        /// <see cref="MemoryHandle"/> when the operation has completed.  This should only be used
+        /// when memory doesn't wrap a byte[].
+        /// </summary>
+        private sealed class MemoryFileStreamCompletionSource : FileStreamCompletionSource
+        {
+            private MemoryHandle _handle; // mutable struct; do not make this readonly
+
+            internal MemoryFileStreamCompletionSource(FileStream stream, int numBufferedBytes, ReadOnlyMemory<byte> memory) :
+                base(stream, numBufferedBytes, bytes: null) // this type handles the pinning, so null is passed for bytes
+            {
+                _handle = memory.Retain(pin: true);
+            }
+
+            internal override void ReleaseNativeResource()
+            {
+                _handle.Dispose();
+                base.ReleaseNativeResource();
             }
         }
     }
