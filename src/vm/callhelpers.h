@@ -257,8 +257,8 @@ public:
         CONTRACTL
         {
             THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
         }
         CONTRACTL_END;
 
