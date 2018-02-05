@@ -49,9 +49,12 @@ namespace System.IO
                 // for cases where the user-provided buffer is smaller than the FileStream's buffer (such that the FileStream's
                 // buffer is used) and where operations on the FileStream are not being performed concurrently.
                 Debug.Assert((bytes == null || ReferenceEquals(bytes, _stream._buffer)));
-                _overlapped = _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
+
+                // The _preallocatedOverlapped is null if the internal buffer was never created, so we check for 
+                // a non-null bytes before using the stream's _preallocatedOverlapped
+                _overlapped = bytes != null && _stream.CompareExchangeCurrentOverlappedOwner(this, null) == null ?
                     _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(_stream._preallocatedOverlapped) :
-                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, null);
+                    _stream._fileHandle.ThreadPoolBinding.AllocateNativeOverlapped(s_ioCallback, this, bytes);
                 Debug.Assert(_overlapped != null, "AllocateNativeOverlapped returned null");
             }
 
