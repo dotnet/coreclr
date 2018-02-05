@@ -119,7 +119,7 @@ namespace System.IO
                 // Drive relative paths
                 Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
 
-                if (StringSpanHelpers.Equals(GetPathRoot(path.AsReadOnlySpan()), GetVolumeName(basePath.AsReadOnlySpan())))
+                if (StringSpanHelpers.Equals(GetVolumeName(path.AsReadOnlySpan()), GetVolumeName(basePath.AsReadOnlySpan())))
                 {
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
@@ -228,15 +228,17 @@ namespace System.IO
         /// <summary>
         /// Returns the volume name for dos, UNC and device paths.
         /// </summary>
-        internal static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
+        public static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
         {
             if (!IsPathFullyQualified(path))
-                return default;
+                return GetPathRoot(path);
 
             // 3 cases: UNC ("\\server\share"), Device ("\\?\C:\"), or Dos ("C:\")
             ReadOnlySpan<char> root = GetPathRoot(path);
-            int offset = GetUncRootLength(path);
+            if (root.Length == 0)
+                return root;
 
+            int offset = GetUncRootLength(path);
             if (offset >= 0)
             {
                 // Cut from "\\?\UNC\Server\Share" to "Server\Share"
@@ -247,9 +249,8 @@ namespace System.IO
             {
                 return TrimEndingDirectorySeparator(root.Slice(4)); // Cut from "\\?\C:\" to "C:"
             }
-            {
-                return TrimEndingDirectorySeparator(root); // e.g. "C:"
-            }
+
+            return TrimEndingDirectorySeparator(root); // e.g. "C:"
         }
 
         /// <summary>
@@ -282,7 +283,7 @@ namespace System.IO
                 return 2;
             else if (isDevice && path.Length >= 8
                 && (StringSpanHelpers.Equals(path.Slice(0, 8), PathInternal.UncExtendedPathPrefix)
-                || StringSpanHelpers.Equals(path.Slice(0, 8), @"\\.\UNC\")))
+                || StringSpanHelpers.Equals(path.Slice(5, 4), @"UNC\")))
                 return 8;
 
             return -1;
