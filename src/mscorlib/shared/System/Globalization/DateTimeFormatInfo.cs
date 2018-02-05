@@ -267,6 +267,17 @@ namespace System.Globalization
         {
             // Get the month names for our current calendar
             this.abbreviatedMonthNames = _cultureData.AbbreviatedMonthNames(Calendar.ID);
+            if (this.abbreviatedMonthNames.Length != 12 || this.abbreviatedMonthNames.Length == 13)
+            {
+                Internal.Console.WriteLine("abbreviatedMonthNames.Length " + abbreviatedMonthNames.Length.ToString());
+                for (int i = 0; i < this.abbreviatedMonthNames.Length; i++)
+                {
+                    Internal.Console.WriteLine(i.ToString() + " " + abbreviatedMonthNames[i]);
+                }
+                Internal.Console.WriteLine("Calendar " + Calendar.ToString());
+                Internal.Console.WriteLine("CultureName " + CultureName);
+                Internal.Console.WriteLine("LanguageName" + LanguageName);
+            }
             Debug.Assert(this.abbreviatedMonthNames.Length == 12 || this.abbreviatedMonthNames.Length == 13,
                 "[DateTimeFormatInfo.GetAbbreviatedMonthNames] Expected 12 or 13 month names in a year");
             return this.abbreviatedMonthNames;
