@@ -239,7 +239,7 @@ namespace System.Text
             if (!capacityPresent)
             {
                 // StringBuilder in V1.X did not persist the Capacity, so this is a valid legacy code path.
-                persistedCapacity = Math.Min(Math.Max(DefaultCapacity, persistedString.Length), persistedMaxCapacity);
+                persistedCapacity = Math.Clamp(persistedString.Length, DefaultCapacity, persistedMaxCapacity);
             }
 
             if (persistedCapacity < 0 || persistedCapacity < persistedString.Length || persistedCapacity > persistedMaxCapacity)
@@ -2196,7 +2196,7 @@ namespace System.Text
             // - We'd also prefer to make it at least at big as the current length (thus doubling capacity).
             //   - But this is only up to a maximum, so we stay in the small object heap, and never allocate
             //     really big chunks even if the string gets really big.
-            int newBlockLength = Math.Max(minBlockCharCount, Math.Min(Length, MaxChunkSize));
+            int newBlockLength = Math.Clamp(Length, minBlockCharCount, MaxChunkSize);
 
             // Move all of the data from this chunk to a new one, via a few O(1) pointer adjustments.
             // Then, have this chunk point to the new one as its predecessor.
