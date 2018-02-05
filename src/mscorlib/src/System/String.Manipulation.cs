@@ -1135,21 +1135,20 @@ namespace System
 
             // String allocation and copying is in separate method to make this method faster for the case where
             // nothing needs replacing.
-            string dst = ReplaceHelper(oldValue, newValue, replacementIndices.AsReadOnlySpan());
+            string dst = ReplaceHelper(oldValue.Length, newValue, replacementIndices.AsReadOnlySpan());
 
             replacementIndices.Dispose();
 
             return dst;
         }
 
-        private string ReplaceHelper(string oldValue, string newValue, ReadOnlySpan<int> indices)
+        private string ReplaceHelper(int oldValueLength, string newValue, ReadOnlySpan<int> indices)
         {
-            long dstLength = this.Length + ((long)(newValue.Length - oldValue.Length)) * indices.Length;
+            long dstLength = this.Length + ((long)(newValue.Length - oldValueLength)) * indices.Length;
             if (dstLength > int.MaxValue)
                 throw new OutOfMemoryException();
             string dst = FastAllocateString((int)dstLength);
 
-            ReadOnlySpan<char> thisSpan = this.AsReadOnlySpan();
             Span<char> dstSpan = new Span<char>(ref dst.GetRawStringData(), dst.Length);
 
             int thisIdx = 0;
@@ -1163,10 +1162,10 @@ namespace System
                 int count = replacementIdx - thisIdx;
                 if (count != 0)
                 {
-                    thisSpan.Slice(thisIdx, count).CopyTo(dstSpan.Slice(dstIdx));
+                    this.AsReadOnlySpan().Slice(thisIdx, count).CopyTo(dstSpan.Slice(dstIdx));
                     dstIdx += count;
                 }
-                thisIdx = replacementIdx + oldValue.Length;
+                thisIdx = replacementIdx + oldValueLength;
 
                 // Copy over newValue to replace the oldValue.
                 newValue.AsReadOnlySpan().CopyTo(dstSpan.Slice(dstIdx));
@@ -1174,8 +1173,8 @@ namespace System
             }
 
             // Copy over the final non-matching portion at the end of the string.
-            Debug.Assert(thisSpan.Length - thisIdx == dstSpan.Length - dstIdx);
-            thisSpan.Slice(thisIdx).CopyTo(dstSpan.Slice(dstIdx));
+            Debug.Assert(this.Length - thisIdx == dstSpan.Length - dstIdx);
+            this.AsReadOnlySpan().Slice(thisIdx).CopyTo(dstSpan.Slice(dstIdx));
 
             return dst;
         }
