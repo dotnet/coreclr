@@ -228,7 +228,7 @@ namespace System.IO
         /// <summary>
         /// Returns the volume name for dos, UNC and device paths.
         /// </summary>
-        public static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
+        internal static ReadOnlySpan<char> GetVolumeName(ReadOnlySpan<char> path)
         {
             // 3 cases: UNC ("\\server\share"), Device ("\\?\C:\"), or Dos ("C:\")
             ReadOnlySpan<char> root = GetPathRoot(path);
