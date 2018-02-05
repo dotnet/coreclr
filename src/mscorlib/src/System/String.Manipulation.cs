@@ -1092,7 +1092,7 @@ namespace System
             if (oldValue == null)
                 throw new ArgumentNullException(nameof(oldValue));
             if (oldValue.Length == 0)
-                throw new ArgumentException(SR.Format(SR.Argument_StringZeroLength, nameof(oldValue)));
+                throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
 
             // Api behavior: if newValue is null, instances of oldValue are to be removed.
             if (newValue == null)
