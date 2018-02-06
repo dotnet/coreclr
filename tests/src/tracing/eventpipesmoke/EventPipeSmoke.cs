@@ -1,5 +1,4 @@
 using System;
-using System.Environment;
 using System.IO;
 using Tracing.Tests.Common;
 
@@ -8,7 +7,7 @@ namespace Tracing.Tests
     class EventPipeSmoke
     {
         private static int allocIterations = 10000;
-        private static bool zapDisabled = Int32.Parse(Environment.GetEnvironmentVariable("COMPlus_ZapDisable")) > 0;
+        private static bool zapDisabled = Int32.Parse(Environment.GetEnvironmentVariable("COMPlus_ZapDisable") ?? "0") > 0;
         private static int trivialSize = zapDisabled ? 64 * 1024 : 1 * 1024 * 1024;
 
         static int Main(string[] args)
