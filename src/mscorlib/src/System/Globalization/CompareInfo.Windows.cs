@@ -186,21 +186,21 @@ namespace System.Globalization
 
         private unsafe int FindString(
                     uint dwFindNLSStringFlags,
-                    string lpStringSource,
+                    ReadOnlySpan<char> lpStringSource,
                     int startSource,
                     int cchSource,
-                    string lpStringValue,
+                    ReadOnlySpan<char> lpStringValue,
                     int startValue,
                     int cchValue,
-                    int *pcchFound)
+                    int* pcchFound)
         {
             Debug.Assert(!_invariantMode);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
-            fixed (char* pSource = lpStringSource)
-            fixed (char* pValue = lpStringValue)
+            fixed (char* pSource = &MemoryMarshal.GetReference(lpStringSource))
+            fixed (char* pValue = &MemoryMarshal.GetReference(lpStringValue))
             {
                 char* pS = pSource + startSource;
                 char* pV = pValue + startValue;
@@ -293,12 +293,12 @@ namespace System.Globalization
             return -1;
         }
 
-        private unsafe bool StartsWith(string source, string prefix, CompareOptions options)
+        private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
-            Debug.Assert(!string.IsNullOrEmpty(source));
-            Debug.Assert(!string.IsNullOrEmpty(prefix));
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,

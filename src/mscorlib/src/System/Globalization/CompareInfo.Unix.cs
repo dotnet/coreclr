@@ -253,12 +253,12 @@ namespace System.Globalization
             }
         }
 
-        private bool StartsWith(string source, string prefix, CompareOptions options)
+        private bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
-            Debug.Assert(!string.IsNullOrEmpty(source));
-            Debug.Assert(!string.IsNullOrEmpty(prefix));
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && prefix.IsFastSort())
@@ -266,7 +266,11 @@ namespace System.Globalization
                 return IsPrefix(source, prefix, GetOrdinalCompareOptions(options));
             }
 
-            return Interop.Globalization.StartsWith(_sortHandle, prefix, prefix.Length, source, source.Length, options);
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
+            fixed (char* pPrefix = &MemoryMarshal.GetReference(prefix))
+            {
+                return Interop.Globalization.StartsWith(_sortHandle, pPrefix, prefix.Length, pSource, source.Length, options);
+            }
         }
 
         private bool EndsWith(string source, string suffix, CompareOptions options)

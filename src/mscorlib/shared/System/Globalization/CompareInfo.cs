@@ -620,9 +620,14 @@ namespace System.Globalization
                     SR.ArgumentNull_String);
             }
 
+            return IsPrefix(source.AsReadOnlySpan(), prefix.AsReadOnlySpan(), options);
+        }
+
+        internal virtual bool IsPrefix(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
+        {
             if (prefix.Length == 0)
             {
-                return (true);
+                return true;
             }
 
             if (source.Length == 0)
