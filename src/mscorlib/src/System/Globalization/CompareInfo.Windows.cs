@@ -187,11 +187,7 @@ namespace System.Globalization
         private unsafe int FindString(
                     uint dwFindNLSStringFlags,
                     ReadOnlySpan<char> lpStringSource,
-                    int startSource,
-                    int cchSource,
                     ReadOnlySpan<char> lpStringValue,
-                    int startValue,
-                    int cchValue,
                     int* pcchFound)
         {
             Debug.Assert(!_invariantMode);
@@ -202,16 +198,13 @@ namespace System.Globalization
             fixed (char* pSource = &MemoryMarshal.GetReference(lpStringSource))
             fixed (char* pValue = &MemoryMarshal.GetReference(lpStringValue))
             {
-                char* pS = pSource + startSource;
-                char* pV = pValue + startValue;
-
                 return Interop.Kernel32.FindNLSStringEx(
                                     pLocaleName,
                                     dwFindNLSStringFlags,
-                                    pS,
-                                    cchSource,
-                                    pV,
-                                    cchValue,
+                                    pSource,
+                                    lpStringSource.Length,
+                                    pValue,
+                                    lpStringValue.Length,
                                     pcchFound,
                                     null,
                                     null,
@@ -251,8 +244,8 @@ namespace System.Globalization
             }
             else
             {
-                int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source, startIndex, count,
-                                                               target, 0, target.Length, matchLengthPtr);
+                int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source.AsReadOnlySpan().Slice(startIndex, count),
+                                                               target, matchLengthPtr);
                 if (retValue >= 0)
                 {
                     return retValue + startIndex;
@@ -281,8 +274,8 @@ namespace System.Globalization
             }
             else
             {
-                int retValue = FindString(FIND_FROMEND | (uint) GetNativeCompareFlags(options), source, startIndex - count + 1,
-                                                               count, target, 0, target.Length, null);
+                int retValue = FindString(FIND_FROMEND | (uint)GetNativeCompareFlags(options), source.AsReadOnlySpan().Slice(startIndex - count + 1, count),
+                                                               target, null);
 
                 if (retValue >= 0)
                 {
@@ -301,8 +294,7 @@ namespace System.Globalization
             Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,
-                                                   prefix, 0, prefix.Length, null) >= 0;
+            return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, prefix, null) >= 0;
         }
 
         private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
@@ -313,8 +305,7 @@ namespace System.Globalization
             Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,
-                                                   suffix, 0, suffix.Length, null) >= 0;
+            return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, suffix, null) >= 0;
         }
 
         // PAL ends here

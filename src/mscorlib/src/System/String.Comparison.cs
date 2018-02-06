@@ -429,7 +429,7 @@ namespace System
                         return (CompareOrdinalIgnoreCaseHelper(strA, strB));
                     }
 
-                    return CompareInfo.CompareOrdinalIgnoreCase(strA, 0, strA.Length, strB, 0, strB.Length);
+                    return CompareInfo.CompareOrdinalIgnoreCase(strA, strB);
 
                 default:
                     throw new NotSupportedException(SR.NotSupported_StringComparison);
@@ -900,7 +900,7 @@ namespace System
                         return EqualsIgnoreCaseAsciiHelper(this, value);
                     }
 
-                    return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, this.Length, value, 0, value.Length) == 0);
+                    return (CompareInfo.CompareOrdinalIgnoreCase(this, value) == 0);
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
@@ -971,7 +971,7 @@ namespace System
                         }
                         // Take the slow path.
 
-                        return (CompareInfo.CompareOrdinalIgnoreCase(a, 0, a.Length, b, 0, b.Length) == 0);
+                        return (CompareInfo.CompareOrdinalIgnoreCase(a, b) == 0);
                     }
 
                 default:
@@ -1122,7 +1122,7 @@ namespace System
                     {
                         return false;
                     }
-                    return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, value.Length, value, 0, value.Length) == 0);
+                    return (CompareInfo.CompareOrdinalIgnoreCase(this, value) == 0);
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
