@@ -7,7 +7,7 @@ When a performance problem is encountered on Linux, these instructions can be us
 - **perfcollect**: Bash script that automates data collection.
 	- Available at <http://aka.ms/perfcollect>.
 - **PerfView**: Windows-based performance tool that can also analyze trace files collected with Perfcollect.
-	- Available at <http://aka.ms/perfview>.
+	- Available at <https://github.com/Microsoft/perfview/blob/master/documentation/Downloading.md>.
 
 # Preparing Your Machine #
 Follow these steps to prepare your machine to collect a performance trace.
