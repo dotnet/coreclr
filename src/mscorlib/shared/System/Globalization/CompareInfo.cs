@@ -623,7 +623,7 @@ namespace System.Globalization
             return IsPrefix(source.AsReadOnlySpan(), prefix.AsReadOnlySpan(), options);
         }
 
-        internal virtual bool IsPrefix(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
+        internal bool IsPrefix(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             if (prefix.Length == 0)
             {
@@ -682,7 +682,7 @@ namespace System.Globalization
             return IsSuffix(source.AsReadOnlySpan(), suffix.AsReadOnlySpan(), options);
         }
 
-        internal virtual bool IsSuffix(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
+        internal bool IsSuffix(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
             if (suffix.Length == 0)
             {

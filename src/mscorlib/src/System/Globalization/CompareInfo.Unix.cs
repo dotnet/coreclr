@@ -261,11 +261,6 @@ namespace System.Globalization
             Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && prefix.IsFastSort())
-            {
-                return IsPrefix(source, prefix, GetOrdinalCompareOptions(options));
-            }
-
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (char* pPrefix = &MemoryMarshal.GetReference(prefix))
             {
@@ -280,11 +275,6 @@ namespace System.Globalization
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
-
-            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && suffix.IsFastSort())
-            {
-                return IsSuffix(source, suffix, GetOrdinalCompareOptions(options));
-            }
 
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (char* pSuffix = &MemoryMarshal.GetReference(suffix))

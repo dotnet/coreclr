@@ -26,19 +26,19 @@ namespace System
         /// <summary>
         /// Determines whether the beginning of the span matches the specified value when compared using the specified comparison option.
         /// </summary>
-        public static bool StartsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparison)
+        public static bool StartsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            if ((uint)(comparison - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
             {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparison));
+                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
 
-            if (span.Length < value.Length)
+            if (value.Length == 0)
             {
-                return false;
+                return true;
             }
 
-            switch (comparison)
+            switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(span, value, CompareOptions.None);
@@ -53,34 +53,48 @@ namespace System
                     return CompareInfo.Invariant.IsPrefix(span, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
+                    if (span.Length < value.Length)
+                    {
+                        return false;
+                    }
+                    
                     // TODO: https://github.com/dotnet/corefx/issues/25182
                     // return span.StartsWith(value);
-                    throw new NotImplementedException();
+                    for (int i = 0; i < value.Length; i++)
+                    {
+                        if (span[i] != value[i])
+                            return false;
+                    }
+                    return true;
 
                 case StringComparison.OrdinalIgnoreCase:
-                    return CompareInfo.CompareOrdinalIgnoreCase(span, value) == 0;
+                    if (span.Length < value.Length)
+                    {
+                        return false;
+                    }
+                    return CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0;
 
                 default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparison));
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
         /// <summary>
         /// Determines whether the end of the span matches the specified value when compared using the specified comparison option.
         /// </summary>
-        public static bool EndsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparison)
+        public static bool EndsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            if ((uint)(comparison - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
             {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparison));
+                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
 
-            if (span.Length < value.Length)
+            if (value.Length == 0)
             {
-                return false;
+                return true;
             }
 
-            switch (comparison)
+            switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(span, value, CompareOptions.None);
@@ -95,15 +109,29 @@ namespace System
                     return CompareInfo.Invariant.IsSuffix(span, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
+                    if (span.Length < value.Length)
+                    {
+                        return false;
+                    }
+
                     // TODO: https://github.com/dotnet/corefx/issues/25182
                     // return span.EndsWith(value);
-                    throw new NotImplementedException();
+                    for (int i = 0; i < value.Length; i++)
+                    {
+                        if (span[span.Length - value.Length + i] != value[i])
+                            return false;
+                    }
+                    return true;
 
                 case StringComparison.OrdinalIgnoreCase:
+                    if (span.Length < value.Length)
+                    {
+                        return false;
+                    }
                     return (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(span.Length - value.Length), value) == 0);
 
                 default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparison));
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
