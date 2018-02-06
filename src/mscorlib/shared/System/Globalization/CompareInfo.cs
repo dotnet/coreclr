@@ -679,9 +679,14 @@ namespace System.Globalization
                     SR.ArgumentNull_String);
             }
 
+            return IsSuffix(source.AsReadOnlySpan(), suffix.AsReadOnlySpan(), options);
+        }
+
+        internal virtual bool IsSuffix(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
+        {
             if (suffix.Length == 0)
             {
-                return (true);
+                return true;
             }
 
             if (source.Length == 0)

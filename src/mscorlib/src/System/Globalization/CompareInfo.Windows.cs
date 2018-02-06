@@ -305,12 +305,12 @@ namespace System.Globalization
                                                    prefix, 0, prefix.Length, null) >= 0;
         }
 
-        private unsafe bool EndsWith(string source, string suffix, CompareOptions options)
+        private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
-            Debug.Assert(!string.IsNullOrEmpty(source));
-            Debug.Assert(!string.IsNullOrEmpty(suffix));
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,

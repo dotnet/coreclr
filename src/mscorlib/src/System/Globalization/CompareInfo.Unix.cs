@@ -273,12 +273,12 @@ namespace System.Globalization
             }
         }
 
-        private bool EndsWith(string source, string suffix, CompareOptions options)
+        private bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
-            Debug.Assert(!string.IsNullOrEmpty(source));
-            Debug.Assert(!string.IsNullOrEmpty(suffix));
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && suffix.IsFastSort())
@@ -286,7 +286,11 @@ namespace System.Globalization
                 return IsSuffix(source, suffix, GetOrdinalCompareOptions(options));
             }
 
-            return Interop.Globalization.EndsWith(_sortHandle, suffix, suffix.Length, source, source.Length, options);
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
+            fixed (char* pSuffix = &MemoryMarshal.GetReference(suffix))
+            {
+                return Interop.Globalization.EndsWith(_sortHandle, pSuffix, suffix.Length, pSource, source.Length, options);
+            }
         }
         
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
