@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
+using System.Security;
 
 namespace System.IO
 {
@@ -672,6 +673,21 @@ namespace System.IO
         }
 
         internal virtual bool IsClosed => _fileHandle.IsClosed;
+        
+        private static bool IsIoRelatedException(Exception e) =>
+            // These all derive from IOException
+            //     DirectoryNotFoundException
+            //     DriveNotFoundException
+            //     EndOfStreamException
+            //     FileLoadException
+            //     FileNotFoundException
+            //     PathTooLongException
+            //     PipeException 
+            e is IOException ||
+            e is UnauthorizedAccessException ||
+            e is NotSupportedException ||
+            (e is ArgumentException && !(e is ArgumentNullException)) ||
+            e is SecurityException;
 
         /// <summary>
         /// Gets the array used for buffering reading and writing.  
