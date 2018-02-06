@@ -253,7 +253,7 @@ namespace System.Globalization
             }
         }
 
-        private bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
+        private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
@@ -268,7 +268,7 @@ namespace System.Globalization
             }
         }
 
-        private bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
+        private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
