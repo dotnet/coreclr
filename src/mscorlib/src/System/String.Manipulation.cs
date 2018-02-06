@@ -1144,6 +1144,8 @@ namespace System
 
         private string ReplaceHelper(int oldValueLength, string newValue, ReadOnlySpan<int> indices)
         {
+            Debug.Assert(indices.Length > 0);
+
             long dstLength = this.Length + ((long)(newValue.Length - oldValueLength)) * indices.Length;
             if (dstLength > int.MaxValue)
                 throw new OutOfMemoryException();
