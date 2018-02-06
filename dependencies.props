@@ -24,7 +24,7 @@
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
     <CoreFxCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</CoreFxCurrentRef>
-    <CoreClrCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</CoreClrCurrentRef>
+    <CoreClrCurrentRef>fded6196b42fb66aa3ee8ffd800c1b1b5d240f8c</CoreClrCurrentRef>
     <BuildToolsCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</BuildToolsCurrentRef>
     <PgoDataCurrentRef>fb8aaa87581eafdad52a1997540471169cf1b6bb</PgoDataCurrentRef>
   </PropertyGroup>
@@ -34,12 +34,17 @@
     <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview2-26202-05</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
     <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview2-26202-05</MicrosoftNETCorePlatformsPackageVersion>
     <PgoDataPackageVersion>99.99.99-master-20180131-0033</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26203-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26205-05</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
+    
+    <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
+         updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
+         as we do with many of the package versions above -->
+    <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview2-26124-05</BaselineMicrosoftNetCoreAppPackageVersion>
   </PropertyGroup>
 
   <!-- Package versions used as toolsets -->

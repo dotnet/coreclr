@@ -4920,7 +4920,6 @@ private:
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
     void fgMorphTailCall(GenTreeCall* call);
-    GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
     GenTree* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
                                                    fgArgTabEntry* argTabEntry,
@@ -5834,6 +5833,7 @@ public:
     bool optIsSsaLocal(GenTree* tree);
     int optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc, bool preferOp2);
     void optVnCopyProp();
+    INDEBUG(void optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName));
 
     /**************************************************************************
     *               Early value propagation
