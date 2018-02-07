@@ -186,7 +186,7 @@ namespace System.Globalization
             {
                 return true;
             }
-            char* pChar = &ch;
+            char *pChar = &ch;
             return IsSortable(pChar, 1);
         }
 
@@ -209,7 +209,7 @@ namespace System.Globalization
                 return true;
             }
 
-            fixed (char* pChar = text)
+            fixed (char *pChar = text)
             {
                 return IsSortable(pChar, text.Length);
             }
@@ -566,7 +566,7 @@ namespace System.Globalization
                 char* b = bp;
 
                 // in InvariantMode we support all range and not only the ascii characters.
-                char maxChar = (char)(GlobalizationMode.Invariant ? 0xFFFF : 0x80);
+                char maxChar = (char) (GlobalizationMode.Invariant ? 0xFFFF : 0x80);
 
                 while (length != 0 && (*a <= maxChar) && (*b <= maxChar))
                 {
@@ -575,25 +575,21 @@ namespace System.Globalization
 
                     if (charA == charB)
                     {
-                        a++;
-                        b++;
+                        a++; b++;
                         length--;
                         continue;
                     }
 
                     // uppercase both chars - notice that we need just one compare per char
-                    if ((uint)(charA - 'a') <= 'z' - 'a')
-                        charA -= 0x20;
-                    if ((uint)(charB - 'a') <= 'z' - 'a')
-                        charB -= 0x20;
+                    if ((uint)(charA - 'a') <= 'z' - 'a') charA -= 0x20;
+                    if ((uint)(charB - 'a') <= 'z' - 'a') charB -= 0x20;
 
                     // Return the (case-insensitive) difference between them.
                     if (charA != charB)
                         return charA - charB;
 
                     // Next char
-                    a++;
-                    b++;
+                    a++; b++;
                     length--;
                 }
 
@@ -842,7 +838,7 @@ namespace System.Globalization
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
-
+            
             if (_invariantMode)
                 return IndexOfOrdinal(source, new string(value, 1), startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
 
@@ -1302,10 +1298,10 @@ namespace System.Globalization
                     if (_invariantMode)
                     {
                         m_SortVersion = new SortVersion(0, CultureInfo.LOCALE_INVARIANT, new Guid(0, 0, 0, 0, 0, 0, 0,
-                                                                        (byte)(CultureInfo.LOCALE_INVARIANT >> 24),
-                                                                        (byte)((CultureInfo.LOCALE_INVARIANT & 0x00FF0000) >> 16),
-                                                                        (byte)((CultureInfo.LOCALE_INVARIANT & 0x0000FF00) >> 8),
-                                                                        (byte)(CultureInfo.LOCALE_INVARIANT & 0xFF)));
+                                                                        (byte) (CultureInfo.LOCALE_INVARIANT >> 24),
+                                                                        (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x00FF0000) >> 16),
+                                                                        (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x0000FF00) >> 8),
+                                                                        (byte) (CultureInfo.LOCALE_INVARIANT  & 0xFF)));
                     }
                     else
                     {

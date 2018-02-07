@@ -313,7 +313,7 @@ namespace System.Globalization
         private IntPtr _sortHandle;
 
         private const uint LCMAP_SORTKEY = 0x00000400;
-        private const uint LCMAP_HASH = 0x00040000;
+        private const uint LCMAP_HASH    = 0x00040000;
 
         private const int FIND_STARTSWITH = 0x00100000;
         private const int FIND_ENDSWITH = 0x00200000;
@@ -399,27 +399,24 @@ namespace System.Globalization
         {
             Debug.Assert(!_invariantMode);
 
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
+            if (source == null) { throw new ArgumentNullException(nameof(source)); }
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            byte[] keyData = null;
+            byte [] keyData = null;
             if (source.Length == 0)
-            {
+            { 
                 keyData = Array.Empty<byte>();
             }
             else
             {
-                fixed (char* pSource = source)
+                fixed (char *pSource = source)
                 {
                     int result = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
-                                                LCMAP_SORTKEY | (uint)GetNativeCompareFlags(options),
+                                                LCMAP_SORTKEY | (uint) GetNativeCompareFlags(options),
                                                 pSource, source.Length,
                                                 null, 0,
                                                 null, null, _sortHandle);
@@ -430,10 +427,10 @@ namespace System.Globalization
 
                     keyData = new byte[result];
 
-                    fixed (byte* pBytes = keyData)
+                    fixed (byte* pBytes =  keyData)
                     {
                         result = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
-                                                LCMAP_SORTKEY | (uint)GetNativeCompareFlags(options),
+                                                LCMAP_SORTKEY | (uint) GetNativeCompareFlags(options),
                                                 pSource, source.Length,
                                                 pBytes, keyData.Length,
                                                 null, null, _sortHandle);
@@ -465,25 +462,18 @@ namespace System.Globalization
             // Use "linguistic casing" by default (load the culture's casing exception tables)
             int nativeCompareFlags = NORM_LINGUISTIC_CASING;
 
-            if ((options & CompareOptions.IgnoreCase) != 0)
-                nativeCompareFlags |= NORM_IGNORECASE;
-            if ((options & CompareOptions.IgnoreKanaType) != 0)
-                nativeCompareFlags |= NORM_IGNOREKANATYPE;
-            if ((options & CompareOptions.IgnoreNonSpace) != 0)
-                nativeCompareFlags |= NORM_IGNORENONSPACE;
-            if ((options & CompareOptions.IgnoreSymbols) != 0)
-                nativeCompareFlags |= NORM_IGNORESYMBOLS;
-            if ((options & CompareOptions.IgnoreWidth) != 0)
-                nativeCompareFlags |= NORM_IGNOREWIDTH;
-            if ((options & CompareOptions.StringSort) != 0)
-                nativeCompareFlags |= SORT_STRINGSORT;
+            if ((options & CompareOptions.IgnoreCase) != 0) { nativeCompareFlags |= NORM_IGNORECASE; }
+            if ((options & CompareOptions.IgnoreKanaType) != 0) { nativeCompareFlags |= NORM_IGNOREKANATYPE; }
+            if ((options & CompareOptions.IgnoreNonSpace) != 0) { nativeCompareFlags |= NORM_IGNORENONSPACE; }
+            if ((options & CompareOptions.IgnoreSymbols) != 0) { nativeCompareFlags |= NORM_IGNORESYMBOLS; }
+            if ((options & CompareOptions.IgnoreWidth) != 0) { nativeCompareFlags |= NORM_IGNOREWIDTH; }
+            if ((options & CompareOptions.StringSort) != 0) { nativeCompareFlags |= SORT_STRINGSORT; }
 
             // TODO: Can we try for GetNativeCompareFlags to never
             // take Ordinal or OrdinalIgnoreCase.  This value is not part of Win32, we just handle it special
             // in some places.
             // Suffix & Prefix shouldn't use this, make sure to turn off the NORM_LINGUISTIC_CASING flag
-            if (options == CompareOptions.Ordinal)
-                nativeCompareFlags = COMPARE_OPTIONS_ORDINAL;
+            if (options == CompareOptions.Ordinal) { nativeCompareFlags = COMPARE_OPTIONS_ORDINAL; }
 
             Debug.Assert(((options & ~(CompareOptions.IgnoreCase |
                                           CompareOptions.IgnoreKanaType |

@@ -14,11 +14,10 @@ namespace System.Globalization
             Debug.Assert(value != null);
             Debug.Assert(startIndex >= 0 && startIndex < source.Length);
 
-            fixed (char* pSource = source)
-            fixed (char* pValue = value)
+            fixed (char* pSource = source) fixed (char* pValue = value)
             {
                 char* pSrc = &pSource[startIndex];
-                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start: true);
+                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start : true);
                 if (index >= 0)
                 {
                     return index + startIndex;
@@ -33,11 +32,10 @@ namespace System.Globalization
             Debug.Assert(value != null);
             Debug.Assert(startIndex >= 0 && startIndex < source.Length);
 
-            fixed (char* pSource = source)
-            fixed (char* pValue = value)
+            fixed (char* pSource = source) fixed (char* pValue = value)
             {
                 char* pSrc = &pSource[startIndex - count + 1];
-                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start: false);
+                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start : false);
                 if (index >= 0)
                 {
                     return index + startIndex - count + 1;
@@ -199,19 +197,16 @@ namespace System.Globalization
 
         private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
         {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
+            if (source == null) { throw new ArgumentNullException(nameof(source)); }
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            byte[] keyData;
+            byte [] keyData;
             if (source.Length == 0)
-            {
+            { 
                 keyData = Array.Empty<byte>();
             }
             else
@@ -219,17 +214,16 @@ namespace System.Globalization
                 // In the invariant mode, all string comparisons are done as ordinal so when generating the sort keys we generate it according to this fact
                 keyData = new byte[source.Length * sizeof(char)];
 
-                fixed (char* pChar = source)
-                fixed (byte* pByte = keyData)
+                fixed (char* pChar = source) fixed (byte* pByte = keyData)
                 {
                     if ((options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0)
                     {
-                        short* pShort = (short*)pByte;
-                        for (int i = 0; i < source.Length; i++)
+                        short *pShort = (short *) pByte;
+                        for (int i=0; i<source.Length; i++)
                         {
-                            pShort[i] = (short)InvariantToUpper(source[i]);
+                            pShort[i] = (short) InvariantToUpper(source[i]);
                         }
-                    }
+                    } 
                     else
                     {
                         Buffer.MemoryCopy(pChar, pByte, keyData.Length, keyData.Length);
