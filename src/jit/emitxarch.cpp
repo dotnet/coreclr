@@ -227,19 +227,6 @@ bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
             return false;
     }
 }
-
-// ------------------------------------------------------------------------------
-// Is4ByteAVXInstruction: Returns true if the AVX instruction is a 4-byte opcode.
-//
-// Arguments:
-//    ins  -  instructions
-//
-// Note that this should be true for any of the instructions in instrsXArch.h
-// that use the SSE38 or SSE3A macro.
-bool emitter::Is4ByteAVXInstruction(instruction ins)
-{
-    return UseVEXEncoding() && (IsSSE4Instruction(ins) || IsAVXOnlyInstruction(ins)) && EncodedBySSE38orSSE3A(ins);
-}
 #endif // !LEGACY_BACKEND
 
 // -------------------------------------------------------------------
@@ -258,7 +245,27 @@ bool emitter::Is4ByteSSE4Instruction(instruction ins)
     return false;
 #else
     return UseSSE4() && IsSSE4Instruction(ins) && EncodedBySSE38orSSE3A(ins);
-#endif
+#endif // LEGACY_BACKEND
+}
+
+// ------------------------------------------------------------------------------
+// Is4ByteSSE4OrAVXInstruction: Returns true if the SSE4 or AVX instruction is a 4-byte opcode.
+//
+// Arguments:
+//    ins  -  instructions
+//
+// Note that this should be true for any of the instructions in instrsXArch.h
+// that use the SSE38 or SSE3A macro.
+bool emitter::Is4ByteSSE4OrAVXInstruction(instruction ins)
+{
+#ifdef LEGACY_BACKEND
+    // On legacy backend SSE4 and AVX are not enabled.
+    return false;
+#else
+    return ((UseVEXEncoding() && (IsSSE4Instruction(ins) || IsAVXOnlyInstruction(ins))) ||
+            (UseSSE4() && IsSSE4Instruction(ins))) &&
+           EncodedBySSE38orSSE3A(ins);
+#endif // LEGACY_BACKEND
 }
 
 #ifndef LEGACY_BACKEND
@@ -4027,6 +4034,13 @@ void emitter::emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenT
 
     // Plus one for the 1-byte immediate (ival)
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require two additional bytes
+        sz += 2;
+    }
+
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4049,6 +4063,13 @@ void emitter::emitIns_R_AR_I(instruction ins, emitAttr attr, regNumber reg1, reg
 
     // Plus one for the 1-byte immediate (ival)
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require two additional bytes
+        sz += 2;
+    }
+
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4070,6 +4091,12 @@ void emitter::emitIns_R_C_I(
     instrDesc*     id = emitNewInstrCnsDsp(attr, ival, offs);
     UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
 
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require two additional bytes
+        sz += 2;
+    }
+
     id->idIns(ins);
     id->idInsFmt(IF_RRW_MRD_CNS);
     id->idReg1(reg1);
@@ -4088,6 +4115,12 @@ void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int 
     instrDesc*     id = emitNewInstrCns(attr, ival);
     UNATIVE_OFFSET sz =
         emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require two additional bytes
+        sz += 2;
+    }
 
     id->idIns(ins);
     id->idInsFmt(IF_RRW_SRD_CNS);
@@ -8420,21 +8453,24 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     code = AddVexPrefixIfNeededAndNotPresent(ins, code, size);
 
     // For this format, moves do not support a third operand, so we only need to handle the binary ops.
-    if (IsDstDstSrcAVXInstruction(ins) && !Is4ByteAVXInstruction(ins))
+    if (TakesVexPrefix(ins))
     {
-        regNumber src1 = id->idReg2();
-
-        if ((id->idInsFmt() != IF_RWR_RRD_ARD) && (id->idInsFmt() != IF_RWR_RRD_ARD_CNS))
+        if (IsDstDstSrcAVXInstruction(ins))
         {
-            src1 = id->idReg1();
-        }
+            regNumber src1 = id->idReg2();
 
-        // encode source operand reg in 'vvvv' bits in 1's compliement form
-        code = insEncodeReg3456(ins, src1, size, code);
-    }
-    else if (IsDstSrcSrcAVXInstruction(ins))
-    {
-        code = insEncodeReg3456(ins, id->idReg2(), size, code);
+            if ((id->idInsFmt() != IF_RWR_RRD_ARD) && (id->idInsFmt() != IF_RWR_RRD_ARD_CNS))
+            {
+                src1 = id->idReg1();
+            }
+
+            // encode source operand reg in 'vvvv' bits in 1's compliement form
+            code = insEncodeReg3456(ins, src1, size, code);
+        }
+        else if (IsDstSrcSrcAVXInstruction(ins))
+        {
+            code = insEncodeReg3456(ins, id->idReg2(), size, code);
+        }
     }
 
     // Emit the REX prefix if required
@@ -8458,14 +8494,24 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     }
 
     // Special case emitting AVX instructions
-    if (Is4ByteAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins))
     {
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        // Emit last opcode byte
-        assert((code & 0xFF) == 0);
-        dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        if (UseVEXEncoding())
+        {
+            // Emit last opcode byte
+            // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
+            assert((code & 0xFF) == 0);
+            dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        }
+        else
+        {
+            dst += emitOutputWord(dst, code >> 16);
+            dst += emitOutputWord(dst, code & 0xFFFF);
+        }
+
         code = regcode;
     }
     // Is this a 'big' opcode?
@@ -8591,7 +8637,7 @@ GOT_DSP:
                     // The address is of the form "[disp]"
                     // On x86 - disp is relative to zero
                     // On Amd64 - disp is relative to RIP
-                    if (Is4ByteAVXInstruction(ins))
+                    if (Is4ByteSSE4OrAVXInstruction(ins))
                     {
                         dst += emitOutputByte(dst, code | 0x05);
                     }
@@ -8647,7 +8693,7 @@ GOT_DSP:
                 else
                 {
 #ifdef _TARGET_X86_
-                    if (Is4ByteAVXInstruction(ins))
+                    if (Is4ByteSSE4OrAVXInstruction(ins))
                     {
                         dst += emitOutputByte(dst, code | 0x05);
                     }
@@ -8664,7 +8710,7 @@ GOT_DSP:
                     noway_assert((int)dsp == dsp);
 
                     // This requires, specifying a SIB byte after ModRM byte.
-                    if (Is4ByteAVXInstruction(ins))
+                    if (Is4ByteSSE4OrAVXInstruction(ins))
                     {
                         dst += emitOutputByte(dst, code | 0x04);
                     }
@@ -8679,7 +8725,7 @@ GOT_DSP:
                 break;
 
             case REG_EBP:
-                if (Is4ByteAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins))
                 {
                     // Does the offset fit in a byte?
                     if (dspInByte)
@@ -8733,7 +8779,7 @@ GOT_DSP:
                        (ins == INS_or));
 #endif // LEGACY_BACKEND
 
-                if (Is4ByteAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins))
                 {
                     // Is the offset 0 or does it at least fit in a byte?
                     if (dspIsZero)
@@ -8786,7 +8832,7 @@ GOT_DSP:
                 break;
 
             default:
-                if (Is4ByteAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins))
                 {
                     // Put the register in the opcode
                     code |= insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr);
@@ -8867,7 +8913,7 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                if (Is4ByteAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins))
                 {
                     // Emit [ebp + {2/4/8} * rgz] as [ebp + {2/4/8} * rgx + 0]
                     if (dspIsZero && reg != REG_EBP)
@@ -8934,7 +8980,7 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, REG_EBP, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                if (Is4ByteAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins))
                 {
                     dst += emitOutputByte(dst, code | 0x04);
                 }
@@ -8963,7 +9009,7 @@ GOT_DSP:
             // The address is "[reg+rgx+dsp]"
             regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) | insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr);
 
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 if (dspIsZero && reg != REG_EBP)
                 {
@@ -9189,14 +9235,24 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     }
 
     // Special case emitting AVX instructions
-    if (Is4ByteAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins))
     {
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        // Emit last opcode byte
-        assert((code & 0xFF) == 0);
-        dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        if (UseVEXEncoding())
+        {
+            // Emit last opcode byte
+            // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
+            assert((code & 0xFF) == 0);
+            dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        }
+        else
+        {
+            dst += emitOutputWord(dst, code >> 16);
+            dst += emitOutputWord(dst, code & 0xFFFF);
+        }
+
         code = regcode;
     }
     // Is this a 'big' opcode?
@@ -9310,7 +9366,7 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     if (EBPbased)
     {
         // EBP-based variable: does the offset fit in a byte?
-        if (Is4ByteAVXInstruction(ins))
+        if (Is4ByteSSE4OrAVXInstruction(ins))
         {
             if (dspInByte)
             {
@@ -9349,7 +9405,7 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
         dspIsZero = (dsp == 0);
 
         // Does the offset fit in a byte?
-        if (Is4ByteAVXInstruction(ins))
+        if (Is4ByteSSE4OrAVXInstruction(ins))
         {
             if (dspInByte)
             {
@@ -9619,19 +9675,27 @@ BYTE* emitter::emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
 #endif //_TARGET_X86_
 
     // Special case emitting AVX instructions
-    if (Is4ByteAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins))
     {
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        // Emit last opcode byte
-        // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
-        assert((code & 0xFF) == 0);
-        dst += emitOutputByte(dst, (code >> 8) & 0xFF);
-        code = 0;
+        if (UseVEXEncoding())
+        {
+            // Emit last opcode byte
+            // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
+            assert((code & 0xFF) == 0);
+            dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+        }
+        else
+        {
+            dst += emitOutputWord(dst, code >> 16);
+            dst += emitOutputWord(dst, code & 0xFFFF);
+        }
 
         // Emit Mod,R/M byte
         dst += emitOutputByte(dst, regcode | 0x05);
+        code = 0;
     }
     // Is this a 'big' opcode?
     else if (code & 0xFF000000)
@@ -10271,28 +10335,30 @@ BYTE* emitter::emitOutputRR(BYTE* dst, instrDesc* id)
     unsigned regCode = insEncodeReg345(ins, reg1, size, &code);
     regCode |= insEncodeReg012(ins, reg2, size, &code);
 
-    // In case of AVX instructions that take 3 operands, we generally want to encode reg1
-    // as first source.  In this case, reg1 is both a source and a destination.
-    // The exception is the "merge" 3-operand case, where we have a move instruction, such
-    // as movss, and we want to merge the source with itself.
-    //
-    // TODO-XArch-CQ: Eventually we need to support 3 operand instruction formats. For
-    // now we use the single source as source1 and source2.
-    if (IsDstDstSrcAVXInstruction(ins))
+    if (TakesVexPrefix(ins))
     {
-        // encode source/dest operand reg in 'vvvv' bits in 1's complement form
-        code = insEncodeReg3456(ins, reg1, size, code);
-    }
-    else if (IsDstSrcSrcAVXInstruction(ins))
-    {
-        // encode source operand reg in 'vvvv' bits in 1's complement form
-        code = insEncodeReg3456(ins, reg2, size, code);
+        // In case of AVX instructions that take 3 operands, we generally want to encode reg1
+        // as first source.  In this case, reg1 is both a source and a destination.
+        // The exception is the "merge" 3-operand case, where we have a move instruction, such
+        // as movss, and we want to merge the source with itself.
+        //
+        // TODO-XArch-CQ: Eventually we need to support 3 operand instruction formats. For
+        // now we use the single source as source1 and source2.
+        if (IsDstDstSrcAVXInstruction(ins))
+        {
+            // encode source/dest operand reg in 'vvvv' bits in 1's complement form
+            code = insEncodeReg3456(ins, reg1, size, code);
+        }
+        else if (IsDstSrcSrcAVXInstruction(ins))
+        {
+            // encode source operand reg in 'vvvv' bits in 1's complement form
+            code = insEncodeReg3456(ins, reg2, size, code);
+        }
     }
 
     // Output the REX prefix
     dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-    // Is this a 'big' opcode?
     if (code & 0xFF000000)
     {
         // Output the highest word of the opcode
@@ -10323,7 +10389,7 @@ BYTE* emitter::emitOutputRR(BYTE* dst, instrDesc* id)
         assert(IsAVXInstruction(ins) || IsSSE4Instruction(ins));
         if ((code & 0xFF00) == 0xC000)
         {
-            dst += emitOutputByte(dst, (0xC0 | regCode));
+            dst += emitOutputWord(dst, code | (regCode << 8));
         }
         else
         {
@@ -11850,51 +11916,57 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
             }
 
-            regcode = (insEncodeReg345(ins, rReg, size, &code) | insEncodeReg012(ins, mReg, size, &code)) << 8;
+            regcode = (insEncodeReg345(ins, rReg, size, &code) | insEncodeReg012(ins, mReg, size, &code));
 
             // Output the REX prefix
             dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-            if (Is4ByteAVXInstruction(ins))
+            if (code & 0xFF000000)
             {
-                assert((code & 0xFF) == 0);
-                if ((code & 0xFF00) == 0xC000)
-                {
-                    dst += emitOutputWord(dst, code | regcode);
-                }
-                else
-                {
-                    dst += emitOutputByte(dst, (code >> 8) & 0xFF);
-                    dst += emitOutputByte(dst, 0xC0 | (regcode >> 8));
-                }
-            }
-            else if (code & 0xFF000000)
-            {
+                // Output the highest word of the opcode
                 dst += emitOutputWord(dst, code >> 16);
                 code &= 0x0000FFFF;
 
                 if (Is4ByteSSE4Instruction(ins))
                 {
-                    dst += emitOutputWord(dst, code);
-                    dst += emitOutputByte(dst, 0xC0 | (regcode >> 8));
-                }
-                else
-                {
-                    assert((code & 0xFF00) == 0xC000);
-                    dst += emitOutputWord(dst, code | regcode);
+                    // Output 3rd byte of the opcode
+                    dst += emitOutputByte(dst, code);
+                    code &= 0xFF00;
                 }
             }
             else if (code & 0x00FF0000)
             {
                 dst += emitOutputByte(dst, code >> 16);
                 code &= 0x0000FFFF;
-                assert((code & 0xFF00) == 0xC000);
-                dst += emitOutputWord(dst, code | regcode);
+            }
+
+            // If byte 4 is 0xC0, then it contains the Mod/RM encoding for a 3-byte
+            // encoding.  Otherwise, this is an instruction with a 4-byte encoding,
+            // and the Mod/RM encoding needs to go in the 5th byte.
+            // TODO-XArch-CQ: Currently, this will only support registers in the 5th byte.
+            // We probably need a different mechanism to identify the 4-byte encodings.
+            if ((code & 0xFF) == 0x00)
+            {
+                // This case happens for SSE4/AVX instructions only
+                assert(IsAVXInstruction(ins) || IsSSE4Instruction(ins));
+                if ((code & 0xFF00) == 0xC000)
+                {
+                    dst += emitOutputWord(dst, code | (regcode << 8));
+                }
+                else
+                {
+                    dst += emitOutputByte(dst, (code >> 8) & 0xFF);
+                    dst += emitOutputByte(dst, (0xC0 | regcode));
+                }
+            }
+            else if ((code & 0xFF00) == 0xC000)
+            {
+                dst += emitOutputWord(dst, code | (regcode << 8));
             }
             else
             {
-                assert((code & 0xFF00) == 0xC000);
-                dst += emitOutputWord(dst, code | regcode);
+                dst += emitOutputWord(dst, code);
+                dst += emitOutputByte(dst, (0xC0 | regcode));
             }
 
             dst += emitOutputByte(dst, emitGetInsSC(id));
@@ -11974,7 +12046,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = insCodeRM(ins);
 
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputAM(dst, id, code, &cnsVal);
             }
@@ -12100,7 +12172,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = insCodeRM(ins);
 
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputSV(dst, id, code, &cnsVal);
             }
@@ -12134,7 +12206,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputSV(dst, id, code);
             }
@@ -12162,7 +12234,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputSV(dst, id, code);
             }
@@ -12189,7 +12261,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputSV(dst, id, code, &cnsVal);
             }
@@ -12263,7 +12335,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = insCodeRM(ins);
 
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputCV(dst, id, code, &cnsVal);
             }
@@ -12295,7 +12367,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RRW_MRD:
             code = insCodeRM(ins);
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputCV(dst, id, code);
             }
@@ -12323,7 +12395,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = insCodeRM(ins);
 
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputCV(dst, id, code);
             }
@@ -12350,7 +12422,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = insCodeRM(ins);
 
             // Special case 4-byte AVX instructions
-            if (Is4ByteAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins))
             {
                 dst = emitOutputCV(dst, id, code, &cnsVal);
             }
