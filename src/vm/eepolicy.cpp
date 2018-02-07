@@ -1192,9 +1192,7 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
             PrintToStdErrW((WCHAR*)errorSource);
         }
 
-        PrintToStdErrA("\n");
         PrintToStdErrW((WCHAR*)pszMessage);
-        PrintToStdErrA("\n");
 
         if (pThread && errorSource == NULL)
         {
