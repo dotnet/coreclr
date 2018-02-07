@@ -28,13 +28,9 @@ namespace System
         /// </summary>
         public static bool StartsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if (value.Length == 0)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -84,13 +80,9 @@ namespace System
         /// </summary>
         public static bool EndsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if (value.Length == 0)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 

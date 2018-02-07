@@ -377,24 +377,21 @@ namespace System
         // for meaning of different comparisonType.
         public static int Compare(String strA, String strB, StringComparison comparisonType)
         {
-            // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (uint)(StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if (object.ReferenceEquals(strA, strB))
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return 0;
             }
 
             // They can't both be null at this point.
             if (strA == null)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return -1;
             }
             if (strB == null)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return 1;
             }
 
@@ -554,13 +551,11 @@ namespace System
 
         public static int Compare(String strA, int indexA, String strB, int indexB, int length, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
+            StringSpanHelpers.CheckStringComparison(comparisonType);
 
             if (strA == null || strB == null)
             {
+
                 if (object.ReferenceEquals(strA, strB))
                 {
                     // They're both null
@@ -758,19 +753,16 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
+            
             if ((Object)this == (Object)value)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -858,16 +850,15 @@ namespace System
 
         public bool Equals(String value, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-
             if ((Object)this == (Object)value)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if ((Object)value == null)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return false;
             }
 
@@ -926,16 +917,15 @@ namespace System
 
         public static bool Equals(String a, String b, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-
             if ((Object)a == (Object)b)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if ((Object)a == null || (Object)b == null)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return false;
             }
 
@@ -1079,18 +1069,15 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if ((Object)this == (Object)value)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
