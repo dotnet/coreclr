@@ -284,14 +284,15 @@ def main(args):
 
     config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
 
-    # Run the primary (non-test) corefx build
-    # We used to pass the argument:
-    #    -- /p:CoreCLROverridePath=<path-to-core_root>
-    # which causes the corefx build to overwrite its built core_root with the binaries from
-    # the coreclr build. However, this often causes build failures which breaking changes are
+    # Run the primary (non-test) corefx build. We previously passed the argument:
+    #
+    #    /p:CoreCLROverridePath=<path-to-core_root>
+    #
+    # which causes the corefx build to overwrite its built runtime with the binaries from
+    # the coreclr build. However, this often causes build failures when breaking changes are
     # in progress (e.g., a breaking change is made in coreclr that has not yet had compensating
     # changes made in the corefx repo). Instead, build corefx normally. This should always work
-    # since corefx is protected by a CI testing system. Then, overwrite the built corex
+    # since corefx is protected by a CI testing system. Then, overwrite the built corefx
     # runtime with the runtime built in the coreclr build. The result will be that perhaps
     # some, hopefully few, corefx tests will fail, but the builds will never fail.
 
