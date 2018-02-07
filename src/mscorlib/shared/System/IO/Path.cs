@@ -384,7 +384,7 @@ namespace System.IO
             if (second.Length == 0)
                 return first;
 
-            if (IsPathRooted(second)) // will change to span version after the span pr is merged
+            if (IsPathRooted(second.AsReadOnlySpan())) // will change to span version after the span pr is merged
                 return second;
 
             return CombineNoChecksInternal(first, second);
@@ -416,9 +416,9 @@ namespace System.IO
             if (third.Length == 0)
                 return CombineNoChecks(first, second);
 
-            if (IsPathRooted(third))
+            if (IsPathRooted(third.AsReadOnlySpan()))
                 return third;
-            if (IsPathRooted(second))
+            if (IsPathRooted(second.AsReadOnlySpan()))
                 return CombineNoChecks(second, third);
 
             return CombineNoChecksInternal(first, second, third);
@@ -456,11 +456,11 @@ namespace System.IO
             if (fourth.Length == 0)
                 return CombineNoChecks(first, second, third);
 
-            if (IsPathRooted(fourth))
+            if (IsPathRooted(fourth.AsReadOnlySpan()))
                 return fourth;
-            if (IsPathRooted(third))
+            if (IsPathRooted(third.AsReadOnlySpan()))
                 return CombineNoChecks(third, fourth);
-            if (IsPathRooted(second))
+            if (IsPathRooted(second.AsReadOnlySpan()))
                 return CombineNoChecks(second, third, fourth);
 
             return CombineNoChecksInternal(first, second, third, fourth);
