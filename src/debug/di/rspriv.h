@@ -5338,7 +5338,11 @@ const BOOL bILCode = TRUE;
 // B/C of generics, a single IL function may get jitted multiple times and
 // be associated w/ multiple native code blobs (CordbNativeCode).
 //
-class CordbFunction : public CordbBase, public ICorDebugFunction, public ICorDebugFunction2, public ICorDebugFunction3
+class CordbFunction : public CordbBase, 
+                      public ICorDebugFunction, 
+                      public ICorDebugFunction2, 
+                      public ICorDebugFunction3, 
+                      public ICorDebugFunction4
 {
 public:
     //-----------------------------------------------------------

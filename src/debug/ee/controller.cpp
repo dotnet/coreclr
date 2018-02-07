@@ -4952,11 +4952,11 @@ DebuggerBreakpoint::DebuggerBreakpoint(Module *module,
                                        : DebuggerController(NULL, pAppDomain)
 {
     _ASSERTE(pSucceed != NULL);
-    _ASSERTE(native == (nativeMethodDesc != NULL));
+    _ASSERTE((native == (nativeMethodDesc != NULL)) || nativeCodeBindAllVersions);
     _ASSERTE(native || nativeJITInfo == NULL);
     _ASSERTE(!nativeJITInfo || nativeJITInfo->m_jitComplete); // this is sent by the left-side, and it couldn't have got the code if the JIT wasn't complete
 
-    if (!nativeCodeBindAllVersions)
+    if (native && !nativeCodeBindAllVersions)
     {
         (*pSucceed) = AddBindAndActivateNativeManagedPatch(nativeMethodDesc, nativeJITInfo, offset, LEAF_MOST_FRAME, pAppDomain);
         return;

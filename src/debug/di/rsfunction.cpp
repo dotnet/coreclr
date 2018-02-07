@@ -132,6 +132,10 @@ HRESULT CordbFunction::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugFunction3*>(this);
     }
+    else if (id == IID_ICorDebugFunction4)
+    {
+        *pInterface = static_cast<ICorDebugFunction4*>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugFunction*>(this));
