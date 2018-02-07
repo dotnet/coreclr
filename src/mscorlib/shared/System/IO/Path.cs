@@ -368,7 +368,7 @@ namespace System.IO
             if (second.Length == 0)
                 return new string(first);
 
-            if (IsPathRooted(second)) // will change to span version after the span pr is merged
+            if (IsPathRooted(second))
                 return new string(second);
 
             return CombineNoChecksInternal(first, second);
@@ -384,7 +384,7 @@ namespace System.IO
             if (second.Length == 0)
                 return first;
 
-            if (IsPathRooted(second.AsReadOnlySpan())) // will change to span version after the span pr is merged
+            if (IsPathRooted(second.AsReadOnlySpan()))
                 return second;
 
             return CombineNoChecksInternal(first, second);
