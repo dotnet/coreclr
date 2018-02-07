@@ -10,6 +10,27 @@ internal static class Program
 {
     private static int Main()
     {
+        bool allPassed = true;
+        bool passed;
+
+        Console.Write("    SpanTest: ");
+        passed = SpanTest.Run();
+        Console.WriteLine(passed ? "pass" : "fail");
+        allPassed &= passed;
+
+        Console.Write("    ByRefLikeTest: ");
+        passed = ByRefLikeTest.Run();
+        Console.WriteLine(passed ? "pass" : "fail");
+        allPassed &= passed;
+
+        return allPassed ? 100 : 1;
+    }
+}
+
+internal static class SpanTest
+{
+    public static bool Run()
+    {
         DynamicMethod dm = new DynamicMethod("TailCaller", typeof(void), new Type[] { typeof(Span<int>) });
         ILGenerator il = dm.GetILGenerator();
         il.Emit(OpCodes.Ldarg_0);
@@ -18,7 +39,7 @@ internal static class Program
         il.Emit(OpCodes.Ldarg_0);
         il.Emit(OpCodes.Ldarg_0);
         il.Emit(OpCodes.Tailcall);
-        il.Emit(OpCodes.Call, typeof(Program).GetMethod("TailCallee", BindingFlags.Static | BindingFlags.NonPublic));
+        il.Emit(OpCodes.Call, typeof(SpanTest).GetMethod("TailCallee", BindingFlags.Static | BindingFlags.NonPublic));
         il.Emit(OpCodes.Ret);
 
         var tailCaller = (ActionOfSpanOfInt)dm.CreateDelegate(typeof(ActionOfSpanOfInt));
@@ -34,10 +55,9 @@ internal static class Program
         }
         catch (ArgumentException)
         {
-            return 1; // fail
+            return false; // fail
         }
-
-        return 100; // pass
+        return true;
     }
 
     private static void TailCallee(Span<int> a, Span<int> b, Span<int> c, Span<int> d, Span<int> e)
@@ -50,4 +70,67 @@ internal static class Program
     }
 
     private delegate void ActionOfSpanOfInt(Span<int> x);
+}
+
+internal static class ByRefLikeTest
+{
+    public static bool Run()
+    {
+        DynamicMethod dm = new DynamicMethod("TailCaller", typeof(void), new Type[] { typeof(TestByRefLike) });
+        ILGenerator il = dm.GetILGenerator();
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Tailcall);
+        il.Emit(OpCodes.Call, typeof(ByRefLikeTest).GetMethod("TailCallee", BindingFlags.Static | BindingFlags.NonPublic));
+        il.Emit(OpCodes.Ret);
+
+        var tailCaller = (ActionOfTestByRefLike)dm.CreateDelegate(typeof(ActionOfTestByRefLike));
+
+        try
+        {
+            for (int i = 0; i < 1000; ++i)
+            {
+                GC.KeepAlive(new object());
+                tailCaller(new TestByRefLike(new int[] { 42 }));
+                GC.KeepAlive(new object());
+            }
+        }
+        catch (ArgumentException)
+        {
+            return false; // fail
+        }
+        return true;
+    }
+
+    private static void TailCallee(TestByRefLike a, TestByRefLike b, TestByRefLike c, TestByRefLike d, TestByRefLike e)
+    {
+        GC.Collect();
+        for (int i = 0; i < 10000; i++)
+            GC.KeepAlive(new object());
+        if (a.span[0] != 42 || b.span[0] != 42 || c.span[0] != 42 || d.span[0] != 42 || e.span[0] != 42)
+            throw new ArgumentException();
+    }
+
+    private delegate void ActionOfTestByRefLike(TestByRefLike x);
+
+    private ref struct TestByRefLike
+    {
+        private object obj;
+        private object obj2;
+        public Span<int> span;
+
+        public TestByRefLike(int[] values)
+        {
+            obj = null;
+            if (obj != null)
+                obj = null;
+            obj2 = null;
+            if (obj2 != null)
+                obj2 = null;
+            span = new Span<int>(values);
+        }
+    }
 }
