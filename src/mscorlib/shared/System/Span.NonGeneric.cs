@@ -53,7 +53,7 @@ namespace System
                     {
                         return false;
                     }
-                    
+
                     // TODO: https://github.com/dotnet/corefx/issues/25182
                     // return span.StartsWith(value);
                     for (int i = 0; i < value.Length; i++)

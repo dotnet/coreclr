@@ -23,7 +23,8 @@ namespace System
             Debug.Assert(strB != null);
             int length = Math.Min(strA.Length, strB.Length);
 
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
+            fixed (char* ap = &strA._firstChar)
+            fixed (char* bp = &strB._firstChar)
             {
                 char* a = ap;
                 char* b = bp;
@@ -37,15 +38,18 @@ namespace System
                     Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
 
                     // uppercase both chars - notice that we need just one compare per char
-                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
+                    if ((uint)(charA - 'a') <= (uint)('z' - 'a'))
+                        charA -= 0x20;
+                    if ((uint)(charB - 'a') <= (uint)('z' - 'a'))
+                        charB -= 0x20;
 
                     //Return the (case-insensitive) difference between them.
                     if (charA != charB)
                         return charA - charB;
 
                     // Next char
-                    a++; b++;
+                    a++;
+                    b++;
                     length--;
                 }
 
@@ -80,7 +84,8 @@ namespace System
 
             int length = strA.Length;
 
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
+            fixed (char* ap = &strA._firstChar)
+            fixed (char* bp = &strB._firstChar)
             {
                 char* a = ap;
                 char* b = bp;
@@ -89,8 +94,11 @@ namespace System
                 // Single int read aligns pointers for the following long reads
                 // PERF: No length check needed as there is always an int32 worth of string allocated
                 //       This read can also include the null terminator which both strings will have
-                if (*(int*)a != *(int*)b) return false;
-                length -= 2; a += 2; b += 2;
+                if (*(int*)a != *(int*)b)
+                    return false;
+                length -= 2;
+                a += 2;
+                b += 2;
 
                 // for AMD64 bit platform we unroll by 12 and
                 // check 3 qword at a time. This is less code
@@ -98,10 +106,15 @@ namespace System
 
                 while (length >= 12)
                 {
-                    if (*(long*)a != *(long*)b) return false;
-                    if (*(long*)(a + 4) != *(long*)(b + 4)) return false;
-                    if (*(long*)(a + 8) != *(long*)(b + 8)) return false;
-                    length -= 12; a += 12; b += 12;
+                    if (*(long*)a != *(long*)b)
+                        return false;
+                    if (*(long*)(a + 4) != *(long*)(b + 4))
+                        return false;
+                    if (*(long*)(a + 8) != *(long*)(b + 8))
+                        return false;
+                    length -= 12;
+                    a += 12;
+                    b += 12;
                 }
 #else
                 while (length >= 10)
@@ -121,8 +134,11 @@ namespace System
                 // the zero terminator.
                 while (length > 0)
                 {
-                    if (*(int*)a != *(int*)b) return false;
-                    length -= 2; a += 2; b += 2;
+                    if (*(int*)a != *(int*)b)
+                        return false;
+                    length -= 2;
+                    a += 2;
+                    b += 2;
                 }
 
                 return true;
@@ -136,7 +152,8 @@ namespace System
             Debug.Assert(strA.Length == strB.Length);
             int length = strA.Length;
 
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
+            fixed (char* ap = &strA._firstChar)
+            fixed (char* bp = &strB._firstChar)
             {
                 char* a = ap;
                 char* b = bp;
@@ -244,7 +261,8 @@ namespace System
 
             int length = Math.Min(strA.Length, strB.Length);
 
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
+            fixed (char* ap = &strA._firstChar)
+            fixed (char* bp = &strB._firstChar)
             {
                 char* a = ap;
                 char* b = bp;
@@ -273,22 +291,30 @@ namespace System
                 // is exposed to mscorlib, or a future version of C# allows inline IL),
                 // then do that and short-circuit before the fixed.
 
-                if (*(a + 1) != *(b + 1)) goto DiffOffset1;
+                if (*(a + 1) != *(b + 1))
+                    goto DiffOffset1;
 
                 // Since we know that the first two chars are the same,
                 // we can increment by 2 here and skip 4 bytes.
                 // This leaves us 8-byte aligned, which results
                 // on better perf for 64-bit platforms.
-                length -= 2; a += 2; b += 2;
+                length -= 2;
+                a += 2;
+                b += 2;
 
                 // unroll the loop
 #if BIT64
                 while (length >= 12)
                 {
-                    if (*(long*)a != *(long*)b) goto DiffOffset0;
-                    if (*(long*)(a + 4) != *(long*)(b + 4)) goto DiffOffset4;
-                    if (*(long*)(a + 8) != *(long*)(b + 8)) goto DiffOffset8;
-                    length -= 12; a += 12; b += 12;
+                    if (*(long*)a != *(long*)b)
+                        goto DiffOffset0;
+                    if (*(long*)(a + 4) != *(long*)(b + 4))
+                        goto DiffOffset4;
+                    if (*(long*)(a + 8) != *(long*)(b + 8))
+                        goto DiffOffset8;
+                    length -= 12;
+                    a += 12;
+                    b += 12;
                 }
 #else // BIT64
                 while (length >= 10)
@@ -310,7 +336,8 @@ namespace System
                 // the zero terminator.
                 while (length > 0)
                 {
-                    if (*(int*)a != *(int*)b) goto DiffNextInt;
+                    if (*(int*)a != *(int*)b)
+                        goto DiffNextInt;
                     length -= 2;
                     a += 2;
                     b += 2;
@@ -321,8 +348,12 @@ namespace System
                 return strA.Length - strB.Length;
 
 #if BIT64
-            DiffOffset8: a += 4; b += 4;
-            DiffOffset4: a += 4; b += 4;
+            DiffOffset8:
+                a += 4;
+                b += 4;
+            DiffOffset4:
+                a += 4;
+                b += 4;
 #else // BIT64
                 // Use jumps instead of falling through, since
                 // otherwise going to DiffOffset8 will involve
@@ -334,18 +365,20 @@ namespace System
 #endif // BIT64
 
             DiffOffset0:
-                // If we reached here, we already see a difference in the unrolled loop above
+// If we reached here, we already see a difference in the unrolled loop above
 #if BIT64
                 if (*(int*)a == *(int*)b)
                 {
-                    a += 2; b += 2;
+                    a += 2;
+                    b += 2;
                 }
 #endif // BIT64
 
             DiffNextInt:
-                if (*a != *b) return *a - *b;
+                if (*a != *b)
+                    return *a - *b;
 
-                DiffOffset1:
+            DiffOffset1:
                 Debug.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
                 return *(a + 1) - *(b + 1);
             }
@@ -753,7 +786,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            
+
             if ((Object)this == (Object)value)
             {
                 StringSpanHelpers.CheckStringComparison(comparisonType);
