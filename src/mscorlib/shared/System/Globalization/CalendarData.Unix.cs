@@ -269,6 +269,8 @@ namespace System.Globalization
 
                 if (callbackContext.Results.Count > 13)
                 {
+                    Debug.Assert(calendarId == CalendarId.HEBREW && callbackContext.Results.Count == 14);
+                    
                     if (calendarId == CalendarId.HEBREW)
                     {
                         leapHebrewMonthName = callbackContext.Results[13];
