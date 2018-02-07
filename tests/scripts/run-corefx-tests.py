@@ -67,6 +67,7 @@ parser.add_argument('-fx_root', dest='fx_root', default=None)
 parser.add_argument('-fx_branch', dest='fx_branch', default='master')
 parser.add_argument('-fx_commit', dest='fx_commit', default=None)
 parser.add_argument('-env_script', dest='env_script', default=None)
+parser.add_argument('-no_run_tests', dest='no_run_tests', action="store_true", default=False)
 
 
 ##########################################################################
@@ -78,7 +79,7 @@ def validate_args(args):
     Args:
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script)
+        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
             (str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
@@ -93,6 +94,7 @@ def validate_args(args):
     fx_branch = args.fx_branch
     fx_commit = args.fx_commit
     env_script = args.env_script
+    no_run_tests = args.no_run_tests
 
     def validate_arg(arg, check):
         """ Validate an individual arg
@@ -138,7 +140,7 @@ def validate_args(args):
         validate_arg(env_script, lambda item: os.path.isfile(env_script))
         env_script = os.path.abspath(env_script)
 
-    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script)
+    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
 
     log('Configuration:')
     log(' arch: %s' % arch)
@@ -149,6 +151,7 @@ def validate_args(args):
     log(' fx_branch: %s' % fx_branch)
     log(' fx_commit: %s' % fx_commit)
     log(' env_script: %s' % env_script)
+    log(' no_run_tests: %s' % no_run_tests)
 
     return args
 
@@ -188,7 +191,7 @@ def main(args):
 
     testing = False
 
-    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script = validate_args(
+    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests = validate_args(
         args)
 
     clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
@@ -237,8 +240,8 @@ def main(args):
     command = "git checkout %s" % fx_commit
     log(command)
     returncode = 0 if testing else os.system(command)
-    if not returncode == 0:
-        sys.exit(returncode)
+    if returncode != 0:
+        sys.exit(1)
 
     # On Unix, coreFx build.sh requires HOME to be set, and it isn't by default
     # under our CI system, so set it now.
@@ -266,7 +269,7 @@ def main(args):
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
-        sys.exit(returncode)
+        sys.exit(1)
 
     # Build the build-tests command line.
 
@@ -289,6 +292,7 @@ def main(args):
     command = ' '.join((
         command,
         config_args,
+        '-SkipTests' if no_run_tests else '',
         '--',
         without_categories
     ))
@@ -303,8 +307,10 @@ def main(args):
 
     log(command)
     returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        sys.exit(1)
 
-    sys.exit(returncode)
+    sys.exit(0)
 
 
 ##########################################################################

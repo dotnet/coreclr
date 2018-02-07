@@ -184,6 +184,7 @@ INST3( mov_i2xmm,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( mov_xmm2i,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x7E)) // Move xmm reg to an int reg. reg1=xmm reg, reg2=int reg
 INST3( pmovmskb,    "pmovmskb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xD7)) // Move the MSB bits of all bytes in a xmm reg to an int reg
 INST3( movmskpd,    "movmskpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x50)) // Extract 2-bit sign mask from xmm and store in reg. The upper bits of r32 or r64 are filled with zeros.
+INST3( movd,        "movd"        , 0, IUM_WR, 0, 0, PCKDBL(0x7E), BAD_CODE, PCKDBL(0x6E))
 INST3( movq,        "movq"        , 0, IUM_WR, 0, 0, PCKDBL(0xD6), BAD_CODE, SSEFLT(0x7E))
 INST3( movsdsse2,   "movsd"       , 0, IUM_WR, 0, 0, SSEDBL(0x11), BAD_CODE, SSEDBL(0x10))
 
@@ -194,6 +195,8 @@ INST3( xorps,       "xorps"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( cvttsd2si,   "cvttsd2si"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x2C)) // cvt with trunc scalar double to signed DWORDs
 
 #ifndef LEGACY_BACKEND
+INST3( movntdq,     "movntdq"     , 0, IUM_WR, 0, 0, PCKDBL(0xE7), BAD_CODE, BAD_CODE)
+INST3( movntpd,     "movntpd"     , 0, IUM_WR, 0, 0, PCKDBL(0x2B), BAD_CODE, BAD_CODE)
 INST3( movntps,     "movntps"     , 0, IUM_WR, 0, 0, PCKFLT(0x2B), BAD_CODE, BAD_CODE)
 INST3( movdqu,      "movdqu"      , 0, IUM_WR, 0, 0, SSEFLT(0x7F), BAD_CODE, SSEFLT(0x6F))
 INST3( movdqa,      "movdqa"      , 0, IUM_WR, 0, 0, PCKDBL(0x7F), BAD_CODE, PCKDBL(0x6F))
@@ -216,6 +219,12 @@ INST3( shufps,      "shufps"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( shufpd,      "shufpd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xC6))
 
 INST3( punpckhdq,   "punpckhdq"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x6A))
+
+INST3( prefetchnta, "prefetchnta" , 0, IUM_RD, 0, 0, 0x000F0018,   BAD_CODE, BAD_CODE)
+INST3( prefetcht0,  "prefetcht0"  , 0, IUM_RD, 0, 0, 0x000F0818,   BAD_CODE, BAD_CODE)
+INST3( prefetcht1,  "prefetcht1"  , 0, IUM_RD, 0, 0, 0x000F1018,   BAD_CODE, BAD_CODE)
+INST3( prefetcht2,  "prefetcht2"  , 0, IUM_RD, 0, 0, 0x000F1818,   BAD_CODE, BAD_CODE)
+INST3( sfence,      "sfence"      , 0, IUM_RD, 0, 0, 0x000FF8AE,   BAD_CODE, BAD_CODE)
 
 // SSE 2 arith
 INST3( addps,  "addps",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x58))    // Add packed singles
@@ -404,6 +413,9 @@ INST3( pmuldq,       "pmuldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( blendvps,     "blendvps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x14))   // Variable Blend Packed Singles
 INST3( blendvpd,     "blendvpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x15))   // Variable Blend Packed Doubles
 INST3( pblendvb,     "pblendvb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x10))   // Variable Blend Packed Bytes
+INST3( lddqu,        "lddqu"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0xF0))  // Load Unaligned integer
+INST3( movntdqa,     "movntdqa"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2A))   // Load Double Quadword Non-Temporal Aligned Hint
+INST3( movddup,      "movddup"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x12))   // Replicate Double FP Values
 
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 

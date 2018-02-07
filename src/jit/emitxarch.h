@@ -192,6 +192,10 @@ bool isSse41Blendv(instruction ins)
 {
     return ins == INS_blendvps || ins == INS_blendvpd || ins == INS_pblendvb;
 }
+bool isPrefetch(instruction ins)
+{
+    return (ins == INS_prefetcht0) || (ins == INS_prefetcht1) || (ins == INS_prefetcht2) || (ins == INS_prefetchnta);
+}
 #else  // LEGACY_BACKEND
 bool UseVEXEncoding()
 {
@@ -246,6 +250,11 @@ bool TakesVexPrefix(instruction ins)
 {
     return false;
 }
+bool isPrefetch(instruction ins)
+{
+    return false;
+}
+
 code_t AddVexPrefixIfNeeded(instruction ins, code_t code, emitAttr attr)
 {
     return code;
@@ -382,6 +391,8 @@ void emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2)
 void emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, int ival);
 
 #ifndef LEGACY_BACKEND
+void emitIns_AR(instruction ins, emitAttr attr, regNumber base, int offs);
+
 void emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, insFormat fmt);
 
 void emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, int ival);
