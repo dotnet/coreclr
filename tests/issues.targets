@@ -211,6 +211,12 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\HardwareIntrinsics\X86\Sse\SetScalar_ro\*">
             <Issue>16094</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\**">
+            <Issue>15494</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\**">
+            <Issue>15494</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are x86 failures -->
