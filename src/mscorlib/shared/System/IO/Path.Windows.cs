@@ -51,38 +51,11 @@ namespace System.IO
                 return path;
             }
 
-            bool isDevice = PathInternal.IsDevice(path);
-            if (!isDevice)
-            {
-                // Toss out paths with colons that aren't a valid drive specifier.
-                // Cannot start with a colon and can only be of the form "C:".
-                // (Note that we used to explicitly check "http:" and "file:"- these are caught by this check now.)
-                int startIndex = PathInternal.PathStartSkip(path);
-
-                // Move past the colon
-                startIndex += 2;
-
-                if ((path.Length > 0 && path[0] == PathInternal.VolumeSeparatorChar)
-                    || (path.Length >= startIndex && path[startIndex - 1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsValidDriveChar(path[startIndex - 2]))
-                    || (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1))
-                {
-                    throw new NotSupportedException(SR.Format(SR.Argument_PathFormatNotSupported_Path, path));
-                }
-            }
-
             // Technically this doesn't matter but we used to throw for this case
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
 
-            // We don't want to check invalid characters for device format- see comments for extended above
-            string fullPath = PathHelper.Normalize(path, checkInvalidCharacters: !isDevice, expandShortPaths: true);
-
-            if (!isDevice)
-            {
-                // Emulate FileIOPermissions checks, retained for compatibility (normal invalid characters have already been checked)
-                if (PathInternal.HasWildCardCharacters(fullPath))
-                    throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
-            }
+            string fullPath = PathHelper.Normalize(path, checkInvalidCharacters: false, expandShortPaths: true);
 
             return fullPath;
         }
