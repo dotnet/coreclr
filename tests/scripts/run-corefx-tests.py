@@ -183,10 +183,10 @@ def log(message):
 
     print '[%s]: %s' % (sys.argv[0], message)
 
-def update_target_files(source_dir, target_dir):
-    """ Copy any files in the source_dir to the target_dir, but only if they
-        already exist in target_dir. The copy is not recursive. The directories
-        must already exist.
+def copy_files(source_dir, target_dir):
+    """ Copy any files in the source_dir to the target_dir.
+        The copy is not recursive.
+        The directories must already exist.
     Args:
         source_dir (str): source directory path
         target_dir (str): target directory path
@@ -199,12 +199,11 @@ def update_target_files(source_dir, target_dir):
     assert os.path.isdir(target_dir)
 
     for source_filename in os.listdir(source_dir):
+        source_pathname = os.path.join(source_dir, source_filename)
         target_pathname = os.path.join(target_dir, source_filename)
-        if os.path.isfile(target_pathname):
-            source_pathname = os.path.join(source_dir, source_filename)
-            log('Copy: %s => %s' % (source_pathname, target_pathname))
-            if not testing:
-                shutil.copy2(source_pathname, target_pathname)
+        log('Copy: %s => %s' % (source_pathname, target_pathname))
+        if not testing:
+            shutil.copy2(source_pathname, target_pathname)
 
 ##########################################################################
 # Main
@@ -306,6 +305,8 @@ def main(args):
 
     # Override the built corefx runtime (which it picked up by copying from packages determined
     # by its dependencies.props file). Note that we always build Release corefx.
+    # We must copy all files, not just the files that already exist in the corefx runtime
+    # directory. This is required so we copy over all altjit compilers.
     # TODO: it might be cleaner to encapsulate the knowledge of how to do this in the
     # corefx msbuild files somewhere.
 
@@ -318,7 +319,7 @@ def main(args):
                              '9.9.9')
 
     log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
-    update_target_files(core_root, fx_runtime)
+    copy_files(core_root, fx_runtime)
 
     # Build the build-tests command line.
 
