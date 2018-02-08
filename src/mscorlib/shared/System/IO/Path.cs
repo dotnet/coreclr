@@ -374,7 +374,7 @@ namespace System.IO
             return CombineNoChecksInternal(first, second);
         }
 
-		private static string CombineNoChecks(string first, string second)
+        private static string CombineNoChecks(string first, string second)
         {
 			if (string.IsNullOrEmpty(first))
 				return second;
@@ -420,7 +420,7 @@ namespace System.IO
                 return CombineNoChecks(second, third);
 
             return CombineNoChecksInternal(first, second, third);
-        }        
+        }
 
         private static string CombineNoChecks(ReadOnlySpan<char> first, ReadOnlySpan<char> second, ReadOnlySpan<char> third, ReadOnlySpan<char> fourth)
         {
