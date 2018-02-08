@@ -69,16 +69,19 @@ public:
 
         if (typeFloat)
         {
-            for (int i = 0; i < floatRegCount; ++i) 
+            for (int i = 0; i < floatRegCount; ++i)
             {
-                // Copy 4 bytes on 8 bytes alignment
-                *((UINT64*)dest + i) = *((UINT32*)src + i);
+                // Copy 4 bytes on 16 bytes alignment
+                *((UINT64*)dest + 2*i) = *((UINT32*)src + i);
             }
         }
         else
         {
-            // We can just do a memcpy.
-            memcpyNoGCRefs(dest, src, fieldBytes);
+            for (int i = 0; i < floatRegCount; ++i)
+            {
+                // Copy 8 bytes on 16 bytes alignment
+                *((UINT64*)dest + 2*i) = *((UINT64*)src + i);
+            }
         }
     }
 

@@ -58,7 +58,7 @@ ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 #define SIZEOF__ArgumentRegisters 0x48
 ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 
-#define SIZEOF__FloatArgumentRegisters 0x40
+#define SIZEOF__FloatArgumentRegisters 0x80
 ASMCONSTANTS_C_ASSERT(SIZEOF__FloatArgumentRegisters == sizeof(FloatArgumentRegisters))
 
 #define CallDescrData__pSrc                0x00

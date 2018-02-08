@@ -135,10 +135,11 @@ typedef DPTR(struct FloatArgumentRegisters) PTR_FloatArgumentRegisters;
 struct FloatArgumentRegisters {
     // armV8 supports 32 floating point registers. Each register is 128bits long.
     // It can be accessed as 128-bit value or 64-bit value(d0-d31) or as 32-bit value (s0-s31)
-    // or as 16-bit value or as 8-bit values. C# only has two builtin floating datatypes float(32-bit) and 
-    // double(64-bit). It does not have a quad-precision floating point.So therefore it does not make sense to
-    // store full 128-bit values in Frame when the upper 64 bit will not contain any values.
-    double  d[8];  // d0-d7
+    // or as 16-bit value or as 8-bit values.
+    // C# only has two builtin floating datatypes float(32-bit) and double(64-bit).
+    // It does not have a quad-precision floating point.
+    // However HW Intrinsics support using the full 128-bit value for passing Vectors.
+    double  qAsDouble[16];  // q0-q7
 };
 
 
