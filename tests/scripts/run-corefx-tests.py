@@ -200,10 +200,11 @@ def copy_files(source_dir, target_dir):
 
     for source_filename in os.listdir(source_dir):
         source_pathname = os.path.join(source_dir, source_filename)
-        target_pathname = os.path.join(target_dir, source_filename)
-        log('Copy: %s => %s' % (source_pathname, target_pathname))
-        if not testing:
-            shutil.copy2(source_pathname, target_pathname)
+        if os.path.isfile(source_pathname):
+            target_pathname = os.path.join(target_dir, source_filename)
+            log('Copy: %s => %s' % (source_pathname, target_pathname))
+            if not testing:
+                shutil.copy2(source_pathname, target_pathname)
 
 ##########################################################################
 # Main
