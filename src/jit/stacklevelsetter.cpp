@@ -15,11 +15,12 @@ StackLevelSetter::StackLevelSetter(Compiler* compiler)
     : Phase(compiler, "StackLevelSetter", PHASE_STACK_LEVEL_SETTER)
     , currentStackLevel(0)
     , maxStackLevel(0)
-#if !FEATURE_FIXED_OUT_ARGS
-    , framePointerRequired(compiler->codeGen->isFramePointerRequired())
-#endif // !FEATURE_FIXED_OUT_ARGS
     , memAllocator(compiler, CMK_fgArgInfoPtrArr)
     , putArgNumSlots(&memAllocator)
+#if !FEATURE_FIXED_OUT_ARGS
+    , framePointerRequired(compiler->codeGen->isFramePointerRequired())
+    , throwHelperBlocksUsed(comp->fgUseThrowHelperBlocks() && comp->compUsesThrowHelper)
+#endif // !FEATURE_FIXED_OUT_ARGS
 {
 }
 
@@ -88,10 +89,13 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
 
 #if !FEATURE_FIXED_OUT_ARGS
         // Set throw blocks incoming stack depth for x86.
-        bool operMightThrow = ((node->gtFlags & GTF_EXCEPT) != 0);
-        if (operMightThrow && !framePointerRequired && comp->fgUseThrowHelperBlocks())
+        if (throwHelperBlocksUsed && !framePointerRequired)
         {
-            SetThrowHelperBlocks(node, block);
+            bool operMightThrow = ((node->gtFlags & GTF_EXCEPT) != 0);
+            if (operMightThrow)
+            {
+                SetThrowHelperBlocks(node, block);
+            }
         }
 #endif // !FEATURE_FIXED_OUT_ARGS
 

@@ -36,6 +36,7 @@ private:
     PutArgNumSlotsMap putArgNumSlots; // The hash table keeps stack slot sizes for active GT_PUTARG_STK nodes.
 
 #if !FEATURE_FIXED_OUT_ARGS
-    bool framePointerRequired; // Is frame pointer required based on the analysis made by this phase.
-#endif                         // !FEATURE_FIXED_OUT_ARGS
+    bool framePointerRequired;  // Is frame pointer required based on the analysis made by this phase.
+    bool throwHelperBlocksUsed; // Were any throw helper blocks created for this method.
+#endif                          // !FEATURE_FIXED_OUT_ARGS
 };
