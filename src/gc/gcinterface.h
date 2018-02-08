@@ -202,9 +202,6 @@ extern uint8_t* g_GCShadowEnd;
 extern uint8_t* g_shadow_lowest_address;
 #endif
 
-// For low memory notification from host
-extern int32_t g_bLowMemoryFromHost;
-
 // Event levels corresponding to events that can be fired by the GC.
 enum GCEventLevel
 {
@@ -914,7 +911,7 @@ struct ScanContext
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     EtwGCRootKind dwEtwRootKind;
 #else
-    int _unused3;
+    EtwGCRootKind _unused3;
 #endif // GC_PROFILING || FEATURE_EVENT_TRACE
     
     ScanContext()
@@ -929,9 +926,9 @@ struct ScanContext
 #ifdef GC_PROFILING
         pMD = NULL;
 #endif //GC_PROFILING
-#ifdef FEATURE_EVENT_TRACE
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
         dwEtwRootKind = kEtwGCRootKindOther;
-#endif // FEATURE_EVENT_TRACE
+#endif
     }
 };
 

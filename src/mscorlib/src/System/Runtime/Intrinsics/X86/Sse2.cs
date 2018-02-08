@@ -568,7 +568,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm_cvtsi32_si128 (int a)
         ///   MOVD xmm, reg/m32
         /// </summary>
-        public static Vector128<uint> ConvertScalarToVector128UInt32Scalar(uint value) => ConvertScalarToVector128UInt32Scalar(value);
+        public static Vector128<uint> ConvertScalarToVector128UInt32(uint value) => ConvertScalarToVector128UInt32(value);
         /// <summary>
         /// __m128i _mm_cvtsi64_si128 (__int64 a)
         ///   MOVQ xmm, reg/m64
@@ -748,33 +748,15 @@ namespace System.Runtime.Intrinsics.X86
         public static unsafe Vector128<double> LoadLow(Vector128<double> upper, double* address) => LoadLow(upper, address);
 
         /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
-        /// </summary>
-        public static unsafe Vector128<sbyte> LoadScalarVector128(sbyte* address) => LoadScalarVector128(address);
-        /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
-        /// </summary>
-        public static unsafe Vector128<byte> LoadScalarVector128(byte* address) => LoadScalarVector128(address);
-        /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
-        /// </summary>
-        public static unsafe Vector128<short> LoadScalarVector128(short* address) => LoadScalarVector128(address);
-        /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
-        /// </summary>
-        public static unsafe Vector128<ushort> LoadScalarVector128(ushort* address) => LoadScalarVector128(address);
-        /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
+        /// __m128i _mm_loadl_epi32 (__m128i const* mem_addr)
+        ///   MOVD xmm, reg/m32
+        /// The above native signature does not exist. We provide this additional overload for completeness.
         /// </summary>
         public static unsafe Vector128<int> LoadScalarVector128(int* address) => LoadScalarVector128(address);
         /// <summary>
-        /// __m128i _mm_loadl_epi64 (__m128i const* mem_addr)
-        ///   MOVQ xmm, reg/m64
+        /// __m128i _mm_loadl_epi32 (__m128i const* mem_addr)
+        ///   MOVD xmm, reg/m32
+        /// The above native signature does not exist. We provide this additional overload for completeness.
         /// </summary>
         public static unsafe Vector128<uint> LoadScalarVector128(uint* address) => LoadScalarVector128(address);
         /// <summary>

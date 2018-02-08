@@ -315,7 +315,6 @@
     <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\String.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
@@ -595,6 +594,26 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.Windows.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+    These files are also added to CoreLib.Shared.projitems, but they don't show up in
+    Visual Studio Solution Explorer. Adding them here as well so developers can
+    edit them and regenerate the .cs files.
+    -->
+    <Content Include="shared\System\Numerics\ConstantHelper.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ConstantHelper.cs</LastGenOutput>
+    </Content>
+    <None Include="shared\System\Numerics\GenerationConfig.ttinclude" />
+    <Content Include="shared\System\Numerics\Register.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Register.cs</LastGenOutput>
+    </Content>
+    <Content Include="shared\System\Numerics\Vector.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Vector.cs</LastGenOutput>
+    </Content>
   </ItemGroup>
   <!-- Include additional sources shared files in the compilation -->
   <ItemGroup>

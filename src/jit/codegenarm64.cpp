@@ -1436,7 +1436,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
  * specified by the constant (GT_CNS_INT or GT_CNS_DBL) in 'tree'. This does not call
  * genProduceReg() on the target register.
  */
-void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTreePtr tree)
+void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTree* tree)
 {
     switch (tree->gtOper)
     {
@@ -1510,8 +1510,8 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     emitAttr  attr       = emitActualTypeSize(treeNode);
     unsigned  isUnsigned = (treeNode->gtFlags & GTF_UNSIGNED);
 
-    GenTreePtr op1 = treeNode->gtGetOp1();
-    GenTreePtr op2 = treeNode->gtGetOp2();
+    GenTree* op1 = treeNode->gtGetOp1();
+    GenTree* op2 = treeNode->gtGetOp2();
 
     assert(!varTypeIsFloating(targetType));
 
@@ -1552,8 +1552,8 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     assert(oper == GT_ADD || oper == GT_SUB || oper == GT_MUL || oper == GT_DIV || oper == GT_UDIV || oper == GT_AND ||
            oper == GT_OR || oper == GT_XOR);
 
-    GenTreePtr  op1 = treeNode->gtGetOp1();
-    GenTreePtr  op2 = treeNode->gtGetOp2();
+    GenTree*    op1 = treeNode->gtGetOp1();
+    GenTree*    op2 = treeNode->gtGetOp2();
     instruction ins = genGetInsForOper(treeNode->OperGet(), targetType);
 
     if ((treeNode->gtFlags & GTF_SET_FLAGS) != 0)
@@ -1655,7 +1655,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     // Ensure that lclVar nodes are typed correctly.
     assert(!varDsc->lvNormalizeOnStore() || targetType == genActualType(varDsc->TypeGet()));
 
-    GenTreePtr data = tree->gtOp1;
+    GenTree* data = tree->gtOp1;
     genConsumeRegs(data);
 
     regNumber dataReg = REG_NA;
@@ -1703,7 +1703,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
     // Ensure that lclVar nodes are typed correctly.
     assert(!varDsc->lvNormalizeOnStore() || targetType == genActualType(varDsc->TypeGet()));
 
-    GenTreePtr data = tree->gtOp1;
+    GenTree* data = tree->gtOp1;
 
     // var = call, where call returns a multi-reg return value
     // case is handled separately.
@@ -1784,11 +1784,11 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
 // Return Value:
 //    None
 //
-void CodeGen::genReturn(GenTreePtr treeNode)
+void CodeGen::genReturn(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
-    GenTreePtr op1        = treeNode->gtGetOp1();
-    var_types  targetType = treeNode->TypeGet();
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
 
     // A void GT_RETFILT is the end of a finally. For non-void filter returns we need to load the result in the return
     // register, if it's not already there. The processing is the same as GT_RETURN. For filters, the IL spec says the
@@ -1865,11 +1865,11 @@ void CodeGen::genReturn(GenTreePtr treeNode)
 /***********************************************************************************************
  *  Generate code for localloc
  */
-void CodeGen::genLclHeap(GenTreePtr tree)
+void CodeGen::genLclHeap(GenTree* tree)
 {
     assert(tree->OperGet() == GT_LCLHEAP);
 
-    GenTreePtr size = tree->gtOp.gtOp1;
+    GenTree* size = tree->gtOp.gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
     regNumber   targetReg       = tree->gtRegNum;
@@ -2223,7 +2223,7 @@ void CodeGen::genCodeForNegNot(GenTree* tree)
     // The dst can only be a register.
     assert(targetReg != REG_NA);
 
-    GenTreePtr operand = tree->gtGetOp1();
+    GenTree* operand = tree->gtGetOp1();
     assert(!operand->isContained());
     // The src must be a register.
     regNumber operandReg = genConsumeReg(operand);
@@ -2257,8 +2257,8 @@ void CodeGen::genCodeForDivMod(GenTreeOp* tree)
     }
     else // an integer divide operation
     {
-        GenTreePtr divisorOp = tree->gtGetOp2();
-        emitAttr   size      = EA_ATTR(genTypeSize(genActualType(tree->TypeGet())));
+        GenTree* divisorOp = tree->gtGetOp2();
+        emitAttr size      = EA_ATTR(genTypeSize(genActualType(tree->TypeGet())));
 
         if (divisorOp->IsIntegralConst(0))
         {
@@ -2356,9 +2356,9 @@ void CodeGen::genCodeForDivMod(GenTreeOp* tree)
 void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
 {
     // Make sure we got the arguments of the initblk/initobj operation in the right registers
-    unsigned   size    = initBlkNode->Size();
-    GenTreePtr dstAddr = initBlkNode->Addr();
-    GenTreePtr initVal = initBlkNode->Data();
+    unsigned size    = initBlkNode->Size();
+    GenTree* dstAddr = initBlkNode->Addr();
+    GenTree* initVal = initBlkNode->Data();
     if (initVal->OperIsInitVal())
     {
         initVal = initVal->gtGetOp1();
@@ -2486,10 +2486,10 @@ void CodeGen::genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* 
 // str tempReg, [R14, #8]
 void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
 {
-    GenTreePtr dstAddr       = cpObjNode->Addr();
-    GenTreePtr source        = cpObjNode->Data();
-    var_types  srcAddrType   = TYP_BYREF;
-    bool       sourceIsLocal = false;
+    GenTree*  dstAddr       = cpObjNode->Addr();
+    GenTree*  source        = cpObjNode->Data();
+    var_types srcAddrType   = TYP_BYREF;
+    bool      sourceIsLocal = false;
 
     assert(source->isContained());
     if (source->gtOper == GT_IND)
@@ -2801,9 +2801,9 @@ void CodeGen::genCodeForCmpXchg(GenTreeCmpXchg* treeNode)
 {
     assert(treeNode->OperIs(GT_CMPXCHG));
 
-    GenTreePtr addr      = treeNode->gtOpLocation;  // arg1
-    GenTreePtr data      = treeNode->gtOpValue;     // arg2
-    GenTreePtr comparand = treeNode->gtOpComparand; // arg3
+    GenTree* addr      = treeNode->gtOpLocation;  // arg1
+    GenTree* data      = treeNode->gtOpValue;     // arg2
+    GenTree* comparand = treeNode->gtOpComparand; // arg3
 
     regNumber targetReg    = treeNode->gtRegNum;
     regNumber dataReg      = data->gtRegNum;
@@ -3215,7 +3215,7 @@ void CodeGen::genCodeForSwap(GenTreeOp* tree)
 //    A full 64-bit value of either 1 or 0 is setup in the 'dstReg'
 //-------------------------------------------------------------------------------------------
 
-void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
+void CodeGen::genSetRegToCond(regNumber dstReg, GenTree* tree)
 {
     emitJumpKind jumpKind[2];
     bool         branchToTrueLabel[2];
@@ -3272,7 +3272,7 @@ void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
 //    The treeNode must have an assigned register.
 //    SrcType= int32/uint32/int64/uint64 and DstType=float/double.
 //
-void CodeGen::genIntToFloatCast(GenTreePtr treeNode)
+void CodeGen::genIntToFloatCast(GenTree* treeNode)
 {
     // int type --> float/double conversions are always non-overflow ones
     assert(treeNode->OperGet() == GT_CAST);
@@ -3281,7 +3281,7 @@ void CodeGen::genIntToFloatCast(GenTreePtr treeNode)
     regNumber targetReg = treeNode->gtRegNum;
     assert(genIsValidFloatReg(targetReg));
 
-    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());             // Cannot be contained
     assert(genIsValidIntReg(op1->gtRegNum)); // Must be a valid int reg.
 
@@ -3349,7 +3349,7 @@ void CodeGen::genIntToFloatCast(GenTreePtr treeNode)
 //    The treeNode must have an assigned register.
 //    SrcType=float/double and DstType= int32/uint32/int64/uint64
 //
-void CodeGen::genFloatToIntCast(GenTreePtr treeNode)
+void CodeGen::genFloatToIntCast(GenTree* treeNode)
 {
     // we don't expect to see overflow detecting float/double --> int type conversions here
     // as they should have been converted into helper calls by front-end.
@@ -3359,7 +3359,7 @@ void CodeGen::genFloatToIntCast(GenTreePtr treeNode)
     regNumber targetReg = treeNode->gtRegNum;
     assert(genIsValidIntReg(targetReg)); // Must be a valid int reg.
 
-    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());               // Cannot be contained
     assert(genIsValidFloatReg(op1->gtRegNum)); // Must be a valid float reg.
 
@@ -3427,14 +3427,14 @@ void CodeGen::genFloatToIntCast(GenTreePtr treeNode)
 // Assumptions:
 //    GT_CKFINITE node has reserved an internal register.
 //
-void CodeGen::genCkfinite(GenTreePtr treeNode)
+void CodeGen::genCkfinite(GenTree* treeNode)
 {
     assert(treeNode->OperGet() == GT_CKFINITE);
 
-    GenTreePtr op1         = treeNode->gtOp.gtOp1;
-    var_types  targetType  = treeNode->TypeGet();
-    int        expMask     = (targetType == TYP_FLOAT) ? 0x7F8 : 0x7FF; // Bit mask to extract exponent.
-    int        shiftAmount = targetType == TYP_FLOAT ? 20 : 52;
+    GenTree*  op1         = treeNode->gtOp.gtOp1;
+    var_types targetType  = treeNode->TypeGet();
+    int       expMask     = (targetType == TYP_FLOAT) ? 0x7F8 : 0x7FF; // Bit mask to extract exponent.
+    int       shiftAmount = targetType == TYP_FLOAT ? 20 : 52;
 
     emitter* emit = getEmitter();
 
@@ -3472,10 +3472,10 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
     regNumber targetReg = tree->gtRegNum;
     emitter*  emit      = getEmitter();
 
-    GenTreePtr op1     = tree->gtOp1;
-    GenTreePtr op2     = tree->gtOp2;
-    var_types  op1Type = genActualType(op1->TypeGet());
-    var_types  op2Type = genActualType(op2->TypeGet());
+    GenTree*  op1     = tree->gtOp1;
+    GenTree*  op2     = tree->gtOp2;
+    var_types op1Type = genActualType(op1->TypeGet());
+    var_types op2Type = genActualType(op2->TypeGet());
 
     assert(!op1->isUsedFromMemory());
     assert(!op2->isUsedFromMemory());
@@ -4939,7 +4939,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
         offs = treeNode->gtLclFld.gtLclOffs;
     }
 
-    GenTreePtr op1 = treeNode->gtOp.gtOp1;
+    GenTree* op1 = treeNode->gtOp.gtOp1;
     assert(!op1->isContained());
     regNumber operandReg = genConsumeReg(op1);
 
@@ -4970,6 +4970,17 @@ instruction CodeGen::getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types ins
     return compiler->getHWIntrinsicInfo(intrinsicID).instrs[instrTypeIndex];
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsic: Produce code for a GT_HWIntrinsic node.
+//
+// This is the main routine which in turn calls the genHWIntrinsicXXX() routines.
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
@@ -4994,6 +5005,9 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
         case HWIntrinsicInfo::SimdSelectOp:
             genHWIntrinsicSimdSelectOp(node);
             break;
+        case HWIntrinsicInfo::SimdSetAllOp:
+            genHWIntrinsicSimdSetAllOp(node);
+            break;
         case HWIntrinsicInfo::SimdUnaryOp:
             genHWIntrinsicSimdUnaryOp(node);
             break;
@@ -5002,6 +5016,19 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
     }
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicUnaryOp:
+//
+// Produce code for a GT_HWIntrinsic node with form UnaryOp.
+//
+// Consumes one scalar operand produces a scalar
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicUnaryOp(GenTreeHWIntrinsic* node)
 {
     GenTree*  op1       = node->gtGetOp1();
@@ -5023,11 +5050,39 @@ void CodeGen::genHWIntrinsicUnaryOp(GenTreeHWIntrinsic* node)
     genProduceReg(node);
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicCrcOp:
+//
+// Produce code for a GT_HWIntrinsic node with form CrcOp.
+//
+// Consumes two scalar operands and produces a scalar result
+//
+// This form differs from BinaryOp because the attr depends on the size of op2
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicCrcOp(GenTreeHWIntrinsic* node)
 {
     NYI("genHWIntrinsicCrcOp not implemented");
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicSimdBinaryOp:
+//
+// Produce code for a GT_HWIntrinsic node with form SimdBinaryOp.
+//
+// Consumes two SIMD operands and produces a SIMD result
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicSimdBinaryOp(GenTreeHWIntrinsic* node)
 {
     GenTree*  op1       = node->gtGetOp1();
@@ -5059,9 +5114,191 @@ void CodeGen::genHWIntrinsicSimdBinaryOp(GenTreeHWIntrinsic* node)
     genProduceReg(node);
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicSwitchTable:
+//
+// Generate code for an immediate switch table
+//
+// In cases where an instruction only supports const immediate operands, we
+// need to generate functionally correct code when the operand is not constant
+//
+// This is required by the HW Intrinsic design to handle indirect calls, such as:
+//   debugger calls
+//   reflection
+//   call backs
+//
+// Generated code implements a switch of this form
+//
+// switch (swReg)
+// {
+// case 0:
+//    ins0; // emitSwCase(0)
+//    break;
+// case 1:
+//    ins1; // emitSwCase(1)
+//    break;
+// ...
+// ...
+// ...
+// case swMax - 1:
+//    insLast; // emitSwCase(swMax - 1)
+//    break;
+// default:
+//    throw ArgumentOutOfRangeException
+// }
+//
+// Generated code looks like:
+//
+//     cmp swReg, #swMax
+//     b.hs ThrowArgumentOutOfRangeExceptionHelper
+//     adr tmpReg, labelFirst
+//     add tmpReg, tmpReg, swReg, LSL #3
+//     b   [tmpReg]
+// labelFirst:
+//     ins0
+//     b labelBreakTarget
+//     ins1
+//     b labelBreakTarget
+//     ...
+//     ...
+//     ...
+//     insLast
+//     b labelBreakTarget
+// labelBreakTarget:
+//
+//
+// Arguments:
+//    swReg      - register containing the switch case to execute
+//    tmpReg     - temporary integer register for calculating the switch indirect branch target
+//    swMax      - the number of switch cases.  If swReg >= swMax throw SCK_ARG_RNG_EXCPN
+//    emitSwCase - function like argument taking an immediate value and emitting one instruction
+//
+// Return Value:
+//    None.
+//
+template <typename HWIntrinsicSwitchCaseBody>
+void CodeGen::genHWIntrinsicSwitchTable(regNumber                 swReg,
+                                        regNumber                 tmpReg,
+                                        int                       swMax,
+                                        HWIntrinsicSwitchCaseBody emitSwCase)
+{
+    assert(swMax > 0);
+    assert(swMax <= 256);
+
+    assert(genIsValidIntReg(tmpReg));
+    assert(genIsValidIntReg(swReg));
+
+    BasicBlock* labelFirst       = genCreateTempLabel();
+    BasicBlock* labelBreakTarget = genCreateTempLabel();
+
+    // Detect and throw out of range exception
+    getEmitter()->emitIns_R_I(INS_cmp, EA_4BYTE, swReg, swMax);
+
+    emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
+    genJumpToThrowHlpBlk(jmpGEU, SCK_ARG_RNG_EXCPN);
+
+    // Calculate switch target
+    labelFirst->bbFlags |= BBF_JMP_TARGET;
+
+    // tmpReg = labelFirst
+    getEmitter()->emitIns_R_L(INS_adr, EA_PTRSIZE, labelFirst, tmpReg);
+
+    // tmpReg = labelFirst + swReg * 8
+    getEmitter()->emitIns_R_R_R_I(INS_add, EA_PTRSIZE, tmpReg, tmpReg, swReg, 3, INS_OPTS_LSL);
+
+    // br tmpReg
+    getEmitter()->emitIns_R(INS_br, EA_PTRSIZE, tmpReg);
+
+    genDefineTempLabel(labelFirst);
+    for (int i = 0; i < swMax; ++i)
+    {
+        unsigned prevInsCount = getEmitter()->emitInsCount;
+
+        emitSwCase(i);
+
+        assert(getEmitter()->emitInsCount == prevInsCount + 1);
+
+        inst_JMP(EJ_jmp, labelBreakTarget);
+
+        assert(getEmitter()->emitInsCount == prevInsCount + 2);
+    }
+    genDefineTempLabel(labelBreakTarget);
+}
+
+//------------------------------------------------------------------------
+// genHWIntrinsicSimdExtractOp:
+//
+// Produce code for a GT_HWIntrinsic node with form SimdExtractOp.
+//
+// Consumes one SIMD operand and one scalar
+//
+// The element index operand is typically a const immediate
+// When it is not, a switch table is generated
+//
+// See genHWIntrinsicSwitchTable comments
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicSimdExtractOp(GenTreeHWIntrinsic* node)
 {
-    NYI("HWIntrinsic form not implemented");
+    GenTree*  op1        = node->gtGetOp1();
+    GenTree*  op2        = node->gtGetOp2();
+    var_types simdType   = op1->TypeGet();
+    var_types targetType = node->TypeGet();
+    regNumber targetReg  = node->gtRegNum;
+
+    assert(targetReg != REG_NA);
+
+    genConsumeOperands(node);
+
+    regNumber op1Reg = op1->gtRegNum;
+
+    assert(genIsValidFloatReg(op1Reg));
+
+    emitAttr baseTypeSize = emitTypeSize(targetType);
+
+    int elements = emitTypeSize(simdType) / baseTypeSize;
+
+    auto emitSwCase = [&](int element) {
+        assert(element >= 0);
+        assert(element < elements);
+
+        if (varTypeIsFloating(targetType))
+        {
+            assert(genIsValidFloatReg(targetReg));
+            getEmitter()->emitIns_R_R_I_I(INS_mov, baseTypeSize, targetReg, op1Reg, 0, element);
+        }
+        else if (varTypeIsUnsigned(targetType) || (baseTypeSize == EA_8BYTE))
+        {
+            assert(genIsValidIntReg(targetReg));
+            getEmitter()->emitIns_R_R_I(INS_umov, baseTypeSize, targetReg, op1Reg, element);
+        }
+        else
+        {
+            assert(genIsValidIntReg(targetReg));
+            getEmitter()->emitIns_R_R_I(INS_smov, baseTypeSize, targetReg, op1Reg, element);
+        }
+    };
+
+    if (op2->isContainedIntOrIImmed())
+    {
+        int element = (int)op2->AsIntConCommon()->IconValue();
+
+        emitSwCase(element);
+    }
+    else
+    {
+        regNumber elementReg = op2->gtRegNum;
+        regNumber tmpReg     = node->GetSingleTempReg();
+
+        genHWIntrinsicSwitchTable(elementReg, tmpReg, elements, emitSwCase);
+    }
+
+    genProduceReg(node);
 }
 
 void CodeGen::genHWIntrinsicSimdInsertOp(GenTreeHWIntrinsic* node)
@@ -5069,11 +5306,142 @@ void CodeGen::genHWIntrinsicSimdInsertOp(GenTreeHWIntrinsic* node)
     NYI("genHWIntrinsicSimdExtractOp not implemented");
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicSimdSelectOp:
+//
+// Produce code for a GT_HWIntrinsic node with form SimdSelectOp.
+//
+// Consumes three SIMD operands and produces a SIMD result
+//
+// This intrinsic form requires one of the source registers to be the
+// destination register.  Inserts a INS_mov if this requirement is not met.
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicSimdSelectOp(GenTreeHWIntrinsic* node)
 {
-    NYI("genHWIntrinsicSimdSelectOp not implemented");
+    GenTreeArgList* argList   = node->gtGetOp1()->AsArgList();
+    GenTree*        op1       = argList->Current();
+    GenTree*        op2       = argList->Rest()->Current();
+    GenTree*        op3       = argList->Rest()->Rest()->Current();
+    var_types       baseType  = node->gtSIMDBaseType;
+    regNumber       targetReg = node->gtRegNum;
+
+    assert(targetReg != REG_NA);
+    var_types targetType = node->TypeGet();
+
+    genConsumeRegs(op1);
+    genConsumeRegs(op2);
+    genConsumeRegs(op3);
+
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op2Reg = op2->gtRegNum;
+    regNumber op3Reg = op3->gtRegNum;
+
+    assert(genIsValidFloatReg(op1Reg));
+    assert(genIsValidFloatReg(op2Reg));
+    assert(genIsValidFloatReg(op3Reg));
+    assert(genIsValidFloatReg(targetReg));
+
+    bool     is16Byte = (node->gtSIMDSize > 8);
+    emitAttr attr     = is16Byte ? EA_16BYTE : EA_8BYTE;
+
+    // Arm64 has three bit select forms; each uses three source registers
+    // One of the sources is also the destination
+    if (targetReg == op3Reg)
+    {
+        // op3 is target use bit insert if true
+        // op3 = op3 ^ (op1 & (op2 ^ op3))
+        getEmitter()->emitIns_R_R_R(INS_bit, attr, op3Reg, op2Reg, op1Reg);
+    }
+    else if (targetReg == op2Reg)
+    {
+        // op2 is target use bit insert if false
+        // op2 = op2 ^ (~op1 & (op2 ^ op3))
+        getEmitter()->emitIns_R_R_R(INS_bif, attr, op2Reg, op3Reg, op1Reg);
+    }
+    else
+    {
+        if (targetReg != op1Reg)
+        {
+            // target is not one of the sources, copy op1 to use bit select form
+            getEmitter()->emitIns_R_R(INS_mov, attr, targetReg, op1Reg);
+        }
+        // use bit select
+        // targetReg = op3 ^ (targetReg & (op2 ^ op3))
+        getEmitter()->emitIns_R_R_R(INS_bsl, attr, targetReg, op2Reg, op3Reg);
+    }
+
+    genProduceReg(node);
 }
 
+//------------------------------------------------------------------------
+// genHWIntrinsicSimdSetAllOp:
+//
+// Produce code for a GT_HWIntrinsic node with form SimdSetAllOp.
+//
+// Consumes single scalar operand and produces a SIMD result
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genHWIntrinsicSimdSetAllOp(GenTreeHWIntrinsic* node)
+{
+    GenTree*  op1       = node->gtGetOp1();
+    var_types baseType  = node->gtSIMDBaseType;
+    regNumber targetReg = node->gtRegNum;
+
+    assert(targetReg != REG_NA);
+    var_types targetType = node->TypeGet();
+
+    genConsumeOperands(node);
+
+    regNumber op1Reg = op1->gtRegNum;
+
+    assert(genIsValidFloatReg(targetReg));
+    assert(genIsValidIntReg(op1Reg) || genIsValidFloatReg(op1Reg));
+
+    instruction ins = getOpForHWIntrinsic(node, baseType);
+    assert(ins != INS_invalid);
+
+    bool     is16Byte = (node->gtSIMDSize > 8);
+    emitAttr attr     = is16Byte ? EA_16BYTE : EA_8BYTE;
+    insOpts  opt      = genGetSimdInsOpt(is16Byte, baseType);
+
+    // TODO-ARM64-CQ Support contained immediate cases
+
+    if (genIsValidIntReg(op1Reg))
+    {
+        getEmitter()->emitIns_R_R(ins, attr, targetReg, op1Reg, opt);
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R_I(ins, attr, targetReg, op1Reg, 0, opt);
+    }
+
+    genProduceReg(node);
+}
+
+//------------------------------------------------------------------------
+// genHWIntrinsicSimdUnaryOp:
+//
+// Produce code for a GT_HWIntrinsic node with form SimdUnaryOp.
+//
+// Consumes single SIMD operand and produces a SIMD result
+//
+// Arguments:
+//    node - the GT_HWIntrinsic node
+//
+// Return Value:
+//    None.
+//
 void CodeGen::genHWIntrinsicSimdUnaryOp(GenTreeHWIntrinsic* node)
 {
     GenTree*  op1       = node->gtGetOp1();
