@@ -277,40 +277,24 @@ namespace System.Globalization
             Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            int length = prefix.Length;
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
             {
                 if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
                 {
-                    if (StartsWithOrdinalIgnoreCaseHelper(source, prefix, out length))
-                    {
-                        source = source.Slice(prefix.Length - length);
-                        prefix = prefix.Slice(prefix.Length - length);
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                        
+                    return StartsWithOrdinalIgnoreCaseHelper(source, prefix, options);
                 }
                 else
                 {
-                    if (StartsWithOrdinalHelper(source, prefix, out length))
-                    {
-                        source = source.Slice(prefix.Length - length);
-                        prefix = prefix.Slice(prefix.Length - length);
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    return StartsWithOrdinalHelper(source, prefix, options);
                 }
             }
-
-            fixed (char* pSource = &MemoryMarshal.GetReference(source))
-            fixed (char* pPrefix = &MemoryMarshal.GetReference(prefix))
+            else
             {
-                return Interop.Globalization.StartsWith(_sortHandle, pPrefix, prefix.Length, pSource, source.Length, options);
+                fixed (char* pSource = &MemoryMarshal.GetReference(source))
+                fixed (char* pPrefix = &MemoryMarshal.GetReference(prefix))
+                {
+                    return Interop.Globalization.StartsWith(_sortHandle, pPrefix, prefix.Length, pSource, source.Length, options);
+                }
             }
         }
 
@@ -338,54 +322,38 @@ namespace System.Globalization
             Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            int length = suffix.Length;
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
             {
                 if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
                 {
-                    if (EndsWithOrdinalIgnoreCaseHelper(source, suffix, out length))
-                    {
-                        source = source.Slice(suffix.Length - length);
-                        suffix = suffix.Slice(suffix.Length - length);
-                    }
-                    else
-                    {
-                        return false;
-                    }
-
+                    return EndsWithOrdinalIgnoreCaseHelper(source, suffix, options);
                 }
                 else
                 {
-                    if (EndsWithOrdinalHelper(source, suffix, out length))
-                    {
-                        source = source.Slice(suffix.Length - length);
-                        suffix = suffix.Slice(suffix.Length - length);
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    return EndsWithOrdinalHelper(source, suffix, options);
                 }
             }
-
-            fixed (char* pSource = &MemoryMarshal.GetReference(source))
-            fixed (char* pSuffix = &MemoryMarshal.GetReference(suffix))
+            else
             {
-                return Interop.Globalization.EndsWith(_sortHandle, pSuffix, suffix.Length, pSource, source.Length, options);
+                fixed (char* pSource = &MemoryMarshal.GetReference(source))
+                fixed (char* pSuffix = &MemoryMarshal.GetReference(suffix))
+                {
+                    return Interop.Globalization.EndsWith(_sortHandle, pSuffix, suffix.Length, pSource, source.Length, options);
+                }
             }
         }
 
-        private unsafe bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
+        private unsafe bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
-            return StartsWithOrdinalIgnoreCaseHelper(source.Slice(source.Length - suffix.Length), suffix, out length);
+            return StartsWithOrdinalIgnoreCaseHelper(source.Slice(source.Length - suffix.Length), suffix, options);
         }
 
-        private unsafe bool EndsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
+        private unsafe bool EndsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
         {
-            return StartsWithOrdinalHelper(source.Slice(source.Length - suffix.Length), suffix, out length);
+            return StartsWithOrdinalHelper(source.Slice(source.Length - suffix.Length), suffix, options);
         }
 
-        private unsafe bool StartsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, out int length)
+        private unsafe bool StartsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
@@ -394,7 +362,7 @@ namespace System.Globalization
             Debug.Assert(_isAsciiEqualityOrdinal);
             Debug.Assert(source.Length >= prefix.Length);
 
-            length = prefix.Length;
+            int length = prefix.Length;
 
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(prefix))
@@ -427,11 +395,12 @@ namespace System.Globalization
                     length--;
                 }
 
-                return length != 0;
+                if (length == 0) return true;
+                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, source.Length - length, options);
             }
         }
 
-        private unsafe bool StartsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, out int length)
+        private unsafe bool StartsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
 
@@ -440,7 +409,7 @@ namespace System.Globalization
             Debug.Assert(_isAsciiEqualityOrdinal);
             Debug.Assert(source.Length >= prefix.Length);
 
-            length = prefix.Length;
+            int length = prefix.Length;
 
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(prefix))
@@ -469,10 +438,10 @@ namespace System.Globalization
                     length--;
                 }
 
-                return length != 0;
+                if (length == 0) return true;
+                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, source.Length - length, options);
             }
         }
-
 
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
