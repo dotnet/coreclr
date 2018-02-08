@@ -279,6 +279,11 @@ namespace System.Globalization
 
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
             {
+                if (source.Length < prefix.Length)
+                {
+                    return false;
+                }
+
                 if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
                 {
                     return StartsWithOrdinalIgnoreCaseHelper(source, prefix, options);
@@ -321,9 +326,14 @@ namespace System.Globalization
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
-
+            
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
             {
+                if (source.Length < suffix.Length)
+                {
+                    return false;
+                }
+
                 if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
                 {
                     return EndsWithOrdinalIgnoreCaseHelper(source, suffix, options);
@@ -341,20 +351,6 @@ namespace System.Globalization
                     return Interop.Globalization.EndsWith(_sortHandle, pSuffix, suffix.Length, pSource, source.Length, options);
                 }
             }
-        }
-
-        private unsafe bool IsFastSort(char* alreadyFixedPointer, int length)
-        {
-            char* ptr = alreadyFixedPointer;
-            for (int i = 0; i < length; i++)
-            {
-                char c = *ptr;
-                if (c >= 0x80 || HighCharTable[c])
-                {
-                    return false;
-                }
-            }
-            return true;
         }
 
         private unsafe bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
@@ -384,8 +380,6 @@ namespace System.Globalization
                 char* a = ap;
                 char* b = bp;
 
-                if (!IsFastSort(ap) || !IsFastSort(bp)) goto NonOrdinal;
-
                 while (length != 0 && (*a < 0x80) && (*b < 0x80) && (!HighCharTable[*a]) && (!HighCharTable[*b]))
                 {
                     int charA = *a;
@@ -412,9 +406,7 @@ namespace System.Globalization
                 }
 
                 if (length == 0) return true;
-
-            NonOrdinal:
-                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, source.Length - length, options);
+                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, prefix.Length - length, options);
             }
         }
 
@@ -432,62 +424,32 @@ namespace System.Globalization
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(prefix))
             {
-                if (!IsFastSort(ap) || !IsFastSort(bp)) goto NonOrdinal;
-
                 char* a = ap;
                 char* b = bp;
 
-#if BIT64
-                // Single int read aligns pointers for the following long reads
-                if (length >= 2)
+                while (length != 0 && (*a <= 0x80) && (*b <= 0x80) && (!HighCharTable[*a]) && (!HighCharTable[*b]))
                 {
-                    if (*(int*)a != *(int*)b)
+                    int charA = *a;
+                    int charB = *b;
+
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
+
+                    //Return the (case-insensitive) difference between them.
+                    if (charA != charB)
                         return false;
-                    length -= 2;
-                    a += 2;
-                    b += 2;
+
+                    // Next char
+                    a++; b++;
+                    length--;
                 }
 
-                while (length >= 12)
-                {
-                    if (*(long*)a != *(long*)b)
-                        return false;
-                    if (*(long*)(a + 4) != *(long*)(b + 4))
-                        return false;
-                    if (*(long*)(a + 8) != *(long*)(b + 8))
-                        return false;
-                    length -= 12;
-                    a += 12;
-                    b += 12;
-                }
-#else
-                while (length >= 10)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    if (*(int*)(a + 2) != *(int*)(b + 2)) return false;
-                    if (*(int*)(a + 4) != *(int*)(b + 4)) return false;
-                    if (*(int*)(a + 6) != *(int*)(b + 6)) return false;
-                    if (*(int*)(a + 8) != *(int*)(b + 8)) return false;
-                    length -= 10; a += 10; b += 10;
-                }
-#endif
-
-                while (length >= 2)
-                {
-                    if (*(int*)a != *(int*)b)
-                        return false;
-                    length -= 2;
-                    a += 2;
-                    b += 2;
-                }
-
-                // PERF: This depends on the fact that the String objects are always zero terminated 
-                // and that the terminating zero is not included in the length. For even string sizes
-                // this compare can include the zero terminator. Bitwise OR avoids a branch.
-                if (length == 0) return *a == *b;
-
-            NonOrdinal:
-                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, source.Length - length, options);
+                if (length == 0) return true;
+                return Interop.Globalization.StartsWith(_sortHandle, b, prefix.Length - length, a, prefix.Length - length, options);
             }
         }
 
