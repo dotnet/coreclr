@@ -8,6 +8,7 @@ class Program
 {
     static int Main(string[] args)
     {
+        new MultiAttribute<string>("a");
         Assembly assembly = typeof(Class).GetTypeInfo().Assembly;
         Assert(CustomAttributeExtensions.GetCustomAttribute<SingleAttribute<int>>(assembly) != null);
         Assert(((ICustomAttributeProvider)assembly).GetCustomAttributes(typeof(SingleAttribute<int>), true) != null);
@@ -133,8 +134,9 @@ class Program
         var b8 = ((ICustomAttributeProvider)programTypeInfo).GetCustomAttributes(typeof(MultiAttribute<bool?>), true);
         AssertAny(b8, a => (a as MultiAttribute<bool?>)?.Value == null);
 
-        Assert(CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), false) == null);
-        Assert(CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), true) == null);
+        AssertThrow<NotSupportedException>(() => CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), false));
+        AssertThrow<NotSupportedException>(() => CustomAttributeExtensions.GetCustomAttributes(programTypeInfo, typeof(MultiAttribute<>), true));
+        
         Assert(!((ICustomAttributeProvider)programTypeInfo).GetCustomAttributes(typeof(MultiAttribute<>), true).GetEnumerator().MoveNext());
 
         return 100;
@@ -143,6 +145,24 @@ class Program
     static void Assert(bool condition, [CallerLineNumberAttribute]int line = 0)
     {
         if(!condition)
+        {
+            throw new Exception($"Error in line: {line}");
+        }
+    }
+
+    static void AssertThrow<T>(Action action, [CallerLineNumberAttribute]int line = 0)
+        where T : Exception
+    {
+        try
+        {
+            action();
+            throw new Exception($"Error in line: {line}");
+        }
+        catch (T)
+        {
+            
+        }
+        catch (Exception)
         {
             throw new Exception($"Error in line: {line}");
         }

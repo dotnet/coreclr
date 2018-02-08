@@ -459,6 +459,9 @@ namespace System
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
 
+            if (type.IsGenericTypeDefinition)
+                throw new NotSupportedException(nameof(type));
+
             if (!type.IsSubclassOf(typeof(Attribute)) && type != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
@@ -569,6 +572,9 @@ namespace System
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
+
+            if (attributeType.IsGenericTypeDefinition)
+                throw new NotSupportedException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
@@ -692,6 +698,9 @@ namespace System
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
+            if (attributeType.IsGenericTypeDefinition)
+                throw new NotSupportedException(nameof(attributeType));
+
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
             Contract.EndContractBlock();
@@ -755,6 +764,9 @@ namespace System
 
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
+
+            if (attributeType.IsGenericTypeDefinition)
+                throw new NotSupportedException(nameof(attributeType));
 
             if (!attributeType.IsSubclassOf(typeof(Attribute)) && attributeType != typeof(Attribute))
                 throw new ArgumentException(SR.Argument_MustHaveAttributeBaseClass);
