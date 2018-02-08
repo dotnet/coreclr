@@ -5,6 +5,7 @@
 using System;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.InteropServices;
 
 internal static class Program
 {
@@ -116,11 +117,19 @@ internal static class ByRefLikeTest
 
     private delegate void ActionOfTestByRefLike(TestByRefLike x);
 
+    [StructLayout(LayoutKind.Explicit)]
     private ref struct TestByRefLike
     {
+        [FieldOffset(8 * 0)]
         private object obj;
+        [FieldOffset(8 * 0)]
         private object obj2;
+        [FieldOffset(8 * 1)]
         public Span<int> span;
+        [FieldOffset(8 * 1)]
+        public Span<int> span2;
+        [FieldOffset(8 * 3)]
+        private object obj3;
 
         public TestByRefLike(int[] values)
         {
@@ -130,7 +139,11 @@ internal static class ByRefLikeTest
             obj2 = null;
             if (obj2 != null)
                 obj2 = null;
+            obj3 = null;
+            if (obj3 != null)
+                obj3 = null;
             span = new Span<int>(values);
+            span2 = span;
         }
     }
 }

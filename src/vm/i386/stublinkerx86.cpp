@@ -5944,10 +5944,17 @@ static void AppendGCLayout(ULONGARRAY &gcLayout, size_t baseOffset, BOOL fIsType
                     // Offsets in 'gcLayout' are expected to be in increasing order
                     int gcLayoutInsertIndex = gcLayout.Count();
                     _ASSERTE(gcLayoutInsertIndex >= 0);
-                    while (gcLayoutInsertIndex != 0 && stackOffsetFromTop < gcLayout[gcLayoutInsertIndex - 1])
+                    for (; gcLayoutInsertIndex != 0; --gcLayoutInsertIndex)
                     {
-                        --gcLayoutInsertIndex;
-                        _ASSERTE(stackOffsetFromTop != (gcLayout[gcLayoutInsertIndex] & ~(ULONG)1));
+                        ULONG prevStackOffsetFromTop = gcLayout[gcLayoutInsertIndex - 1] & ~(ULONG)1;
+                        if (stackOffsetFromTop > prevStackOffsetFromTop)
+                        {
+                            break;
+                        }
+                        if (stackOffsetFromTop == prevStackOffsetFromTop)
+                        {
+                            return;
+                        }
                     }
 
                     _ASSERTE(gcLayout.Count() == 0 || stackOffsetFromTop > (gcLayout[gcLayout.Count() - 1] & ~(ULONG)1));
