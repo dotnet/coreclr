@@ -673,7 +673,7 @@ namespace System.IO
         }
 
         internal virtual bool IsClosed => _fileHandle.IsClosed;
-        
+
         private static bool IsIoRelatedException(Exception e) =>
             // These all derive from IOException
             //     DirectoryNotFoundException
@@ -684,10 +684,11 @@ namespace System.IO
             //     PathTooLongException
             //     PipeException 
             e is IOException ||
+            // Note that SecurityException is only thrown on runtimes that support CAS
+            // e is SecurityException || 
             e is UnauthorizedAccessException ||
             e is NotSupportedException ||
-            (e is ArgumentException && !(e is ArgumentNullException)) ||
-            e is SecurityException;
+            (e is ArgumentException && !(e is ArgumentNullException));
 
         /// <summary>
         /// Gets the array used for buffering reading and writing.  
