@@ -211,21 +211,6 @@ namespace System
                 case StringComparison.OrdinalIgnoreCase:
                     return EndsWithOrdinalIgnoreCaseHelper(span, value);
 
-                /*case StringComparison.Ordinal:
-                    if (span.Length < value.Length)
-                    {
-                        return false;
-                    }
-
-                    // TODO: https://github.com/dotnet/corefx/issues/25182
-                    // return span.EndsWith(value);
-                    for (int i = 0; i < value.Length; i++)
-                    {
-                        if (span[span.Length - value.Length + i] != value[i])
-                            return false;
-                    }
-                    return true;*/
-
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }

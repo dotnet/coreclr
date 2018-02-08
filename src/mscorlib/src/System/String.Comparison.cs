@@ -766,9 +766,7 @@ namespace System
                 return true;
             }
 
-            return this.AsReadOnlySpan().EndsWith(value.AsReadOnlySpan(), comparisonType);
-
-            /*switch (comparisonType)
+            switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(this, value, CompareOptions.None);
@@ -790,7 +788,7 @@ namespace System
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }*/
+            }
         }
 
         public Boolean EndsWith(String value, Boolean ignoreCase, CultureInfo culture)
@@ -1083,9 +1081,7 @@ namespace System
                 return true;
             }
 
-            return this.AsReadOnlySpan().StartsWith(value.AsReadOnlySpan(), comparisonType);
-
-            /*switch (comparisonType)
+            switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(this, value, CompareOptions.None);
@@ -1117,7 +1113,7 @@ namespace System
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }*/
+            }
         }
 
         public Boolean StartsWith(String value, Boolean ignoreCase, CultureInfo culture)
