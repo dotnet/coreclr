@@ -253,6 +253,22 @@ namespace System.Globalization
             }
         }
 
+        private bool StartsWith(string source, string prefix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!string.IsNullOrEmpty(source));
+            Debug.Assert(!string.IsNullOrEmpty(prefix));
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && prefix.IsFastSort())
+            {
+                return IsPrefix(source, prefix, GetOrdinalCompareOptions(options));
+            }
+
+            return Interop.Globalization.StartsWith(_sortHandle, prefix, prefix.Length, source, source.Length, options);
+        }
+
         private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -261,11 +277,57 @@ namespace System.Globalization
             Debug.Assert(!prefix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
+            int length = prefix.Length;
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
+            {
+                if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
+                {
+                    if (StartsWithOrdinalIgnoreCaseHelper(source, prefix, out length))
+                    {
+                        source = source.Slice(prefix.Length - length);
+                        prefix = prefix.Slice(prefix.Length - length);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                        
+                }
+                else
+                {
+                    if (StartsWithOrdinalHelper(source, prefix, out length))
+                    {
+                        source = source.Slice(prefix.Length - length);
+                        prefix = prefix.Slice(prefix.Length - length);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (char* pPrefix = &MemoryMarshal.GetReference(prefix))
             {
                 return Interop.Globalization.StartsWith(_sortHandle, pPrefix, prefix.Length, pSource, source.Length, options);
             }
+        }
+
+        private bool EndsWith(string source, string suffix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!string.IsNullOrEmpty(source));
+            Debug.Assert(!string.IsNullOrEmpty(suffix));
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && suffix.IsFastSort())
+            {
+                return IsSuffix(source, suffix, GetOrdinalCompareOptions(options));
+            }
+
+            return Interop.Globalization.EndsWith(_sortHandle, suffix, suffix.Length, source, source.Length, options);
         }
 
         private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
@@ -276,13 +338,146 @@ namespace System.Globalization
             Debug.Assert(!suffix.IsEmpty);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
+            int length = suffix.Length;
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
+            {
+                if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
+                {
+                    if (EndsWithOrdinalIgnoreCaseHelper(source, suffix, out length))
+                    {
+                        source = source.Slice(suffix.Length - length);
+                        suffix = suffix.Slice(suffix.Length - length);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+
+                }
+                else
+                {
+                    if (EndsWithOrdinalHelper(source, suffix, out length))
+                    {
+                        source = source.Slice(suffix.Length - length);
+                        suffix = suffix.Slice(suffix.Length - length);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (char* pSuffix = &MemoryMarshal.GetReference(suffix))
             {
                 return Interop.Globalization.EndsWith(_sortHandle, pSuffix, suffix.Length, pSource, source.Length, options);
             }
         }
-        
+
+        private unsafe bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
+        {
+            return StartsWithOrdinalIgnoreCaseHelper(source.Slice(span.Length - suffix.Length), suffix, out length);
+        }
+
+        private unsafe bool EndsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
+        {
+            return StartsWithOrdinalHelper(source.Slice(span.Length - suffix.Length), suffix, out length);
+        }
+
+        private unsafe bool StartsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, out int length)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!prefix.IsEmpty);
+            Debug.Assert((options & (CompareOptions.OrdinalIgnoreCase)) == 0);
+            Debug.Assert(_isAsciiEqualityOrdinal);
+            Debug.Assert(CanUseAsciiOrdinalForOptions(options));
+            Debug.Assert(span.Length >= prefix.Length);
+
+            length = prefix.Length;
+
+            fixed (char* ap = &MemoryMarshal.GetReference(span))
+            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            {
+                char* a = ap;
+                char* b = bp;
+
+                while (length != 0 && (*a <= 0x80) && (*b <= 0x80))
+                {
+                    int charA = *a;
+                    int charB = *b;
+
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
+
+                    // uppercase both chars - notice that we need just one compare per char
+                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
+                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
+
+                    //Return the (case-insensitive) difference between them.
+                    if (charA != charB)
+                        return false;
+
+                    // Next char
+                    a++; b++;
+                    length--;
+                }
+
+                return length != 0;
+            }
+        }
+
+        private unsafe bool StartsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, out int length)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!prefix.IsEmpty);
+            Debug.Assert((options & (CompareOptions.Ordinal)) == 0);
+            Debug.Assert(_isAsciiEqualityOrdinal);
+            Debug.Assert(CanUseAsciiOrdinalForOptions(options));
+            Debug.Assert(span.Length >= prefix.Length);
+
+            length = prefix.Length;
+
+            fixed (char* ap = &MemoryMarshal.GetReference(span))
+            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            {
+                char* a = ap;
+                char* b = bp;
+
+                while (length != 0 && (*a <= 0x80) && (*b <= 0x80))
+                {
+                    int charA = *a;
+                    int charB = *b;
+
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
+
+                    //Return the (case-insensitive) difference between them.
+                    if (charA != charB)
+                        return false;
+
+                    // Next char
+                    a++; b++;
+                    length--;
+                }
+
+                return length != 0;
+            }
+        }
+
+
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);

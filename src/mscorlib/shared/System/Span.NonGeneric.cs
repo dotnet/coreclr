@@ -23,6 +23,9 @@ namespace System
     /// </summary>
     public static class Span
     {
+        // s_invariantMode is defined for the perf reason as accessing the instance field is faster than access the static property GlobalizationMode.Invariant
+        private static readonly bool s_invariantMode = GlobalizationMode.Invariant;
+
         /// <summary>
         /// Determines whether the beginning of the span matches the specified value when compared using the specified comparison option.
         /// </summary>
@@ -37,41 +40,143 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(span, value, CompareOptions.None);
+                    return StartsWithCultureHelper(span, value);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(span, value, CompareOptions.IgnoreCase);
+                    return StartsWithCultureIgnoreCaseHelper(span, value);
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IsPrefix(span, value, CompareOptions.None);
+                    return StartsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IsPrefix(span, value, CompareOptions.IgnoreCase);
+                    return StartsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.Ordinal:
-                    if (span.Length < value.Length)
-                    {
-                        return false;
-                    }
-                    
-                    // TODO: https://github.com/dotnet/corefx/issues/25182
-                    // return span.StartsWith(value);
-                    for (int i = 0; i < value.Length; i++)
-                    {
-                        if (span[i] != value[i])
-                            return false;
-                    }
-                    return true;
+                    return StartsWithOrdinalHelper(span, value);
 
                 case StringComparison.OrdinalIgnoreCase:
-                    if (span.Length < value.Length)
-                    {
-                        return false;
-                    }
-                    return CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0;
+                    return StartsWithOrdinalIgnoreCaseHelper(span, value);
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+            }
+        }
+
+        internal static bool StartsWithCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, bool invariantCulture = false)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (s_invariantMode)
+            {
+                return StartsWithOrdinalHelper(span, value);
+            }
+            if (span.Length == 0)
+            {
+                return false;
+            }
+            return invariantCulture ?
+                CompareInfo.Invariant.IsPrefix(span, value, CompareOptions.None) :
+                CultureInfo.CurrentCulture.CompareInfo.IsPrefix(span, value, CompareOptions.None);
+        }
+
+        internal static bool StartsWithCultureIgnoreCaseHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, bool invariantCulture = false)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (s_invariantMode)
+            {
+                return StartsWithOrdinalIgnoreCaseHelper(span, value);
+            }
+            if (span.Length == 0)
+            {
+                return false;
+            }
+            return invariantCulture ?
+                CompareInfo.Invariant.IsPrefix(span, value, CompareOptions.IgnoreCase) :
+                CultureInfo.CurrentCulture.CompareInfo.IsPrefix(span, value, CompareOptions.IgnoreCase);
+        }
+
+        internal static bool StartsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (span.Length < value.Length)
+            {
+                return false;
+            }
+            return CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0;
+        }
+
+        internal static unsafe bool StartsWithOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (span.Length < value.Length)
+            {
+                return false;
+            }
+            return OrdinalHelper(span, value, value.Length);
+        }
+
+        internal static unsafe bool OrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, int length)
+        {
+            Debug.Assert(length != 0);
+            Debug.Assert(span.Length >= length);
+
+            fixed (char* ap = &MemoryMarshal.GetReference(span))
+            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            {
+                char* a = ap;
+                char* b = bp;
+
+#if BIT64
+                // Single int read aligns pointers for the following long reads
+                if (length >= 2)
+                {
+                    if (*(int*)a != *(int*)b)
+                        return false;
+                    length -= 2;
+                    a += 2;
+                    b += 2;
+                }
+
+                while (length >= 12)
+                {
+                    if (*(long*)a != *(long*)b)
+                        return false;
+                    if (*(long*)(a + 4) != *(long*)(b + 4))
+                        return false;
+                    if (*(long*)(a + 8) != *(long*)(b + 8))
+                        return false;
+                    length -= 12;
+                    a += 12;
+                    b += 12;
+                }
+#else
+                while (length >= 10)
+                {
+                    if (*(int*)a != *(int*)b) return false;
+                    if (*(int*)(a+2) != *(int*)(b+2)) return false;
+                    if (*(int*)(a+4) != *(int*)(b+4)) return false;
+                    if (*(int*)(a+6) != *(int*)(b+6)) return false;
+                    if (*(int*)(a+8) != *(int*)(b+8)) return false;
+                    length -= 10; a += 10; b += 10;
+                }
+#endif
+
+                while (length >= 2)
+                {
+                    if (*(int*)a != *(int*)b)
+                        return false;
+                    length -= 2;
+                    a += 2;
+                    b += 2;
+                }
+
+                // PERF: This depends on the fact that the String objects are always zero terminated 
+                // and that the terminating zero is not included in the length. For even string sizes
+                // this compare can include the zero terminator. Bitwise OR avoids a branch.
+                return length == 0 | *a == *b;
             }
         }
 
@@ -89,18 +194,24 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(span, value, CompareOptions.None);
+                    return EndsWithCultureHelper(span, value);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(span, value, CompareOptions.IgnoreCase);
+                    return EndsWithCultureIgnoreCaseHelper(span, value);
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IsSuffix(span, value, CompareOptions.None);
+                    return EndsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IsSuffix(span, value, CompareOptions.IgnoreCase);
+                    return EndsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.Ordinal:
+                    return EndsWithOrdinalHelper(span, value);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    return EndsWithOrdinalIgnoreCaseHelper(span, value);
+
+                /*case StringComparison.Ordinal:
                     if (span.Length < value.Length)
                     {
                         return false;
@@ -113,18 +224,67 @@ namespace System
                         if (span[span.Length - value.Length + i] != value[i])
                             return false;
                     }
-                    return true;
-
-                case StringComparison.OrdinalIgnoreCase:
-                    if (span.Length < value.Length)
-                    {
-                        return false;
-                    }
-                    return (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(span.Length - value.Length), value) == 0);
+                    return true;*/
 
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+        }
+
+        internal static bool EndsWithCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, bool invariantCulture = false)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (s_invariantMode)
+            {
+                return EndsWithOrdinalHelper(span, value);
+            }
+            if (span.Length == 0)
+            {
+                return false;
+            }
+            return invariantCulture ?
+                CompareInfo.Invariant.IsSuffix(span, value, CompareOptions.None) :
+                CultureInfo.CurrentCulture.CompareInfo.IsSuffix(span, value, CompareOptions.None);
+        }
+
+        internal static bool EndsWithCultureIgnoreCaseHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, bool invariantCulture = false)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (s_invariantMode)
+            {
+                return EndsWithOrdinalIgnoreCaseHelper(span, value);
+            }
+            if (span.Length == 0)
+            {
+                return false;
+            }
+            return invariantCulture ?
+                CompareInfo.Invariant.IsSuffix(span, value, CompareOptions.IgnoreCase) :
+                CultureInfo.CurrentCulture.CompareInfo.IsSuffix(span, value, CompareOptions.IgnoreCase);
+        }
+
+        internal static bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (span.Length < value.Length)
+            {
+                return false;
+            }
+            return (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(span.Length - value.Length), value) == 0);
+        }
+
+        internal static unsafe bool EndsWithOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            Debug.Assert(value.Length != 0);
+
+            if (span.Length < value.Length)
+            {
+                return false;
+            }
+            return OrdinalHelper(span.Slice(span.Length - value.Length), value, value.Length);
         }
 
         /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>

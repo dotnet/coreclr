@@ -211,6 +211,41 @@ namespace System.Globalization
                                     _sortHandle);
             }
         }
+        
+        private unsafe int FindString(
+            uint dwFindNLSStringFlags,
+            string lpStringSource,
+            int startSource,
+            int cchSource,
+            string lpStringValue,
+            int startValue,
+            int cchValue,
+            int* pcchFound)
+        {
+            Debug.Assert(!_invariantMode);
+
+            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+
+            fixed (char* pLocaleName = localeName)
+            fixed (char* pSource = lpStringSource)
+            fixed (char* pValue = lpStringValue)
+            {
+                char* pS = pSource + startSource;
+                char* pV = pValue + startValue;
+
+                return Interop.Kernel32.FindNLSStringEx(
+                                    pLocaleName,
+                                    dwFindNLSStringFlags,
+                                    pS,
+                                    cchSource,
+                                    pV,
+                                    cchValue,
+                                    pcchFound,
+                                    null,
+                                    null,
+                                    _sortHandle);
+            }
+        }
 
         internal unsafe int IndexOfCore(String source, String target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
@@ -286,6 +321,18 @@ namespace System.Globalization
             return -1;
         }
 
+        private unsafe bool StartsWith(string source, string prefix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!string.IsNullOrEmpty(source));
+            Debug.Assert(!string.IsNullOrEmpty(prefix));
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,
+                                                   prefix, 0, prefix.Length, null) >= 0;
+        }
+
         private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -295,6 +342,18 @@ namespace System.Globalization
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, prefix, null) >= 0;
+        }
+
+        private unsafe bool EndsWith(string source, string suffix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!string.IsNullOrEmpty(source));
+            Debug.Assert(!string.IsNullOrEmpty(suffix));
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,
+                                                   suffix, 0, suffix.Length, null) >= 0;
         }
 
         private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
