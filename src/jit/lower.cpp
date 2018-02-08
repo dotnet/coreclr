@@ -3024,36 +3024,46 @@ public:
         m_falseBlock = m_block->bbNext;
         m_trueBlock  = m_block->bbJumpDest;
 
-        BasicBlock* joinBlock = SingleSuccessorBlock(m_falseBlock);
+        assert(m_falseBlock != m_block); // m_block can't fall through to itself
 
-        if (joinBlock == m_block->bbJumpDest)
+        if (m_trueBlock == m_falseBlock)
         {
-            if (LastInstruction(m_falseBlock) == nullptr)
-            {
-                // The block is empty, fg optimizations should have taken care of this.
-                return HammockKind::None;
-            }
+            // Reject degenerate full hammocks, fg optimizations should have taken care of this.
+            // They may end up passing as genuine full hammocks and cause various problems
+            // (e.g. decrement the ref count of a lclvar twice).
+            return HammockKind::None;
+        }
 
-            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) || !BasicBlock::sameEHRegion(m_block, m_falseBlock))
+        if (m_trueBlock == m_block)
+        {
+            // Reject some back edges. A half hammock may be formed if "falseBlock" jumps back to
+            // "block" but that would be an infinite loop and it's not exactly common (and likely
+            // there's no test coverage for).
+            return HammockKind::None;
+        }
+
+        if (m_trueBlock->isRunRarely() != m_falseBlock->isRunRarely())
+        {
+            // If one block is rarely-run and the other is not then the branch is likely
+            // rarely taken (or not taken). Such a branch is likely to be well predicted
+            // and in this case if-conversion isn't likely to be beneficial.
+            return HammockKind::None;
+        }
+
+        m_joinBlock = SingleSuccessorBlock(m_falseBlock);
+
+        if (m_joinBlock == m_trueBlock)
+        {
+            if (!BasicBlock::sameEHRegion(m_block, m_falseBlock))
             {
                 return HammockKind::None;
             }
 
             // We have something like "if (cond) { falseBlock: ... } joinBlock: ..."
-
-            m_joinBlock = joinBlock;
             return HammockKind::Half;
         }
         else
         {
-            if ((LastInstruction(m_falseBlock) == nullptr) || (LastInstruction(m_trueBlock) == nullptr))
-            {
-                // Either or both blocks are empty, fg optimizations should have taken care of this.
-                // If only one block is empty we actually have a half hammock but to keep things
-                // simple this special case is not handled.
-                return HammockKind::None;
-            }
-
             if ((m_falseBlock->bbJumpKind == BBJ_RETURN) && (m_trueBlock->bbJumpKind == BBJ_RETURN))
             {
 #ifdef JIT32_GCENCODER
@@ -3063,20 +3073,18 @@ public:
                 // limit imposed by the x86 GC encoding.
                 return HammockKind::None;
 #endif
-                m_joinBlock = nullptr;
+                // SingleSuccessorBlock should have returned null for a BBJ_RETURN block
+                assert(m_joinBlock == nullptr);
             }
-            else if ((joinBlock != nullptr) && (joinBlock == SingleSuccessorBlock(m_trueBlock)))
-            {
-                m_joinBlock = joinBlock;
-            }
-            else
+            else if ((m_joinBlock == nullptr) || (m_joinBlock != SingleSuccessorBlock(m_trueBlock)))
             {
                 return HammockKind::None;
             }
-
-            if (m_comp->fgInDifferentRegions(m_block, m_falseBlock) ||
-                m_comp->fgInDifferentRegions(m_block, m_trueBlock))
+            else if (m_joinBlock == m_block)
             {
+                // Reject full hammocks where both "false" and "true" blocks jump back to "block".
+                // That would be an infinite infinite loop and it's not exactly common (and likely
+                // there's no test coverage for).
                 return HammockKind::None;
             }
 
@@ -3086,7 +3094,6 @@ public:
             }
 
             // We have something like "if (cond) { falseBlock: ... } else { trueBlock: ... } joinBlock: ..."
-
             return HammockKind::Full;
         }
     }
@@ -3110,6 +3117,8 @@ public:
 
         bool Summarize(HammockKind kind)
         {
+            assert((kind == HammockKind::Half) || (kind == HammockKind::Full));
+
             // A suitable block should consist of a single assignment involving local variables and constants.
             // For full hammocks it's also possible to have a return of a local variable or a constant.
             // Examples:
@@ -3119,12 +3128,17 @@ public:
 
             GenTree* op = LastInstruction(m_block);
 
-            if ((kind == HammockKind::Half) && op->OperIs(GT_RETURN))
+            if (op == nullptr)
             {
+                // The block is empty, fg optimizations should have taken care of this.
                 return false;
             }
 
-            if ((op == nullptr) || !op->OperIs(GT_STORE_LCL_VAR, GT_RETURN))
+            // The predicated block of a half-hammock cannot be a BBJ_RETURN
+            // block so the block's last node should not be a GT_RETURN.
+            assert((kind != HammockKind::Half) || !op->OperIs(GT_RETURN));
+
+            if (!op->OperIs(GT_STORE_LCL_VAR, GT_RETURN))
             {
                 // TODO Indirs would also work provided that both blocks store to the same address.
                 // How to detect that?
@@ -3420,7 +3434,8 @@ public:
             selcc->gtOp2          = trueSrc;
 
             GenTreeUnOp* op = trueSummary.CloneOp(m_comp, selcc);
-            op->gtOp1       = selcc;
+            assert(op->OperIs(GT_STORE_LCL_VAR, GT_RETURN));
+            op->gtOp1 = selcc;
 
             UnlinkBlocks(m_falseBlock, m_trueBlock);
 
