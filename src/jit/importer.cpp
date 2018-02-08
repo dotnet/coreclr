@@ -3947,6 +3947,41 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+            case NI_BitConverter_ByteSwap:
+            {
+                assert(sig->numArgs == 1);
+
+                // We expect the return type of the ByteSwap routine to match the type of the
+                // one and only argument to the method. We use a special instruction for 16-bit
+                // BSWAPs since on x86 processors this is implemented as ROR value, 8. Additionally,
+                // we only allow BSWAPs with 64-bit arguments on 64-bit architectures.
+
+                switch (sig->retType)
+                {
+                    case CorInfoType::CORINFO_TYPE_USHORT:
+                        retNode = gtNewOperNode(GT_BSWAP16, callType, impPopStack().val);
+                        break;
+
+                    case CorInfoType::CORINFO_TYPE_UINT:
+#ifdef _TARGET_64BIT_
+                    case CorInfoType::CORINFO_TYPE_ULONG:
+#endif // _TARGET_64BIT_
+                        retNode = gtNewOperNode(GT_BSWAP, callType, impPopStack().val);
+                        break;
+
+                    default:
+                        // This default case gets hit on 32-bit archs when a call to a 64-bit overload
+                        // of ByteSwap is encountered. In that case we'll let JIT treat this as a standard
+                        // method call, where the implementation decomposes the operation into two 32-bit
+                        // bswap routines. If the input to the 64-bit function is a constant, then we rely
+                        // on inlining + constant folding of 32-bit bswaps to effectively constant fold
+                        // the 64-bit call site.
+                        break;
+                }
+
+                break;
+            }
+
             default:
                 break;
         }
@@ -4097,6 +4132,12 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         {
             result = NI_Math_Round;
         }
+#if defined(_TARGET_XARCH_) // We currently only support BSWAP on x86
+        else if ((strcmp(className, "BitConverter") == 0) && (strcmp(methodName, "ByteSwap") == 0))
+        {
+            result = NI_BitConverter_ByteSwap;
+        }
+#endif // !defined(_TARGET_XARCH_)
     }
     else if (strcmp(namespaceName, "System.Collections.Generic") == 0)
     {

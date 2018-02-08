@@ -5157,6 +5157,8 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_NOP:
         case GT_RETURN:
         case GT_RETFILT:
+        case GT_BSWAP:
+        case GT_BSWAP16:
             if (def == this->AsUnOp()->gtOp1)
             {
                 *use = &this->AsUnOp()->gtOp1;
@@ -8827,6 +8829,8 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_NULLCHECK:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
+        case GT_BSWAP:
+        case GT_BSWAP16:
 #if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
 #endif // FEATURE_ARG_SPLIT
@@ -13529,6 +13533,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                         }
                         return tree;
 
+                    case GT_BSWAP:
+                        i1 = ((i1 >> 24) & 0xFF) | ((i1 >> 8) & 0xFF00) | ((i1 << 8) & 0xFF0000) |
+                             ((i1 << 24) & 0xFF000000);
+                        break;
+
+                    case GT_BSWAP16:
+                        i1 = ((i1 >> 8) & 0xFF) | ((i1 << 8) & 0xFF00);
+                        break;
+
                     default:
                         return tree;
                 }
@@ -13635,6 +13648,13 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                                 break;
                         }
                         return tree;
+
+                    case GT_BSWAP:
+                        lval1 = ((lval1 >> 56) & 0xFF) | ((lval1 >> 40) & 0xFF00) | ((lval1 >> 24) & 0xFF0000) |
+                                ((lval1 >> 8) & 0xFF000000) | ((lval1 << 8) & 0xFF00000000) |
+                                ((lval1 << 24) & 0xFF0000000000) | ((lval1 << 40) & 0xFF000000000000) |
+                                ((lval1 << 56) & 0xFF00000000000000);
+                        break;
 
                     default:
                         return tree;

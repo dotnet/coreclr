@@ -65,6 +65,10 @@ INST5(inc_l  , "inc"          , 0, IUM_RW, 0, 1, 0x0000FE, BAD_CODE, BAD_CODE, B
 INST5(dec    , "dec"          , 0, IUM_RW, 0, 1, 0x0008FE, BAD_CODE, BAD_CODE, BAD_CODE, 0x000048)
 INST5(dec_l  , "dec"          , 0, IUM_RW, 0, 1, 0x0008FE, BAD_CODE, BAD_CODE, BAD_CODE, 0x00C8FE)
 
+// Multi-byte opcodes without modrm are represented in mixed endian fashion.
+// See comment around quarter way through this file for more information.
+INST5(bswap  , "bswap"        , 0, IUM_RW, 0, 0, 0x0F00C8, BAD_CODE, BAD_CODE, BAD_CODE, 0x00C80F)
+
 //    enum     name            FP  updmode rf wf R/M,R/M[reg] R/M,icon  reg,R/M   eax,i32
 
 INST4(add    , "add"          , 0, IUM_RW, 0, 1, 0x000000, 0x000080, 0x000002, 0x000004)

@@ -25,6 +25,64 @@ namespace System
         public static readonly bool IsLittleEndian = true;
 #endif
 
+        [CLSCompliant(false)]
+        [Intrinsic]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ushort ByteSwap(ushort value)
+        {
+            // Don't need to AND with 0xFF00 or 0x00FF since the final
+            // cast back to ushort will clear out all bits above [ 15 .. 00 ].
+            // This is normally implemented via "movzx eax, ax" on the return.
+            // Alternatively, the compiler could elide the movzx instruction
+            // entirely if it knows the caller is only going to access "ax"
+            // instead of "eax" / "rax" when the function returns.
+
+            return (ushort)((value >> 8) + (value << 8));
+        }
+
+        [CLSCompliant(false)]
+        [Intrinsic]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint ByteSwap(uint value)
+        {
+            // This takes advantage of the fact that the JIT can detect
+            // ROL32 / ROR32 patterns and output the correct intrinsic.
+            //
+            // Input: value = [ ww xx yy zz ]
+            //
+            // First line generates : [ ww xx yy zz ]
+            //                      & [ 00 FF 00 FF ]
+            //                      = [ 00 xx 00 zz ]
+            //             ROR32(8) = [ zz 00 xx 00 ]
+            //
+            // Second line generates: [ ww xx yy zz ]
+            //                      & [ FF 00 FF 00 ]
+            //                      = [ ww 00 yy 00 ]
+            //             ROL32(8) = [ 00 yy 00 ww ]
+            //
+            //                (sum) = [ zz yy xx ww ]
+            //
+            // Testing shows that throughput increases if the AND
+            // is performed before the ROL / ROR.
+
+            uint mask_xx_zz = (value & 0x00FF00FFU);
+            uint mask_ww_yy = (value & 0xFF00FF00U);
+            return ((mask_xx_zz >> 8) | (mask_xx_zz << 24))
+                + ((mask_ww_yy << 8) | (mask_ww_yy >> 24));
+        }
+
+        [CLSCompliant(false)]
+        [Intrinsic]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong ByteSwap(ulong value)
+        {
+            // Operations on 32-bit values have higher throughput than
+            // operations on 64-bit values, so decompose.
+
+            return ((ulong)ByteSwap((uint)value) << 32)
+                + ByteSwap((uint)(value >> 32));
+        }
+
         // Converts a Boolean into an array of bytes with length one.
         public static byte[] GetBytes(bool value)
         {

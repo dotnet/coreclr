@@ -9514,6 +9514,8 @@ public:
             case GT_RETFILT:
             case GT_PHI:
             case GT_RUNTIMELOOKUP:
+            case GT_BSWAP:
+            case GT_BSWAP16:
             {
                 GenTreeUnOp* const unOp = node->AsUnOp();
                 if (unOp->gtOp1 != nullptr)
