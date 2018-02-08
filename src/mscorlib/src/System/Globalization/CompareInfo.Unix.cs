@@ -427,7 +427,7 @@ namespace System.Globalization
                 char* a = ap;
                 char* b = bp;
 
-                while (length != 0 && (*a <= 0x80) && (*b <= 0x80) && (!HighCharTable[*a]) && (!HighCharTable[*b]))
+                while (length != 0 && (*a < 0x80) && (*b < 0x80) && (!HighCharTable[*a]) && (!HighCharTable[*b]))
                 {
                     int charA = *a;
                     int charB = *b;
