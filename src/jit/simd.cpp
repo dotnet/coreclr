@@ -654,6 +654,10 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
                             break;
 
                         default:
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                            // Vector128`1 is a HFA Short Vector Type even when base type is bogus
+                            simdBaseType = TYP_UNDEF;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                             JITDUMP("  Unknown Hardware Intrinsic SIMD Type Vector128<T>\n");
                     }
                 }
@@ -700,6 +704,10 @@ var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, u
                             break;
 
                         default:
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                            // Vector64`1 is a HFA Short Vector Type even when base type is bogus
+                            simdBaseType = TYP_UNDEF;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                             JITDUMP("  Unknown Hardware Intrinsic SIMD Type Vector64<T>\n");
                     }
                 }

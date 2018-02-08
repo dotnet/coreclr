@@ -1231,6 +1231,10 @@ regMaskTP Compiler::rpPredictRegPick(var_types type, rpPredictReg predictReg, re
 
         case TYP_FLOAT:
         case TYP_DOUBLE:
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        case TYP_SIMD8:
+        case TYP_SIMD16:
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
 #if FEATURE_FP_REGALLOC
             regMaskTP restrictMask;

@@ -7347,7 +7347,9 @@ void Compiler::gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVa
         {
             src = src->AsIndir()->Addr()->gtGetOp1();
         }
-#ifdef FEATURE_HW_INTRINSICS
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        if (src->OperIs(GT_SIMD, GT_HWIntrinsic, GT_RET_EXPR, GT_CALL))
+#elif defined(FEATURE_HW_INTRINSICS)
         if ((src->OperGet() == GT_SIMD) || (src->OperGet() == GT_HWIntrinsic))
 #else
         if (src->OperGet() == GT_SIMD)
@@ -15345,7 +15347,12 @@ GenTree* Compiler::gtNewTempAssign(unsigned tmp, GenTree* val)
     // see "Zero init inlinee locals:" in fgInlinePrependStatements
     // thus we may need to set compFloatingPointUsed to true here.
     //
+    CLANG_FORMAT_COMMENT_ANCHOR;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if ((compFloatingPointUsed == false) && (varTypeIsFloating(dstTyp) || varTypeIsSIMD(dstTyp)))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     if (varTypeIsFloating(dstTyp) && (compFloatingPointUsed == false))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         compFloatingPointUsed = true;
     }
@@ -18171,7 +18178,16 @@ void ReturnTypeDesc::InitializeStructReturnType(Compiler* comp, CORINFO_CLASS_HA
         case Compiler::SPK_PrimitiveType:
         {
             assert(returnType != TYP_UNKNOWN);
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            assert(!varTypeIsStruct(returnType) || varTypeIsSIMD(returnType));
+
+            if ((comp->compFloatingPointUsed == false) && (varTypeIsFloating(returnType) || varTypeIsSIMD(returnType)))
+            {
+                comp->compFloatingPointUsed = true;
+            }
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             assert(!varTypeIsStruct(returnType));
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             m_regType[0] = returnType;
             break;
         }
@@ -18182,7 +18198,7 @@ void ReturnTypeDesc::InitializeStructReturnType(Compiler* comp, CORINFO_CLASS_HA
             var_types hfaType = comp->GetHfaType(retClsHnd);
 
             // We should have an hfa struct type
-            assert(varTypeIsFloating(hfaType));
+            assert(hfaType != TYP_UNDEF);
 
             // Note that the retail build issues a warning about a potential divsion by zero without this Max function
             unsigned elemSize = Max((unsigned)1, EA_SIZE_IN_BYTES(emitActualTypeSize(hfaType)));

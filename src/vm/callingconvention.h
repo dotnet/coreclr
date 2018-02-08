@@ -50,8 +50,7 @@ struct ArgLocDesc
 #endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #if defined(_TARGET_ARM64_)
-    bool    m_isSinglePrecision;  // For determining if HFA is single or double
-                                  // precision
+    size_t  m_hfaElementSizeBytes;   // HFA element size
 #endif // defined(_TARGET_ARM64_)
 
 #if defined(_TARGET_ARM_)
@@ -76,7 +75,7 @@ struct ArgLocDesc
         m_fRequires64BitAlignment = FALSE;
 #endif
 #if defined(_TARGET_ARM64_)
-        m_isSinglePrecision = FALSE;
+        m_hfaElementSizeBytes = 0;
 #endif // defined(_TARGET_ARM64_)
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         m_eeClass = NULL;
@@ -563,11 +562,32 @@ public:
 
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
-                CorElementType type = m_argTypeHandle.GetHFAType();
-                bool isFloatType = (type == ELEMENT_TYPE_R4);
+                CorElementType hfaType = m_argTypeHandle.GetHFAType();
+                size_t elementSize = 0;
 
-                pLoc->m_cFloatReg = isFloatType ? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
-                pLoc->m_isSinglePrecision = isFloatType;
+                switch ((unsigned)hfaType)
+                {
+                case ELEMENT_TYPE_R4:
+                    elementSize = sizeof(float);
+                    break;
+                case ELEMENT_TYPE_R8:
+                    elementSize = sizeof(double);
+                    break;
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+                case ELEMENT_TYPE_V8:
+                    elementSize = sizeof(double);
+                    break;
+                case ELEMENT_TYPE_V16:
+                    elementSize = 2*sizeof(double);
+                    break;
+#endif // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+                default:
+                    assert(!"Unexpected hfaType");
+                }
+
+                pLoc->m_cFloatReg = GetArgSize()/elementSize;
+
+                pLoc->m_hfaElementSizeBytes = elementSize;
             }
             else
             {
@@ -1267,16 +1287,37 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         // registers if possible.
         if (thValueType.IsHFA())
         {
-            CorElementType type = thValueType.GetHFAType();
-            bool isFloatType = (type == ELEMENT_TYPE_R4);
+            CorElementType hfaType = thValueType.GetHFAType();
 
-            cFPRegs = (type == ELEMENT_TYPE_R4)? (argSize/sizeof(float)): (argSize/sizeof(double));
+            size_t elementSize = 0;
+
+            switch ((unsigned)hfaType)
+            {
+            case ELEMENT_TYPE_R4:
+                elementSize = sizeof(float);
+                break;
+            case ELEMENT_TYPE_R8:
+                elementSize = sizeof(double);
+                break;
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+            case ELEMENT_TYPE_V8:
+                elementSize = sizeof(double);
+                break;
+            case ELEMENT_TYPE_V16:
+                elementSize = 2*sizeof(double);
+                break;
+#endif // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+            default:
+                assert(!"Unexpected hfaType");
+            }
+
+            cFPRegs = argSize/elementSize;
 
             m_argLocDescForStructInRegs.Init();
             m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
             m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
 
-            m_argLocDescForStructInRegs.m_isSinglePrecision = isFloatType;
+            m_argLocDescForStructInRegs.m_hfaElementSizeBytes = elementSize;
                 
             m_hasArgLocDescForStructInRegs = true;
         }
@@ -1419,9 +1460,28 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             {
                 CorElementType hfaType = thValueType.GetHFAType();
 
-                flags |= (hfaType == ELEMENT_TYPE_R4) ? 
-                    ((4 * sizeof(float)) << RETURN_FP_SIZE_SHIFT) : 
-                    ((4 * sizeof(double)) << RETURN_FP_SIZE_SHIFT);
+                size_t elementSize = 0;
+
+                switch ((unsigned)hfaType)
+                {
+                case ELEMENT_TYPE_R4:
+                    elementSize = sizeof(float);
+                    break;
+                case ELEMENT_TYPE_R8:
+                    elementSize = sizeof(double);
+                    break;
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+                case ELEMENT_TYPE_V8:
+                    elementSize = sizeof(double);
+                    break;
+                case ELEMENT_TYPE_V16:
+                    elementSize = 2*sizeof(double);
+                    break;
+#endif // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+                default:
+                    assert(!"Unexpected hfaType");
+                }
+                flags |= (4 * elementSize) << RETURN_FP_SIZE_SHIFT;
 
                 break;
             }

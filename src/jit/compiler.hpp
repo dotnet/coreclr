@@ -2056,7 +2056,11 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, b
 inline void LclVarDsc::setPrefReg(regNumber regNum, Compiler* comp)
 {
     regMaskTP regMask;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if (isFloatRegType(TypeGet()) || varTypeIsSIMD(TypeGet()))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     if (isFloatRegType(TypeGet()))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         // Check for FP struct-promoted field being passed in integer register
         //
@@ -3352,7 +3356,11 @@ inline regNumber genMapFloatRegArgNumToRegNum(unsigned argNum)
 
 __forceinline regNumber genMapRegArgNumToRegNum(unsigned argNum, var_types type)
 {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if (varTypeIsFloating(type) || varTypeIsSIMD(type))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     if (varTypeIsFloating(type))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         return genMapFloatRegArgNumToRegNum(argNum);
     }
@@ -3390,7 +3398,11 @@ inline regMaskTP genMapFloatRegArgNumToRegMask(unsigned argNum)
 __forceinline regMaskTP genMapArgNumToRegMask(unsigned argNum, var_types type)
 {
     regMaskTP result;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if (varTypeIsFloating(type) || varTypeIsSIMD(type))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     if (varTypeIsFloating(type))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         result = genMapFloatRegArgNumToRegMask(argNum);
 #ifdef _TARGET_ARM_
@@ -3509,7 +3521,11 @@ inline unsigned genMapFloatRegNumToRegArgNum(regNumber regNum)
 
 inline unsigned genMapRegNumToRegArgNum(regNumber regNum, var_types type)
 {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if (varTypeIsFloating(type) || varTypeIsSIMD(type))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     if (varTypeIsFloating(type))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         return genMapFloatRegNumToRegArgNum(regNum);
     }

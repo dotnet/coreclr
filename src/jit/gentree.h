@@ -3770,7 +3770,7 @@ struct GenTreeCall final : public GenTree
         // LEGACY_BACKEND does not use multi reg returns for calls with long return types
         return varTypeIsLong(gtType) || (varTypeIsStruct(gtType) && !HasRetBufArg());
 #elif FEATURE_MULTIREG_RET
-        return varTypeIsStruct(gtType) && !HasRetBufArg();
+        return (gtType == TYP_STRUCT) && !HasRetBufArg();
 #else
         return false;
 #endif

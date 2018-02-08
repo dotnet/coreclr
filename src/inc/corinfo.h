@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 0ba106c8-81a0-407f-99a1-928448c1eb62 */
-    0x0ba106c8,
-    0x81a0,
-    0x407f,
-    {0x99, 0xa1, 0x92, 0x84, 0x48, 0xc1, 0xeb, 0x62}
+SELECTANY const GUID JITEEVersionIdentifier = { /* ee4d7d71-ae29-42d3-bcd6-43586dafb5d2 */
+    0xee4d7d71,
+    0xae29,
+    0x42d3,
+    {0xbc, 0xd6, 0x43, 0x58, 0x6d, 0xaf, 0xb5, 0xd2}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -719,6 +719,7 @@ enum CorInfoTypeWithMod
 {
     CORINFO_TYPE_MASK            = 0x3F,        // lower 6 bits are type mask
     CORINFO_TYPE_MOD_PINNED      = 0x40,        // can be applied to CLASS, or BYREF to indiate pinned
+    CORINFO_TYPE_MOD_VECTOR      = 0x80,        // can be applied to FLOAT/DOUBLE to indicate HFA type SIMD8/SIMD16
 };
 
 inline CorInfoType strip(CorInfoTypeWithMod val) {

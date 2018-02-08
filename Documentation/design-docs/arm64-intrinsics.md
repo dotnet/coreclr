@@ -275,11 +275,30 @@ It is not clear if this is a new LSRA feature and if it is how much complexity t
 
 ## ARM ABI Vector64<T> and Vector128<T>
 
-For intrinsic method calls, these vector types will implicitly be treated as pass by vector register.
+These will conform to the AAPCS ARM64 procedure call standard treatment of `Short Vector` and `HVA` types.
 
-For other calls, ARM64 ABI conventions must be followed.  For purposes of the ABI calling conventions, these vector
-types will treated as composite struct type containing a contiguous array of `T`.  They will need to follow standard
-struct argument and return passing rules.
+`Vector64<T>` will be treated as a `HVA` containing a single 8 byte `Short Vector`
+`Vector128<T>` will be treated as a `HVA` containing a single 16 byte `Short Vector`
+
+Since a `Short Vector` and a single element `HVA` are treated the same by the ABI these should correctly
+interoperate with the native ABI.
+
+### Implementation
+
+Since `HVA` is a highly similar in concept to `HFA`, we will treat an `HVA` as a `HFA` with a `Short Vector` element type.
+
+VM will mark `Vector64<T>` and `Vector128<T>` as `HFA` with `Short Vector` element type.
+
+JIT to EE interface will be extended to pass additional HFA types.  A vector modifier will be aded for these limited use types.
+
+
+| VM HFA Type Name            | Jit HFA Type Name             |
+| --------------------------- | ----------------------------- |
+| `ELEMENT_TYPE_SHORT_VECTOR` | `CORINFO_TYPE_MOD_VECTOR`     |
+| `ELEMENT_TYPE_V8`           | `TYP_SIMD8`                   |
+| `ELEMENT_TYPE_V16`          | `TYP_SIMD16`                  |
+
+JIT will be modified to correctly handle `TYP_SIMD8` & `TYP_SIMD16` as primitive and aggregate argument & return types
 
 ## Half precision floating point
 

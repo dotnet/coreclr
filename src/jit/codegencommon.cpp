@@ -4325,6 +4325,13 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 return varDsc.GetHfaType();
             }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            else if (varTypeIsStruct(varDsc.lvType))
+            {
+                // Non HFA structs are passed in integer register
+                return TYP_I_IMPL;
+            }
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             return varDsc.lvType;
         }
 
@@ -4390,14 +4397,25 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             regType = varDsc->GetHfaType();
         }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        else if (varTypeIsStruct(regType))
+        {
+            // Non HFA structs are passed in integer register
+            regType = TYP_I_IMPL;
+        }
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         if (!varTypeIsStruct(regType))
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if ((varTypeIsFloating(regType) || varTypeIsSIMD(regType)) != doingFloat)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
             if (isFloatRegType(regType) != doingFloat)
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 continue;
             }
@@ -11358,7 +11376,7 @@ bool Compiler::IsMultiRegPassedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToPassStruct;
     var_types         returnType = getArgTypeForStruct(hClass, &howToPassStruct);
 
-    return (varTypeIsStruct(returnType));
+    return (returnType == TYP_STRUCT);
 }
 
 //-----------------------------------------------------------------------------------
@@ -11380,7 +11398,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
     structPassingKind howToReturnStruct;
     var_types         returnType = getReturnTypeForStruct(hClass, &howToReturnStruct);
 
-    return (varTypeIsStruct(returnType));
+    return (returnType == TYP_STRUCT);
 }
 
 //----------------------------------------------
@@ -11390,7 +11408,7 @@ bool Compiler::IsMultiRegReturnedType(CORINFO_CLASS_HANDLE hClass)
 bool Compiler::IsHfa(CORINFO_CLASS_HANDLE hClass)
 {
 #ifdef FEATURE_HFA
-    return varTypeIsFloating(GetHfaType(hClass));
+    return GetHfaType(hClass) != TYP_UNDEF;
 #else
     return false;
 #endif
@@ -11428,7 +11446,26 @@ var_types Compiler::GetHfaType(CORINFO_CLASS_HANDLE hClass)
         CorInfoType corType = info.compCompHnd->getHFAType(hClass);
         if (corType != CORINFO_TYPE_UNDEF)
         {
-            result = JITtype2varType(corType);
+#if defined(_TARGET_ARM64_)
+            result = JITtype2varType((CorInfoType)(corType & CORINFO_TYPE_MASK));
+
+            // Check for Short Vector / HVA types
+            // Indicated by setting modified bit
+            if (corType > CORINFO_TYPE_COUNT)
+            {
+                // TYP_FLOAT  ==> TYP_SIMD8
+                // TYP_DOUBLE ==> TYP_SIMD16
+                assert((result == TYP_FLOAT) || (result == TYP_DOUBLE));
+
+#if defined(FEATURE_HW_INTRINSICS)
+                result = (result == TYP_FLOAT) ? TYP_SIMD8 : TYP_SIMD16;
+#else  // defined(FEATURE_HW_INTRINSICS)
+                result = TYP_UNDEF;
+#endif // defined(FEATURE_HW_INTRINSICS)
+            }
+#else  // defined(_TARGET_ARM64_)
+            result                = JITtype2varType(corType);
+#endif // defined(_TARGET_ARM64_)
         }
 #endif // FEATURE_HFA
     }

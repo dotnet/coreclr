@@ -2342,7 +2342,11 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
     else
     {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        assert(!varTypeIsStruct(call) || varTypeIsSIMD(call));
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         assert(!varTypeIsStruct(call));
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
         if (call->gtType == TYP_REF)
         {
@@ -2497,7 +2501,11 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             }
             else
 #endif // _TARGET_ARM_
-                if (varTypeIsFloating(returnType) && !compiler->opts.compUseSoftFP)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                if ((varTypeIsFloating(returnType) && !compiler->opts.compUseSoftFP) || varTypeIsSIMD(returnType))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if ((varTypeIsFloating(returnType) && !compiler->opts.compUseSoftFP))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 returnReg = REG_FLOATRET;
             }
@@ -3651,7 +3659,11 @@ bool CodeGen::isStructReturn(GenTree* treeNode)
     // a bool or a void, for the end of a finally block.
     noway_assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    return (treeNode->TypeGet() == TYP_STRUCT);
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     return varTypeIsStruct(treeNode);
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 }
 
 //------------------------------------------------------------------------

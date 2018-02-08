@@ -8407,20 +8407,24 @@ private:
             unsigned returnLocalNum   = comp->lvaGrabTemp(true DEBUGARG("Single return block return value"));
             comp->genReturnLocal      = returnLocalNum;
             LclVarDsc& returnLocalDsc = comp->lvaTable[returnLocalNum];
+            var_types  returnType     = TYP_UNKNOWN;
 
             if (comp->compMethodReturnsNativeScalarType())
             {
                 returnLocalDsc.lvType = genActualType(comp->info.compRetNativeType);
+                returnType            = returnLocalDsc.lvType;
             }
             else if (comp->compMethodReturnsRetBufAddr())
             {
                 returnLocalDsc.lvType = TYP_BYREF;
+                returnType            = returnLocalDsc.lvType;
             }
             else if (comp->compMethodReturnsMultiRegRetType())
             {
                 returnLocalDsc.lvType = TYP_STRUCT;
                 comp->lvaSetStruct(returnLocalNum, comp->info.compMethodInfo->args.retTypeClass, true);
                 returnLocalDsc.lvIsMultiRegRet = true;
+                returnType                     = TYP_STRUCT;
             }
             else
             {
@@ -8453,7 +8457,7 @@ private:
 
             // make sure copy prop ignores this node (make sure it always does a reload from the temp).
             retTemp->gtFlags |= GTF_DONT_CSE;
-            returnExpr = comp->gtNewOperNode(GT_RETURN, retTemp->gtType, retTemp);
+            returnExpr = comp->gtNewOperNode(GT_RETURN, returnType, retTemp);
         }
         else
         {

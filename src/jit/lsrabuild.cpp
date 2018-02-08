@@ -2991,7 +2991,7 @@ void LinearScan::BuildReturn(GenTree* tree)
         info->srcCount = 1;
 
 #if FEATURE_MULTIREG_RET
-        if (varTypeIsStruct(tree))
+        if (tree->TypeGet() == TYP_STRUCT)
         {
             // op1 has to be either an lclvar or a multi-reg returning call
             if (op1->OperGet() != GT_LCL_VAR)
@@ -3012,6 +3012,12 @@ void LinearScan::BuildReturn(GenTree* tree)
                 case TYP_VOID:
                     useCandidates = RBM_NONE;
                     break;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                case TYP_SIMD8:
+                case TYP_SIMD16:
+                    useCandidates = RBM_FLOATRET;
+                    break;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                 case TYP_FLOAT:
                     useCandidates = RBM_FLOATRET;
                     break;

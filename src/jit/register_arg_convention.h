@@ -56,7 +56,11 @@ public:
     // return ref to current register arg for this type
     unsigned& regArgNum(var_types type)
     {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        return (varTypeIsFloating(type) || varTypeIsSIMD(type)) ? floatRegArgNum : intRegArgNum;
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         return varTypeIsFloating(type) ? floatRegArgNum : intRegArgNum;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     }
 
     // Allocate a set of contiguous argument registers. "type" is either an integer
@@ -106,7 +110,11 @@ private:
     // return max register arg for this type
     unsigned maxRegArgNum(var_types type)
     {
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        return (varTypeIsFloating(type) || varTypeIsSIMD(type)) ? maxFloatRegArgNum : maxIntRegArgNum;
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         return varTypeIsFloating(type) ? maxFloatRegArgNum : maxIntRegArgNum;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     }
 
     bool enoughAvailRegs(var_types type, unsigned numRegs = 1);

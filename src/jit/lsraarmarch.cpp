@@ -252,7 +252,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
         assert(retTypeDesc != nullptr);
         info->setDstCandidates(this, retTypeDesc->GetABIReturnRegs());
     }
-    else if (varTypeIsFloating(registerType))
+    else if (varTypeIsFloating(registerType) || varTypeIsSIMD(registerType))
     {
         info->setDstCandidates(this, RBM_FLOATRET);
     }

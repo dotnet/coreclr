@@ -9711,8 +9711,21 @@ CorInfoType CEEInfo::getHFAType(CORINFO_CLASS_HANDLE hClass)
 
     TypeHandle VMClsHnd(hClass);
 
-    result = asCorInfoType(VMClsHnd.GetHFAType());
-    
+    CorElementType hfaType = VMClsHnd.GetHFAType();
+
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+    auto isVector =  hfaType & ELEMENT_TYPE_SHORT_VECTOR;
+    CorElementType hfaMaskedType = (CorElementType)(hfaType & ~ELEMENT_TYPE_SHORT_VECTOR);
+
+    result = asCorInfoType(hfaMaskedType);
+
+    if (isVector)
+    {
+        result = (CorInfoType)(result | CORINFO_TYPE_MOD_VECTOR);
+    }
+#else // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
+    result = asCorInfoType(hfaType);
+#endif // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
     EE_TO_JIT_TRANSITION();
 
     return result;

@@ -147,7 +147,11 @@ void Compiler::lvaInitTypeRef()
         if (howToReturnStruct == SPK_PrimitiveType)
         {
             assert(returnType != TYP_UNKNOWN);
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            assert(!varTypeIsStruct(returnType) || varTypeIsSIMD(returnType));
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             assert(!varTypeIsStruct(returnType));
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
             info.compRetNativeType = returnType;
 
@@ -156,7 +160,11 @@ void Compiler::lvaInitTypeRef()
             {
                 compLongUsed = true;
             }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            else if ((compFloatingPointUsed == false) && (varTypeIsFloating(returnType) || varTypeIsSIMD(returnType)))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             else if (((returnType == TYP_FLOAT) || (returnType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 compFloatingPointUsed = true;
             }
@@ -592,8 +600,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             // If the argType is a struct, then check if it is an HFA
             if (varTypeIsStruct(argType))
             {
-                hfaType  = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                isHfaArg = varTypeIsFloating(hfaType);
+                hfaType  = GetHfaType(typeHnd); // set to float, double, or SIMD* if it is an HFA, otherwise TYP_UNDEF
+                isHfaArg = hfaType != TYP_UNDEF;
             }
         }
         if (isHfaArg)
@@ -604,6 +612,14 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             argType = hfaType;
             cSlots  = varDsc->lvHfaSlots();
         }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        else if (varTypeIsStruct(argType))
+        {
+            // Non HFA structs are passed in integer registers
+            argType = TYP_I_IMPL;
+        }
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+
         // The number of slots that must be enregistered if we are to consider this argument enregistered.
         // This is normally the same as cSlots, since we normally either enregister the entire object,
         // or none of it. For structs on ARM, however, we only need to enregister a single slot to consider
@@ -781,7 +797,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             {
                 // We need to save the fact that this HFA is enregistered
                 varDsc->lvSetIsHfa();
-                varDsc->lvSetIsHfaRegArg();
                 varDsc->SetHfaType(hfaType);
                 varDsc->lvIsMultiRegArg = (varDsc->lvHfaSlots() > 1);
             }
@@ -789,7 +804,11 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             varDsc->lvIsRegArg = 1;
 
 #if FEATURE_MULTIREG_ARGS
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if (argType == TYP_STRUCT)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             if (varTypeIsStruct(argType))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, firstEightByteType);
@@ -1180,7 +1199,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
     }
 
     var_types type = JITtype2varType(corInfoType);
-    if (varTypeIsFloating(type))
+    if (varTypeIsFloating(type) || varTypeIsSIMD(type))
     {
         compFloatingPointUsed = true;
     }
@@ -2288,11 +2307,12 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         // for structs that are small enough, we check and set lvIsHfa and lvHfaTypeIsFloat
         if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
         {
-            var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-            if (varTypeIsFloating(hfaType))
+            var_types hfaType =
+                GetHfaType(typeHnd); // set to float, double, or SIMD* if it is an HFA, otherwise TYP_UNDEF
+            if (hfaType != TYP_UNDEF)
             {
                 varDsc->_lvIsHfa = true;
-                varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+                varDsc->lvSetHfaType(hfaType);
 
                 // hfa variables can never contain GC pointers
                 assert(varDsc->lvStructGcCount == 0);
@@ -3515,6 +3535,21 @@ const size_t LclVarDsc::lvArgStackSize() const
     }
 
     return stackSize;
+}
+
+/**********************************************************************************
+* on Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
+* on Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
+*/
+unsigned LclVarDsc::lvHfaSlots() const
+{
+    assert(lvIsHfa());
+    assert(varTypeIsStruct(lvType));
+#ifdef _TARGET_ARM_
+    return lvExactSize / sizeof(float);
+#else  //  _TARGET_ARM64_
+    return lvExactSize / genTypeSize(lvHfaType());
+#endif //  _TARGET_ARM64_
 }
 
 #ifndef LEGACY_BACKEND
@@ -6748,13 +6783,22 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
 
     if (varDsc->lvIsHfaRegArg())
     {
-        if (varDsc->lvHfaTypeIsFloat())
+        switch (varDsc->lvHfaType())
         {
-            printf(" (enregistered HFA: float) ");
-        }
-        else
-        {
-            printf(" (enregistered HFA: double)");
+            case TYP_FLOAT:
+                printf(" (enregistered HFA: float) ");
+                break;
+            case TYP_DOUBLE:
+                printf(" (enregistered HFA: double)");
+                break;
+            case TYP_SIMD8:
+                printf(" (enregistered HFA: SIMD8) ");
+                break;
+            case TYP_SIMD16:
+                printf(" (enregistered HFA: SIMD16) ");
+                break;
+            default:
+                assert(!"Unexpected HfaType");
         }
     }
 

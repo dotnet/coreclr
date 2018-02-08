@@ -262,6 +262,18 @@ typedef enum CorElementTypeZapSig
 
 } CorElementTypeZapSig;
 
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+////////////////////////////////////////////////////////////////////////////////
+// Homogeneous Aggregate fundamental types which are not in the ECMA spec
+// Values are only used in GetHFAType() and its clients
+////////////////////////////////////////////////////////////////////////////////
+#define ELEMENT_TYPE_SHORT_VECTOR   0x80
+// 8 byte Short Vector
+#define ELEMENT_TYPE_V8             ((CorElementType) (0x0c | ELEMENT_TYPE_SHORT_VECTOR))
+// 16 byte Short Vector
+#define ELEMENT_TYPE_V16            ((CorElementType) (0x0d | ELEMENT_TYPE_SHORT_VECTOR))
+#endif // defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
+
 typedef enum CorCallingConventionInternal
 {
     // IL stub signatures containing types that need to be restored have the highest

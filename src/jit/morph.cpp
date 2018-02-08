@@ -2488,7 +2488,11 @@ void fgArgInfo::EvalArgsToTemps()
 
 #else // !defined(_TARGET_AMD64_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if (defArg->gtType == TYP_STRUCT)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             if (varTypeIsStruct(defArg))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 // Need a temp to walk any GT_COMMA nodes when searching for the clsHnd
                 GenTree* defArgTmp = defArg;
@@ -3354,7 +3358,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         unsigned argAlign = 1;
         // Setup any HFA information about 'argx'
         var_types hfaType  = GetHfaType(argx);
-        bool      isHfaArg = varTypeIsFloating(hfaType);
+        bool      isHfaArg = hfaType != TYP_UNDEF;
         unsigned  hfaSlots = 0;
 
         if (isHfaArg)
@@ -3554,7 +3558,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 {
                     if (isHfaArg)
                     {
-                        size = GetHfaCount(argx);
+                        size = hfaSlots;
                         // HFA structs are passed by value in multiple registers
                         hasMultiregStructArgs = true;
                     }
@@ -3942,6 +3946,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                             argObj->gtType = structBaseType;
                         }
                         assert(varTypeCanReg(argObj->TypeGet()) ||
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                               varTypeIsSIMD(argObj->TypeGet()) ||
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                                ((copyBlkClass != NO_CLASS_HANDLE) && varTypeIsIntegral(structBaseType)));
 
                         size = 1;
@@ -3966,7 +3973,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     {
                         if (isHfaArg && passUsingFloatRegs)
                         {
-                            size = GetHfaCount(argx); // GetHfaCount returns number of elements in the HFA
+                            size = hfaSlots;
                         }
                         else
                         {
@@ -5026,8 +5033,8 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     unsigned  elemSize                = 0;
     var_types type[MAX_ARG_REG_COUNT] = {}; // TYP_UNDEF = 0
 
-    hfaType = GetHfaType(objClass); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-    if (varTypeIsFloating(hfaType))
+    hfaType = GetHfaType(objClass); // set to float, double, or SIMD* if it is an HFA, otherwise TYP_UNDEF
+    if (hfaType != TYP_UNDEF)
     {
         elemType  = hfaType;
         elemSize  = genTypeSize(elemType);
@@ -5136,7 +5143,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
         if (varDsc->lvIsHfa())
         {
             // We have a HFA struct
-            noway_assert(elemType == (varDsc->lvHfaTypeIsFloat() ? TYP_FLOAT : TYP_DOUBLE));
+            noway_assert(elemType == varDsc->lvHfaType());
             noway_assert(elemSize == genTypeSize(elemType));
             noway_assert(elemCount == (varDsc->lvExactSize / elemSize));
             noway_assert(elemSize * elemCount == varDsc->lvExactSize);
@@ -5718,7 +5725,7 @@ void Compiler::fgFixupStructReturn(GenTree* callNode)
 
 #if FEATURE_MULTIREG_RET
     // Either we don't have a struct now or if struct, then it is a struct returned in regs or in return buffer.
-    assert(!varTypeIsStruct(call) || call->HasMultiRegRetVal() || callHasRetBuffArg);
+    assert(!varTypeIsStruct(call) || varTypeIsSIMD(call) || call->HasMultiRegRetVal() || callHasRetBuffArg);
 #else // !FEATURE_MULTIREG_RET
     // No more struct returns
     assert(call->TypeGet() != TYP_STRUCT);
@@ -7531,7 +7538,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 #elif defined(_TARGET_ARM64_) // ARM64
                 var_types hfaType  = GetHfaType(argx);
-                bool      isHfaArg = varTypeIsFloating(hfaType);
+                bool      isHfaArg = hfaType != TYP_UNDEF;
                 size_t    size     = 1;
 
                 if (isHfaArg)
@@ -9449,12 +9456,21 @@ GenTree* Compiler::fgMorphOneAsgBlockOp(GenTree* tree)
         }
     }
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    if (asgType != TYP_STRUCT)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     // TODO-1stClassStructs: Change this to asgType != TYP_STRUCT.
     if (!varTypeIsStruct(asgType))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         // For initBlk, a non constant source is not going to allow us to fiddle
         // with the bits to create a single assigment.
+        CLANG_FORMAT_COMMENT_ANCHOR;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        noway_assert(size <= REGSIZE_BYTES || (varTypeIsSIMD(asgType) && size <= FP_REGSIZE_BYTES));
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         noway_assert(size <= REGSIZE_BYTES);
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
         if (isInitBlock && !src->IsConstInitVal())
         {
@@ -9482,7 +9498,13 @@ GenTree* Compiler::fgMorphOneAsgBlockOp(GenTree* tree)
             // holes, whose contents could be meaningful in unsafe code.  If we decide that's a valid
             // concern, then we could compromise, and say that address-exposed + fields do not completely cover the
             // memory of the struct prevent field-wise assignments.  Same situation exists for the "src" decision.
+            CLANG_FORMAT_COMMENT_ANCHOR;
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if (varTypeIsStruct(lclVarTree) && (destVarDsc->lvPromoted || destVarDsc->lvIsSIMDType()) &&
+                !varTypeIsStruct(asgType))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             if (varTypeIsStruct(lclVarTree) && (destVarDsc->lvPromoted || destVarDsc->lvIsSIMDType()))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 // Let fgMorphInitBlock handle it.  (Since we'll need to do field-var-wise assignments.)
                 return nullptr;
@@ -10285,7 +10307,11 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
                 needsIndirection = false;
                 effectiveVal     = indirTree->Addr()->gtGetOp1();
             }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+            if (effectiveVal->OperIs(GT_HWIntrinsic, GT_SIMD, GT_CALL))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             if (effectiveVal->OperIsSIMDorSimdHWintrinsic())
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
             {
                 needsIndirection = false;
             }
@@ -18479,7 +18505,11 @@ void Compiler::fgMarkImplicitByRefArgs()
     {
         LclVarDsc* varDsc = &lvaTable[lclNum];
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        if (varDsc->lvIsParam && (varDsc->lvType == TYP_STRUCT))
+#else // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         if (varDsc->lvIsParam && varTypeIsStruct(varDsc))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         {
             size_t size;
 
@@ -18638,8 +18668,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                     // the parameter which is really a pointer to the struct.
                     fieldVarDsc->lvIsRegArg      = false;
                     fieldVarDsc->lvIsMultiRegArg = false;
-                    fieldVarDsc->lvSetIsHfaRegArg(false);
-                    fieldVarDsc->lvArgReg = REG_NA;
+                    fieldVarDsc->lvArgReg        = REG_NA;
 #if FEATURE_MULTIREG_ARGS
                     fieldVarDsc->lvOtherArgReg = REG_NA;
 #endif

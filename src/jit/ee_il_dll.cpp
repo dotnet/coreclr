@@ -473,8 +473,9 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
             // Is the struct larger than 16 bytes
             if (structSize > (2 * TARGET_POINTER_SIZE))
             {
-                var_types hfaType = GetHfaType(argClass); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                bool      isHfa   = (hfaType != TYP_UNDEF);
+                var_types hfaType =
+                    GetHfaType(argClass); // set to float, double, or SIMD* if it is an HFA, otherwise TYP_UNDEF
+                bool isHfa = (hfaType != TYP_UNDEF);
                 if (!isHfa)
                 {
                     // This struct is passed by reference using a single 'slot'

@@ -1672,6 +1672,31 @@ CorElementType MethodTable::GetHFAType()
         _ASSERTE(pMT->IsValueType());
         _ASSERTE(pMT->GetNumInstanceFields() > 0);
 
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+        if (pMT->IsIntrinsicType())
+        {
+            LPCUTF8 namespaceName;
+            LPCUTF8 className = pMT->GetFullyQualifiedNameInfo(&namespaceName);
+
+            //
+            // On ARM64 Vector128 and Vector64 are treated as Short Vector HFA Types
+            //
+            // See comments in EEClass::CheckForHFA()
+            //
+            if (strcmp(className, "Vector64`1") == 0)
+            {
+                assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+                return ELEMENT_TYPE_V8;
+            }
+
+            if (strcmp(className, "Vector128`1") == 0)
+            {
+                assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+                return ELEMENT_TYPE_V16;
+            }
+        }
+#endif //  (defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
+
         PTR_FieldDesc pFirstField = pMT->GetApproxFieldDescListRaw();
 
         CorElementType fieldType = pFirstField->GetFieldType();
@@ -1730,18 +1755,57 @@ EEClass::CheckForHFA()
     if (HasExplicitFieldOffsetLayout())
         return false;
 
-    // The SIMD Intrinsic types are meant to be handled specially and should not be treated as HFA
+    // The SIMD Intrinsic types are meant to be handled specially
     if (GetMethodTable()->IsIntrinsicType())
     {
         LPCUTF8 namespaceName;
         LPCUTF8 className = GetMethodTable()->GetFullyQualifiedNameInfo(&namespaceName);
 
+#if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_) // ARM64 or arm64altjit
+        //
+        // On ARM64 and arm64altjit Vector128 and Vector64 are treated as Short Vector Types
+        //
+        // We treat Short Vectors as an HFA type
+        //
+        // Homogenous Aggregates are determined by examining the data members after data
+        // layout.  An homogenous aggregate must contain 1 - 4 members of the same type in
+        // the final layout
+        //
+        // HA w/ type floating is an HFA
+        // HA w/ type Short Vector is an HVA
+        //
+        // HVA & HFA are treated the same by the ABI the only difference being member types
+        //
+        // A struct which contains a single Short Vector has the same layout as a Short Vector
+        // They are treated the same by the ABI.  Passed in the same registers and using the
+        // same stack layout.
+        //
+        // Therefore we treat HFA, HVA, & Short Vectors as HFA for ABI purposes
+        //
+        if ((strcmp(className, "Vector128`1") == 0) || (strcmp(className, "Vector64`1") == 0))
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+
+#if defined(FEATURE_HFA)
+            GetMethodTable()->SetIsHFA();
+#endif
+            return true;
+        }
+
+        // Vector256 is too big to be treated as a Short Vector Type
+        if (strcmp(className, "Vector256`1") == 0)
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+            return false;
+        }
+#else //  (defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
         if ((strcmp(className, "Vector256`1") == 0) || (strcmp(className, "Vector128`1") == 0) ||
             (strcmp(className, "Vector64`1") == 0))
         {
             assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
             return false;
         }
+#endif //  (defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
     }
 
     CorElementType hfaType = ELEMENT_TYPE_END;
@@ -1789,10 +1853,24 @@ EEClass::CheckForHFA()
         }
     }
 
-    if (hfaType == ELEMENT_TYPE_END)
-        return false;
+    int elemSize = 0;
 
-    int elemSize = (hfaType == ELEMENT_TYPE_R8) ? sizeof(double) : sizeof(float);
+    switch ((unsigned)hfaType)
+    {
+        case ELEMENT_TYPE_R4:
+            elemSize = sizeof(float);
+            break;
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_V8:
+            elemSize = sizeof(double);
+            break;
+        case ELEMENT_TYPE_V16:
+            elemSize = 2*sizeof(double);
+            break;
+        default:
+            // Not HFA
+            return false;
+    }
 
     // Note that we check the total size, but do not perform any checks on number of fields:
     // - Type of fields can be HFA valuetype itself

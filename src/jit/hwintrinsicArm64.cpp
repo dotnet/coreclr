@@ -183,7 +183,8 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     {
         simdBaseType = getBaseTypeAndSizeOfSIMDType(simdClass, &simdSizeBytes);
 
-        if (simdBaseType == TYP_UNKNOWN)
+        assert(simdBaseType != TYP_UNKNOWN);
+        if (simdBaseType == TYP_UNDEF)
         {
             return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
         }

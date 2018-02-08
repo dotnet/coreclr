@@ -139,7 +139,11 @@ void Compiler::impPushOnStack(GenTree* tree, typeInfo ti)
     {
         compLongUsed = true;
     }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    else if ((compFloatingPointUsed == false) && (varTypeIsFloating(tree->gtType) || varTypeIsSIMD(tree->gtType)))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     else if (((tree->gtType == TYP_FLOAT) || (tree->gtType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         compFloatingPointUsed = true;
     }
@@ -1171,6 +1175,13 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                     lcl->gtFlags |= GTF_DONT_CSE;
                     lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
                 }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                else if (varTypeIsSIMD(returnType))
+                {
+                    lcl->gtFlags |= GTF_DONT_CSE;
+                    setLclRelatedToSIMDIntrinsic(lcl);
+                }
+#endif               // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                 else // The call result is not a multireg return
                 {
                     // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
@@ -8532,7 +8543,11 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
         {
             compLongUsed = true;
         }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        else if ((compFloatingPointUsed == false) && (varTypeIsFloating(returnType) || varTypeIsSIMD(returnType)))
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         else if (((returnType == TYP_FLOAT) || (returnType == TYP_DOUBLE)) && (compFloatingPointUsed == false))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
         {
             compFloatingPointUsed = true;
         }
@@ -8747,13 +8762,7 @@ REDO_RETURN_NODE:
 #if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     else if ((op->gtOper == GT_HWIntrinsic) && varTypeIsSIMD(op->gtType))
     {
-        // TODO-ARM64-FIXME Implement ARM64 ABI for Short Vectors properly
-        // assert(op->gtType == info.compRetNativeType)
-        if (op->gtType != info.compRetNativeType)
-        {
-            // Insert a register move to keep target type of SIMD intrinsic intact
-            op = gtNewScalarHWIntrinsicNode(info.compRetNativeType, op, NI_ARM64_NONE_MOV);
-        }
+        assert(op->gtType == info.compRetNativeType);
     }
 #endif
     else if (op->gtOper == GT_COMMA)

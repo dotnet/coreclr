@@ -300,11 +300,9 @@ public:
     unsigned char lvIsMultiRegRet : 1; // true if this is a multireg LclVar struct assigned from a multireg call
 
 #ifdef FEATURE_HFA
-    unsigned char _lvIsHfa : 1;          // Is this a struct variable who's class handle is an HFA type
-    unsigned char _lvIsHfaRegArg : 1;    // Is this a HFA argument variable?    // TODO-CLEANUP: Remove this and replace
-                                         // with (lvIsRegArg && lvIsHfa())
-    unsigned char _lvHfaTypeIsFloat : 1; // Is the HFA type float or double?
-#endif                                   // FEATURE_HFA
+    unsigned char _lvIsHfa : 1;   // Is this a struct variable who's class handle is an HFA type
+    unsigned char _lvHfaType : 2; // HFA type float = 0, double = 1, simd8 = 2, simd16 = 3
+#endif                            // FEATURE_HFA
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
@@ -385,55 +383,56 @@ public:
     bool lvIsHfaRegArg() const
     {
 #ifdef FEATURE_HFA
-        return _lvIsHfaRegArg;
+        return lvIsHfa() && lvIsRegArg;
 #else
         return false;
 #endif
     }
 
-    void lvSetIsHfaRegArg(bool value = true)
+    var_types lvHfaType() const
     {
 #ifdef FEATURE_HFA
-        _lvIsHfaRegArg = value;
-#endif
-    }
-
-    bool lvHfaTypeIsFloat() const
-    {
-#ifdef FEATURE_HFA
-        return _lvHfaTypeIsFloat;
-#else
-        return false;
-#endif
-    }
-
-    void lvSetHfaTypeIsFloat(bool value)
-    {
-#ifdef FEATURE_HFA
-        _lvHfaTypeIsFloat = value;
-#endif
-    }
-
-    // on Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
-    // on Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
-    //
-    unsigned lvHfaSlots() const
-    {
-        assert(lvIsHfa());
-        assert(varTypeIsStruct(lvType));
-#ifdef _TARGET_ARM_
-        return lvExactSize / sizeof(float);
-#else  //  _TARGET_ARM64_
-        if (lvHfaTypeIsFloat())
+        switch (_lvHfaType)
         {
-            return lvExactSize / sizeof(float);
+            case 0:
+                return TYP_FLOAT;
+            case 1:
+                return TYP_DOUBLE;
+            case 2:
+                return TYP_SIMD8;
+            case 3:
+                return TYP_SIMD16;
+            default:
+                assert(!"Unexpected _lvHfaType");
         }
-        else
-        {
-            return lvExactSize / sizeof(double);
-        }
-#endif //  _TARGET_ARM64_
+#endif
+        return TYP_UNDEF;
     }
+
+    void lvSetHfaType(var_types type)
+    {
+#ifdef FEATURE_HFA
+        switch (type)
+        {
+            case TYP_FLOAT:
+                _lvHfaType = 0;
+                break;
+            case TYP_DOUBLE:
+                _lvHfaType = 1;
+                break;
+            case TYP_SIMD8:
+                _lvHfaType = 2;
+                break;
+            case TYP_SIMD16:
+                _lvHfaType = 3;
+                break;
+            default:
+                assert(!"Unexpected HfaType");
+        }
+#endif
+    }
+
+    unsigned lvHfaSlots() const;
 
     // lvIsMultiRegArgOrRet()
     //     returns true if this is a multireg LclVar struct used in an argument context
@@ -769,12 +768,11 @@ public:
     }
     var_types GetHfaType() const
     {
-        return lvIsHfa() ? (lvHfaTypeIsFloat() ? TYP_FLOAT : TYP_DOUBLE) : TYP_UNDEF;
+        return lvIsHfa() ? lvHfaType() : TYP_UNDEF;
     }
     void SetHfaType(var_types type)
     {
-        assert(varTypeIsFloating(type));
-        lvSetHfaTypeIsFloat(type == TYP_FLOAT);
+        lvSetHfaType(type);
     }
 
 #ifndef LEGACY_BACKEND
@@ -7711,8 +7709,9 @@ private:
         return isSIMDClass(pTypeInfo) || isHWSIMDClass(pTypeInfo);
     }
 
-    // Get the base (element) type and size in bytes for a SIMD type. Returns TYP_UNKNOWN
-    // if it is not a SIMD type or is an unsupported base type.
+    // Get the base (element) type and size in bytes for a SIMD type.
+    // Returns TYP_UNKNOWN if it is not a SIMD type
+    // Returns TYP_UNKNOWN (or TYP_UNDEF on ARM64) if it is an unsupported base type.
     var_types getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, unsigned* sizeBytes = nullptr);
 
     var_types getBaseTypeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd)

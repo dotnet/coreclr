@@ -644,8 +644,11 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 #ifdef _TARGET_64BIT_
                 var_types hfaType = GetHfaType(clsHnd);
 
-                // A structSize of 8 with IsHfa, we have two possiblities:
-                // An HFA of one double or an HFA of two floats
+                // A structSize of 8 with IsHfa, we have four possiblities:
+                //    An HFA of one double,
+                //    One 8 byte short vector,
+                //    An HFA(HVA) of one 8 byte short vector
+                //    An HFA of two floats
                 //
                 // Check and exclude the case of an HFA of two floats
                 if (hfaType == TYP_DOUBLE)
@@ -653,6 +656,13 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
                     // We have an HFA of one double
                     useType = TYP_DOUBLE;
                 }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                else if (hfaType == TYP_SIMD8)
+                {
+                    // We have an HFA of one short vector or one short vector
+                    useType = TYP_SIMD8;
+                }
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                 else
                 {
                     assert(hfaType == TYP_FLOAT);
@@ -674,6 +684,20 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
                 useType = getJitGCType(gcPtr);
             }
             break;
+
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+        case FP_REGSIZE_BYTES:
+            if (IsHfa(clsHnd) && (GetHfaType(clsHnd) == TYP_SIMD16))
+            {
+                // We have an HFA of one 16 byte short vector
+                useType = TYP_SIMD16;
+            }
+            else
+            {
+                useType = TYP_UNKNOWN;
+            }
+            break;
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
 
 #ifdef _TARGET_ARM_
         case 8:
@@ -786,11 +810,19 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #else // all other targets
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    // The largest primitive type is FP_REGSIZE_BYTES
+    // so we can skip calling getPrimitiveTypeForStruct when we
+    // have a struct that is larger than that.
+    //
+    if (structSize <= FP_REGSIZE_BYTES)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
     //
     if (structSize <= sizeof(double))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -999,11 +1031,19 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #else // not UNIX_AMD64
 
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+    // The largest primitive type is FP_REGSIZE_BYTES
+    // so we can skip calling getPrimitiveTypeForStruct when we
+    // have a struct that is larger than that.
+    //
+    if (structSize <= FP_REGSIZE_BYTES)
+#else  // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
     //
     if (structSize <= sizeof(double))
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
     {
 #if defined LEGACY_BACKEND
         if (!IsHfa(clsHnd))

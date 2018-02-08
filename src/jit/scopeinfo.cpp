@@ -1011,6 +1011,13 @@ void CodeGen::psiBegProlog()
                 {
                     regType = lclVarDsc1->GetHfaType();
                 }
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
+                else if (varTypeIsStruct(regType))
+                {
+                    // Non HFA structs are passed in integer register
+                    regType = TYP_I_IMPL;
+                }
+#endif // defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_ARM64_)
                 assert(genMapRegNumToRegArgNum(lclVarDsc1->lvArgReg, regType) != (unsigned)-1);
 #endif // DEBUG
 
