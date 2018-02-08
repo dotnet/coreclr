@@ -111,8 +111,11 @@ internal static class ByRefLikeTest
         GC.Collect();
         for (int i = 0; i < 10000; i++)
             GC.KeepAlive(new object());
-        if (a.span[0] != 42 || b.span[0] != 42 || c.span[0] != 42 || d.span[0] != 42 || e.span[0] != 42)
+        if (a.span[0] != 42 || b.span[0] != 42 || c.span[0] != 42 || d.span[0] != 42 || e.span[0] != 42 ||
+            a.span2[0] != 42 || b.span2[0] != 42 || c.span2[0] != 42 || d.span2[0] != 42 || e.span2[0] != 42)
+        {
             throw new ArgumentException();
+        }
     }
 
     private delegate void ActionOfTestByRefLike(TestByRefLike x);
