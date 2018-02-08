@@ -377,12 +377,12 @@ namespace System.Globalization
 
         private unsafe bool EndsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
         {
-            return StartsWithOrdinalIgnoreCaseHelper(source.Slice(span.Length - suffix.Length), suffix, out length);
+            return StartsWithOrdinalIgnoreCaseHelper(source.Slice(source.Length - suffix.Length), suffix, out length);
         }
 
         private unsafe bool EndsWithOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, out int length)
         {
-            return StartsWithOrdinalHelper(source.Slice(span.Length - suffix.Length), suffix, out length);
+            return StartsWithOrdinalHelper(source.Slice(source.Length - suffix.Length), suffix, out length);
         }
 
         private unsafe bool StartsWithOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, out int length)
@@ -391,15 +391,13 @@ namespace System.Globalization
 
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!prefix.IsEmpty);
-            Debug.Assert((options & (CompareOptions.OrdinalIgnoreCase)) == 0);
             Debug.Assert(_isAsciiEqualityOrdinal);
-            Debug.Assert(CanUseAsciiOrdinalForOptions(options));
-            Debug.Assert(span.Length >= prefix.Length);
+            Debug.Assert(source.Length >= prefix.Length);
 
             length = prefix.Length;
 
-            fixed (char* ap = &MemoryMarshal.GetReference(span))
-            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            fixed (char* ap = &MemoryMarshal.GetReference(source))
+            fixed (char* bp = &MemoryMarshal.GetReference(prefix))
             {
                 char* a = ap;
                 char* b = bp;
@@ -439,15 +437,13 @@ namespace System.Globalization
 
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!prefix.IsEmpty);
-            Debug.Assert((options & (CompareOptions.Ordinal)) == 0);
             Debug.Assert(_isAsciiEqualityOrdinal);
-            Debug.Assert(CanUseAsciiOrdinalForOptions(options));
-            Debug.Assert(span.Length >= prefix.Length);
+            Debug.Assert(source.Length >= prefix.Length);
 
             length = prefix.Length;
 
-            fixed (char* ap = &MemoryMarshal.GetReference(span))
-            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            fixed (char* ap = &MemoryMarshal.GetReference(source))
+            fixed (char* bp = &MemoryMarshal.GetReference(prefix))
             {
                 char* a = ap;
                 char* b = bp;
