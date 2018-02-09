@@ -12091,6 +12091,10 @@ EXTERN_C const IID IID_ICorDebugFunction3;
 
 
 
+
+#endif  /* __ICorDebugFunction3_INTERFACE_DEFINED__ */
+
+
 #ifndef __ICorDebugFunction4_INTERFACE_DEFINED__
 #define __ICorDebugFunction4_INTERFACE_DEFINED__
 
@@ -12170,9 +12174,6 @@ EXTERN_C const IID IID_ICorDebugFunction4;
 
 #endif  /* __ICorDebugFunction4_INTERFACE_DEFINED__ */
 
-
-
-#endif 	/* __ICorDebugFunction3_INTERFACE_DEFINED__ */
 
 
 #ifndef __ICorDebugCode_INTERFACE_DEFINED__
