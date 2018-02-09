@@ -1186,15 +1186,14 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
         if (errorSource == NULL)
         {
             PrintToStdErrA("FailFast:");
+            PrintToStdErrW((WCHAR*)pszMessage);
+            PrintToStdErrA("\n");
         }
         else 
         {
             PrintToStdErrW((WCHAR*)errorSource);
+            PrintToStdErrW((WCHAR*)pszMessage);
         }
-
-        PrintToStdErrA("\n");
-        PrintToStdErrW((WCHAR*)pszMessage);
-        PrintToStdErrA("\n");
 
         if (pThread && errorSource == NULL)
         {
