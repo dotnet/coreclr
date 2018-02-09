@@ -19217,6 +19217,32 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
         // them as AXC_IndWide.
         //
 
+        case GT_CALL:
+        {
+            // Scan for byref args
+            GenTreeCall* const call = tree->AsCall();
+
+            if (call->gtCallObjp)
+            {
+                if (call->gtCallObjp->gtType == TYP_BYREF)
+                {
+                    axcStack->Push(AXC_IndWide);
+                    return WALK_CONTINUE;
+                }
+            }
+
+            for (GenTree* args = call->gtCallArgs; (args != nullptr); args = args->gtOp.gtOp2)
+            {
+                if (args->gtOp.gtOp1->gtType == TYP_BYREF)
+                {
+                    axcStack->Push(AXC_IndWide);
+                    return WALK_CONTINUE;
+                }
+            }
+
+            break;
+        }
+
         // BINOP
         case GT_SUB:
         case GT_MUL:
@@ -19236,6 +19262,7 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
         case GT_LE:
         case GT_GT:
         case GT_GE:
+        case GT_ASG:
         // UNOP
         case GT_CAST:
             if ((tree->gtOp.gtOp1->gtType == TYP_BYREF) ||
@@ -19244,21 +19271,23 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 axcStack->Push(AXC_IndWide);
                 return WALK_CONTINUE;
             }
-            __fallthrough;
+            break;
 
         default:
-            // To be safe/conservative: pass Addr through, but not Ind -- otherwise, revert to "None".  We must
-            // handle the "Ind" propogation explicitly above.
-            if (axc == AXC_Addr || axc == AXC_AddrWide)
-            {
-                axcStack->Push(axc);
-            }
-            else
-            {
-                axcStack->Push(AXC_None);
-            }
-            return WALK_CONTINUE;
+            break;
     }
+
+    // To be safe/conservative: pass Addr through, but not Ind -- otherwise, revert to "None".  We must
+    // handle the "Ind" propogation explicitly above.
+    if (axc == AXC_Addr || axc == AXC_AddrWide)
+    {
+        axcStack->Push(axc);
+    }
+    else
+    {
+        axcStack->Push(AXC_None);
+    }
+    return WALK_CONTINUE;
 }
 
 bool Compiler::fgFitsInOrNotLoc(GenTree* tree, unsigned width)
