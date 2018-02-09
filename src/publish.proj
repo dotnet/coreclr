@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <ContainerName>$(ContainerName.Replace(".","-"))</ContainerName>
+    <ContainerName>$(ContainerName.Replace(".","-").ToLower())</ContainerName>
     <AccountName>$(CloudDropAccountName)</AccountName>
     <AccountKey>$(CloudDropAccessToken)</AccountKey>
   </PropertyGroup>
