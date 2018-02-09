@@ -49,7 +49,7 @@ namespace System
                     return StartsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return StartsWithCultureHelper(span, value, invariantCulture: true);
+                    return StartsWithCultureIgnoreCaseHelper(span, value, invariantCulture: true);
 
                 case StringComparison.Ordinal:
                     return StartsWithOrdinalHelper(span, value);
@@ -203,7 +203,7 @@ namespace System
                     return EndsWithCultureHelper(span, value, invariantCulture: true);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return EndsWithCultureHelper(span, value, invariantCulture: true);
+                    return EndsWithCultureIgnoreCaseHelper(span, value, invariantCulture: true);
 
                 case StringComparison.Ordinal:
                     return EndsWithOrdinalHelper(span, value);
