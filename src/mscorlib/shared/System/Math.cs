@@ -480,7 +480,7 @@ namespace System
         [NonVersionable]
         public static int Max(int val1, int val2)
         {
-            return (val1 >= val2) ? val1 : val2;
+            return JitHelpers.ConditionalSelect((val1 >= val2), val1, val2);
         }
 
         [NonVersionable]
@@ -568,7 +568,7 @@ namespace System
         [NonVersionable]
         public static int Min(int val1, int val2)
         {
-            return (val1 <= val2) ? val1 : val2;
+            return JitHelpers.ConditionalSelect((val1 <= val2), val1, val2);
         }
 
         [NonVersionable]

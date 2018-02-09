@@ -67,7 +67,7 @@ namespace System.Runtime.CompilerServices
         public byte m_arrayData;
     }
 
-    internal static class JitHelpers
+    internal static partial class JitHelpers
     {
         // The special dll name to be used for DllImport of QCalls
         internal const string QCall = "QCall";
