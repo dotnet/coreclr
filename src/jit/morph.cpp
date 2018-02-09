@@ -19158,11 +19158,9 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 // We may need to Quirk the storage size for this LCL_VAR
                 // some PInvoke signatures incorrectly specify a ByRef to an INT32
                 // when they actually write a SIZE_T or INT64
-                if (axc == AXC_Addr)
-                {
-                    comp->gtCheckQuirkAddrExposedLclVar(tree, fgWalkPre->parentStack);
-                }
+                comp->gtCheckQuirkAddrExposedLclVar(tree, fgWalkPre->parentStack);
             }
+
             // Push something to keep the PostCB, which will pop it, happy.
             axcStack->Push(AXC_None);
             // The tree is a leaf.
@@ -19221,16 +19219,6 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
         {
             // Scan for byref args
             GenTreeCall* const call = tree->AsCall();
-
-            if (call->gtCallObjp)
-            {
-                if (call->gtCallObjp->gtType == TYP_BYREF)
-                {
-                    axcStack->Push(AXC_IndWide);
-                    return WALK_CONTINUE;
-                }
-            }
-
             for (GenTree* args = call->gtCallArgs; (args != nullptr); args = args->gtOp.gtOp2)
             {
                 if (args->gtOp.gtOp1->gtType == TYP_BYREF)
