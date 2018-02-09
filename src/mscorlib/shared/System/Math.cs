@@ -463,7 +463,7 @@ namespace System
                 return val1;
             }
 
-            if (double.IsNaN(val1))
+            if (double.IsNaNFast(val1))
             {
                 return val1;
             }
@@ -503,7 +503,7 @@ namespace System
                 return val1;
             }
 
-            if (float.IsNaN(val1))
+            if (float.IsNaNFast(val1))
             {
                 return val1;
             }
@@ -551,7 +551,7 @@ namespace System
                 return val1;
             }
 
-            if (double.IsNaN(val1))
+            if (double.IsNaNFast(val1))
             {
                 return val1;
             }
@@ -591,7 +591,7 @@ namespace System
                 return val1;
             }
 
-            if (float.IsNaN(val1))
+            if (float.IsNaNFast(val1))
             {
                 return val1;
             }
