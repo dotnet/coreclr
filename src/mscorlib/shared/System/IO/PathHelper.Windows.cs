@@ -29,8 +29,6 @@ namespace System.IO
         /// Note that invalid characters will be checked after the path is normalized, which could remove bad characters. (C:\|\..\a.txt -- C:\a.txt)
         /// </remarks>
         /// <param name="path">Path to normalize</param>
-        /// <param name="checkInvalidCharacters">True to check for invalid characters</param>
-        /// <param name="expandShortPaths">Attempt to expand short paths if true</param>
         /// <exception cref="ArgumentException">Thrown if the path is an illegal UNC (does not contain a full server/share) or contains illegal characters.</exception>
         /// <exception cref="PathTooLongException">Thrown if the path or a path segment exceeds the filesystem limits.</exception>
         /// <exception cref="FileNotFoundException">Thrown if Windows returns ERROR_FILE_NOT_FOUND. (See Win32Marshal.GetExceptionForWin32Error)</exception>
@@ -38,7 +36,7 @@ namespace System.IO
         /// <exception cref="UnauthorizedAccessException">Thrown if Windows returns ERROR_ACCESS_DENIED. (See Win32Marshal.GetExceptionForWin32Error)</exception>
         /// <exception cref="IOException">Thrown if Windows returns an error that doesn't map to the above. (See Win32Marshal.GetExceptionForWin32Error)</exception>
         /// <returns>Normalized path</returns>
-        internal static string Normalize(string path, bool checkInvalidCharacters, bool expandShortPaths)
+        internal static string Normalize(string path)
         {
             // Get the full path
             StringBuffer fullPath = new StringBuffer(PathInternal.MaxShortPath);
@@ -90,7 +88,6 @@ namespace System.IO
                             case '>':
                             case '<':
                             case '\"':
-                                if (checkInvalidCharacters) throw new ArgumentException(SR.Argument_InvalidPathChars);
                                 foundTilde = false;
                                 break;
                             case '~':
@@ -124,7 +121,6 @@ namespace System.IO
                                 break;
 
                             default:
-                                if (checkInvalidCharacters && current < ' ') throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
                                 break;
                         }
                     }
@@ -142,7 +138,7 @@ namespace System.IO
 
                 // Check for a short filename path and try and expand it. Technically you don't need to have a tilde for a short name, but
                 // this is how we've always done this. This expansion is costly so we'll continue to let other short paths slide.
-                if (expandShortPaths && possibleShortPath)
+                if (possibleShortPath)
                 {
                     return TryExpandShortFileName(ref fullPath, originalPath: path);
                 }

@@ -54,10 +54,8 @@ namespace System.IO
             // Technically this doesn't matter but we used to throw for this case
             if (PathInternal.IsEffectivelyEmpty(path))
                 throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
-
-            string fullPath = PathHelper.Normalize(path, checkInvalidCharacters: false, expandShortPaths: true);
-
-            return fullPath;
+            
+            return PathHelper.Normalize(path);
         }
 
         public static string GetFullPath(string path, string basePath)
