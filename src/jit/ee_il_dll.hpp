@@ -146,7 +146,7 @@ inline var_types JITtype2varType(CorInfoType type)
         TYP_INT,    // CORINFO_TYPE_INT             = 0x8,
         TYP_INT,    // CORINFO_TYPE_UINT            = 0x9,
         TYP_LONG,   // CORINFO_TYPE_LONG            = 0xa,
-        TYP_LONG,   // CORINFO_TYPE_ULONG           = 0xb,
+        TYP_ULONG,  // CORINFO_TYPE_ULONG           = 0xb,
         TYP_I_IMPL, // CORINFO_TYPE_NATIVEINT       = 0xc,
         TYP_I_IMPL, // CORINFO_TYPE_NATIVEUINT      = 0xd,
         TYP_FLOAT,  // CORINFO_TYPE_FLOAT           = 0xe,

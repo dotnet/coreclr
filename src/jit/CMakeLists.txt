@@ -105,6 +105,7 @@ if (WIN32)
     dataflow.h
     decomposelongs.h
     disasm.h
+    ee_il_dll.hpp
     emit.h
     emitarm.h
     emitarm64.h
