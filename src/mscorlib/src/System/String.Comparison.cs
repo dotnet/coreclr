@@ -429,7 +429,7 @@ namespace System
                     return CompareInfo.CompareOrdinalIgnoreCase(strA, 0, strA.Length, strB, 0, strB.Length);
 
                 default:
-                    throw new NotSupportedException(SR.NotSupported_StringComparison);
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
@@ -611,7 +611,7 @@ namespace System
                     return (CompareInfo.CompareOrdinalIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB));
 
                 default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison);
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
