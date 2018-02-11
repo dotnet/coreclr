@@ -7,48 +7,6 @@ set __VCBuildArch=x86_amd64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
-:: Default to highest Visual Studio version available
-::
-:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
-:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
-:: allows users to locate where the instance of VS2015 is installed.
-::
-:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
-:: is no longer set as a global environment variable and is instead only set if the user
-:: has launched the VS2017 Developer Command Prompt.
-::
-:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
-:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
-:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
-:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
-:: can be found.
-if defined VisualStudioVersion goto :Run
-
-set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist %_VSWHERE% (
-  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
-)
-if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
-if not exist "%_VSCOMNTOOLS%" (
-  echo Error: Visual Studio 2015 or 2017 required.
-  echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-  exit /b 1
-)
-
-call "%_VSCOMNTOOLS%\VsDevCmd.bat"
-
-:Run
-
-if defined VS150COMNTOOLS (
-  set "__VSToolsRoot=%VS150COMNTOOLS%"
-  set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
-  set __VSVersion=vs2017
-) else (
-  set "__VSToolsRoot=%VS140COMNTOOLS%"
-  set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
-  set __VSVersion=vs2015
-)
-
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set __MsgPrefix=BUILDTEST: 
@@ -109,6 +67,54 @@ if [!processedArgs!]==[] (
 )
 
 :ArgsDone
+
+:: Default to highest Visual Studio version available
+::
+:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
+:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
+:: allows users to locate where the instance of VS2015 is installed.
+::
+:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
+:: is no longer set as a global environment variable and is instead only set if the user
+:: has launched the VS2017 Developer Command Prompt.
+::
+:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
+:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
+:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
+:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
+:: can be found.
+if defined VisualStudioVersion goto :Run
+
+REM Force arm builds to use VS2015 for arm32
+if %__BuildArchArm%==1 goto :ForceVs2015
+
+set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if exist "%_VSWHERE%" (
+  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
+)
+
+:ForceVs2015
+
+if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
+if not exist "%_VSCOMNTOOLS%" (
+  echo Error: Visual Studio 2015 or 2017 required.
+  echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
+  exit /b 1
+)
+
+call "%_VSCOMNTOOLS%\VsDevCmd.bat"
+
+:Run
+
+if defined VS150COMNTOOLS (
+  set "__VSToolsRoot=%VS150COMNTOOLS%"
+  set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
+  set __VSVersion=vs2017
+) else (
+  set "__VSToolsRoot=%VS140COMNTOOLS%"
+  set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
+  set __VSVersion=vs2015
+)
 
 if defined __BuildAgainstPackagesArg (
     if not defined __RuntimeID (
