@@ -98,6 +98,15 @@ namespace System
             return new CultureAwareComparer(culture, ignoreCase);
         }
 
+        public static StringComparer Create(CultureInfo culture, CompareOptions options)
+        {
+            if (culture == null)
+            {
+                throw new ArgumentException(nameof(culture));
+            }
+            return new CultureAwareComparer(culture, options);
+        }
+
         public int Compare(object x, object y)
         {
             if (x == y) return 0;
@@ -167,14 +176,28 @@ namespace System
     {
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
         private readonly bool _ignoreCase; // Do not rename (binary serialization)
+        private CompareOptions _compareOptions = CompareOptions.None;
 
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
             _compareInfo = culture.CompareInfo;
             _ignoreCase = ignoreCase;
+            _compareOptions = _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
         }
 
-        private CompareOptions Options => _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+        internal CultureAwareComparer(CultureInfo culture, CompareOptions compareOptions)
+        {
+            _compareInfo = culture.CompareInfo;
+            _compareOptions = compareOptions;
+        }
+
+        private CompareOptions Options
+        {
+            get
+            {
+                return _compareOptions;
+            }
+        }
 
         public override int Compare(string x, string y)
         {
