@@ -176,7 +176,7 @@ namespace System
     {
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
         private readonly bool _ignoreCase; // Do not rename (binary serialization)
-        private CompareOptions _compareOptions = CompareOptions.None;
+        private CompareOptions _compareOptions;
 
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
