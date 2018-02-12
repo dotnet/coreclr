@@ -105,6 +105,11 @@ namespace System
                 throw new ArgumentException(nameof(culture));
             }
 
+            if (Enum.IsDefined(typeof(CompareOptions), options))
+            {
+                throw new ArgumentException(nameof(options));
+            }
+
             return new CultureAwareComparer(culture, options);
         }
 
