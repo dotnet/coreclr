@@ -13,8 +13,8 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract class StringComparer : IComparer, IEqualityComparer, IComparer<string>, IEqualityComparer<string>
     {
-        private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.None);
-        private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase);
+        private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, false);
+        private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, true);
         private static readonly OrdinalCaseSensitiveComparer s_ordinal = new OrdinalCaseSensitiveComparer();
         private static readonly OrdinalIgnoreCaseComparer s_ordinalIgnoreCase = new OrdinalIgnoreCaseComparer();        
 
@@ -38,7 +38,7 @@ namespace System
         {
             get
             {
-                return new CultureAwareComparer(CultureInfo.CurrentCulture, CompareOptions.None);
+                return new CultureAwareComparer(CultureInfo.CurrentCulture, false);
             }
         }
 
@@ -46,7 +46,7 @@ namespace System
         {
             get
             {
-                return new CultureAwareComparer(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
+                return new CultureAwareComparer(CultureInfo.CurrentCulture, true);
             }
         }
 
@@ -95,7 +95,7 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
 
-            return new CultureAwareComparer(culture, CompareOptions.IgnoreCase);
+            return new CultureAwareComparer(culture, ignoreCase);
         }
 
         public static StringComparer Create(CultureInfo culture, CompareOptions options)
@@ -105,7 +105,7 @@ namespace System
                 throw new ArgumentException(nameof(culture));
             }
 
-            if (Enum.IsDefined(typeof(CompareOptions), options))
+            if (!Enum.IsDefined(typeof(CompareOptions), options))
             {
                 throw new ArgumentException(nameof(options));
             }
@@ -186,7 +186,6 @@ namespace System
         [OptionalField]
         private CompareOptions _options;
 
-        [Obsolete]
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
             _compareInfo = culture.CompareInfo;
