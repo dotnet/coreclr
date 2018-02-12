@@ -34,6 +34,11 @@ EventPipeConfiguration::~EventPipeConfiguration()
         MODE_ANY;
     }
     CONTRACTL_END;
+    
+    if(m_pConfigProvider != NULL)
+    {
+        DeleteProvider(m_pConfigProvider);
+    }
 
     if(m_pEnabledProviderList != NULL)
     {
@@ -59,7 +64,7 @@ void EventPipeConfiguration::Initialize()
     CONTRACTL_END;
 
     // Create the configuration provider.
-    m_pConfigProvider = EventPipe::CreateProvider(s_configurationProviderID);
+    m_pConfigProvider = CreateProvider(s_configurationProviderID, NULL, NULL);
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -69,6 +74,49 @@ void EventPipeConfiguration::Initialize()
         EventPipeEventLevel::LogAlways,
         false); /* needStack */
 }
+
+EventPipeProvider* EventPipeConfiguration::CreateProvider(const GUID &providerID, EventPipeCallback pCallbackFunction, void *pCallbackData)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // Allocate a new provider.
+    EventPipeProvider *pProvider = new EventPipeProvider(this, providerID, pCallbackFunction, pCallbackData);
+
+    // Register the provider with the configuration system.
+    RegisterProvider(*pProvider);
+
+    return pProvider;
+}
+
+void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(pProvider != NULL);
+    }
+    CONTRACTL_END;
+
+    if (pProvider == NULL)
+    {
+        return;
+    }
+
+    // Unregister the provider.
+    UnregisterProvider(*pProvider);
+
+    // Free the provider itself.
+    delete(pProvider);
+}
+
 
 bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
 {
@@ -400,8 +448,7 @@ void EventPipeConfiguration::DeleteDeferredProviders()
         EventPipeProvider *pProvider = pElem->GetValue();
         if(pProvider->GetDeleteDeferred())
         {
-            // The act of deleting the provider unregisters it and removes it from the list.
-            delete(pProvider);
+            DeleteProvider(pProvider);
         }
 
         pElem = m_pProviderList->GetNext(pElem);
