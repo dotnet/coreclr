@@ -27,7 +27,7 @@
                 hasPSPSymStackSlot,
                 hasGenericsInstContextStackSlot, 
                 hasStackBaseregister,
-                wantsReportOnlyLeaf (AMD64 JIT64 use only),
+                wantsReportOnlyLeaf (AMD64 use only),
                 hasTailCalls (ARM/ARM64 only)
                 hasSizeOfEditAndContinuePreservedArea
                 hasReversePInvokeFrame,
