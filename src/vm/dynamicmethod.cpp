@@ -795,6 +795,7 @@ struct HostCodeHeap::TrackAllocation * HostCodeHeap::GetTrackAllocation(TADDR co
 {
     LIMITED_METHOD_CONTRACT;
 
+    // We should turn off the least bit for ARM
     CodeHeader * pHdr = dac_cast<PTR_CodeHeader>(codeStart & ~1) - 1;
 
     // Pointer to the TrackAllocation record is stored just before the code header
