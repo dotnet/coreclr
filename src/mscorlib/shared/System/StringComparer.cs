@@ -13,8 +13,8 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract class StringComparer : IComparer, IEqualityComparer, IComparer<string>, IEqualityComparer<string>
     {
-        private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, false);
-        private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, true);
+        private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.None);
+        private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase);
         private static readonly OrdinalCaseSensitiveComparer s_ordinal = new OrdinalCaseSensitiveComparer();
         private static readonly OrdinalIgnoreCaseComparer s_ordinalIgnoreCase = new OrdinalIgnoreCaseComparer();        
 
@@ -38,7 +38,7 @@ namespace System
         {
             get
             {
-                return new CultureAwareComparer(CultureInfo.CurrentCulture, false);
+                return new CultureAwareComparer(CultureInfo.CurrentCulture, CompareOptions.None);
             }
         }
 
@@ -46,7 +46,7 @@ namespace System
         {
             get
             {
-                return new CultureAwareComparer(CultureInfo.CurrentCulture, true);
+                return new CultureAwareComparer(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
             }
         }
 
@@ -95,7 +95,10 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
 
-            return new CultureAwareComparer(culture, ignoreCase);
+            if (ignoreCase)
+                return new CultureAwareComparer(culture, CompareOptions.IgnoreCase);
+
+            return new CultureAwareComparer(culture, CompareOptions.None);
         }
 
         public static StringComparer Create(CultureInfo culture, CompareOptions options)
@@ -103,11 +106,6 @@ namespace System
             if (culture == null)
             {
                 throw new ArgumentException(nameof(culture));
-            }
-
-            if ((options & CultureAwareComparer.ValidCompareMaskOffFlags) != 0)
-            {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
             return new CultureAwareComparer(culture, options);
@@ -179,26 +177,23 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class CultureAwareComparer : StringComparer, ISerializable
     {
-        internal const CompareOptions ValidCompareMaskOffFlags = ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
+        private const CompareOptions ValidCompareMaskOffFlags = ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
 
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
-
-        [OptionalField]
         private CompareOptions _options;
-        
-        internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
-        {
-            _compareInfo = culture.CompareInfo;
-            _options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
-        }
 
         internal CultureAwareComparer(CultureInfo culture, CompareOptions compareOptions)
         {
             _compareInfo = culture.CompareInfo;
+
+            if ((compareOptions & CultureAwareComparer.ValidCompareMaskOffFlags) != 0)
+            {
+                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(compareOptions));
+            }
             _options = compareOptions;
         }
 
-        internal CultureAwareComparer(SerializationInfo info, StreamingContext context)
+        private CultureAwareComparer(SerializationInfo info, StreamingContext context)
         {
             _compareInfo = (CompareInfo)info.GetValue("_compareInfo", typeof(CompareInfo));
             bool ignoreCase = info.GetBoolean("ignoreCase");
@@ -247,8 +242,7 @@ namespace System
 
         public override int GetHashCode()
         {
-            int hashCode = _compareInfo.GetHashCode();
-            return (_options & CompareOptions.IgnoreCase) != 0 ? ~hashCode : hashCode;
+            return _compareInfo.GetHashCode() ^ ((int)_options & 0x7FFFFFFF);
         }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
