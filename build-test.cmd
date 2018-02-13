@@ -6,6 +6,7 @@ set __BuildArch=x64
 set __VCBuildArch=x86_amd64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
+set VSCMD_START_DIR=%~dp0
 
 :: Default to highest Visual Studio version available
 ::
@@ -51,7 +52,7 @@ if defined VS150COMNTOOLS (
 
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
-set __MsgPrefix=BUILDTEST: 
+set __MsgPrefix=BUILDTEST:
 
 set "__ProjectDir=%~dp0"
 :: remove trailing slash
@@ -314,7 +315,7 @@ md "%CORE_ROOT_STAGE%"
 xcopy /s "%__BinDir%" "%CORE_ROOT_STAGE%"
 
 
-if defined __BuildAgainstPackagesArg ( 
+if defined __BuildAgainstPackagesArg (
   if "%__TargetsWindows%"=="0" (
 
     if not exist %__PackagesDir%\TestNativeBins (
@@ -535,6 +536,6 @@ if %__exitCode% neq 0 (
 :: Delete original .dll & replace it with the Crossgened .dll
 del %1
 ren "%CORE_ROOT%\temp.ni.dll" %2
-    
+
 echo Successfully precompiled %2
 exit /b 0

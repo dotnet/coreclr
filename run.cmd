@@ -29,6 +29,7 @@ if not exist "%_VSCOMNTOOLS%" (
   exit /b 1
 )
 
+set VSCMD_START_DIR=%~dp0
 call "%_VSCOMNTOOLS%\VsDevCmd.bat"
 
 :Run
