@@ -84,9 +84,10 @@ Function:
 Parameters:
     exceptionRecord - output pointer to the allocated Windows exception record
     contextRecord - output pointer to the allocated Windows context record
+    allocationProhibited - input flag to avoid memory allocation in critical situations
 --*/
 VOID
-AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord);
+AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord,  BOOL allocationProhibited=false);
 
 #if !HAVE_MACH_EXCEPTIONS
 // TODO: Implement for Mach exceptions.  Not in CoreCLR surface area.
