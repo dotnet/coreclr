@@ -221,6 +221,7 @@ set(VM_SOURCES_WKS
     multicorejit.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     multicorejitplayer.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     nativeeventsource.cpp
+    nativelibrary.cpp
     nativeoverlapped.cpp
     objectlist.cpp
     olevariant.cpp

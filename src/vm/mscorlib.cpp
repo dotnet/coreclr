@@ -67,6 +67,7 @@
 #include "comdependenthandle.h"
 #include "weakreferencenative.h"
 #include "varargsnative.h"
+#include "nativelibrary.h"
 
 #ifdef MDA_SUPPORTED 
 #include "mdaassistants.h"

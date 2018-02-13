@@ -988,6 +988,30 @@ FCIMPL1(MethodDesc*, StubHelpers::GetDelegateInvokeMethod, DelegateObject *pThis
 }
 FCIMPLEND
 
+FCIMPL1(MethodDesc*, StubHelpers::GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject* refTypeUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    MethodDesc *pMD = NULL;
+
+    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF) refTypeUNSAFE;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refType);
+
+    MethodTable* pMT = refType->GetType().GetMethodTable();
+    pMD = COMDelegate::FindDelegateInvokeMethod(pMT);
+    if (pMD->IsSharedByGenericInstantiations())
+    {
+        // we need the exact MethodDesc
+        pMD = InstantiatedMethodDesc::FindOrCreateExactClassMethod(pMT, pMD);
+    }
+
+    HELPER_METHOD_FRAME_END();
+
+    _ASSERTE(pMD);
+    return pMD;
+}
+FCIMPLEND
+
 // Called from COM-to-CLR factory method stubs to get the return value (the delegating interface pointer
 // corresponding to the default WinRT interface of the class which we are constructing).
 FCIMPL2(IInspectable *, StubHelpers::GetWinRTFactoryReturnValue, Object *pThisUNSAFE, PCODE pCtorEntry)

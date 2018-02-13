@@ -81,6 +81,7 @@ public:
     static ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgs* QCALLTYPE EventArgsMarshaler__CreateNativePCEventArgsInstance(HSTRING name);
 
     static FCDECL1(MethodDesc *,    GetDelegateInvokeMethod, DelegateObject *pThisUNSAFE);
+    static FCDECL1(MethodDesc *,    GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject *refTypeUNSAFE);
     static FCDECL2(IInspectable *,  GetWinRTFactoryReturnValue, Object *pThisUNSAFE, PCODE pCtorEntry);
     static FCDECL2(IInspectable *,  GetOuterInspectable, Object *pThisUNSAFE, MethodDesc *pCtorMD);
 #ifdef MDA_SUPPORTED

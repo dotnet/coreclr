@@ -864,6 +864,14 @@ namespace System.Runtime.InteropServices
             }
         }
 
+        internal static int NumParamBytes(RuntimeMethodInfo m, bool isForStdCallDelegate)
+        {
+            return InternalNumParamBytes(m, isForStdCallDelegate);
+        }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern int InternalNumParamBytes(IRuntimeMethodInfo m, bool isForStdCallDelegate);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
         
