@@ -94,11 +94,8 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(culture));
             }
-
-            if (ignoreCase)
-                return new CultureAwareComparer(culture, CompareOptions.IgnoreCase);
-
-            return new CultureAwareComparer(culture, CompareOptions.None);
+            
+             return new CultureAwareComparer(culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
 
         public static StringComparer Create(CultureInfo culture, CompareOptions options)
@@ -196,7 +193,7 @@ namespace System
         private CultureAwareComparer(SerializationInfo info, StreamingContext context)
         {
             _compareInfo = (CompareInfo)info.GetValue("_compareInfo", typeof(CompareInfo));
-            bool ignoreCase = info.GetBoolean("ignoreCase");
+            bool ignoreCase = info.GetBoolean("_ignoreCase");
 
             var obj = info.GetValueNoThrow("_options", typeof(CompareOptions));
             if (obj != null)
