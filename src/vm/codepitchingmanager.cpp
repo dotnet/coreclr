@@ -383,10 +383,7 @@ void MethodDesc::PitchNativeCode()
     MethodTable * pMT = GetMethodTable();
     _ASSERTE(pMT != nullptr);
 
-#if defined(_TARGET_ARM_)
-    pCode = ThumbCodeToDataPointer<TADDR, PCODE>(pCode);
-#endif
-    CodeHeader* pCH = dac_cast<PTR_CodeHeader>(pCode) - 1;
+    CodeHeader* pCH = dac_cast<PTR_CodeHeader>(PCODEToPINSTR(pCode)) - 1;
     _ASSERTE(pCH->GetMethodDesc() == this);
 
     HostCodeHeap* pHeap = HostCodeHeap::GetCodeHeap((TADDR)pCode);
