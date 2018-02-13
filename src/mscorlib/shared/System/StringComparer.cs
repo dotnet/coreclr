@@ -105,9 +105,9 @@ namespace System
                 throw new ArgumentException(nameof(culture));
             }
 
-            if (!Enum.IsDefined(typeof(CompareOptions), options))
+            if ((options & CultureAwareComparer.ValidCompareMaskOffFlags) != 0)
             {
-                throw new ArgumentException(nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
             return new CultureAwareComparer(culture, options);
@@ -137,7 +137,6 @@ namespace System
 
             throw new ArgumentException(SR.Argument_ImplementIComparable);
         }
-
 
         public new bool Equals(Object x, Object y)
         {
@@ -178,19 +177,19 @@ namespace System
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public sealed class CultureAwareComparer : StringComparer
+    public sealed class CultureAwareComparer : StringComparer, ISerializable
     {
+        internal const CompareOptions ValidCompareMaskOffFlags = ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
+
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
-        private readonly bool _ignoreCase; // Do not rename (binary serialization)
 
         [OptionalField]
         private CompareOptions _options;
-
+        
         internal CultureAwareComparer(CultureInfo culture, bool ignoreCase)
         {
             _compareInfo = culture.CompareInfo;
-            _ignoreCase = ignoreCase;
-            _options = _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            _options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
         }
 
         internal CultureAwareComparer(CultureInfo culture, CompareOptions compareOptions)
@@ -199,10 +198,17 @@ namespace System
             _options = compareOptions;
         }
 
-        [OnDeserialized]
-        private void OnDeserializedMethod(StreamingContext context)
+        internal CultureAwareComparer(SerializationInfo info, StreamingContext context)
         {
-            _options |= _ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            _compareInfo = (CompareInfo)info.GetValue("_compareInfo", typeof(CompareInfo));
+            bool ignoreCase = info.GetBoolean("ignoreCase");
+
+            var obj = info.GetValueNoThrow("_options", typeof(CompareOptions));
+            if (obj != null)
+                _options = (CompareOptions)obj;
+
+            // fix up the _options value in case we are getting old serialized object not having _options
+            _options |= ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
         }
 
         public override int Compare(string x, string y)
@@ -235,14 +241,21 @@ namespace System
             CultureAwareComparer comparer = obj as CultureAwareComparer;
             return
                 comparer != null &&
-                _ignoreCase == comparer._ignoreCase &&
+                _options == comparer._options &&
                 _compareInfo.Equals(comparer._compareInfo);
         }
 
         public override int GetHashCode()
         {
             int hashCode = _compareInfo.GetHashCode();
-            return _ignoreCase ? ~hashCode : hashCode;
+            return (_options & CompareOptions.IgnoreCase) != 0 ? ~hashCode : hashCode;
+        }
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            info.AddValue("_compareInfo", _compareInfo);
+            info.AddValue("_options", _options);
+            info.AddValue("_ignoreCase", (_options & CompareOptions.IgnoreCase) != 0);
         }
     }
 
