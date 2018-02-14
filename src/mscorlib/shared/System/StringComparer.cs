@@ -95,7 +95,7 @@ namespace System
                 throw new ArgumentNullException(nameof(culture));
             }
             
-             return new CultureAwareComparer(culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
+            return new CultureAwareComparer(culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
 
         public static StringComparer Create(CultureInfo culture, CompareOptions options)
