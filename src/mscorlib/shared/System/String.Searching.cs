@@ -3,7 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Globalization;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -63,12 +66,12 @@ namespace System
 
                 case StringComparison.OrdinalIgnoreCase:
                     return CompareInfo.Invariant.IndexOf(this, value, CompareOptions.OrdinalIgnoreCase);
-                    
+
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
-        
+
         public unsafe int IndexOf(char value, int startIndex, int count)
         {
             if (startIndex < 0 || startIndex > Length)
@@ -79,26 +82,75 @@ namespace System
 
             fixed (char* pChars = &_firstChar)
             {
-                char* pCh = pChars + startIndex;
+                char* pStartCh = pChars + startIndex;
+                char* pCh = pStartCh;
 
-                while (count >= 4)
+                int nLength = count;
+                bool useVectorization = false;
+                if (Vector.IsHardwareAccelerated && count >= Vector<ushort>.Count * 2)
                 {
-                    if (*pCh == value) goto ReturnIndex;
-                    if (*(pCh + 1) == value) goto ReturnIndex1;
-                    if (*(pCh + 2) == value) goto ReturnIndex2;
-                    if (*(pCh + 3) == value) goto ReturnIndex3;
+                    unchecked
+                    {
+                        int unaligned = (int)pCh & (Vector<ushort>.Count - 1);
+                        nLength = ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
+                        useVectorization = true;
+                    }
+                }
+            SequentialScan:
+                while (nLength >= 4)
+                {
+                    if (*pCh == value)
+                        goto ReturnIndex;
+                    if (*(pCh + 1) == value)
+                        goto ReturnIndex1;
+                    if (*(pCh + 2) == value)
+                        goto ReturnIndex2;
+                    if (*(pCh + 3) == value)
+                        goto ReturnIndex3;
 
-                    count -= 4;
+                    nLength -= 4;
                     pCh += 4;
                 }
 
-                while (count > 0)
+                while (nLength > 0)
                 {
                     if (*pCh == value)
                         goto ReturnIndex;
 
-                    count--;
+                    nLength--;
                     pCh++;
+                }
+
+                if (useVectorization)
+                {
+                    int index = (int)(pCh - pStartCh);
+                    if (index < count)
+                    {
+                        nLength = ((count - index) & ~(Vector<ushort>.Count - 1));
+                        // Get comparison Vector
+                        Vector<ushort> vComparison = new Vector<ushort>(value);
+                        while (nLength > index)
+                        {
+                            var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pCh));
+                            if (Vector<ushort>.Zero.Equals(vMatches))
+                            {
+                                pCh += Vector<ushort>.Count;
+                                index += Vector<ushort>.Count;
+                                continue;
+                            }
+                            // Find offset of first match
+                            return (int)(pCh - pChars) + LocateFirstFoundChar(vMatches);
+                        }
+
+                        if (index < count)
+                        {
+                            unchecked
+                            {
+                                nLength = (count - index);
+                            }
+                            goto SequentialScan;
+                        }
+                    }
                 }
 
                 return -1;
@@ -110,6 +162,43 @@ namespace System
                 return (int)(pCh - pChars);
             }
         }
+
+        // Vector sub-search adapted from https://github.com/aspnet/KestrelHttpServer/pull/1138
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int LocateFirstFoundChar(Vector<ushort> match)
+        {
+            var vector64 = Vector.AsVectorUInt64(match);
+            ulong candidate = 0;
+            int i = 0;
+            // Pattern unrolled by jit https://github.com/dotnet/coreclr/pull/8001
+            for (; i < Vector<ulong>.Count; i++)
+            {
+                candidate = vector64[i];
+                if (candidate != 0)
+                {
+                    break;
+                }
+            }
+
+            // Single LEA instruction with jitted const (using function result)
+            return i * 4 + LocateFirstFoundChar(candidate);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int LocateFirstFoundChar(ulong match)
+        {
+            unchecked
+            {
+                // Flag least significant power of two bit
+                var powerOfTwoFlag = match ^ (match - 1);
+                // Shift all powers of two into the high byte and extract
+                return (int)((powerOfTwoFlag * XorPowerOfTwoToHighChar) >> 49);
+            }
+        }
+
+        private const ulong XorPowerOfTwoToHighChar = (0x03ul |
+                                                       0x02ul << 16 |
+                                                       0x01ul << 32) + 1;
 
         // Returns the index of the first occurrence of any specified character in the current instance.
         // The search starts at startIndex and runs to startIndex + count - 1.
