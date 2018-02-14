@@ -27,6 +27,76 @@ namespace System
         private static readonly bool s_invariantMode = GlobalizationMode.Invariant;
 
         /// <summary>
+        /// Copies the characters from the source span into the destination, converting each character to lowercase.
+        /// </summary>
+        public static void ToLower(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo culture)
+        {
+            if (destination.Length < source.Length)
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            if (culture == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.culture);
+
+            if (s_invariantMode)
+            {
+                CultureInfo.CurrentCulture.TextInfo.ToLowerAsciiInvariant(source, destination);
+            }
+
+            CultureInfo.CurrentCulture.TextInfo.ChangeCase(source, destination, toUpper: false);
+        }
+
+        /// <summary>
+        /// Copies the characters from the source span into the destination, converting each character to lowercase
+        /// using the casing rules of the invariant culture.
+        /// </summary>
+        public static void ToLowerInvariant(this ReadOnlySpan<char> source, Span<char> destination)
+        {
+            if (destination.Length < source.Length)
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+
+            if (s_invariantMode)
+            {
+                CultureInfo.InvariantCulture.TextInfo.ToLowerAsciiInvariant(source, destination);
+            }
+
+            CultureInfo.InvariantCulture.TextInfo.ChangeCase(source, destination, toUpper: false);
+        }
+
+        /// <summary>
+        /// Copies the characters from the source span into the destination, converting each character to uppercase.
+        /// </summary>
+        public static void ToUpper(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo culture)
+        {
+            if (destination.Length < source.Length)
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            if (culture == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.culture);
+
+            if (s_invariantMode)
+            {
+                CultureInfo.CurrentCulture.TextInfo.ToUpperAsciiInvariant(source, destination);
+            }
+
+            CultureInfo.CurrentCulture.TextInfo.ChangeCase(source, destination, toUpper: true);
+        }
+
+        /// <summary>
+        /// Copies the characters from the source span into the destination, converting each character to uppercase
+        /// using the casing rules of the invariant culture.
+        /// </summary>
+        public static void ToUpperInvariant(this ReadOnlySpan<char> source, Span<char> destination)
+        {
+            if (destination.Length < source.Length)
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+
+            if (s_invariantMode)
+            {
+                CultureInfo.InvariantCulture.TextInfo.ToUpperAsciiInvariant(source, destination);
+            }
+
+            CultureInfo.InvariantCulture.TextInfo.ChangeCase(source, destination, toUpper: true);
+        }
+
+        /// <summary>
         /// Determines whether the beginning of the span matches the specified value when compared using the specified comparison option.
         /// </summary>
         public static bool StartsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)

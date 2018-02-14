@@ -258,6 +258,43 @@ namespace System.Globalization
             }
         }
 
+        internal void ToLowerAsciiInvariant(ReadOnlySpan<char> source, Span<char> destination)
+        {
+            Debug.Assert(destination.Length >= source.Length);
+
+            if (source.Length == 0)
+            {
+                return;
+            }
+
+            int i = 0;
+            while (i < source.Length)
+            {
+                if ((uint)(source[i] - 'A') <= ('Z' - 'A'))
+                {
+                    break;
+                }
+                i++;
+            }
+            
+            if (i >= source.Length)
+            {
+                source.CopyTo(destination);
+                return;
+            }
+
+            source.Slice(0, i).CopyTo(destination);
+
+            destination[i] = (char)(source[i] | 0x20);
+            i++;
+
+            while (i < source.Length)
+            {
+                destination[i] = ToLowerAsciiInvariant(source[i]);
+                i++;
+            }
+        }
+
         private unsafe string ToUpperAsciiInvariant(string s)
         {
             if (s.Length == 0)
@@ -301,6 +338,43 @@ namespace System.Globalization
                 }
 
                 return result;
+            }
+        }
+
+        internal void ToUpperAsciiInvariant(ReadOnlySpan<char> source, Span<char> destination)
+        {
+            Debug.Assert(destination.Length >= source.Length);
+
+            if (source.Length == 0)
+            {
+                return;
+            }
+
+            int i = 0;
+            while (i < source.Length)
+            {
+                if ((uint)(source[i] - 'a') <= ('z' - 'a'))
+                {
+                    break;
+                }
+                i++;
+            }
+
+            if (i >= source.Length)
+            {
+                source.CopyTo(destination);
+                return;
+            }
+
+            source.Slice(0, i).CopyTo(destination);
+
+            destination[i] = (char)(source[i] & ~0x20);
+            i++;
+
+            while (i < source.Length)
+            {
+                destination[i] = ToUpperAsciiInvariant(source[i]);
+                i++;
             }
         }
 
