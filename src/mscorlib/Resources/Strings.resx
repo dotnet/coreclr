@@ -3712,9 +3712,6 @@
   <data name="Argument_CannotPrepareAbstract" xml:space="preserve">
     <value>Abstract methods cannot be prepared.</value>
   </data>
-  <data name="Argument_CannotPrepareAbstract" xml:space="preserve">
-    <value>Abstract methods cannot be prepared.</value>
-  </data>
   <data name="Argument_InvalidGenericInstantiation" xml:space="preserve">
     <value>The given generic instantiation was invalid.</value>
   </data>
