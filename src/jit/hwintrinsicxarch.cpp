@@ -772,7 +772,7 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
             CorInfoType corType =
                 strip(info.compCompHnd->getArgType(sig, argList, &argClass)); // type of the second argument
 
-            baseType = JITtype2varType(corType);
+            baseType = JITtype2varTypeExact(corType);
 
 #ifdef _TARGET_X86_
             if (varTypeIsLong(JITtype2varType(corType)))
@@ -840,7 +840,7 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
         {
             assert(sig->numArgs == 1);
             op1      = impSIMDPopStack(TYP_SIMD16);
-            baseType = JITtype2varType(sig->retType);
+            baseType = JITtype2varTypeExact(sig->retType);
             retNode  = gtNewSimdHWIntrinsicNode(baseType, op1, intrinsic, baseType, simdSize);
             break;
         }

@@ -42,10 +42,10 @@ DEF_TP(SHORT   ,"short"   , TYP_INT,     TI_SHORT, 2,  2,  4,   1, 2, VTF_INT,  
 DEF_TP(USHORT  ,"ushort"  , TYP_INT,     TI_SHORT, 2,  2,  4,   1, 2, VTF_INT|VTF_UNS,TYPE_REF_INT)
 
 DEF_TP(INT     ,"int"     , TYP_INT,     TI_INT,   4,  4,  4,   1, 4, VTF_INT|VTF_I32,        TYPE_REF_INT)
-DEF_TP(UINT    ,"uint"    , TYP_INT,     TI_INT,   4,  4,  4,   1, 4, VTF_INT|VTF_UNS|VTF_I32,TYPE_REF_INT) // Only used in GT_CAST nodes
+DEF_TP(UINT    ,"uint"    , TYP_INT,     TI_INT,   4,  4,  4,   1, 4, VTF_INT|VTF_UNS|VTF_I32,TYPE_REF_INT)
 
 DEF_TP(LONG    ,"long"    , TYP_LONG,    TI_LONG,  8, PS, PS,   2, 8, VTF_INT|VTF_I64,        TYPE_REF_LNG)
-DEF_TP(ULONG   ,"ulong"   , TYP_LONG,    TI_LONG,  8, PS, PS,   2, 8, VTF_INT|VTF_UNS|VTF_I64,TYPE_REF_LNG)       // Only used in GT_CAST nodes
+DEF_TP(ULONG   ,"ulong"   , TYP_LONG,    TI_LONG,  8, PS, PS,   2, 8, VTF_INT|VTF_UNS|VTF_I64,TYPE_REF_LNG)
 
 DEF_TP(FLOAT   ,"float"   , TYP_FLOAT,   TI_FLOAT, 4,  4,  4,   1, 4, VTF_FLT,        TYPE_REF_FLT)
 DEF_TP(DOUBLE  ,"double"  , TYP_DOUBLE,  TI_DOUBLE,8,  8,  8,   2, 8, VTF_FLT,        TYPE_REF_DBL)

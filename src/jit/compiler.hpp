@@ -4085,6 +4085,15 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 extern var_types JITtype2varType(CorInfoType type);
 
+#ifdef FEATURE_HW_INTRINSICS
+//
+// Include Hardware Intrinsics specific inline functions
+//
+extern var_types JITtype2varTypeExact(CorInfoType type);
+
+#include "hwintrinsic.hpp"
+#endif // FEATURE_HW_INTRINSICS
+
 #include "ee_il_dll.hpp"
 
 inline CORINFO_METHOD_HANDLE Compiler::eeFindHelper(unsigned helper)
