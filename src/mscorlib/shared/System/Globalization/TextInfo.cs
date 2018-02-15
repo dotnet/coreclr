@@ -262,36 +262,9 @@ namespace System.Globalization
         {
             Debug.Assert(destination.Length >= source.Length);
 
-            if (source.Length == 0)
-            {
-                return;
-            }
-
-            int i = 0;
-            while (i < source.Length)
-            {
-                if ((uint)(source[i] - 'A') <= ('Z' - 'A'))
-                {
-                    break;
-                }
-                i++;
-            }
-            
-            if (i >= source.Length)
-            {
-                source.CopyTo(destination);
-                return;
-            }
-
-            source.Slice(0, i).CopyTo(destination);
-
-            destination[i] = (char)(source[i] | 0x20);
-            i++;
-
-            while (i < source.Length)
+            for (int i = 0; i < source.Length; i++)
             {
                 destination[i] = ToLowerAsciiInvariant(source[i]);
-                i++;
             }
         }
 
@@ -345,36 +318,9 @@ namespace System.Globalization
         {
             Debug.Assert(destination.Length >= source.Length);
 
-            if (source.Length == 0)
-            {
-                return;
-            }
-
-            int i = 0;
-            while (i < source.Length)
-            {
-                if ((uint)(source[i] - 'a') <= ('z' - 'a'))
-                {
-                    break;
-                }
-                i++;
-            }
-
-            if (i >= source.Length)
-            {
-                source.CopyTo(destination);
-                return;
-            }
-
-            source.Slice(0, i).CopyTo(destination);
-
-            destination[i] = (char)(source[i] & ~0x20);
-            i++;
-
-            while (i < source.Length)
+            for (int i = 0; i < source.Length; i++)
             {
                 destination[i] = ToUpperAsciiInvariant(source[i]);
-                i++;
             }
         }
 

@@ -79,7 +79,6 @@ namespace System.Globalization
             {
                 fixed (char* pResult = &MemoryMarshal.GetReference(destination))
                 {
-#if CORECLR
                     if (IsAsciiCasingSameAsInvariant)
                     {
                         int length = source.Length;
@@ -105,7 +104,6 @@ namespace System.Globalization
                         }
                     }
                     else
-#endif
                     {
                         ChangeCase(pSource, source.Length, pResult, destination.Length, toUpper);
                     }
