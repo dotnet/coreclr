@@ -6498,7 +6498,7 @@ static bool insAlwaysSetFlags(instruction ins)
 void emitter::emitDispInst(instruction ins, insFlags flags)
 {
     const char* insstr = codeGen->genInsName(ins);
-    int         len    = strlen(insstr);
+    size_t      len    = strlen(insstr);
 
     /* Display the instruction name */
 
