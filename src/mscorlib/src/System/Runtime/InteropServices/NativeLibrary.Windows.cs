@@ -7,12 +7,13 @@ namespace System.Runtime.InteropServices
     // Contains Windows-specific logic for NativeLibrary class.
     public sealed partial class NativeLibrary
     {
+        // The allowed mask values for the DllImportSearchPath.
+        // The high three bytes are passed as-is to the OS (which will check them for validity),
+        // and the low byte is allowed to contain AssemblyDirectory or LegacyBehavior.
+        private const uint AllowedDllImportSearchPathsMask = ~0xFFU | (uint)DllImportSearchPath.AssemblyDirectory;
+
         // [DllImport] (NDirectMethodDesc::FindEntryPoint) allows lookup by ordinal on Windows.
         private const bool AllowLocatingFunctionsByOrdinal = true;
-
-        // Per PInvokeStaticSigInfo::InitCallConv and GetDefaultCallConv, the default calling convention
-        // on Windows is cdecl for vararg (not supported), otherwise stdcall.
-        private const CallingConvention FallbackCallingConvention = CallingConvention.StdCall;
 
         // from libloaderapi.h
         private const uint GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = 0x00000004;

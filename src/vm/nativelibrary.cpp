@@ -15,6 +15,30 @@
 #include "dllimport.h"
 
 //
+// GetCharsetAndCallingConvention
+// Returns the charset and calling convention of the given delegate's invoke method
+VOID QCALLTYPE NativeLibrary::GetCharsetAndCallingConvention(MethodDesc* pMdDelegate, BOOL* pfIsAnsi, BOOL* pfIsStdcall)
+{
+    QCALL_CONTRACT;
+
+    // Arguments are check on managed side
+    PRECONDITION(pMdDelegate != nullptr);
+    PRECONDITION(pfIsAnsi != nullptr);
+    PRECONDITION(pfIsStdcall != nullptr);
+
+    *pfIsAnsi = FALSE;
+    *pfIsStdcall = FALSE;
+
+    BEGIN_QCALL;
+
+    PInvokeStaticSigInfo sigInfo{ pMdDelegate };
+    *pfIsAnsi = (sigInfo.GetCharSet() == nltAnsi);
+    *pfIsStdcall = IsPmCallConvStdcall(sigInfo.GetCallConv());
+
+    END_QCALL;
+}
+
+//
 // GetProcAddress
 // Returns the address of the specified symbol from the target module, or nullptr if not found
 LPVOID QCALLTYPE NativeLibrary::GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
@@ -28,7 +52,7 @@ LPVOID QCALLTYPE NativeLibrary::GetProcAddress(HMODULE hModule, LPCSTR lpProcNam
 
     BEGIN_QCALL;
 
-    procAddress = ::GetProcAddress(hModule, lpProcName);
+    procAddress = static_cast<LPVOID>(::GetProcAddress(hModule, lpProcName));
 
     END_QCALL;
 

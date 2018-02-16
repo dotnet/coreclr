@@ -934,6 +934,7 @@ FCFuncStart(gInteropMarshalFuncs)
 FCFuncEnd()
 
 FCFuncStart(gInteropNativeLibraryFuncs)
+    QCFuncElement("GetCharsetAndCallingConvention", NativeLibrary::GetCharsetAndCallingConvention)
     QCFuncElement("GetProcAddress", NativeLibrary::GetProcAddress)
     QCFuncElement("LoadLibrary", NativeLibrary::LoadLibrary)
 FCFuncEnd()

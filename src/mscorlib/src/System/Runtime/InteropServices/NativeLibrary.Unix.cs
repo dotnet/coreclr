@@ -7,12 +7,12 @@ namespace System.Runtime.InteropServices
     // Contains UNIX-specific logic for NativeLibrary class.
     public unsafe sealed partial class NativeLibrary
     {
+        // The allowed mask values for the DllImportSearchPath.
+        // Non-Windows sytems only allow AssemblyDirectory and LegacyBehavior.
+        private const uint AllowedDllImportSearchPathsMask = (uint)DllImportSearchPath.AssemblyDirectory;
+
         // [DllImport] (NDirectMethodDesc::FindEntryPoint) doesn't allow lookup by ordinal on non-Windows.
         private const bool AllowLocatingFunctionsByOrdinal = false;
-
-        // Per PInvokeStaticSigInfo::InitCallConv and GetDefaultCallConv, the default calling convention
-        // on Unix is cdecl.
-        private const CallingConvention FallbackCallingConvention = CallingConvention.Cdecl;
 
         // In UNIX, the CLR's HINSTANCE is actually a pointer to _MODSTRUCT.
         // We can extract the underlying OS handle from that structure.

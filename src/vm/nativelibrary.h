@@ -18,6 +18,7 @@
 class NativeLibrary
 {
 public:
+    static VOID QCALLTYPE GetCharsetAndCallingConvention(MethodDesc* pMdDelegate, BOOL* pfIsAnsi, BOOL* pfIsStdcall);
     static LPVOID QCALLTYPE GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
     static HINSTANCE QCALLTYPE LoadLibrary(LPCUTF8 moduleName, QCall::AssemblyHandle callingAssembly, BOOL searchAssemblyDirectory, DWORD searchPaths);
 };

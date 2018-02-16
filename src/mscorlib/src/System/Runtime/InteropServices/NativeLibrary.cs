@@ -18,9 +18,6 @@ namespace System.Runtime.InteropServices
     /// </remarks>
     public sealed partial class NativeLibrary
     {
-        // Per PInvokeStaticSigInfo::PInvokeStaticSigInfo, the default character set is ANSI on all platforms.
-        private const CharSet FallbackCharSet = CharSet.Ansi;
-
         // The CLR's internal HINSTANCE, which may not match the OS-provided handle.
         private readonly IntPtr _hInstance;
 
@@ -72,21 +69,21 @@ namespace System.Runtime.InteropServices
                 }
             }
 
-            ParseCharsetAndCallingConvention(typeof(TDelegate), out CharSet charSet, out CallingConvention callingConvention);
+            GetCharsetAndCallingConvention(delegateInvokeMethod, out bool isAnsi, out bool isStdcall);
 
             // Always look for the unmangled name first.
             // If there's a match and we're in ANSI mode, return it without looking for mangled names.
             // If mangling is disabled, don't proceed, even if we couldn't find the matching symbol.
 
             TDelegate retVal = CreateDelegateForSymbolByName<TDelegate>(name);
-            if (exactSpelling || (retVal != null && charSet == CharSet.Ansi))
+            if (exactSpelling || (retVal != null && isAnsi))
             {
                 return retVal;
             }
 
             // Try appending an 'A' or 'W' suffix to get the ANSI / Unicode version of the API.
 
-            if (charSet == CharSet.Ansi)
+            if (isAnsi)
             {
                 Debug.Assert(retVal == null);
                 retVal = CreateDelegateForSymbolByName<TDelegate>(name + "A");
@@ -98,11 +95,11 @@ namespace System.Runtime.InteropServices
                 retVal = CreateDelegateForSymbolByName<TDelegate>(name + "W") ?? retVal;
             }
 
-#if (BIT32 && !ARM)
+#if X86
             // On x86 only, look for __stdcall mangled names as a last resort.
             // They'll be of the form "_Name@x", where x is the stack size in bytes of the method arguments.
 
-            if (retVal == null && callingConvention == CallingConvention.StdCall)
+            if (retVal == null && isStdcall)
             {
                 Debug.Assert(!exactSpelling);
                 string stdcallMangledName = FormattableString.Invariant($"_{name}@{(uint)Marshal.NumParamBytes(delegateInvokeMethod, isForStdCallDelegate: true):D}");
@@ -136,37 +133,6 @@ namespace System.Runtime.InteropServices
             return (symbolAddress != IntPtr.Zero)
                 ? Marshal.GetDelegateForFunctionPointer<TDelegate>(symbolAddress)
                 : null;
-        }
-
-        private static void ParseCharsetAndCallingConvention(Type delegateType, out CharSet charSet, out CallingConvention callingConvention)
-        {
-            Debug.Assert(delegateType is RuntimeType);
-            Debug.Assert(((RuntimeType)delegateType).IsDelegate());
-
-            charSet = default;
-            callingConvention = default;
-
-            var attr = delegateType.GetCustomAttribute<UnmanagedFunctionPointerAttribute>(inherit: false);
-            if (attr != null)
-            {
-                charSet = attr.CharSet;
-                callingConvention = attr.CallingConvention;
-            }
-
-            // If no character set or calling convention was specified (or if the delegate explicitly asked
-            // to use the OS default calling convention), fall back to the OS defaults. We need to check
-            // for default because the developer could have passed '0' for any enum value, and during marshaling
-            // the CLR treats this as "use defaults".
-
-            if (charSet == default)
-            {
-                charSet = FallbackCharSet;
-            }
-
-            if (callingConvention == default || callingConvention == CallingConvention.Winapi)
-            {
-                callingConvention = FallbackCallingConvention;
-            }
         }
 
         /// <summary>
@@ -299,22 +265,7 @@ namespace System.Runtime.InteropServices
                     paramName: nameof(caller),
                     message: SR.Argument_MustBeRuntimeAssembly);
             }
-
-            // CLR's module loader uses the low byte of the flags enum for assembly-relative flags,
-            // so this can't be specified unless a calling assembly has also been specified. In this
-            // case, we require application-level or global flags to be specified, which are in the
-            // high three bytes of the flags enum.
-
-            if (caller == null && (((int)paths & ~0xFF) == 0 || ((int)paths & 0xFF) != 0))
-            {
-                // If no assembly provided, caller cannot specify LegacyBehavior or AssemblyDirectory.
-                // If no assembly provided, caller must specify 
-                // TODO: What should the exception message say?
-                throw new Exception("Must specify DllImportSearchPaths if assembly not specified.");
-            }
-
-            // End parameter validation
-
+            
             // Assembly-level default search paths win out over legacy behavior.
             // This is a slight change in behavior from [DllImport], where search paths specified at
             // the method level override search paths specified at the assembly level. But since our
@@ -331,16 +282,45 @@ namespace System.Runtime.InteropServices
                 }
             }
 
+            // The set of allowed flags is going to be different per OS. The caller is responsible
+            // for querying RuntimeInformation.IsOSPlatform(...) so that they don't inadvertently
+            // provide flags that are meaningless for the current OS.
+
+            if (((uint)paths & ~AllowedDllImportSearchPathsMask) != 0)
+            {
+                // TODO: Turn error message into a resource string.
+                throw new ArgumentException(
+                    paramName: nameof(paths),
+                    message: "Invalid flags were provided.");
+            }
+
             // "Should search assembly directory?" gets special treatment by the CLR,
             // so we strip it off into its own parameter.
 
             bool searchAssemblyDirectory = paths.HasFlag(DllImportSearchPath.AssemblyDirectory);
             paths &= ~DllImportSearchPath.AssemblyDirectory;
 
+            if (caller == null && searchAssemblyDirectory)
+            {
+                // TODO: Turn error message into a resource string.
+                throw new ArgumentException(
+                    paramName: nameof(paths),
+                    message: "Cannot specify AssemblyDirectory if no calling assembly given.");
+            }
+
+            // End parameter validation
+
             IntPtr hModule = LoadLibrary(name, callerAsRuntimeAssembly?.GetNativeHandle(), searchAssemblyDirectory, paths);
             result = (hModule != IntPtr.Zero) ? new NativeLibrary(hModule) : null;
             return (result != null);
         }
+
+        // For symbol lookups by name
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern void GetCharsetAndCallingConvention(
+            [In] IRuntimeMethodInfo pMdDelegate,
+            [Out] out bool pfIsAnsi,
+            [Out] out bool pfIsStdcall);
 
         // For symbol lookups by name
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode, ThrowOnUnmappableChar = true)]
