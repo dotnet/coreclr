@@ -74,26 +74,24 @@ namespace System
 
         public unsafe int IndexOf(char value, int startIndex, int count)
         {
-            if (startIndex < 0 || startIndex > Length)
+            if ((uint)startIndex > (uint)Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
-            if (count < 0 || count > Length - startIndex)
+            if ((uint)count > (uint)(Length - startIndex))
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
             fixed (char* pChars = &_firstChar)
             {
-                char* pStartCh = pChars + startIndex;
-                char* pCh = pStartCh;
+                char* pCh = pChars + startIndex;
+                char* pEndCh = pCh + count;
 
                 int nLength = count;
-                bool useVectorization = false;
                 if (Vector.IsHardwareAccelerated && count >= Vector<ushort>.Count * 2)
                 {
                     unchecked
                     {
                         int unaligned = (int)pCh & (Vector<ushort>.Count - 1);
                         nLength = ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
-                        useVectorization = true;
                     }
                 }
             SequentialScan:
@@ -121,35 +119,31 @@ namespace System
                     pCh++;
                 }
 
-                if (useVectorization)
+                if (pCh < pEndCh)
                 {
-                    int index = (int)(pCh - pStartCh);
-                    if (index < count)
+                    nLength = (int)((pEndCh - pCh) & ~(Vector<ushort>.Count - 1));
+                    // Get comparison Vector
+                    Vector<ushort> vComparison = new Vector<ushort>(value);
+                    while (nLength > 0)
                     {
-                        nLength = ((count - index) & ~(Vector<ushort>.Count - 1));
-                        // Get comparison Vector
-                        Vector<ushort> vComparison = new Vector<ushort>(value);
-                        while (nLength > index)
+                        var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pCh));
+                        if (Vector<ushort>.Zero.Equals(vMatches))
                         {
-                            var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pCh));
-                            if (Vector<ushort>.Zero.Equals(vMatches))
-                            {
-                                pCh += Vector<ushort>.Count;
-                                index += Vector<ushort>.Count;
-                                continue;
-                            }
-                            // Find offset of first match
-                            return (int)(pCh - pChars) + LocateFirstFoundChar(vMatches);
+                            pCh += Vector<ushort>.Count;
+                            nLength -= Vector<ushort>.Count;
+                            continue;
                         }
+                        // Find offset of first match
+                        return (int)(pCh - pChars) + LocateFirstFoundChar(vMatches);
+                    }
 
-                        if (index < count)
+                    if (pCh < pEndCh)
+                    {
+                        unchecked
                         {
-                            unchecked
-                            {
-                                nLength = (count - index);
-                            }
-                            goto SequentialScan;
+                            nLength = (int)(pEndCh - pCh);
                         }
+                        goto SequentialScan;
                     }
                 }
 
