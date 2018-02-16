@@ -106,6 +106,7 @@ if (WIN32)
     dataflow.h
     decomposelongs.h
     disasm.h
+    ee_il_dll.hpp
     emit.h
     emitarm.h
     emitarm64.h
@@ -126,6 +127,7 @@ if (WIN32)
     hashbv.h
     host.h
     hostallocator.h
+    hwintrinsic.hpp
     hwintrinsiclistxarch.h
     ICorJitInfo_API_names.h
     ICorJitInfo_API_wrapper.hpp

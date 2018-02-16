@@ -910,9 +910,7 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
                 }
                 else
                 {
-                    // TODO-XArch-Bug https://github.com/dotnet/coreclr/issues/16329
-                    // using hardcoded instruction as workaround for inexact type conversions
-                    emit->emitIns_R_R(INS_mov_xmm2i, emitActualTypeSize(baseType), op1Reg, targetReg);
+                    emit->emitIns_R_R(ins, emitActualTypeSize(baseType), op1Reg, targetReg);
                 }
             }
             break;

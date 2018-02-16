@@ -133,7 +133,7 @@ inline CORINFO_EE_INFO* Compiler::eeGetEEInfo()
 inline var_types JITtype2varType(CorInfoType type)
 {
 
-    static const unsigned char varTypeMap[CORINFO_TYPE_COUNT] = {
+    static const var_types varTypeMap[CORINFO_TYPE_COUNT] = {
         // see the definition of enum CorInfoType in file inc/corinfo.h
         TYP_UNDEF,  // CORINFO_TYPE_UNDEF           = 0x0,
         TYP_VOID,   // CORINFO_TYPE_VOID            = 0x1,
@@ -187,7 +187,7 @@ inline var_types JITtype2varType(CorInfoType type)
     assert(type < CORINFO_TYPE_COUNT);
     assert(varTypeMap[type] != TYP_UNDEF);
 
-    return ((var_types)varTypeMap[type]);
+    return varTypeMap[type];
 };
 
 inline CORINFO_CALLINFO_FLAGS combine(CORINFO_CALLINFO_FLAGS flag1, CORINFO_CALLINFO_FLAGS flag2)
