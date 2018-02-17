@@ -923,16 +923,15 @@ namespace System
             }
         }
 
-
         // Determines whether two Strings match.
-        public static bool Equals(String a, String b)
+        public static bool Equals(string a, string b)
         {
-            if ((Object)a == (Object)b)
+            if (ReferenceEquals(a, b))
             {
                 return true;
             }
 
-            if ((Object)a == null || (Object)b == null || a.Length != b.Length)
+            if (a is null || a.Length != b.Length)
             {
                 return false;
             }
@@ -940,20 +939,20 @@ namespace System
             return EqualsHelper(a, b);
         }
 
-        public static bool Equals(String a, String b, StringComparison comparisonType)
+        public static bool Equals(string a, string b, StringComparison comparisonType)
         {
-            if ((Object)a == (Object)b)
+            bool isSameReference = ReferenceEquals(a, b);
+            if (isSameReference || a is null)
             {
                 StringSpanHelpers.CheckStringComparison(comparisonType);
-                return true;
+                return isSameReference;
             }
 
-            if ((Object)a == null || (Object)b == null)
-            {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
-                return false;
-            }
+            return EqualsHelper(a, b, comparisonType);
+        }
 
+        private static bool EqualsHelper(string a, string b, StringComparison comparisonType)
+        {
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
@@ -970,13 +969,16 @@ namespace System
 
                 case StringComparison.Ordinal:
                     if (a.Length != b.Length)
+                    {
                         return false;
-
+                    }
                     return EqualsHelper(a, b);
 
                 case StringComparison.OrdinalIgnoreCase:
                     if (a.Length != b.Length)
+                    {
                         return false;
+                    }
                     else
                     {
                         // If both strings are ASCII strings, we can take the fast path.
@@ -994,14 +996,14 @@ namespace System
             }
         }
 
-        public static bool operator ==(String a, String b)
+        public static bool operator ==(string a, string b)
         {
-            return String.Equals(a, b);
+            return string.Equals(a, b);
         }
 
-        public static bool operator !=(String a, String b)
+        public static bool operator !=(string a, string b)
         {
-            return !String.Equals(a, b);
+            return !string.Equals(a, b);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

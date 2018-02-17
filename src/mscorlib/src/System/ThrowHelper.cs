@@ -471,7 +471,8 @@ namespace System
         pointer,
         start,
         format,
-        culture
+        culture,
+        comparisonType,
     }
 
     //
@@ -581,6 +582,7 @@ namespace System
         InvalidOperation_HandleIsNotInitialized,
         AsyncMethodBuilder_InstanceNotInitialized,
         ArgumentNull_SafeHandle,
+        NotSupported_StringComparison,
     }
 }
 
