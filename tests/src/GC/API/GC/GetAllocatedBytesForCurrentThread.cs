@@ -65,7 +65,7 @@ public class Test
 
     // In core 1.0 we didn't have the API exposed so needed to use reflection to get it.
     // This should be split into 2 tests, with and without GC.Collect.
-    static bool TestCore1()
+    static bool TestCore1(bool testWithCollection)
     {
         const string name = "GetAllocatedBytesForCurrentThread";
         var typeInfo = typeof(GC).GetTypeInfo();
@@ -80,7 +80,11 @@ public class Test
         {
             nBytesBefore = (long)method.Invoke(null, null);
             // Test with collection.
-            // GC.Collect();
+            if (testWithCollection)
+            {
+                GC.Collect();
+            }
+
             nBytesAfter = (long)method.Invoke(null, null);
 
             if ((nBytesBefore + 24) != nBytesAfter)
@@ -95,12 +99,19 @@ public class Test
 
     public static int Main() 
     {
-        if (!TestCore1())
+        // First test with collection
+        if (!TestCore1(true))
         {
             Console.WriteLine("Test for GetAllocatedBytesForCurrentThread() failed!");
             return 1;
         }
 
+        // Test without collection
+        if (!TestCore1(false))
+        {
+            Console.WriteLine("Test for GetAllocatedBytesForCurrentThread() failed!");
+            return 1;
+        }
         if (!TestWithAlloc())
         {
             Console.WriteLine("Test for GetAllocatedBytesForCurrentThread() failed!");
