@@ -803,7 +803,7 @@ namespace System
                 return true;
             }
 
-            if (value is null || value.Length != value.Length)
+            if (value is null || this.Length != value.Length)
             {
                 return false;
             }
