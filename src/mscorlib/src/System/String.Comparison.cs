@@ -800,7 +800,7 @@ namespace System
                 return true;
             }
 
-            if (a is null || a.Length != b.Length)
+            if (a is null || b is null || a.Length != b.Length)
             {
                 return false;
             }
@@ -817,7 +817,7 @@ namespace System
                 return true;
             }
 
-            if (a is null)
+            if (a is null || b is null)
             {
                 return false;
             }
