@@ -29,8 +29,6 @@ parser.add_argument('-os', dest='operatingSystem', default='Windows_NT', choices
 parser.add_argument('-optLevel', dest='optLevel', default='full_opt', choices=['full_opt', 'min_opt', 'tiered'])
 parser.add_argument('-jitName', dest='jitName', default='ryujit', choices=['ryujit'])
 parser.add_argument('-benchviewCommitName', dest='benchviewCommitName', default='FAKE_BV_COMMIT_NAME')
-parser.add_argument('-bvUploadSasToken', dest='bvUploadSasToken', default='FAKE_BV_SAS_UPLOAD_TOKEN')
-parser.add_argument('-uploadToBenchview', dest='uploadToBenchview', default=False, choices=[True, False])
 
 #ambient jenkins properties
 parser.add_argument('-workspace', dest='workspace', default=os.path.abspath(os.getcwd()))
@@ -81,15 +79,13 @@ class jenkins_properties:
 
 
 class coreclr_scenarios_args:
-    def __init__(self, is_pr, arch, os, jit_name, opt_level, benchview_commit_name, bv_upload_sas_token, upload_to_benchview):
+    def __init__(self, is_pr, arch, os, jit_name, opt_level, benchview_commit_name):
         self.is_pr = is_pr
         self.arch = arch
         self.os = os
         self.jit_name = jit_name
         self.opt_level = opt_level
         self.benchview_commit_name = benchview_commit_name
-        self.bv_upload_sas_token = bv_upload_sas_token
-        self.upload_to_benchview = upload_to_benchview
 
 def coreclr_scenarios(args, props):
     architecture = args.arch
@@ -97,7 +93,7 @@ def coreclr_scenarios(args, props):
     configuration = 'Release'
     runType = 'private' if args.is_pr else 'rolling'
     benchViewName = 'CoreCLR-Scenarios private ' + args.benchview_commit_name if args.is_pr else 'CoreCLR-Scenarios rolling ' + props.git_branch_without_origin + ' ' + props.git_commit
-    uploadString = '-uploadToBenchview' if args.upload_to_benchview else ''
+    uploadString = ''
     
     run_command('powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"' + props.workspace + '\\nuget.exe\"', os.environ)
     if os.path.isdir(props.workspace + '\\Microsoft.BenchView.JSONFormat'):
@@ -158,11 +154,9 @@ def main(args):
         log('jitName:                   %s' % args.jitName)
         log('optLevel:                  %s' % args.optLevel)
         log('benchviewCommitName:       %s' % args.benchviewCommitName)
-        log('bvUploadSasToken:          %s' % '*********************')
-        log('uploadToBenchview:         %s' % args.uploadToBenchview)
         log('')
         log('== RUNNING JOB ==')
-        job_args = coreclr_scenarios_args(args.isPR, args.arch, args.operatingSystem, args.jitName, args.optLevel, args.benchviewCommitName, args.bvUploadSasToken, args.uploadToBenchview)
+        job_args = coreclr_scenarios_args(args.isPR, args.arch, args.operatingSystem, args.jitName, args.optLevel, args.benchviewCommitName)
         coreclr_scenarios(job_args, props)
 
     else:
