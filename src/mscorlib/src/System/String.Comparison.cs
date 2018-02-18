@@ -22,42 +22,6 @@ namespace System
         //Native Static Methods
         //
 
-        private unsafe static int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
-        {
-            Debug.Assert(strA != null);
-            Debug.Assert(strB != null);
-            int length = Math.Min(strA.Length, strB.Length);
-
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
-            {
-                char* a = ap;
-                char* b = bp;
-                int charA = 0, charB = 0;
-
-                while (length != 0)
-                {
-                    charA = *a;
-                    charB = *b;
-
-                    Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
-
-                    // uppercase both chars - notice that we need just one compare per char
-                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
-
-                    //Return the (case-insensitive) difference between them.
-                    if (charA != charB)
-                        return charA - charB;
-
-                    // Next char
-                    a++; b++;
-                    length--;
-                }
-
-                return strA.Length - strB.Length;
-            }
-        }
-
         // native call to COMString::CompareOrdinalEx
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int CompareOrdinalHelper(String strA, int indexA, int countA, String strB, int indexB, int countB);
