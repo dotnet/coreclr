@@ -251,9 +251,10 @@ namespace System
         /// </summary>
         public static bool StartsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -276,10 +277,10 @@ namespace System
 
                 case StringComparison.OrdinalIgnoreCase:
                     return StartsWithOrdinalIgnoreCaseHelper(span, value);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return false;
         }
 
         internal static bool StartsWithCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, CompareInfo compareInfo)
@@ -401,9 +402,10 @@ namespace System
         /// </summary>
         public static bool EndsWith(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -426,10 +428,10 @@ namespace System
 
                 case StringComparison.OrdinalIgnoreCase:
                     return EndsWithOrdinalIgnoreCaseHelper(span, value);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return false;
         }
 
         internal static bool EndsWithCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, CompareInfo compareInfo)

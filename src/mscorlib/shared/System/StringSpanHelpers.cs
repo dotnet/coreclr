@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace System
 {
@@ -149,8 +151,38 @@ namespace System
             // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
             if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
             {
-                ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
+                ThrowStringComparison_NotSupported();
             }
+        }
+
+        public static CompareOptions GetCaseCompareOfComparisonCulture(StringComparison comparisonType)
+        {
+            Debug.Assert((uint)(comparisonType - StringComparison.CurrentCulture) <= (StringComparison.InvariantCultureIgnoreCase - StringComparison.CurrentCulture));
+
+            // Culture enums can be & with CompareOptions.IgnoreCase 0x01 to extract if IgnoreCase or CompareOptions.None 0x00
+            //
+            // CompareOptions.None                          0x00
+            // CompareOptions.IgnoreCase                    0x01
+            //
+            // StringComparison.CurrentCulture:             0x00
+            // StringComparison.InvariantCulture:           0x02
+            //
+            // StringComparison.CurrentCultureIgnoreCase:   0x01
+            // StringComparison.InvariantCultureIgnoreCase: 0x03
+
+            return (CompareOptions)((int)comparisonType & (int)CompareOptions.IgnoreCase);
+        }
+
+        [StackTraceHidden]
+        private static void ThrowStringComparison_NotSupported()
+        {
+            throw GetStringComparisonException_NotSupported();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static ArgumentException GetStringComparisonException_NotSupported()
+        {
+            throw new ArgumentException(SR.NotSupported_StringComparison, "comparisonType");
         }
     }
 }

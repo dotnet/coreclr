@@ -916,29 +916,27 @@ namespace System
 
         public string Replace(string oldValue, string newValue, StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return ReplaceCore(oldValue, newValue, CultureInfo.CurrentCulture, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return ReplaceCore(oldValue, newValue, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
+                    return ReplaceCore(oldValue, newValue, CultureInfo.CurrentCulture, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.IgnoreCase);
+                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return Replace(oldValue, newValue);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.OrdinalIgnoreCase);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return null;
         }
 
         private unsafe string ReplaceCore(string oldValue, string newValue, CultureInfo culture, CompareOptions options)
