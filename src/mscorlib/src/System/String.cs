@@ -174,18 +174,28 @@ namespace System
             return Array.Empty<char>();
         }
 
-        public static bool IsNullOrEmpty(String value)
+        public static bool IsNullOrEmpty(string value)
         {
-            return (value == null || value.Length == 0);
+            return (value is null || value.Length == 0);
         }
 
-        public static bool IsNullOrWhiteSpace(String value)
+        public static bool IsNullOrWhiteSpace(string value)
         {
-            if (value == null) return true;
+            if (IsNullOrEmpty(value)) return true;
+
+            return IsWhiteSpace(value);
+        }
+
+        private static bool IsWhiteSpace(string value)
+        {
+            Debug.Assert(!(value is null) && value.Length > 0);
 
             for (int i = 0; i < value.Length; i++)
             {
-                if (!Char.IsWhiteSpace(value[i])) return false;
+                if (!char.IsWhiteSpace(value[i]))
+                {
+                    return false;
+                }
             }
 
             return true;
