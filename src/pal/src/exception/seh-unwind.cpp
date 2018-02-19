@@ -372,14 +372,12 @@ Function:
 Parameters:
     exceptionRecord - output pointer to the allocated exception record
     contextRecord - output pointer to the allocated context record
-    allocationProhibited - input flag to avoid memory allocation in critical situations
 --*/
 VOID
-AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord, BOOL allocationProhibited)
+AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord)
 {
     ExceptionRecords* records;
-    if (allocationProhibited ||
-	(posix_memalign((void**)&records, alignof(ExceptionRecords), sizeof(ExceptionRecords)) != 0) )
+    if (posix_memalign((void**)&records, alignof(ExceptionRecords), sizeof(ExceptionRecords)) != 0)
     {
         size_t bitmap;
         size_t newBitmap;

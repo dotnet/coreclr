@@ -833,7 +833,7 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     ucontext = (native_context_t *)sigcontext;
     g_common_signal_handler_context_locvar_offset = (int)((char*)&signalContextRecord - (char*)__builtin_frame_address(0));
 
-    AllocateExceptionRecords(&exceptionRecord, &contextRecord, true);
+    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
 
     exceptionRecord->ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
     exceptionRecord->ExceptionFlags = EXCEPTION_IS_SIGNAL;
