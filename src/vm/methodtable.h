@@ -2209,8 +2209,13 @@ public:
     inline static PTR_VOID GetParentMethodTableOrIndirection(PTR_VOID pMT)
     {
         WRAPPER_NO_CONTRACT;
+#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
         PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
-        return ReadValueOrIndirectionMaybeNull((MethodTable*) pMethodTable, &MethodTable::m_pParentMethodTable);
+        PTR_MethodTable pParentMT = ReadPointerMaybeNull((MethodTable*) pMethodTable, &MethodTable::m_pParentMethodTable);
+        return dac_cast<PTR_VOID>(pParentMT);
+#else
+        return PTR_VOID(*PTR_TADDR(dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable)));
+#endif
     }
 
     inline static bool IsParentMethodTableTagged(PTR_MethodTable pMT)

@@ -337,20 +337,6 @@ public:
     }
 #endif // !DACCESS_COMPILE
 
-    // Returns value of the encoded pointer or pointer to indirection. Assumes that the pointer is not NULL.
-    FORCEINLINE static PTR_VOID GetValueOrIndirectionAtPtr(TADDR base)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return dac_cast<PTR_VOID>(GetValueAtPtr(base));
-    }
-
-    // Returns value of the encoded pointer or pointer to indirection. The pointer can be NULL.
-    FORCEINLINE static PTR_VOID GetValueOrIndirectionMaybeNullAtPtr(TADDR base)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return dac_cast<PTR_VOID>(GetValueMaybeNullAtPtr(base));
-    }
-
     // Returns value of the encoded pointer. Assumes that the pointer is not NULL.
     FORCEINLINE PTR_TYPE GetValue(TADDR base) const
     {
@@ -865,21 +851,6 @@ public:
         return FALSE;
     }
 
-    // Returns value of the encoded pointer or pointer to indirection.
-    FORCEINLINE static PTR_VOID GetValueOrIndirectionAtPtr(TADDR base)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        TADDR addr = dac_cast<DPTR(IndirectPointer<PTR_TYPE>)>(base)->m_addr;
-        return dac_cast<PTR_VOID>(addr);
-    }
-
-    // Returns value of the encoded pointer or pointer to indirection.
-    FORCEINLINE static PTR_VOID GetValueOrIndirectionMaybeNullAtPtr(TADDR base)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetValueOrIndirectionAtPtr(base);
-    }
-
     // Returns value of the encoded pointer.
     // Uses isIndirect to identify, whether pointer is indirect or not. If it is, uses offset.
     FORCEINLINE PTR_TYPE GetValueIndirect(bool isIndirect, intptr_t offset) const
@@ -1073,42 +1044,6 @@ ReadPointer(const T *base, const C T::* pFirstPointerFieldMember, const PT C::* 
     LIMITED_METHOD_DAC_CONTRACT;
 
     return ReadPointer<false>(base, pFirstPointerFieldMember, pSecondPointerFieldMember);
-}
-
-template<bool isMaybeNull, typename T, typename PT>
-PTR_VOID
-ReadValueOrIndirection(const T *base, const PT T::* pPointerFieldMember)
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    uintptr_t offset = (uintptr_t) &(base->*pPointerFieldMember) - (uintptr_t) base;
-
-    if (isMaybeNull)
-    {
-        return PT::GetValueOrIndirectionMaybeNullAtPtr(dac_cast<TADDR>(base) + offset);
-    }
-    else
-    {
-        return PT::GetValueOrIndirectionAtPtr(dac_cast<TADDR>(base) + offset);
-    }
-}
-
-template<typename T, typename PT>
-PTR_VOID
-ReadValueOrIndirectionMaybeNull(const T *base, const PT T::* pPointerFieldMember)
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return ReadValueOrIndirection<true>(base, pPointerFieldMember);
-}
-
-template<typename T, typename PT>
-PTR_VOID
-ReadValueOrIndirection(const T *base, const PT T::* pPointerFieldMember)
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return ReadValueOrIndirection<false>(base, pPointerFieldMember);
 }
 
 #endif //_FIXUPPOINTER_H
