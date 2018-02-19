@@ -2882,13 +2882,10 @@ class IfConversion
 {
     Compiler*   m_comp;
     BasicBlock* m_block;
-    GenTreeOp*  m_relop;
-    GenTree*    m_jtrue;
     BasicBlock* m_falseBlock;
     BasicBlock* m_trueBlock;
     BasicBlock* m_joinBlock;
 
-public:
     static GenTree* FirstInstruction(BasicBlock* block)
     {
         GenTree* first = LIR::AsRange(block).FirstNonPhiNode();
@@ -3354,19 +3351,17 @@ public:
     };
 
 public:
-    IfConversion(Compiler* comp, BasicBlock* block, GenTreeOp* relop, GenTree* jtrue)
-        : m_comp(comp), m_block(block), m_relop(relop), m_jtrue(jtrue)
+    IfConversion(Compiler* comp, BasicBlock* block) : m_comp(comp), m_block(block)
     {
         assert(m_block->bbJumpKind == BBJ_COND);
-        assert(relop->OperIsCompare());
-        assert(jtrue->OperIs(GT_JTRUE));
     }
 
-    GenTreeOpCC* TryIfConversion()
+    GenTreeOpCC* TryIfConversion(GenTreeOp* relop, GenTree* jtrue)
     {
-        GenCondition condition    = GenCondition::FromRelop(m_relop);
-        GenTree*     conditionDef = m_relop;
-        HammockKind  kind         = MakeHammock();
+        assert(relop->OperIsCompare());
+        assert(jtrue->OperIs(GT_JTRUE));
+
+        HammockKind kind = MakeHammock();
 
         if (kind == HammockKind::Half)
         {
@@ -3377,18 +3372,19 @@ public:
                 return nullptr;
             }
 
+            GenCondition condition = GenCondition::FromRelop(relop);
             condition = GenCondition::Reverse(condition);
 
-            m_relop->ChangeOper(GT_CMP);
-            m_relop->gtType = TYP_VOID;
-            m_jtrue->ChangeOper(GT_SELCC);
-            GenTreeOpCC* selcc = m_jtrue->AsOpCC();
+            relop->ChangeOper(GT_CMP);
+            relop->gtType = TYP_VOID;
+            jtrue->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = jtrue->AsOpCC();
 
             GenTree* trueSrc  = summary.CloneOpSrc(m_comp, selcc);
             GenTree* falseSrc = summary.CloneOpAsLclVar(m_comp, selcc);
 
             selcc->gtCondition    = condition;
-            selcc->gtConditionDef = conditionDef;
+            selcc->gtConditionDef = relop;
             selcc->gtType         = falseSrc->TypeGet();
             selcc->gtOp1          = falseSrc;
             selcc->gtOp2          = trueSrc;
@@ -3417,10 +3413,12 @@ public:
                 return nullptr;
             }
 
-            m_relop->ChangeOper(GT_CMP);
-            m_relop->gtType = TYP_VOID;
-            m_jtrue->ChangeOper(GT_SELCC);
-            GenTreeOpCC* selcc = m_jtrue->AsOpCC();
+            GenCondition condition = GenCondition::FromRelop(relop);
+
+            relop->ChangeOper(GT_CMP);
+            relop->gtType = TYP_VOID;
+            jtrue->ChangeOper(GT_SELCC);
+            GenTreeOpCC* selcc = jtrue->AsOpCC();
 
             falseSummary.CloneCopies(m_comp, selcc);
 
@@ -3428,7 +3426,7 @@ public:
             GenTree* trueSrc  = trueSummary.CloneOpSrc(m_comp, selcc);
 
             selcc->gtCondition    = condition;
-            selcc->gtConditionDef = conditionDef;
+            selcc->gtConditionDef = relop;
             selcc->gtType         = falseSrc->TypeGet();
             selcc->gtOp1          = falseSrc;
             selcc->gtOp2          = trueSrc;
@@ -3504,8 +3502,8 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
     GenTreeOp* relop = jtrue->gtGetOp1()->AsOp();
     if (!relop->OperIs(GT_TEST_EQ, GT_TEST_NE) && !varTypeIsFloating(relop->gtGetOp1()->TypeGet()))
     {
-        IfConversion ifConversion(comp, m_block, relop, jtrue);
-        GenTreeOpCC* selcc = ifConversion.TryIfConversion();
+        IfConversion ifConversion(comp, m_block);
+        GenTreeOpCC* selcc = ifConversion.TryIfConversion(relop, jtrue);
 
         if (selcc != nullptr)
         {
