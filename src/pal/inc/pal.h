@@ -3762,6 +3762,8 @@ PAL_BindResources(IN LPCSTR lpDomain);
 
 #define EXCEPTION_IS_SIGNAL 0x100
 
+#define EXCEPTION_ON_STACK 0x400
+
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
 
 // Index in the ExceptionInformation array where we will keep the reference
@@ -5683,7 +5685,8 @@ private:
 
     void FreeRecords()
     {
-        if (ExceptionPointers.ExceptionRecord != NULL)
+        if (ExceptionPointers.ExceptionRecord != NULL &&
+            ! (ExceptionPointers.ExceptionRecord->ExceptionFlags | EXCEPTION_ON_STACK) )
         {
             PAL_FreeExceptionRecords(ExceptionPointers.ExceptionRecord, ExceptionPointers.ContextRecord);
             ExceptionPointers.ExceptionRecord = NULL;
