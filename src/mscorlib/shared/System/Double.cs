@@ -69,6 +69,16 @@ namespace System
             return (bits & 0x7FFFFFFFFFFFFFFF) > 0x7FF0000000000000;
         }
 
+        // A faster version of IsNaN. This can throw for signaling NaNs if floating point exceptions are unmasked
+        // so it's not a direct replacement. It can be safely used when the value to check has already been used
+        // in other floating point operations that can also throw (or when throwing an exception is acceptable).
+        internal static bool IsNaNFast(double d)
+        {
+#pragma warning disable 1718 
+            return d != d;
+#pragma warning restore
+        }
+
         /// <summary>Determines whether the specified value is negative.</summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -135,8 +145,8 @@ namespace System
                 if (m_value == d) return 0;
 
                 // At least one of the values is NaN.
-                if (IsNaN(m_value))
-                    return (IsNaN(d) ? 0 : -1);
+                if (IsNaNFast(m_value))
+                    return (IsNaNFast(d) ? 0 : -1);
                 else
                     return 1;
             }
@@ -150,8 +160,8 @@ namespace System
             if (m_value == value) return 0;
 
             // At least one of the values is NaN.
-            if (IsNaN(m_value))
-                return (IsNaN(value) ? 0 : -1);
+            if (IsNaNFast(m_value))
+                return (IsNaNFast(value) ? 0 : -1);
             else
                 return 1;
         }
@@ -170,7 +180,7 @@ namespace System
             {
                 return true;
             }
-            return IsNaN(temp) && IsNaN(m_value);
+            return IsNaNFast(temp) && IsNaNFast(m_value);
         }
 
         [NonVersionable]
@@ -215,7 +225,7 @@ namespace System
             {
                 return true;
             }
-            return IsNaN(obj) && IsNaN(m_value);
+            return IsNaNFast(obj) && IsNaNFast(m_value);
         }
 
         //The hashcode for a double is the absolute value of the integer representation

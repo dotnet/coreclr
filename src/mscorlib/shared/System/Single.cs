@@ -65,6 +65,16 @@ namespace System
             return (bits & 0x7FFFFFFF) > 0x7F800000;
         }
 
+        // A faster version of IsNaN. This can throw for signaling NaNs if floating point exceptions are unmasked
+        // so it's not a direct replacement. It can be safely used when the value to check has already been used
+        // in other floating point operations that can also throw (or when throwing an exception is acceptable).
+        internal static bool IsNaNFast(double f)
+        {
+#pragma warning disable 1718 
+            return f != f;
+#pragma warning restore
+        }
+
         /// <summary>Determines whether the specified value is negative.</summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -130,8 +140,8 @@ namespace System
                 if (m_value == f) return 0;
 
                 // At least one of the values is NaN.
-                if (IsNaN(m_value))
-                    return (IsNaN(f) ? 0 : -1);
+                if (IsNaNFast(m_value))
+                    return (IsNaNFast(f) ? 0 : -1);
                 else // f is NaN.
                     return 1;
             }
@@ -146,8 +156,8 @@ namespace System
             if (m_value == value) return 0;
 
             // At least one of the values is NaN.
-            if (IsNaN(m_value))
-                return (IsNaN(value) ? 0 : -1);
+            if (IsNaNFast(m_value))
+                return (IsNaNFast(value) ? 0 : -1);
             else // f is NaN.
                 return 1;
         }
@@ -200,7 +210,7 @@ namespace System
                 return true;
             }
 
-            return IsNaN(temp) && IsNaN(m_value);
+            return IsNaNFast(temp) && IsNaNFast(m_value);
         }
 
         public bool Equals(Single obj)
@@ -210,7 +220,7 @@ namespace System
                 return true;
             }
 
-            return IsNaN(obj) && IsNaN(m_value);
+            return IsNaNFast(obj) && IsNaNFast(m_value);
         }
 
         public unsafe override int GetHashCode()
