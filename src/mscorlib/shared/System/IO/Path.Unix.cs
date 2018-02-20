@@ -120,11 +120,9 @@ namespace System.IO
         // only contains whitespace characters an ArgumentException gets thrown.
         public static string GetPathRoot(string path)
         {
-            if (path == null) return null;
-            if (PathInternal.IsEffectivelyEmpty(path))
-                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+            if (PathInternal.IsEffectivelyEmpty(path)) return null;
 
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : string.Empty;
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
