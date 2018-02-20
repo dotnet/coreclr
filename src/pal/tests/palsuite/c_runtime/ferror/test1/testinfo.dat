@@ -1,6 +1,6 @@
-#
-# Copyright (c) Microsoft Corporation.  All rights reserved.
-#
+# Licensed to the .NET Foundation under one or more agreements.
+# The .NET Foundation licenses this file to you under the MIT license.
+# See the LICENSE file in the project root for more information.
 
 Version = 1.0
 Section = C Runtime
@@ -11,6 +11,6 @@ EXE1 = test1
 Description
 = Tests the PAL implementation of the ferror function.
 = Open a file, and read some characters.  Check that ferror states that
-= no error has occured. Then close the file pointer.  Attempt to read 
+= no error has occurred. Then close the file pointer.  Attempt to read 
 = some more.  Check ferror now, and it should indicate that an error has 
-= occured.
+= occurred.

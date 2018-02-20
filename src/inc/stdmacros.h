@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -189,6 +188,12 @@ inline void* ALIGN_UP( void* val, size_t alignment )
     
     return (void*) ALIGN_UP( (size_t)val, alignment );
 }
+inline uint8_t* ALIGN_UP( uint8_t* val, size_t alignment )
+{
+    WRAPPER_NO_CONTRACT;
+    
+    return (uint8_t*) ALIGN_UP( (size_t)val, alignment );
+}
 
 inline size_t ALIGN_DOWN( size_t val, size_t alignment )
 {
@@ -203,6 +208,11 @@ inline void* ALIGN_DOWN( void* val, size_t alignment )
 {
     WRAPPER_NO_CONTRACT;
     return (void*) ALIGN_DOWN( (size_t)val, alignment );
+}
+inline uint8_t* ALIGN_DOWN( uint8_t* val, size_t alignment )
+{
+    WRAPPER_NO_CONTRACT;
+    return (uint8_t*) ALIGN_DOWN( (size_t)val, alignment );
 }
 
 inline BOOL IS_ALIGNED( size_t val, size_t alignment )
@@ -267,7 +277,7 @@ inline ULONG RoundUpToPower2(ULONG x)
 
 
 #define DBG_GET_CLASS_NAME(pMT)        \
-        (pMT)->GetClass()->GetDebugClassName()
+        (((pMT) == NULL)  ? NULL : (pMT)->GetClass()->GetDebugClassName())
 
 #define DBG_CLASS_NAME_MT(pMT)         \
         (DBG_GET_CLASS_NAME(pMT) == NULL) ? "<null-class>" : DBG_GET_CLASS_NAME(pMT) 
@@ -294,7 +304,6 @@ inline ULONG RoundUpToPower2(ULONG x)
 #define DBG_IPTR_NAME(iptr)            \
         (iptr) ? "interior" : "base"
 
-
 #define LOG_HANDLE_OBJECT_CLASS(str1, hnd, str2, obj)    \
         str1 FMT_HANDLE str2 FMT_OBJECT FMT_CLASS "\n",  \
         DBG_ADDR(hnd), DBG_ADDR(obj), DBG_CLASS_NAME_OBJ(obj)
@@ -307,6 +316,15 @@ inline ULONG RoundUpToPower2(ULONG x)
         FMT_PIPTR FMT_ADDR FMT_CLASS "\n",               \
         DBG_PIN_NAME(pin), DBG_IPTR_NAME(iptr),          \
         DBG_ADDR(obj), DBG_CLASS_NAME_IPTR(obj,iptr)
+
+#define LOG_HANDLE_OBJECT(str1, hnd, str2, obj)          \
+        str1 FMT_HANDLE str2 FMT_OBJECT "\n",            \
+        DBG_ADDR(hnd), DBG_ADDR(obj)
+
+#define LOG_PIPTR_OBJECT(obj, pin, iptr)                 \
+        FMT_PIPTR FMT_ADDR "\n",                         \
+        DBG_PIN_NAME(pin), DBG_IPTR_NAME(iptr),          \
+        DBG_ADDR(obj)
 
 #define UNIQUE_LABEL_DEF(a,x)           a##x
 #define UNIQUE_LABEL_DEF_X(a,x)         UNIQUE_LABEL_DEF(a,x)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // stdafx.h
 // 
@@ -25,11 +24,16 @@
     #define RSCONTRACTS
 #endif
 
+
+// In case of FEATURE_DBGIPC_TRANSPORT_DI we use pipe for debugger debugee communication
+// and event redirection is not needed. (won't work anyway)
+#ifndef FEATURE_DBGIPC_TRANSPORT_DI
 // Currently, we only can redirect exception events. Since real interop-debugging
 // neeeds all events, redirection can't work in real-interop. 
 // However, whether we're interop-debugging is determined at runtime, so we always
 // enable at compile time and then we need a runtime check later.
 #define ENABLE_EVENT_REDIRECTION_PIPELINE
+#endif
 
 #include "ex.h"
 

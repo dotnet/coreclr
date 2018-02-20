@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // vars.hpp
 //
@@ -63,29 +62,21 @@ typedef unsigned short wchar_t;
 #define _WCHAR_T_DEFINED
 #endif
 
-#ifndef CLR_STANDALONE_BINDER
 #include "util.hpp"
 #include <corpriv.h>
 #include <cordbpriv.h>
 
-#ifndef FEATURE_CORECLR
-#include <metahost.h>
-#endif // !FEATURE_CORECLR
 
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 
-#ifdef FEATURE_CAS_POLICY
-#include "certificatecache.h"
-#endif
-
-#endif //CLR_STANDALONE_BINDER
-
 #include "profilepriv.h"
+
+#include "gcinterface.h"
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
 class TransparentProxyObject;
@@ -106,24 +97,6 @@ class Crst;
 class RCWCleanupList;
 #endif // FEATURE_COMINTEROP
 class BBSweep;
-struct IAssemblyUsageLog;
-
-//
-// object handles are opaque types that track object pointers
-//
-#ifndef DACCESS_COMPILE
-
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-
-#else
-
-typedef TADDR OBJECTHANDLE;
-
-#endif
 
 //
 // loader handles are opaque types that track object pointers that have a lifetime
@@ -188,12 +161,6 @@ class OBJECTREF {
         class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
-#ifdef FEATURE_COMPRESSEDSTACK        
-        class CompressedStackObject* m_asCompressedStack;
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-        class SecurityContextObject* m_asSecurityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
         class ExecutionContextObject* m_asExecutionContext;
         class AppDomainBaseObject* m_asAppDomainBase;
         class PermissionSetObject* m_asPermissionSetObject;
@@ -341,8 +308,9 @@ class REF : public OBJECTREF
 
 };
 
-#define VALIDATEOBJECTREF(objref) ((objref).Validate())
-#define VALIDATEOBJECT(obj) obj->Validate()
+// the while (0) syntax below is to force a trailing semicolon on users of the macro
+#define VALIDATEOBJECTREF(objref) do {if ((objref) != NULL) (objref).Validate();} while (0)
+#define VALIDATEOBJECT(obj) do {if ((obj) != NULL) (obj)->Validate();} while (0)
 
 #define ObjectToOBJECTREF(obj)     (OBJECTREF(obj))
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
@@ -375,8 +343,6 @@ class ClassLoaderList;
 class Module;
 class ArrayTypeDesc;
 
-#ifndef BINDER
-
 #define EXTERN extern
 
 // For [<I1, etc. up to and including [Object
@@ -407,6 +373,7 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
+GPTR_DECL(MethodTable,      g_pByReferenceClass);
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -419,31 +386,26 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
-GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
+
+GPTR_DECL(MethodTable,      g_pByteArrayMT);
 
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
 GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 #endif
 
-GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
+#ifdef FEATURE_ICASTABLE
+GPTR_DECL(MethodTable,      g_pICastableInterface);
+#endif // FEATURE_ICASTABLE
+
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
-GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
-//<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
-EXTERN bool                 g_fVerifierOff;
-
-#ifndef FEATURE_CORECLR
-EXTERN IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
+GVAL_DECL(DWORD,            g_TlsIndex);
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -465,7 +427,6 @@ EXTERN OBJECTHANDLE         g_pPreallocatedSentinelObject;
 // We use this object to return a preallocated System.Exception instance when we have nothing
 // better to return.
 EXTERN OBJECTHANDLE         g_pPreallocatedBaseException;
-#endif // !BINDER
 
 GPTR_DECL(Thread,g_pFinalizerThread);
 GPTR_DECL(Thread,g_pSuspensionThread);
@@ -474,17 +435,11 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
 
-#if !defined(BINDER)
-
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
 typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_CAS_POLICY
-EXTERN CertificateCache *g_pCertificateCache;
-#endif 
 
 #ifdef FEATURE_IPCMAN
 // support for IPCManager
@@ -564,12 +519,6 @@ EXTERN Volatile<BOOL> g_fEEStarted;
 EXTERN BOOL g_fComStarted;
 #endif
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-EXTERN ICLRRuntimeInfo *g_pCLRRuntime;
-#endif
 
 //
 // Global state variables indicating which stage of shutdown we are in
@@ -581,7 +530,6 @@ EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
 #endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
-EXTERN bool g_fFinalizerRunOnShutDown;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
 EXTERN bool g_fNoExceptions;
@@ -607,6 +555,10 @@ extern ULONGLONG g_ObjFinalizeStartTime;
 extern Volatile<BOOL> g_FinalizerIsRunning;
 extern Volatile<ULONG> g_FinalizerLoopCount;
 
+#if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
+extern Volatile<BOOL> g_TriggerHeapDump;
+#endif // FEATURE_PAL
+
 extern LONG GetProcessedExitProcessEventCount();
 
 #ifndef DACCESS_COMPILE
@@ -630,14 +582,6 @@ EXTERN const char g_psBaseLibraryTLB[];
 #endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
 
-EXTERN const WCHAR g_pwzClickOnceEnv_FullName[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Manifest[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Parameter[];
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-EXTERN DWORD g_dwGlobalSharePolicy;
-#endif
-
 //
 // Do we own the lifetime of the process, ie. is it an EXE?
 //
@@ -657,17 +601,6 @@ extern const DWORD g_rgPrimes[71];
 //
 extern LPWSTR g_pCachedCommandLine;
 extern LPWSTR g_pCachedModuleFileName;
-
-//
-// Host configuration file. One per process.
-//
-extern LPCWSTR g_pszHostConfigFile;
-extern SIZE_T  g_dwHostConfigFile;
-
-// AppDomainManager type
-extern LPWSTR g_wszAppDomainManagerAsm;
-extern LPWSTR g_wszAppDomainManagerType;
-extern bool g_fDomainManagerInitialized;
 
 //
 // Macros to check debugger and profiler settings.
@@ -754,7 +687,6 @@ GVAL_DECL(SIZE_T, g_runtimeLoadedBaseAddress);
 GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #endif // !FEATURE_PAL
 
-#endif /* !BINDER */
 
 #ifndef MAXULONG
 #define MAXULONG    0xffffffff
@@ -872,7 +804,6 @@ struct ModuleIndex
 
 typedef DPTR(GSCookie) PTR_GSCookie;
 
-#ifndef CLR_STANDALONE_BINDER
 #ifndef DACCESS_COMPILE
 // const is so that it gets placed in the .text section (which is read-only)
 // volatile is so that accesses to it do not get optimized away because of the const
@@ -905,10 +836,24 @@ extern bool g_fReadyToRunCompilation;
 // Returns true if this is NGen compilation process.
 // This is a superset of CompilationDomain::IsCompilationDomain() as there is more
 // than one AppDomain in ngen (the DefaultDomain)
-BOOL IsCompilationProcess();
+inline BOOL IsCompilationProcess()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Flag for cross-platform ngen: Removes all execution of managed or third-party code in the ngen compilation process.
-BOOL NingenEnabled();
+inline BOOL NingenEnabled()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Passed to JitManager APIs to determine whether to avoid calling into the host. 
 // The profiling API stackwalking uses this to ensure to avoid re-entering the host 
@@ -920,4 +865,3 @@ enum HostCallPreference
 };
 
 #endif /* _VARS_HPP */
-#endif /* !CLR_STANDALONE_BINDER */

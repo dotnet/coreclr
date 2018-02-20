@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: daccess.h
 // 
@@ -527,6 +526,8 @@
 #ifndef __daccess_h__
 #define __daccess_h__
 
+#include <stdint.h>
+
 #include "switches.h"
 #include "safemath.h"
 #include "corerror.h"
@@ -537,8 +538,12 @@
 
 #define DACCESS_TABLE_RESOURCE "COREXTERNALDATAACCESSRESOURCE"
 
+#ifdef PAL_STDCPP_COMPAT
+#include <type_traits>
+#else
 #include "clr_std/type_traits"
 #include "crosscomp.h"
+#endif
 
 // Information stored in the DAC table of interest to the DAC implementation
 // Note that this information is shared between all instantiations of ClrDataAccess, so initialize
@@ -566,8 +571,6 @@ struct DacTableHeader
     DacTableInfo info;
 };
 
-#ifdef DACCESS_COMPILE
-
 //
 // This version of things wraps pointer access in
 // templates which understand how to retrieve data
@@ -587,7 +590,6 @@ typedef ULONG_PTR TADDR;
 // which reflects the host pointer size.
 typedef SIZE_T TSIZE_T;
 
-extern DacTableInfo g_dacTableInfo;
 
 //
 // The following table contains all the global information that data access needs to begin 
@@ -597,15 +599,25 @@ extern DacTableInfo g_dacTableInfo;
 
 typedef struct _DacGlobals
 {
+#ifdef FEATURE_PAL
+    static void Initialize();
+    void InitializeEntries(TADDR baseAddress);
+#endif // FEATURE_PAL
+
 // These will define all of the dac related mscorwks static and global variables    
-#define DEFINE_DACVAR(id_type, size, id)                 id_type id;
-#define DEFINE_DACVAR_NO_DUMP(id_type, size, id)        id_type id;
+#define DEFINE_DACVAR(id_type, size, id, var)                 id_type id;
+#define DEFINE_DACVAR_NO_DUMP(id_type, size, id, var)         id_type id;
 #include "dacvars.h"
 
     // Global functions.
     ULONG fn__ThreadpoolMgr__AsyncTimerCallbackCompletion;
     ULONG fn__DACNotifyCompilationFinished;
     ULONG fn__ThePreStub;
+
+#ifdef _TARGET_ARM_
+    ULONG fn__ThePreStubCompactARM;
+#endif // _TARGET_ARM_
+
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
     ULONG fn__StubDispatchFixupStub;
@@ -625,6 +637,9 @@ typedef struct _DacGlobals
 #undef VPTR_MULTI_CLASS
 } DacGlobals;
 
+#ifdef DACCESS_COMPILE
+
+extern DacTableInfo g_dacTableInfo;
 extern DacGlobals g_dacGlobals;
 
 #ifdef __cplusplus
@@ -760,13 +775,18 @@ interface IMDInternalImport* DacGetMDImport(const ReflectionModule* reflectionMo
 
 int DacGetIlMethodSize(TADDR methAddr);
 struct COR_ILMETHOD* DacGetIlMethod(TADDR methAddr);
-#if defined(WIN64EXCEPTIONS)
+#ifdef WIN64EXCEPTIONS
 struct _UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo);
 
 // virtually unwind a CONTEXT out-of-process
 struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
-#endif // _WIN64
+#endif // WIN64EXCEPTIONS
+
+#if defined(FEATURE_PAL)
+// call back through data target to unwind out-of-process
+HRESULT DacVirtualUnwind(ULONG32 threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 class SString;
@@ -1404,14 +1424,14 @@ public:
 
 // Pointer wrapper for 16-bit strings.
 template<typename type, ULONG32 maxChars = 32760>
-class __Str16Ptr : public __DPtr<wchar_t>
+class __Str16Ptr : public __DPtr<WCHAR>
 {
 public:
     typedef type _Type;
     typedef type* _Ptr;
     
-    __Str16Ptr< type, maxChars >(void) : __DPtr<wchar_t>() {}
-    __Str16Ptr< type, maxChars >(TADDR addr) : __DPtr<wchar_t>(addr) {}
+    __Str16Ptr< type, maxChars >(void) : __DPtr<WCHAR>() {}
+    __Str16Ptr< type, maxChars >(TADDR addr) : __DPtr<WCHAR>(addr) {}
     explicit __Str16Ptr< type, maxChars >(__TPtrBase addr)
     {
         m_addr = addr.GetAddr();
@@ -1821,6 +1841,9 @@ typedef __VoidPtr PTR_CVOID;
 public: name(TADDR addr, TADDR vtAddr) : base(addr, vtAddr) {}  \
         VPTR_CLASS_METHODS(name)
 
+#define VPTR_VTABLE_CLASS_AND_CTOR(name, base)                  \
+        VPTR_VTABLE_CLASS(name, base)
+
 #define VPTR_MULTI_VTABLE_CLASS(name, base)                     \
 public: name(TADDR addr, TADDR vtAddr) : base(addr, vtAddr) {}  \
         VPTR_MULTI_CLASS_METHODS(name, base)
@@ -1842,12 +1865,18 @@ public: name(TADDR addr, TADDR vtAddr);                         \
 public: name(TADDR addr, TADDR vtAddr) {}                       \
         virtual ULONG32 VPtrSize(void) = 0;
 
+#define VPTR_BASE_VTABLE_CLASS_AND_CTOR(name)                   \
+        VPTR_BASE_VTABLE_CLASS(name)
+
 #define VPTR_BASE_VTABLE_CLASS_NO_CTOR_BODY(name)               \
 public: name(TADDR addr, TADDR vtAddr);                         \
         virtual ULONG32 VPtrSize(void) = 0;
 
 #define VPTR_ABSTRACT_VTABLE_CLASS(name, base)                  \
 public: name(TADDR addr, TADDR vtAddr) : base(addr, vtAddr) {}
+
+#define VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(name, base) \
+        VPTR_ABSTRACT_VTABLE_CLASS(name, base)
 
 #define VPTR_ABSTRACT_VTABLE_CLASS_NO_CTOR_BODY(name, base)     \
 public: name(TADDR addr, TADDR vtAddr);
@@ -2085,11 +2114,53 @@ typedef const void* PTR_CVOID;
 #define S8PTRMAX(type, maxChars) type*
 #define S16PTR(type) type*
 #define S16PTRMAX(type, maxChars) type*
+
+#if defined(FEATURE_PAL)
+
+#define VPTR_VTABLE_CLASS(name, base) \
+        friend struct _DacGlobals; \
+public: name(int dummy) : base(dummy) {}
+
+#define VPTR_VTABLE_CLASS_AND_CTOR(name, base) \
+        VPTR_VTABLE_CLASS(name, base) \
+        name() : base() {}
+
+#define VPTR_MULTI_VTABLE_CLASS(name, base) \
+        friend struct _DacGlobals; \
+public: name(int dummy) : base(dummy) {}
+
+#define VPTR_BASE_CONCRETE_VTABLE_CLASS(name) \
+        friend struct _DacGlobals; \
+public: name(int dummy) {}
+
+#define VPTR_BASE_VTABLE_CLASS(name) \
+        friend struct _DacGlobals; \
+public: name(int dummy) {}
+
+#define VPTR_BASE_VTABLE_CLASS_AND_CTOR(name) \
+        VPTR_BASE_VTABLE_CLASS(name) \
+        name() {}
+
+#define VPTR_ABSTRACT_VTABLE_CLASS(name, base) \
+        friend struct _DacGlobals; \
+public: name(int dummy) : base(dummy) {}
+
+#define VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(name, base) \
+        VPTR_ABSTRACT_VTABLE_CLASS(name, base) \
+        name() : base() {}
+
+#else // FEATURE_PAL
+
 #define VPTR_VTABLE_CLASS(name, base)
+#define VPTR_VTABLE_CLASS_AND_CTOR(name, base)
 #define VPTR_MULTI_VTABLE_CLASS(name, base)
 #define VPTR_BASE_CONCRETE_VTABLE_CLASS(name)
 #define VPTR_BASE_VTABLE_CLASS(name)
+#define VPTR_BASE_VTABLE_CLASS_AND_CTOR(name)
 #define VPTR_ABSTRACT_VTABLE_CLASS(name, base)
+#define VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(name, base)
+
+#endif // FEATURE_PAL
 
 // helper macro to make the vtables unique for DAC
 #define VPTR_UNIQUE(unique) virtual int MakeVTableUniqueForDAC() {    STATIC_CONTRACT_SO_TOLERANT; return unique; }
@@ -2267,15 +2338,19 @@ inline type* DacUnsafeMarshalSingleElement( ArrayDPTR(type) arrayPtr )
 //----------------------------------------------------------------------------
 
 typedef ArrayDPTR(BYTE)    PTR_BYTE;
+typedef ArrayDPTR(uint8_t) PTR_uint8_t;
 typedef DPTR(PTR_BYTE) PTR_PTR_BYTE;
+typedef DPTR(PTR_uint8_t) PTR_PTR_uint8_t;
 typedef DPTR(PTR_PTR_BYTE) PTR_PTR_PTR_BYTE;
 typedef ArrayDPTR(signed char) PTR_SBYTE;
 typedef ArrayDPTR(const BYTE) PTR_CBYTE;
 typedef DPTR(INT8)    PTR_INT8;
 typedef DPTR(INT16)   PTR_INT16;
+typedef DPTR(UINT16)  PTR_UINT16;
 typedef DPTR(WORD)    PTR_WORD;
 typedef DPTR(USHORT)  PTR_USHORT;
 typedef DPTR(DWORD)   PTR_DWORD;
+typedef DPTR(uint32_t) PTR_uint32_t;
 typedef DPTR(LONG)    PTR_LONG;
 typedef DPTR(ULONG)   PTR_ULONG;
 typedef DPTR(INT32)   PTR_INT32;
@@ -2294,8 +2369,8 @@ typedef S8PTR(char)           PTR_STR;
 typedef S8PTR(const char)     PTR_CSTR;
 typedef S8PTR(char)           PTR_UTF8;
 typedef S8PTR(const char)     PTR_CUTF8;
-typedef S16PTR(wchar_t)       PTR_WSTR;
-typedef S16PTR(const wchar_t) PTR_CWSTR;
+typedef S16PTR(WCHAR)         PTR_WSTR;
+typedef S16PTR(const WCHAR)   PTR_CWSTR;
 
 typedef DPTR(T_CONTEXT)                  PTR_CONTEXT;
 typedef DPTR(PTR_CONTEXT)                PTR_PTR_CONTEXT;
@@ -2318,6 +2393,10 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 #include <corhdr.h>
 #include <clrdata.h>
 #include <xclrdata.h>
+#endif
+
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #endif
 
 #ifdef _WIN64
@@ -2372,13 +2451,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 #endif
 
 // Macros like MAIN_CLR_MODULE_NAME* for the DAC module
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 #define MAIN_DAC_MODULE_NAME_W  W("mscordaccore")
 #define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordaccore.dll")
-#else
-#define MAIN_DAC_MODULE_NAME_W  W("mscordacwks")
-#define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordacwks.dll")
-#endif
 
 // TARGET_CONSISTENCY_CHECK represents a condition that should not fail unless the DAC target is corrupt. 
 // This is in contrast to ASSERTs in DAC infrastructure code which shouldn't fail regardless of the memory

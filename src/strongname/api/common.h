@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // common.h - precompiled headers include for the COM+ Execution Engine
 //
@@ -10,7 +9,7 @@
 #define _common_h_
 
 #if defined(_MSC_VER) && defined(_X86_) && !defined(FPO_ON)
-#pragma optimize("y", on)		// Small critical routines, don't put in EBP frame 
+#pragma optimize("y", on)       // Small critical routines, don't put in EBP frame 
 #define FPO_ON 1
 #define COMMON_TURNED_FPO_ON 1
 #endif
@@ -72,10 +71,6 @@
 //-----------------------------------------------------------------------------------------------------------
 
 #include "lazycow.h"
-
-#include "compatibilityflags.h"
-extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-extern DWORD* GetGlobalCompatibilityFlags();
 
 #include "strongname.h"
 #include "stdmacros.h"
@@ -157,7 +152,7 @@ typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
 #endif
-typedef VPTR(class GCHeap)              PTR_GCHeap;
+typedef VPTR(class IGCHeap)              PTR_IGCHeap;
 
 //
 // _UNCHECKED_OBJECTREF is for code that can't deal with DEBUG OBJECTREFs
@@ -193,7 +188,7 @@ Thread * const CURRENT_THREAD = NULL;
     (void)CURRENT_THREAD_AVAILABLE; /* silence "local variable initialized but not used" warning */ \
 
 #ifndef DACCESS_COMPILE
-EXTERN_C AppDomain* GetAppDomain();
+EXTERN_C AppDomain* STDCALL GetAppDomain();
 #endif //!DACCESS_COMPILE
 
 inline void RetailBreak()  
@@ -227,25 +222,33 @@ inline void* memcpyUnsafe(void *dest, const void *src, size_t len)
 //
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
+    //If memcpy has been defined to PAL_memcpy, we undefine it so that this case
+    //can be covered by the if !defined(memcpy) block below
+    #ifdef FEATURE_PAL
+    #if IS_REDEFINED_IN_PAL(memcpy)
+    #undef memcpy
+    #endif //IS_REDEFINED_IN_PAL
+    #endif //FEATURE_PAL
+
         // You should be using CopyValueClass if you are doing an memcpy
         // in the CG heap.
-    #if !defined(memcpy) 
+    #if !defined(memcpy)
     inline void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
+
+            #ifndef FEATURE_PAL
+                return memcpy(dest, src, len);
+            #else //FEATURE_PAL
+                return PAL_memcpy(dest, src, len);
+            #endif //FEATURE_PAL
             
-            return memcpy(dest, src, len);
         }
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
     #endif // !defined(memcpy)
-
-    #if !defined(CHECK_APP_DOMAIN_LEAKS)
-    #define CHECK_APP_DOMAIN_LEAKS 1
-    #endif
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     inline void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
-            
             return memcpy(dest, src, len);
         }
 #endif // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
@@ -270,6 +273,9 @@ namespace Loader
 #if STRONGNAME_IN_VM
 
 // src/vm
+#include "gcenv.interlocked.h"
+#include "gcenv.interlocked.inl"
+
 #include "util.hpp"
 #include "ibclogger.h"
 #include "eepolicy.h"
@@ -289,7 +295,6 @@ namespace Loader
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "objecthandle.h"
 #include "cgensys.h"
 #include "declsec.h"
 
@@ -304,7 +309,6 @@ namespace Loader
 
 #include "eehash.h"
 
-#include "handletable.h"
 #include "vars.hpp"
 #include "eventstore.hpp"
 
@@ -365,12 +369,6 @@ extern DummyGlobalContract ___contract;
 
 #endif // defined(_DEBUG)
 
-// For down level platform compiles.
-#if !defined(_WIN64) && (_WIN32_WINNT < 0x0500) 
-typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOL);
-#endif
-
-
 
 // All files get to see all of these .inl files to make sure all files
 // get the benefit of inlining.
@@ -383,7 +381,6 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOL);
 #include "ceeload.inl"
 #include "clsload.inl"
 #include "domainfile.inl"
-#include "handletable.inl"
 #include "clsload.inl"
 #include "method.inl"
 #include "stackprobe.inl"
@@ -396,7 +393,7 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOL);
 #include "pedecoder.h"
 
 #if defined(COMMON_TURNED_FPO_ON)
-#pragma optimize("", on)		// Go back to command line default optimizations
+#pragma optimize("", on)        // Go back to command line default optimizations
 #undef COMMON_TURNED_FPO_ON
 #undef FPO_ON
 #endif

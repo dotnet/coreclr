@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "strike.h"
 #include "util.h"
@@ -18,9 +17,7 @@
 #include "gcdesc.h"
 
 
-#ifdef _ASSERTE
 #undef _ASSERTE
-#endif
 
 namespace sos
 {
@@ -80,14 +77,14 @@ namespace sos
         return *this;
     }
 
-    bool Object::TryGetHeader(unsigned long &outHeader) const
+    bool Object::TryGetHeader(ULONG &outHeader) const
     {
         struct ObjectHeader
         {
     #ifdef _WIN64
-            unsigned long    _alignpad;
+            ULONG _alignpad;
     #endif
-            unsigned long  SyncBlockValue;      // the Index and the Bits
+            ULONG SyncBlockValue;      // the Index and the Bits
         };
 
         ObjectHeader header;
@@ -102,9 +99,9 @@ namespace sos
     }
 
 
-    unsigned long Object::GetHeader() const
+    ULONG Object::GetHeader() const
     {
-        unsigned long toReturn = 0;
+        ULONG toReturn = 0;
         if (!TryGetHeader(toReturn))
             sos::Throw<DataRead>("Failed to get header for object %p.", GetAddress());
 
@@ -143,14 +140,14 @@ namespace sos
         return TO_TADDR(objData.ElementTypeHandle);
     }
 
-    wchar_t *Object::GetTypeName() const
+    const WCHAR *Object::GetTypeName() const
     {
         if (mTypeName == NULL)
             mTypeName = CreateMethodTableName(GetMT(), GetComponentMT());
             
         
         if (mTypeName == NULL)
-            return L"<error>";
+            return W("<error>");
 
         return mTypeName;
     }
@@ -293,7 +290,7 @@ namespace sos
     {
         // Zombie objects are objects that reside in an unloaded AppDomain.
         MethodTable mt = addr;
-        return wcscmp(mt.GetName(), L"<Unloaded Type>") == 0;
+        return _wcscmp(mt.GetName(), W("<Unloaded Type>")) == 0;
     }
     
     void MethodTable::Clear()
@@ -305,13 +302,13 @@ namespace sos
         }
     }
     
-    const wchar_t *MethodTable::GetName() const
+    const WCHAR *MethodTable::GetName() const
     {
         if (mName == NULL)
             mName = CreateMethodTableName(mMT);
         
         if (mName == NULL)
-            return L"<error>";
+            return W("<error>");
             
         return mName;
     }
@@ -334,7 +331,7 @@ namespace sos
 
     bool Object::GetThinLock(ThinLockInfo &out) const
     {
-        unsigned long header = GetHeader();
+        ULONG header = GetHeader();
         if (header & (BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX | BIT_SBLK_SPIN_LOCK))
         {
             return false;
@@ -356,7 +353,7 @@ namespace sos
         return out.ThreadId != 0 && out.ThreadPtr != NULL;
     }
     
-    bool Object::GetStringData(__out_ecount(size) wchar_t *buffer, size_t size) const
+    bool Object::GetStringData(__out_ecount(size) WCHAR *buffer, size_t size) const
     {
         SOS_Assert(IsString());
         SOS_Assert(buffer);
@@ -849,7 +846,7 @@ namespace sos
         return TO_TADDR(mData.appDomainPtr);
     }
     
-    void BuildTypeWithExtraInfo(TADDR addr, unsigned int size, __inout_ecount(size) wchar_t *buffer)
+    void BuildTypeWithExtraInfo(TADDR addr, unsigned int size, __inout_ecount(size) WCHAR *buffer)
     {
         try
         {
@@ -862,28 +859,28 @@ namespace sos
             
             if (isArray)
             {
-                swprintf_s(buffer, size, L"%s[]", mt.GetName());
+                swprintf_s(buffer, size, W("%s[]"), mt.GetName());
             }
             else if (isString)
             {
-                wchar_t str[32];
+                WCHAR str[32];
                 obj.GetStringData(str, _countof(str));
                 
-                _snwprintf_s(buffer, size, _TRUNCATE, L"%s: \"%s\"", mt.GetName(), str);
+                _snwprintf_s(buffer, size, _TRUNCATE, W("%s: \"%s\""), mt.GetName(), str);
             }
             else
             {
-                _snwprintf_s(buffer, size, _TRUNCATE, L"%s", mt.GetName());
+                _snwprintf_s(buffer, size, _TRUNCATE, W("%s"), mt.GetName());
             }
         }
         catch (const sos::Exception &e)
         {
             int len = MultiByteToWideChar(CP_ACP, 0, e.what(), -1, NULL, 0);
             
-            ArrayHolder<wchar_t> tmp = new wchar_t[len];
-            MultiByteToWideChar(CP_ACP, 0, e.what(), -1, (wchar_t*)tmp, len);
+            ArrayHolder<WCHAR> tmp = new WCHAR[len];
+            MultiByteToWideChar(CP_ACP, 0, e.what(), -1, (WCHAR*)tmp, len);
             
-            swprintf_s(buffer, size, L"<invalid object: '%s'>", (wchar_t*)tmp);
+            swprintf_s(buffer, size, W("<invalid object: '%s'>"), (WCHAR*)tmp);
         }
     }
 }

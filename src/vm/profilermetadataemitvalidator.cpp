@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -33,6 +32,11 @@ m_cRefCount(0)
     maxInitialEvent = TokenFromRid(m_pInnerInternalImport->GetCountWithTokenKind(mdtEvent), mdtEvent);
     maxInitialProperty = TokenFromRid(m_pInnerInternalImport->GetCountWithTokenKind(mdtProperty), mdtProperty);
     maxInitialGenericParam = TokenFromRid(m_pInnerInternalImport->GetCountWithTokenKind(mdtGenericParam), mdtGenericParam);
+}
+
+ProfilerMetadataEmitValidator::~ProfilerMetadataEmitValidator()
+{
+    LIMITED_METHOD_CONTRACT;
 }
 
   //IUnknown

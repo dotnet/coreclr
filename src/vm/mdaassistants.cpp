@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -138,9 +137,8 @@ void TriggerGCForMDAInternal()
 
     EX_TRY
     {
-        GCHeap::GetGCHeap()->GarbageCollect();
+        GCHeapUtilities::GetGCHeap()->GarbageCollect();
 
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
         //
         // It is very dangerous to wait for finalizer thread here if we are inside a wait 
         // operation, as the wait operation might call into interop which calls this MDA
@@ -151,7 +149,6 @@ void TriggerGCForMDAInternal()
         // So, if we are inside a SyncContext.Wait, don't call out to FinalizerThreadWait
         //
         if (!GetThread()->HasThreadStateNC(Thread::TSNC_InsideSyncContextWait))
-#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT            
             // It is possible that user code run as part of finalization will wait for this thread.
             // To avoid deadlocks, we limit the wait time to 10 seconds (an arbitrary number).
             FinalizerThread::FinalizerThreadWait(10 * 1000);
@@ -869,7 +866,7 @@ LPVOID MdaInvalidOverlappedToPinvoke::CheckOverlappedPointer(UINT index, LPVOID 
 
         {
             GCX_COOP();
-            GCHeap *pHeap = GCHeap::GetGCHeap();
+            IGCHeap *pHeap = GCHeapUtilities::GetGCHeap();
             fHeapPointer = pHeap->IsHeapPointer(pOverlapped);
         }
 
@@ -996,8 +993,12 @@ void MdaPInvokeLog::LogPInvoke(NDirectMethodDesc* pMD, HINSTANCE hMod)
         StackSString sszEntryPoint;
         sszEntryPoint.SetUTF8(pMD->GetEntrypointName());
 
-        WCHAR szDllFullName[_MAX_PATH], szDrive[_MAX_PATH], szPath[_MAX_PATH], szFileName[_MAX_PATH], szExt[_MAX_PATH];
-        WszGetModuleFileName(hMod, szDllFullName, _MAX_PATH);      
+        PathString szDllFullName ;
+        WCHAR szDrive[_MAX_PATH] = {0};
+        WCHAR szPath[_MAX_PATH] = {0};
+        WCHAR szFileName[_MAX_PATH] = {0};
+        WCHAR szExt[_MAX_PATH] = {0};
+        WszGetModuleFileName(hMod, szDllFullName);      
         SplitPath(szDllFullName, szDrive, _MAX_PATH, szPath, _MAX_PATH, szFileName, _MAX_PATH, szExt, _MAX_PATH);
 
         StackSString sszDllName;
@@ -1866,16 +1867,14 @@ void MdaLoaderLock::ReportViolation(HINSTANCE hInst)
         MdaXmlMessage msg(this->AsMdaAssistant(), TRUE, &pXml);
 
         DWORD cName = 0;
-        WCHAR szName[_MAX_PATH * 2];
+        PathString szName;
         if (hInst)
         {
-            cName = _MAX_PATH * 2 - 1;
-            cName = WszGetModuleFileName(hInst, szName, cName);
+            cName = WszGetModuleFileName(hInst, szName);
         }
 
         if (cName)
         {
-            szName[cName] = W('\0');
             msg.SendMessagef(MDARC_LOADER_LOCK_DLL, szName);
         }
         else

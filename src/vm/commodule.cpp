@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -10,7 +9,6 @@
 #include "reflectclasswriter.h"
 #include "class.h"
 #include "corpolicy.h"
-#include "security.h"
 #include "ceesectionstring.h"
 #include <cor.h>
 #include "typeparse.h"
@@ -46,12 +44,6 @@ static ISymUnmanagedWriter **CreateISymWriterForDynamicModule(ReflectionModule *
     // 
     ESymbolFormat symFormatToUse = eSymbolFormatILDB;
 
-#ifndef FEATURE_CORECLR // On desktop only we still use PDB format if the symbols are savable to disk
-    if(mod->GetAssembly()->HasSaveAccess())
-    {
-        symFormatToUse = eSymbolFormatPDB;
-    }
-#endif
    
     static ConfigDWORD dbgForcePDBSymbols;
     if(dbgForcePDBSymbols.val_DontUse_(W("DbgForcePDBSymbols"), 0) == 1)
@@ -122,46 +114,6 @@ static ISymUnmanagedWriter **CreateISymWriterForDynamicModule(ReflectionModule *
     }
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-//****************************************
-// This function creates a dynamic module underneath the current assembly.
-//****************************************
-void QCALLTYPE COMModule::DefineDynamicModule(QCall::AssemblyHandle pContainingAssembly, BOOL emitSymbolInfo, LPCWSTR pModuleName, LPCWSTR pFilename, QCall::StackCrawlMarkHandle stackMark, LPVOID* ppInternalSymWriter, QCall::ObjectHandleOnStack retModule, BOOL fIsTransient, INT32* ptkFile)
-{
-    QCALL_CONTRACT;
-
-    ReflectionModule * mod = NULL;
-
-    BEGIN_QCALL;
-
-    Assembly * pAssembly = pContainingAssembly->GetAssembly();
-    _ASSERTE(pAssembly);
-
-    // always create a dynamic module. Note that the name conflict
-    // checking is done in managed side.
-
-    mod = pAssembly->CreateDynamicModule(pModuleName, pFilename, fIsTransient, ptkFile);
-
-    mod->SetCreatingAssembly( SystemDomain::GetCallersAssembly( stackMark ) );
-
-    // If we need to emit symbol info, we setup the proper symbol
-    // writer for this module now.
-    if (emitSymbolInfo)
-    {
-        ISymUnmanagedWriter **pWriter = CreateISymWriterForDynamicModule(mod, pFilename);
-        if (ppInternalSymWriter)
-        {
-            *ppInternalSymWriter = pWriter;
-        }
-    }
-
-    GCX_COOP();
-    retModule.Set(mod->GetExposedObject());
-    END_QCALL;
-
-    return;
-}
-#endif //FEATURE_MULTIMODULE_ASSEMBLIES
 //===============================================================================================
 // Attaches an unmanaged symwriter to a newly created dynamic module.
 //===============================================================================================
@@ -769,8 +721,7 @@ mdString QCALLTYPE COMModule::GetStringConstant(QCall::ModuleHandle pModule, LPC
     _ASSERTE(pwzValue != NULL);
 
     HRESULT hr = pRCW->GetEmitter()->DefineUserString(pwzValue, iLength, &strRef);
-    if (FAILED(hr)) {   
-        _ASSERTE(hr == E_OUTOFMEMORY || !"Unknown failure in DefineUserString");    
+    if (FAILED(hr)) { 
         COMPlusThrowHR(hr);    
     }   
 
@@ -846,7 +797,7 @@ mdTypeSpec QCALLTYPE COMModule::GetTokenFromTypeSpec(QCall::ModuleHandle pModule
 // GetType
 // Given a class name, this method will look for that class
 //  with in the module. 
-void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive)
 {
     CONTRACTL
     {
@@ -859,28 +810,13 @@ void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, 
 
     BEGIN_QCALL;
 
-    GCX_COOP();
-
     DomainAssembly *pAssembly = pModule->GetDomainAssembly();
     _ASSERTE(pAssembly);
 
-    OBJECTREF keepAlive = NULL;
-    GCPROTECT_BEGIN(keepAlive);
+    BOOL prohibitAsmQualifiedName = TRUE;
 
-    {
-        GCX_PREEMP();
-
-        BOOL prohibitAsmQualifiedName = TRUE;
-
-#ifdef FEATURE_LEGACYNETCF
-        // // NetCF type name parser allowed assembly name to be overriden here
-        if (GetAppDomain()->GetAppDomainCompatMode() == BaseDomain::APPDOMAINCOMPAT_APP_EARLIER_THAN_WP8)
-            prohibitAsmQualifiedName = FALSE;
-#endif
-
-        // Load the class from this assembly (fail if it is in a different one).
-        retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, pAssembly->IsIntrospectionOnly(), prohibitAsmQualifiedName, NULL, FALSE, &keepAlive);
-    }
+    // Load the class from this assembly (fail if it is in a different one).
+    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, pAssembly->IsIntrospectionOnly(), prohibitAsmQualifiedName, NULL, FALSE, (OBJECTREF*)keepAlive.m_ppObject);
 
     // Verify that it's in 'this' module
     // But, if it's in a different assembly than expected, that's okay, because
@@ -897,8 +833,7 @@ void QCALLTYPE COMModule::GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, 
         GCX_COOP();
         retType.Set(retTypeHandle.GetManagedClassObject());
     }
-    GCPROTECT_END();
-
+ 
     END_QCALL;
 
     return;
@@ -938,19 +873,15 @@ void QCALLTYPE COMModule::GetScopeName(QCall::ModuleHandle pModule, QCall::Strin
     END_QCALL;
 }
 
-static bool StringEndsWith(LPCWSTR pwzString, LPCWSTR pwzCandidate)
+static void ReplaceNiExtension(SString& fileName, PCWSTR pwzOldSuffix, PCWSTR pwzNewSuffix)
 {
-    size_t stringLength = wcslen(pwzString);
-    size_t candidateLength = wcslen(pwzCandidate);
+    STANDARD_VM_CONTRACT;
 
-    if (candidateLength > stringLength || stringLength == 0 || candidateLength == 0)
+    if (fileName.EndsWithCaseInsensitive(pwzOldSuffix))
     {
-        return false;
+        COUNT_T oldSuffixLen = (COUNT_T)wcslen(pwzOldSuffix);
+        fileName.Replace(fileName.End() - oldSuffixLen, oldSuffixLen, pwzNewSuffix);
     }
-
-    LPCWSTR pwzStringEnd = pwzString + stringLength - candidateLength;
-
-    return !_wcsicmp(pwzStringEnd, pwzCandidate);
 }
 
 /*============================GetFullyQualifiedName=============================
@@ -973,13 +904,6 @@ void QCALLTYPE COMModule::GetFullyQualifiedName(QCall::ModuleHandle pModule, QCa
     {
         LPCWSTR fileName = pModule->GetPath();
         if (*fileName != 0) {
-#ifndef FEATURE_CORECLR
-            // workaround - lie about where mscorlib is. Mscorlib is now loaded out of the GAC, 
-            // but some apps query its location to find the system directory. (Notably CodeDOM)
-            if (pModule->IsSystem())
-                retString.Set(SystemDomain::System()->BaseLibrary());
-            else
-#endif // !FEATURE_CORECLR
             {
 #ifdef FEATURE_WINDOWSPHONE
                 //
@@ -989,23 +913,12 @@ void QCALLTYPE COMModule::GetFullyQualifiedName(QCall::ModuleHandle pModule, QCa
                 //
                 if (pModule->GetFile()->GetAssembly()->GetILimage()->IsTrustedNativeImage())
                 {
-                    WCHAR fileNameWithoutNi[MAX_PATH];
-                    
-                    wcscpy_s(fileNameWithoutNi, MAX_PATH, fileName);
-                    
-                    if (StringEndsWith(fileName, W(".ni.dll")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.dll")), MAX_PATH, W(".dll"));
-                    }
-                    else if (StringEndsWith(fileName, W(".ni.exe")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.exe")), MAX_PATH, W(".exe"));
-                    }
-                    else if (StringEndsWith(fileName, W(".ni.winmd")))
-                    {
-                        wcscpy_s(fileNameWithoutNi + wcslen(fileNameWithoutNi) - wcslen(W(".ni.winmd")), MAX_PATH, W(".winmd"));
-                    }
+                    SString fileNameWithoutNi(fileName);
 
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.dll"), W(".dll"));
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.exe"), W(".exe"));
+                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.winmd"), W(".winmd"));
+ 
                     retString.Set(fileNameWithoutNi);
                 }
                 else
@@ -1132,12 +1045,7 @@ Object* GetTypesInner(Module* pModule)
 
     // Allocate the COM+ array
     bSystemAssembly = (pModule->GetAssembly() == SystemDomain::SystemAssembly());
-#ifdef FEATURE_REMOTING
-    // we skip the TransparentProxy type if this is mscorlib, so we can make the array one element smaller
-    AllocSize = !bSystemAssembly ? dwNumTypeDefs : dwNumTypeDefs - 1;
-#else
     AllocSize = dwNumTypeDefs;
-#endif
     refArrClasses = (PTRARRAYREF) AllocateObjectArray(AllocSize, MscorlibBinder::GetClass(CLASS__CLASS));
 
     int curPos = 0;
@@ -1215,64 +1123,6 @@ Object* GetTypesInner(Module* pModule)
     RETURN(OBJECTREFToObject(refArrClasses));
 }
 
-#if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
-//+--------------------------------------------------------------------------
-//
-//  Microsoft Confidential.
-//  
-//  Member:     COMModule::GetSignerCertificate()
-//  
-//  Synopsis:   Gets the certificate with which the module was signed.
-//
-//  Effects:    Creates an X509Certificate and returns it.
-// 
-//  Arguments:  None.
-//
-//  Returns:    OBJECTREF to an X509Certificate object containing the 
-//              signer certificate.
-//
-
-// 
-//---------------------------------------------------------------------------
-
-void QCALLTYPE COMModule::GetSignerCertificate(QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retData)
-{
-    QCALL_CONTRACT;
-    
-    BEGIN_QCALL;
-
-    PCOR_TRUST                  pCorTrust = NULL;
-    IAssemblySecurityDescriptor* pSecDesc = NULL;
-    PBYTE                       pbSigner = NULL;
-    DWORD                       cbSigner = 0;
-
-    // ******** Get the security descriptor ********
-
-    // Get a pointer to the module security descriptor
-    pSecDesc = pModule->GetSecurityDescriptor();
-    _ASSERTE(pSecDesc);
-
-    // ******** Get COR_TRUST info from module security descriptor ********
-    if (FAILED(pSecDesc->LoadSignature(&pCorTrust)))
-    {
-        COMPlusThrow(kArgumentNullException, W("InvalidOperation_MetaDataError"));
-    }
-
-    if( pCorTrust )
-    {
-        // Get a pointer to the signer certificate information in the COR_TRUST
-        pbSigner = pCorTrust->pbSigner;
-        cbSigner = pCorTrust->cbSigner;
-
-        if( pbSigner && cbSigner )
-        {
-            retData.SetByteArray(pbSigner, cbSigner);
-        }
-    }
-
-    END_QCALL;
-}
-#endif // #if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
 
 FCIMPL1(FC_BOOL_RET, COMModule::IsResource, ReflectModuleBaseObject* pModuleUNSAFE)
 {
@@ -1285,7 +1135,6 @@ FCIMPL1(FC_BOOL_RET, COMModule::IsResource, ReflectModuleBaseObject* pModuleUNSA
 }
 FCIMPLEND
 
-#ifdef FEATURE_CORECLR
 
 //---------------------------------------------------------------------
 // Helper code for PunkSafeHandle class. This does the Release in the
@@ -1320,6 +1169,5 @@ FCIMPL0(void*, COMPunkSafeHandle::nGetDReleaseTarget)
     return (void*)DReleaseTarget;
 }
 FCIMPLEND
-#endif //FEATURE_CORECLR
 
 

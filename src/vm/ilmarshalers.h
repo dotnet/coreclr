@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: ILMarshalers.h
 // 
@@ -233,6 +232,11 @@ public:
     ILMarshaler() : 
         m_pslNDirect(NULL)
     {
+    }
+
+    virtual ~ILMarshaler()
+    {
+        LIMITED_METHOD_CONTRACT;
     }
 
     void SetNDirectStubLinker(NDirectStubLinker* pslNDirect)
@@ -596,13 +600,22 @@ public:
                 nativeSize = wNativeSize;
             }
 
-#ifndef _TARGET_ARM_
+#if defined(_TARGET_X86_)
+            // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
+            // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
+            // change the signature of calli to return void and make the return buffer as first argument. 
+
+            // for X86 and AMD64-Windows we bash the return type from struct to U1, U2, U4 or U8
+            // and use byrefNativeReturn for all other structs.
+            // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
             switch (nativeSize)
             {
+#ifndef UNIX_X86_ABI
                 case 1: typ = ELEMENT_TYPE_U1; break;
                 case 2: typ = ELEMENT_TYPE_U2; break;
                 case 4: typ = ELEMENT_TYPE_U4; break;
                 case 8: typ = ELEMENT_TYPE_U8; break;
+#endif
                 default: byrefNativeReturn = true; break;
             }
 #endif
@@ -1944,6 +1957,7 @@ public:
 
     ILWSTRMarshaler()
     {
+        LIMITED_METHOD_CONTRACT;
         m_fCoMemoryAllocated = false;
     }
 #endif // _DEBUG
@@ -1991,6 +2005,35 @@ protected:
     DWORD m_dwLocalBuffer;      // localloc'ed temp buffer variable or -1 if not used
 };
 
+class ILUTF8BufferMarshaler : public ILOptimizedAllocMarshaler
+{
+public:
+	enum
+	{
+		c_fInOnly = FALSE,
+		c_nativeSize = sizeof(void *),
+		c_CLRSize = sizeof(OBJECTREF),
+	};
+
+	enum
+	{
+		// If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
+		MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
+	};
+
+	ILUTF8BufferMarshaler() :
+		ILOptimizedAllocMarshaler(METHOD__WIN32NATIVE__COTASKMEMFREE)
+	{
+		LIMITED_METHOD_CONTRACT;
+	}
+
+	virtual LocalDesc GetManagedType();
+	virtual void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
+};
+
 class ILWSTRBufferMarshaler : public ILOptimizedAllocMarshaler
 {
 public:
@@ -2004,7 +2047,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2
     };
 
     ILWSTRBufferMarshaler() :
@@ -2033,7 +2076,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH + 1
+        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
     };
 
     ILCSTRBufferMarshaler() :
@@ -2434,7 +2477,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2 + sizeof(DWORD)
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2 + sizeof(DWORD)
     };
 
 
@@ -2442,6 +2485,7 @@ public:
         m_dwCCHLocal(-1)
        ,m_dwLocalBuffer(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID);
@@ -2473,6 +2517,7 @@ public:
     ILVBByValStrMarshaler() :
         m_dwCCHLocal(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
     virtual bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID);
@@ -2515,6 +2560,37 @@ protected:
 };
 #endif // FEATURE_COMINTEROP
 
+
+class ILCUTF8Marshaler : public ILOptimizedAllocMarshaler
+{
+public:
+	enum
+	{
+		c_fInOnly = TRUE,
+		c_nativeSize = sizeof(void *),
+		c_CLRSize = sizeof(OBJECTREF),
+	};
+
+	enum
+	{
+		// If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
+		MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
+	};
+
+	ILCUTF8Marshaler() :
+		ILOptimizedAllocMarshaler(METHOD__CSTRMARSHALER__CLEAR_NATIVE)
+	{
+		LIMITED_METHOD_CONTRACT;
+	}
+
+protected:
+	virtual LocalDesc GetManagedType();
+	virtual void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit);
+	virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit);
+};
+
+
+
 class ILCSTRMarshaler : public ILOptimizedAllocMarshaler
 {
 public:
@@ -2528,7 +2604,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH + 1
+        MAX_LOCAL_BUFFER_LENGTH = MAX_PATH_FNAME + 1
     };
 
     ILCSTRMarshaler() :
@@ -2557,7 +2633,7 @@ public:
     enum
     {
         // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
-        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH + 1) * 2 + 4
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2 + 4
     };
 
     ILBSTRMarshaler() :
@@ -2643,42 +2719,6 @@ protected:
 };
 
 
-#ifndef FEATURE_CORECLR
-class ILBlittableValueClassWithCopyCtorMarshaler : public ILMarshaler
-{
-public:
-    enum
-    {
-        c_fInOnly               = TRUE,
-        c_nativeSize            = VARIABLESIZE,
-        c_CLRSize               = sizeof(OBJECTREF),
-    };
-
-    LocalDesc GetManagedType()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return LocalDesc();
-    }
-
-    LocalDesc GetNativeType()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return LocalDesc();
-    }
-
-    static MarshalerOverrideStatus ArgumentOverride(NDirectStubLinker* psl,
-                                            BOOL               byref,
-                                            BOOL               fin,
-                                            BOOL               fout,
-                                            BOOL               fManagedToNative,
-                                            OverrideProcArgs*  pargs,
-                                            UINT*              pResID,
-                                            UINT               argidx,
-                                            UINT               nativeStackOffset);
-
-
-};
-#endif // !FEATURE_CORECLR
 
 
 class ILArgIteratorMarshaler : public ILMarshaler
@@ -2714,6 +2754,7 @@ public:
         m_dwOffsetLocalNum(-1),
         m_dwPinnedLocalNum(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
 protected:
@@ -2743,6 +2784,7 @@ public:
     ILAsAnyMarshalerBase() :
         m_dwMarshalerLocalNum(-1)
     {
+        LIMITED_METHOD_CONTRACT;
     }
 
 protected:
@@ -2816,6 +2858,7 @@ public:
         m_idClearNativeContents(clearNatContents),
         m_idClearManaged(clearMan)
     {
+        LIMITED_METHOD_CONTRACT;
     }
     
 protected:    

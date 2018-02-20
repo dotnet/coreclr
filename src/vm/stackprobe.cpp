@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -150,14 +149,14 @@ void ReportStackOverflow()
 
         // We should only ever get in this situation on a probe from managed code.  From within the EE,
         // we will never let our probe point get this close.  Either way, we'd rip the process if a hard
-        // SO occured.
+        // SO occurred.
 
         UINT_PTR stackGuarantee = pThread->GetStackGuarantee();
 
         // We expect the stackGuarantee to be a multiple of the page size for
         // the call to IsStackSpaceAvailable.
-        _ASSERTE(stackGuarantee%OS_PAGE_SIZE == 0);
-        if (pThread->IsStackSpaceAvailable(static_cast<float>(stackGuarantee)/OS_PAGE_SIZE))
+        _ASSERTE(stackGuarantee%GetOsPageSize() == 0);
+        if (pThread->IsStackSpaceAvailable(static_cast<float>(stackGuarantee)/GetOsPageSize()))
         {
             COMPlusThrowSO();
         }
@@ -297,7 +296,7 @@ FORCEINLINE BOOL RetailStackProbeHelper(unsigned int n, Thread *pThread)
     {
         probeLimit = pThread->GetProbeLimit();
     }
-    UINT_PTR probeAddress = (UINT_PTR)(&pThread) - (n * OS_PAGE_SIZE);
+    UINT_PTR probeAddress = (UINT_PTR)(&pThread) - (n * GetOsPageSize());
 
     // If the address we want to probe to is beyond the precalculated limit we fail
     // Note that we don't check for stack probing being disabled.  This is encoded in
@@ -709,7 +708,7 @@ void BaseStackGuard::HandleOverwrittenThisStackGuard(__in_z char *stackID)
               "STACK GUARD VIOLATION\n"
               "The%s stack guard installed in %s at \"%s\" @ %d requested %d pages of stack.\n"
               "\nIf this is easily reproduced, please rerun the test under the debugger with the\n"
-              "DWORD environment variable COMPLUS_SOEnableStackProtectionInDebugger\n"
+              "DWORD environment variable COMPlus_SOEnableStackProtectionInDebugger\n"
               "set to 1.  This will cause an AV at the point of overrun.\n"
               "Attach the stack trace at that point to the bug in addition to this assert."
               MORE_INFO_STRING, stackID ? stackID : "",
@@ -762,7 +761,7 @@ void BaseStackGuard::HandleOverwrittenPreviousStackGuard(int probeShortFall, __i
               "The stack requested by the previous guard is at least %d pages (%d bytes) short.\n"
               MORE_INFO_STRING, stackID ? stackID : "", m_szFunction, m_szFile, m_lineNum,
               m_pPrevGuard->m_szFunction, m_pPrevGuard->m_szFile, m_pPrevGuard->m_lineNum, m_pPrevGuard->m_numPages,
-              probeShortFall/OS_PAGE_SIZE + (probeShortFall%OS_PAGE_SIZE ? 1 : 0), probeShortFall);
+              probeShortFall/GetOsPageSize() + (probeShortFall%GetOsPageSize() ? 1 : 0), probeShortFall);
 
     LOG((LF_EH, LL_INFO100000, "%s", buff));
 
@@ -797,7 +796,7 @@ void BaseStackGuard::HandleOverwrittenCurrentStackGuard(int probeShortFall, __in
               "The%s stack guard installed in %s at \"%s\" @ %d has been violated\n\n"
               "The guard requested %d pages of stack and is at least %d pages (%d bytes) short.\n"
               MORE_INFO_STRING, stackID ? stackID : "", m_szFunction, m_szFile, m_lineNum, m_numPages,
-              probeShortFall/OS_PAGE_SIZE + (probeShortFall%OS_PAGE_SIZE ? 1 : 0), probeShortFall);
+              probeShortFall/GetOsPageSize() + (probeShortFall%GetOsPageSize() ? 1 : 0), probeShortFall);
 
     LOG((LF_EH, LL_INFO100000, buff));
 
@@ -1005,8 +1004,8 @@ BOOL BaseStackGuard::RequiresNStackPagesInternal(unsigned int n, BOOL fThrowOnSO
 
     BOOL fRet;
 
-    // Temporarily initialize the exception occured flag
-    m_exceptionOccured = FALSE;
+    // Temporarily initialize the exception occurred flag
+    m_exceptionOccurred = FALSE;
 
     // Code below checks if there's a Thread, and exits immediately if not.
     // So the rest of the function rightly assumes there is a Thread
@@ -1045,8 +1044,8 @@ BOOL BaseStackGuard::RequiresNStackPagesInternal(unsigned int n, BOOL fThrowOnSO
 
     // Get the address of the last few bytes on the penultimate page we probed for.  This is slightly early than the probe point,
     // but gives us more conservatism in our overrun checking.  ("Last" here means the bytes with the smallest address.)
-    m_pMarker = ((UINT_PTR*)pStack) - (OS_PAGE_SIZE / sizeof(UINT_PTR) * (n-1));
-    m_pMarker = (UINT_PTR*)((UINT_PTR)m_pMarker & ~(OS_PAGE_SIZE - 1));
+    m_pMarker = ((UINT_PTR*)pStack) - (GetOsPageSize() / sizeof(UINT_PTR) * (n-1));
+    m_pMarker = (UINT_PTR*)((UINT_PTR)m_pMarker & ~(GetOsPageSize() - 1));
 
     // Grab the previous guard, if any, and update our depth.
     m_pPrevGuard = GetCurrentGuard();
@@ -1167,7 +1166,7 @@ BOOL BaseStackGuard::DoProbe(unsigned int n, BOOL fThrowOnSO)
     UINT_PTR *sp = (UINT_PTR*)GetCurrentSP();
     while (sp >= m_pMarker)
     {
-        sp -= (OS_PAGE_SIZE / sizeof(UINT_PTR));
+        sp -= (GetOsPageSize() / sizeof(UINT_PTR));
         *sp = NULL;
     }
 
@@ -1181,8 +1180,8 @@ BOOL BaseStackGuard::DoProbe(unsigned int n, BOOL fThrowOnSO)
     // Mark that we're initialized (and didn't get interupted from an exception)
     m_eInitialized = cInit;
 
-    // Initialize the exception occured flag
-    m_exceptionOccured = TRUE;
+    // Initialize the exception occurred flag
+    m_exceptionOccurred = TRUE;
 
     // setup flag to tell if we're unwinding due to an exception
     m_fEHInProgress = FALSE;
@@ -1269,7 +1268,7 @@ void BaseStackGuard::CheckStack()
 
     // if we aren't being unwound during EH, then we shouldn't have our EHInProgress bit set.  That
     // means we caught the exception in the EE and didn't call RestoreGuard or we missed a SO-tolerant
-    // transition out of the EE and the exception occured above us.
+    // transition out of the EE and the exception occurred above us.
     _ASSERTE(m_fEHInProgress == FALSE);
 
     // we should only ever be popping ourselves if we are not on the EH unwind path
@@ -1617,7 +1616,7 @@ DEBUG_NOINLINE void BoundaryStackGuard::Push()
     m_eInitialized = cInit;
 
     // setup flag to tell if we're unwinding due to an exception
-    m_exceptionOccured = TRUE;
+    m_exceptionOccurred = TRUE;
 
     SetCurrentGuard(this);
 }
@@ -1699,7 +1698,7 @@ BOOL IsBackoutCalledForEH(BYTE *origSP,
     // Caveats:
     //
     // 1) If there is less than a context on the stack on the EH path, we will miss the fact that
-    //     an exception occured
+    //     an exception occurred
     //
     // 2) If the CRT uses near the size of a context before calling the destructor in the normal case,
     //     we will assume we've got an exception and ASSERT.
@@ -1746,7 +1745,7 @@ DebugSOIntolerantTransitionHandlerBeginOnly::~DebugSOIntolerantTransitionHandler
     // Caveats:
     //
     // 1) If there is less than a context on the stack on the EH path, we will miss the fact that
-    //     an exception occured
+    //     an exception occurred
     //
     // 2) If the CRT uses near the size of a context before calling the destructor in the normal case,
     //     we will assume we've got an exception and ASSERT.

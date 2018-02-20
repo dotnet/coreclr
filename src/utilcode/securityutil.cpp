@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "stdafx.h"
@@ -337,7 +336,7 @@ HRESULT SecurityUtil::GetMandatoryLabelFromProcess(HANDLE hProcess, LPBYTE * ppb
     HandleHolder hToken;
     DWORD err = 0;
 
-    if(!OpenProcessToken(hProcess, TOKEN_READ, &hToken))
+    if(!OpenProcessToken(hProcess, TOKEN_QUERY, &hToken))
     {
         return HRESULT_FROM_GetLastError();
     }

@@ -1,10 +1,8 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
-#if defined(FEATURE_CORECLR)
 #ifndef SHA1_H_
 #define SHA1_H_
 
@@ -50,6 +48,3 @@ public:
 };
 
 #endif  // SHA1_H_
-#else // !defined(FEATURE_CORECLR)
-#include "crypto/sha1.h"
-#endif // defined(FEATURE_CORECLR)

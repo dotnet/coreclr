@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: generics.inl
 //
@@ -35,11 +34,7 @@ namespace Generics
 #ifdef FEATURE_COMINTEROP 
         WORD wNumInterfaces = static_cast<WORD>(pOldMT->GetNumInterfaces());
 
-#ifdef CLR_STANDALONE_BINDER
-        InterfaceInfo_t * pOldIMap = BinderMethodTable::GetInterfaceMap(pOldMT);
-#else  // !CLR_STANDALONE_BINDER
         InterfaceInfo_t * pOldIMap = (InterfaceInfo_t *)pOldMT->GetInterfaceMap();
-#endif // !CLR_STANDALONE_BINDER
 
         BOOL fHasGuidInfo = FALSE;
 
@@ -78,12 +73,8 @@ namespace Generics
                     {
                         // If the class implements a generic WinRT interface, it needs its own (per-instantiation)
                         // CCW template as the one on EEClass would be shared and hence useless.
-#ifdef CLR_STANDALONE_BINDER
-                        MethodTable *pItfMT = pOldIMap[iItf].m_pMethodTable.GetValue();
-#else  // !CLR_STANDALONE_BINDER
                         OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOAD_APPROXPARENTS);
                         MethodTable *pItfMT = pOldIMap[iItf].GetApproxMethodTable(pOldMT->GetLoaderModule());
-#endif  // !CLR_STANDALONE_BINDER
                         if (pItfMT->HasInstantiation() && 
                             (pItfMT->IsProjectedFromWinRT() || WinRTTypeNameConverter::IsRedirectedType(pItfMT, WinMDAdapter::WinMDTypeKind_PInterface)))
                         {

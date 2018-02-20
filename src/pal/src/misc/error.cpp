@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -27,8 +26,6 @@ Revision History:
 using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
-
-DWORD StartupLastError;
 
 /*++
 Function:
@@ -96,25 +93,7 @@ PALAPI
 GetLastError(
          VOID)
 {
-    DWORD retval;
-    CPalThread *pThread;
-
-    PERF_ENTRY(GetLastError);
-    ENTRY("GetLastError ()\n");
-    
-    pThread = InternalGetCurrentThread();
-    if (pThread == NULL)
-    {
-        retval = StartupLastError;
-        goto done;
-    }
-
-    retval = pThread->GetLastError();
-
-done:
-    LOGEXIT("GetLastError returns %d\n",retval);
-    PERF_EXIT(GetLastError);
-    return retval;
+    return CPalThread::GetLastError();
 }
 
 
@@ -142,24 +121,6 @@ PALAPI
 SetLastError(
          IN DWORD dwErrCode)
 {
-    CPalThread *pThread;
-  
-    PERF_ENTRY(SetLastError);
-    ENTRY("SetLastError (dwErrCode=%u)\n", dwErrCode);
-
-    pThread = InternalGetCurrentThread();
-    if (pThread == NULL)
-    {
-        StartupLastError = dwErrCode;
-        goto done;
-    }
-
-    pThread->SetLastError(dwErrCode);
-
-done:
-    LOGEXIT("SetLastError returns\n");
-    PERF_EXIT(SetLastError);
+    CPalThread::SetLastError(dwErrCode);
 }
-
-
 

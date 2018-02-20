@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // FILE: ProfToEEInterfaceImpl.h
 //
@@ -134,7 +133,7 @@ typedef struct _PROFILER_STACK_WALK_DATA PROFILER_STACK_WALK_DATA;
 // from the profiler implementation.  The profiler will call back on the v-table
 // to get at EE internals as required.
 
-class ProfToEEInterfaceImpl : public ICorProfilerInfo6
+class ProfToEEInterfaceImpl : public ICorProfilerInfo9
 {
 public:
 
@@ -144,7 +143,7 @@ public:
     static void ObjectRefCallback(void* context, void* objectRefUNSAFE);
 
     ProfToEEInterfaceImpl();
-    ~ProfToEEInterfaceImpl();
+    virtual ~ProfToEEInterfaceImpl();
     HRESULT Init();
 
     // IUnknown
@@ -524,6 +523,10 @@ public:
 
     COM_METHOD GetEventMask2(DWORD *pdwEventsLow, DWORD *pdwEventsHigh);
 
+    // end ICorProfilerInfo5
+
+    // begin ICorProfilerInfo6
+
     COM_METHOD EnumNgenModuleMethodsInliningThisMethod(
         ModuleID    inlinersModuleId,
         ModuleID    inlineeModuleId,
@@ -532,7 +535,70 @@ public:
         ICorProfilerMethodEnum** ppEnum);
 
 
-    // end ICorProfilerInfo5
+    // end ICorProfilerInfo6
+
+    // begin ICorProfilerInfo7
+
+    COM_METHOD ApplyMetaData(
+        ModuleID    moduleId);
+
+ COM_METHOD GetInMemorySymbolsLength(
+        ModuleID moduleId,
+        DWORD* pCountSymbolBytes);
+
+    COM_METHOD ReadInMemorySymbols(
+        ModuleID moduleId, 
+        DWORD symbolsReadOffset, 
+        BYTE* pSymbolBytes, 
+        DWORD countSymbolBytes, 
+        DWORD* pCountSymbolBytesRead);
+
+    // end ICorProfilerInfo7
+
+    // begin ICorProfilerInfo8
+
+    COM_METHOD IsFunctionDynamic(
+        FunctionID functionId,
+        BOOL *isDynamic);
+
+    COM_METHOD GetFunctionFromIP3(
+        LPCBYTE      ip,          // in
+        FunctionID * pFunctionId, // out
+        ReJITID *    pReJitId);   // out
+
+    COM_METHOD GetDynamicFunctionInfo(
+        FunctionID functionId,
+        ModuleID* moduleId,
+        PCCOR_SIGNATURE* ppvSig,
+        ULONG* pbSig,
+        ULONG cchName,
+        ULONG *pcchName,
+        WCHAR wszName[]);
+
+    // end ICorProfilerInfo8
+
+    // beging ICorProfilerInfo9
+
+    COM_METHOD GetNativeCodeStartAddresses(
+        FunctionID functionID, 
+        ReJITID reJitId, 
+        ULONG32 cCodeStartAddresses, 
+        ULONG32 *pcCodeStartAddresses, 
+        UINT_PTR codeStartAddresses[]);
+
+    COM_METHOD GetILToNativeMapping3(
+        UINT_PTR pNativeCodeStartAddress, 
+        ULONG32 cMap, 
+        ULONG32 *pcMap, 
+        COR_DEBUG_IL_TO_NATIVE_MAP map[]);
+
+    COM_METHOD GetCodeInfo4(
+        UINT_PTR pNativeCodeStartAddress, 
+        ULONG32 cCodeInfos, 
+        ULONG32* pcCodeInfos, 
+        COR_PRF_CODE_INFO codeInfos[]);
+
+    // end ICorProfilerInfo9
 
 protected:
 

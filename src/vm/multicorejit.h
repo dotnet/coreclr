@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: MultiCoreJIT.h
 //
@@ -104,7 +103,7 @@ public:
 
     void StoreMethodCode(MethodDesc * pMethod, PCODE pCode);
     
-    PCODE QueryMethodCode(MethodDesc * pMethod);
+    PCODE QueryMethodCode(MethodDesc * pMethod, BOOL shouldRemoveCode);
 
     inline unsigned GetRemainingMethodCount() const
     {
@@ -201,12 +200,6 @@ public:
         return m_fSetProfileRootCalled == 0;
     }
 
-#if defined(FEATURE_APPX_BINDER)
-
-    // Check for file appx.prof to automatically start multicore JIT
-    void AutoStartProfileAppx(AppDomain * pDomain);
-
-#endif
 
     // Check for environment variable to automatically start multicore JIT
     void AutoStartProfile(AppDomain * pDomain);
@@ -256,11 +249,6 @@ public:
 
     static bool ModuleHasNoCode(Module * pModule);
 
-#if defined(FEATURE_APPX_BINDER)
-
-    static bool IsLoadOkay(Module * pModule);
-
-#endif
 
 };
 

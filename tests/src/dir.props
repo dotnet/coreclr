@@ -7,11 +7,97 @@
     <NoExplicitReferenceToStdLib>true</NoExplicitReferenceToStdLib>
     <AddAdditionalExplicitAssemblyReferences>false</AddAdditionalExplicitAssemblyReferences>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <!-- Disable some C# warnings for the tests. -->
+    <NoWarn>78,162,164,168,169,219,251,252,414,429,642,649,652,675,1691,1717,1718,3001,3002,3003,3005,3008</NoWarn>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <SkipSigning Condition="'$(CrossGen)' == 'true'">true</SkipSigning>
+    <!-- Set the project.json directory for generated TestWrappers. -->
+    <TestWrappersPackagesConfigFileDirectory>$(MSBuildThisFileDirectory)TestWrappersConfig\</TestWrappersPackagesConfigFileDirectory>
+    <AssemblyKey>Test</AssemblyKey>
   </PropertyGroup>
 
-  <!-- Enable alternative JIT for testing if specified -->
+  <!-- Expose the target OS in a more convenient fashion -->
   <PropertyGroup>
-    <_CLRTestPreCommands>IF NOT "%__EnableAltJit%"=="" set COMPLus_AltJit=*;IF NOT "%__EnableAltJit%"=="" set COMPLus_AltJitName=%Alt_Jit_Name%.dll</_CLRTestPreCommands>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('Windows'))">Windows_NT</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('Linux'))">Linux</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('OSX'))">OSX</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'=='' and $(OSPlatformConfig.StartsWith('FreeBSD'))">FreeBSD</OSGroup>
+    <OSGroup Condition="'$(OSGroup)'==''">AnyOS</OSGroup>
   </PropertyGroup>
- 
+
+  <!-- Setup properties per OSGroup -->
+  <Choose>
+    <When Condition="'$(OSGroup)'=='AnyOS'">
+      <PropertyGroup>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='Windows_NT'">
+      <PropertyGroup>
+        <TargetsWindows>true</TargetsWindows>
+        <TestNugetRuntimeId>win-$(__BuildArch)</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='Linux'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsLinux>true</TargetsLinux>
+        <TestNugetRuntimeId>ubuntu.14.04-$(__BuildArch)</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='OSX'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsOSX>true</TargetsOSX>
+        <TestNugetRuntimeId>osx.10.12-$(__BuildArch)</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <When Condition="'$(OSGroup)'=='FreeBSD'">
+      <PropertyGroup>
+        <TargetsUnix>true</TargetsUnix>
+        <TargetsFreeBSD>true</TargetsFreeBSD>
+        <TestNugetRuntimeId>ubuntu.14.04-$(__BuildArch)</TestNugetRuntimeId>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <ConfigurationErrorMsg>$(ConfigurationErrorMsg);Unknown OSGroup [$(OSGroup)] specificed in your project.</ConfigurationErrorMsg>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <PropertyGroup>
+    <TargetRid Condition="'$(__RuntimeId)' != ''">$(__RuntimeId)</TargetRid>
+    <TargetRid Condition="'$(__RuntimeId)' == ''">$(TestNugetRuntimeId)</TargetRid>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetsUnknownUnix Condition="'$(TargetsUnix)' == 'true' AND '$(OSGroup)' != 'FreeBSD' AND '$(OSGroup)' != 'Linux' AND '$(OSGroup)' != 'OSX'">true</TargetsUnknownUnix>
+    <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.csproj'">C#</Language>
+    <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.ilproj'">IL</Language>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' != '.NETFramework'">
+    <!-- RAR thinks all EXEs require binding redirects.  That's not the case for CoreCLR -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <!-- Don't reference the mscorlib facade -->
+  <PropertyGroup>
+    <ExcludeMscorlibFacade>true</ExcludeMscorlibFacade>
+  </PropertyGroup>
+
+  <!-- Set default ZapRequire level (used only when CrossGen is enabled) -->
+  <PropertyGroup>
+    <ZapRequire Condition="'$(ZapRequire)' == ''">2</ZapRequire>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <RestoreOutputPath>$(MSBuildProjectDirectory)\obj</RestoreOutputPath>
+
+    <!-- Specify the target framework of the common test dependency project.json. -->
+    <NuGetTargetMoniker>.NETCoreApp,Version=v2.1</NuGetTargetMoniker>
+    <NuGetTargetMonikerShort>netcoreapp2.1</NuGetTargetMonikerShort>
+    <PrereleaseResolveNuGetPackages>true</PrereleaseResolveNuGetPackages>
+  </PropertyGroup>
+
 </Project>

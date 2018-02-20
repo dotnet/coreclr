@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*************************************************************************************/
@@ -331,49 +330,49 @@ public:
     static void LogMsgOL(const char* format, T1 data1)
     {
         static_assert_no_msg(sizeof(T1) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 1, format, (void*)data1); 
+        LogMsg(LL_ALWAYS, LF_GC, 1, format, (void*)(size_t)data1);
     }
 
     template < typename T1, typename T2 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2)
     {
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 2, format, (void*)data1, (void*)data2); 
+        LogMsg(LL_ALWAYS, LF_GC, 2, format, (void*)(size_t)data1, (void*)(size_t)data2);
     }
 
     template < typename T1, typename T2, typename T3 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2, T3 data3)
     { 
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*) && sizeof(T3) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 3, format, (void*)data1, (void*)data2, (void*)data3); 
+        LogMsg(LL_ALWAYS, LF_GC, 3, format, (void*)(size_t)data1, (void*)(size_t)data2, (void*)(size_t)data3);
     }
 
     template < typename T1, typename T2, typename T3, typename T4 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2, T3 data3, T4 data4)
     { 
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*) && sizeof(T3) <= sizeof(void*) && sizeof(T4) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 4, format, (void*)data1, (void*)data2, (void*)data3, (void*)data4); 
+        LogMsg(LL_ALWAYS, LF_GC, 4, format, (void*)(size_t)data1, (void*)(size_t)data2, (void*)(size_t)data3, (void*)(size_t)data4);
     }
 
     template < typename T1, typename T2, typename T3, typename T4, typename T5 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2, T3 data3, T4 data4, T5 data5)
     { 
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*) && sizeof(T3) <= sizeof(void*) && sizeof(T4) <= sizeof(void*) && sizeof(T5) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 5, format, (void*)data1, (void*)data2, (void*)data3, (void*)data4, (void*)data5); 
+        LogMsg(LL_ALWAYS, LF_GC, 5, format, (void*)(size_t)data1, (void*)(size_t)data2, (void*)(size_t)data3, (void*)(size_t)data4, (void*)(size_t)data5);
     }
 
     template < typename T1, typename T2, typename T3, typename T4, typename T5, typename T6 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2, T3 data3, T4 data4, T5 data5, T6 data6)
     { 
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*) && sizeof(T3) <= sizeof(void*) && sizeof(T4) <= sizeof(void*) && sizeof(T5) <= sizeof(void*) && sizeof(T6) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 6, format, (void*)data1, (void*)data2, (void*)data3, (void*)data4, (void*)data5, (void*)data6); 
+        LogMsg(LL_ALWAYS, LF_GC, 6, format, (void*)(size_t)data1, (void*)(size_t)data2, (void*)(size_t)data3, (void*)(size_t)data4, (void*)(size_t)data5, (void*)(size_t)data6);
     }
 
     template < typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7 >
     static void LogMsgOL(const char* format, T1 data1, T2 data2, T3 data3, T4 data4, T5 data5, T6 data6, T7 data7)
     { 
         static_assert_no_msg(sizeof(T1) <= sizeof(void*) && sizeof(T2) <= sizeof(void*) && sizeof(T3) <= sizeof(void*) && sizeof(T4) <= sizeof(void*) && sizeof(T5) <= sizeof(void*) && sizeof(T6) <= sizeof(void*) && sizeof(T7) <= sizeof(void*)); 
-        LogMsg(LL_ALWAYS, LF_GC, 7, format, (void*)data1, (void*)data2, (void*)data3, (void*)data4, (void*)data5, (void*)data6, (void*)data7); 
+        LogMsg(LL_ALWAYS, LF_GC, 7, format, (void*)(size_t)data1, (void*)(size_t)data2, (void*)(size_t)data3, (void*)(size_t)data4, (void*)(size_t)data5, (void*)(size_t)data6, (void*)(size_t)data7); 
     }
 
 #ifdef _MSC_VER
@@ -424,14 +423,14 @@ inline BOOL StressLog::LogOn(unsigned facility, unsigned level)
 struct StressMsg {
     union {
         struct {
-            DWORD_PTR numberOfArgs  : 3;   // at most 7 arguments
-            DWORD_PTR formatOffset  : 29;  // offset of string in mscorwks
+            uint32_t numberOfArgs  : 3;     // at most 7 arguments
+            uint32_t formatOffset  : 29;    // offset of string in mscorwks
         };
-        DWORD_PTR fmtOffsCArgs;            // for optimized access
+        uint32_t fmtOffsCArgs;    // for optimized access
     };
-    DWORD_PTR facility;                    // facility used to log the entry
-    unsigned __int64 timeStamp;            // time when mssg was logged
-    void*     args[0];                     // size given by numberOfArgs
+    uint32_t facility;                      // facility used to log the entry
+    uint64_t timeStamp;                     // time when mssg was logged
+    void*     args[0];                      // size given by numberOfArgs
 
     static const size_t maxArgCnt = 7;
     static const size_t maxOffset = 0x20000000;
@@ -460,7 +459,7 @@ struct StressLogChunk
 #if !defined(STRESS_LOG_READONLY)
     static HANDLE s_LogChunkHeap; 
 
-    void * operator new (size_t)
+    void * operator new (size_t) throw()
     {
         if (IsInCantAllocStressLogRegion ())
         {
@@ -513,17 +512,17 @@ struct StressLogChunk
 //     to the corresponding field
 class ThreadStressLog {
     ThreadStressLog* next;      // we keep a linked list of these
-    unsigned   threadId;        // the id for the thread using this buffer
-    BOOL       isDead;          // Is this thread dead 
+    uint64_t   threadId;        // the id for the thread using this buffer
+    uint8_t    isDead;          // Is this thread dead 
+    uint8_t    readHasWrapped;  // set when read ptr has passed chunListTail
+    uint8_t    writeHasWrapped; // set when write ptr has passed chunListHead
     StressMsg* curPtr;          // where packets are being put on the queue
     StressMsg* readPtr;         // where we are reading off the queue (used during dumping)
-    BOOL       readHasWrapped;      // set when read ptr has passed chunListTail
-    BOOL       writeHasWrapped;     // set when write ptr has passed chunListHead
     StressLogChunk * chunkListHead; //head of a list of stress log chunks
     StressLogChunk * chunkListTail; //tail of a list of stress log chunks
     StressLogChunk * curReadChunk; //the stress log chunk we are currently reading
     StressLogChunk * curWriteChunk; //the stress log chunk we are currently writing
-    LONG chunkListLength; // how many stress log chunks are in this stress log
+    long       chunkListLength; // how many stress log chunks are in this stress log
 
 #ifdef STRESS_LOG_READONLY
     FORCEINLINE StressMsg* AdvanceRead();
@@ -684,7 +683,7 @@ public:
     static const char* gcRootPromoteMsg()
     {
         STATIC_CONTRACT_LEAF;
-        return "    GCHeap::Promote: Promote GC Root *%p = %p MT = %pT\n";
+        return "    IGCHeap::Promote: Promote GC Root *%p = %p MT = %pT\n";
     }
 
     static const char* gcPlugMoveMsg()
@@ -699,14 +698,14 @@ public:
         return "StressLog TaskSwitch Marker\n";
     }
 
-    void LogMsg ( DWORD_PTR facility, int cArgs, const char* format, ... )
+    void LogMsg (unsigned facility, int cArgs, const char* format, ... )
     {
         va_list Args;
         va_start(Args, format);
         LogMsg (facility, cArgs, format, Args);
         va_end(Args);
     }
-    void LogMsg ( DWORD_PTR facility, int cArgs, const char* format, va_list Args);
+    void LogMsg (unsigned facility, int cArgs, const char* format, va_list Args);
 #ifdef STRESS_LOG_READONLY
     static size_t OffsetOfNext () {return offsetof (ThreadStressLog, next);}
     static size_t OffsetOfListHead () {return offsetof (ThreadStressLog, chunkListHead);}

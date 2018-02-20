@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
  
 
@@ -13,11 +12,7 @@
 
 #include "field.h"
 #include "excep.h"
-#ifdef FEATURE_REMOTING
-#include "message.h"
-#endif // FEATURE_REMOTING
 #include "eeconfig.h"
-#include "rwlock.h"
 #include "runtimehandles.h"
 #include "customattribute.h"
 #include "debugdebugger.h"
@@ -316,6 +311,58 @@ Signature MscorlibBinder::GetSignatureLocal(LPHARDCODEDMETASIG pHardcodedSig)
 
 #ifndef DACCESS_COMPILE
 
+bool MscorlibBinder::ConvertType(const BYTE*& pSig, SigBuilder * pSigBuilder)
+{
+    bool bSomethingResolved = false;
+
+    CorElementType type = (CorElementType)*pSig++;
+
+    switch (type)
+    {
+    case ELEMENT_TYPE_GENERICINST:
+        {
+            pSigBuilder->AppendElementType(type);
+            if (ConvertType(pSig, pSigBuilder))
+                bSomethingResolved = true;
+            int arity = *pSig++;
+            pSigBuilder->AppendData(arity);
+            for (int i = 0; i < arity; i++)
+            {
+                if (ConvertType(pSig, pSigBuilder))
+                    bSomethingResolved = true;
+            }
+        }
+        break;
+
+    case ELEMENT_TYPE_BYREF:
+    case ELEMENT_TYPE_PTR:
+    case ELEMENT_TYPE_SZARRAY:
+        pSigBuilder->AppendElementType(type);
+        if (ConvertType(pSig, pSigBuilder))
+            bSomethingResolved = true;
+        break;
+
+    case ELEMENT_TYPE_CLASS:
+    case ELEMENT_TYPE_VALUETYPE:
+        {
+            // The binder class id may overflow 1 byte. Use 2 bytes to encode it.
+            BinderClassID id = (BinderClassID)(*pSig + 0x100 * *(pSig + 1));
+            pSig += 2;
+
+            pSigBuilder->AppendElementType(type);
+            pSigBuilder->AppendToken(GetClassLocal(id)->GetCl());
+            bSomethingResolved = true;
+        }
+        break;
+
+    default:
+        pSigBuilder->AppendElementType(type);
+        break;
+    }
+
+    return bSomethingResolved;
+}
+
 //------------------------------------------------------------------
 // Resolve type references in the hardcoded metasig.
 // Returns a new signature with type refences resolved.
@@ -332,7 +379,7 @@ void MscorlibBinder::BuildConvertedSignature(const BYTE* pSig, SigBuilder * pSig
 
     unsigned argCount;
     unsigned callConv;
-    INDEBUG(bool bSomethingResolved = false;)
+    bool bSomethingResolved = false;
 
     // calling convention
     callConv = *pSig++;
@@ -351,51 +398,8 @@ void MscorlibBinder::BuildConvertedSignature(const BYTE* pSig, SigBuilder * pSig
 
     // <= because we want to include the return value or the field
     for (unsigned i = 0; i <= argCount; i++) {
-
-        for (;;) {
-            BinderClassID id = CLASS__NIL;
-            bool again = false;
-
-            CorElementType type = (CorElementType)*pSig++;
-
-            switch (type)
-            {
-            case ELEMENT_TYPE_BYREF:
-            case ELEMENT_TYPE_PTR:
-            case ELEMENT_TYPE_SZARRAY:
-                again = true;
-                break;
-
-            case ELEMENT_TYPE_CLASS:
-            case ELEMENT_TYPE_VALUETYPE:
-                // The binder class id may overflow 1 byte. Use 2 bytes to encode it.
-                id = (BinderClassID) (*pSig + 0x100 * *(pSig + 1));
-                pSig += 2;
-                break;
-
-            case ELEMENT_TYPE_VOID:
-                if (i != 0) {
-                    if (pSig[-2] != ELEMENT_TYPE_PTR)
-                        THROW_BAD_FORMAT(BFA_ONLY_VOID_PTR_IN_ARGS, (Module*)NULL); // only pointer to void allowed in arguments
-                }
-                break;
-
-            default:
-                break;
-            }
-
-            pSigBuilder->AppendElementType(type);
-
-            if (id != CLASS__NIL)
-            {
-                pSigBuilder->AppendToken(GetClassLocal(id)->GetCl());
-
-                INDEBUG(bSomethingResolved = true;)
-            }
-
-            if (!again)
-                break;
-        }
+        if (ConvertType(pSig, pSigBuilder))
+            bSomethingResolved = true;
     }
 
     _ASSERTE(bSomethingResolved);
@@ -567,6 +571,7 @@ void MscorlibBinder::Check()
     }
 }
 
+#ifdef CHECK_FCALL_SIGNATURE
 //
 // check consistency of the unmanaged and managed fcall signatures
 //
@@ -847,6 +852,7 @@ static void FCallCheckSignature(MethodDesc* pMD, PCODE pImpl)
         }
     }
 }
+#endif // CHECK_FCALL_SIGNATURE
 
 //
 // extended check of consistency between mscorlib and mscorwks:
@@ -1052,10 +1058,12 @@ void MscorlibBinder::CheckExtended()
             usedECallIds.Add(id);
         }
 
+#ifdef CHECK_FCALL_SIGNATURE
         if (pMD->IsFCall())
         {
             FCallCheckSignature(pMD, ECall::GetFCallImpl(pMD));
         }
+#endif // CHECK_FCALL_SIGNATURE
     }
 
     pInternalImport->EnumClose(&hEnum);

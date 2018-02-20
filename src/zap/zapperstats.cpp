@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
 
@@ -74,6 +73,7 @@ static_assert_no_msg((sizeof(callReasons)/sizeof(callReasons[0])) == CORINFO_IND
 ZapperStats::ZapperStats()
     : m_methods( 0 )
     , m_failedMethods( 0 )
+    , m_failedILStubs( 0 )
     , m_ilCodeSize( 0 )
     , m_nativeCodeSize( 0 )
     , m_nativeColdCodeSize( 0 )
@@ -91,6 +91,9 @@ ZapperStats::ZapperStats()
     , m_nativeColdCodeSizeInSplitProfiledMethods( 0 )
     , m_nativeCodeSizeInProfiledMethods( 0 )
     , m_nativeColdCodeSizeInProfiledMethods( 0 )
+    , m_totalHotCodeSize( 0 )
+    , m_totalUnprofiledCodeSize( 0 )
+    , m_totalColdCodeSize( 0 )
     , m_totalCodeSizeInProfiledMethods( 0 )
     , m_totalColdCodeSizeInProfiledMethods( 0 )
     , m_inputFileSize( 0 )

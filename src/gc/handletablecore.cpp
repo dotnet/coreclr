@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Generational GC handle manager.  Core Table Implementation.
@@ -15,11 +14,8 @@
 #include "common.h"
 
 #include "gcenv.h"
-
-#ifndef FEATURE_REDHAWK
-#include "nativeoverlapped.h"
-#endif // FEATURE_REDHAWK
-
+#include "gcenv.inl"
+#include "gc.h"
 #include "handletablepriv.h"
 
 /****************************************************************************
@@ -28,7 +24,7 @@
  *
  ****************************************************************************/
 
-const BYTE c_rgLowBitIndex[256] =
+const uint8_t c_rgLowBitIndex[256] =
 {
     0xff, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
     0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
@@ -70,8 +66,8 @@ const BYTE c_rgLowBitIndex[256] =
  * A 32/64 neutral quicksort
  */
 //<TODO>@TODO: move/merge into common util file</TODO>
-typedef int (*PFNCOMPARE)(UINT_PTR p, UINT_PTR q);
-void QuickSort(UINT_PTR *pData, int left, int right, PFNCOMPARE pfnCompare)
+typedef int (*PFNCOMPARE)(uintptr_t p, uintptr_t q);
+void QuickSort(uintptr_t *pData, int left, int right, PFNCOMPARE pfnCompare)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -80,7 +76,7 @@ void QuickSort(UINT_PTR *pData, int left, int right, PFNCOMPARE pfnCompare)
         int i = left;
         int j = right;
 
-        UINT_PTR x = pData[(i + j + 1) / 2];
+        uintptr_t x = pData[(i + j + 1) / 2];
 
         do
         {
@@ -95,7 +91,7 @@ void QuickSort(UINT_PTR *pData, int left, int right, PFNCOMPARE pfnCompare)
 
             if (i < j)
             {
-                UINT_PTR t = pData[i];
+                uintptr_t t = pData[i];
                 pData[i] = pData[j];
                 pData[j] = t;
             }
@@ -133,7 +129,7 @@ void QuickSort(UINT_PTR *pData, int left, int right, PFNCOMPARE pfnCompare)
  *  >0 - handle Q should be freed before handle P
  *
  */
-int CompareHandlesByFreeOrder(UINT_PTR p, UINT_PTR q)
+int CompareHandlesByFreeOrder(uintptr_t p, uintptr_t q)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -145,7 +141,7 @@ int CompareHandlesByFreeOrder(UINT_PTR p, UINT_PTR q)
     if (pSegmentP == pSegmentQ)
     {
         // return the in-segment handle free order
-        return (int)((INT_PTR)q - (INT_PTR)p);
+        return (int)((intptr_t)q - (intptr_t)p);
     }
     else if (pSegmentP)
     {
@@ -153,7 +149,7 @@ int CompareHandlesByFreeOrder(UINT_PTR p, UINT_PTR q)
         if (pSegmentQ)
         {
             // return the sequence order of the two segments
-            return (int)(UINT)pSegmentQ->bSequence - (int)(UINT)pSegmentP->bSequence;
+            return (int)(uint32_t)pSegmentQ->bSequence - (int)(uint32_t)pSegmentP->bSequence;
         }
         else
         {
@@ -178,7 +174,7 @@ int CompareHandlesByFreeOrder(UINT_PTR p, UINT_PTR q)
  * Zeroes the object pointers for an array of handles.
  *
  */
-void ZeroHandles(OBJECTHANDLE *pHandleBase, UINT uCount)
+void ZeroHandles(OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -200,9 +196,11 @@ void ZeroHandles(OBJECTHANDLE *pHandleBase, UINT uCount)
 }
 
 #ifdef _DEBUG
-void CALLBACK DbgCountEnumeratedBlocks(TableSegment *pSegment, UINT uBlock, UINT uCount, ScanCallbackInfo *pInfo)
+void CALLBACK DbgCountEnumeratedBlocks(TableSegment *pSegment, uint32_t uBlock, uint32_t uCount, ScanCallbackInfo *pInfo)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(pSegment);
+    UNREFERENCED_PARAMETER(uBlock);
 
     // accumulate the block count in pInfo->param1
     pInfo->param1 += uCount;
@@ -237,7 +235,7 @@ BOOL TableCanFreeSegmentNow(HandleTable *pTable, TableSegment *pSegment)
     // fail but by the time a dump was created the lock was unowned so
     // there was no way to tell who the previous owner was.
     EEThreadId threadId = pTable->Lock.GetHolderThreadId();
-    _ASSERTE(threadId.IsSameThread());
+    _ASSERTE(threadId.IsCurrentThread());
 #endif // _DEBUG
 
     // deterine if any segment is currently being scanned asynchronously
@@ -266,21 +264,21 @@ BOOL TableCanFreeSegmentNow(HandleTable *pTable, TableSegment *pSegment)
  * Gets the user data pointer for the first handle in a block.
  *
  */
-PTR_LPARAM BlockFetchUserDataPointer(PTR__TableSegmentHeader pSegment, UINT uBlock, BOOL fAssertOnError)
+PTR_uintptr_t BlockFetchUserDataPointer(PTR__TableSegmentHeader pSegment, uint32_t uBlock, BOOL fAssertOnError)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
     // assume NULL until we actually find the data
-    PTR_LPARAM pUserData = NULL;
+    PTR_uintptr_t pUserData = NULL;
     // get the user data index for this block
-    UINT blockIndex = pSegment->rgUserData[uBlock];
+    uint32_t blockIndex = pSegment->rgUserData[uBlock];
 
     // is there user data for the block?
     if (blockIndex != BLOCK_INVALID)
     {
         // In DAC builds, we may not have the entire segment table mapped and in any case it will be quite
         // large. Since we only need one element, we'll retrieve just that one element.  
-        pUserData = PTR_LPARAM(PTR_TO_TADDR(pSegment) + offsetof(TableSegment, rgValue) + 
+        pUserData = PTR_uintptr_t(PTR_TO_TADDR(pSegment) + offsetof(TableSegment, rgValue) + 
                                (blockIndex * HANDLE_BYTES_PER_BLOCK));
     }
     else if (fAssertOnError)
@@ -311,7 +309,7 @@ __inline PTR__TableSegmentHeader HandleFetchSegmentPointer(OBJECTHANDLE handle)
     LIMITED_METHOD_DAC_CONTRACT;
 
     // find the segment for this handle
-    PTR__TableSegmentHeader pSegment = PTR__TableSegmentHeader((UINT_PTR)handle & HANDLE_SEGMENT_ALIGN_MASK);
+    PTR__TableSegmentHeader pSegment = PTR__TableSegmentHeader((uintptr_t)handle & HANDLE_SEGMENT_ALIGN_MASK);
 
     // sanity
     _ASSERTE(pSegment);
@@ -328,7 +326,7 @@ __inline PTR__TableSegmentHeader HandleFetchSegmentPointer(OBJECTHANDLE handle)
  * ASSERTs and returns NULL if handle is not of the expected type.
  *
  */
-LPARAM *HandleValidateAndFetchUserDataPointer(OBJECTHANDLE handle, UINT uTypeExpected)
+uintptr_t *HandleValidateAndFetchUserDataPointer(OBJECTHANDLE handle, uint32_t uTypeExpected)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -336,19 +334,19 @@ LPARAM *HandleValidateAndFetchUserDataPointer(OBJECTHANDLE handle, UINT uTypeExp
     PTR__TableSegmentHeader pSegment = HandleFetchSegmentPointer(handle);
 
     // find the offset of this handle into the segment
-    UINT_PTR offset = (UINT_PTR)handle & HANDLE_SEGMENT_CONTENT_MASK;
+    uintptr_t offset = (uintptr_t)handle & HANDLE_SEGMENT_CONTENT_MASK;
 
     // make sure it is in the handle area and not the header
     _ASSERTE(offset >= HANDLE_HEADER_SIZE);
 
     // convert the offset to a handle index
-    UINT uHandle = (UINT)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
+    uint32_t uHandle = (uint32_t)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
 
     // compute the block this handle resides in
-    UINT uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
+    uint32_t uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
 
     // fetch the user data for this block
-    PTR_LPARAM pUserData = BlockFetchUserDataPointer(pSegment, uBlock, TRUE);
+    PTR_uintptr_t pUserData = BlockFetchUserDataPointer(pSegment, uBlock, TRUE);
 
     // did we get the user data block?
     if (pUserData)
@@ -378,7 +376,7 @@ LPARAM *HandleValidateAndFetchUserDataPointer(OBJECTHANDLE handle, UINT uTypeExp
  * Less validation is performed.
  *
  */
-PTR_LPARAM HandleQuickFetchUserDataPointer(OBJECTHANDLE handle)
+PTR_uintptr_t HandleQuickFetchUserDataPointer(OBJECTHANDLE handle)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -393,19 +391,19 @@ PTR_LPARAM HandleQuickFetchUserDataPointer(OBJECTHANDLE handle)
     PTR__TableSegmentHeader pSegment = HandleFetchSegmentPointer(handle);
 
     // find the offset of this handle into the segment
-    UINT_PTR offset = (UINT_PTR)handle & HANDLE_SEGMENT_CONTENT_MASK;
+    uintptr_t offset = (uintptr_t)handle & HANDLE_SEGMENT_CONTENT_MASK;
 
     // make sure it is in the handle area and not the header
     _ASSERTE(offset >= HANDLE_HEADER_SIZE);
 
     // convert the offset to a handle index
-    UINT uHandle = (UINT)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
+    uint32_t uHandle = (uint32_t)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
 
     // compute the block this handle resides in
-    UINT uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
+    uint32_t uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
 
     // fetch the user data for this block
-    PTR_LPARAM pUserData = BlockFetchUserDataPointer(pSegment, uBlock, TRUE);
+    PTR_uintptr_t pUserData = BlockFetchUserDataPointer(pSegment, uBlock, TRUE);
 
     // if we got the user data block then adjust the pointer to be handle-specific
     if (pUserData)
@@ -422,7 +420,7 @@ PTR_LPARAM HandleQuickFetchUserDataPointer(OBJECTHANDLE handle)
  * Stores user data with a handle.
  *
  */
-void HandleQuickSetUserData(OBJECTHANDLE handle, LPARAM lUserData)
+void HandleQuickSetUserData(OBJECTHANDLE handle, uintptr_t lUserData)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -433,7 +431,7 @@ void HandleQuickSetUserData(OBJECTHANDLE handle, LPARAM lUserData)
     */
     
     // fetch the user data slot for this handle
-    LPARAM *pUserData = HandleQuickFetchUserDataPointer(handle);
+    uintptr_t *pUserData = HandleQuickFetchUserDataPointer(handle);
 
     // is there a slot?
     if (pUserData)
@@ -451,7 +449,7 @@ void HandleQuickSetUserData(OBJECTHANDLE handle, LPARAM lUserData)
  * Computes the type index for a given handle.
  *
  */
-UINT HandleFetchType(OBJECTHANDLE handle)
+uint32_t HandleFetchType(OBJECTHANDLE handle)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -459,16 +457,16 @@ UINT HandleFetchType(OBJECTHANDLE handle)
     PTR__TableSegmentHeader pSegment = HandleFetchSegmentPointer(handle);
 
     // find the offset of this handle into the segment
-    UINT_PTR offset = (UINT_PTR)handle & HANDLE_SEGMENT_CONTENT_MASK;
+    uintptr_t offset = (uintptr_t)handle & HANDLE_SEGMENT_CONTENT_MASK;
 
     // make sure it is in the handle area and not the header
     _ASSERTE(offset >= HANDLE_HEADER_SIZE);
 
     // convert the offset to a handle index
-    UINT uHandle = (UINT)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
+    uint32_t uHandle = (uint32_t)((offset - HANDLE_HEADER_SIZE) / HANDLE_SIZE);
 
     // compute the block this handle resides in
-    UINT uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
+    uint32_t uBlock = uHandle / HANDLE_HANDLES_PER_BLOCK;
 
     // return the block's type
     return pSegment->rgBlockType[uBlock];
@@ -510,28 +508,28 @@ BOOL SegmentInitialize(TableSegment *pSegment, HandleTable *pTable)
     */
     
     // we want to commit enough for the header PLUS some handles
-    DWORD dwCommit = HANDLE_HEADER_SIZE;
+    uint32_t dwCommit = HANDLE_HEADER_SIZE;
 
 #ifndef FEATURE_REDHAWK // todo: implement SafeInt
     // Prefast overflow sanity check the addition
-    if (!ClrSafeInt<DWORD>::addition(dwCommit, g_SystemInfo.dwPageSize, dwCommit))
+    if (!ClrSafeInt<uint32_t>::addition(dwCommit, OS_PAGE_SIZE, dwCommit))
     {
         return FALSE;
     }
 #endif // !FEATURE_REDHAWK
 
     // Round down to the dwPageSize
-    dwCommit &= ~(g_SystemInfo.dwPageSize - 1);
+    dwCommit &= ~(OS_PAGE_SIZE - 1);
 
     // commit the header
-    if (!ClrVirtualAlloc(pSegment, dwCommit, MEM_COMMIT, PAGE_READWRITE))
+    if (!GCToOSInterface::VirtualCommit(pSegment, dwCommit))
     {
         //_ASSERTE(FALSE);
         return FALSE;
     }
 
     // remember how many blocks we commited
-    pSegment->bCommitLine = (BYTE)((dwCommit - HANDLE_HEADER_SIZE) / HANDLE_BYTES_PER_BLOCK);
+    pSegment->bCommitLine = (uint8_t)((dwCommit - HANDLE_HEADER_SIZE) / HANDLE_BYTES_PER_BLOCK);
 
     // now preinitialize the 0xFF guys
     memset(pSegment->rgGeneration, 0xFF,            sizeof(pSegment->rgGeneration));
@@ -543,10 +541,10 @@ BOOL SegmentInitialize(TableSegment *pSegment, HandleTable *pTable)
 
     // prelink the free chain
     _ASSERTE(FitsInU1(HANDLE_BLOCKS_PER_SEGMENT));
-    BYTE u = 0;
+    uint8_t u = 0;
     while (u < (HANDLE_BLOCKS_PER_SEGMENT - 1))
     {
-        BYTE next = u + 1;
+        uint8_t next = u + 1;
         pSegment->rgAllocation[u] = next;
         u = next;
     }
@@ -579,7 +577,7 @@ void SegmentFree(TableSegment *pSegment)
     */
     
     // free the segment's memory
-    ClrVirtualFree(pSegment, 0, MEM_RELEASE);
+    GCToOSInterface::VirtualRelease(pSegment, HANDLE_SEGMENT_SIZE);
 }
 
 
@@ -609,7 +607,7 @@ TableSegment *SegmentAlloc(HandleTable *pTable)
     _ASSERTE(HANDLE_SEGMENT_ALIGNMENT >= HANDLE_SEGMENT_SIZE);
     _ASSERTE(HANDLE_SEGMENT_ALIGNMENT == 0x10000);
 
-    pSegment = (TableSegment *)ClrVirtualAllocAligned(NULL, HANDLE_SEGMENT_SIZE, MEM_RESERVE, PAGE_NOACCESS, HANDLE_SEGMENT_ALIGNMENT);
+    pSegment = (TableSegment *)GCToOSInterface::VirtualReserve(HANDLE_SEGMENT_SIZE, HANDLE_SEGMENT_ALIGNMENT, VirtualReserveFlags::None);
     _ASSERTE(((size_t)pSegment % HANDLE_SEGMENT_ALIGNMENT) == 0);
     
     // bail out if we couldn't get any memory
@@ -640,8 +638,8 @@ __inline void SegmentMarkFreeMask(TableSegment *pSegment, _UNCHECKED_OBJECTREF* 
     }
     CONTRACTL_END;
     
-    UINT uMask = (UINT)(h - pSegment->rgValue);
-    UINT uBit = uMask % HANDLE_HANDLES_PER_MASK;
+    uint32_t uMask = (uint32_t)(h - pSegment->rgValue);
+    uint32_t uBit = uMask % HANDLE_HANDLES_PER_MASK;
     uMask = uMask / HANDLE_HANDLES_PER_MASK;
     pSegment->rgFreeMask[uMask] |= (1<<uBit);
 }
@@ -657,16 +655,15 @@ __inline void SegmentUnMarkFreeMask(TableSegment *pSegment, _UNCHECKED_OBJECTREF
     }
     CONTRACTL_END;
     
-    UINT uMask = (UINT)(h - pSegment->rgValue);
-    UINT uBit = uMask % HANDLE_HANDLES_PER_MASK;
+    uint32_t uMask = (uint32_t)(h - pSegment->rgValue);
+    uint32_t uBit = uMask % HANDLE_HANDLES_PER_MASK;
     uMask = uMask / HANDLE_HANDLES_PER_MASK;
     pSegment->rgFreeMask[uMask] &= ~(1<<uBit);
 }
 
-#ifndef FEATURE_REDHAWK
 // Prepare a segment to be moved to default domain.
 // Remove all non-async pin handles.
-void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
+void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment, void (*clearIfComplete)(Object*))
 {
     CONTRACTL
     {
@@ -680,7 +677,7 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
     pSegment->fNeedsScavenging = true;
     
     // Zero out all non-async pin handles
-    UINT uBlock;
+    uint32_t uBlock;
     for (uBlock = 0; uBlock < pSegment->bEmptyLine; uBlock ++)
     {
         if (pSegment->rgBlockType[uBlock]  == TYPE_INVALID)
@@ -697,10 +694,10 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
                 pValue ++;
             } while (pValue < pLast);
 
-            ((ULONG32*)pSegment->rgGeneration)[uBlock] = (ULONG32)-1;
+            ((uint32_t*)pSegment->rgGeneration)[uBlock] = (uint32_t)-1;
 
-            ULONG32 *pdwMask = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
-            ULONG32 *pdwMaskLast = pdwMask + HANDLE_MASKS_PER_BLOCK;
+            uint32_t *pdwMask = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
+            uint32_t *pdwMaskLast = pdwMask + HANDLE_MASKS_PER_BLOCK;
             do
             {
                 *pdwMask = MASK_EMPTY;
@@ -714,7 +711,7 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
     }
 
     // Return all non-async pin handles to free list
-    UINT uType;
+    uint32_t uType;
     for (uType = 0; uType < HANDLE_MAX_INTERNAL_TYPES; uType ++)
     {
         if (uType == HNDTYPE_ASYNCPINNED)
@@ -724,8 +721,8 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
         pSegment->rgFreeCount[uType] = 0;
         if (pSegment->rgHint[uType] != BLOCK_INVALID)
         {
-            UINT uLast = pSegment->rgHint[uType];
-            BYTE uFirst = pSegment->rgAllocation[uLast];
+            uint32_t uLast = pSegment->rgHint[uType];
+            uint8_t uFirst = pSegment->rgAllocation[uLast];
             pSegment->rgAllocation[uLast] = pSegment->bFreeList;
             pSegment->bFreeList = uFirst;
             pSegment->rgHint[uType] = BLOCK_INVALID;
@@ -739,14 +736,14 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
     {
         return;
     }
-    UINT freeCount = 0;
+    uint32_t freeCount = 0;
     for (uBlock = 0; uBlock < pSegment->bEmptyLine; uBlock ++)
     {
         if (pSegment->rgBlockType[uBlock] != HNDTYPE_ASYNCPINNED)
         {
             continue;
         }
-        if (pSegment->rgFreeMask[uBlock*2] == (ULONG32)-1 && pSegment->rgFreeMask[uBlock*2+1] == (ULONG32)-1)
+        if (pSegment->rgFreeMask[uBlock*2] == (uint32_t)-1 && pSegment->rgFreeMask[uBlock*2+1] == (uint32_t)-1)
         {
             continue;
         }
@@ -758,14 +755,7 @@ void SegmentPreCompactAsyncPinHandles(TableSegment *pSegment)
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)(value)));
-                if (overlapped->HasCompleted())
-                {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
-                }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
+                clearIfComplete((Object*)value);
             }
             else
             {
@@ -795,7 +785,7 @@ BOOL SegmentCopyAsyncPinHandle(TableSegment *pSegment, _UNCHECKED_OBJECTREF *h)
 
     if (pSegment->rgFreeCount[HNDTYPE_ASYNCPINNED] == 0)
     {
-        BYTE uBlock = pSegment->bFreeList;
+        uint8_t uBlock = pSegment->bFreeList;
         if (uBlock == BLOCK_INVALID)
         {
             // All slots are used up.
@@ -807,12 +797,12 @@ BOOL SegmentCopyAsyncPinHandle(TableSegment *pSegment, _UNCHECKED_OBJECTREF *h)
         pSegment->rgHint[HNDTYPE_ASYNCPINNED] = uBlock;
         pSegment->rgFreeCount[HNDTYPE_ASYNCPINNED] += HANDLE_HANDLES_PER_BLOCK;
     }
-    BYTE uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
-    BYTE uLast = uBlock;
+    uint8_t uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
+    uint8_t uLast = uBlock;
     do
     {
-        UINT n = uBlock * (HANDLE_HANDLES_PER_BLOCK/HANDLE_HANDLES_PER_MASK);
-        ULONG32* pMask = pSegment->rgFreeMask + n;
+        uint32_t n = uBlock * (HANDLE_HANDLES_PER_BLOCK/HANDLE_HANDLES_PER_MASK);
+        uint32_t* pMask = pSegment->rgFreeMask + n;
         if (pMask[0] != 0 || pMask[1] != 0)
         {
             break;
@@ -839,7 +829,7 @@ BOOL SegmentCopyAsyncPinHandle(TableSegment *pSegment, _UNCHECKED_OBJECTREF *h)
     return TRUE;
 }
 
-void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWorkerSegment)
+void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWorkerSegment, void (*clearIfComplete)(Object*))
 {
     CONTRACTL
     {
@@ -849,7 +839,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
     }
     CONTRACTL_END;
 
-    UINT uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
+    uint32_t uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
     if (uBlock == BLOCK_INVALID)
     {
         return;
@@ -860,7 +850,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
         {
             continue;
         }
-        if (pSegment->rgFreeMask[uBlock*2] == (ULONG32)-1 && pSegment->rgFreeMask[uBlock*2+1] == (ULONG32)-1)
+        if (pSegment->rgFreeMask[uBlock*2] == (uint32_t)-1 && pSegment->rgFreeMask[uBlock*2+1] == (uint32_t)-1)
         {
             continue;
         }
@@ -873,14 +863,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->HasCompleted())
-                {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
-                }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
+                clearIfComplete((Object*)value);
                 fNeedNewSegment = !SegmentCopyAsyncPinHandle(*ppWorkerSegment,pValue);
             }
             if (fNeedNewSegment)
@@ -888,7 +871,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
                 _ASSERTE ((*ppWorkerSegment)->rgFreeCount[HNDTYPE_ASYNCPINNED] == 0 &&
                           (*ppWorkerSegment)->bFreeList == BLOCK_INVALID);
                 TableSegment *pNextSegment = (*ppWorkerSegment)->pNextSegment;
-                SegmentPreCompactAsyncPinHandles(pNextSegment);
+                SegmentPreCompactAsyncPinHandles(pNextSegment, clearIfComplete);
                 *ppWorkerSegment = pNextSegment;
                 if (pNextSegment == pSegment)
                 {
@@ -906,7 +889,7 @@ void SegmentCompactAsyncPinHandles(TableSegment *pSegment, TableSegment **ppWork
 
 
 // Mark AsyncPinHandles ready to be cleaned when the marker job is processed
-BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
+BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment, const AsyncPinCallbackContext &callbackCtx)
 {
     CONTRACTL
     {
@@ -916,7 +899,7 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
     }
     CONTRACTL_END;
     
-    UINT uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
+    uint32_t uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
     if (uBlock == BLOCK_INVALID)
     {
         // There is no pinning handles.
@@ -931,7 +914,7 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
         {
             continue;
         }
-        if (pSegment->rgFreeMask[uBlock*2] == (ULONG32)-1 && pSegment->rgFreeMask[uBlock*2+1] == (ULONG32)-1)
+        if (pSegment->rgFreeMask[uBlock*2] == (uint32_t)-1 && pSegment->rgFreeMask[uBlock*2+1] == (uint32_t)-1)
         {
             continue;
         }
@@ -943,11 +926,10 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->GetAppDomainId() != DefaultADID && overlapped->HasCompleted())
+                // calls back into the VM using the callback given to
+                // Ref_HandleAsyncPinHandles
+                if (callbackCtx.Invoke((Object*)value))
                 {
-                    overlapped->HandleAsyncPinHandle();
                     result = TRUE;
                 }
             }
@@ -959,21 +941,24 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
 }
 
 // Replace an async pin handle with one from default domain
-void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTargetTable)
+bool SegmentRelocateAsyncPinHandles (TableSegment *pSegment,
+    HandleTable *pTargetTable,
+    void (*clearIfComplete)(Object*),
+    void (*setHandle)(Object*, OBJECTHANDLE))
 {
     CONTRACTL
     {
         GC_NOTRIGGER;
-        THROWS;
+        NOTHROW;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
     
-    UINT uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
+    uint32_t uBlock = pSegment->rgHint[HNDTYPE_ASYNCPINNED];
     if (uBlock == BLOCK_INVALID)
     {
         // There is no pinning handles.
-        return;
+        return true;
     }
     for (uBlock = 0; uBlock < pSegment->bEmptyLine; uBlock ++)
     {
@@ -981,7 +966,7 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
         {
             continue;
         }
-        if (pSegment->rgFreeMask[uBlock*2] == (ULONG32)-1 && pSegment->rgFreeMask[uBlock*2+1] == (ULONG32)-1)
+        if (pSegment->rgFreeMask[uBlock*2] == (uint32_t)-1 && pSegment->rgFreeMask[uBlock*2+1] == (uint32_t)-1)
         {
             continue;
         }
@@ -993,27 +978,29 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
             _UNCHECKED_OBJECTREF value = *pValue;
             if (!HndIsNullOrDestroyedHandle(value))
             {
-                _ASSERTE (value->GetMethodTable() == g_pOverlappedDataClass);
-                OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)value));
-                if (overlapped->HasCompleted())
+                clearIfComplete((Object*)value);
+                OBJECTHANDLE selfHandle = HndCreateHandle((HHANDLETABLE)pTargetTable, HNDTYPE_ASYNCPINNED, ObjectToOBJECTREF(value));
+                if (!selfHandle)
                 {
-                    // IO has finished.  We don't need to pin the user buffer any longer.
-                    overlapped->m_userObject = NULL;
+                    // failed to allocate a new handle - callers have to handle this.
+                    return false;
                 }
-                BashMTForPinnedObject(ObjectToOBJECTREF(value));
-                overlapped->m_pinSelf = CreateAsyncPinningHandle((HHANDLETABLE)pTargetTable,ObjectToOBJECTREF(value));
+
+                setHandle((Object*)value, selfHandle);
                 *pValue = NULL;
             }
             pValue ++;
         } while (pValue != pLast);
     }
+
+    return true;
 }
 
 // Mark all non-pending AsyncPinHandle ready for cleanup.
 // We will queue a marker Overlapped to io completion port.  We use the marker
 // to make sure that all iocompletion jobs before this marker have been processed.
 // After that we can free the async pinned handles.
-BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
+BOOL TableHandleAsyncPinHandles(HandleTable *pTable, const AsyncPinCallbackContext &callbackCtx)
 {
     CONTRACTL
     {
@@ -1023,8 +1010,6 @@ BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
     }
     CONTRACTL_END;
 
-    _ASSERTE (pTable->uADIndex.m_dwIndex == DefaultADID);
-
     BOOL result = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
 
@@ -1032,7 +1017,7 @@ BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
 
     while (pSegment)
     {
-        if (SegmentHandleAsyncPinHandles (pSegment))
+        if (SegmentHandleAsyncPinHandles (pSegment, callbackCtx))
         {
             result = TRUE;
         }
@@ -1051,7 +1036,10 @@ BOOL TableHandleAsyncPinHandles(HandleTable *pTable)
 //       from a again.
 //    c. After copying all handles to worker segments, move the segments to default domain.
 // It is very important that in step 2, we should not fail for OOM, which means no memory allocation.
-void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable)
+void TableRelocateAsyncPinHandles(HandleTable *pTable,
+    HandleTable *pTargetTable,
+    void (*clearIfComplete)(Object*),
+    void (*setHandle)(Object*, OBJECTHANDLE))
 {
     CONTRACTL
     {
@@ -1065,6 +1053,7 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 
     BOOL fGotException = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
+    bool wasSuccessful = true;
     
 #ifdef _DEBUG
     // on debug builds, execute the OOM path 10% of the time.
@@ -1073,21 +1062,18 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 #endif
 
     // Step 1: replace pinning handles with ones from default domain
-    EX_TRY
+    while (pSegment)
     {
-        while (pSegment)
+        wasSuccessful = wasSuccessful && SegmentRelocateAsyncPinHandles (pSegment, pTargetTable, clearIfComplete, setHandle);
+        if (!wasSuccessful)
         {
-            SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
-            pSegment = pSegment->pNextSegment;
+            break;
         }
-    }
-    EX_CATCH
-    {
-        fGotException = TRUE;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
 
-    if (!fGotException)
+        pSegment = pSegment->pNextSegment;
+    }
+
+    if (wasSuccessful)
     {
         return;
     }
@@ -1110,13 +1096,13 @@ SLOW_PATH:
         // we have the lock held but the part we care about (the async table scan) takes the table lock during
         // a preparation step so we'll be able to complete our segment moves before the async scan has a
         // chance to interfere with us (or vice versa).
-        if (GCHeap::GetGCHeap()->IsConcurrentGCInProgress())
+        if (g_theGCHeap->IsConcurrentGCInProgress())
         {
             // A concurrent GC is in progress so someone might be scanning our segments asynchronously.
             // Release the lock, wait for the GC to complete and try again. The order is important; if we wait
             // before releasing the table lock we can deadlock with an async table scan.
             ch.Release();
-            GCHeap::GetGCHeap()->WaitUntilConcurrentGCComplete();
+            g_theGCHeap->WaitUntilConcurrentGCComplete();
             continue;
         }
 
@@ -1130,12 +1116,12 @@ SLOW_PATH:
         // Compact async pinning handles into the smallest number of leading segments we can (the worker
         // segments).
         TableSegment *pWorkerSegment = pTable->pSegmentList;
-        SegmentPreCompactAsyncPinHandles (pWorkerSegment);
+        SegmentPreCompactAsyncPinHandles (pWorkerSegment, clearIfComplete);
 
         pSegment = pWorkerSegment->pNextSegment;
         while (pSegment)
         {
-            SegmentCompactAsyncPinHandles (pSegment, &pWorkerSegment);
+            SegmentCompactAsyncPinHandles (pSegment, &pWorkerSegment, clearIfComplete);
             pSegment= pSegment->pNextSegment;
         }
 
@@ -1143,7 +1129,7 @@ SLOW_PATH:
         pSegment = pWorkerSegment->pNextSegment;
         while (pSegment)
         {
-            memset(pSegment->rgValue, 0, (UINT)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
+            memset(pSegment->rgValue, 0, (uint32_t)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
             pSegment = pSegment->pNextSegment;
         }
 
@@ -1160,12 +1146,12 @@ SLOW_PATH:
 
             // Take the worker segments and point them to their new handle table and recalculate their
             // sequence numbers to be consistent with the queue they're moving to.
-            BYTE bLastSequence = pTargetSegment->bSequence;
+            uint8_t bLastSequence = pTargetSegment->bSequence;
             pSegment = pTable->pSegmentList;
             while (pSegment != pWorkerSegment->pNextSegment)
             {
                 pSegment->pHandleTable = pTargetTable;
-                pSegment->bSequence = (BYTE)(((UINT)bLastSequence + 1) % 0x100);
+                pSegment->bSequence = (uint8_t)(((uint32_t)bLastSequence + 1) % 0x100);
                 bLastSequence = pSegment->bSequence;
                 pSegment = pSegment->pNextSegment;
             }
@@ -1184,7 +1170,6 @@ SLOW_PATH:
         break;
     }
 }
-#endif // !FEATURE_REDHAWK
 
 /*
  * Check if a handle is part of a HandleTable
@@ -1216,7 +1201,7 @@ BOOL TableContainHandle(HandleTable *pTable, OBJECTHANDLE handle)
  * and moves them to the segment's free list.
  *
  */
-void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScavengeLater)
+void SegmentRemoveFreeBlocks(TableSegment *pSegment, uint32_t uType, BOOL *pfScavengeLater)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1227,7 +1212,7 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
     */
     
     // fetch the tail block for the specified chain
-    UINT uPrev = pSegment->rgTail[uType];
+    uint32_t uPrev = pSegment->rgTail[uType];
 
     // if it's a terminator then there are no blocks in the chain
     if (uPrev == BLOCK_INVALID)
@@ -1237,33 +1222,33 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
     BOOL fCleanupUserData = FALSE;
 
     // start iterating with the head block
-    UINT uStart = pSegment->rgAllocation[uPrev];
-    UINT uBlock = uStart;
+    uint32_t uStart = pSegment->rgAllocation[uPrev];
+    uint32_t uBlock = uStart;
 
     // keep track of how many blocks we removed
-    UINT uRemoved = 0;
+    uint32_t uRemoved = 0;
 
     // we want to preserve the relative order of any blocks we free
     // this is the best we can do until the free list is resorted
-    UINT uFirstFreed = BLOCK_INVALID;
-    UINT uLastFreed  = BLOCK_INVALID;
+    uint32_t uFirstFreed = BLOCK_INVALID;
+    uint32_t uLastFreed  = BLOCK_INVALID;
 
     // loop until we've processed the whole chain
     for (;;)
     {
         // fetch the next block index
-        UINT uNext = pSegment->rgAllocation[uBlock];
+        uint32_t uNext = pSegment->rgAllocation[uBlock];
 
 #ifdef HANDLE_OPTIMIZE_FOR_64_HANDLE_BLOCKS
         // determine whether this block is empty
-        if (((UINT64*)pSegment->rgFreeMask)[uBlock] == UI64(0xFFFFFFFFFFFFFFFF))
+        if (((uint64_t*)pSegment->rgFreeMask)[uBlock] == UI64(0xFFFFFFFFFFFFFFFF))
 #else
         // assume this block is empty until we know otherwise
         BOOL fEmpty = TRUE;
 
         // get the first mask for this block
-        ULONG32 *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
-        ULONG32 *pdwMaskLast = pdwMask              + HANDLE_MASKS_PER_BLOCK;
+        uint32_t *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
+        uint32_t *pdwMaskLast = pdwMask              + HANDLE_MASKS_PER_BLOCK;
 
         // loop through the masks until we've processed them all or we've found handles
         do
@@ -1295,7 +1280,7 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
             else
             {
                 // safe to free - did it have user data associated?
-                UINT uData = pSegment->rgUserData[uBlock];
+                uint32_t uData = pSegment->rgUserData[uBlock];
                 if (uData != BLOCK_INVALID)
                 {
                     // data blocks are 'empty' so we keep them locked
@@ -1321,7 +1306,7 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
                 else
                 {
                     // yes - link this block to the other ones in order
-                    pSegment->rgAllocation[uLastFreed] = (BYTE)uBlock;
+                    pSegment->rgAllocation[uLastFreed] = (uint8_t)uBlock;
                 }
 
                 // remember this block for later
@@ -1331,15 +1316,15 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
                 if (uPrev != uBlock)
                 {
                     // yes - unlink this block from the chain
-                    pSegment->rgAllocation[uPrev] = (BYTE)uNext;
+                    pSegment->rgAllocation[uPrev] = (uint8_t)uNext;
 
                     // if we are removing the tail then pick a new tail
                     if (pSegment->rgTail[uType] == uBlock)
-                        pSegment->rgTail[uType] = (BYTE)uPrev;
+                        pSegment->rgTail[uType] = (uint8_t)uPrev;
 
                     // if we are removing the hint then pick a new hint
                     if (pSegment->rgHint[uType] == uBlock)
-                        pSegment->rgHint[uType] = (BYTE)uNext;
+                        pSegment->rgHint[uType] = (uint8_t)uNext;
 
                     // we removed the current block - reset uBlock to a valid block
                     uBlock = uPrev;
@@ -1380,7 +1365,7 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
     {
         // yes - link the new blocks into the free list
         pSegment->rgAllocation[uLastFreed] = pSegment->bFreeList;
-        pSegment->bFreeList = (BYTE)uFirstFreed;
+        pSegment->bFreeList = (uint8_t)uFirstFreed;
 
         // update the free count for this chain
         pSegment->rgFreeCount[uType] -= (uRemoved * HANDLE_HANDLES_PER_BLOCK);
@@ -1405,7 +1390,7 @@ void SegmentRemoveFreeBlocks(TableSegment *pSegment, UINT uType, BOOL *pfScaveng
  * This routine is the core implementation for SegmentInsertBlockFromFreeList.
  *
  */
-UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BOOL fUpdateHint)
+uint32_t SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, uint32_t uType, BOOL fUpdateHint)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1417,7 +1402,7 @@ UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BO
     
 
     // fetch the next block from the free list
-    BYTE uBlock = pSegment->bFreeList;
+    uint8_t uBlock = pSegment->bFreeList;
 
     // if we got the terminator then there are no more blocks
     if (uBlock != BLOCK_INVALID)
@@ -1426,26 +1411,26 @@ UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BO
         if (uBlock >= pSegment->bEmptyLine)
         {
             // get the current commit line
-            UINT uCommitLine = pSegment->bCommitLine;
+            uint32_t uCommitLine = pSegment->bCommitLine;
 
             // if this block is uncommitted then commit some memory now
             if (uBlock >= uCommitLine)
             {
                 // figure out where to commit next
-                LPVOID pvCommit = pSegment->rgValue + (uCommitLine * HANDLE_HANDLES_PER_BLOCK);
+                void * pvCommit = pSegment->rgValue + (uCommitLine * HANDLE_HANDLES_PER_BLOCK);
 
                 // we should commit one more page of handles
-                ULONG32 dwCommit = g_SystemInfo.dwPageSize;
+                uint32_t dwCommit = OS_PAGE_SIZE;
 
                 // commit the memory
-                if (!ClrVirtualAlloc(pvCommit, dwCommit, MEM_COMMIT, PAGE_READWRITE))
+                if (!GCToOSInterface::VirtualCommit(pvCommit, dwCommit))
                     return BLOCK_INVALID;
 
                 // use the previous commit line as the new decommit line
-                pSegment->bDecommitLine = (BYTE)uCommitLine;
+                pSegment->bDecommitLine = (uint8_t)uCommitLine;
 
                 // adjust the commit line by the number of blocks we commited
-                pSegment->bCommitLine = (BYTE)(uCommitLine + (dwCommit / HANDLE_BYTES_PER_BLOCK));
+                pSegment->bCommitLine = (uint8_t)(uCommitLine + (dwCommit / HANDLE_BYTES_PER_BLOCK));
             }
 
             // update our empty line
@@ -1456,11 +1441,11 @@ UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BO
         pSegment->bFreeList = pSegment->rgAllocation[uBlock];
 
         // link our block into the specified chain
-        UINT uOldTail = pSegment->rgTail[uType];
+        uint32_t uOldTail = pSegment->rgTail[uType];
         if (uOldTail == BLOCK_INVALID)
         {
             // first block, set as head and link to itself
-            pSegment->rgAllocation[uBlock] = (BYTE)uBlock;
+            pSegment->rgAllocation[uBlock] = (uint8_t)uBlock;
 
             // there are no other blocks - update the hint anyway
             fUpdateHint = TRUE;
@@ -1469,21 +1454,21 @@ UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BO
         {
             // not first block - link circularly
             pSegment->rgAllocation[uBlock] = pSegment->rgAllocation[uOldTail];
-            pSegment->rgAllocation[uOldTail] = (BYTE)uBlock;
+            pSegment->rgAllocation[uOldTail] = (uint8_t)uBlock;
         
             // chain may need resorting depending on what we added
             pSegment->fResortChains = TRUE;
         }
 
         // mark this block with the type we're using it for
-        pSegment->rgBlockType[uBlock] = (BYTE)uType;
+        pSegment->rgBlockType[uBlock] = (uint8_t)uType;
 
         // update the chain tail
-        pSegment->rgTail[uType] = (BYTE)uBlock;
+        pSegment->rgTail[uType] = (uint8_t)uBlock;
 
         // if we are supposed to update the hint, then point it at the new block
         if (fUpdateHint)
-            pSegment->rgHint[uType] = (BYTE)uBlock;
+            pSegment->rgHint[uType] = (uint8_t)uBlock;
 
         // increment the chain's free count to reflect the additional block
         pSegment->rgFreeCount[uType] += HANDLE_HANDLES_PER_BLOCK;
@@ -1504,7 +1489,7 @@ UINT SegmentInsertBlockFromFreeListWorker(TableSegment *pSegment, UINT uType, BO
  * This routine does the work of securing a parallel user data block if required.
  *
  */
-UINT SegmentInsertBlockFromFreeList(TableSegment *pSegment, UINT uType, BOOL fUpdateHint)
+uint32_t SegmentInsertBlockFromFreeList(TableSegment *pSegment, uint32_t uType, BOOL fUpdateHint)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1514,7 +1499,7 @@ UINT SegmentInsertBlockFromFreeList(TableSegment *pSegment, UINT uType, BOOL fUp
         MODE_ANY;
     */
     
-    UINT uBlock, uData = 0;
+    uint32_t uBlock, uData = 0;
 
     // does this block type require user data?
     BOOL fUserData = TypeHasUserData(pSegment->pHandleTable, uType);
@@ -1541,7 +1526,7 @@ UINT SegmentInsertBlockFromFreeList(TableSegment *pSegment, UINT uType, BOOL fUp
         if ((uBlock != BLOCK_INVALID) && (uData != BLOCK_INVALID))
         {
             // link the data block to the requested block
-            pSegment->rgUserData[uBlock] = (BYTE)uData;
+            pSegment->rgUserData[uBlock] = (uint8_t)uData;
 
             // no handles are ever allocated out of a data block
             // lock the block so it won't be reclaimed accidentally
@@ -1583,6 +1568,7 @@ void SegmentResortChains(TableSegment *pSegment)
 
     // clear the sort flag for this segment
     pSegment->fResortChains = FALSE;
+    BOOL fScavengingOccurred = FALSE;
 
     // first, do we need to scavenge any blocks?
     if (pSegment->fNeedsScavenging)
@@ -1590,31 +1576,33 @@ void SegmentResortChains(TableSegment *pSegment)
         // clear the scavenge flag
         pSegment->fNeedsScavenging = FALSE;
 
+        fScavengingOccurred = TRUE;
+
         // we may need to explicitly scan the user data chain too
         BOOL fCleanupUserData = FALSE;
 
         // fetch the empty line for this segment
-        UINT uLast = pSegment->bEmptyLine;
+        uint32_t uLast = pSegment->bEmptyLine;
 
         // loop over all active blocks, scavenging the empty ones as we go
-        for (UINT uBlock = 0; uBlock < uLast; uBlock++)
+        for (uint32_t uBlock = 0; uBlock < uLast; uBlock++)
         {
             // fetch the block type of this block
-            UINT uType = pSegment->rgBlockType[uBlock];
+            uint32_t uType = pSegment->rgBlockType[uBlock];
 
             // only process public block types - we handle data blocks separately
             if (uType < HANDLE_MAX_PUBLIC_TYPES)
             {
 #ifdef HANDLE_OPTIMIZE_FOR_64_HANDLE_BLOCKS
                 // determine whether this block is empty
-                if (((UINT64*)pSegment->rgFreeMask)[uBlock] == UI64(0xFFFFFFFFFFFFFFFF))
+                if (((uint64_t*)pSegment->rgFreeMask)[uBlock] == UI64(0xFFFFFFFFFFFFFFFF))
 #else
                 // assume this block is empty until we know otherwise
                 BOOL fEmpty = TRUE;
     
                 // get the first mask for this block
-                ULONG32 *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
-                ULONG32 *pdwMaskLast = pdwMask              + HANDLE_MASKS_PER_BLOCK;
+                uint32_t *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
+                uint32_t *pdwMaskLast = pdwMask              + HANDLE_MASKS_PER_BLOCK;
 
                 // loop through the masks until we've processed them all or we've found handles
                 do
@@ -1640,7 +1628,7 @@ void SegmentResortChains(TableSegment *pSegment)
                     if (!BlockIsLocked(pSegment, uBlock))
                     {
                         // safe to free - did it have user data associated?
-                        UINT uData = pSegment->rgUserData[uBlock];
+                        uint32_t uData = pSegment->rgUserData[uBlock];
                         if (uData != BLOCK_INVALID)
                         {
                             // data blocks are 'empty' so we keep them locked
@@ -1672,19 +1660,19 @@ void SegmentResortChains(TableSegment *pSegment)
     }
 
     // keep some per-chain data
-    BYTE rgChainCurr[HANDLE_MAX_INTERNAL_TYPES];
-    BYTE rgChainHigh[HANDLE_MAX_INTERNAL_TYPES];
-    BYTE bChainFree = BLOCK_INVALID;
-    UINT uEmptyLine = BLOCK_INVALID;
+    uint8_t rgChainCurr[HANDLE_MAX_INTERNAL_TYPES];
+    uint8_t rgChainHigh[HANDLE_MAX_INTERNAL_TYPES];
+    uint8_t bChainFree = BLOCK_INVALID;
+    uint32_t uEmptyLine = BLOCK_INVALID;
     BOOL fContiguousWithFreeList = TRUE;
 
     // preinit the chain data to no blocks
-	UINT uType;
+    uint32_t uType;
     for (uType = 0; uType < HANDLE_MAX_INTERNAL_TYPES; uType++)
         rgChainHigh[uType] = rgChainCurr[uType] = BLOCK_INVALID;
 
     // scan back through the block types
-    BYTE uBlock = HANDLE_BLOCKS_PER_SEGMENT;
+    uint8_t uBlock = HANDLE_BLOCKS_PER_SEGMENT;
     while (uBlock > 0)
     {
         // decrement the block index
@@ -1710,7 +1698,7 @@ void SegmentResortChains(TableSegment *pSegment)
             pSegment->rgAllocation[uBlock] = rgChainCurr[uType];
 
             // remember this block in type chain
-            rgChainCurr[uType] = (BYTE)uBlock;
+            rgChainCurr[uType] = (uint8_t)uBlock;
         }
         else
         {
@@ -1722,7 +1710,7 @@ void SegmentResortChains(TableSegment *pSegment)
             pSegment->rgAllocation[uBlock] = bChainFree;
 
             // add this block to the free list
-            bChainFree = (BYTE)uBlock;
+            bChainFree = (uint8_t)uBlock;
         }
     }
 
@@ -1730,16 +1718,16 @@ void SegmentResortChains(TableSegment *pSegment)
     for (uType = 0; uType < HANDLE_MAX_INTERNAL_TYPES; uType++)
     {
         // get the first block in the list
-        BYTE bBlock = rgChainCurr[uType];
+        uint8_t bBlock = rgChainCurr[uType];
 
         // if there is a list then make it circular and save it
         if (bBlock != BLOCK_INVALID)
         {
             // highest block we saw becomes tail
-            UINT uTail = rgChainHigh[uType];
+            uint32_t uTail = rgChainHigh[uType];
 
             // store tail in segment
-            pSegment->rgTail[uType] = (BYTE)uTail;
+            pSegment->rgTail[uType] = (uint8_t)uTail;
 
             // link tail to head
             pSegment->rgAllocation[uTail] = bBlock;
@@ -1748,6 +1736,21 @@ void SegmentResortChains(TableSegment *pSegment)
             // it back into this chain if so (the choice of block is arbitrary, this case is very rare).
             if (pSegment->rgBlockType[pSegment->rgHint[uType]] != uType)
                 pSegment->rgHint[uType] = bBlock;
+        }
+        else
+        {
+            // No blocks of this type were found in the rgBlockType array, meaning either there were no
+            // such blocks on entry to this function (in which case the associated tail is guaranteed
+            // to already be marked invalid) OR that there were blocks but all of them were reclaimed
+            // by the scavenging logic above (in which case the associated tail is guaranteed to point
+            // to one of the scavenged blocks). In the latter case, the tail is currently "stale"
+            // and therefore needs to be manually updated.
+            if (pSegment->rgTail[uType] != BLOCK_INVALID)
+            {
+                _ASSERTE(fScavengingOccurred);
+                pSegment->rgTail[uType] = BLOCK_INVALID;
+                pSegment->rgHint[uType] = BLOCK_INVALID;
+            }
         }
     }
 
@@ -1759,7 +1762,7 @@ void SegmentResortChains(TableSegment *pSegment)
         uEmptyLine = HANDLE_BLOCKS_PER_SEGMENT;
 
     // store the updated empty line
-    pSegment->bEmptyLine = (BYTE)uEmptyLine;
+    pSegment->bEmptyLine = (uint8_t)uEmptyLine;
 }
 
 /*
@@ -1773,8 +1776,8 @@ BOOL DoesSegmentNeedsToTrimExcessPages(TableSegment *pSegment)
     WRAPPER_NO_CONTRACT;
 
     // fetch the empty and decommit lines
-    UINT uEmptyLine    = pSegment->bEmptyLine;
-    UINT uDecommitLine = pSegment->bDecommitLine;
+    uint32_t uEmptyLine    = pSegment->bEmptyLine;
+    uint32_t uDecommitLine = pSegment->bDecommitLine;
 
     // check to see if we can decommit some handles
     // NOTE: we use '<' here to avoid playing ping-pong on page boundaries
@@ -1782,17 +1785,17 @@ BOOL DoesSegmentNeedsToTrimExcessPages(TableSegment *pSegment)
     if (uEmptyLine < uDecommitLine)
     {
         // derive some useful info about the page size
-        UINT_PTR dwPageRound = (UINT_PTR)g_SystemInfo.dwPageSize - 1;
-        UINT_PTR dwPageMask  = ~dwPageRound;
+        uintptr_t dwPageRound = (uintptr_t)OS_PAGE_SIZE - 1;
+        uintptr_t dwPageMask  = ~dwPageRound;
 
         // compute the address corresponding to the empty line
-        UINT_PTR dwLo = (UINT_PTR)pSegment->rgValue + (uEmptyLine  * HANDLE_BYTES_PER_BLOCK);
+        uintptr_t dwLo = (uintptr_t)pSegment->rgValue + (uEmptyLine  * HANDLE_BYTES_PER_BLOCK);
 
         // adjust the empty line address to the start of the nearest whole empty page
         dwLo = (dwLo + dwPageRound) & dwPageMask;
 
         // compute the address corresponding to the old commit line
-        UINT_PTR dwHi = (UINT_PTR)pSegment->rgValue + ((UINT)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
+        uintptr_t dwHi = (uintptr_t)pSegment->rgValue + ((uint32_t)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
 
         // is there anything to decommit?
         if (dwHi > dwLo)
@@ -1817,8 +1820,8 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
     WRAPPER_NO_CONTRACT;
 
     // fetch the empty and decommit lines
-    UINT uEmptyLine    = pSegment->bEmptyLine;
-    UINT uDecommitLine = pSegment->bDecommitLine;
+    uint32_t uEmptyLine    = pSegment->bEmptyLine;
+    uint32_t uDecommitLine = pSegment->bDecommitLine;
 
     // check to see if we can decommit some handles
     // NOTE: we use '<' here to avoid playing ping-pong on page boundaries
@@ -1826,39 +1829,39 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
     if (uEmptyLine < uDecommitLine)
     {
         // derive some useful info about the page size
-        UINT_PTR dwPageRound = (UINT_PTR)g_SystemInfo.dwPageSize - 1;
-        UINT_PTR dwPageMask  = ~dwPageRound;
+        uintptr_t dwPageRound = (uintptr_t)OS_PAGE_SIZE - 1;
+        uintptr_t dwPageMask  = ~dwPageRound;
 
         // compute the address corresponding to the empty line
-        UINT_PTR dwLo = (UINT_PTR)pSegment->rgValue + (uEmptyLine  * HANDLE_BYTES_PER_BLOCK);
+        uintptr_t dwLo = (uintptr_t)pSegment->rgValue + (uEmptyLine  * HANDLE_BYTES_PER_BLOCK);
 
         // adjust the empty line address to the start of the nearest whole empty page
         dwLo = (dwLo + dwPageRound) & dwPageMask;
 
         // compute the address corresponding to the old commit line
-        UINT_PTR dwHi = (UINT_PTR)pSegment->rgValue + ((UINT)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
+        uintptr_t dwHi = (uintptr_t)pSegment->rgValue + ((uint32_t)pSegment->bCommitLine * HANDLE_BYTES_PER_BLOCK);
 
         // is there anything to decommit?
         if (dwHi > dwLo)
         {
             // decommit the memory
-            ClrVirtualFree((LPVOID)dwLo, dwHi - dwLo, MEM_DECOMMIT);
+            GCToOSInterface::VirtualDecommit((void *)dwLo, dwHi - dwLo);
 
             // update the commit line
-            pSegment->bCommitLine = (BYTE)((dwLo - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
+            pSegment->bCommitLine = (uint8_t)((dwLo - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
 
             // compute the address for the new decommit line
-            size_t dwDecommitAddr = dwLo - g_SystemInfo.dwPageSize;
+            size_t dwDecommitAddr = dwLo - OS_PAGE_SIZE;
 
             // assume a decommit line of zero until we know otheriwse
             uDecommitLine = 0;
 
             // if the address is within the handle area then compute the line from the address
             if (dwDecommitAddr > (size_t)pSegment->rgValue)
-                uDecommitLine = (UINT)((dwDecommitAddr - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
+                uDecommitLine = (uint32_t)((dwDecommitAddr - (size_t)pSegment->rgValue) / HANDLE_BYTES_PER_BLOCK);
 
             // update the decommit line
-            pSegment->bDecommitLine = (BYTE)uDecommitLine;
+            pSegment->bDecommitLine = (uint8_t)uDecommitLine;
         }
     }
 }
@@ -1873,38 +1876,39 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
  * Returns the number of available handles actually allocated.
  *
  */
-UINT BlockAllocHandlesInMask(TableSegment *pSegment, UINT uBlock,
-                             ULONG32 *pdwMask, UINT uHandleMaskDisplacement,
-                             OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t BlockAllocHandlesInMask(TableSegment *pSegment, uint32_t uBlock,
+                             uint32_t *pdwMask, uint32_t uHandleMaskDisplacement,
+                             OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(uBlock);
 
     // keep track of how many handles we have left to allocate
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // fetch the free mask into a local so we can play with it
-    ULONG32 dwFree = *pdwMask;
+    uint32_t dwFree = *pdwMask;
 
     // keep track of our displacement within the mask
-    UINT uByteDisplacement = 0;
+    uint32_t uByteDisplacement = 0;
 
     // examine the mask byte by byte for free handles
     do
     {
         // grab the low byte of the mask
-        ULONG32 dwLowByte = (dwFree & MASK_LOBYTE);
+        uint32_t dwLowByte = (dwFree & MASK_LOBYTE);
 
         // are there any free handles here?
         if (dwLowByte)
         {
             // remember which handles we've taken
-            ULONG32 dwAlloc = 0;
+            uint32_t dwAlloc = 0;
 
             // loop until we've allocated all the handles we can from here
             do
             {
                 // get the index of the next handle
-                UINT uIndex = c_rgLowBitIndex[dwLowByte];
+                uint32_t uIndex = c_rgLowBitIndex[dwLowByte];
 
                 // compute the mask for the handle we chose
                 dwAlloc |= (1 << uIndex);
@@ -1949,10 +1953,11 @@ UINT BlockAllocHandlesInMask(TableSegment *pSegment, UINT uBlock,
  * Allocates a specified number of handles from a newly committed (empty) block.
  *
  */
-UINT BlockAllocHandlesInitial(TableSegment *pSegment, UINT uType, UINT uBlock,
-                              OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t BlockAllocHandlesInitial(TableSegment *pSegment, uint32_t uType, uint32_t uBlock,
+                                  OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     LIMITED_METHOD_CONTRACT;
+    UNREFERENCED_PARAMETER(uType);
 
     // sanity check
     _ASSERTE(uCount);
@@ -1965,10 +1970,10 @@ UINT BlockAllocHandlesInitial(TableSegment *pSegment, UINT uType, UINT uBlock,
     }
 
     // keep track of how many handles we have left to mark in masks
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // get the first mask for this block
-    ULONG32 *pdwMask = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
+    uint32_t *pdwMask = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
 
     // loop through the masks, zeroing the appropriate free bits
     do
@@ -1977,17 +1982,19 @@ UINT BlockAllocHandlesInitial(TableSegment *pSegment, UINT uType, UINT uBlock,
         _ASSERTE(*pdwMask == MASK_EMPTY);
 
         // pick an initial guess at the number to allocate
-        UINT uAlloc = uRemain;
+        uint32_t uAlloc = uRemain;
 
         // compute the default mask based on that count
-        ULONG32 dwNewMask = (MASK_EMPTY << uAlloc);
-
+        uint32_t dwNewMask;
         // are we allocating all of them?
         if (uAlloc >= HANDLE_HANDLES_PER_MASK)
         {
-            // shift above has unpredictable results in this case
-            dwNewMask = MASK_FULL;
+            dwNewMask = MASK_FULL; // avoid unpredictable shift
             uAlloc = HANDLE_HANDLES_PER_MASK;
+        }
+        else
+        {
+            dwNewMask = (MASK_EMPTY << uAlloc);
         }
 
         // set the free mask
@@ -2029,7 +2036,7 @@ UINT BlockAllocHandlesInitial(TableSegment *pSegment, UINT uType, UINT uBlock,
  * Returns the number of available handles actually allocated.
  *
  */
-UINT BlockAllocHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t BlockAllocHandles(TableSegment *pSegment, uint32_t uBlock, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2040,14 +2047,14 @@ UINT BlockAllocHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandl
     */
     
     // keep track of how many handles we have left to allocate
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // set up our loop and limit mask pointers
-    ULONG32 *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
-    ULONG32 *pdwMaskLast = pdwMask + HANDLE_MASKS_PER_BLOCK;
+    uint32_t *pdwMask     = pSegment->rgFreeMask + (uBlock * HANDLE_MASKS_PER_BLOCK);
+    uint32_t *pdwMaskLast = pdwMask + HANDLE_MASKS_PER_BLOCK;
 
     // keep track of the handle displacement for the mask we're scanning
-    UINT uDisplacement = uBlock * HANDLE_HANDLES_PER_BLOCK;
+    uint32_t uDisplacement = uBlock * HANDLE_HANDLES_PER_BLOCK;
 
     // loop through all the masks, allocating handles as we go
     do
@@ -2056,7 +2063,7 @@ UINT BlockAllocHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandl
         if (*pdwMask)
         {
             // allocate as many handles as we need from this mask
-            UINT uSatisfied = BlockAllocHandlesInMask(pSegment, uBlock, pdwMask, uDisplacement, pHandleBase, uRemain);
+            uint32_t uSatisfied = BlockAllocHandlesInMask(pSegment, uBlock, pdwMask, uDisplacement, pHandleBase, uRemain);
 
             // adjust our count and array pointer
             uRemain     -= uSatisfied;
@@ -2088,7 +2095,7 @@ UINT BlockAllocHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandl
  * Returns the number of available handles actually allocated.
  *
  */
-UINT SegmentAllocHandlesFromTypeChain(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t SegmentAllocHandlesFromTypeChain(TableSegment *pSegment, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2099,7 +2106,7 @@ UINT SegmentAllocHandlesFromTypeChain(TableSegment *pSegment, UINT uType, OBJECT
     */
     
     // fetch the number of handles available in this chain
-    UINT uAvail = pSegment->rgFreeCount[uType];
+    uint32_t uAvail = pSegment->rgFreeCount[uType];
 
     // is the available count greater than the requested count?
     if (uAvail > uCount)
@@ -2117,20 +2124,20 @@ UINT SegmentAllocHandlesFromTypeChain(TableSegment *pSegment, UINT uType, OBJECT
     if (uAvail)
     {
         // yes - fetch the head of the block chain and set up a loop limit
-        UINT uBlock = pSegment->rgHint[uType];
-        UINT uLast = uBlock;
+        uint32_t uBlock = pSegment->rgHint[uType];
+        uint32_t uLast = uBlock;
 
         // loop until we have found all handles known to be available
         for (;;)
         {
             // try to allocate handles from the current block
-            UINT uSatisfied = BlockAllocHandles(pSegment, uBlock, pHandleBase, uAvail);
+            uint32_t uSatisfied = BlockAllocHandles(pSegment, uBlock, pHandleBase, uAvail);
 
             // did we get everything we needed?
             if (uSatisfied == uAvail)
             {
                 // yes - update the hint for this type chain and get out
-                pSegment->rgHint[uType] = (BYTE)uBlock;
+                pSegment->rgHint[uType] = (uint8_t)uBlock;
                 break;
             }
 
@@ -2171,7 +2178,7 @@ UINT SegmentAllocHandlesFromTypeChain(TableSegment *pSegment, UINT uType, OBJECT
  * Returns the number of available handles actually allocated.
  *
  */
-UINT SegmentAllocHandlesFromFreeList(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t SegmentAllocHandlesFromFreeList(TableSegment *pSegment, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2182,20 +2189,20 @@ UINT SegmentAllocHandlesFromFreeList(TableSegment *pSegment, UINT uType, OBJECTH
     */
     
     // keep track of how many handles we have left to allocate
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // loop allocating handles until we are done or we run out of free blocks
     do
     {
         // start off assuming we can allocate all the handles
-        UINT uAlloc = uRemain;
+        uint32_t uAlloc = uRemain;
 
         // we can only get a block-full of handles at a time
         if (uAlloc > HANDLE_HANDLES_PER_BLOCK)
             uAlloc = HANDLE_HANDLES_PER_BLOCK;
 
         // try to get a block from the free list
-        UINT uBlock = SegmentInsertBlockFromFreeList(pSegment, uType, (uRemain == uCount));
+        uint32_t uBlock = SegmentInsertBlockFromFreeList(pSegment, uType, (uRemain == uCount));
 
         // if there are no free blocks left then we are done
         if (uBlock == BLOCK_INVALID)
@@ -2230,7 +2237,7 @@ UINT SegmentAllocHandlesFromFreeList(TableSegment *pSegment, UINT uType, OBJECTH
  * Returns the number of available handles actually allocated.
  *
  */
-UINT SegmentAllocHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t SegmentAllocHandles(TableSegment *pSegment, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2241,7 +2248,7 @@ UINT SegmentAllocHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHand
     */
     
     // first try to get some handles from the existing type chain
-    UINT uSatisfied = SegmentAllocHandlesFromTypeChain(pSegment, uType, pHandleBase, uCount);
+    uint32_t uSatisfied = SegmentAllocHandlesFromTypeChain(pSegment, uType, pHandleBase, uCount);
 
     // if there are still slots to be filled then we need to commit more blocks to the type chain
     if (uSatisfied < uCount)
@@ -2269,7 +2276,7 @@ UINT SegmentAllocHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHand
  * in which case it is the number of handles that were successfully allocated.
  *
  */
-UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t TableAllocBulkHandles(HandleTable *pTable, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2280,18 +2287,18 @@ UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandl
     */
     
     // keep track of how many handles we have left to allocate
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // start with the first segment and loop until we are done
     TableSegment *pSegment = pTable->pSegmentList;
 
-    BYTE bLastSequence = 0;
+    uint8_t bLastSequence = 0;
     BOOL fNewSegment = FALSE;
 
     for (;;)
     {
         // get some handles from the current segment
-        UINT uSatisfied = SegmentAllocHandles(pSegment, uType, pHandleBase, uRemain);
+        uint32_t uSatisfied = SegmentAllocHandles(pSegment, uType, pHandleBase, uRemain);
 
         // adjust our count and array pointer
         uRemain     -= uSatisfied;
@@ -2328,12 +2335,12 @@ UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandl
             }
 
             // set up the correct sequence number for the new segment
-            pNextSegment->bSequence = (BYTE)(((UINT)bLastSequence + 1) % 0x100);
+            pNextSegment->bSequence = (uint8_t)(((uint32_t)bLastSequence + 1) % 0x100);
             bLastSequence = pNextSegment->bSequence;
 
             // link the new segment into the list by the order of segment address
             TableSegment* pWalk = pTable->pSegmentList;
-            if ((ULONG_PTR)pNextSegment < (ULONG_PTR)pWalk)
+            if ((uintptr_t)pNextSegment < (uintptr_t)pWalk)
             {
                 pNextSegment->pNextSegment = pWalk;
                 pTable->pSegmentList = pNextSegment;
@@ -2347,7 +2354,7 @@ UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandl
                         pWalk->pNextSegment = pNextSegment;
                         break;
                     }
-                    else if ((ULONG_PTR)pWalk->pNextSegment > (ULONG_PTR)pNextSegment)
+                    else if ((uintptr_t)pWalk->pNextSegment > (uintptr_t)pNextSegment)
                     {
                         pNextSegment->pNextSegment = pWalk->pNextSegment;
                         pWalk->pNextSegment = pNextSegment;
@@ -2363,7 +2370,7 @@ UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandl
     }
 
     // compute the number of handles we actually got
-    UINT uAllocated = (uCount - uRemain);
+    uint32_t uAllocated = (uCount - uRemain);
 
     // update the count of handles marked as "used"
     pTable->dwCount += uAllocated;
@@ -2383,13 +2390,13 @@ UINT TableAllocBulkHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandl
  * Returns the number of handles that were freed from the front of the array.
  *
  */
-UINT BlockFreeHandlesInMask(TableSegment *pSegment, UINT uBlock, UINT uMask, OBJECTHANDLE *pHandleBase, UINT uCount,
-                            LPARAM *pUserData, UINT *puActualFreed, BOOL *pfAllMasksFree)
+uint32_t BlockFreeHandlesInMask(TableSegment *pSegment, uint32_t uBlock, uint32_t uMask, OBJECTHANDLE *pHandleBase, uint32_t uCount,
+                                uintptr_t *pUserData, uint32_t *puActualFreed, BOOL *pfAllMasksFree)
 {
     LIMITED_METHOD_CONTRACT;
 
     // keep track of how many handles we have left to free
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
 #ifdef _PREFAST_
 #pragma warning(push)
@@ -2412,10 +2419,10 @@ UINT BlockFreeHandlesInMask(TableSegment *pSegment, UINT uBlock, UINT uMask, OBJ
 #endif
 
     // keep a local copy of the free mask to update as we free handles
-    ULONG32 dwFreeMask = pSegment->rgFreeMask[uMask];
+    uint32_t dwFreeMask = pSegment->rgFreeMask[uMask];
 
     // keep track of how many bogus frees we are asked to do
-    UINT uBogus = 0;
+    uint32_t uBogus = 0;
 
     // loop freeing handles until we encounter one outside our block or there are none left
     do
@@ -2431,14 +2438,14 @@ UINT BlockFreeHandlesInMask(TableSegment *pSegment, UINT uBlock, UINT uMask, OBJ
         _ASSERTE(HndIsNullOrDestroyedHandle(*(_UNCHECKED_OBJECTREF *)handle));
 
         // compute the handle index within the mask
-        UINT uHandle = (UINT)(handle - firstHandle);
+        uint32_t uHandle = (uint32_t)(handle - firstHandle);
 
         // if there is user data then clear the user data for this handle
         if (pUserData)
             pUserData[uHandle] = 0L;
 
         // compute the mask bit for this handle
-        ULONG32 dwFreeBit = (1 << uHandle);
+        uint32_t dwFreeBit = (1 << uHandle);
 
         // the handle should not already be free
         if ((dwFreeMask & dwFreeBit) != 0)
@@ -2465,7 +2472,7 @@ UINT BlockFreeHandlesInMask(TableSegment *pSegment, UINT uBlock, UINT uMask, OBJ
         *pfAllMasksFree = FALSE;
 
     // compute the number of handles we processed from the array
-    UINT uFreed = (uCount - uRemain);
+    uint32_t uFreed = (uCount - uRemain);
 
     // tell the caller how many handles we actually freed
     *puActualFreed += (uFreed - uBogus);
@@ -2485,8 +2492,8 @@ UINT BlockFreeHandlesInMask(TableSegment *pSegment, UINT uBlock, UINT uMask, OBJ
  * Returns the number of handles that were freed from the front of the array.
  *
  */
-UINT BlockFreeHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandleBase, UINT uCount,
-                      UINT *puActualFreed, BOOL *pfScanForFreeBlocks)
+uint32_t BlockFreeHandles(TableSegment *pSegment, uint32_t uBlock, OBJECTHANDLE *pHandleBase, uint32_t uCount,
+                          uint32_t *puActualFreed, BOOL *pfScanForFreeBlocks)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2497,10 +2504,10 @@ UINT BlockFreeHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandle
     */
     
     // keep track of how many handles we have left to free
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // fetch the user data for this block, if any
-    LPARAM *pBlockUserData = BlockFetchUserDataPointer(pSegment, uBlock, FALSE);
+    uintptr_t *pBlockUserData = BlockFetchUserDataPointer(pSegment, uBlock, FALSE);
 
     // compute the handle bounds for our block
     OBJECTHANDLE firstHandle = (OBJECTHANDLE)(pSegment->rgValue + (uBlock * HANDLE_HANDLES_PER_BLOCK));
@@ -2520,10 +2527,10 @@ UINT BlockFreeHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandle
             break;
 
         // compute the mask that this handle resides in
-        UINT uMask = (UINT)((handle - firstHandle) / HANDLE_HANDLES_PER_MASK);
+        uint32_t uMask = (uint32_t)((handle - firstHandle) / HANDLE_HANDLES_PER_MASK);
 
         // free as many handles as this mask owns from the front of the array
-        UINT uFreed = BlockFreeHandlesInMask(pSegment, uBlock, uMask, pHandleBase, uRemain,
+        uint32_t uFreed = BlockFreeHandlesInMask(pSegment, uBlock, uMask, pHandleBase, uRemain,
                                              pBlockUserData, puActualFreed, &fAllMasksWeTouchedAreFree);
 
         // adjust our count and array pointer
@@ -2536,6 +2543,14 @@ UINT BlockFreeHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandle
     if (fAllMasksWeTouchedAreFree)
     {
         // is the block unlocked?
+        // NOTE: This check is incorrect and defeats the intended purpose of scavenging. If the
+        // current block is locked and has just been emptied, then it cannot be removed right now
+        // and therefore will nominally need to be scavenged. The only code that triggers
+        // scavenging is in SegmentRemoveFreeBlocks, and setting the flag is the only way to
+        // trigger a call into SegmentRemoveFreeBlocks call. As a result, by NOT setting the flag
+        // this code is generally PREVENTING scavenging in exactly the cases where scavenging is
+        // needed. The code is not being changed because it has always been this way and scavenging
+        // itself generally has extremely low value.
         if (!BlockIsLocked(pSegment, uBlock))
         {
             // tell the caller it might be a good idea to scan for free blocks
@@ -2558,7 +2573,7 @@ UINT BlockFreeHandles(TableSegment *pSegment, UINT uBlock, OBJECTHANDLE *pHandle
  * Returns the number of handles that were freed from the front of the array.
  *
  */
-UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+uint32_t SegmentFreeHandles(TableSegment *pSegment, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2569,7 +2584,7 @@ UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandl
     */
     
     // keep track of how many handles we have left to free
-    UINT uRemain = uCount;
+    uint32_t uRemain = uCount;
 
     // compute the handle bounds for our segment
     OBJECTHANDLE firstHandle = (OBJECTHANDLE)pSegment->rgValue;
@@ -2579,7 +2594,7 @@ UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandl
     BOOL fScanForFreeBlocks = FALSE;
 
     // track the number of handles we actually free
-    UINT uActualFreed = 0;
+    uint32_t uActualFreed = 0;
 
     // loop freeing handles until we encounter one outside our segment or there are none left
     do
@@ -2592,13 +2607,13 @@ UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandl
             break;
 
         // compute the block that this handle resides in
-        UINT uBlock = (UINT)(((UINT_PTR)handle - (UINT_PTR)firstHandle) / (HANDLE_SIZE * HANDLE_HANDLES_PER_BLOCK));
+        uint32_t uBlock = (uint32_t)(((uintptr_t)handle - (uintptr_t)firstHandle) / (HANDLE_SIZE * HANDLE_HANDLES_PER_BLOCK));
 
         // sanity check that this block is the type we expect to be freeing
         _ASSERTE(pSegment->rgBlockType[uBlock] == uType);
 
         // free as many handles as this block owns from the front of the array
-        UINT uFreed = BlockFreeHandles(pSegment, uBlock, pHandleBase, uRemain, &uActualFreed, &fScanForFreeBlocks);
+        uint32_t uFreed = BlockFreeHandles(pSegment, uBlock, pHandleBase, uRemain, &uActualFreed, &fScanForFreeBlocks);
 
         // adjust our count and array pointer
         uRemain     -= uFreed;
@@ -2607,7 +2622,7 @@ UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandl
     } while (uRemain);
 
     // compute the number of handles we actually freed
-    UINT uFreed = (uCount - uRemain);
+    uint32_t uFreed = (uCount - uRemain);
 
     // update the free count
     pSegment->rgFreeCount[uType] += uActualFreed;
@@ -2643,7 +2658,7 @@ UINT SegmentFreeHandles(TableSegment *pSegment, UINT uType, OBJECTHANDLE *pHandl
  * This routine is optimized for a sorted array of handles but will accept any order.
  *
  */
-void TableFreeBulkPreparedHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE *pHandleBase, UINT uCount)
+void TableFreeBulkPreparedHandles(HandleTable *pTable, uint32_t uType, OBJECTHANDLE *pHandleBase, uint32_t uCount)
 {
     //Update the count of handles marked as "used"
     pTable->dwCount -= uCount;
@@ -2666,7 +2681,7 @@ void TableFreeBulkPreparedHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE 
         _ASSERTE(pSegment->pHandleTable == pTable);
 
         // free as many handles as this segment owns from the front of the array
-        UINT uFreed = SegmentFreeHandles(pSegment, uType, pHandleBase, uCount);
+        uint32_t uFreed = SegmentFreeHandles(pSegment, uType, pHandleBase, uCount);
 
         // adjust our count and array pointer
         uCount      -= uFreed;
@@ -2683,7 +2698,7 @@ void TableFreeBulkPreparedHandles(HandleTable *pTable, UINT uType, OBJECTHANDLE 
  * Uses the supplied scratch buffer to prepare the handles.
  *
  */
-void TableFreeBulkUnpreparedHandlesWorker(HandleTable *pTable, UINT uType, const OBJECTHANDLE *pHandles, UINT uCount,
+void TableFreeBulkUnpreparedHandlesWorker(HandleTable *pTable, uint32_t uType, const OBJECTHANDLE *pHandles, uint32_t uCount,
                                           OBJECTHANDLE *pScratchBuffer)
 {
     WRAPPER_NO_CONTRACT;
@@ -2692,7 +2707,7 @@ void TableFreeBulkUnpreparedHandlesWorker(HandleTable *pTable, UINT uType, const
     memcpy(pScratchBuffer, pHandles, uCount * sizeof(OBJECTHANDLE));
  
     // sort them for optimal free order
-    QuickSort((UINT_PTR *)pScratchBuffer, 0, uCount - 1, CompareHandlesByFreeOrder);
+    QuickSort((uintptr_t *)pScratchBuffer, 0, uCount - 1, CompareHandlesByFreeOrder);
  
     // make sure the handles are zeroed too
     ZeroHandles(pScratchBuffer, uCount);
@@ -2709,13 +2724,12 @@ void TableFreeBulkUnpreparedHandlesWorker(HandleTable *pTable, UINT uType, const
  * TableFreeBulkPreparedHandlesWorker one or more times.
  *
  */
-void TableFreeBulkUnpreparedHandles(HandleTable *pTable, UINT uType, const OBJECTHANDLE *pHandles, UINT uCount)
+void TableFreeBulkUnpreparedHandles(HandleTable *pTable, uint32_t uType, const OBJECTHANDLE *pHandles, uint32_t uCount)
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         WRAPPER(GC_TRIGGERS);
-        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 
@@ -2723,7 +2737,7 @@ void TableFreeBulkUnpreparedHandles(HandleTable *pTable, UINT uType, const OBJEC
     OBJECTHANDLE rgStackHandles[HANDLE_HANDLES_PER_BLOCK];
     OBJECTHANDLE *pScratchBuffer  = rgStackHandles;
     OBJECTHANDLE *pLargeScratchBuffer  = NULL;
-    UINT         uFreeGranularity = _countof(rgStackHandles);
+    uint32_t     uFreeGranularity = _countof(rgStackHandles);
  
     // if there are more handles than we can put on the stack then try to allocate a sorting buffer
     if (uCount > uFreeGranularity)

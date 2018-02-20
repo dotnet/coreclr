@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // FILE: dwbucketmanager.hpp
 //
@@ -324,7 +323,6 @@ private:
     void FindFaultingMethodInfo();
     OBJECTREF GetRealExceptionObject();
     WCHAR* GetParamBufferForIndex(BucketParameterIndex paramIndex);
-    int CopyStringToBucket(__out_ecount(targetMaxLength) LPWSTR pTargetParam, int targetMaxLength, __in_z LPCWSTR pSource, bool cannonicalize = false);
     void LogParam(__in_z LPCWSTR paramValue, BucketParameterIndex paramIndex);
     
 protected:
@@ -350,7 +348,7 @@ protected:
 
 public:
     BaseBucketParamsManager(GenericModeBlock* pGenericModeBlock, TypeOfReportedError typeOfError, PCODE initialFaultingPc, Thread* pFaultingThread, OBJECTREF* pThrownException);
-
+    static int CopyStringToBucket(__out_ecount(targetMaxLength) LPWSTR pTargetParam, int targetMaxLength, __in_z LPCWSTR pSource, bool cannonicalize = false);
     // function that consumers should call to populate the GMB
     virtual void PopulateBucketParameters() = 0;
 };
@@ -486,10 +484,10 @@ void BaseBucketParamsManager::GetAppName(__out_ecount(maxLength) WCHAR* targetPa
     CONTRACTL_END;
 
     HMODULE hModule = WszGetModuleHandle(NULL);
-    WCHAR appPath[MAX_PATH];
-    DWORD cchAppPath = NumItems(appPath);
+    PathString appPath;
+    
 
-    if (GetCurrentModuleFileName(appPath, &cchAppPath) == S_OK)
+    if (GetCurrentModuleFileName(appPath) == S_OK)
     {
         CopyStringToBucket(targetParam, maxLength, appPath);
     }
@@ -510,13 +508,13 @@ void BaseBucketParamsManager::GetAppVersion(__out_ecount(maxLength) WCHAR* targe
     CONTRACTL_END;
 
     HMODULE hModule = WszGetModuleHandle(NULL);
-    WCHAR appPath[MAX_PATH];
-    DWORD cchAppPath = NumItems(appPath);
+    PathString appPath;
+    
 
-    WCHAR verBuf[23];
+    WCHAR verBuf[23] = {0};
     USHORT major, minor, build, revision;
 
-    if ((GetCurrentModuleFileName(appPath, &cchAppPath) == S_OK) && SUCCEEDED(DwGetFileVersionInfo(appPath, major, minor, build, revision)))
+    if ((GetCurrentModuleFileName(appPath) == S_OK) && SUCCEEDED(DwGetFileVersionInfo(appPath, major, minor, build, revision)))
     {
         _snwprintf_s(targetParam,
             maxLength,
@@ -889,27 +887,7 @@ void BaseBucketParamsManager::GetPackageMoniker(__out_ecount(maxLength) WCHAR* t
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORECLR
-    bool success = false;
-    EX_TRY
-    {
-        wcsncpy_s(targetParam, maxLength, AppX::GetHeadPackageMoniker(), _TRUNCATE);
-        success = true;
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-
-    if (!success)
-    {
-        // should this ever legitimately fail??
-        _ASSERTE(!"failed to get package moniker for watson");
-        wcsncpy_s(targetParam, maxLength, W("missing"), _TRUNCATE);
-    }
-#else
     _ASSERTE(!"AppX support NYI for CoreCLR");
-#endif // FEATURE_CORECLR
 }
 
 void BaseBucketParamsManager::GetPRAID(__out_ecount(maxLength) WCHAR* targetParam, int maxLength)
@@ -922,25 +900,7 @@ void BaseBucketParamsManager::GetPRAID(__out_ecount(maxLength) WCHAR* targetPara
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORECLR
-    LPCWSTR pPraid = NULL;
-    if (SUCCEEDED(AppX::GetApplicationId(pPraid)))
-    {
-        _snwprintf_s(targetParam,
-                    maxLength,
-                    _TRUNCATE,
-                    W("praid:%s"),
-                    pPraid);
-    }
-    else
-    {
-        // should this ever legitimately fail??
-        _ASSERTE(!"failed to get PRAID for watson");
-        wcsncpy_s(targetParam, maxLength, W("missing"), _TRUNCATE);
-    }
-#else
     _ASSERTE(!"PRAID support NYI for CoreCLR");
-#endif
 }
 
 void BaseBucketParamsManager::GetIlRva(__out_ecount(maxLength) WCHAR* targetParam, int maxLength)
@@ -1477,11 +1437,6 @@ WatsonBucketType GetWatsonBucketType()
     }
     CONTRACTL_END;
 
-#if defined(FEATURE_APPX) && !defined(FEATURE_CORECLR)
-    if (AppX::IsAppXProcess() && !AppX::IsAppXNGen())
-        return MoCrash;
-    else
-#endif // FEATURE_APPX
 
 #ifdef FEATURE_WINDOWSPHONE
         return WinPhoneCrash;

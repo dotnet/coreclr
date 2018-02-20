@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: ILStubResolver.h
 // 
@@ -65,8 +64,8 @@ public:
 
     void SetTokenLookupMap(TokenLookupMap* pMap);
 
-    void SetJitFlags(DWORD dwJitFlags);
-    DWORD GetJitFlags();
+    void SetJitFlags(CORJIT_FLAGS jitFlags);
+    CORJIT_FLAGS GetJitFlags();
 
     static void StubGenFailed(ILStubResolver* pResolver);
 
@@ -83,8 +82,11 @@ protected:
 #ifdef FEATURE_ARRAYSTUB_AS_IL 
         ArrayOpStub,
 #endif
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
         MulticastDelegateStub,
+#endif
+#ifdef FEATURE_STUBS_AS_IL
+        SecureDelegateStub,
         UnboxingILStub,
         InstantiatingStub,
 #endif
@@ -116,7 +118,7 @@ protected:
     PTR_MethodDesc          m_pStubMD;
     PTR_MethodDesc          m_pStubTargetMD;
     ILStubType              m_type;
-    DWORD                   m_dwJitFlags;
+    CORJIT_FLAGS            m_jitFlags;
 };
 
 typedef Holder<ILStubResolver*, DoNothing<ILStubResolver*>, ILStubResolver::StubGenFailed, NULL> ILStubGenHolder;

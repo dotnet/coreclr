@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -7,9 +8,10 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -25,19 +27,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private VectorViewToReadOnlyCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // int Count { get }
-        [Pure]
-        [SecurityCritical]
         internal int Count<T>()
         {
-            IVectorView<T> _this = JitHelpers.UnsafeCast<IVectorView<T>>(this);
+            IVectorView<T> _this = Unsafe.As<IVectorView<T>>(this);
             uint size = _this.Size;
             if (((uint)Int32.MaxValue) < size)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
             return (int)size;

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #pragma once
 
@@ -31,8 +30,6 @@
 class LinearReadCache;
 class CGCDesc;
 class CGCDescSeries;
-
-#ifndef FEATURE_PAL
 
 namespace sos
 {
@@ -224,14 +221,14 @@ namespace sos
          * valid through the lifetime of the MethodTable object and should not be
          * freed.
          */
-        const wchar_t *GetName() const;
+        const WCHAR *GetName() const;
 
     private:
         void Clear();
 
     private:
         TADDR mMT;
-        mutable wchar_t *mName;
+        mutable WCHAR *mName;
     };
 
     /* This represents an object on the GC heap in the target process.  This class
@@ -322,7 +319,7 @@ namespace sos
          * Throws:
          *   DataRead - we failed to read the object header.
          */
-        unsigned long GetHeader() const;
+        ULONG GetHeader() const;
         
         /* Gets the header for the current object, does not throw any exception.
          * Params:
@@ -330,7 +327,7 @@ namespace sos
          * Returns:
          *   True if we successfully read the object header, false otherwise.
          */
-        bool TryGetHeader(unsigned long &outHeader) const;
+        bool TryGetHeader(ULONG &outHeader) const;
         
         /* Returns the method table of the object this represents.
          * Throws:
@@ -418,7 +415,7 @@ namespace sos
          *   True if the string data was successfully requested and placed in
          *   buffer, false otherwise.
          */
-        bool GetStringData(__out_ecount(size) wchar_t *buffer, size_t size) const;
+        bool GetStringData(__out_ecount(size) WCHAR *buffer, size_t size) const;
 
         /* Returns the name of the type of this object.  E.g. System.String.
          * Throws:
@@ -426,7 +423,7 @@ namespace sos
          * Returns:
          *    A string containing the type of the object.
          */
-        wchar_t *GetTypeName() const;
+        const WCHAR *GetTypeName() const;
 
     private:
         void FillMTData() const;
@@ -444,7 +441,7 @@ namespace sos
         mutable size_t mSize;
         mutable bool mPointers;
         mutable DacpMethodTableData *mMTData;
-        mutable wchar_t *mTypeName;
+        mutable WCHAR *mTypeName;
     };
 
     /* Enumerates all the GC references (objects) contained in an object.  This uses the GCDesc
@@ -556,7 +553,7 @@ namespace sos
          */
         inline operator void *() const
         {
-            return (void*)(mCurrHeap == mNumHeaps ? 0 : 1);
+            return (void*)(SIZE_T)(mCurrHeap == mNumHeaps ? 0 : 1);
         }
 
         /* Do not use.
@@ -725,7 +722,7 @@ namespace sos
 
         inline operator void *() const
         {
-            return (void*)(mCurr <= mTotal ? 1 : 0);
+            return (void*)(SIZE_T)(mCurr <= mTotal ? 1 : 0);
         }
 
     private:
@@ -791,7 +788,5 @@ namespace sos
     }
     
     
-    void BuildTypeWithExtraInfo(TADDR addr, unsigned int size, __inout_ecount(size) wchar_t *buffer);
+    void BuildTypeWithExtraInfo(TADDR addr, unsigned int size, __inout_ecount(size) WCHAR *buffer);
 }
-
-#endif // !FEATURE_PAL

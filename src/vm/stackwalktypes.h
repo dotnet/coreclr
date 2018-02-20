@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================================
 // File: stackwalktypes.h
 //
@@ -105,8 +104,9 @@ struct StackwalkCacheUnwindInfo
     #define STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY 0x8
 #endif // !_WIN64
 
-DECLSPEC_ALIGN(STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY) 
-struct StackwalkCacheEntry
+struct 
+DECLSPEC_ALIGN(STACKWALK_CACHE_ENTRY_ALIGN_BOUNDARY)
+StackwalkCacheEntry
 {
     //
     //  don't rearrange the fields, so that invalid value 0x8000000000000000 will never appear
@@ -199,6 +199,8 @@ static_assert_no_msg(sizeof(StackwalkCacheEntry) == 2 * sizeof(UINT_PTR));
 
 class StackwalkCache 
 {
+    friend struct _DacGlobals;
+
     public:
         BOOL Lookup(UINT_PTR IP);
         void Insert(StackwalkCacheEntry *pCacheEntry);

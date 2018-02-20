@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -52,7 +51,10 @@ LoaderAllocator::LoaderAllocator()
     m_pFatTokenSet = NULL;
 #endif
     
+#ifndef CROSSGEN_COMPILE
     m_pVirtualCallStubManager = NULL;
+#endif
+
     m_fGCPressure = false;
     m_fTerminated = false;
     m_fUnloaded = false;
@@ -298,7 +300,7 @@ BOOL LoaderAllocator::EnsureInstantiation(Module *pDefiningModule, Instantiation
 {
     return FALSE;
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 #ifndef CROSSGEN_COMPILE
 bool LoaderAllocator::Marked()
@@ -881,15 +883,15 @@ void LoaderAllocator::ActivateManagedTracking()
     LOADERALLOCATORREF loaderAllocator = (LOADERALLOCATORREF)ObjectFromHandle(m_hLoaderAllocatorObjectHandle);
     loaderAllocator->SetNativeLoaderAllocator(this);
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 
 // We don't actually allocate a low frequency heap for collectible types
-#define COLLECTIBLE_LOW_FREQUENCY_HEAP_SIZE        (0 * PAGE_SIZE)
-#define COLLECTIBLE_HIGH_FREQUENCY_HEAP_SIZE       (3 * PAGE_SIZE)
-#define COLLECTIBLE_STUB_HEAP_SIZE                 PAGE_SIZE
-#define COLLECTIBLE_CODEHEAP_SIZE                  (7 * PAGE_SIZE)
-#define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (5 * PAGE_SIZE)
+#define COLLECTIBLE_LOW_FREQUENCY_HEAP_SIZE        (0 * GetOsPageSize())
+#define COLLECTIBLE_HIGH_FREQUENCY_HEAP_SIZE       (3 * GetOsPageSize())
+#define COLLECTIBLE_STUB_HEAP_SIZE                 GetOsPageSize()
+#define COLLECTIBLE_CODEHEAP_SIZE                  (7 * GetOsPageSize())
+#define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (5 * GetOsPageSize())
 
 void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 {
@@ -938,9 +940,9 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 #ifdef FEATURE_WINDOWSPHONE
         // code:UMEntryThunk::CreateUMEntryThunk allocates memory on executable loader heap for phone.
         // Reserve enough for a typical phone app to fit.
-        dwExecutableHeapReserveSize = 3 * PAGE_SIZE;
+        dwExecutableHeapReserveSize = 3 * GetOsPageSize();
 #else
-        dwExecutableHeapReserveSize = PAGE_SIZE;
+        dwExecutableHeapReserveSize = GetOsPageSize();
 #endif
 
         _ASSERTE(dwExecutableHeapReserveSize < dwHighFrequencyHeapReserveSize);
@@ -1003,7 +1005,8 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
                                                                       dwExecutableHeapReserveSize,
                                                                       LOADERHEAP_PROFILE_COUNTER,
                                                                       NULL,
-                                                                      TRUE /* Make heap executable */);
+                                                                      TRUE /* Make heap executable */
+                                                                      );
         initReservedMem += dwExecutableHeapReserveSize;
     }
 
@@ -1036,7 +1039,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 #endif
 
 #ifdef CROSSGEN_COMPILE
-    m_pPrecodeHeap = new (&m_PrecodeHeapInstance) LoaderHeap(PAGE_SIZE, PAGE_SIZE);
+    m_pPrecodeHeap = new (&m_PrecodeHeapInstance) LoaderHeap(GetOsPageSize(), GetOsPageSize());
 #else
     m_pPrecodeHeap = new (&m_PrecodeHeapInstance) CodeFragmentHeap(this, STUB_CODE_BLOCK_PRECODE);
 #endif
@@ -1217,7 +1220,7 @@ void LoaderAllocator::Terminate()
     LOG((LF_CLASSLOADER, LL_INFO100, "End LoaderAllocator::Terminate for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(this))));
 }
 
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 
 #else //DACCESS_COMPILE
@@ -1260,8 +1263,10 @@ SIZE_T LoaderAllocator::EstimateSize()
         retval+=m_pStubHeap->GetSize();   
     if(m_pStringLiteralMap)
         retval+=m_pStringLiteralMap->GetSize();
+#ifndef CROSSGEN_COMPILE
     if(m_pVirtualCallStubManager)
         retval+=m_pVirtualCallStubManager->GetSize();
+#endif
 
     return retval;    
 }
@@ -1421,9 +1426,9 @@ void LoaderAllocator::UninitVirtualCallStubManager()
         m_pVirtualCallStubManager = NULL;
     }
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
-#endif // DACCESS_COMPILE
+#endif // !DACCESS_COMPILE
 
 BOOL GlobalLoaderAllocator::CanUnload()
 {
@@ -1444,14 +1449,12 @@ BOOL AppDomainLoaderAllocator::CanUnload()
     return m_Id.GetAppDomain()->CanUnload();
 }
 
-#ifndef CROSSGEN_COMPILE
 BOOL AssemblyLoaderAllocator::CanUnload()
 {
     LIMITED_METHOD_CONTRACT;
 
     return TRUE;
 }
-#endif // CROSSGEN_COMPILE
 
 BOOL LoaderAllocator::IsDomainNeutral()
 {
@@ -1663,6 +1666,6 @@ void LoaderAllocator::CleanupFailedTypeInit()
         pLock->Unlink(pItem->m_pListLockEntry);
     }
 }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
-#endif //!DACCES_COMPILE
+#endif // !DACCESS_COMPILE

@@ -1,15 +1,17 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,14 +29,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IterableToEnumerableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
-        
+
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable<T>.
-        [SecurityCritical]
         internal IEnumerator<T> GetEnumerator_Stub<T>()
         {
-            IIterable<T> _this = JitHelpers.UnsafeCast<IIterable<T>>(this);
+            IIterable<T> _this = Unsafe.As<IIterable<T>>(this);
             return new IteratorToEnumeratorAdapter<T>(_this.First());
         }
 
@@ -42,7 +43,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // and it is possible that the implementation supports IEnumerable<Type>/IEnumerable<string>/IEnumerable<Exception>/
         // IEnumerable<array>/IEnumerable<delegate> rather than IEnumerable<T> because T is assignable from Type/string/
         // Exception/array/delegate via co-variance.
-        [SecurityCritical]
         internal IEnumerator<T> GetEnumerator_Variance_Stub<T>() where T : class
         {
             bool fUseString;
@@ -53,12 +53,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (target != null)
             {
-                return (JitHelpers.UnsafeCast<GetEnumerator_Delegate<T>>(target))();
+                return (Unsafe.As<GetEnumerator_Delegate<T>>(target))();
             }
-            
+
             if (fUseString)
             {
-                return JitHelpers.UnsafeCast<IEnumerator<T>>(GetEnumerator_Stub<string>());
+                return Unsafe.As<IEnumerator<T>>(GetEnumerator_Stub<string>());
             }
 
             return GetEnumerator_Stub<T>();
@@ -69,7 +69,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private BindableIterableToEnumerableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         private sealed class NonGenericToGenericIterator : IIterator<object>
@@ -79,17 +79,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             public NonGenericToGenericIterator(IBindableIterator iterator)
             { this.iterator = iterator; }
 
-            public object Current  { get { return iterator.Current; } }
+            public object Current { get { return iterator.Current; } }
             public bool HasCurrent { get { return iterator.HasCurrent; } }
             public bool MoveNext() { return iterator.MoveNext(); }
             public int GetMany(object[] items) { throw new NotSupportedException(); }
         }
 
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable.
-        [SecurityCritical]
         internal IEnumerator GetEnumerator_Stub()
         {
-            IBindableIterable _this = JitHelpers.UnsafeCast<IBindableIterable>(this);
+            IBindableIterable _this = Unsafe.As<IBindableIterable>(this);
             return new IteratorToEnumeratorAdapter<object>(new NonGenericToGenericIterator(_this.First()));
         }
     }
@@ -110,7 +109,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal IteratorToEnumeratorAdapter(IIterator<T> iterator)
         {
-            Contract.Requires(iterator != null);
+            Debug.Assert(iterator != null);
             m_iterator = iterator;
             m_hadCurrent = true;
             m_isInitialized = false;
@@ -122,10 +121,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                 // The enumerator has reached the end of the collection
                 if (!m_hadCurrent)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                 return m_current;
             }
         }
@@ -136,15 +135,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                 // The enumerator has reached the end of the collection
                 if (!m_hadCurrent)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                 return m_current;
             }
         }
 
-        [SecuritySafeCritical]
         public bool MoveNext()
         {
             // If we've passed the end of the iteration, IEnumerable<T> should return false, while
@@ -184,9 +182,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception e)
             {
                 // Translate E_CHANGED_STATE into an InvalidOperationException for an updated enumeration
-                if (Marshal.GetHRForException(e) == __HResults.E_CHANGED_STATE)
+                if (Marshal.GetHRForException(e) == HResults.E_CHANGED_STATE)
                 {
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+                    ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
                 else
                 {

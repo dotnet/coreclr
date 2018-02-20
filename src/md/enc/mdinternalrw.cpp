@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 //  File: MDInternalRW.cpp
 // 
@@ -2394,7 +2393,7 @@ HRESULT MDInternalRW::GetItemGuid(      // return hresult
 
     // Get the GUID, if any.
     hr = GetCustomAttributeByName(tkObj, INTEROP_GUID_TYPE, (const void**)&pBlob, &cbBlob);
-    if (hr != S_FALSE)
+    if (SUCCEEDED(hr) && hr != S_FALSE)
     {
         // Should be in format.  Total length == 41
         // <0x0001><0x24>01234567-0123-0123-0123-001122334455<0x0000>

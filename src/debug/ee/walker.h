@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: walker.h
 // 
@@ -13,6 +12,7 @@
 
 #ifndef WALKER_H_
 #define WALKER_H_
+
 
 /* ========================================================================= */
 
@@ -41,6 +41,7 @@ struct InstructionAttribute
     bool m_fIsAbsBranch;    // is this an absolute branch (either a call or a jump)?
     bool m_fIsRelBranch;    // is this a relative branch (either a call or a jump)?
     bool m_fIsWrite;        // does the instruction write to an address?
+   
 
     DWORD m_cbInstr;        // the size of the instruction
     DWORD m_cbDisp;         // the size of the displacement
@@ -55,7 +56,6 @@ struct InstructionAttribute
         m_fIsAbsBranch = false;
         m_fIsRelBranch = false;
         m_fIsWrite = false;
-        
         m_cbInstr = 0;
         m_cbDisp  = 0;
         m_dwOffsetToDisp = 0;
@@ -103,7 +103,7 @@ public:
     // We don't currently keep the registers up to date
     // <TODO> Check if it really works on IA64. </TODO>
     virtual void Next() { m_registers = NULL; SetIP(m_nextIP); }
-    virtual void Skip() { m_registers = NULL; SetIP(m_skipIP); }
+    virtual void Skip() { m_registers = NULL; LOG((LF_CORDB, LL_INFO10000, "skipping over to %p \n", m_skipIP)); SetIP(m_skipIP); }
 
     // Decode the instruction
     virtual void Decode() = 0;
@@ -197,7 +197,25 @@ private:
 
     DWORD m_opcode;           // Current instruction or opcode
 };
+#elif defined (_TARGET_ARM64_)
+#include "controller.h"
+class NativeWalker : public Walker
+{
+public:
+    void Init(const BYTE *ip, REGDISPLAY *pregisters)
+    {
+        Walker::Init(ip, pregisters);
+    }
+    void Decode();
+    static void NativeWalker::DecodeInstructionForPatchSkip(const BYTE *address, InstructionAttribute * pInstrAttrib)
+    {
+        pInstrAttrib->Reset();
+    }
+    static BOOL  NativeWalker::DecodePCRelativeBranchInst(PT_CONTEXT context,const PRD_TYPE& opcode, PCODE& offset, WALK_TYPE& walk);
+    static BOOL  NativeWalker::DecodeCallInst(const PRD_TYPE& opcode, int& RegNum, WALK_TYPE& walk);
+    static BYTE* SetupOrSimulateInstructionForPatchSkip(T_CONTEXT * context, SharedPatchBypassBuffer * m_pSharedPatchBypassBuffer, const BYTE *address, PRD_TYPE opcode);
 
+};
 #else
 PORTABILITY_WARNING("NativeWalker not implemented on this platform");
 class NativeWalker : public Walker

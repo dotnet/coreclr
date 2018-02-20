@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ECALL.CPP -
 //
 // Handles our private native calling interface.
@@ -37,6 +36,7 @@ static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 1 == METHOD__STRING__CTORF_CH
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 2 == METHOD__STRING__CTORF_CHAR_COUNT);
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 3 == METHOD__STRING__CTORF_CHARPTR);
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 4 == METHOD__STRING__CTORF_CHARPTR_START_LEN);
+static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 5 == METHOD__STRING__CTORF_READONLYSPANOFCHAR);
 
 // ECall::CtorCharXxx has to be in same order as METHOD__STRING__CTORF_XXX
 #define ECallCtor_First ECall::CtorCharArrayManaged
@@ -45,8 +45,9 @@ static_assert_no_msg(ECallCtor_First + 1 == ECall::CtorCharArrayStartLengthManag
 static_assert_no_msg(ECallCtor_First + 2 == ECall::CtorCharCountManaged);
 static_assert_no_msg(ECallCtor_First + 3 == ECall::CtorCharPtrManaged);
 static_assert_no_msg(ECallCtor_First + 4 == ECall::CtorCharPtrStartLengthManaged);
+static_assert_no_msg(ECallCtor_First + 5 == ECall::CtorReadOnlySpanOfCharManaged);
 
-#define NumberOfStringConstructors 5
+#define NumberOfStringConstructors 6
 
 void ECall::PopulateManagedStringConstructors()
 {
@@ -224,12 +225,8 @@ DWORD ECall::GetIDForMethod(MethodDesc *pMD)
     }
     CONTRACTL_END;
 
-#ifndef MDIL
     // We should not go here for NGened methods
-    // However, we will come here for MDIL binder generated images because the 
-    // IDs for FCALLS are not exernally known (and certainly not constant).
     _ASSERTE(!pMD->IsZapped());
-#endif
 
     INT ImplsIndex = FindImplsIndexForClass(pMD->GetMethodTable());
     if (ImplsIndex < 0)
@@ -560,10 +557,6 @@ LPVOID ECall::GetQCallImpl(MethodDesc * pMD)
 
     CONSISTENCY_CHECK_MSGF(cur->IsQCall(), 
         ("%s::%s is not registered using QCFuncElement macro in ecall.cpp",
-        pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
-
-    CONSISTENCY_CHECK_MSGF(pMD->HasSuppressUnmanagedCodeAccessAttr(),       
-        ("%s::%s is not marked with SuppressUnmanagedCodeSecurityAttribute()", 
         pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
 
     DWORD dwAttrs = pMD->GetAttrs();

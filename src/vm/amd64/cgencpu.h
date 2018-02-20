@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // CGENCPU.H -
 //
 // Various helper routines for generating AMD64 assembly code.
@@ -56,10 +55,9 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 //#define HAS_REMOTING_PRECODE                  1    // TODO: Implement
-#if !defined(__APPLE__)
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
-#endif
+#define FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS 1
 
 // ThisPtrRetBufPrecode one is necessary for closed delegates over static methods with return buffer
 #define HAS_THISPTR_RETBUF_PRECODE              1
@@ -68,14 +66,17 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 #define CACHE_LINE_SIZE                         64   // Current AMD64 processors have 64-byte cache lines as per AMD64 optmization manual
 #define LOG2SLOT                                LOG2_PTRSIZE
 
-#define ENREGISTERED_RETURNTYPE_MAXSIZE         8    // bytes
-#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
-#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
 
 #ifdef UNIX_AMD64_ABI
-#define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
-#define CALLDESCR_FPARGREGS                     1   // CallDescrWorker has FloatArgumentRegisters parameter
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 16   // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          16   // bytes
+#define ENREGISTERED_RETURNTYPE_MAXSIZE         16   // bytes
+#define CALLDESCR_ARGREGS                       1    // CallDescrWorker has ArgumentRegister parameter
+#define CALLDESCR_FPARGREGS                     1    // CallDescrWorker has FloatArgumentRegisters parameter
 #else
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
+#define ENREGISTERED_RETURNTYPE_MAXSIZE         8    // bytes
 #define COM_STUBS_SEPARATE_FP_LOCATIONS
 #define CALLDESCR_REGTYPEMAP                    1
 #endif
@@ -83,7 +84,9 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 #define INSTRFMT_K64SMALL
 #define INSTRFMT_K64
 
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 //
 // REX prefix byte
@@ -101,13 +104,6 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 #define X86RegFromAMD64Reg(extended_reg) \
             ((X86Reg)(((int)extended_reg) & X86_REGISTER_MASK))
 
-// Max size of optimized TLS helpers
-#ifdef _DEBUG
-// Debug build needs extra space for last error trashing
-#define TLS_GETTER_MAX_SIZE 0x30
-#else
-#define TLS_GETTER_MAX_SIZE 0x18
-#endif
 
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
@@ -175,23 +171,7 @@ typedef INT64 StackElemType;
 // This represents some of the TransitionFrame fields that are
 // stored at negative offsets.
 //--------------------------------------------------------------------
-typedef DPTR(struct CalleeSavedRegisters) PTR_CalleeSavedRegisters;
-struct CalleeSavedRegisters {
-#ifndef UNIX_AMD64_ABI
-    INT_PTR     rdi;
-    INT_PTR     rsi;
-#endif
-    INT_PTR     rbx;
-    INT_PTR     rbp;
-    INT_PTR     r12;
-    INT_PTR     r13;
-    INT_PTR     r14;
-    INT_PTR     r15;
-};
-
 struct REGDISPLAY;
-
-void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegisters * pRegs);
 
 //--------------------------------------------------------------------
 // This represents the arguments that are stored in volatile registers.
@@ -213,6 +193,18 @@ void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegis
 
 #define NUM_ARGUMENT_REGISTERS 6
 
+// The order of registers in this macro is hardcoded in assembly code
+// at number of places
+#define ENUM_CALLEE_SAVED_REGISTERS() \
+    CALLEE_SAVED_REGISTER(R12) \
+    CALLEE_SAVED_REGISTER(R13) \
+    CALLEE_SAVED_REGISTER(R14) \
+    CALLEE_SAVED_REGISTER(R15) \
+    CALLEE_SAVED_REGISTER(Rbx) \
+    CALLEE_SAVED_REGISTER(Rbp)
+
+#define NUM_CALLEE_SAVED_REGISTERS 6
+
 #else // UNIX_AMD64_ABI
 
 #define ENUM_ARGUMENT_REGISTERS() \
@@ -223,6 +215,20 @@ void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegis
 
 #define NUM_ARGUMENT_REGISTERS 4
 
+// The order of registers in this macro is hardcoded in assembly code
+// at number of places
+#define ENUM_CALLEE_SAVED_REGISTERS() \
+    CALLEE_SAVED_REGISTER(Rdi) \
+    CALLEE_SAVED_REGISTER(Rsi) \
+    CALLEE_SAVED_REGISTER(Rbx) \
+    CALLEE_SAVED_REGISTER(Rbp) \
+    CALLEE_SAVED_REGISTER(R12) \
+    CALLEE_SAVED_REGISTER(R13) \
+    CALLEE_SAVED_REGISTER(R14) \
+    CALLEE_SAVED_REGISTER(R15)
+
+#define NUM_CALLEE_SAVED_REGISTERS 8
+
 #endif // UNIX_AMD64_ABI
 
 typedef DPTR(struct ArgumentRegisters) PTR_ArgumentRegisters;
@@ -232,24 +238,48 @@ struct ArgumentRegisters {
     #undef ARGUMENT_REGISTER
 };
 
+typedef DPTR(struct CalleeSavedRegisters) PTR_CalleeSavedRegisters;
+struct CalleeSavedRegisters {
+    #define CALLEE_SAVED_REGISTER(regname) INT_PTR regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+    #undef CALLEE_SAVED_REGISTER
+};
+
+struct CalleeSavedRegistersPointers {
+    #define CALLEE_SAVED_REGISTER(regname) PTR_TADDR p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+    #undef CALLEE_SAVED_REGISTER
+};
+
 #define SCRATCH_REGISTER_X86REG kRAX
 
 #ifdef UNIX_AMD64_ABI
 #define THIS_REG RDI
 #define THIS_kREG kRDI
+
+#define ARGUMENT_kREG1 kRDI
+#define ARGUMENT_kREG2 kRSI
 #else
 #define THIS_REG RCX
 #define THIS_kREG kRCX
+
+#define ARGUMENT_kREG1 kRCX
+#define ARGUMENT_kREG2 kRDX
 #endif
 
 #ifdef UNIX_AMD64_ABI
 
+#define NUM_FLOAT_ARGUMENT_REGISTERS 8
+
 typedef DPTR(struct FloatArgumentRegisters) PTR_FloatArgumentRegisters;
 struct FloatArgumentRegisters {
-     M128A d[8];   // xmm0-xmm7
+     M128A d[NUM_FLOAT_ARGUMENT_REGISTERS];   // xmm0-xmm7
 };
 
 #endif
+
+
+void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegisters * pRegs);
 
 
 // Sufficient context for Try/Catch restoration.
@@ -349,7 +379,11 @@ void EncodeLoadAndJumpThunk (LPBYTE pBuffer, LPVOID pv, LPVOID pTarget);
 
 
 // Get Rel32 destination, emit jumpStub if necessary
-INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod, LoaderAllocator *pLoaderAllocator = NULL);
+INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod, 
+    LoaderAllocator *pLoaderAllocator = NULL, bool throwOnOutOfMemoryWithinRange = true);
+
+// Get Rel32 destination, emit jumpStub if necessary into a preallocated location
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr);
 
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
 
@@ -415,7 +449,7 @@ inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
 }
 
 #include <pshpack1.h>
-DECLSPEC_ALIGN(8) struct UMEntryThunkCode
+struct DECLSPEC_ALIGN(8) UMEntryThunkCode
 {
     // padding                  // CC CC CC CC
     // mov r10, pUMEntryThunk   // 49 ba xx xx xx xx xx xx xx xx    // METHODDESC_REGISTER
@@ -432,6 +466,7 @@ DECLSPEC_ALIGN(8) struct UMEntryThunkCode
     BYTE            m_padding2[5];
 
     void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Poison();
 
     LPCBYTE GetEntryPoint() const
     {
@@ -451,11 +486,23 @@ DECLSPEC_ALIGN(8) struct UMEntryThunkCode
 
 struct HijackArgs
 {
+#ifndef FEATURE_MULTIREG_RETURN
     union
     {
         ULONG64 Rax;
-        ULONG64 ReturnValue;
+        ULONG64 ReturnValue[1];
     };
+#else // FEATURE_MULTIREG_RETURN
+    union
+    {
+        struct
+        {
+            ULONG64 Rax;
+            ULONG64 Rdx;
+        };
+        ULONG64 ReturnValue[2];
+    };
+#endif // PLATFORM_UNIX
     CalleeSavedRegisters Regs;
     union
     {
@@ -467,7 +514,7 @@ struct HijackArgs
 #ifndef DACCESS_COMPILE
 
 DWORD GetOffsetAtEndOfFunction(ULONGLONG           uImageBase,
-                               PRUNTIME_FUNCTION   pFunctionEntry,
+                               PT_RUNTIME_FUNCTION   pFunctionEntry,
                                int                 offsetNum = 1);
 
 #endif // DACCESS_COMPILE
@@ -485,37 +532,24 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
     return TRUE;
 }
 
-#ifndef FEATURE_IMPLICIT_TLS
 //
 // JIT HELPER ALIASING FOR PORTABILITY.
 //
 // Create alias for optimized implementations of helpers provided on this platform
 //
-#define JIT_MonEnter         JIT_MonEnter
-#define JIT_MonEnterWorker   JIT_MonEnterWorker_InlineGetThread
-#define JIT_MonReliableEnter JIT_MonEnterWorker
-#define JIT_MonTryEnter      JIT_MonTryEnter_InlineGetThread
-#define JIT_MonExit          JIT_MonExit
-#define JIT_MonExitWorker    JIT_MonExitWorker_InlineGetThread
-#define JIT_MonEnterStatic   JIT_MonEnterStatic_InlineGetThread
-#define JIT_MonExitStatic    JIT_MonExitStatic_InlineGetThread
-
-#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_InlineGetAppDomain
-
-#endif // FEATURE_IMPLICIT_TLS
+#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_SingleAppDomain
+#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
 
 #ifndef FEATURE_PAL
-
 #define JIT_ChkCastClass            JIT_ChkCastClass
 #define JIT_ChkCastClassSpecial     JIT_ChkCastClassSpecial
 #define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass
 #define JIT_ChkCastInterface        JIT_ChkCastInterface
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
-#define JIT_Stelem_Ref              JIT_Stelem_Ref
-
 #endif // FEATURE_PAL
+
+#define JIT_Stelem_Ref              JIT_Stelem_Ref
 
 #endif // __cgencpu_h__

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
 // 
@@ -37,9 +36,8 @@ CLRPrivTypeCacheWinRT::ContainsType(
         // Find DomainAssembly * (can be cached if this is too slow to call always)
         DomainAssembly * pDomainAssembly = pAppDomain->LoadDomainAssembly(
             nullptr,    // pIdentity
-            pPEAssembly, 
-            FILE_LOAD_DELIVER_EVENTS, 
-            nullptr);   // pLoadSecurity
+            pPEAssembly,
+            FILE_LOAD_DELIVER_EVENTS);
         
         // Convert the type name into namespace and class name in UTF8
         StackSString ssTypeNameWCHAR(wszTypeName);
@@ -101,7 +99,7 @@ CLRPrivTypeCacheWinRT::ContainsTypeHelper(
             &tkType, 
             &pTypeModule, 
             &tkExportedType, 
-            nullptr,    // ppClassHashEntry
+            nullptr,    // pFoundEntry
             nullptr,    // pLookInThisModuleOnly
             Loader::DontLoad))
     {

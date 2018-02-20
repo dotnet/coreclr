@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // threadsuspend.h
 
 #ifndef _THREAD_SUSPEND_H_
@@ -93,8 +92,7 @@ struct SuspendStatistics
     // a Suspend to the end of a Restart.  We can compute 'avg' using 'cnt' and 'tot' values.
     MinMaxTot suspend, restart, paused;
 
-    // We know there can be contention on acquiring the ThreadStoreLock, or yield points when hosted (like
-    // BeginThreadAffinity on the leading edge and EndThreadAffinity on the trailing edge).
+    // We know there can be contention on acquiring the ThreadStoreLock.
     MinMaxTot acquireTSL, releaseTSL;
 
     // And if we OS suspend a thread that is blocking or perhaps throwing an exception and is therefore
@@ -196,6 +194,9 @@ private:
 public:
     static HRESULT SuspendRuntime(ThreadSuspend::SUSPEND_REASON reason);
     static void    ResumeRuntime(BOOL bFinishedGC, BOOL SuspendSucceded);
+
+    // Initialize thread suspension support
+    static void    Initialize();
 
 private:
     static CLREvent * g_pGCSuspendEvent;

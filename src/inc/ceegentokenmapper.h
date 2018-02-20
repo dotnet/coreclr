@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // CeeGenTokenMapper.h
 //
@@ -51,21 +50,22 @@ public:
     static int IndexForType(mdToken tk);
     
     CeeGenTokenMapper() : m_pIImport(0), m_cRefs(1), m_pIMapToken(NULL)  { LIMITED_METHOD_CONTRACT; }
+    virtual ~CeeGenTokenMapper() {}
 
 //*****************************************************************************
 // IUnknown implementation.  
 //*****************************************************************************
-    virtual ULONG __stdcall AddRef()
+    virtual ULONG STDMETHODCALLTYPE AddRef()
     {LIMITED_METHOD_CONTRACT;  return ++m_cRefs; }
 
-    virtual ULONG __stdcall Release()
+    virtual ULONG STDMETHODCALLTYPE Release()
     {   
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_FORBID_FAULT;
         SUPPORTS_DAC_HOST_ONLY;
 
         ULONG cRefs = --m_cRefs;
-        if (m_cRefs == 0)
+        if (cRefs == 0)
         {
             if (m_pIMapToken)
             {
@@ -78,14 +78,14 @@ public:
         return cRefs;
     }
 
-    virtual HRESULT __stdcall QueryInterface(REFIID iid, PVOID *ppIUnk);
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, PVOID *ppIUnk);
 
 //*****************************************************************************
 // Called by the meta data engine when a token is remapped to a new location.
 // This value is recorded in the m_rgMap array based on type and rid of the
 // from token value.
 //*****************************************************************************
-    virtual HRESULT __stdcall Map(mdToken tkImp, mdToken tkEmit);
+    virtual HRESULT STDMETHODCALLTYPE Map(mdToken tkImp, mdToken tkEmit);
 
 //*****************************************************************************
 // Check the given token to see if it has moved to a new location.  If so,

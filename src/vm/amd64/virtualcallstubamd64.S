@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -47,7 +46,7 @@ NESTED_END ResolveWorkerAsmStub, _TEXT
 LEAF_ENTRY ResolveWorkerChainLookupAsmStub, _TEXT
 // This will perform a quick chained lookup of the entry if the initial cache lookup fails
 // On Input:  
-//   rsi       contains our type     (MethodTable)
+//   rdx       contains our type     (MethodTable)
 //   r10       contains our contract (DispatchToken)
 //   r11       contains the address of the indirection (and the flags in the low two bits)
 // [rsp+0x00]  contains the pointer to the ResolveCacheElem
@@ -64,27 +63,47 @@ MainLoop_RWCLAS:
         test    rax,rax          // test if we hit a terminating NULL
         jz      Fail_RWCLAS
 
-        cmp    rsi, [rax+00h]    // compare our MT with the one in the ResolveCacheElem
+        cmp    rdx, [rax+00h]    // compare our MT with the one in the ResolveCacheElem
         jne    MainLoop_RWCLAS
         cmp    r10, [rax+08h]    // compare our DispatchToken with one in the ResolveCacheElem
         jne    MainLoop_RWCLAS
 Success_RWCLAS:        
-        PREPARE_EXTERNAL_VAR CHAIN_SUCCESS_COUNTER, rsi
-        sub    qword ptr [rsi],1 // decrement success counter 
+        PREPARE_EXTERNAL_VAR CHAIN_SUCCESS_COUNTER, rdx
+        sub    qword ptr [rdx],1 // decrement success counter 
         jl     Promote_RWCLAS
         mov    rax, [rax+10h]    // get the ImplTarget
-        pop    rsi
+        pop    rdx
         jmp    rax
         
 Promote_RWCLAS:                  // Move this entry to head postion of the chain
         // be quick to reset the counter so we don't get a bunch of contending threads
-        mov    qword ptr [rsi], INITIAL_SUCCESS_COUNT
+        mov    qword ptr [rdx], INITIAL_SUCCESS_COUNT
         or     r11, PROMOTE_CHAIN_FLAG
         mov    r10, rax          // We pass the ResolveCacheElem to ResolveWorkerAsmStub instead of the DispatchToken 
 Fail_RWCLAS:           
-        pop    rsi               // Restore the original saved rdx value
+        pop    rdx               // Restore the original saved rdx value
         push   r10               // pass the DispatchToken or ResolveCacheElem to promote to ResolveWorkerAsmStub
         
         jmp    C_FUNC(ResolveWorkerAsmStub)
         
 LEAF_END ResolveWorkerChainLookupAsmStub, _TEXT
+
+#ifdef FEATURE_PREJIT
+NESTED_ENTRY StubDispatchFixupStub, _TEXT, NoHandler
+
+        PROLOG_WITH_TRANSITION_BLOCK 0, 0, 0, 0, 0
+        
+        lea             rdi, [rsp + __PWTB_TransitionBlock] // pTransitionBlock
+        mov             rsi, r11                            // indirection cell address
+
+        mov             rdx,0                               // sectionIndex
+        mov             rcx,0                               // pModule
+
+        call            C_FUNC(StubDispatchFixupWorker)
+
+        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+PATCH_LABEL StubDispatchFixupPatchLabel
+        TAILJMP_RAX
+
+NESTED_END StubDispatchFixupStub, _TEXT
+#endif

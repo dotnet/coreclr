@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: compile.cpp
 //
@@ -23,19 +22,14 @@
 #include "compile.h"
 #include "excep.h"
 #include "field.h"
-#include "security.h"
 #include "eeconfig.h"
 #include "zapsig.h"
 #include "gcrefmap.h"
 
-#ifndef FEATURE_CORECLR
-#include "corsym.h"
-#endif // FEATURE_CORECLR
 
 #include "virtualcallstub.h"
 #include "typeparse.h"
 #include "typestring.h"
-#include "constrainedexecutionregion.h"
 #include "dllimport.h"
 #include "comdelegate.h"
 #include "stringarraylist.h"
@@ -52,11 +46,6 @@
 #include "cgensys.h"
 #include "peimagelayout.inl"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
-#include "appxutil.h"
-#include "clrprivbinderappx.h"
-#include "clrprivtypecachewinrt.h"
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
 
 #ifdef FEATURE_COMINTEROP
 #include "clrprivbinderwinrt.h"
@@ -67,12 +56,18 @@
 #include "crossgenroresolvenamespace.h"
 #endif
 
+#ifndef NO_NGENPDB
 #include <cvinfo.h>
-
-#ifdef MDIL
-#include <mdil.h>
 #endif
-#include "tritonstress.h"
+
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
+#endif
+
+#include "argdestination.h"
+
+#include "versionresilienthashcode.h"
+#include "inlinetracking.h"
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
@@ -135,11 +130,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
                                      BOOL fForceDebug,
                                      BOOL fForceProfiling,
                                      BOOL fForceInstrument,
-                                     BOOL fForceFulltrustDomain
-#ifdef MDIL
-                                   , MDILCompilationFlags     mdilCompilationFlags
-#endif
-                                               )
+                                     BOOL fForceFulltrustDomain)
 {
     STANDARD_VM_CONTRACT;
 
@@ -157,27 +148,12 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
 
     {
         SystemDomain::LockHolder lh;
-        pCompilationDomain->Init(
-#ifdef MDIL
-            mdilCompilationFlags
-#endif
-             );
+        pCompilationDomain->Init();
     }
 
     if (pEmitter)
         pCompilationDomain->SetDependencyEmitter(pEmitter);
     
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
-    if (AppX::IsAppXProcess())
-    {
-        HRESULT hr = S_OK;
-        ReleaseHolder<ICLRPrivBinder> pBinderInterface;
-        CLRPrivBinderAppX * pBinder = CLRPrivBinderAppX::GetOrCreateBinder();
-        
-        IfFailThrow(pBinder->QueryInterface(IID_ICLRPrivBinder, &pBinderInterface));
-        pCompilationDomain->SetLoadContextHostBinder(pBinderInterface);
-    }
-#endif // defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
 
 #ifdef DEBUGGING_SUPPORTED 
     // Notify the debugger here, before the thread transitions into the
@@ -196,75 +172,9 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
 
         ENTER_DOMAIN_PTR(pCompilationDomain,ADV_COMPILATION)
         {
-#ifdef FEATURE_CORECLR
-            if (fForceFulltrustDomain)
-                ((ApplicationSecurityDescriptor *)pCompilationDomain->GetSecurityDescriptor())->SetGrantedPermissionSet(NULL, NULL, 0xFFFFFFFF);
-#endif
-
-#ifndef CROSSGEN_COMPILE
-#ifndef FEATURE_CORECLR
-            pCompilationDomain->InitializeHashing(NULL);
-#endif // FEATURE_CORECLR
-#endif
             pCompilationDomain->InitializeDomainContext(TRUE, NULL, NULL);
 
-#ifndef CROSSGEN_COMPILE
-#ifdef FEATURE_CORECLR
-
-            if (!NingenEnabled())
-            {
-                APPDOMAINREF adRef = (APPDOMAINREF)pCompilationDomain->GetExposedObject();
-                GCPROTECT_BEGIN(adRef);
-                MethodDescCallSite initializeSecurity(METHOD__APP_DOMAIN__INITIALIZE_DOMAIN_SECURITY);
-                ARG_SLOT args[] =
-                {
-                    ObjToArgSlot(adRef),
-                    ObjToArgSlot(NULL),
-                    ObjToArgSlot(NULL),
-                    ObjToArgSlot(NULL),
-                    static_cast<ARG_SLOT>(FALSE)
-                };
-                initializeSecurity.Call(args);
-                GCPROTECT_END();
-            }
-#endif //FEATURE_CORECLR
-#endif
-
-            {
-                GCX_PREEMP();
-
-                // We load assemblies as domain-bound (However, they're compiled as domain neutral)
-#ifdef FEATURE_LOADER_OPTIMIZATION
-#ifdef FEATURE_FUSION
-                if (NingenEnabled())
-                {
-                    pCompilationDomain->SetSharePolicy(AppDomain::SHARE_POLICY_NEVER);
-                }
-                else
-                {
-                    pCompilationDomain->SetupLoaderOptimization(AppDomain::SHARE_POLICY_NEVER);
-                }
-#else //FEATURE_FUSION
-                pCompilationDomain->SetSharePolicy(AppDomain::SHARE_POLICY_NEVER);
-#endif //FEATURE_FUSION
-#endif // FEATURE_LOADER_OPTIMIZATION
-
-#ifdef FEATURE_FUSION
-                CorCompileConfigFlags flags = PEFile::GetNativeImageConfigFlags(pCompilationDomain->m_fForceDebug,
-                                                                                pCompilationDomain->m_fForceProfiling,
-                                                                                pCompilationDomain->m_fForceInstrument);
-
-                FusionBind::SetApplicationContextDWORDProperty(GetAppDomain()->GetFusionContext(),
-                                                               ACTAG_ZAP_CONFIG_FLAGS, flags);
-#endif //FEATURE_FUSION
-            }
-
             pCompilationDomain->SetFriendlyName(W("Compilation Domain"));
-            if (!NingenEnabled())
-            {
-                Security::SetDefaultAppDomainProperty(pCompilationDomain->GetSecurityDescriptor());
-                pCompilationDomain->GetSecurityDescriptor()->FinishInitialization();
-            }
             SystemDomain::System()->LoadDomain(pCompilationDomain);
 
 #ifndef CROSSGEN_COMPILE
@@ -386,7 +296,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 
     Assembly * pAssembly;
     HRESULT    hrProcessLibraryBitnessMismatch = S_OK;
-    bool       verifyingImageIsAssembly = false;
 
     // We don't want to do a LoadFrom, since they do not work with ngen. Instead,
     // read the metadata from the file and do a bind based on that.
@@ -398,14 +307,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 
         PEImageHolder pImage;
 
-#if defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-        // If the path is not absolute, look for the assembly on platform path list first
-        if (wcschr(wzPath, '\\') == NULL || wcschr(wzPath, ':') == NULL || wcschr(wzPath, '/') == NULL)
-        {
-            CompilationDomain::FindImage(wzPath,
-                fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default, &pImage);
-        }
-#endif
 
         if (pImage == NULL)
         {
@@ -413,16 +314,12 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 wzPath,
 
                 // If we're explicitly binding to an NGEN image, we do not want the cache
-                // this PEImage for use later, as pointers that need fixup (e.g.,
-                // Module::m_pModuleSecurityDescriptor) will not be valid for use later. 
+                // this PEImage for use later, as pointers that need fixup
                 // Normal caching is done when we open it "for real" further down when we
                 // call LoadDomainAssembly().
                 fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default);
         }
 
-#if defined(FEATURE_WINDOWSPHONE)
-        verifyingImageIsAssembly = true;
-#endif // FEATURE_WINDOWSPHONE
         if (fExplicitBindToNativeImage && !pImage->HasReadyToRunHeader())
         {
             pImage->VerifyIsNIAssembly();
@@ -431,8 +328,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         {
             pImage->VerifyIsAssembly();
         }
-        
-        verifyingImageIsAssembly = false;
 
         // Check to make sure the bitness of the assembly matches the bitness of the process
         // we will be loading it into and store the result.  If a COR_IMAGE_ERROR gets thrown
@@ -487,16 +382,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
             }
             else
             {
-#ifdef FEATURE_FUSION
-                SafeComHolder<IBindResult> pNativeFusionAssembly;        
-                SafeComHolder<IFusionBindLog> pFusionLog;
-                SafeComHolder<IAssembly> pFusionAssembly;
-
-                IfFailThrow(ExplicitBind(wzPath, pDomain->GetFusionContext(), EXPLICITBIND_FLAGS_EXE,
-                                         NULL, &pFusionAssembly, &pNativeFusionAssembly, &pFusionLog));
-
-                pAssemblyHolder = PEAssembly::Open(pFusionAssembly, pNativeFusionAssembly, pFusionLog, FALSE, FALSE);
-#else //FEATURE_FUSION
                 //ExplicitBind
                 CoreBindResult bindResult;
                 spec.SetCodeBase(pImage->GetPath());
@@ -505,7 +390,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                     TRUE,                   // fThrowOnFileNotFound
                     &bindResult, 
 
-                    // fNgenExplicitBind: Generally during NGEN / MDIL compilation, this is
+                    // fNgenExplicitBind: Generally during NGEN compilation, this is
                     // TRUE, meaning "I am NGEN, and I am doing an explicit bind to the IL
                     // image, so don't infer the NI and try to open it, because I already
                     // have it open". But if we're executing crossgen /CreatePDB, this should
@@ -520,28 +405,15 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                     fExplicitBindToNativeImage
                     );
                 pAssemblyHolder = PEAssembly::Open(&bindResult,FALSE,FALSE);
-#endif //FEATURE_FUSION
             }
 
             // Now load assembly into domain.
             DomainAssembly * pDomainAssembly = pDomain->LoadDomainAssembly(&spec, pAssemblyHolder, FILE_LOAD_BEGIN);
 
-#ifndef FEATURE_APPX_BINDER
             if (spec.CanUseWithBindingCache() && pDomainAssembly->CanUseWithBindingCache())
                 pDomain->AddAssemblyToCache(&spec, pDomainAssembly);
-#endif
 
-#if defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-            pDomain->ToCompilationDomain()->ComputeAssemblyHardBindList(pAssemblyHolder->GetPersistentMDImport());
-#endif
 
-#ifdef MDIL
-            // MDIL is generated as a special mode of ngen.exe or coregen.exe; normally these two utilities
-            // would not generate anything if a native image for the requested assembly already exists.
-            // Of course, this is not the desired behavior when generating MDIL - it should always work.
-            // We need to prevent loading of the native image when we are generating MDIL.
-            if (!GetAppDomain()->IsMDILCompilationDomain())
-#endif
             {
                 // Mark the assembly before it gets fully loaded and NGen image dependencies are verified. This is necessary
                 // to allow skipping compilation if there is NGen image already.
@@ -556,22 +428,13 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
             pDomain->ToCompilationDomain()->AddDependency(&spec, pAssemblyHolder);
         }
 
-#ifdef MDIL
-        if (GetAppDomain()->IsMDILCompilationDomain())
-            TritonStressStartup(LogToSvcLogger);
-#endif
-
         // Kind of a workaround - if we could have loaded this assembly via normal load,
 
         *pHandle = CORINFO_ASSEMBLY_HANDLE(pAssembly);
     }
     EX_CATCH_HRESULT(hr);
     
-    if (verifyingImageIsAssembly && hr != S_OK)
-    {
-        hr = NGEN_E_FILE_NOT_ASSEMBLY;
-    }
-    else if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
+    if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
     {
         hr = hrProcessLibraryBitnessMismatch;
     }
@@ -581,161 +444,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
     return hr;
 }
 
-#ifdef FEATURE_FUSION
-
-// Simple helper that factors out code common to LoadAssemblyByIAssemblyName and
-// LoadAssemblyByName
-static HRESULT LoadAssemblyByIAssemblyNameWorker(
-    IAssemblyName *pAssemblyName,
-    CORINFO_ASSEMBLY_HANDLE *pHandle)
-{
-    CONTRACTL                   
-    {                           
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        SO_INTOLERANT;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;              
-
-    Assembly *pAssembly;
-
-    AssemblySpec spec;
-    spec.InitializeSpec(pAssemblyName, NULL, FALSE);
-
-    if (spec.IsMscorlib())
-    {
-        pAssembly = SystemDomain::System()->SystemAssembly();
-    }
-    else
-    {
-
-        DomainAssembly * pDomainAssembly = spec.LoadDomainAssembly(FILE_LOAD_BEGIN);
-
-        // Mark the assembly before it gets fully loaded and NGen image dependencies are verified. This is necessary
-        // to allow skipping compilation if there is NGen image already.
-        pDomainAssembly->GetFile()->SetSafeToHardBindTo();
-
-        pAssembly = spec.LoadAssembly(FILE_LOADED);
-    }
-
-#ifdef MDIL
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        TritonStressStartup(LogToSvcLogger);
-#endif
-
-    //
-    // Return the module handle
-    //
-
-    *pHandle = CORINFO_ASSEMBLY_HANDLE(pAssembly);
-
-    return S_OK;
-}
-
-HRESULT CEECompileInfo::LoadAssemblyByName(
-    LPCWSTR                  wzName,
-    CORINFO_ASSEMBLY_HANDLE *pHandle)
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hr = S_OK;
-
-    COOPERATIVE_TRANSITION_BEGIN();
-
-    EX_TRY
-    {
-        ReleaseHolder<IAssemblyName> pAssemblyName;
-        IfFailThrow(CreateAssemblyNameObject(&pAssemblyName, wzName, CANOF_PARSE_DISPLAY_NAME, NULL));
-        IfFailThrow(LoadAssemblyByIAssemblyNameWorker(pAssemblyName, pHandle));
-    }
-    EX_CATCH_HRESULT(hr);
-
-    COOPERATIVE_TRANSITION_END();
-
-    return hr;
-}
-
-HRESULT CEECompileInfo::LoadAssemblyRef(
-    IMDInternalImport       *pAssemblyImport,
-    mdAssemblyRef           ref,
-    CORINFO_ASSEMBLY_HANDLE *pHandle,
-    IAssemblyName           **refAssemblyName /*=NULL*/)
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hr = S_OK;
-
-    ReleaseHolder<IAssemblyName> pAssemblyName;
-
-    COOPERATIVE_TRANSITION_BEGIN();
-    
-    EX_TRY
-    {
-        Assembly *pAssembly;
-
-        if (refAssemblyName)
-            *refAssemblyName = NULL;
-
-        AssemblySpec spec;
-        spec.InitializeSpec(ref, pAssemblyImport, NULL, FALSE);
-        
-        if (spec.HasBindableIdentity())
-        {
-            if (refAssemblyName)
-            {
-                IfFailThrow(spec.CreateFusionName(&pAssemblyName));
-            }
-
-            pAssembly = spec.LoadAssembly(FILE_LOADED);
-
-            //
-            // Return the module handle
-            //
-
-            *pHandle = CORINFO_ASSEMBLY_HANDLE(pAssembly);
-        }
-        else
-        {   // Cannot load assembly refs with non-unique id.
-            hr = S_FALSE;
-        }
-    }
-    EX_CATCH_HRESULT(hr);
-
-    COOPERATIVE_TRANSITION_END();
-
-    if (refAssemblyName != NULL && pAssemblyName != NULL)
-    {
-        *refAssemblyName = pAssemblyName.Extract();
-    }
-
-    return hr;
-}
-
-HRESULT CEECompileInfo::LoadAssemblyByIAssemblyName(
-        IAssemblyName           *pAssemblyName,
-        CORINFO_ASSEMBLY_HANDLE *pHandle
-        )
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hr = S_OK;
-
-    COOPERATIVE_TRANSITION_BEGIN();
-
-    EX_TRY
-    {
-        IfFailThrow(LoadAssemblyByIAssemblyNameWorker(pAssemblyName, pHandle));
-    }
-    EX_CATCH_HRESULT(hr);
-
-    COOPERATIVE_TRANSITION_END();
-
-    return hr;
-}
-
-#endif //FEATURE_FUSION
 
 #ifdef FEATURE_COMINTEROP
 HRESULT CEECompileInfo::LoadTypeRefWinRT(
@@ -756,9 +464,9 @@ HRESULT CEECompileInfo::LoadTypeRefWinRT(
         Assembly *pAssembly;
 
         mdToken tkResolutionScope;
-        pAssemblyImport->GetResolutionScopeOfTypeRef(ref, &tkResolutionScope);
-        
-        if(TypeFromToken(tkResolutionScope) == mdtAssemblyRef)
+        if(FAILED(pAssemblyImport->GetResolutionScopeOfTypeRef(ref, &tkResolutionScope)))
+            hr = S_FALSE;
+        else if(TypeFromToken(tkResolutionScope) == mdtAssemblyRef)
         {
             DWORD dwAssemblyRefFlags;
             IfFailThrow(pAssemblyImport->GetAssemblyRefProps(tkResolutionScope, NULL, NULL,
@@ -832,60 +540,6 @@ HRESULT CEECompileInfo::LoadAssemblyModule(
     return S_OK;
 }
 
-#ifndef FEATURE_CORECLR
-BOOL CEECompileInfo::SupportsAutoNGen(CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-    return pAssembly->SupportsAutoNGen();
-}
-
-HRESULT CEECompileInfo::SetCachedSigningLevel(HANDLE hNI, HANDLE *pModules, COUNT_T nModules)
-{
-    STANDARD_VM_CONTRACT;
-
-    HRESULT hr = S_OK;
-
-    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
-    typedef BOOL (WINAPI *SetCachedSigningLevel_t)
-        (__in_ecount(Count) PHANDLE SourceFiles, __in ULONG Count, __in ULONG Flags, __in HANDLE TargetFile);
-    SetCachedSigningLevel_t SetCachedSigningLevel
-        = (SetCachedSigningLevel_t)GetProcAddress(hKernel32, "SetCachedSigningLevel");
-    if (SetCachedSigningLevel == NULL)
-    {
-        return S_OK;
-    }
-
-    StackSArray<PEImage*> images;
-    PEImage::GetAll(images);
-
-    StackSArray<HANDLE> handles;
-    for (StackSArray<PEImage*>::Iterator i = images.Begin(), end = images.End(); i != end; i++)
-    {
-        if (!(*i)->IsFile())
-        {
-            continue;
-        }
-        HANDLE hFile = (*i)->GetFileHandleLocking();
-        handles.Append(hFile);
-    }
-
-    IfFailGo(SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, hNI));
-    for (COUNT_T i = 0; i < nModules; i++)
-    {
-        if (!SetCachedSigningLevel(handles.GetElements(), handles.GetCount(), 0, pModules[i]))
-        {
-            hr = HRESULT_FROM_WIN32(GetLastError());
-            _ASSERTE(FAILED(hr));
-            goto ErrExit;
-        }
-    }
-
-ErrExit:
-    return hr;
-}
-#endif
 
 BOOL CEECompileInfo::CheckAssemblyZap(
     CORINFO_ASSEMBLY_HANDLE assembly, 
@@ -926,90 +580,6 @@ BOOL CEECompileInfo::CheckAssemblyZap(
     return result;
 }
 
-#ifdef MDIL
-DWORD CEECompileInfo::GetMdilModuleSecurityFlags(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    ModuleSecurityDescriptor *pMSD = ModuleSecurityDescriptor::GetModuleSecurityDescriptor(pAssembly);
-
-    MDILHeader::Flags securityFlags = MDILHeader::MdilModuleSecurityDescriptorFlags_None;
-
-    // Is Microsoft Platform
-    if (pMSD->IsMicrosoftPlatform())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsMicrosoftPlatform);
-
-    // Is every method and type in the assembly transparent
-    if (pMSD->IsAllTransparent())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAllTransparent);
-
-    // Is every method and type introduced by the assembly critical
-    if (pMSD->IsAllCritical())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAllCritical);
-
-    // Combined with IsAllCritical - is every method and type introduced by the assembly safe critical
-    if (pMSD->IsTreatAsSafe())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsTreatAsSafe);
-
-    // Does the assembly not care about transparency, and wants the CLR to take care of making sure everything
-    // is annotated properly in the assembly.
-    if (pMSD->IsOpportunisticallyCritical())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsOpportunisticallyCritical);
-
-    // Partial trust assemblies are forced all-transparent under some conditions. This 
-    // tells us whether that is true for this particular assembly.
-    if (pMSD->IsAllTransparentDueToPartialTrust())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_TransparentDueToPartialTrust);
-
-#ifdef FEATURE_APTCA
-    if (pMSD->IsAPTCA())
-#endif
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_IsAPTCA);
-
-#ifndef FEATURE_CORECLR
-    // Can fully trusted transparent code bypass verification
-    if (pMSD->CanTransparentCodeSkipVerification())
-        securityFlags = (MDILHeader::Flags)(securityFlags | MDILHeader::MdilModuleSecurityDescriptorFlags_SkipFullTrustVerification);
-#endif // !FEATURE_CORECLR
-
-    return (DWORD)securityFlags;
-}
-
-BOOL CEECompileInfo::CompilerRelaxationNoStringInterningPermitted(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->IsNoStringInterning();
-}
-
-BOOL CEECompileInfo::RuntimeCompatibilityWrapExceptions(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->IsRuntimeWrapExceptions();
-}
-
-DWORD CEECompileInfo::CERReliabilityContract(
-    CORINFO_ASSEMBLY_HANDLE assembly)
-{
-    STANDARD_VM_CONTRACT;
-
-    Assembly *pAssembly = (Assembly*) assembly;
-
-    return pAssembly->GetManifestModule()->GetReliabilityContract();
-}
-
-#endif // MDIL
-
 HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembly,
                                              CORINFO_MODULE_HANDLE       module)
 {
@@ -1031,7 +601,7 @@ HRESULT CEECompileInfo::SetCompilationTarget(CORINFO_ASSEMBLY_HANDLE     assembl
         mscorlib.InitializeSpec(SystemDomain::SystemFile());
         GetAppDomain()->BindAssemblySpec(&mscorlib,TRUE,FALSE);
 
-        if (!SystemDomain::SystemFile()->HasNativeImage())
+        if (!IsReadyToRunCompilation() && !SystemDomain::SystemFile()->HasNativeImage())
         {
             if (!CLRConfig::GetConfigValue(CLRConfig::INTERNAL_NgenAllowMscorlibSoftbind))
             {
@@ -1137,59 +707,6 @@ CORINFO_ASSEMBLY_HANDLE
     return (CORINFO_ASSEMBLY_HANDLE) GetModule(module)->GetAssembly();
 }
 
-#ifdef MDIL
-HRESULT CEECompileInfo::ShouldCompile(CORINFO_METHOD_HANDLE method)
-{
-    STANDARD_VM_CONTRACT;
-    MethodDesc * pMD = (MethodDesc *)method;
-
-    BOOL fIsMinimalMDIL = GetAppDomain()->IsMinimalMDILCompilationDomain();
-    if (fIsMinimalMDIL && !pMD->HasClassOrMethodInstantiation())
-        return S_FALSE;
-
-    if (GetAppDomain()->IsNoMDILCompilationDomain())
-        return S_FALSE;
-
-    return S_OK;
-}
-#endif // MDIL
-
-#ifdef FEATURE_FUSION
-HRESULT CEECompileInfo::GetAssemblyName(
-    CORINFO_ASSEMBLY_HANDLE hAssembly,
-    DWORD                   dwFlags,
-    __out_z LPWSTR          wzAssemblyName, 
-    LPDWORD                 pcchAssemblyName)
-{
-    STANDARD_VM_CONTRACT;
-
-    _ASSERTE(hAssembly != NULL);
-    if (hAssembly == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    HRESULT hr = S_OK;
-    EX_TRY
-    {
-        Assembly *pAssembly = (Assembly *) hAssembly;
-        IAssemblyName * pAssemblyName = pAssembly->GetFusionAssemblyName();
-        if (dwFlags == GANF_Default)
-        {
-            hr = pAssemblyName->GetDisplayName(wzAssemblyName, pcchAssemblyName, 0);
-        }
-        else if (dwFlags == GANF_Simple)
-        {
-            DWORD cbAssemblyName = *pcchAssemblyName * sizeof(WCHAR);
-            hr = pAssemblyName->GetProperty(ASM_NAME_NAME, (LPVOID)wzAssemblyName, &cbAssemblyName);
-            *pcchAssemblyName = cbAssemblyName / sizeof(WCHAR);
-        }
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-#endif //FEATURE_FUSION
 
 #ifdef CROSSGEN_COMPILE
 //
@@ -1355,9 +872,7 @@ void GetLoadHint(ASSEMBLY * pAssembly, ASSEMBLY *pAssemblyDependency,
 HRESULT CEECompileInfo::GetLoadHint(CORINFO_ASSEMBLY_HANDLE hAssembly,
                                     CORINFO_ASSEMBLY_HANDLE hAssemblyDependency,
                                     LoadHintEnum *loadHint,
-                                    LoadHintEnum *defaultLoadHint // for MDIL we want to separate the default load hint on the assembly
-                                                                  // from the load hint on the dependency
-                                    )
+                                    LoadHintEnum *defaultLoadHint)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1403,7 +918,7 @@ void CEECompileInfo::GetAssemblyCodeBase(CORINFO_ASSEMBLY_HANDLE hAssembly, SStr
 
 //=================================================================================
 
-void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, DWORD dwFlags)
+void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, uint32_t dwFlags)
 {
     CONTRACTL {
         NOTHROW;
@@ -1417,7 +932,7 @@ void FakePromote(PTR_PTR_Object ppObj, ScanContext *pSC, DWORD dwFlags)
 
 //=================================================================================
 
-void FakePromoteCarefully(promote_func *fn, Object **ppObj, ScanContext *pSC, DWORD dwFlags)
+void FakePromoteCarefully(promote_func *fn, Object **ppObj, ScanContext *pSC, uint32_t dwFlags)
 {
     (*fn)(ppObj, pSC, dwFlags);
 }
@@ -1472,7 +987,8 @@ void FakeGcScanRoots(MetaSig& msig, ArgIterator& argit, MethodDesc * pMD, BYTE *
     int argOffset;
     while ((argOffset = argit.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        msig.GcScanRoots(pFrame + argOffset, &FakePromote, &sc, &FakePromoteCarefully);
+        ArgDestination argDest(pFrame, argOffset, argit.GetArgLocDescForStructInRegs());
+        msig.GcScanRoots(&argDest, &FakePromote, &sc, &FakePromoteCarefully);
     }
 }
 
@@ -1597,7 +1113,7 @@ void CEECompileInfo::CompressDebugInfo(
 
 HRESULT CEECompileInfo::GetBaseJitFlags(
         IN  CORINFO_METHOD_HANDLE   hMethod,
-        OUT DWORD                  *pFlags)
+        OUT CORJIT_FLAGS           *pFlags)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1784,13 +1300,13 @@ HRESULT CEECompileInfo::GetMethodDef(CORINFO_METHOD_HANDLE methodHandle,
 // Depends on what things are persisted by CEEPreloader
 
 BOOL CEEPreloader::CanEmbedFunctionEntryPoint(
-        CORINFO_METHOD_HANDLE   methodHandle,
-        CORINFO_METHOD_HANDLE   contextHandle, /* = NULL */
-        CORINFO_ACCESS_FLAGS    accessFlags /*=CORINFO_ACCESS_ANY*/)
+    CORINFO_METHOD_HANDLE   methodHandle,
+    CORINFO_METHOD_HANDLE   contextHandle, /* = NULL */
+    CORINFO_ACCESS_FLAGS    accessFlags /*=CORINFO_ACCESS_ANY*/)
 {
     STANDARD_VM_CONTRACT;
 
-    MethodDesc * pMethod  = GetMethod(methodHandle);
+    MethodDesc * pMethod = GetMethod(methodHandle);
     MethodDesc * pContext = GetMethod(contextHandle);
 
     // IsRemotingInterceptedViaVirtualDispatch is a rather special case.
@@ -1807,11 +1323,18 @@ BOOL CEEPreloader::CanEmbedFunctionEntryPoint(
     // don't save these stubs.  Unlike most other remoting stubs these ones 
     // are NOT inserted by DoPrestub.
     //
-    if (((accessFlags & CORINFO_ACCESS_THIS) == 0)       &&
-        (pMethod->IsRemotingInterceptedViaVirtualDispatch())    )
+    if (((accessFlags & CORINFO_ACCESS_THIS) == 0) &&
+        (pMethod->IsRemotingInterceptedViaVirtualDispatch()))
     {
         return FALSE;
     }
+
+    // Methods with native callable attribute are special , since 
+    // they are used as LDFTN targets.Native Callable methods
+    // uses the same code path as reverse pinvoke and embedding them
+    // in an ngen image require saving the reverse pinvoke stubs.
+    if (pMethod->HasNativeCallableAttribute())
+        return FALSE;
 
     return TRUE;
 }
@@ -1853,6 +1376,14 @@ BOOL CEEPreloader::DoesMethodNeedRestoringBeforePrestubIsRun(
     }
 
     return FALSE;
+}
+
+BOOL CEECompileInfo::IsNativeCallableMethod(CORINFO_METHOD_HANDLE handle)
+{
+    WRAPPER_NO_CONTRACT;
+
+    MethodDesc * pMethod = GetMethod(handle);
+    return pMethod->HasNativeCallableAttribute();
 }
 
 BOOL CEEPreloader::CanSkipDependencyActivation(CORINFO_METHOD_HANDLE   context,
@@ -1907,7 +1438,17 @@ BOOL CanDeduplicateCode(CORINFO_METHOD_HANDLE method, CORINFO_METHOD_HANDLE dupl
         return FALSE;
 #endif // _TARGET_X86_
 
-    if (pMethod->ReturnsObject() != pDuplicateMethod->ReturnsObject())
+    MetaSig::RETURNTYPE returnType = pMethod->ReturnsObject();
+    MetaSig::RETURNTYPE returnTypeDuplicate = pDuplicateMethod->ReturnsObject();
+
+    if (returnType != returnTypeDuplicate)
+        return FALSE;
+
+    //
+    // Do not enable deduplication of structs returned in registers
+    //
+
+    if (returnType == MetaSig::RETVALUETYPE)
         return FALSE;
 
     //
@@ -2084,7 +1625,8 @@ void CEECompileInfo::EncodeMethod(
                           LPVOID                pEncodeModuleContext,
                           ENCODEMODULE_CALLBACK pfnEncodeModule,
                           CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken)
+                          CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken,
+                          BOOL                  fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2097,7 +1639,8 @@ void CEECompileInfo::EncodeMethod(
                               pSigBuilder,
                               pEncodeModuleContext, 
                               pfnEncodeModule, NULL,
-                              pResolvedToken, pConstrainedResolvedToken);
+                              pResolvedToken, pConstrainedResolvedToken,
+                              fEncodeUsingResolvedTokenSpecStreams);
     _ASSERTE(fSuccess);
 
     COOPERATIVE_TRANSITION_END();
@@ -2122,6 +1665,12 @@ mdToken CEECompileInfo::TryEncodeMethodAsToken(
         if (!pReferencingModule->IsInCurrentVersionBubble())
             return mdTokenNil;
 
+        // If this is a MemberRef with TypeSpec, we might come to here because we resolved the method
+        // into a non-generic base class in the same version bubble. However, since we don't have the
+        // proper type context during ExternalMethodFixupWorker, we can't really encode using token
+        if (pResolvedToken->pTypeSpec != NULL)
+            return mdTokenNil;
+            
         unsigned methodToken = pResolvedToken->token;
 
         switch (TypeFromToken(methodToken))
@@ -2265,6 +1814,14 @@ void EncodeTypeInDictionarySignature(
         }
 
         return;
+    }
+    else if((CorElementTypeZapSig)typ == ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG)
+    {
+        pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG);
+
+        IfFailThrow(ptr.GetElemType(&typ));
+
+        _ASSERTE(typ == ELEMENT_TYPE_SZARRAY || typ == ELEMENT_TYPE_ARRAY);
     }
 
     pSigBuilder->AppendElementType(typ);
@@ -2441,7 +1998,8 @@ void CEECompileInfo::EncodeField(
                          SigBuilder *          pSigBuilder,
                          LPVOID                encodeContext,
                          ENCODEMODULE_CALLBACK pfnEncodeModule,
-                         CORINFO_RESOLVED_TOKEN * pResolvedToken)
+                         CORINFO_RESOLVED_TOKEN * pResolvedToken, 
+                         BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2452,7 +2010,8 @@ void CEECompileInfo::EncodeField(
                         pSigBuilder,
                         encodeContext, 
                         pfnEncodeModule,
-                        pResolvedToken);
+                        pResolvedToken,
+                        fEncodeUsingResolvedTokenSpecStreams);
 
     COOPERATIVE_TRANSITION_END();
 }
@@ -2492,12 +2051,12 @@ CORCOMPILE_FIXUP_BLOB_KIND CEECompileInfo::GetFieldBaseOffset(
 
     if (pMT->IsValueType())
     {
-        return (CORCOMPILE_FIXUP_BLOB_KIND)0;
+        return ENCODE_NONE;
     }
 
     if (pMT->GetParentMethodTable()->IsInheritanceChainLayoutFixedInCurrentVersionBubble())
     {
-        return (CORCOMPILE_FIXUP_BLOB_KIND)0;
+        return ENCODE_NONE;
     }
 
     if (pMT->HasLayout())
@@ -2523,6 +2082,11 @@ BOOL CEECompileInfo::NeedsTypeLayoutCheck(CORINFO_CLASS_HANDLE classHnd)
     MethodTable * pMT = th.AsMethodTable();
 
     if (!pMT->IsValueType())
+        return FALSE;
+
+    // Skip this check for equivalent types. Equivalent types are used for interop that ensures
+    // matching layout.
+    if (pMT->GetClass()->IsEquivalentType())
         return FALSE;
 
     return !pMT->IsLayoutFixedInCurrentVersionBubble();
@@ -2568,7 +2132,7 @@ void CEECompileInfo::EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuild
     }
 #endif
 
-    if ((dwFlags & dwFlags & READYTORUN_LAYOUT_Alignment) && !(dwFlags & READYTORUN_LAYOUT_Alignment_Native))
+    if ((dwFlags & READYTORUN_LAYOUT_Alignment) && !(dwFlags & READYTORUN_LAYOUT_Alignment_Native))
     {
         pSigBuilder->AppendData(dwAlignment);
     }
@@ -2594,8 +2158,33 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
     return ((Module *)moduleHandle)->AreAllClassesFullyLoaded();
 }
 
+int CEECompileInfo::GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token)
+{
+    STANDARD_VM_CONTRACT;
+
+    int dwHashCode;
+    if (!::GetVersionResilientTypeHashCode(((Module *)moduleHandle)->GetMDImport(), token, &dwHashCode))
+        ThrowHR(COR_E_BADIMAGEFORMAT);
+
+    return dwHashCode;
+}
+
+int CEECompileInfo::GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle)
+{
+    STANDARD_VM_CONTRACT;
+
+    return ::GetVersionResilientMethodHashCode(GetMethod(methodHandle));
+}
+
 #endif // FEATURE_READYTORUN_COMPILER
 
+BOOL CEECompileInfo::HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc * pMD = GetMethod(method);
+    return S_OK == pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), customAttributeName, NULL, NULL);
+}
 
 #define OMFConst_Read            0x0001
 #define OMFConst_Write           0x0002
@@ -2624,7 +2213,21 @@ BOOL CEECompileInfo::AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle
 // public\devdiv\inc\corsym.h and debugger\sh\symwrtr\ngenpdbwriter.h,cpp
 // ----------------------------------------------------------------------------
 
+#if defined(NO_NGENPDB) && !defined(FEATURE_PERFMAP)
+BOOL CEECompileInfo::GetIsGeneratingNgenPDB() 
+{
+    return FALSE; 
+}
 
+void CEECompileInfo::SetIsGeneratingNgenPDB(BOOL fGeneratingNgenPDB) 
+{
+}
+
+BOOL IsNgenPDBCompilationProcess()
+{
+    return FALSE;
+}
+#else
 BOOL CEECompileInfo::GetIsGeneratingNgenPDB() 
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -2643,6 +2246,9 @@ BOOL IsNgenPDBCompilationProcess()
     return IsCompilationProcess() && g_pCEECompileInfo->GetIsGeneratingNgenPDB();
 }
 
+#endif // NO_NGENPDB && !FEATURE_PERFMAP
+
+#ifndef NO_NGENPDB
 // This is the prototype of "CreateNGenPdbWriter" exported by diasymreader.dll 
 typedef HRESULT (__stdcall *CreateNGenPdbWriter_t)(const WCHAR *pwszNGenImagePath, const WCHAR *pwszPdbPath, void **ppvObj);
 
@@ -2811,7 +2417,35 @@ class QuickSortILNativeMapByIL : public CQuickSort<ICorDebugInfo::OffsetMapping>
             return 1;
     }
 };
-    
+
+// ----------------------------------------------------------------------------
+// Simple class to sort IL to Native mapping arrays by Native offset
+// 
+class QuickSortILNativeMapByNativeOffset : public CQuickSort<ICorDebugInfo::OffsetMapping>
+{
+public:
+    QuickSortILNativeMapByNativeOffset(
+        ICorDebugInfo::OffsetMapping * rgMap,
+        int cEntries)
+        : CQuickSort<ICorDebugInfo::OffsetMapping>(rgMap, cEntries)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    int Compare(ICorDebugInfo::OffsetMapping * pFirst,
+        ICorDebugInfo::OffsetMapping * pSecond)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (pFirst->nativeOffset < pSecond->nativeOffset)
+            return -1;
+        else if (pFirst->nativeOffset == pSecond->nativeOffset)
+            return 0;
+        else
+            return 1;
+    }
+};
+
 // ----------------------------------------------------------------------------
 // Simple structure used when merging the JIT manager's IL-to-native maps
 // (ICorDebugInfo::OffsetMapping) with the IL PDB's source-to-IL map.
@@ -2907,44 +2541,44 @@ private:
 
 public:
     NGenPdbWriter (LPCWSTR wszNativeImagePath, LPCWSTR wszPdbPath, DWORD dwExtraData, LPCWSTR wszManagedPDBSearchPath)
-        : m_hModule(NULL),
-          m_Create(NULL),
+        : m_Create(NULL),
+          m_hModule(NULL),
           m_wszPdbPath(wszPdbPath),
           m_dwExtraData(dwExtraData),
           m_wszManagedPDBSearchPath(wszManagedPDBSearchPath)
     {
         LIMITED_METHOD_CONTRACT;
     }
-            
-    HRESULT Load()
+
+#define WRITER_LOAD_ERROR_MESSAGE W("Unable to load ") NATIVE_SYMBOL_READER_DLL W(".  Please ensure that ") NATIVE_SYMBOL_READER_DLL W(" is on the path.  Error='%d'\n")
+
+    HRESULT Load(LPCWSTR wszDiasymreaderPath = nullptr)
     {
         STANDARD_VM_CONTRACT;
 
         HRESULT hr = S_OK;
 
-        m_hModule = WszLoadLibrary(W("diasymreader.dll"));
+        m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL);
         if (m_hModule == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("Unable to load diasymreader.dll.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         m_Create = reinterpret_cast<CreateNGenPdbWriter_t>(GetProcAddress(m_hModule, "CreateNGenPdbWriter"));
         if (m_Create == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("An incorrect version of diasymreader.dll was found.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         if ((m_dwExtraData & kPDBLines) != 0)
         {
             hr = FakeCoCreateInstanceEx(
                 CLSID_CorSymBinder_SxS,
-                NULL,
+                wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL,
                 IID_ISymUnmanagedBinder,
                 (void**)&m_pBinder,
                 NULL);
@@ -2965,6 +2599,8 @@ public:
         m_Create = NULL;
     }
 };
+
+#define UNKNOWN_SOURCE_FILE_PATH W("unknown")
 
 // ----------------------------------------------------------------------------
 // Manages generating all PDB data for an EE Module. Directly responsible for writing the
@@ -3042,7 +2678,7 @@ private:
     // interfaces and close the PDB file BEFORE this holder tries to *delete* the PDB
     // file. Also, keep these two in this relative order, so that m_deletePDBFileHolder
     // is destructed before m_wszPDBFilePath.
-    WCHAR m_wszPDBFilePath[MAX_PATH];
+    WCHAR m_wszPDBFilePath[MAX_LONGPATH];
     DeleteFileHolder m_deletePDBFileHolder;
     // 
     // ************* NOTE! *************
@@ -3054,11 +2690,24 @@ private:
     DWORD m_dwExtraData;
     LPCWSTR m_wszManagedPDBSearchPath;
 
+	// Currently The DiasymWriter does not use the correct PDB signature for NGEN PDBS unless 
+	// the NGEN DLL whose symbols are being generated end in .ni.dll.   Thus we copy
+	// to this name if it does not follow this covention (as is true with readyToRun
+	// dlls).   This variable remembers this temp file path so we can delete it after
+	// Pdb generation.   If DiaSymWriter is fixed, we can remove this.  
+	SString m_tempSourceDllName;
+
     // Interfaces for reading IL PDB info
     ReleaseHolder<ISymUnmanagedBinder> m_pBinder;
     ReleaseHolder<ISymUnmanagedReader> m_pReader;
     NewInterfaceArrayHolder<ISymUnmanagedDocument> m_rgpDocs;       // All docs in the PDB Mod
-    ULONG32 m_cDocs;
+	// I know m_ilPdbCount and m_finalPdbDocCount are confusing.Here is the reason :
+	// For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+	// In order to let WriteDebugSILLinesSubsection find "UNKNOWN_SOURCE_FILE_PATH" which does 
+	// not exist in m_rgpDocs, no matter if we have IL PDB or not, we let m_finalPdbDocCount 
+	// equal m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH"
+    ULONG32 m_ilPdbDocCount;
+    ULONG32 m_finalPdbDocCount;
 
     // Keeps track of source file names and how they map to offsets in the relevant PDB
     // subsections.
@@ -3081,11 +2730,12 @@ public:
         : m_Create(Create),
           m_wszPdbPath(wszPdbPath),
           m_pWriter(NULL),
-          m_dwExtraData(dwExtraData),
-          m_pBinder(pBinder),
           m_pModule(pModule),
-          m_wszManagedPDBSearchPath(wszManagedPDBSearchPath)
-
+          m_dwExtraData(dwExtraData),
+          m_wszManagedPDBSearchPath(wszManagedPDBSearchPath),
+          m_pBinder(pBinder),
+          m_ilPdbDocCount(0),
+          m_finalPdbDocCount(1)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -3094,10 +2744,12 @@ public:
 
         ZeroMemory(m_wszPDBFilePath, sizeof(m_wszPDBFilePath));
     }
+
+	~NGenModulePdbWriter();
     
     HRESULT WritePDBData();
 
-    HRESULT WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start);
+    HRESULT WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start, bool isILPDBProvided);
 };
 
 // ----------------------------------------------------------------------------
@@ -3118,6 +2770,7 @@ private:
     const IJitManager::MethodRegionInfo * m_pMethodRegionInfo;
     EECodeInfo * m_pCodeInfo;
     DocNameToOffsetMap * m_pDocNameToOffsetMap;
+    bool m_isILPDBProvided;
 
     // IL-to-native map from JIT manager
     ULONG32 m_cIlNativeMap;
@@ -3129,16 +2782,36 @@ private:
     NewArrayHolder<ULONG32> m_rgnLineStarts;                   // Array of source lines for this method
     ULONG32 m_cSeqPoints;                                      // Count of above two parallel arrays
 
-    HRESULT WriteLinesSubsection(
+    HRESULT WriteNativeILMapPDBData();
+    LPBYTE InitDebugLinesHeaderSection(
+        DEBUG_S_SUBSECTION_TYPE type,
+        ULONG32 ulCodeStartOffset,
+        ULONG32 cbCode,
+        ULONG32 lineSize,
+        CV_DebugSSubsectionHeader_t **ppSubSectHeader /*out*/,
+        CV_DebugSLinesHeader_t ** ppLinesHeader /*out*/,
+        LPBYTE * ppbLinesSubsectionCur /*out*/);
+
+    HRESULT WriteDebugSLinesSubsection(
         ULONG32 ulCodeStartOffset,
         ULONG32 cbCode,
         MapIndexPair * rgMapIndexPairs,
         ULONG32 cMapIndexPairs);
 
+    HRESULT WriteDebugSILLinesSubsection(
+        ULONG32 ulCodeStartOffset,
+        ULONG32 cbCode,
+        ICorDebugInfo::OffsetMapping * rgILNativeMap,
+        ULONG32 rgILNativeMapAdjustSize);
+
     BOOL FinalizeLinesFileBlock(
-        CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader, 
+        CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader,
         CV_Line_t * pLineBlockStart,
-        CV_Line_t * pLineBlockAfterEnd);
+        CV_Line_t * pLineBlockAfterEnd
+#ifdef _DEBUG
+        , BOOL ignorekUnmappedIPCheck = false
+#endif
+        );
 
 public:
     NGenMethodLinesPdbWriter(
@@ -3151,7 +2824,8 @@ public:
         TADDR addrCodeSection,
         const IJitManager::MethodRegionInfo * pMethodRegionInfo,
         EECodeInfo * pCodeInfo,
-        DocNameToOffsetMap * pDocNameToOffsetMap)
+        DocNameToOffsetMap * pDocNameToOffsetMap,
+        bool isILPDBProvided)
         : m_pWriter(pWriter),
           m_pMod(pMod),
           m_pReader(pReader),
@@ -3162,6 +2836,7 @@ public:
           m_pMethodRegionInfo(pMethodRegionInfo),
           m_pCodeInfo(pCodeInfo),
           m_pDocNameToOffsetMap(pDocNameToOffsetMap),
+          m_isILPDBProvided(isILPDBProvided),
           m_cIlNativeMap(0),
           m_cSeqPoints(0)
     {
@@ -3213,7 +2888,7 @@ HRESULT NGenModulePdbWriter::WriteStringTable()
     UINT64 cbStringTableEstimate =
         sizeof(DWORD) +
         sizeof(CV_DebugSSubsectionHeader_t) +
-        m_cDocs * (MAX_PATH + 1);
+        m_finalPdbDocCount * (MAX_LONGPATH + 1);
     if (!FitsIn<ULONG32>(cbStringTableEstimate))
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
@@ -3238,14 +2913,21 @@ HRESULT NGenModulePdbWriter::WriteStringTable()
     LPBYTE pbStringTableStart = pbStringTableSubsectionCur;
 
     // The actual strings
-    for (ULONG32 i=0; i < m_cDocs; i++)
+    for (ULONG32 i = 0; i < m_finalPdbDocCount; i++)
     {
-        WCHAR wszURL[MAX_PATH];
+        // For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+        // In order to let WriteDebugSILLinesSubsection can find "UNKNOWN_SOURCE_FILE_PATH" which is 
+        // not existed in m_rgpDocs, no matter we have IL PDB or not, we let m_finalPdbDocCount equals to 
+        // m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH". That also explains
+        // why we have a inconsistence between m_finalPdbDocCount and m_ilPdbDocCount.
+        WCHAR wszURL[MAX_LONGPATH] = UNKNOWN_SOURCE_FILE_PATH;
         ULONG32 cchURL;
-        hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
-        if (FAILED(hr))
-            return hr;
-
+        if (i < m_ilPdbDocCount)
+        {
+            hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
+            if (FAILED(hr))
+                return hr;
+        }
         int cbWritten = WideCharToMultiByte(
             CP_UTF8,
             0,                                      // dwFlags
@@ -3325,7 +3007,7 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     GetSvcLogger()->Log(W("Loaded managed PDB"));
 
     // Grab the full path of the managed PDB so we can log it
-    WCHAR wszIlPdbPath[MAX_PATH];
+    WCHAR wszIlPdbPath[MAX_LONGPATH];
     ULONG32 cchIlPdbPath;
     hr = m_pReader->GetSymbolStoreFileName(
         _countof(wszIlPdbPath),
@@ -3353,16 +3035,24 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     m_rgpDocs = new ISymUnmanagedDocument * [cDocs];
     hr = m_pReader->GetDocuments(
         cDocs,
-        &m_cDocs,
+        &m_ilPdbDocCount,
         m_rgpDocs);
     if (FAILED(hr))
         return hr;
+    m_finalPdbDocCount = m_ilPdbDocCount + 1;
     // Commit m_rgpDocs to calling Release() on each ISymUnmanagedDocument* in the array
-    m_rgpDocs.SetElementCount(m_cDocs);
+    m_rgpDocs.SetElementCount(m_ilPdbDocCount);
     
     return S_OK;
 }
 
+NGenModulePdbWriter::~NGenModulePdbWriter()
+{
+	// Delete any temporary files we created. 
+	if (m_tempSourceDllName.GetCount() != 0)
+		DeleteFileW(m_tempSourceDllName);
+	m_tempSourceDllName.Clear();
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -3381,11 +3071,13 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     // This will try to open the managed PDB if lines info was requested.  This is a
     // likely failure point, so intentionally do this before creating the NGEN PDB file
     // on disk.
+    bool isILPDBProvided = false;
     if ((m_dwExtraData & kPDBLines) != 0)
     {
         hr = InitILPdbData();
         if (FAILED(hr))
             return hr;
+        isILPDBProvided = true;
     }
 
     // Create the PDB file we will write into.
@@ -3395,8 +3087,32 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 
     PEImageLayout * pLoadedLayout = m_pModule->GetFile()->GetLoaded();
 
+	// Currently DiaSymReader does not work properly generating NGEN PDBS unless 
+	// the DLL whose PDB is being generated ends in .ni.*.   Unfortunately, readyToRun
+	// images do not follow this convention and end up producing bad PDBS.  To fix
+	// this (without changing diasymreader.dll which ships indepdendently of .Net Core)
+	// we copy the file to somethign with this convention before generating the PDB
+	// and delete it when we are done.  
+	SString dllPath = pLoadedLayout->GetPath();
+	if (!dllPath.EndsWithCaseInsensitive(W(".ni.dll")) && !dllPath.EndsWithCaseInsensitive(W(".ni.exe")))
+	{
+		SString::Iterator fileNameStart = dllPath.End();
+		dllPath.FindBack(fileNameStart, DIRECTORY_SEPARATOR_STR_W);
+
+		SString::Iterator ext = dllPath.End();
+		dllPath.FindBack(ext, '.');
+
+		// m_tempSourceDllName = Convertion of  INPUT.dll  to INPUT.ni.dll where the PDB lives.  
+		m_tempSourceDllName = m_wszPdbPath;
+		m_tempSourceDllName += SString(dllPath, fileNameStart, ext - fileNameStart);
+		m_tempSourceDllName += W(".ni");
+		m_tempSourceDllName += SString(dllPath, ext, dllPath.End() - ext);
+		CopyFileW(dllPath, m_tempSourceDllName, false);
+		dllPath = m_tempSourceDllName;
+	}
+
     ReleaseHolder<ISymNGenWriter> pWriter1;
-    hr = m_Create(pLoadedLayout->GetPath(), m_wszPdbPath, &pWriter1);
+    hr = m_Create(dllPath, m_wszPdbPath, &pWriter1);
     if (FAILED(hr))
         return hr;
     
@@ -3423,20 +3139,19 @@ HRESULT NGenModulePdbWriter::WritePDBData()
         m_deletePDBFileHolder.Assign(m_wszPDBFilePath);
     }
 
-    if ((m_dwExtraData & kPDBLines) != 0)
-    {
-        hr = m_pdbMod.Open(m_pWriter, pLoadedLayout->GetPath(), m_pModule->GetPath());
-        if (FAILED(hr))
-            return hr;
 
-        hr = WriteStringTable();
-        if (FAILED(hr))
-            return hr;
+    hr = m_pdbMod.Open(m_pWriter, pLoadedLayout->GetPath(), m_pModule->GetPath());
+    if (FAILED(hr))
+        return hr;
 
-        hr = WriteFileChecksums();
-        if (FAILED(hr))
-            return hr;
-    }
+    hr = WriteStringTable();
+    if (FAILED(hr))
+        return hr;
+
+    hr = WriteFileChecksums();
+    if (FAILED(hr))
+        return hr;
+    
 
     COUNT_T sectionCount = pLoadedLayout->GetNumberOfSections();
     IMAGE_SECTION_HEADER *section = pLoadedLayout->FindFirstSection();
@@ -3458,23 +3173,20 @@ HRESULT NGenModulePdbWriter::WritePDBData()
             pCodeBase = (BYTE *)section[sectionIndex].VirtualAddress;
         }
 
-        if ((m_dwExtraData & kPDBLines) != 0)
-        {
-            // In order to support the DIA RVA-to-lines API against the PDB we're
-            // generating, we need to update the section contribution table with each
-            // section we add.
-            hr = m_pWriter->ModAddSecContribEx(
-                m_pdbMod.GetModPtr(),
-                (USHORT)(sectionIndex + 1),
-                0,
-                section[sectionIndex].SizeOfRawData,
-                section[sectionIndex].Characteristics,
-                0,          // dwDataCrc
-                0           // dwRelocCrc
-                );
-            if (FAILED(hr))
-                return hr;
-        }
+        // In order to support the DIA RVA-to-lines API against the PDB we're
+        // generating, we need to update the section contribution table with each
+        // section we add.
+        hr = m_pWriter->ModAddSecContribEx(
+            m_pdbMod.GetModPtr(),
+            (USHORT)(sectionIndex + 1),
+            0,
+            section[sectionIndex].SizeOfRawData,
+            section[sectionIndex].Characteristics,
+            0,          // dwDataCrc
+            0           // dwRelocCrc
+            );
+        if (FAILED(hr))
+            return hr;
 
         sectionIndex++;
     }
@@ -3482,17 +3194,16 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     _ASSERTE(iCodeSection != 0);
     _ASSERTE(pCodeBase != NULL);
 
-    if ((m_dwExtraData & kPDBLines) != 0)
-    {
-        // To support lines info, we need a "dummy" section, indexed as 0, for use as a
-        // sentinel when MSPDB sets up its section contribution table
-        hr = m_pWriter->AddSection(0,           // Dummy section 0
-            OMF_SentinelType, 
-            0,
-            0xFFFFffff);
-        if (FAILED(hr))
-            return hr;
-    }
+
+    // To support lines info, we need a "dummy" section, indexed as 0, for use as a
+    // sentinel when MSPDB sets up its section contribution table
+    hr = m_pWriter->AddSection(0,           // Dummy section 0
+        OMF_SentinelType, 
+        0,
+        0xFFFFffff);
+    if (FAILED(hr))
+        return hr;
+    
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (pLoadedLayout->HasReadyToRunHeader())
@@ -3502,7 +3213,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
         {
             MethodDesc *hotDesc = mi.GetMethodDesc();
 
-            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress());
+            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress(), isILPDBProvided);
             if (FAILED(hr))
                 return hr;
         }
@@ -3516,7 +3227,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
             MethodDesc *hotDesc = mi.GetMethodDesc();
             hotDesc->CheckRestore();
 
-            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress());
+            hr = WriteMethodPDBData(pLoadedLayout, iCodeSection, pCodeBase, hotDesc, mi.GetMethodStartAddress(), isILPDBProvided);
             if (FAILED(hr))
                 return hr;
         }
@@ -3527,7 +3238,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
     return S_OK;
 }
 
-HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start)
+HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, USHORT iCodeSection, BYTE *pCodeBase, MethodDesc * hotDesc, PCODE start, bool isILPDBProvided)
 {
     STANDARD_VM_CONTRACT;
 
@@ -3543,6 +3254,12 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
     _ASSERTE(pHotCodeStart);
 
     PCODE pColdCodeStart = methodRegionInfo.coldStartAddress;
+	SString mAssemblyName;
+	mAssemblyName.SetUTF8(m_pModule->GetAssembly()->GetSimpleName());
+    SString assemblyName;
+    assemblyName.SetUTF8(hotDesc->GetAssembly()->GetSimpleName());
+    SString methodToken;
+    methodToken.Printf("%X", hotDesc->GetMemberDef());
 
     // Hot name
     {
@@ -3551,7 +3268,11 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
             fullName, 
             hotDesc, 
             TypeString::FormatNamespace | TypeString::FormatSignature);
-
+		fullName.Append(W("$#"));
+		if (!mAssemblyName.Equals(assemblyName))
+			fullName.Append(assemblyName);
+		fullName.Append(W("#"));
+        fullName.Append(methodToken);
         BSTRHolder hotNameHolder(SysAllocString(fullName.GetUnicode()));
         hr = m_pWriter->AddSymbol(hotNameHolder,
                                 iCodeSection,
@@ -3570,7 +3291,12 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
                 fullNameCold, 
                 hotDesc, 
                 TypeString::FormatNamespace | TypeString::FormatSignature);
-                
+			fullNameCold.Append(W("$#"));
+			if (!mAssemblyName.Equals(assemblyName))
+				fullNameCold.Append(assemblyName);
+			fullNameCold.Append(W("#"));
+            fullNameCold.Append(methodToken);
+
             BSTRHolder coldNameHolder(SysAllocString(fullNameCold.GetUnicode()));
             hr = m_pWriter->AddSymbol(coldNameHolder,
                                     iCodeSection,
@@ -3583,10 +3309,8 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
     }
 
     // Offset / lines mapping
-    if (((m_dwExtraData & kPDBLines) != 0) &&
-
-        // Skip functions that are too big for PDB lines format
-        FitsIn<DWORD>(methodRegionInfo.hotSize) &&
+    // Skip functions that are too big for PDB lines format
+    if (FitsIn<DWORD>(methodRegionInfo.hotSize) &&
         FitsIn<DWORD>(methodRegionInfo.coldSize))
     {
         NGenMethodLinesPdbWriter methodLinesWriter(
@@ -3599,7 +3323,8 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
             (TADDR)pLoadedLayout->GetBase() + (TADDR)pCodeBase, 
             &methodRegionInfo, 
             &codeInfo, 
-            &m_docNameToOffsetMap);
+            &m_docNameToOffsetMap,
+            isILPDBProvided);
 
         hr = methodLinesWriter.WritePDBData();
         if (FAILED(hr))
@@ -3636,7 +3361,7 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
     UINT64 cbChecksumSubsectionEstimate =
         sizeof(DWORD) +
         sizeof(CV_DebugSSubsectionHeader_t) +
-        m_cDocs * kcbEachChecksumEstimate;
+        m_finalPdbDocCount * kcbEachChecksumEstimate;
     if (!FitsIn<ULONG32>(cbChecksumSubsectionEstimate))
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
@@ -3660,14 +3385,25 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
 
     // (3) Iterate through source files, steal their checksum info from the IL PDB, and
     // write it into the NGEN PDB.
-    for (ULONG32 i=0; i < m_cDocs; i++)
+    for (ULONG32 i = 0; i < m_finalPdbDocCount; i++)
     {
-        WCHAR wszURL[MAX_PATH];
-        char szURL[MAX_PATH];
+        WCHAR wszURL[MAX_LONGPATH] = UNKNOWN_SOURCE_FILE_PATH;
+        char szURL[MAX_LONGPATH];
         ULONG32 cchURL;
-        hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
-        if (FAILED(hr))
-            return hr;
+
+
+        bool isKnownSourcePath = i < m_ilPdbDocCount;
+        if (isKnownSourcePath)
+        {
+            // For NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection, we won't write the path info.  
+            // In order to let WriteDebugSILLinesSubsection can find "UNKNOWN_SOURCE_FILE_PATH" which is 
+            // not existed in m_rgpDocs, no matter we have IL PDB or not, we let m_finalPdbDocCount equals to 
+            // m_ilPdbDocCount + 1 and write the extra one path as "UNKNOWN_SOURCE_FILE_PATH". That also explains
+            // why we have a inconsistence between m_finalPdbDocCount and m_ilPdbDocCount.
+            hr = m_rgpDocs[i]->GetURL(_countof(wszURL), &cchURL, wszURL);
+            if (FAILED(hr))
+                return hr;
+        }
 
         int cbWritten = WideCharToMultiByte(
             CP_UTF8,
@@ -3709,16 +3445,19 @@ HRESULT NGenModulePdbWriter::WriteFileChecksums()
         BYTE rgbChecksum[kcbEachChecksumEstimate];
         ULONG32 cbChecksum = 0;
         BYTE bChecksumAlgorithmType = CHKSUM_TYPE_NONE;
-        GUID guidChecksumAlgorithm;
-        hr = m_rgpDocs[i]->GetCheckSumAlgorithmId(&guidChecksumAlgorithm);
-        if (SUCCEEDED(hr))
+        if (isKnownSourcePath)
         {
-            // If we got the checksum algorithm, we can write it all out to the buffer. 
-            // Else, we'll just omit the checksum info
-            if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_MD5, sizeof(GUID)) == 0)
-                bChecksumAlgorithmType = CHKSUM_TYPE_MD5;
-            else if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_SHA1, sizeof(GUID)) == 0)
-                bChecksumAlgorithmType = CHKSUM_TYPE_SHA1;
+            GUID guidChecksumAlgorithm;
+            hr = m_rgpDocs[i]->GetCheckSumAlgorithmId(&guidChecksumAlgorithm);
+            if (SUCCEEDED(hr))
+            {
+                // If we got the checksum algorithm, we can write it all out to the buffer. 
+                // Else, we'll just omit the checksum info
+                if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_MD5, sizeof(GUID)) == 0)
+                    bChecksumAlgorithmType = CHKSUM_TYPE_MD5;
+                else if (memcmp(&guidChecksumAlgorithm, &CorSym_SourceHash_SHA1, sizeof(GUID)) == 0)
+                    bChecksumAlgorithmType = CHKSUM_TYPE_SHA1;
+            }
         }
 
         if (bChecksumAlgorithmType != CHKSUM_TYPE_NONE)
@@ -3804,6 +3543,16 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
         // Shouldn't happen, but just skip this method if it does
         return S_OK;
     }
+    HRESULT hr;
+    if (FAILED(hr = WriteNativeILMapPDBData()))
+    {
+        return hr;
+    }
+
+    if (!m_isILPDBProvided)
+    {
+        return S_OK;
+    }
 
     // We will traverse this IL-to-native map (from the JIT) in parallel with the
     // source-to-IL map provided by the IL PDB (below).  Both need to be sorted by IL so
@@ -3815,7 +3564,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     // according to the IL PDB API)
     
     ReleaseHolder<ISymUnmanagedMethod> pMethod;
-    HRESULT hr = m_pReader->GetMethod(
+    hr = m_pReader->GetMethod(
         m_hotDesc->GetMemberDef(),
         &pMethod);
     if (FAILED(hr))
@@ -3880,7 +3629,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     
     ULONG32 iIlNativeMap = 0;
     ULONG32 iMapIndexPairs = 0;
-
+	
     // Traverse IL PDB entries and IL-to-native map entries (both sorted by IL) in
     // parallel
     // 
@@ -3944,7 +3693,16 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
                 // Reset our memory of the last unmatched entry in the IL PDB
                 iSeqPointLastUnmatched = (ULONG32) -1;
             }
-            
+			else if (iMapIndexPairs > 0)
+			{
+				DWORD lastMatchedilNativeIndex = rgMapIndexPairs[iMapIndexPairs - 1].m_iIlNativeMap;
+				if (m_rgIlNativeMap[iIlNativeMap].ilOffset == m_rgIlNativeMap[lastMatchedilNativeIndex].ilOffset &&
+					m_rgIlNativeMap[iIlNativeMap].nativeOffset < m_rgIlNativeMap[lastMatchedilNativeIndex].nativeOffset)
+				{
+					rgMapIndexPairs[iMapIndexPairs - 1].m_iIlNativeMap = iIlNativeMap;
+				}
+
+			}
             // Go to next ilnative map entry
             iIlNativeMap++;
             continue;
@@ -4017,7 +3775,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     }
 
     // Write out the hot region into its own lines-file subsection
-    hr = WriteLinesSubsection(
+    hr = WriteDebugSLinesSubsection(
         ULONG32(m_pMethodRegionInfo->hotStartAddress - m_addrCodeSection),
         ULONG32(m_pMethodRegionInfo->hotSize),
         rgMapIndexPairs,
@@ -4029,7 +3787,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     // region
     if (iMapIndexPairsFirstEntryInColdSection < cMapIndexPairs)
     {
-        hr = WriteLinesSubsection(
+        hr = WriteDebugSLinesSubsection(
             ULONG32(m_pMethodRegionInfo->coldStartAddress - m_addrCodeSection),
             ULONG32(m_pMethodRegionInfo->coldSize),
             &rgMapIndexPairs[iMapIndexPairsFirstEntryInColdSection],
@@ -4039,6 +3797,145 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
     }
 
     return S_OK;
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Manages the writing of all native-IL subsections requred for a given method. Almost do
+// the same thing as NGenMethodLinesPdbWriter::WritePDBData. But we will write the native-IL 
+// map this time.  
+//
+
+HRESULT NGenMethodLinesPdbWriter::WriteNativeILMapPDBData()
+{
+    STANDARD_VM_CONTRACT;
+
+    HRESULT hr;
+
+    QuickSortILNativeMapByNativeOffset sorterByNativeOffset(m_rgIlNativeMap, m_cIlNativeMap);
+    sorterByNativeOffset.Sort();
+
+    ULONG32 iIlNativeMap = 0;
+    ULONG32 ilNativeMapFirstEntryInColdeSection = m_cIlNativeMap;
+    for (iIlNativeMap = 0; iIlNativeMap < m_cIlNativeMap; iIlNativeMap++)
+    {
+        if (m_rgIlNativeMap[iIlNativeMap].nativeOffset >= m_pMethodRegionInfo->hotSize)
+        {
+            ilNativeMapFirstEntryInColdeSection = iIlNativeMap;
+            break;
+        }
+    }
+
+    NewArrayHolder<ICorDebugInfo::OffsetMapping> coldRgIlNativeMap(new ICorDebugInfo::OffsetMapping[m_cIlNativeMap - ilNativeMapFirstEntryInColdeSection]);
+    // Adjust the cold offsets (if any) to be relative to the cold start
+    for (iIlNativeMap = ilNativeMapFirstEntryInColdeSection; iIlNativeMap < m_cIlNativeMap; iIlNativeMap++)
+    {
+        DWORD dwNativeOffset = m_rgIlNativeMap[iIlNativeMap].nativeOffset;
+        _ASSERTE(dwNativeOffset >= m_pMethodRegionInfo->hotSize);
+
+        // Adjust offset so it's relative to the cold region start
+        dwNativeOffset -= DWORD(m_pMethodRegionInfo->hotSize);
+        _ASSERTE(dwNativeOffset < m_pMethodRegionInfo->coldSize);
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].ilOffset = m_rgIlNativeMap[iIlNativeMap].ilOffset;
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].nativeOffset = dwNativeOffset;
+        coldRgIlNativeMap[iIlNativeMap - ilNativeMapFirstEntryInColdeSection].source = m_rgIlNativeMap[iIlNativeMap].source;
+    }
+
+    // Write out the hot region into its own lines-file subsection
+    hr = WriteDebugSILLinesSubsection(
+        ULONG32(m_pMethodRegionInfo->hotStartAddress - m_addrCodeSection),
+        ULONG32(m_pMethodRegionInfo->hotSize),
+        m_rgIlNativeMap,
+        ilNativeMapFirstEntryInColdeSection);
+    if (FAILED(hr))
+        return hr;
+
+    // If there was a hot/cold split, write a separate lines-file subsection for the cold
+    // region
+    if (ilNativeMapFirstEntryInColdeSection < m_cIlNativeMap)
+    {
+        hr = WriteDebugSILLinesSubsection(
+            ULONG32(m_pMethodRegionInfo->coldStartAddress - m_addrCodeSection),
+            ULONG32(m_pMethodRegionInfo->coldSize),
+            coldRgIlNativeMap,
+            m_cIlNativeMap - ilNativeMapFirstEntryInColdeSection);
+        if (FAILED(hr))
+            return hr;
+    }
+
+    return S_OK;
+}
+
+
+//---------------------------------------------------------------------------------------
+//
+// Helper called by NGenMethodLinesPdbWriter::WriteDebugSLinesSubsection and 
+// NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection to initial the DEBUG_S*_LINE 
+// subsection headers.
+//
+// Arguments:
+//      * ulCodeStartOffset - Offset relative to the code section, or where this region
+//          of code begins
+//      * type - the subsection's type
+//      * lineSize - how many lines mapping the subsection will have.
+//      * cbCode - Size in bytes of this region of code
+//      * ppSubSectHeader -  output value which returns the intialed CV_DebugSLinesHeader_t struct pointer.
+//      * ppLinesHeader - output value which returns the initialed CV_DebugSLinesHeader_t struct pointer.
+//      * ppbLinesSubsectionCur - output value which points to the address right after the DebugSLinesHeader
+//
+// Return Value:
+//      * Pointer which points the staring address of the SubSection.
+//
+
+LPBYTE NGenMethodLinesPdbWriter::InitDebugLinesHeaderSection(
+    DEBUG_S_SUBSECTION_TYPE type,
+    ULONG32 ulCodeStartOffset,
+    ULONG32 cbCode,
+    ULONG32 lineSize,
+    CV_DebugSSubsectionHeader_t **ppSubSectHeader /*out*/,
+    CV_DebugSLinesHeader_t ** ppLinesHeader /*out*/,
+    LPBYTE * ppbLinesSubsectionCur /*out*/)
+{
+    STANDARD_VM_CONTRACT;
+
+    UINT64 cbLinesSubsectionEstimate =
+        sizeof(DWORD) +
+        sizeof(CV_DebugSSubsectionHeader_t) +
+        sizeof(CV_DebugSLinesHeader_t) +
+        // Worst case: assume each sequence point will require its own
+        // CV_DebugSLinesFileBlockHeader_t
+        (lineSize * (sizeof(CV_DebugSLinesFileBlockHeader_t) + sizeof(CV_Line_t)));
+    if (!FitsIn<ULONG32>(cbLinesSubsectionEstimate))
+    {
+        return NULL;
+    }
+
+    LPBYTE rgbLinesSubsection = new BYTE[ULONG32(cbLinesSubsectionEstimate)];
+    LPBYTE pbLinesSubsectionCur = rgbLinesSubsection;
+
+    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
+    *((DWORD *)pbLinesSubsectionCur) = CV_SIGNATURE_C13;
+    pbLinesSubsectionCur += sizeof(DWORD);
+
+    // * (2) CV_DebugSSubsectionHeader_t
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = (CV_DebugSSubsectionHeader_t *)pbLinesSubsectionCur;
+    memset(pSubSectHeader, 0, sizeof(*pSubSectHeader));
+    pSubSectHeader->type = type;
+    *ppSubSectHeader = pSubSectHeader;
+    // pSubSectHeader->cblen to be filled in later once we know the size
+    pbLinesSubsectionCur += sizeof(*pSubSectHeader);
+
+    // * (3) CV_DebugSLinesHeader_t
+    CV_DebugSLinesHeader_t * pLinesHeader = (CV_DebugSLinesHeader_t *)pbLinesSubsectionCur;
+    memset(pLinesHeader, 0, sizeof(*pLinesHeader));
+    pLinesHeader->offCon = ulCodeStartOffset;
+    pLinesHeader->segCon = m_iCodeSection;
+    pLinesHeader->flags = 0;   // 0 means line info, but not column info, is included
+    pLinesHeader->cbCon = cbCode;
+    *ppLinesHeader = pLinesHeader;
+    pbLinesSubsectionCur += sizeof(*pLinesHeader);
+    *ppbLinesSubsectionCur = pbLinesSubsectionCur;
+    return rgbLinesSubsection;
 }
 
 //---------------------------------------------------------------------------------------
@@ -4062,7 +3959,7 @@ HRESULT NGenMethodLinesPdbWriter::WritePDBData()
 //      m_rgIlNativeMap[rgMapIndexPairs[i].m_iIlNativeMap].nativeOffset increases with i.
 //
 
-HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
+HRESULT NGenMethodLinesPdbWriter::WriteDebugSLinesSubsection(
     ULONG32 ulCodeStartOffset,
     ULONG32 cbCode,
     MapIndexPair * rgMapIndexPairs,
@@ -4089,40 +3986,31 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
 
     HRESULT hr;
 
-    UINT64 cbLinesSubsectionEstimate =
-        sizeof(DWORD) +
-        sizeof(CV_DebugSSubsectionHeader_t) +
-        sizeof(CV_DebugSLinesHeader_t) +
-        // Worst case: assume each sequence point will require its own
-        // CV_DebugSLinesFileBlockHeader_t
-        (cMapIndexPairs * (sizeof(CV_DebugSLinesFileBlockHeader_t) + sizeof(CV_Line_t)));
-    if (!FitsIn<ULONG32>(cbLinesSubsectionEstimate))
+
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = NULL;
+    CV_DebugSLinesHeader_t * pLinesHeader = NULL;
+    CV_DebugSLinesFileBlockHeader_t * LinesFileBlockHeader = NULL;
+
+    // the InitDebugLinesHeaderSection will help us taking care of 
+    // * (1) DWORD = CV_SIGNATURE_C13
+    // * (2) CV_DebugSSubsectionHeader_t 
+    // * (3) CV_DebugSLinesHeader_t 
+    LPBYTE pbLinesSubsectionCur;
+    LPBYTE prgbLinesSubsection = InitDebugLinesHeaderSection(
+        DEBUG_S_LINES,
+        ulCodeStartOffset,
+        cbCode,
+        cMapIndexPairs,
+        &pSubSectHeader,
+        &pLinesHeader,
+        &pbLinesSubsectionCur);
+
+    if (pbLinesSubsectionCur == NULL)
     {
         return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
     }
-        
-    NewArrayHolder<BYTE> rgbLinesSubsection(new BYTE[ULONG32(cbLinesSubsectionEstimate)]);
-    LPBYTE pbLinesSubsectionCur = rgbLinesSubsection;
 
-    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
-    *((DWORD *) pbLinesSubsectionCur) = CV_SIGNATURE_C13;
-    pbLinesSubsectionCur += sizeof(DWORD);
-    
-    // * (2) CV_DebugSSubsectionHeader_t
-    CV_DebugSSubsectionHeader_t * pSubSectHeader = (CV_DebugSSubsectionHeader_t *) pbLinesSubsectionCur;
-    memset(pSubSectHeader, 0, sizeof(*pSubSectHeader));
-    pSubSectHeader->type = DEBUG_S_LINES;
-    // pSubSectHeader->cblen to be filled in later once we know the size
-    pbLinesSubsectionCur += sizeof(*pSubSectHeader);
-    
-    // * (3) CV_DebugSLinesHeader_t
-    CV_DebugSLinesHeader_t * pLinesHeader = (CV_DebugSLinesHeader_t *) pbLinesSubsectionCur;
-    memset(pLinesHeader, 0, sizeof(*pLinesHeader));
-    pLinesHeader->offCon = ulCodeStartOffset;
-    pLinesHeader->segCon = m_iCodeSection;
-    pLinesHeader->flags = 0;   // 0 means line info, but not column info, is included
-    pLinesHeader->cbCon = cbCode;
-    pbLinesSubsectionCur += sizeof(*pLinesHeader);
+    NewArrayHolder<BYTE> rgbLinesSubsection(prgbLinesSubsection);
 
     // The loop below takes care of
     //     * (4) CV_DebugSLinesFileBlockHeader_t
@@ -4131,11 +4019,13 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
     BOOL fAtLeastOneBlockWritten = FALSE;
     CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader = NULL;
     CV_Line_t * pLineCur = NULL;
+	CV_Line_t * pLinePrev = NULL;
     CV_Line_t * pLineBlockStart = NULL;
     BOOL fBeginNewBlock = TRUE;
     ULONG32 iSeqPointsPrev = (ULONG32) -1;
     DWORD dwNativeOffsetPrev = (DWORD) -1;
-    WCHAR wszURLPrev[MAX_PATH];
+    DWORD ilOffsetPrev = (DWORD) -1;
+    WCHAR wszURLPrev[MAX_LONGPATH];
     memset(&wszURLPrev, 0, sizeof(wszURLPrev));
     LPBYTE pbEnd = NULL;
 
@@ -4148,20 +4038,31 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
         // offset mapping. PDB format frowns on that. Since rgMapIndexPairs is being
         // iterated in native offset order, it's easy to find these dupes right now, and
         // skip all but the first map containing a given IP offset.
-        if (m_rgIlNativeMap[iIlNativeMap].nativeOffset == dwNativeOffsetPrev)
+        if (pLinePrev != NULL && m_rgIlNativeMap[iIlNativeMap].nativeOffset == pLinePrev->offset)
         {
-            // Found a native offset dupe. Since we've already assigned
-            // dwNativeOffsetPrev, ignore the current map entry
-            continue;
+			if (ilOffsetPrev == kUnmappedIP)
+			{
+				// if the previous IL offset is kUnmappedIP, then we should rewrite it. 
+				pLineCur = pLinePrev;
+			}
+			else if (iSeqPoints != kUnmappedIP &&
+				m_rgilOffsets[iSeqPoints] < ilOffsetPrev)
+			{
+				pLineCur = pLinePrev;
+			}
+			else
+			{
+				// Found a native offset dupe, ignore the current map entry
+				continue;
+			}
         }
-        dwNativeOffsetPrev = m_rgIlNativeMap[iIlNativeMap].nativeOffset;
 
         if ((iSeqPoints != kUnmappedIP) && (iSeqPoints != iSeqPointsPrev))
         {
             // This is the first iteration where we're looking at this iSeqPoints.  So
             // check whether the document name has changed on us.  If it has, that means
             // we need to start a new block.
-            WCHAR wszURL[MAX_PATH];
+            WCHAR wszURL[MAX_LONGPATH];
             ULONG32 cchURL;
             hr = m_rgpDocs[iSeqPoints]->GetURL(_countof(wszURL), &cchURL, wszURL);
             if (FAILED(hr))
@@ -4202,7 +4103,7 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
             }
 
             // Now get the info we'll need for the next block
-            char szURL[MAX_PATH];
+            char szURL[MAX_LONGPATH];
             int cbWritten = WideCharToMultiByte(
                 CP_UTF8,
                 0,                                      // dwFlags
@@ -4270,6 +4171,8 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
             m_rgnLineStarts[iSeqPoints];
         pLineCur->deltaLineEnd = 0;
         pLineCur->fStatement = 1;
+		ilOffsetPrev = (iSeqPoints == kUnmappedIP) ? kUnmappedIP : m_rgilOffsets[iSeqPoints];
+		pLinePrev = pLineCur;
         pLineCur++;
     }       // for (ULONG32 iMapIndexPairs=0; iMapIndexPairs < cMapIndexPairs; iMapIndexPairs++)
 
@@ -4307,6 +4210,183 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
     return S_OK;
 }
 
+//---------------------------------------------------------------------------------------
+//
+// Helper called by NGenMethodLinesPdbWriter::WriteNativeILMapPDBData to do the actual PDB writing of a single
+// lines-subsection.  This is called once for the hot region, and once for the cold
+// region, of a given method that has been split.  That means you get two
+// lines-subsections for split methods.
+//
+// Arguments:
+//      * ulCodeStartOffset - Offset relative to the code section, or where this region
+//          of code begins
+//      * cbCode - Size in bytes of this region of code
+//      * rgIlNativeMap - IL to Native map array.
+//      * rgILNativeMapAdjustSize - the number of elements we need to read in rgILNativeMap.
+//
+
+HRESULT NGenMethodLinesPdbWriter::WriteDebugSILLinesSubsection(
+    ULONG32 ulCodeStartOffset,
+    ULONG32 cbCode,
+    ICorDebugInfo::OffsetMapping * rgIlNativeMap,
+    ULONG32 rgILNativeMapAdjustSize)
+{
+    STANDARD_VM_CONTRACT;
+
+    // The lines subsection of the PDB (i.e., "DEBUG_S_IL_LINES"), is a blob consisting of a
+    // few structs stacked one after the other:
+    // 
+    // * (1) DWORD = CV_SIGNATURE_C13 -- the usual subsection signature DWORD
+    // * (2) CV_DebugSSubsectionHeader_t -- the usual subsection header, with type =
+    //     DEBUG_S_LINES
+    // * (3) CV_DebugSLinesHeader_t -- a single header for the entire subsection.  Its
+    //     purpose is to specify the native function being described, and to specify the
+    //     size of the variable-sized "blocks" that follow
+    // * (4) CV_DebugSLinesFileBlockHeader_t -- For each block, you get one of these.  A
+    //     block is defined by a set of sequence points that map to the same source
+    //     file.  While iterating through the offsets, we need to define new blocks
+    //     whenever the source file changes.  In C#, this typically only happens when
+    //     you advance to (or away from) an unmapped IP (0xFeeFee).
+    // * (5) CV_Line_t (Line array entries) -- For each block, you get several line
+    //     array entries, one entry for the beginning of each sequence point.
+
+    HRESULT hr;
+
+    CV_DebugSSubsectionHeader_t * pSubSectHeader = NULL;
+    CV_DebugSLinesHeader_t * pLinesHeader = NULL;
+    CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader = NULL;
+
+    // the InitDebugLinesHeaderSection will help us taking care of 
+    // * (1) DWORD = CV_SIGNATURE_C13
+    // * (2) CV_DebugSSubsectionHeader_t 
+    // * (3) CV_DebugSLinesHeader_t 
+    LPBYTE pbLinesSubsectionCur;
+    LPBYTE prgbLinesSubsection = InitDebugLinesHeaderSection(
+        DEBUG_S_IL_LINES,
+        ulCodeStartOffset,
+        cbCode,
+        rgILNativeMapAdjustSize,
+        &pSubSectHeader,
+        &pLinesHeader,
+        &pbLinesSubsectionCur);
+
+    if (prgbLinesSubsection == NULL)
+    {
+        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+    }
+
+    NewArrayHolder<BYTE> rgbLinesSubsection(prgbLinesSubsection);
+
+    // The loop below takes care of
+    //     * (4) CV_DebugSLinesFileBlockHeader_t
+    //     * (5) CV_Line_t (Line array entries)
+    //
+    CV_Line_t * pLineCur = NULL;
+    CV_Line_t * pLineBlockStart = NULL;
+    BOOL fBeginNewBlock = TRUE;
+    LPBYTE pbEnd = NULL;
+
+    pLinesFileBlockHeader = (CV_DebugSLinesFileBlockHeader_t *)pbLinesSubsectionCur;
+    // PDB structure sizes guarantee this is the case, though their docs are
+    // explicit that each lines-file block header must be 4-byte aligned.
+    _ASSERTE(IS_ALIGNED(pLinesFileBlockHeader, 4));
+
+    memset(pLinesFileBlockHeader, 0, sizeof(*pLinesFileBlockHeader));
+    char szURL[MAX_PATH];
+    int cbWritten = WideCharToMultiByte(
+        CP_UTF8,
+        0,                                      // dwFlags
+        UNKNOWN_SOURCE_FILE_PATH,
+        -1,                                     // i.e., input is NULL-terminated
+        szURL,                                  // output: UTF8 string starts here
+        _countof(szURL),                        // Available space
+        NULL,                                   // lpDefaultChar
+        NULL                                    // lpUsedDefaultChar
+        );
+    _ASSERTE(cbWritten > 0);
+    DocNameOffsets docNameOffsets;
+    m_pDocNameToOffsetMap->Lookup(szURL, &docNameOffsets);
+    pLinesFileBlockHeader->offFile = docNameOffsets.m_dwChksumTableOffset;
+    // pLinesFileBlockHeader->nLines to be filled in when block is complete
+    // pLinesFileBlockHeader->cbBlock to be filled in when block is complete
+
+    pLineCur = (CV_Line_t *)(pLinesFileBlockHeader + 1);
+    pLineBlockStart = pLineCur;
+    CV_Line_t * pLinePrev = NULL;
+
+    for (ULONG32 iINativeMap = 0;iINativeMap < rgILNativeMapAdjustSize; iINativeMap++)
+    {
+        if ((rgIlNativeMap[iINativeMap].ilOffset == NO_MAPPING) ||
+            (rgIlNativeMap[iINativeMap].ilOffset == PROLOG) ||
+            (rgIlNativeMap[iINativeMap].ilOffset == EPILOG))
+        {
+            rgIlNativeMap[iINativeMap].ilOffset = kUnmappedIP;
+        }
+
+        // Sometimes the JIT manager will give us duplicate native offset in the IL-to-native
+        // offset mapping. PDB format frowns on that. Since rgMapIndexPairs is being
+        // iterated in native offset order, it's easy to find these dupes right now, and
+        // skip all but the first map containing a given IP offset.
+        if (pLinePrev != NULL &&
+            rgIlNativeMap[iINativeMap].nativeOffset == pLinePrev->offset)
+        {
+            if (pLinePrev->linenumStart == kUnmappedIP)
+            {
+                // if the previous IL offset is kUnmappedIP, then we should rewrite it. 
+                pLineCur = pLinePrev;
+            }
+            else if (rgIlNativeMap[iINativeMap].ilOffset != kUnmappedIP &&
+                rgIlNativeMap[iINativeMap].ilOffset < pLinePrev->linenumStart)
+            {
+                pLineCur = pLinePrev;
+            }
+            else
+            {
+                // Found a native offset dupe, ignore the current map entry
+                continue;
+            }
+        }
+
+        pLineCur->linenumStart = rgIlNativeMap[iINativeMap].ilOffset;
+
+        pLineCur->offset = rgIlNativeMap[iINativeMap].nativeOffset;
+        pLineCur->fStatement = 1;
+        pLineCur->deltaLineEnd = 0;
+        pLinePrev = pLineCur;
+        pLineCur++;
+    }
+
+    if (pLineCur == NULL)
+    {
+        // There were no lines data for this function, so don't write anything
+        return S_OK;
+    }
+
+    if (!FinalizeLinesFileBlock(pLinesFileBlockHeader, pLineBlockStart, pLineCur
+#ifdef _DEBUG
+        , true
+#endif
+        ))
+    {
+        return S_OK;
+    }
+
+    // Now that we know pSubSectHeader->cbLen, fill it in
+    pSubSectHeader->cbLen = CV_off32_t(LPBYTE(pLineCur) - LPBYTE(pLinesHeader));
+
+    // Subsection is now filled out, so add it.
+    hr = m_pWriter->ModAddSymbols(
+        m_pMod,
+        rgbLinesSubsection,
+
+        // The size we pass here is the size of the entire byte array that we pass in.
+        long(LPBYTE(pLineCur) - rgbLinesSubsection));
+
+    if (FAILED(hr))
+        return hr;
+
+    return S_OK;
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -4327,7 +4407,11 @@ HRESULT NGenMethodLinesPdbWriter::WriteLinesSubsection(
 BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
     CV_DebugSLinesFileBlockHeader_t * pLinesFileBlockHeader, 
     CV_Line_t * pLineBlockStart,
-    CV_Line_t * pLineBlockAfterEnd)
+    CV_Line_t * pLineBlockAfterEnd
+#ifdef _DEBUG
+  , BOOL ignorekUnmappedIPCheck
+#endif
+    )
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -4358,12 +4442,15 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
         // at the first file), but the offset will generally be ignored by the PDB
         // reader.
 #ifdef _DEBUG
+    {
+        if (!ignorekUnmappedIPCheck)
         {
             for (CV_Line_t * pLineCur = pLineBlockStart; pLineCur < pLineBlockAfterEnd; pLineCur++)
             {
                 _ASSERTE(pLineCur->linenumStart == kUnmappedIP);
             }
         }
+    }
 #endif // _DEBUG
         pLinesFileBlockHeader->offFile = 0;
     }
@@ -4375,23 +4462,27 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
     
     return TRUE;
 }
-
-
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+#endif // NO_NGENPDB
+#if defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     STANDARD_VM_CONTRACT;
-
-    NGenPdbWriter pdbWriter(
-        pNativeImagePath, 
-        pPdbPath, 
-        pdbLines ? kPDBLines : 0,
-        pManagedPdbSearchPath);
-    IfFailThrow(pdbWriter.Load());
 
     Assembly *pAssembly = reinterpret_cast<Assembly *>(hAssembly);
     _ASSERTE(pAssembly);
     _ASSERTE(pNativeImagePath);
     _ASSERTE(pPdbPath);
+
+#if !defined(NO_NGENPDB)
+    NGenPdbWriter pdbWriter(
+        pNativeImagePath, 
+        pPdbPath, 
+        pdbLines ? kPDBLines : 0,
+        pManagedPdbSearchPath);
+    IfFailThrow(pdbWriter.Load(pDiasymreaderPath));
+#elif defined(FEATURE_PERFMAP)
+    NativeImagePerfMap perfMap(pAssembly, pPdbPath);
+#endif
 
     ModuleIterator moduleIterator = pAssembly->IterateModules();
     Module *pModule = NULL;
@@ -4403,7 +4494,11 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
 
         if (pModule->HasNativeImage() || pModule->IsReadyToRun())
         {
+#if !defined(NO_NGENPDB)
             IfFailThrow(pdbWriter.WritePDBDataForModule(pModule));
+#elif defined(FEATURE_PERFMAP)
+            perfMap.LogDataForModule(pModule);
+#endif
             fAtLeastOneNativeModuleFound = TRUE;
         }
     }
@@ -4411,16 +4506,28 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     if (!fAtLeastOneNativeModuleFound)
     {
         GetSvcLogger()->Printf(
+            W("Loaded image '%s' (for input file '%s') is not a native image.\n"),
+            pAssembly->GetManifestFile()->GetPath().GetUnicode(),
             pNativeImagePath);
-        return E_FAIL;
+        return CORDBG_E_NO_IMAGE_AVAILABLE;
     }
 
     GetSvcLogger()->Printf(
+#if !defined(NO_NGENPDB)
         W("Successfully generated PDB for native assembly '%s'.\n"),
+#elif defined(FEATURE_PERFMAP)
+        W("Successfully generated perfmap for native assembly '%s'.\n"),
+#endif
         pNativeImagePath);
+
     return S_OK;
 }
-
+#else
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
+{
+    return E_NOTIMPL;
+}
+#endif // defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
 
 // End of PDB writing code
 // ----------------------------------------------------------------------------
@@ -4477,9 +4584,6 @@ void CEECompileInfo::SetAssemblyHardBindList(
 {
     STANDARD_VM_CONTRACT;
 
-#ifndef FEATURE_CORECLR // hardbinding
-    GetAppDomain()->ToCompilationDomain()->SetAssemblyHardBindList(pHardBindList, cHardBindList);
-#endif
 }
 
 HRESULT CEECompileInfo::SetVerboseLevel(
@@ -4503,6 +4607,8 @@ CEEPreloader::CEEPreloader(Module *pModule,
     CONSISTENCY_CHECK(pModule == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
 
     GetAppDomain()->ToCompilationDomain()->SetTargetImage(m_image, this);
+
+    m_methodCompileLimit = pModule->GetMDImport()->GetCountWithTokenKind(mdtMethodDef) * 10;
 
 #ifdef FEATURE_FULL_NGEN
     m_fSpeculativeTriage = FALSE;
@@ -4713,7 +4819,7 @@ void CEEPreloader::MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle)
 
         if (pEntry->fScheduled)
             return;        
-        m_uncompiledMethods.Append(pMD);
+        AppendUncompiledMethod(pMD);
     }
     else
     {
@@ -4742,199 +4848,6 @@ BOOL CEEPreloader::IsUncompiledMethod(CORINFO_METHOD_HANDLE handle)
     return m_compileMethodsHash.LookupPtr(pMD) != NULL;
 #endif
 }
-
-#ifdef MDIL
-#define ELEMENT_TYPE_NULLABLE       ((CorElementType)0x17)
-#define ELEMENT_TYPE_NULLABLE_CANON ((CorElementType)0x1f)
-MethodTable *GetMethodTable(CorElementType elType)
-{
-    switch (elType)
-    {
-    default:
-        assert(!"unexpected element type");
-        return g_pCanonMethodTableClass;
-
-    case    ELEMENT_TYPE_BOOLEAN:
-    case    ELEMENT_TYPE_CHAR:
-    case    ELEMENT_TYPE_I1:
-    case    ELEMENT_TYPE_U1:
-    case    ELEMENT_TYPE_I2:
-    case    ELEMENT_TYPE_U2:
-    case    ELEMENT_TYPE_I4:
-    case    ELEMENT_TYPE_U4:
-    case    ELEMENT_TYPE_I8:
-    case    ELEMENT_TYPE_U8:
-    case    ELEMENT_TYPE_R4:
-    case    ELEMENT_TYPE_R8:
-        return MscorlibBinder::LoadPrimitiveType(elType);
-
-    case    ELEMENT_TYPE_VALUETYPE:
-        return MscorlibBinder::GetClass(CLASS__DECIMAL);
-
-    case    ELEMENT_TYPE_CLASS:
-        return g_pCanonMethodTableClass;
-
-    case    ELEMENT_TYPE_NULLABLE:
-        {
-            MethodTable *pInstMT = NULL;
-            EX_TRY
-            {
-                TypeHandle int32TH = GetMethodTable(ELEMENT_TYPE_I4);
-                pInstMT = ClassLoader::LoadGenericInstantiationThrowing(g_pNullableClass->GetModule(),
-                                                                        g_pNullableClass->GetCl(),
-                                                                        Instantiation(&int32TH, 1),
-                                                                        ClassLoader::LoadTypes
-                                                                        ).GetMethodTable();
-            }
-            EX_CATCH
-            {
-                // do nothing
-            }
-            EX_END_CATCH(SwallowAllExceptions)
-
-            return pInstMT;
-        }
-
-    case    ELEMENT_TYPE_NULLABLE_CANON:
-        {
-            MethodTable *pInstMT = NULL;
-            EX_TRY
-            {
-                TypeHandle canonTH = g_pCanonMethodTableClass;
-                pInstMT = ClassLoader::LoadGenericInstantiationThrowing(g_pNullableClass->GetModule(),
-                                                                        g_pNullableClass->GetCl(),
-                                                                        Instantiation(&canonTH, 1),
-                                                                        ClassLoader::LoadTypes
-                                                                        ).GetMethodTable();
-            }
-            EX_CATCH
-            {
-                // do nothing
-            }
-            EX_END_CATCH(SwallowAllExceptions)
-
-            return pInstMT;
-        }
-    }
-}
-
-void CEEPreloader::AddMDILCodeFlavorsToUncompiledMethods(CORINFO_METHOD_HANDLE handle)
-{
-    STANDARD_VM_CONTRACT;
-#if 0
-    static CorElementType popularFlavors[] = 
-    {
-        ELEMENT_TYPE_CLASS,
-        ELEMENT_TYPE_VALUETYPE,
-        ELEMENT_TYPE_I4,
-//        ELEMENT_TYPE_NULLABLE,
-        ELEMENT_TYPE_R8,
-        ELEMENT_TYPE_U1,
-        ELEMENT_TYPE_BOOLEAN,
-        ELEMENT_TYPE_U2,
-        ELEMENT_TYPE_I8,
-        ELEMENT_TYPE_U4,
-        ELEMENT_TYPE_U8,
-//        ELEMENT_TYPE_NULLABLE_CANON,
-    };
-
-    MethodDesc *pMD = GetMethod(handle);
-    MethodTable *pMT = pMD->GetMethodTable();
-
-    DWORD nGenericClassArgs = pMT->GetNumGenericArgs();
-    DWORD nGenericMethodArgs = pMD->GetNumGenericMethodArgs();
-    DWORD nGenericArgs = nGenericClassArgs + nGenericMethodArgs;
-    if (nGenericArgs == 0)
-                return;
-    DWORD flavorCount = nGenericArgs <= 1 ? COUNTOF(popularFlavors) : COUNTOF(popularFlavors)*COUNTOF(popularFlavors);
-    DWORD flavorsPerArg = nGenericArgs <= 1 ? COUNTOF(popularFlavors) : COUNTOF(popularFlavors);
-
-    for (DWORD flavor = 1; flavor < flavorCount; flavor++)
-    {
-        // First instantiate the declaring type at <...,...,...>
-
-        DWORD dwAllocSize = 0;
-        if (!ClrSafeInt<DWORD>::multiply(sizeof(TypeHandle), nGenericClassArgs, dwAllocSize))
-            ThrowHR(COR_E_OVERFLOW);
-
-        CQuickBytes qbGenericClassArgs;
-        TypeHandle* pGenericClassArgs = reinterpret_cast<TypeHandle*>(qbGenericClassArgs.AllocThrows(dwAllocSize));
-
-        DWORD remainder = flavor;
-
-        for (DWORD i = 0; i < nGenericClassArgs; i++)
-        {
-            pGenericClassArgs[i] = GetMethodTable(popularFlavors[remainder % flavorsPerArg]);
-            remainder /= flavorsPerArg;
-        }
-
-        MethodTable *pInstMT = NULL;
-
-        EX_TRY
-        {
-            pInstMT = ClassLoader::LoadGenericInstantiationThrowing(pMT->GetModule(),
-                                                                    pMT->GetCl(),
-                                                                    Instantiation(pGenericClassArgs, nGenericClassArgs),
-                                                                    ClassLoader::LoadTypes
-                                                                    ).GetMethodTable();
-        }
-        EX_CATCH
-        {
-            // do nothing
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (pInstMT == NULL)
-        {
-            continue;
-        }
-
-        // Now instantiate the method at <__Canon,...,__Canon>, creating the shared code.
-        // This will not create an instantiating stub just yet.
-        CQuickBytes qbGenericMethodArgs;
-        TypeHandle *genericMethodArgs = NULL;
-
-        // The rest of this method instantiates a generic method
-        // Instantiate at "__Canon" if a NULL "genericMethodArgs" is given
-        if (nGenericMethodArgs)
-        {
-            dwAllocSize = 0;
-            if (!ClrSafeInt<DWORD>::multiply(sizeof(TypeHandle), nGenericMethodArgs, dwAllocSize))
-                ThrowHR(COR_E_OVERFLOW);
-        
-            genericMethodArgs = reinterpret_cast<TypeHandle*>(qbGenericMethodArgs.AllocThrows(dwAllocSize));
-
-
-            for (DWORD i =0; i < nGenericMethodArgs; i++)
-            {
-                genericMethodArgs[i] = GetMethodTable(popularFlavors[remainder % flavorsPerArg]);
-                remainder /= flavorsPerArg;
-            }
-        }
-
-        MethodDesc *pInstMD = NULL;
-        EX_TRY
-        {
-            pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc( pMD, 
-                                                                    pMT,
-                                                                    FALSE, /* don't get unboxing entry point */
-                                                                    Instantiation(genericMethodArgs, nGenericMethodArgs),
-                                                                    TRUE,
-                                                                    FALSE,
-                                                                    TRUE);
-        }
-        EX_CATCH
-        {
-            // do nothing
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (pInstMD != NULL)
-            AddToUncompiledMethods(pInstMD);
-    }
-#endif
-}
-#endif
 
 static bool IsTypeAccessibleOutsideItsAssembly(TypeHandle th)
 {
@@ -4990,10 +4903,7 @@ static bool IsMethodAccessibleOutsideItsAssembly(MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
-    // Note that this ignores unrestricted friend access. This friend access allowed attribute can be used to 
-    // prevent methods from getting trimmed if necessary.
-    if (pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE, NULL, NULL) == S_OK)
-        return true;
+    // Note that this ignores friend access.
 
     switch (pMD->GetAttrs() & mdMemberAccessMask)
     {
@@ -5026,12 +4936,6 @@ static bool IsMethodCallableOutsideItsAssembly(MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
-#ifdef MDIL
-    // Tracking of referenced methods does not kick in during MDIL compilation, so disable this optimization.
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        return true;
-#endif
-
     // Virtual methods can be called via interfaces, etc. We would need to do
     // more analysis to trim them. For now, assume that they can be referenced outside this assembly.
     if (pMD->IsVirtual())
@@ -5063,12 +4967,6 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
         if (!pMD->MayHaveNativeCode() && !pMD->IsWrapperStub())
             return;
     }
-
-#ifdef MDIL
-    BOOL fIsMinimalMDIL = GetAppDomain()->IsMinimalMDILCompilationDomain();
-    if (fIsMinimalMDIL && (fForStubs || !pMD->HasClassOrMethodInstantiation()))
-        return;
-#endif // MDIL
 
     // If it's already been compiled, don't add it to the set of uncompiled methods
     if (m_image->GetCodeAddress(pMD) != NULL)
@@ -5128,7 +5026,7 @@ void CEEPreloader::AddToUncompiledMethods(MethodDesc *pMD, BOOL fForStubs)
     }
 
     // Add it to the set of uncompiled methods
-    m_uncompiledMethods.Append(pMD);
+    AppendUncompiledMethod(pMD);
 }
 
 //
@@ -5181,7 +5079,7 @@ static BOOL CanSatisfyConstraints(Instantiation typicalInst, Instantiation candi
             StackScratchBuffer buffer;
             thArg.GetName(candidateInstName);
             char output[1024];
-            sprintf(output, "Generics TypeDependencyAttribute processing: Couldn't satisfy a constraint.  Class with Attribute: %s  Bad candidate instantiated type: %s\r\n", pMT->GetDebugClassName(), candidateInstName.GetANSI(buffer));
+            _snprintf_s(output, _countof(output), _TRUNCATE, "Generics TypeDependencyAttribute processing: Couldn't satisfy a constraint.  Class with Attribute: %s  Bad candidate instantiated type: %s\r\n", pMT->GetDebugClassName(), candidateInstName.GetANSI(buffer));
             OutputDebugStringA(output);
             */
 #endif
@@ -5228,10 +5126,40 @@ static void SpecializeComparer(SString& ss, Instantiation& inst)
             return;
         }
     }
+
+    if (elemTypeHnd.IsEnum())
+    {
+        CorElementType et = elemTypeHnd.GetVerifierCorElementType();
+        if (et == ELEMENT_TYPE_I1 ||
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_I4)
+        {
+            ss.Set(W("System.Collections.Generic.Int32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_U2 ||
+            et == ELEMENT_TYPE_U4)
+        {
+            ss.Set(W("System.Collections.Generic.UInt32EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_I8)
+        {
+            ss.Set(W("System.Collections.Generic.Int64EnumComparer`1"));
+            return;
+        }
+        if (et == ELEMENT_TYPE_U8)
+        {
+            ss.Set(W("System.Collections.Generic.UInt64EnumComparer`1"));
+            return;
+        }
+    }
 }
 
 //
 // This method has duplicated logic from bcl\system\collections\generic\equalitycomparer.cs
+// and matching logic in jitinterface.cpp
 //
 static void SpecializeEqualityComparer(SString& ss, Instantiation& inst)
 {
@@ -5274,19 +5202,11 @@ static void SpecializeEqualityComparer(SString& ss, Instantiation& inst)
         if (et == ELEMENT_TYPE_I4 ||
             et == ELEMENT_TYPE_U4 ||
             et == ELEMENT_TYPE_U2 ||
-            et == ELEMENT_TYPE_U1)
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I1)
         {
             ss.Set(W("System.Collections.Generic.EnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I2)
-        {
-            ss.Set(W("System.Collections.Generic.ShortEnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I1)
-        {
-            ss.Set(W("System.Collections.Generic.SByteEnumEqualityComparer`1"));
             return;
         }
         else if (et == ELEMENT_TYPE_I8 ||
@@ -5981,14 +5901,6 @@ void CEEPreloader::TriageMethodForZap(MethodDesc* pMD, BOOL fAcceptIfNotSure, BO
         goto Done;
     }
 
-    // Filter out other weird cases we do not care about.
-    if (!m_image->GetModule()->GetInstMethodHashTable()->ContainsMethodDesc(pMD))
-    {
-        triage = Rejected;
-        rejectReason = "method is not in the current module";
-        goto Done;
-    }
-
     // Always store items in their preferred zap module even if we are not sure
     if (Module::GetPreferredZapModuleForMethodDesc(pMD) == m_image->GetModule())
     {
@@ -6114,6 +6026,7 @@ void CEEPreloader::TriageTypeFromSoftBoundModule(TypeHandle th, Module * pSoftBo
     }
 }
 
+#ifdef FEATURE_FULL_NGEN
 static TypeHandle TryToLoadTypeSpecHelper(Module * pModule, PCCOR_SIGNATURE pSig, ULONG cSig)
 {
     STANDARD_VM_CONTRACT;
@@ -6135,7 +6048,6 @@ static TypeHandle TryToLoadTypeSpecHelper(Module * pModule, PCCOR_SIGNATURE pSig
     return th;
 }
 
-#ifdef FEATURE_FULL_NGEN
 void CEEPreloader::TriageTypeSpecsFromSoftBoundModule(Module * pSoftBoundModule)
 {
     STANDARD_VM_CONTRACT;
@@ -6302,7 +6214,6 @@ void CEEPreloader::PrePrepareMethodIfNecessary(CORINFO_METHOD_HANDLE hMethod)
 {
     STANDARD_VM_CONTRACT;
 
-    ::PrePrepareMethodIfNecessary(hMethod);
 }
 
 static void SetStubMethodDescOnInteropMethodDesc(MethodDesc* pInteropMD, MethodDesc* pStubMD, bool fReverseStub)
@@ -6379,9 +6290,9 @@ MethodDesc * CEEPreloader::CompileMethodStubIfNeeded(
     {
         if (!pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->IsCompiled())
         {
-            DWORD dwJitFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
+            CORJIT_FLAGS jitFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
 
-            pfnCallback(pCallbackContext, (CORINFO_METHOD_HANDLE)pStubMD, dwJitFlags);
+            pfnCallback(pCallbackContext, (CORINFO_METHOD_HANDLE)pStubMD, jitFlags);
         }
 
 #ifndef FEATURE_FULL_NGEN // Deduplication
@@ -6415,15 +6326,7 @@ void CEEPreloader::GenerateMethodStubs(
     MethodDesc* pMD = GetMethod(hMethod);
     MethodDesc* pStubMD = NULL;
 
-#ifdef MDIL
-    // Do not generate IL stubs when generating MDIL
-    // This prevents versionability concerns around IL stubs exposing internal
-    // implementation details of the CLR.
-    if (GetAppDomain()->IsMDILCompilationDomain())
-        return;
-#endif
-
-    // Do not generate IL stubs when generating MDIL
+    // Do not generate IL stubs when generating ReadyToRun images
     // This prevents versionability concerns around IL stubs exposing internal
     // implementation details of the CLR.
     if (IsReadyToRunCompilation())
@@ -6679,19 +6582,80 @@ bool CEEPreloader::CanSkipMethodPreparation (
 CORINFO_METHOD_HANDLE CEEPreloader::LookupMethodDef(mdMethodDef token)
 {
     STANDARD_VM_CONTRACT;
+    MethodDesc *resultMD = nullptr;
 
-    MethodDesc *pMD = MemberLoader::GetMethodDescFromMethodDef(
-                                     m_image->GetModule(),
-                                     token,
-                                     FALSE);
+    EX_TRY
+    {
+        MethodDesc *pMD = MemberLoader::GetMethodDescFromMethodDef(m_image->GetModule(), token, FALSE);
 
-    // READYTORUN: FUTURE: Generics
-    if (IsReadyToRunCompilation() && pMD->HasClassOrMethodInstantiation())
-        return NULL;
+        if (IsReadyToRunCompilation() && pMD->HasClassOrMethodInstantiation())
+        {
+            _ASSERTE(IsCompilationProcess() && pMD->GetModule_NoLogging() == GetAppDomain()->ToCompilationDomain()->GetTargetModule());
+        }
 
-    pMD = pMD->FindOrCreateTypicalSharedInstantiation();
+        resultMD = pMD->FindOrCreateTypicalSharedInstantiation();
+    }
+    EX_CATCH
+    {
+        this->Error(token, GET_EXCEPTION());
+    }
+    EX_END_CATCH(SwallowAllExceptions)
 
-    return CORINFO_METHOD_HANDLE(pMD);
+    return CORINFO_METHOD_HANDLE(resultMD);
+}
+
+bool CEEPreloader::GetMethodInfo(mdMethodDef token, CORINFO_METHOD_HANDLE ftnHnd, CORINFO_METHOD_INFO * methInfo)
+{
+    STANDARD_VM_CONTRACT;
+    bool result = false;
+
+    EX_TRY
+    {
+        result = GetZapJitInfo()->getMethodInfo(ftnHnd, methInfo);
+    }
+    EX_CATCH
+    {
+        result = false;
+        this->Error(token, GET_EXCEPTION());
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+
+    return result;
+}
+
+static BOOL MethodIsVisibleOutsideItsAssembly(DWORD dwMethodAttr)
+{
+    LIMITED_METHOD_CONTRACT;
+    return (IsMdPublic(dwMethodAttr) ||
+        IsMdFamORAssem(dwMethodAttr) ||
+        IsMdFamily(dwMethodAttr));
+}
+
+static BOOL ClassIsVisibleOutsideItsAssembly(DWORD dwClassAttr, BOOL fIsGlobalClass)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (fIsGlobalClass)
+    {
+        return TRUE;
+    }
+
+    return (IsTdPublic(dwClassAttr) ||
+        IsTdNestedPublic(dwClassAttr) ||
+        IsTdNestedFamily(dwClassAttr) ||
+        IsTdNestedFamORAssem(dwClassAttr));
+}
+
+static BOOL MethodIsVisibleOutsideItsAssembly(MethodDesc * pMD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    MethodTable * pMT = pMD->GetMethodTable();
+
+    if (!ClassIsVisibleOutsideItsAssembly(pMT->GetAttrClass(), pMT->IsGlobalClass()))
+        return FALSE;
+
+    return MethodIsVisibleOutsideItsAssembly(pMD->GetAttrs());
 }
 
 CorCompileILRegion CEEPreloader::GetILRegion(mdMethodDef token)
@@ -6730,7 +6694,7 @@ CorCompileILRegion CEEPreloader::GetILRegion(mdMethodDef token)
                 }
             }
             else
-            if (Security::MethodIsVisibleOutsideItsAssembly(pMD))
+            if (MethodIsVisibleOutsideItsAssembly(pMD))
             {
                 // We are inlining only leaf methods, except for mscorlib. Thus we can assume that only methods
                 // visible outside its assembly are likely to be inlined.
@@ -6752,33 +6716,20 @@ CorCompileILRegion CEEPreloader::GetILRegion(mdMethodDef token)
     return region;
 }
 
-CORINFO_CLASS_HANDLE CEEPreloader::FindTypeForProfileEntry(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * profileBlobEntry)
-{
-    STANDARD_VM_CONTRACT;
-
-    _ASSERTE(profileBlobEntry->blob.type == ParamTypeSpec);
-
-    if (PartialNGenStressPercentage() != 0)
-        return CORINFO_CLASS_HANDLE( NULL );
-
-    Module *   pModule = GetAppDomain()->ToCompilationDomain()->GetTargetModule();
-    TypeHandle th      = pModule->LoadIBCTypeHelper(profileBlobEntry);
-
-    return CORINFO_CLASS_HANDLE(th.AsPtr());
-}
 
 CORINFO_METHOD_HANDLE CEEPreloader::FindMethodForProfileEntry(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * profileBlobEntry)
 {
     STANDARD_VM_CONTRACT;
+    MethodDesc *  pMethod = nullptr;
 
     _ASSERTE(profileBlobEntry->blob.type == ParamMethodSpec);
 
     if (PartialNGenStressPercentage() != 0)
         return CORINFO_METHOD_HANDLE( NULL );
-    
-    Module *      pModule = GetAppDomain()->ToCompilationDomain()->GetTargetModule();
-    MethodDesc *  pMethod = pModule->LoadIBCMethodHelper(profileBlobEntry);
 
+    Module * pModule = GetAppDomain()->ToCompilationDomain()->GetTargetModule();
+    pMethod = pModule->LoadIBCMethodHelper(m_image, profileBlobEntry);
+   
     return CORINFO_METHOD_HANDLE( pMethod );
 }
 
@@ -6837,7 +6788,7 @@ void CEEPreloader::GetRVAFieldData(mdFieldDef fd, PVOID * ppData, DWORD * pcbSiz
     if (pFD == NULL)
         ThrowHR(COR_E_TYPELOAD);
 
-    _ASSERTE(pFD->IsILOnlyRVAField());
+    _ASSERTE(pFD->IsRVA());
 
     UINT size = pFD->LoadSize();
 
@@ -6876,14 +6827,32 @@ ULONG CEEPreloader::Release()
     return 0;
 }
 
+#ifdef FEATURE_READYTORUN_COMPILER
+void CEEPreloader::GetSerializedInlineTrackingMap(SBuffer* pBuffer)
+{
+    InlineTrackingMap * pInlineTrackingMap = m_image->GetInlineTrackingMap();
+    PersistentInlineTrackingMapR2R::Save(m_image->GetHeap(), pBuffer, pInlineTrackingMap);
+}
+#endif
+
 void CEEPreloader::Error(mdToken token, Exception * pException)
 {
     STANDARD_VM_CONTRACT;
+
+    HRESULT hr = pException->GetHR();
+    UINT    resID = 0;
 
     StackSString msg;
 
 #ifdef CROSSGEN_COMPILE
     pException->GetMessage(msg);
+
+    // Do we have an EEException with a resID?
+    if (EEMessageException::IsEEMessageException(pException))
+    {
+        EEMessageException * pEEMessageException = (EEMessageException *) pException;
+        resID = pEEMessageException->GetResID();
+    }
 #else
     {
         GCX_COOP();
@@ -6902,7 +6871,7 @@ void CEEPreloader::Error(mdToken token, Exception * pException)
     }
 #endif
     
-    m_pData->Error(token, pException->GetHR(), msg.GetUnicode());
+    m_pData->Error(token, hr, resID, msg.GetUnicode());
 }
 
 CEEInfo *g_pCEEInfo = NULL;
@@ -6958,11 +6927,6 @@ CompilationDomain::CompilationDomain(BOOL fForceDebug,
 {
     STANDARD_VM_CONTRACT;
 
-#ifndef FEATURE_CORECLR // hardbinding
-    m_hardBoundModules.Init(FALSE, NULL);
-    m_cantHardBindModules.Init(FALSE, NULL);
-    m_useHardBindList = FALSE;
-#endif
 }
 
 void CompilationDomain::ReleaseDependencyEmitter()
@@ -6995,11 +6959,7 @@ CompilationDomain::~CompilationDomain()
 
 }
 
-void CompilationDomain::Init(
-#ifdef MDIL
-                             MDILCompilationFlags     mdilCompilationFlags
-#endif
-                             )
+void CompilationDomain::Init()
 {
     STANDARD_VM_CONTRACT;
 
@@ -7012,22 +6972,8 @@ void CompilationDomain::Init(
     InitVSD();
 #endif
 
-    Security::SetDefaultAppDomainProperty(GetSecurityDescriptor());
     SetCompilationDomain();
-#ifdef MDIL
-    if (mdilCompilationFlags & MDILCompilationFlags_CreateMDIL)
-        SetMDILCompilationDomain();
-    if (mdilCompilationFlags & MDILCompilationFlags_MinimalMDIL)
-        SetMinimalMDILCompilationDomain();
-    if (mdilCompilationFlags & MDILCompilationFlags_NoMDIL)
-        SetNoMDILCompilationDomain();
-#endif
 
-#ifndef FEATURE_CORECLR
-    // We need the Compilation Domain to be homogeneous.  We've already forced everything to be full trust.
-    // However, CheckZapSecurity needs this to be set, so set it here.
-    GetSecurityDescriptor()->SetHomogeneousFlag(TRUE);
-#endif // !FEATURE_CORECLR
 
 #ifdef _DEBUG 
     g_pConfig->DisableGenerateStubForHost();
@@ -7090,59 +7036,15 @@ HRESULT CompilationDomain::AddDependencyEntry(PEAssembly *pFile,
     pDependency->dwAssemblyDef = def;
 
     pDependency->signNativeImage = INVALID_NGEN_SIGNATURE;
-#ifdef FEATURE_APTCA
-    pDependency->dependencyInfo = CorCompileDependencyInfo(0);
-#endif //FEATURE_APTCA
 
     if (pFile)
     {
-        DomainAssembly *pAssembly = GetAppDomain()->LoadDomainAssembly(NULL, pFile, FILE_LOAD_CREATE, NULL);
+        DomainAssembly *pAssembly = GetAppDomain()->LoadDomainAssembly(NULL, pFile, FILE_LOAD_CREATE);
         // Note that this can trigger an assembly load (of mscorlib)
         pAssembly->GetOptimizedIdentitySignature(&pDependency->signAssemblyDef);
 
-#if defined(FEATURE_APTCA) || !defined(FEATURE_CORECLR)
-        ReleaseHolder<IMDInternalImport> pAssemblyMD(pFile->GetMDImportWithRef());
-#endif
 
-#ifdef FEATURE_APTCA
-        // determine if there's an APTCA reference, before we retrieve the target file version (for killbit)
-        TokenSecurityDescriptorFlags assemblySecurityAttributes =
-            TokenSecurityDescriptor::ReadSecurityAttributes(pAssemblyMD, TokenFromRid(1, mdtAssembly));
 
-        pFile->AddRef();
-
-        BOOL fIsAptca = assemblySecurityAttributes & (TokenSecurityDescriptorFlags_APTCA
-                                                      | TokenSecurityDescriptorFlags_ConditionalAPTCA);
-        if (fIsAptca)
-        {
-            //  get the file path
-            LPCWSTR pwszPath = pFile->GetPath().GetUnicode();
-            if (pwszPath == NULL)
-            {
-                return E_FAIL;
-            }
-            // retrieve the file version based on the file path (using Watson OS wrapper)
-            if (FAILED(GetFileVersion(pwszPath, &pDependency->uliFileVersion)))
-                // ignore failures (e.g. platform doesn't support file version, or version info missing
-
-            {
-                fIsAptca = FALSE;
-            }
-        }
-        if (fIsAptca)
-        {
-            pDependency->dependencyInfo = CorCompileDependencyInfo(pDependency->dependencyInfo
-                                                                   | CORCOMPILE_DEPENDENCY_IS_APTCA);
-            }
-
-        if (assemblySecurityAttributes & TokenSecurityDescriptorFlags_ConditionalAPTCA)
-        {
-            pDependency->dependencyInfo = CorCompileDependencyInfo(pDependency->dependencyInfo
-                                                                   | CORCOMPILE_DEPENDENCY_IS_CAPTCA);
-        }
-#endif //FEATURE_APTCA
-
-#ifdef FEATURE_CORECLR // hardbinding
         //
         // This is done in CompilationDomain::CanEagerBindToZapFile with full support for hardbinding
         //
@@ -7151,59 +7053,7 @@ HRESULT CompilationDomain::AddDependencyEntry(PEAssembly *pFile,
             CORCOMPILE_VERSION_INFO * pNativeVersion = pFile->GetLoadedNative()->GetNativeVersionInfo();
             pDependency->signNativeImage = pNativeVersion->signature;
         }
-#endif
 
-#ifndef FEATURE_CORECLR
-        // Find the architecture of the dependency, using algorithm from Fusion GetRuntimeVersionForAssembly.
-        // Normally, when an assembly is loaded at runtime, Fusion determines its architecture based on the
-        // metadata. However, if assembly load is skipped due to presence of native image, then Fusion needs
-        // to get assembly architecture from another source. For assemblies in GAC, the GAC structure provides
-        // architecture data. For assemblies outside of GAC, however, no other source of info is available.
-        // So we calculate the architecture now and store it in the native image, to make it available to Fusion.
-        // The algorithm here must exactly match  the algorithm in GetRuntimeVersionForAssembly.
-        LPCSTR pszPERuntime;
-        IfFailThrow(pAssemblyMD->GetVersionString(&pszPERuntime));
-
-        if (SString::_strnicmp(pszPERuntime, "v1.0", 4) != 0 &&
-            SString::_strnicmp(pszPERuntime, "v1.1", 4) != 0 &&
-            SString::_stricmp(pszPERuntime, "Standard CLI 2002") != 0)
-        {
-            // Get the PE architecture of this dependency, similar to PEAssembly::GetFusionProcessorArchitecture.
-            // The difference is when NI is loaded, PEAssembly::GetFusionProcessorArchitecture returns the
-            // architecture of the NI (which is never processor neutral), but we want the architecture
-            // associated with the IL image.
-            DWORD dwPEKind, dwMachine;
-            if (pFile->HasNativeImage())
-            {
-                // CrossGen can load an NI without loading the corresponding IL image, in which case
-                // PEAssembly::GetILImage() actually returns an NI. Thus we need specific code to handle NI.
-                PEImageHolder pImage(pFile->GetNativeImageWithRef());
-                pImage->GetNativeILPEKindAndMachine(&dwPEKind, &dwMachine);
-            }
-            else
-            {
-                pFile->GetILimage()->GetPEKindAndMachine(&dwPEKind, &dwMachine);
-            }
-
-            DWORD dwAssemblyFlags = 0;
-            IfFailThrow(pAssemblyMD->GetAssemblyProps(TokenFromRid(1, mdtAssembly),
-                NULL, NULL, NULL,
-                NULL, NULL, &dwAssemblyFlags));
-
-            PEKIND peKind;
-            if (SUCCEEDED(TranslatePEToArchitectureType(
-                (CorPEKind)dwPEKind,
-                dwMachine,
-                dwAssemblyFlags,
-                &peKind)))
-            {
-                CorCompileDependencyInfo peKindShifted = CorCompileDependencyInfo(peKind << CORCOMPILE_DEPENDENCY_PEKIND_SHIFT);
-                _ASSERTE(peKindShifted == (peKindShifted & CORCOMPILE_DEPENDENCY_PEKIND_MASK));
-                pDependency->dependencyInfo = CorCompileDependencyInfo(pDependency->dependencyInfo
-                    | (peKindShifted & CORCOMPILE_DEPENDENCY_PEKIND_MASK));
-            }
-        }
-#endif //FEATURE_FUSION
     }
 
     return S_OK;
@@ -7375,68 +7225,6 @@ AssemblySpec* CompilationDomain::FindAssemblyRefSpecForDefSpec(
     return (pEntry != NULL) ? pEntry->m_pRef : NULL;
 }
 
-#ifndef FEATURE_CORECLR // hardbinding
-//----------------------------------------------------------------------------
-// Was the assembly asked to be hard-bound to?
-
-BOOL CompilationDomain::IsInHardBindRequestList(Assembly * pAssembly)
-{
-    return IsInHardBindRequestList(pAssembly->GetManifestFile());
-}
-
-BOOL CompilationDomain::IsInHardBindRequestList(PEAssembly * pAssembly)
-{
-    if (!m_useHardBindList)
-        return FALSE;
-
-    StackSString displayName;
-    pAssembly->GetDisplayName(displayName);
-
-    for (COUNT_T i = 0; i < m_assemblyHardBindList.GetCount(); i++)
-    {
-        if (displayName.Equals(m_assemblyHardBindList[i]))
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-BOOL CompilationDomain::IsSafeToHardBindTo(PEAssembly * pAssembly)
-{
-    WRAPPER_NO_CONTRACT;
-    // The dependency worker does not have m_useHardBindList set.
-    // We do want to allow all possible native images to be loaded in this case.
-    if (!m_useHardBindList)
-        return TRUE;
-
-    if (CompilationDomain::IsInHardBindRequestList(pAssembly))
-        return TRUE;
-
-    return FALSE;
-}
-
-PtrHashMap::PtrIterator CompilationDomain::IterateHardBoundModules()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_hardBoundModules.begin();
-}
-
-void CompilationDomain::SetAssemblyHardBindList(
-        __in_ecount( cHardBindList )
-            LPWSTR *pHardBindList,
-        DWORD cHardBindList)
-{
-    m_assemblyHardBindList.SetCount(0);
-
-    for (DWORD i = 0; i < cHardBindList; i++)
-    {
-        SString s(pHardBindList[i]);
-        m_assemblyHardBindList.Append(s);
-    }
-
-    m_useHardBindList = TRUE;
-}
-#endif // FEATURE_CORECLR
 
 //----------------------------------------------------------------------------
 // Is it OK to embed direct pointers to an ngen dependency?
@@ -7459,261 +7247,13 @@ BOOL CompilationDomain::CanEagerBindToZapFile(Module *targetModule, BOOL limitTo
         return TRUE;
     }
 
-#ifdef FEATURE_CORECLR // hardbinding
     //
     // CoreCLR does not have attributes for fine grained eager binding control.
     // We hard bind to mscorlib.dll only.
     //
     return targetModule->IsSystem();
-#else
-    // Now, look up the hashtables to avoid doing the heavy-duty work everytime
-
-    if (m_cantHardBindModules.LookupValue((UPTR)targetModule, targetModule) !=
-        LPVOID(INVALIDENTRY))
-    {
-        return FALSE;
-    }
-
-    if (m_hardBoundModules.LookupValue((UPTR)targetModule, targetModule) !=
-        LPVOID(INVALIDENTRY))
-    {
-        return TRUE;
-    }
-
-    const char * logMsg = NULL;
-
-    EEConfig::NgenHardBindType ngenHardBindConfig = g_pConfig->NgenHardBind();
-
-    if (ngenHardBindConfig == EEConfig::NGEN_HARD_BIND_NONE)
-    {
-        logMsg = "COMPlus_HardPrejitEnabled=0 is specified";        
-        goto CANNOT_HARD_BIND;
-    }
-
-    if (ngenHardBindConfig == EEConfig::NGEN_HARD_BIND_ALL)
-    {
-        // COMPlus_HardPrejitEnabled=2 is specified
-        limitToHardBindList = FALSE;
-    }
-
-    if (!targetModule->HasNativeImage())
-    {
-        logMsg = "dependency does not have a native image (check FusLogVw for reason)";
-        goto CANNOT_HARD_BIND;
-    }
-
-    // The loader/Fusion cannot currently guarantee that a non-manifest module of a 
-    // hardbound dependency gets eagerly loaded.
-    if (!targetModule->GetFile()->IsAssembly())
-    {
-        logMsg = "dependency is a non-manifest module";
-        goto CANNOT_HARD_BIND;
-    }
-
-    // Don't hard bind to modules not on the list
-    if (limitToHardBindList && m_useHardBindList)
-    {
-        if (!IsInHardBindRequestList(targetModule->GetAssembly()))
-        {
-            logMsg = "dependency was not found in m_assemblyHardBindList";
-            goto CANNOT_HARD_BIND;
-        }
-    }
-
-    // Mark targetModule as a hard dependency
-    //
-    m_hardBoundModules.InsertValue((UPTR)targetModule, targetModule);
-
-    // Update m_pDependencies for the corresponding assembly, to reflect the fact
-    // that we are hard-binding to its native image
-    //
-    PEAssembly * pTargetAssembly;
-    pTargetAssembly = targetModule->GetFile()->GetAssembly();
-    UpdateDependencyEntryForHardBind(pTargetAssembly);
-
-    logMsg = "new dependency";        
-
-    // Try to hardbind to the hardbound dependency closure as there is 
-    // no extra cost in doing so
-    IncludeHardBindClosure(pTargetAssembly);
-
-    LOG((LF_ZAP, LL_INFO100, "Success CanEagerBindToZapFile: %S (%s)\n",
-                             targetModule->GetDebugName(), logMsg));
-
-    return TRUE;
-
-CANNOT_HARD_BIND:
-
-    m_cantHardBindModules.InsertValue((UPTR)targetModule, targetModule);
-
-    // If we have a hard binding list, check if this module is on the list.
-    if (targetModule->GetFile()->IsAssembly() && 
-        IsInHardBindRequestList(targetModule->GetAssembly()))
-    {
-        StackSString displayName;
-        targetModule->GetAssembly()->GetDisplayName(displayName);
-
-        GetSvcLogger()->Printf(LogLevel_Warning, W("WARNING: Cannot hardbind to %s because %S\n"), 
-            displayName.GetUnicode(), logMsg);
-    }
-
-    if (logMsg)
-    {
-        LOG((LF_ZAP, LL_INFO100, "Failure CanEagerBindToZapFile: %S (%s)\n",
-             targetModule->GetDebugName(), logMsg));
-    }
-
-    return FALSE;
-#endif // FEATURE_CORECLR
 }
 
-#if defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-
-SArray<LPCWSTR> * s_pPlatformAssembliesPaths;
-
-void ZapperSetPlatformAssembliesPaths(SString &platformAssembliesPaths)
-{
-    STANDARD_VM_CONTRACT;
-
-    _ASSERTE(s_pPlatformAssembliesPaths == NULL);
-    s_pPlatformAssembliesPaths = new SArray<LPCWSTR>();
-
-    SString strPaths(platformAssembliesPaths);
-    if (strPaths.IsEmpty())
-        return;
-
-    for (SString::Iterator i = strPaths.Begin(); i != strPaths.End(); )
-    {
-        // Skip any leading spaces or semicolons
-        if (strPaths.Skip(i, W(';')))
-        {
-            continue;
-        }
-    
-        SString::Iterator iEnd = i;     // Where current assembly name ends
-        SString::Iterator iNext;        // Where next assembly name starts
-        if (strPaths.Find(iEnd, W(';')))
-        {
-            iNext = iEnd + 1;
-        }
-        else
-        {
-            iNext = iEnd = strPaths.End();
-        }
-    
-        _ASSERTE(i < iEnd);
-        if(i != iEnd)
-        {
-            SString strPath(strPaths, i, iEnd);
-
-            SString strFullPath;
-            Clr::Util::Win32::GetFullPathName(strPath, strFullPath, NULL);
-
-            NewArrayHolder<WCHAR> wszFullPath = DuplicateStringThrowing(strFullPath.GetUnicode());
-            s_pPlatformAssembliesPaths->Append(wszFullPath);
-            wszFullPath.SuppressRelease();
-        }
-        i = iNext;
-    }
-}
-
-BOOL CompilationDomain::FindImage(const SString& fileName, MDInternalImportFlags flags, PEImage ** ppImage)
-{
-    if (s_pPlatformAssembliesPaths == NULL)
-        return FALSE;
-
-    for (COUNT_T i = 0; i < s_pPlatformAssembliesPaths->GetCount(); i++)
-    {
-        SString sPath((*s_pPlatformAssembliesPaths)[i]);
-        if (sPath[sPath.GetCount() - 1] != '\\')
-            sPath.Append(W("\\"));
-        sPath.Append(fileName);
-
-        if (!FileExists(sPath))
-            continue;
-
-        // Normalize the path to maintain identity
-        SString sFullPath;
-        Clr::Util::Win32::GetFullPathName(sPath, sFullPath, NULL);
-
-        PEImageHolder image(PEImage::OpenImage(sFullPath, flags));
-
-        PEImageLayoutHolder pLayout(image->GetLayout(
-            (flags == MDInternalImport_NoCache) ? PEImageLayout::LAYOUT_FLAT : PEImageLayout::LAYOUT_MAPPED,
-            PEImage::LAYOUT_CREATEIFNEEDED));
-
-        if (!pLayout->HasNTHeaders())
-            continue;
-
-        if (!pLayout->IsNativeMachineFormat())
-        {
-            // Check for platform agnostic IL
-            if (!pLayout->IsPlatformNeutral())
-                continue;
-        }
-
-        *ppImage = image.Extract();
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-BOOL CompilationDomain::IsInHardBindList(SString& simpleName)
-{
-    for (COUNT_T i = 0; i < m_assemblyHardBindList.GetCount(); i++)
-    {
-        if (simpleName.Equals(m_assemblyHardBindList[i]))
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-void CompilationDomain::ComputeAssemblyHardBindList(IMDInternalImport * pImport)
-{
-    AssemblyForLoadHint assembly(pImport);
-
-    HENUMInternalHolder hEnum(pImport);
-    hEnum.EnumAllInit(mdtAssemblyRef);
-
-    mdAssembly token;
-    while (pImport->EnumNext(&hEnum, &token))
-    {
-        LPCSTR pszName;
-        IfFailThrow(pImport->GetAssemblyRefProps(token, NULL, NULL,
-                                                 &pszName, NULL,
-                                                 NULL, NULL, NULL));
-
-        SString sSimpleName(SString::Utf8, pszName);
-
-        SString sFileName(sSimpleName, W(".dll"));
-
-        PEImageHolder pDependencyImage;
-
-        if (!FindImage(sFileName, MDInternalImport_Default, &pDependencyImage))
-            continue;
-
-        AssemblyForLoadHint assemblyDependency(pDependencyImage->GetMDImport());
-
-        LoadHintEnum loadHint;
-        ::GetLoadHint(&assembly, &assemblyDependency, &loadHint);
-
-        if (loadHint == LoadAlways)
-        {
-            GetSvcLogger()->Printf(W("Hardbinding to %s\n"), sSimpleName.GetUnicode());
-
-            if (!IsInHardBindList(sSimpleName))
-            {
-                m_assemblyHardBindList.Append(sSimpleName);
-            }
-        }
-    }
-
-    // Note that we are not setting m_useHardBindList to TRUE here. When we load the NGen image, we are good to hardbind.
-    // m_useHardBindList = TRUE;
-}
-#endif
 
 void CompilationDomain::SetTarget(Assembly *pAssembly, Module *pModule)
 {
@@ -7733,7 +7273,6 @@ void CompilationDomain::SetTargetImage(DataImage *pImage, CEEPreloader * pPreloa
     _ASSERTE(pImage->GetModule() == GetTargetModule());
 }
 
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 void ReportMissingDependency(Exception * e)
 {
     // Avoid duplicate error messages
@@ -7747,14 +7286,12 @@ void ReportMissingDependency(Exception * e)
 
     g_hrFatalError = COR_E_FILELOAD;
 }
-#endif
 
 PEAssembly *CompilationDomain::BindAssemblySpec(
     AssemblySpec *pSpec,
     BOOL fThrowOnFileNotFound,
     BOOL fRaisePrebindEvents,
     StackCrawlMark *pCallerStackMark,
-    AssemblyLoadSecurity *pLoadSecurity,
     BOOL fUseHostBinderIfAvailable)
 {
     PEAssembly *pFile = NULL;
@@ -7773,18 +7310,15 @@ PEAssembly *CompilationDomain::BindAssemblySpec(
             fThrowOnFileNotFound,
             fRaisePrebindEvents,
             pCallerStackMark,
-            pLoadSecurity,
             fUseHostBinderIfAvailable);
     }
     EX_HOOK
     {
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
         if (!g_fNGenMissingDependenciesOk)
         {
             ReportMissingDependency(GET_EXCEPTION());
             EX_RETHROW;
         }
-#endif
 
         //
         // Record missing dependencies
@@ -7817,56 +7351,6 @@ HRESULT
 
     COOPERATIVE_TRANSITION_BEGIN();
 
-#ifdef FEATURE_FUSION
-    if (isExe)
-    {
-        if (NingenEnabled())
-        {
-            WCHAR buf[MAX_PATH + sizeof(CONFIGURATION_EXTENSION)/sizeof(WCHAR) + 1];
-            if (0 != wcscpy_s(buf, sizeof(buf)/sizeof(*buf), path))
-            {
-                COMPlusThrowHR(COR_E_PATHTOOLONG);
-            }
-            WCHAR *pSlash = wcsrchr(buf, W('\\'));
-            if (!pSlash)
-            {
-                COMPlusThrowHR(COR_E_BAD_PATHNAME);
-            }
-
-            *(pSlash + 1) = W('\0');
-            hr = m_pFusionContext->Set(ACTAG_APP_BASE_URL, buf, (DWORD)((wcslen(buf) + 1) * sizeof(WCHAR)), 0);
-            if (FAILED(hr))
-            {
-                COMPlusThrowHR(hr);
-            }
-
-            if (0 != wcscpy_s(buf, sizeof(buf)/sizeof(*buf), path + (pSlash - buf) + 1))
-            {
-                COMPlusThrowHR(COR_E_PATHTOOLONG);
-            }
-
-            if (0 != wcscat_s(buf, sizeof(buf)/sizeof(*buf), CONFIGURATION_EXTENSION))
-            {
-                COMPlusThrowHR(COR_E_PATHTOOLONG);
-            }
-            hr = m_pFusionContext->Set(ACTAG_APP_CONFIG_FILE, buf, (DWORD)((wcslen(buf) + 1) * sizeof(WCHAR)), 0);
-            if (FAILED(hr))
-            {
-                COMPlusThrowHR(hr);
-            }
-        }
-        else
-        {
-            SetupExecutableFusionContext(path);
-        }
-    }
-    else
-    {
-        hr = m_pFusionContext->Set(ACTAG_APP_BASE_URL,
-                                   (void*) path, (DWORD) ((wcslen(path)+1) * sizeof(WCHAR)),
-                                   0);
-    }
-#endif //FEATURE_FUSION
 
     COOPERATIVE_TRANSITION_END();
 
@@ -7883,199 +7367,6 @@ void CompilationDomain::SetDependencyEmitter(IMetaDataAssemblyEmit *pEmit)
     m_pDependencyRefSpecs = new AssemblySpecHash();
 }
 
-#ifndef FEATURE_CORECLR // hardbinding
-/* Update m_pDependencies for the corresponding assembly, to reflect the fact
-   that we are hard-binding to its native image
- */
-
-void CompilationDomain::UpdateDependencyEntryForHardBind(PEAssembly * pDependencyAssembly)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pDependencyAssembly->HasBindableIdentity()); // Currently no hard deps on WinMD files.
-    }
-    CONTRACTL_END;
-    AssemblySpec assemblySpec;
-    assemblySpec.InitializeSpec(pDependencyAssembly);
-
-    mdAssemblyRef defToken;
-    IfFailThrow(assemblySpec.EmitToken(m_pEmit, &defToken));
-
-    CORCOMPILE_DEPENDENCY * pDep = m_pDependencies;
-
-    for (unsigned i = 0; i < m_cDependenciesCount; i++, pDep++)
-    {
-        if (pDep->dwAssemblyDef == defToken)
-        {
-            PEImage * pNativeImage = pDependencyAssembly->GetPersistentNativeImage();
-            CORCOMPILE_VERSION_INFO * pNativeVersion = pNativeImage->GetLoadedLayout()->GetNativeVersionInfo();
-            _ASSERTE(pDep->signNativeImage == INVALID_NGEN_SIGNATURE ||
-                     pDep->signNativeImage == pNativeVersion->signature);
-            pDep->signNativeImage = pNativeVersion->signature;
-            return;
-        }
-    }
-
-    // We should have found and updated the corresponding dependency
-    _ASSERTE(!"This should be unreachable");
-}
-
-// pAssembly is a hardbound ngen dependency of m_pTargetModule.
-// Try to hardbind to the hardbound dependency closure as there is 
-// no extra cost in doing so, and it will help generate better code
-//
-
-void CompilationDomain::IncludeHardBindClosure(PEAssembly * pAssembly)
-{
-    CONTRACTL {
-        PRECONDITION(pAssembly->GetPersistentNativeImage() != NULL);
-    } CONTRACTL_END;
-
-    PEImageLayout *pNativeImage = pAssembly->GetLoadedNative();
-    COUNT_T cDependencies;
-    CORCOMPILE_DEPENDENCY *pDependencies = pNativeImage->GetNativeDependencies(&cDependencies);
-    CORCOMPILE_DEPENDENCY *pDependenciesEnd = pDependencies + cDependencies;
-
-    for (/**/; pDependencies < pDependenciesEnd; pDependencies++)
-    {
-        // Ignore "soft" dependencies
-
-        if (pDependencies->signNativeImage == INVALID_NGEN_SIGNATURE)
-            continue;
-
-        // Load the manifest file for the given hardbound name-assembly-spec.
-
-        AssemblySpec name;
-        name.InitializeSpec(pDependencies->dwAssemblyRef,
-                            pAssembly->GetPersistentNativeImage()->GetNativeMDImport(),
-                            FindAssembly(pAssembly),
-                            FALSE);
-
-        DomainAssembly * pDependency = name.LoadDomainAssembly(FILE_LOADED);
-
-        // Since pAssembly hardbinds to pDependency, pDependency better
-        // have a native image
-        _ASSERTE(pDependency->GetFile()->HasNativeImage());
-
-        //
-        // Now add pDependency as a hard dependency of m_pTargetModule.
-        // We pass in limitToHardBindList=FALSE as it is OK to hardbind even if
-        // pDependency is not in the hardbound list.
-        //
-
-        CanEagerBindToZapFile(pDependency->GetLoadedModule(), FALSE);
-    }
-}
-
-//-----------------------------------------------------------------------------
-// Check if we were successfully able to hardbind to the requested dependency
-
-void CompilationDomain::CheckHardBindToZapFile(SString dependencyNameFromCA)
-{
-    // First check if we were successfully able to hard-bind
-    
-    for (PtrHashMap::PtrIterator hbItr = m_hardBoundModules.begin(); !hbItr.end(); ++hbItr)
-    {
-        Module * pModule = (Module*) hbItr.GetValue();
-
-        if (IsAssemblySpecifiedInCA(pModule->GetAssembly(), dependencyNameFromCA))
-        {
-            // We did successfully use "dependencyNameFromCA"
-            return;
-        }
-    }
-
-    // Next, check if we failed to hard-bind. CompilationDomain::CanEagerBindToZapFile()
-    // would have logged a warning message with the cause of the soft-bind
-    
-    for (PtrHashMap::PtrIterator sbItr = m_cantHardBindModules.begin(); !sbItr.end(); ++sbItr)
-    {
-        Module * pModule = (Module*) sbItr.GetValue();
-
-        if (IsAssemblySpecifiedInCA(pModule->GetAssembly(), dependencyNameFromCA))
-        {
-            if (!IsInHardBindRequestList(pModule->GetAssembly()))
-            {
-                // CompilationDomain::CanEagerBindToZapFile() does not give a warning
-                // message for the cyclic dependency case, since the NGEN service
-                // breaks the cycle by overriding the CA. So give a message here instead.
-                GetSvcLogger()->Printf(LogLevel_Warning, W("WARNING: Dependency attribute for %s is being ignored, possibly because of cyclic dependencies.\n"), 
-                    dependencyNameFromCA.GetUnicode());
-            }
-            return;
-        }
-    }
-
-    // Finally, it looks like the assembly was either not loaded, or that
-    // there was no reason to even try to hard-bind.
-
-    GetSvcLogger()->Printf(LogLevel_Warning, W("WARNING: Cannot hardbind to %s because it is not loaded\n"), 
-        dependencyNameFromCA.GetUnicode());
-}
-
-//-----------------------------------------------------------------------------
-// Check if we were successfully able to hardbind to all the requested
-// dependencies.
-
-void CompilationDomain::CheckLoadHints()
-{
-    if (!m_useHardBindList)
-        return;
-    
-    if (g_pConfig->NgenHardBind() == EEConfig::NGEN_HARD_BIND_NONE)
-        return;
-
-    // Look for the binding custom attribute
-
-    IMDInternalImport * pImport = m_pTargetAssembly->GetManifestImport();
-    _ASSERTE(pImport);
-
-    MDEnumHolder hEnum(pImport);        // Enumerator for custom attributes
-    if (FAILED(pImport->EnumCustomAttributeByNameInit(m_pTargetAssembly->GetManifestToken(),
-                                                     DEPENDENCY_TYPE, 
-                                                     &hEnum)))
-    {
-        return;
-    }
-
-    mdCustomAttribute tkAttribute;      // A custom attribute on this assembly.
-    const BYTE  *pbAttr;                // Custom attribute data as a BYTE*.
-    ULONG       cbAttr;                 // Size of custom attribute data.
-
-    while (pImport->EnumNext(&hEnum, &tkAttribute))
-    {   // Get raw custom attribute.
-        IfFailThrow(pImport->GetCustomAttributeAsBlob(tkAttribute, (const void**)&pbAttr, &cbAttr));
-
-        CustomAttributeParser cap(pbAttr, cbAttr);
-        if (FAILED(cap.ValidateProlog()))
-        {
-            THROW_BAD_FORMAT(BFA_BAD_CA_HEADER, m_pTargetAssembly->GetManifestModule());
-        }
-
-        LPCUTF8 szString;
-        ULONG   cbString;
-        if (FAILED(cap.GetNonNullString(&szString, &cbString)))
-        {
-            THROW_BAD_FORMAT(BFA_BAD_CA_STRING, m_pTargetAssembly->GetManifestModule());
-        }
-
-        UINT32 u4;
-        IfFailThrow(cap.GetU4(&u4));
-        LoadHintEnum loadHint = (LoadHintEnum)u4;
-
-        if (loadHint != LoadAlways)
-            continue;
-
-        // Convert the string to Unicode.
-        StackSString dependencyNameFromCA(SString::Utf8, szString, cbString);
-
-        CheckHardBindToZapFile(dependencyNameFromCA);
-    }
-}
-#endif // FEATURE_CORECLR
 
 HRESULT
     CompilationDomain::GetDependencies(CORCOMPILE_DEPENDENCY **ppDependencies,
@@ -8083,9 +7374,6 @@ HRESULT
 {
     STANDARD_VM_CONTRACT;
 
-#ifndef FEATURE_CORECLR // hardbinding
-    CheckLoadHints();
-#endif
 
     //
     // Return the bindings.
@@ -8100,27 +7388,6 @@ HRESULT
     return S_OK;
 }
 
-#ifdef FEATURE_FUSION
-HRESULT
-    CompilationDomain::GetIBindContext(IBindContext **ppBindCtx)
-{
-    LIMITED_METHOD_CONTRACT;
-    HRESULT hr = S_OK;
-
-    ReleaseHolder<IBindContext> pBindCtx;
-    if (HasLoadContextHostBinder())
-    {
-        IfFailRet(GetCurrentLoadContextHostBinder()->QueryInterface(__uuidof(IBindContext), &pBindCtx));
-    }
-    else
-    {
-        GetBindContextFromApplicationContext(BaseDomain::GetFusionContext(), &pBindCtx); // Can't fail
-    }
-
-    *ppBindCtx = pBindCtx.Extract();
-    return S_OK;
-}
-#endif
 
 #ifdef CROSSGEN_COMPILE
 HRESULT CompilationDomain::SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths)
@@ -8167,5 +7434,6 @@ HRESULT CompilationDomain::SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths)
     return S_OK;
 }
 #endif // CROSSGEN_COMPILE
+
 
 #endif // FEATURE_PREJIT

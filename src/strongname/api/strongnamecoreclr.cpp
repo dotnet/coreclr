@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // Several strong name tools are in a special scenario because they build in the CoreCLR build process, but
@@ -10,8 +9,6 @@
 //
 
 #include "common.h"
-
-#if defined(FEATURE_CORECLR) 
 
 CoreClrCallbacks *GetCoreClrCallbacks();
 
@@ -42,16 +39,16 @@ FunctionPointer ApiShim(LPCSTR szApiName)
 // Shim APIs, passing off into the desktop VM
 //
 
-IExecutionEngine * __stdcall SnIEE()
+IExecutionEngine* SnIEE()
 {
-    typedef IExecutionEngine * ( __stdcall *IEEFn_t)();
+    typedef IExecutionEngine* (* IEEFn_t)();
     return ApiShim<IEEFn_t>("IEE")();
 }
 
-STDAPI SnGetCorSystemDirectory(LPWSTR pbuffer, DWORD cchBuffer, DWORD* dwLength)
+HRESULT SnGetCorSystemDirectory(SString&  pbuffer)
 {
-    typedef HRESULT (__stdcall *GetCorSystemDirectoryFn_t)(LPWSTR, DWORD, DWORD *);
-    return ApiShim<GetCorSystemDirectoryFn_t>("GetCORSystemDirectory")(pbuffer, cchBuffer, dwLength);
+    typedef HRESULT (*GetCorSystemDirectoryFn_t)(SString&);
+    return ApiShim<GetCorSystemDirectoryFn_t>("GetCORSystemDirectory")(pbuffer);
 }
 
 //
@@ -96,4 +93,3 @@ void InitUtilcode()
     InitUtilcode(*GetCoreClrCallbacks());
 }
 
-#endif // FEATURE_CORECLR && !STRONGNAME_IN_VM

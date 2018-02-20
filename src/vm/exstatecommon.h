@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -52,10 +51,10 @@ public:
         m_pDebuggerContext = NULL;
         m_pDebuggerInterceptNativeOffset = 0;
 
+  #ifndef WIN64EXCEPTIONS
         // x86-specific fields
-  #if defined(_TARGET_X86_)      
         m_pDebuggerInterceptFrame = EXCEPTION_CHAIN_END;
-  #endif // defined(_TARGET_X86_)      
+  #endif // !WIN64EXCEPTIONS
         m_dDebuggerInterceptHandlerDepth  = 0;
     }
     
@@ -134,9 +133,9 @@ public:
     //
 
     void GetDebuggerInterceptInfo(
- #if defined(_TARGET_X86_)   
+ #ifndef WIN64EXCEPTIONS
                                   PEXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
- #endif // _TARGET_X86_   
+ #endif // !WIN64EXCEPTIONS
                                   MethodDesc **ppFunc,
                                   int *pdHandler,
                                   BYTE **ppStack,
@@ -145,12 +144,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
   
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
         if (pEstablisherFrame != NULL)
         {
             *pEstablisherFrame = m_pDebuggerInterceptFrame;
         }
-#endif // _TARGET_X86_
+#endif // !WIN64EXCEPTIONS
 
         if (ppFunc != NULL)
         {
@@ -196,10 +195,10 @@ private:
     ULONG_PTR       m_pDebuggerInterceptNativeOffset;
 
     // The remaining fields are only used on x86.
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
     // the exception registration record covering the stack range containing the interception point
     PEXCEPTION_REGISTRATION_RECORD m_pDebuggerInterceptFrame;
-#endif // defined(_TARGET_X86_)
+#endif // !WIN64EXCEPTIONS
 
     // the nesting level at which we want to resume execution
     int             m_dDebuggerInterceptHandlerDepth;
@@ -381,10 +380,6 @@ public:
     void SetDebuggerInterceptInfo() { LIMITED_METHOD_DAC_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_DebuggerInterceptInfo; }
 #endif
 
-    BOOL ImpersonationTokenSet()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_ImpersonationTokenSet; }
-    void SetImpersonationTokenSet()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_ImpersonationTokenSet; }
-    void ResetImpersonationTokenSet() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_ImpersonationTokenSet; }
-
     BOOL WasThrownByUs()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_WasThrownByUs; }
     void SetWasThrownByUs()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_WasThrownByUs; }
     void ResetWasThrownByUs() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_WasThrownByUs; }
@@ -411,15 +406,13 @@ private:
         Ex_DebuggerInterceptNotPossible = 0x00000400,
         Ex_IsUnhandled                  = 0x00000800,
 #endif
-        Ex_ImpersonationTokenSet        = 0x00001000,
+        // Unused                       = 0x00001000,
 
         Ex_WasThrownByUs                = 0x00002000,
 
-        Ex_GotWatsonBucketInfo          = 0x00004000
-
+        Ex_GotWatsonBucketInfo          = 0x00004000,
 
 #if defined(WIN64EXCEPTIONS) && defined(_DEBUG)
-    ,
         Ex_FlagsAreReadOnly             = 0x80000000
 #endif // defined(WIN64EXCEPTIONS) && defined(_DEBUG) 
 

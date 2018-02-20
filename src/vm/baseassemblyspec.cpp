@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // BaseAssemblySpec.cpp
@@ -113,17 +112,16 @@ BOOL BaseAssemblySpec::IsMscorlib()
         return FALSE;
     }
 
-    _ASSERTE(strlen(g_psBaseLibraryName) == 8);
+    _ASSERTE(strlen(g_psBaseLibraryName) == CoreLibNameLen);
 
     // <TODO>More of bug 213471</TODO>
     size_t iNameLen = strlen(m_pAssemblyName);
-    return ( (iNameLen >= 8) &&
+    return ( (iNameLen >= CoreLibNameLen) &&
              ( (!stricmpUTF8(m_pAssemblyName, g_psBaseLibrary)) ||
-             ( (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibraryName, 8)) &&
-               ( (iNameLen == 8) || (m_pAssemblyName[8] == ',') ) ) ) );
+             ( (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibraryName, CoreLibNameLen)) &&
+               ( (iNameLen == CoreLibNameLen) || (m_pAssemblyName[CoreLibNameLen] == ',') ) ) ) );
 }
 
-#ifdef FEATURE_CORECLR
 BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
 {
     CONTRACTL
@@ -132,7 +130,7 @@ BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
         INSTANCE_CHECK;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(strlen(g_psBaseLibraryName) == 8);
+        PRECONDITION(strlen(g_psBaseLibraryName) == CoreLibNameLen);
     }
     CONTRACTL_END;
     
@@ -141,19 +139,16 @@ BOOL BaseAssemblySpec::IsAssemblySpecForMscorlib()
     if (m_pAssemblyName)
     {
         size_t iNameLen = strlen(m_pAssemblyName);
-        fIsAssemblySpecForMscorlib = ( (iNameLen >= 8) &&
+        fIsAssemblySpecForMscorlib = ( (iNameLen >= CoreLibNameLen) &&
                  ( (!_stricmp(m_pAssemblyName, g_psBaseLibrary)) ||
-                 ( (!_strnicmp(m_pAssemblyName, g_psBaseLibraryName, 8)) &&
-                   ( (iNameLen == 8) || (m_pAssemblyName[8] == ',') ) ) ) );
+                 ( (!_strnicmp(m_pAssemblyName, g_psBaseLibraryName, CoreLibNameLen)) &&
+                   ( (iNameLen == CoreLibNameLen) || (m_pAssemblyName[CoreLibNameLen] == ',') ) ) ) );
     }
     
     return fIsAssemblySpecForMscorlib;
 }
 
 #define MSCORLIB_PUBLICKEY g_rbTheSilverlightPlatformKey
-#else
-#define MSCORLIB_PUBLICKEY g_rbNeutralPublicKey
-#endif
 
 
 // A satellite assembly for mscorlib is named "mscorlib.resources" or 
@@ -184,16 +179,16 @@ BOOL BaseAssemblySpec::IsMscorlibSatellite()
         return FALSE;
     }
 
-    _ASSERTE(strlen(g_psBaseLibrarySatelliteAssemblyName) == 18);
+    _ASSERTE(strlen(g_psBaseLibrarySatelliteAssemblyName) == CoreLibSatelliteNameLen);
  
     // <TODO>More of bug 213471</TODO>
     size_t iNameLen = strlen(m_pAssemblyName);
 
     // we allow name to be of the form mscorlib.resources.dll only 
     BOOL r = ( (m_cbPublicKeyOrToken == sizeof(MSCORLIB_PUBLICKEY)) && 
-             (iNameLen >= 18) &&
-             (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibrarySatelliteAssemblyName, 18)) &&
-             ( (iNameLen == 18) || (m_pAssemblyName[18] == ',') ) );
+             (iNameLen >= CoreLibSatelliteNameLen) &&
+             (!SString::_strnicmp(m_pAssemblyName, g_psBaseLibrarySatelliteAssemblyName, CoreLibSatelliteNameLen)) &&
+             ( (iNameLen == CoreLibSatelliteNameLen) || (m_pAssemblyName[CoreLibSatelliteNameLen] == ',') ) );
 
     r = r && ( memcmp(m_pbPublicKeyOrToken,MSCORLIB_PUBLICKEY,sizeof(MSCORLIB_PUBLICKEY)) == 0);
 
@@ -233,7 +228,6 @@ VOID BaseAssemblySpec::ConvertPublicKeyToToken()
     m_dwFlags &= ~afPublicKey;
 }
 
-#ifndef FEATURE_FUSION
 // Similar to BaseAssemblySpec::CompareEx, but allows the ref to be partially specified
 // Returns TRUE if ref matches def, FALSE otherwise.
 //
@@ -272,9 +266,9 @@ BOOL BaseAssemblySpec::CompareRefToDef(const BaseAssemblySpec *pRef, const BaseA
     }
 
     //
-    // flags are non-optional, except processor architecture and content type
+    // flags are non-optional, except processor architecture, content type, and debuggable attribute bits
     //
-    DWORD dwFlagsMask = ~(afPA_FullMask | afContentType_Mask);
+    DWORD dwFlagsMask = ~(afPA_FullMask | afContentType_Mask | afDebuggableAttributeMask);
     if ((pRef->m_dwFlags & dwFlagsMask) != (pDef->m_dwFlags & dwFlagsMask))
         return FALSE;
 
@@ -363,7 +357,6 @@ BOOL BaseAssemblySpec::RefMatchesDef(const BaseAssemblySpec* pRef, const BaseAss
         return (CompareStrings(pRef->GetName(), pDef->GetName())==0);
     }
 }
-#endif // FEATURE_FUSION
 
 //===========================================================================================
 // This function may embed additional information, if required.
@@ -684,21 +677,9 @@ HRESULT BaseAssemblySpec::CreateFusionName(
                 }
             }
             else {
-#ifdef FEATURE_FUSION
-                IfFailGo(pFusionAssemblyName->SetProperty(ASM_NAME_NULL_PUBLIC_KEY_TOKEN,
-                                                          NULL, 0));
-#endif
             }
         }
 
-#ifdef FEATURE_FUSION
-        // See if the assembly[ref] is retargetable (ie, for a generic assembly).
-        if (IsAfRetargetable(m_dwFlags)) {
-            BOOL bTrue = TRUE;
-            IfFailGo(pFusionAssemblyName->SetProperty(ASM_NAME_RETARGET, 
-                                                      &bTrue, sizeof(bTrue)));
-        }
-#endif
 
         // Set the Processor Architecture (if any)
         {
@@ -724,15 +705,7 @@ HRESULT BaseAssemblySpec::CreateFusionName(
             }
         }
 
-#ifdef FEATURE_FUSION
-        if (fIncludeCodeBase && m_wszCodeBase) {
-            IfFailGo(pFusionAssemblyName->SetProperty(ASM_NAME_CODEBASE_URL,
-                                                      (void*)m_wszCodeBase, 
-                                                      (DWORD)(wcslen(m_wszCodeBase)+1) * sizeof(WCHAR)));
-        }
-#else
         _ASSERTE(m_wszCodeBase == NULL);
-#endif
 
         *ppName = pFusionAssemblyName;
 

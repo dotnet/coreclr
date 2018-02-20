@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: CLRVarArgs.cpp
 //
@@ -33,10 +32,14 @@ void VARARGS::MarshalToManagedVaList(va_list va, VARARGS *dataout)
 {
     WRAPPER_NO_CONTRACT
 
+#ifndef PLATFORM_UNIX
     _ASSERTE(dataout != NULL);
     dataout->SigPtr = SigPointer(NULL, 0);
     dataout->ArgCookie = NULL;
     dataout->ArgPtr = (BYTE*)va;
+#else
+    PORTABILITY_ASSERT("Implement for Unix");
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +49,7 @@ void
 VARARGS::MarshalToUnmanagedVaList(
     va_list va, DWORD cbVaListSize, const VARARGS * data)
 {
+#ifndef PLATFORM_UNIX
     BYTE * pdstbuffer = (BYTE *)va;
 
     int    remainingArgs = data->RemainingArgs;
@@ -112,4 +116,7 @@ VARARGS::MarshalToUnmanagedVaList(
                 COMPlusThrow(kNotSupportedException);
         }
     }
+#else
+    PORTABILITY_ASSERT("Implement for Unix");
+#endif
 } // VARARGS::MarshalToUnmanagedVaList

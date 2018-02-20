@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: dacimpl.h
 // 
@@ -15,10 +14,12 @@
 #ifndef __DACIMPL_H__
 #define __DACIMPL_H__
 
+#include "gcinterface.dac.h"
+
 #if defined(_TARGET_ARM_) || defined(FEATURE_CORESYSTEM) // @ARMTODO: STL breaks the build with current VC headers
 //---------------------------------------------------------------------------------------
 // Setting DAC_HASHTABLE tells the DAC to use the hand rolled hashtable for
-// storing code:DAC_INSTANCE .  Otherwise, the DAC uses the STL hash_map to.
+// storing code:DAC_INSTANCE .  Otherwise, the DAC uses the STL unordered_map to.
 
 #define DAC_HASHTABLE
 #endif // _TARGET_ARM_|| FEATURE_CORESYSTEM
@@ -26,7 +27,7 @@
 #ifndef DAC_HASHTABLE
 #pragma push_macro("return")
 #undef return
-#include <hash_map>
+#include <unordered_map>
 #pragma pop_macro("return")
 #endif //DAC_HASHTABLE
 extern CRITICAL_SECTION g_dacCritSec;
@@ -124,6 +125,7 @@ enum DAC_USAGE_TYPE
     DAC_VPTR,
     DAC_STRA,
     DAC_STRW,
+    DAC_PAL,
 };
 
 // mscordacwks's module handle 
@@ -784,7 +786,7 @@ private:
     HashInstanceKeyBlock* m_hash[DAC_INSTANCE_HASH_SIZE];
 #else //DAC_HASHTABLE
 
-    // We're going to use the STL hash_map for our instance hash.  
+    // We're going to use the STL unordered_map for our instance hash.  
     // This has the benefit of scaling to different workloads appropriately (as opposed to having a 
     // fixed number of buckets).
 
@@ -829,7 +831,7 @@ private:
 #endif
 
     };
-    typedef stdext::hash_map<TADDR, DAC_INSTANCE*, DacHashCompare > DacInstanceHash;
+    typedef std::unordered_map<TADDR, DAC_INSTANCE*, DacHashCompare > DacInstanceHash;
     typedef DacInstanceHash::value_type DacInstanceHashValue;
     typedef DacInstanceHash::iterator DacInstanceHashIterator;
     DacInstanceHash m_hash;
@@ -857,11 +859,14 @@ class ClrDataAccess
     : public IXCLRDataProcess2,
       public ICLRDataEnumMemoryRegions,
       public ISOSDacInterface,
-      public ISOSDacInterface2
+      public ISOSDacInterface2,
+      public ISOSDacInterface3,
+      public ISOSDacInterface4,
+      public ISOSDacInterface5
 {
 public:
     ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLegacyTarget=0);
-    ~ClrDataAccess(void);
+    virtual ~ClrDataAccess(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -1192,6 +1197,17 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetObjectExceptionData(CLRDATA_ADDRESS objAddr, struct DacpExceptionObjectData *data);
     virtual HRESULT STDMETHODCALLTYPE IsRCWDCOMProxy(CLRDATA_ADDRESS rcwAddr, BOOL* isDCOMProxy);
 
+    // ISOSDacInterface3
+    virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoData(CLRDATA_ADDRESS interestingInfoAddr, struct DacpGCInterestingInfoData *data);
+    virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *data);
+    virtual HRESULT STDMETHODCALLTYPE GetGCGlobalMechanisms(size_t* globalMechanisms);
+
+    // ISOSDacInterface4
+    virtual HRESULT STDMETHODCALLTYPE GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
+
+    // ISOSDacInterface5
+    virtual HRESULT STDMETHODCALLTYPE GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpTieredVersionData *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
+
     //
     // ClrDataAccess.
     //
@@ -1271,6 +1287,7 @@ public:
                                 DacpGcHeapDetails *detailsData);
     HRESULT GetServerAllocData(unsigned int count, struct DacpGenerationAllocData *data, unsigned int *pNeeded);
     HRESULT ServerOomData(CLRDATA_ADDRESS addr, DacpOomData *oomData);
+    HRESULT ServerGCInterestingInfoData(CLRDATA_ADDRESS addr, DacpGCInterestingInfoData *interestingInfoData);
     HRESULT ServerGCHeapAnalyzeData(CLRDATA_ADDRESS heapAddr, 
                                 DacpGcHeapAnalyzeData *analyzeData);
 
@@ -1422,7 +1439,6 @@ private:
     ICLRMetadataLocator * m_legacyMetaDataLocator;
 
     LONG m_refs;
-    HRESULT m_memStatus;
     MDImportsCache m_mdImports;
     ICLRDataEnumMemoryRegionsCallback* m_enumMemCb;
     ICLRDataEnumMemoryRegionsCallback2* m_updateMemCb;
@@ -1473,9 +1489,9 @@ public:
                                              __out_ecount(cchPath) LPWSTR wszPath,
                                              const DWORD cchPath);
 #if defined(FEATURE_CORESYSTEM)
-    static bool ClrDataAccess::GetILImageNameFromNgenImage(LPCWSTR ilExtension,
-                                                 __out_ecount(cchFilePath) LPWSTR wszFilePath,
-                                                 const DWORD cchFilePath);
+    static bool GetILImageNameFromNgenImage(LPCWSTR ilExtension,
+                                            __out_ecount(cchFilePath) LPWSTR wszFilePath,
+                                            const DWORD cchFilePath);
 #endif // FEATURE_CORESYSTEM
 };
 
@@ -1518,6 +1534,8 @@ public:
         : mRef(0)
     {
     }
+
+    virtual ~DefaultCOMImpl() {}
     
     ULONG STDMETHODCALLTYPE AddRef()
     {
@@ -1685,7 +1703,7 @@ private:
     template<class T>
     inline bool MisalignedRead(CORDB_ADDRESS addr, T *t)
     {
-        return SUCCEEDED(DacReadAll(TO_TADDR(addr), t, sizeof(t), false));
+        return SUCCEEDED(DacReadAll(TO_TADDR(addr), t, sizeof(T), false));
     }
 
 private:
@@ -1887,7 +1905,7 @@ class DacStackReferenceWalker : public DefaultCOMImpl<ISOSStackRefEnum>
     } StackRefChunk;
 public:
     DacStackReferenceWalker(ClrDataAccess *dac, DWORD osThreadID);
-    ~DacStackReferenceWalker();
+    virtual ~DacStackReferenceWalker();
     
     HRESULT Init();
     
@@ -1909,10 +1927,10 @@ public:
                                    
 private:
     static StackWalkAction Callback(CrawlFrame *pCF, VOID *pData);
-    static void GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc);
-    static void GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags);
-    static void GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc);
-    static void GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags);
+    static void GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc);
+    static void GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags);
+    static void GCEnumCallbackDac(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc);
+    static void GCReportCallbackDac(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags);
 
     CLRDATA_ADDRESS ReadPointer(TADDR addr);
 
@@ -2119,7 +2137,7 @@ class DacHandleWalker : public DefaultCOMImpl<ISOSHandleEnum>
 
 public:
     DacHandleWalker();
-    ~DacHandleWalker();
+    virtual ~DacHandleWalker();
     
     HRESULT Init(ClrDataAccess *dac, UINT types[], UINT typeCount);
     HRESULT Init(ClrDataAccess *dac, UINT types[], UINT typeCount, int gen);
@@ -2143,8 +2161,8 @@ private:
     static UINT32 BuildTypemask(UINT types[], UINT typeCount);
 
 private:
-    static void CALLBACK EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM userParam, LPARAM type);
-    static void CALLBACK EnumCallbackDac(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM userParam, LPARAM type);
+    static void CALLBACK EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t userParam, uintptr_t type);
+    static void CALLBACK EnumCallbackDac(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t userParam, uintptr_t type);
     
     bool FetchMoreHandles(HANDLESCANPROC proc);
     static inline bool IsAlwaysStrongReference(unsigned int type)
@@ -2226,7 +2244,7 @@ private:
     ULONG32 m_instanceAge;
     
     // Handle table walking variables.
-    HandleTableMap *mMap;
+    dac_handle_table_map *mMap;
     int mIndex;
     UINT32 mTypeMask;
     int mGenerationFilter;
@@ -2252,7 +2270,7 @@ class ClrDataAppDomain : public IXCLRDataAppDomain
 public:
     ClrDataAppDomain(ClrDataAccess* dac,
                      AppDomain* appDomain);
-    ~ClrDataAppDomain(void);
+    virtual ~ClrDataAppDomain(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -2316,7 +2334,7 @@ class ClrDataAssembly : public IXCLRDataAssembly
 public:
     ClrDataAssembly(ClrDataAccess* dac,
                     Assembly* assembly);
-    ~ClrDataAssembly(void);
+    virtual ~ClrDataAssembly(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -2395,7 +2413,7 @@ class ClrDataModule : public IXCLRDataModule, IXCLRDataModule2
 public:
     ClrDataModule(ClrDataAccess* dac,
                   Module* module);
-    ~ClrDataModule(void);
+    virtual ~ClrDataModule(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -2558,9 +2576,14 @@ public:
         /* [size_is][out] */ BYTE *outBuffer);
 
     HRESULT RequestGetModulePtr(IN ULONG32 inBufferSize,
-                              IN BYTE* inBuffer,
-                              IN ULONG32 outBufferSize,
-                              OUT BYTE* outBuffer);
+                                IN BYTE* inBuffer,
+                                IN ULONG32 outBufferSize,
+                                OUT BYTE* outBuffer);
+
+    HRESULT RequestGetModuleData(IN ULONG32 inBufferSize,
+                                 IN BYTE* inBuffer,
+                                 IN ULONG32 outBufferSize,
+                                 OUT BYTE* outBuffer);
 
     Module* GetModule(void)
     {
@@ -2600,7 +2623,7 @@ public:
                           Module* module,
                           mdTypeDef token,
                           TypeHandle typeHandle);
-    ~ClrDataTypeDefinition(void);
+    virtual ~ClrDataTypeDefinition(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -2792,7 +2815,7 @@ public:
     ClrDataTypeInstance(ClrDataAccess* dac,
                         AppDomain* appDomain,
                         TypeHandle typeHandle);
-    ~ClrDataTypeInstance(void);
+    virtual ~ClrDataTypeInstance(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -2982,7 +3005,7 @@ public:
                             Module* module,
                             mdMethodDef token,
                             MethodDesc* methodDesc);
-    ~ClrDataMethodDefinition(void);
+    virtual ~ClrDataMethodDefinition(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3091,7 +3114,7 @@ public:
     ClrDataMethodInstance(ClrDataAccess* dac,
                           AppDomain* appDomain,
                           MethodDesc* methodDesc);
-    ~ClrDataMethodInstance(void);
+    virtual ~ClrDataMethodInstance(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3200,7 +3223,7 @@ class ClrDataTask : public IXCLRDataTask
 public:
     ClrDataTask(ClrDataAccess* dac,
                 Thread* Thread);
-    ~ClrDataTask(void);
+    virtual ~ClrDataTask(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3296,7 +3319,7 @@ public:
     ClrDataStackWalk(ClrDataAccess* dac,
                      Thread* Thread,
                      ULONG32 flags);
-    ~ClrDataStackWalk(void);
+    virtual ~ClrDataStackWalk(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3384,7 +3407,7 @@ public:
                  CLRDataDetailedFrameType detailedType,
                  AppDomain* appDomain,
                  MethodDesc* methodDesc);
-    ~ClrDataFrame(void);
+    virtual ~ClrDataFrame(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3507,7 +3530,7 @@ public:
                           ClrDataExStateType* exInfo,
                           OBJECTHANDLE throwable,
                           ClrDataExStateType* prevExInfo);
-    ~ClrDataExceptionState(void);
+    virtual ~ClrDataExceptionState(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_
@@ -3599,7 +3622,7 @@ public:
                  ULONG64 baseAddr,
                  ULONG32 numLocs,
                  NativeVarLocation* locs);
-    ~ClrDataValue(void);
+    virtual ~ClrDataValue(void);
 
     // IUnknown.
     STDMETHOD(QueryInterface)(THIS_

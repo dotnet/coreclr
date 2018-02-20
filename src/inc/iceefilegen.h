@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************
  **                                                                         **
@@ -10,8 +9,6 @@
  ** This interface provides functionality to create a CLR PE executable.    **
  ** This will typically be used by compilers to generate their compiled     **
  ** output executable.                                                      **
- **                                                                         **
- ** The implemenation lives in mscorpe.dll                                  **
  **                                                                         **
  *****************************************************************************/
 
@@ -28,15 +25,8 @@
   ICLRRuntimeInfo * pCLRRuntimeInfo;
   pMetaHost->GetRuntime(wszClrVersion, IID_ICLRRuntimeInfo, &pCLRRuntimeInfo);
   
-  // Step #2 ... Load mscorpe.dll and get its entrypoints
-  HMODULE hModule;
-  pCLRRuntimeInfo->LoadLibrary(L"mscorpe.dll", &hModule);
-  
-  PFN_CreateICeeFileGen pfnCreateICeeFileGen = (PFN_CreateICeeFileGen)::GetProcAddress("CreateICeeFileGen"); // Windows API
-  PFN_DestroyICeeFileGen pfnDestroyICeeFileGen = (PFN_DestroyICeeFileGen)::GetProcAddress("DestroyICeeFileGen"); // Windows API
-  
-  // Step #3 ... Use mscorpe.dll APIs
-  pfnCreateICeeFileGen(...);    // Get a ICeeFileGen
+  // Step #2 ... use mscorpe APIs to create a file generator
+  CreateICeeFileGen(...);       // Get a ICeeFileGen
   
   CreateCeeFile(...);           // Get a HCEEFILE (called for every output file needed)
   SetOutputFileName(...);       // Set the name for the output file
@@ -45,7 +35,7 @@
   EmitMetaDataEx(pEmit);        // Write out the metadata
   GenerateCeeFile(...);         // Write out the file. Implicitly calls LinkCeeFile and FixupCeeFile
   
-  pfnDestroyICeeFileGen(...);   // Release the ICeeFileGen object
+  DestroyICeeFileGen(...);      // Release the ICeeFileGen object
 */
 
 
@@ -58,6 +48,9 @@
 class ICeeFileGen;
 
 typedef void *HCEEFILE;
+
+EXTERN_C HRESULT __stdcall CreateICeeFileGen(ICeeFileGen** pCeeFileGen);
+EXTERN_C HRESULT __stdcall DestroyICeeFileGen(ICeeFileGen ** ppCeeFileGen);
 
 typedef HRESULT (__stdcall * PFN_CreateICeeFileGen)(ICeeFileGen ** ceeFileGen);  // call this to instantiate an ICeeFileGen interface
 typedef HRESULT (__stdcall * PFN_DestroyICeeFileGen)(ICeeFileGen ** ceeFileGen); // call this to delete an ICeeFileGen

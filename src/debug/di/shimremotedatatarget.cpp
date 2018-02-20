@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 
 // 
@@ -27,7 +26,7 @@ class ShimRemoteDataTarget : public ShimDataTarget
 public:
     ShimRemoteDataTarget(DWORD processId, DbgTransportTarget * pProxy, DbgTransportSession * pTransport);
 
-    ~ShimRemoteDataTarget();
+    virtual ~ShimRemoteDataTarget();
 
     virtual void Dispose();
 
@@ -63,6 +62,9 @@ public:
     virtual HRESULT STDMETHODCALLTYPE ContinueStatusChanged(
         DWORD dwThreadId,
         CORDB_CONTINUE_STATUS dwContinueStatus);
+
+    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(
+        DWORD threadId, ULONG32 contextSize, PBYTE context);
 
 private:
     DbgTransportTarget  * m_pProxy;
@@ -130,11 +132,7 @@ void ShimRemoteDataTarget::Dispose()
         m_pProxy->ReleaseTransport(m_pTransport);
     }
 
-    if (m_pProxy != NULL)
-    {
-        g_pDbgTransportManager->ReleaseTarget(m_pProxy);
-    }
-
+    m_pTransport = NULL;
     m_hr = CORDBG_E_OBJECT_NEUTERED;
 }
 
@@ -163,14 +161,8 @@ HRESULT BuildPlatformSpecificDataTarget(MachineInfo machineInfo,
     HRESULT hr = E_FAIL;
 
     ShimRemoteDataTarget * pRemoteDataTarget = NULL;
-    DbgTransportTarget *   pProxy = NULL;
+    DbgTransportTarget *   pProxy = g_pDbgTransportTarget;
     DbgTransportSession *  pTransport = NULL;
-
-    hr = g_pDbgTransportManager->ConnectToTarget(machineInfo.GetIPAddress(), machineInfo.GetPort(), &pProxy);
-    if (FAILED(hr))
-    {
-        goto Label_Exit;
-    }
 
     hr = pProxy->GetTransportForProcess(processId, &pTransport, &hDummy);
     if (FAILED(hr))
@@ -210,10 +202,6 @@ Label_Exit:
             {
                 pProxy->ReleaseTransport(pTransport);
             }
-            if (pProxy != NULL)
-            {
-                g_pDbgTransportManager->ReleaseTarget(pProxy);
-            }
         }
     }
 
@@ -225,14 +213,32 @@ HRESULT STDMETHODCALLTYPE
 ShimRemoteDataTarget::GetPlatform( 
         CorDebugPlatform *pPlatform)
 {
-    // Assume that we're running on Windows debugging a process on Mac for now.
-#if defined(DBG_TARGET_ARM)
-    *pPlatform = CORDB_PLATFORM_WINDOWS_ARM;
-#elif defined(DBG_TARGET_X86)
-    *pPlatform = CORDB_PLATFORM_WINDOWS_X86;
+#ifdef FEATURE_PAL
+     #if defined(DBG_TARGET_X86)
+         *pPlatform = CORDB_PLATFORM_POSIX_X86;
+     #elif defined(DBG_TARGET_AMD64)
+         *pPlatform = CORDB_PLATFORM_POSIX_AMD64;
+     #elif defined(DBG_TARGET_ARM)
+         *pPlatform = CORDB_PLATFORM_POSIX_ARM;
+     #elif defined(DBG_TARGET_ARM64)
+         *pPlatform = CORDB_PLATFORM_POSIX_ARM64;
+     #else
+         #error Unknown Processor.
+     #endif
 #else
-#error Unknown Processor.
+    #if defined(DBG_TARGET_X86)
+        *pPlatform = CORDB_PLATFORM_WINDOWS_X86;
+    #elif defined(DBG_TARGET_AMD64)
+        *pPlatform = CORDB_PLATFORM_WINDOWS_AMD64;
+    #elif defined(DBG_TARGET_ARM)
+        *pPlatform = CORDB_PLATFORM_WINDOWS_ARM;
+    #elif defined(DBG_TARGET_ARM64)
+        *pPlatform = CORDB_PLATFORM_WINDOWS_ARM64;
+    #else
+        #error Unknown Processor.
+    #endif
 #endif
+
     return S_OK;
 }
 
@@ -282,11 +288,18 @@ ShimRemoteDataTarget::GetThreadContext(
     BYTE * pContext)
 {
     ReturnFailureIfStateNotOk();
-
-    // ICorDebugDataTarget::GetThreadContext() and ICorDebugDataTarget::SetThreadContext() are currently only 
-    // required for interop-debugging and inspection of floating point registers, both of which are not 
-    // implemented on Mac.
-    _ASSERTE(!"The remote data target doesn't know how to get a thread's CONTEXT.");
+        
+    // GetThreadContext() is currently not implemented in ShimRemoteDataTarget, which is used with our pipe transport 
+    // (FEATURE_DBGIPC_TRANSPORT_DI). Pipe transport is used on POSIX system, but occasionally we can turn it on for Windows for testing,
+    // and then we'd like to have same behavior as on POSIX system (zero context).
+    //
+    // We don't have a good way to implement GetThreadContext() in ShimRemoteDataTarget yet, because we have no way to convert a thread ID to a 
+    // thread handle.  The function to do the conversion is OpenThread(), which is not implemented in PAL. Even if we had a handle, PAL implementation 
+    // of GetThreadContext() is very limited and doesn't work when we're not attached with ptrace. 
+    // Instead, we just zero out the seed CONTEXT for the stackwalk.  This tells the stackwalker to
+    // start the stackwalk with the first explicit frame.  This won't work when we do native debugging, 
+    // but that won't happen on the POSIX systems since they don't support native debugging.
+    ZeroMemory(pContext, contextSize);
     return E_NOTIMPL;
 }
 
@@ -320,4 +333,17 @@ ShimRemoteDataTarget::ContinueStatusChanged(
         return m_fpContinueStatusChanged(m_pContinueStatusChangedUserData, dwThreadId, dwContinueStatus);
     }
     return E_NOTIMPL;
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Unwind the stack to the next frame.
+//
+// Return Value: 
+//     context filled in with the next frame
+//
+HRESULT STDMETHODCALLTYPE 
+ShimRemoteDataTarget::VirtualUnwind(DWORD threadId, ULONG32 contextSize, PBYTE context)
+{
+    return m_pTransport->VirtualUnwind(threadId, contextSize, context);
 }

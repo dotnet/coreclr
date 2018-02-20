@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 //
@@ -7,7 +8,6 @@
 using System;
 using System.Security;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -20,8 +20,7 @@ using WFD = Windows.Foundation.Diagnostics;
 
 namespace System.Threading.Tasks
 {
-
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal enum CausalityTraceLevel
     {
 #if FEATURE_COMINTEROP
@@ -35,7 +34,7 @@ namespace System.Threading.Tasks
 #endif
     }
 
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal enum AsyncCausalityStatus
     {
 #if FEATURE_COMINTEROP
@@ -81,23 +80,22 @@ namespace System.Threading.Tasks
 #endif
     }
 
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal static class AsyncCausalityTracer
     {
-        static internal void EnableToETW(bool enabled) 
+        static internal void EnableToETW(bool enabled)
         {
 #if FEATURE_COMINTEROP
             if (enabled)
-               f_LoggingOn |= Loggers.ETW;
-            else 
-               f_LoggingOn &= ~Loggers.ETW;
+                f_LoggingOn |= Loggers.ETW;
+            else
+                f_LoggingOn &= ~Loggers.ETW;
 #endif
         }
 
-        [FriendAccessAllowed]
         internal static bool LoggingOn
         {
-            [FriendAccessAllowed]
+            // [FriendAccessAllowed]
             get
             {
 #if FEATURE_COMINTEROP
@@ -120,7 +118,8 @@ namespace System.Threading.Tasks
 
         // The loggers that this Tracer knows about. 
         [Flags]
-        private enum Loggers : byte {
+        private enum Loggers : byte
+        {
             CausalityTracer = 1,
             ETW = 2
         }
@@ -130,7 +129,6 @@ namespace System.Threading.Tasks
         private static Loggers f_LoggingOn; //assumes false by default
 
         // The precise static constructor will run first time somebody attempts to access this class
-        [SecuritySafeCritical]
         static AsyncCausalityTracer()
         {
             if (!Environment.IsWinRTSupported) return;
@@ -148,11 +146,11 @@ namespace System.Threading.Tasks
                 int hresult = Microsoft.Win32.UnsafeNativeMethods.RoGetActivationFactory(ClassId, ref guid, out factory);
 
                 if (hresult < 0 || factory == null) return; //This prevents having an exception thrown in case IAsyncCausalityTracerStatics isn't registered.
-                
+
                 s_TracerFactory = (WFD.IAsyncCausalityTracerStatics)factory;
 
                 EventRegistrationToken token = s_TracerFactory.add_TracingStatusChanged(new EventHandler<WFD.TracingStatusChangedEventArgs>(TracingStatusChangedHandler));
-                Contract.Assert(token != default(EventRegistrationToken), "EventRegistrationToken is null");
+                Debug.Assert(token != default(EventRegistrationToken), "EventRegistrationToken is null");
             }
             catch (Exception ex)
             {
@@ -161,16 +159,14 @@ namespace System.Threading.Tasks
                 // doing here depends on internal state.
                 LogAndDisable(ex);
             }
-           
         }
 
-        [SecuritySafeCritical]
         private static void TracingStatusChangedHandler(Object sender, WFD.TracingStatusChangedEventArgs args)
         {
             if (args.Enabled)
-               f_LoggingOn |= Loggers.CausalityTracer;
-            else 
-               f_LoggingOn &= ~Loggers.CausalityTracer;
+                f_LoggingOn |= Loggers.CausalityTracer;
+            else
+                f_LoggingOn &= ~Loggers.CausalityTracer;
         }
 #endif
 
@@ -178,7 +174,7 @@ namespace System.Threading.Tasks
         // The TraceXXX methods should be called only if LoggingOn property returned true
         //
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Tracking is slow path. Disable inlining for it.
         internal static void TraceOperationCreation(CausalityTraceLevel traceLevel, int taskId, string operationName, ulong relatedContext)
         {
@@ -186,11 +182,11 @@ namespace System.Threading.Tasks
             try
             {
                 if ((f_LoggingOn & Loggers.ETW) != 0)
-                    TplEtwProvider.Log.TraceOperationBegin(taskId, operationName, (long) relatedContext);
+                    TplEtwProvider.Log.TraceOperationBegin(taskId, operationName, (long)relatedContext);
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
                     s_TracerFactory.TraceOperationCreation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), operationName, relatedContext);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //view function comment
                 LogAndDisable(ex);
@@ -198,7 +194,7 @@ namespace System.Threading.Tasks
 #endif
         }
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
         internal static void TraceOperationCompletion(CausalityTraceLevel traceLevel, int taskId, AsyncCausalityStatus status)
         {
@@ -210,7 +206,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
                     s_TracerFactory.TraceOperationCompletion((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.AsyncCausalityStatus)status);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //view function comment
                 LogAndDisable(ex);
@@ -229,7 +225,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
                     s_TracerFactory.TraceOperationRelation((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.CausalityRelation)relation);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //view function comment
                 LogAndDisable(ex);
@@ -248,7 +244,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
                     s_TracerFactory.TraceSynchronousWorkStart((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, s_PlatformId, GetOperationId((uint)taskId), (WFD.CausalitySynchronousWork)work);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //view function comment
                 LogAndDisable(ex);
@@ -267,7 +263,7 @@ namespace System.Threading.Tasks
                 if ((f_LoggingOn & Loggers.CausalityTracer) != 0)
                     s_TracerFactory.TraceSynchronousWorkCompletion((WFD.CausalityTraceLevel)traceLevel, s_CausalitySource, (WFD.CausalitySynchronousWork)work);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 //view function comment
                 LogAndDisable(ex);
@@ -289,6 +285,5 @@ namespace System.Threading.Tasks
         {
             return (((ulong)AppDomain.CurrentDomain.Id) << 32) + taskId;
         }
-
     }
 }

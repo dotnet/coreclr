@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 
@@ -30,6 +29,8 @@ class BaseDomain;
 class ZapNode;
 struct ArgLocDesc;
 
+extern PCODE GetPreStubEntryPoint();
+
 #define USE_REDIRECT_FOR_GCSTRESS
 
 // CPU-dependent functions
@@ -37,10 +38,12 @@ Stub * GenerateInitPInvokeFrameHelper();
 
 EXTERN_C void checkStack(void);
 
+#define THUMB_CODE      1
+
 #ifdef CROSSGEN_COMPILE
 #define GetEEFuncEntryPoint(pfn) 0x1001
 #else
-#define GetEEFuncEntryPoint(pfn) GFN_TADDR(pfn)
+#define GetEEFuncEntryPoint(pfn) (GFN_TADDR(pfn) | THUMB_CODE)
 #endif
 
 //**********************************************************************
@@ -56,15 +59,12 @@ EXTERN_C void checkStack(void);
 #define JUMP_ALLOCATE_SIZE                      8   // # bytes to allocate for a jump instruction
 #define BACK_TO_BACK_JUMP_ALLOCATE_SIZE         8   // # bytes to allocate for a back to back jump instruction
 
-//#define HAS_COMPACT_ENTRYPOINTS                 1
+#define HAS_COMPACT_ENTRYPOINTS                 1
 
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 
 #define USE_INDIRECT_CODEHEADER
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
 
 EXTERN_C void getFPReturn(int fpSize, INT64 *pRetVal);
 EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
@@ -85,12 +85,15 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 #define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
 #define CALLDESCR_FPARGREGS                     1   // CallDescrWorker has FloatArgumentRegisters parameter
 
-// Max size of optimized TLS helpers
-#define TLS_GETTER_MAX_SIZE 0x10
-
 // Given a return address retrieved during stackwalk,
 // this is the offset by which it should be decremented to arrive at the callsite.
 #define STACKWALK_CONTROLPC_ADJUST_OFFSET 2
+
+// Max offset for unconditional thumb branch
+#define MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB 2048
+
+// Offset of pc register
+#define PC_REG_RELATIVE_OFFSET 4
 
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
@@ -238,6 +241,53 @@ void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
 #endif // FEATURE_COMINTEROP
 
 //------------------------------------------------------------------------
+inline void emitUnconditionalBranchThumb(LPBYTE pBuffer, int16_t offset)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    uint16_t *pInstr = (uint16_t *) pBuffer;
+
+    // offset from -2KB to +2KB
+    _ASSERTE (offset >= - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB && offset < MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB);
+
+    if (offset >= 0)
+    {
+        offset = offset >> 1;
+    }
+    else
+    {
+        offset = ((MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB + offset) >> 1) | 0x400;
+    }
+
+    *pInstr = 0xE000 | offset;
+}
+
+//------------------------------------------------------------------------
+inline int16_t decodeUnconditionalBranchThumb(LPBYTE pBuffer)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    uint16_t *pInstr = (uint16_t *) pBuffer;
+
+    int16_t offset = (~0xE000) & (*pInstr);
+
+    if ((offset & 0x400) == 0)
+    {
+        offset = offset << 1;
+    }
+    else
+    {
+        offset = (~0x400) & offset;
+        offset = (offset << 1) - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB;
+    }
+
+    // offset from -2KB to +2KB
+    _ASSERTE (offset >= - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB && offset < MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB);
+
+    return offset;
+}
+
+//------------------------------------------------------------------------
 inline void emitJump(LPBYTE pBuffer, LPVOID target)
 {
     LIMITED_METHOD_CONTRACT;
@@ -306,8 +356,6 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 //----------------------------------------------------------------------
 #include "stublink.h"
 struct ArrayOpScript;
-
-#define THUMB_CODE      1
 
 inline BOOL IsThumbCode(PCODE pCode)
 {
@@ -503,7 +551,7 @@ public:
         ThumbEmitJumpRegister(thumbRegLr);
     }
 
-    void ThumbEmitGetThread(TLSACCESSMODE mode, ThumbReg dest);
+    void ThumbEmitGetThread(ThumbReg dest);
 
     void ThumbEmitNop()
     {
@@ -517,7 +565,11 @@ public:
         // a reasonable breakpoint substitute (it's what DebugBreak uses). Bkpt #0, on the other hand, always
         // seems to flow directly to the kernel debugger (even if we ignore it there it doesn't seem to be
         // picked up by the user mode debugger).
+#ifdef __linux__
+        Emit16(0xde01);
+#else
         Emit16(0xdefe);
+#endif
     }
 
     void ThumbEmitMovConstant(ThumbReg dest, int constant)
@@ -747,7 +799,7 @@ public:
         else 
         {
             _ASSERTE(reg1 != ThumbReg(15) && reg2 != ThumbReg(15));
-            Emit16((WORD)(0x4500 | reg2 << 3 | reg1 & 0x7 | (reg1 & 0x8 ? 0x80 : 0x0)));
+            Emit16((WORD)(0x4500 | reg2 << 3 | (reg1 & 0x7) | (reg1 & 0x8 ? 0x80 : 0x0)));
         }
     }
     
@@ -931,7 +983,7 @@ inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
     return (sizeofvaluetype > 4);
 }
 
-DECLSPEC_ALIGN(4) struct UMEntryThunkCode
+struct DECLSPEC_ALIGN(4) UMEntryThunkCode
 {
     WORD        m_code[4];
 
@@ -939,6 +991,7 @@ DECLSPEC_ALIGN(4) struct UMEntryThunkCode
     TADDR       m_pvSecretParam;
 
     void Encode(BYTE* pTargetCode, void* pvSecretParam);
+    void Poison();
 
     LPCBYTE GetEntryPoint() const
     {
@@ -960,9 +1013,9 @@ struct HijackArgs
     union
     {
         DWORD R0;
-        size_t ReturnValue; // this may not be the return value when return is >32bits or return value is in VFP reg
-                            // but it works for us as this is only used by functions OnHijackObjectWorker()
-                            // and OnHijackInteriorPointerWorker() (where return is an address)
+        size_t ReturnValue[1]; // this may not be the return value when return is >32bits 
+                               // or return value is in VFP reg but it works for us as 
+                               // this is only used by functions OnHijackWorker()
     };
 
     //
@@ -1007,13 +1060,14 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 //
 // Create alias for optimized implementations of helpers provided on this platform
 //
-// optimized static helpers 
-#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_InlineGetAppDomain
+#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_SingleAppDomain
+#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
 
+#ifndef FEATURE_PAL
 #define JIT_Stelem_Ref                      JIT_Stelem_Ref
+#endif
 
 //------------------------------------------------------------------------
 //
@@ -1059,6 +1113,19 @@ struct StubPrecode {
     {
         LIMITED_METHOD_DAC_CONTRACT; 
         return m_pTarget;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetPreStubEntryPoint());
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
@@ -1154,6 +1221,19 @@ struct FixupPrecode {
         return m_pTarget;
     }
 
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetEEFuncEntryPoint(PrecodeFixupThunk));
+    }
+
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
     {
         CONTRACTL
@@ -1192,7 +1272,7 @@ struct FixupPrecode {
 typedef DPTR(FixupPrecode) PTR_FixupPrecode;
 
 
-// Precode to stuffle this and retbuf for closed delegates over static methods with return buffer
+// Precode to shuffle this and retbuf for closed delegates over static methods with return buffer
 struct ThisPtrRetBufPrecode {
 
     static const int Type = 0x84;
@@ -1329,6 +1409,6 @@ inline size_t GetARMInstructionLength(PBYTE pInstr)
     return GetARMInstructionLength(*(WORD*)pInstr);
 }
 
-EXTERN_C void FCallMemcpy(byte* dest, byte* src, int len);
+EXTERN_C void FCallMemcpy(BYTE* dest, BYTE* src, int len);
 
 #endif // __cgencpu_h__

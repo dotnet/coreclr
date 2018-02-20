@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // STACKWALK.CPP
 
 
@@ -21,8 +20,8 @@
 #include "interpreter.h"
 #endif // FEATURE_INTERPRETER
 
-#ifdef _DEBUG
-void* forceFrame;   // Variable used to force a local variable to the frame
+#ifdef WIN64EXCEPTIONS
+#define PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
 #endif
 
 CrawlFrame::CrawlFrame()
@@ -49,6 +48,7 @@ Assembly* CrawlFrame::GetAssembly()
     return pAssembly;
 }
 
+#ifndef DACCESS_COMPILE
 OBJECTREF* CrawlFrame::GetAddrOfSecurityObject()
 {
     CONTRACTL {
@@ -95,6 +95,7 @@ OBJECTREF* CrawlFrame::GetAddrOfSecurityObject()
     }
     return NULL;
 }
+#endif
 
 BOOL CrawlFrame::IsInCalleesFrames(LPVOID stackPointer)
 {
@@ -352,6 +353,19 @@ bool CrawlFrame::IsGcSafe()
     return GetCodeManager()->IsGcSafe(&codeInfo, GetRelOffset());
 }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+bool CrawlFrame::HasTailCalls()
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SUPPORTS_DAC;
+    } CONTRACTL_END;
+
+    return GetCodeManager()->HasTailCalls(&codeInfo);
+}
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
 inline void CrawlFrame::GotoNextFrame()
 {
     CONTRACTL {
@@ -556,17 +570,13 @@ UINT_PTR Thread::VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo* pCodeInfo /
         pRD->pCurrentContext = pRD->pCallerContext;
         pRD->pCallerContext  = temp;
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         PT_KNONVOLATILE_CONTEXT_POINTERS tempPtrs = pRD->pCurrentContextPointers;
         pRD->pCurrentContextPointers            = pRD->pCallerContextPointers;
         pRD->pCallerContextPointers             = tempPtrs;
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     }
     else
     {
-        PT_KNONVOLATILE_CONTEXT_POINTERS pCurrentContextPointers = NULL;
-        NOT_X86(pCurrentContextPointers = pRD->pCurrentContextPointers);
-        VirtualUnwindCallFrame(pRD->pCurrentContext, pCurrentContextPointers, pCodeInfo);
+        VirtualUnwindCallFrame(pRD->pCurrentContext, pRD->pCurrentContextPointers, pCodeInfo);
     }
 
     SyncRegDisplayToCurrentContext(pRD);
@@ -597,7 +607,7 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
     
 #if !defined(DACCESS_COMPILE)
     UINT_PTR            uImageBase;
-    PRUNTIME_FUNCTION   pFunctionEntry;
+    PT_RUNTIME_FUNCTION pFunctionEntry;
 
     if (pCodeInfo == NULL)
     {
@@ -606,10 +616,11 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
                                             ARM_ONLY((DWORD*))(&uImageBase),
                                             NULL);
 #else // !FEATURE_PAL
-        // For PAL, this method should never be called without valid pCodeInfo, since there is no
-        // other way to get the function entry.
-        pFunctionEntry = NULL;
-        UNREACHABLE_MSG("VirtualUnwindCallFrame called with NULL pCodeInfo");
+        EECodeInfo codeInfo;
+
+        codeInfo.Init(uControlPc);
+        pFunctionEntry = codeInfo.GetFunctionEntry();
+        uImageBase = (UINT_PTR)codeInfo.GetModuleBase();
 #endif // !FEATURE_PAL
     }
     else
@@ -623,12 +634,15 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
 
 #if defined(_DEBUG) && !defined(FEATURE_PAL)
         UINT_PTR            uImageBaseFromOS;
-        PRUNTIME_FUNCTION   pFunctionEntryFromOS;
+        PT_RUNTIME_FUNCTION pFunctionEntryFromOS;
 
         pFunctionEntryFromOS  = RtlLookupFunctionEntry(uControlPc,
                                                        ARM_ONLY((DWORD*))(&uImageBaseFromOS),
                                                        NULL);
-        _ASSERTE( (uImageBase == uImageBaseFromOS) && (pFunctionEntry == pFunctionEntryFromOS) );
+
+        // Note that he address returned from the OS is different from the one we have computed
+        // when unwind info is registered using RtlAddGrowableFunctionTable. Compare RUNTIME_FUNCTION content.
+        _ASSERTE( (uImageBase == uImageBaseFromOS) && (memcmp(pFunctionEntry, pFunctionEntryFromOS, sizeof(RUNTIME_FUNCTION)) == 0) );
 #endif // _DEBUG && !FEATURE_PAL
     }
 
@@ -656,20 +670,7 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
     return uControlPc;
 }
 
-#ifdef DACCESS_COMPILE
-
-PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
-{
-    DacNotImpl();
-    return 0;
-}
-UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
-{
-    DacNotImpl();
-    return 0;
-}
-
-#else  // !DACCESS_COMPILE
+#ifndef DACCESS_COMPILE
 
 // static
 PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
@@ -679,7 +680,7 @@ PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
 #if defined(_DEBUG) && !defined(FEATURE_PAL)
     UINT_PTR uImageBase;
 
-    PRUNTIME_FUNCTION pFunctionEntry  = RtlLookupFunctionEntry((UINT_PTR)GetIP(pContext),
+    PT_RUNTIME_FUNCTION pFunctionEntry  = RtlLookupFunctionEntry((UINT_PTR)GetIP(pContext),
                                                                 ARM_ONLY((DWORD*))(&uImageBase),
                                                                 NULL);
 
@@ -708,7 +709,7 @@ PCODE Thread::VirtualUnwindLeafCallFrame(T_CONTEXT* pContext)
 
 // static
 PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CONTEXT_POINTERS* pContextPointers, 
-    PRUNTIME_FUNCTION pFunctionEntry, UINT_PTR uImageBase)
+    PT_RUNTIME_FUNCTION pFunctionEntry, UINT_PTR uImageBase)
 {
     CONTRACTL
     {
@@ -722,15 +723,12 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
     CONTRACTL_END;
 
     PCODE           uControlPc = GetIP(pContext);
-#if defined(_WIN64)
+#ifdef BIT64
     UINT64              EstablisherFrame;
-    PVOID               HandlerData;
-#elif defined(_TARGET_ARM_)
+#else  // BIT64
     DWORD               EstablisherFrame;
+#endif // BIT64
     PVOID               HandlerData;
-#else
-    _ASSERTE(!"nyi platform stackwalking");
-#endif
 
     if (NULL == pFunctionEntry)
     {
@@ -778,15 +776,26 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
 #ifndef FEATURE_PAL
         uControlPc = VirtualUnwindCallFrame(pContext);
 #else // !FEATURE_PAL
-        PAL_VirtualUnwind(pContext, NULL);
+        BOOL success = PAL_VirtualUnwind(pContext, NULL);
+        if (!success)
+        {
+            _ASSERTE(!"Thread::VirtualUnwindToFirstManagedCallFrame: PAL_VirtualUnwind failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+
         uControlPc = GetIP(pContext);
+
+        if (uControlPc == 0)
+        {
+            break;
+        }
 #endif // !FEATURE_PAL
     }
 
     return uControlPc;
 }
 
-#endif // DACCESS_COMPILE
+#endif // !DACCESS_COMPILE
 #endif // WIN64EXCEPTIONS
 
 #ifdef _DEBUG
@@ -882,7 +891,7 @@ StackWalkAction Thread::MakeStackwalkerCallback(
 }
 
 
-#if !defined(DACCESS_COMPILE) && defined(_TARGET_X86_)
+#if !defined(DACCESS_COMPILE) && defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
 #define STACKWALKER_MAY_POP_FRAMES
 #endif
 
@@ -1133,7 +1142,7 @@ void StackFrameIterator::CommonCtor(Thread * pThread, PTR_Frame pFrame, ULONG32 
     m_fDidFuncletReportGCReferences = true;
 #endif // WIN64EXCEPTIONS
 
-#if !defined(_TARGET_X86_)
+#if defined(RECORD_RESUMABLE_FRAME_SP)
     m_pvResumableFrameTargetSP = NULL;
 #endif
 } // StackFrameIterator::CommonCtor()
@@ -1180,10 +1189,10 @@ BOOL StackFrameIterator::Init(Thread *    pThread,
     _ASSERTE(CanThisThreadCallIntoHost() || (flags & LIGHTUNWIND) == 0);
 #endif // DACCESS_COMPILE
 
-#if !defined(_TARGET_X86_)
+#ifdef WIN64EXCEPTIONS
     _ASSERTE(!(flags & POPFRAMES));
     _ASSERTE(pRegDisp->pCurrentContext);
-#endif // !_TARGET_X86_
+#endif // WIN64EXCEPTIONS
 
     BEGIN_FORBID_TYPELOAD();
 
@@ -1339,7 +1348,7 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
     {
         TADDR curSP = GetRegdisplaySP(m_crawl.pRD);
 
-#if !defined(_TARGET_X86_)
+#ifdef PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
         if (m_crawl.IsFrameless())
         {
             // On 64-bit and ARM, we stop at the explicit frames contained in a managed stack frame 
@@ -1347,7 +1356,7 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
             EECodeManager::EnsureCallerContextIsValid(m_crawl.pRD, NULL);
             curSP = GetSP(m_crawl.pRD->pCallerContext);
         }
-#endif // !_TARGET_X86_
+#endif // PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
 
 #if defined(_TARGET_X86_)
         // special processing on x86; see below for more information
@@ -1492,6 +1501,7 @@ void StackFrameIterator::ResetCrawlFrame()
     m_crawl.isFilterFunclet       = false;
     m_crawl.isFilterFuncletCached = false;
     m_crawl.fShouldParentToFuncletSkipReportingGCReferences = false;
+    m_crawl.fShouldParentFrameUseUnwindTargetPCforGCReporting = false;
 #endif // WIN64EXCEPTIONS
 
     m_crawl.pThread = this->m_pThread;
@@ -1545,8 +1555,8 @@ BOOL StackFrameIterator::IsValid(void)
         // we started?
         //DevDiv 168789: In GCStress >= 4 two threads could race on triggering GC;
         //  if the one that just made p/invoke call is second and hits the trap instruction
-        //  before call to syncronize with GC, it will push RedirectedThreadFrame concurrently 
-        //  with GC stackwalking.
+        //  before call to syncronize with GC, it will push a frame [ResumableFrame on Unix 
+        //  and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
         //  In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and syncronize.
         BOOL bRedirectedPinvoke = FALSE;
 
@@ -1557,7 +1567,8 @@ BOOL StackFrameIterator::IsValid(void)
                               (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) && 
                               (m_pThread->GetFrame() != NULL) &&
                               (m_pThread->GetFrame() != FRAME_TOP) &&
-                              (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr()));
+                              ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
+                               (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
 #endif // FEATURE_HIJACK
 
         _ASSERTE( (m_pStartFrame != NULL) ||
@@ -1640,6 +1651,7 @@ StackWalkAction StackFrameIterator::Filter(void)
         fSkippingFunclet = false;
         
 #if defined(WIN64EXCEPTIONS)
+        ExceptionTracker* pTracker = m_crawl.pThread->GetExceptionState()->GetCurrentExceptionTracker();
         fRecheckCurrentFrame = false;
         fSkipFuncletCallback = true;
         
@@ -1650,6 +1662,10 @@ StackWalkAction StackFrameIterator::Filter(void)
         // By default, assume that we are going to report GC references for this
         // CrawlFrame
         m_crawl.fShouldCrawlframeReportGCReferences = true;
+
+        // By default, assume that parent frame is going to report GC references from 
+        // the actual location reported by the stack walk.
+        m_crawl.fShouldParentFrameUseUnwindTargetPCforGCReporting = false;
 
         if (!m_sfParent.IsNull())
         {
@@ -1665,35 +1681,36 @@ StackWalkAction StackFrameIterator::Filter(void)
 ProcessFuncletsForGCReporting:
                 do
                 {
-                    fRecheckCurrentFrame = false;
-                    
                     // When enumerating GC references for "liveness" reporting, depending upon the architecture,
-                    // the reponsibility of who reports what varies:
-                    // 
-                    // 1) On x86, ARM and X64 (via RyuJIT) the funclet reports all references belonging to itself and its parent method.
-                    // 
-                    // 2) X64 (via JIT64) has the reporting distributed between the funclets and the parent method.
+                    // the responsibility of who reports what varies:
+                    //
+                    // 1) On ARM, ARM64, and X64 (using RyuJIT), the funclet reports all references belonging
+                    //    to itself and its parent method. This is indicated by the WantsReportOnlyLeaf flag being
+                    //    set in the GC information for a function.
+                    //
+                    // 2) X64 (using JIT64) has the reporting distributed between the funclets and the parent method.
                     //    If some reference(s) get double reported, JIT64 can handle that by playing conservative.
-                    //    
+                    //    JIT64 does NOT set the WantsReportOnlyLeaf flag in the function GC information.
+                    //
                     // 3) On ARM, the reporting is done by funclets (if present). Otherwise, the primary method
                     //    does it.
-                    //    
-                    // On x64 and ARM, the GCStackCrawlCallback is invoked with a new flag indicating that
+                    //
+                    // 4) x86 behaves like (1)
+                    //
+                    // For non-x86, the GcStackCrawlCallBack is invoked with a new flag indicating that
                     // the stackwalk is being done for GC reporting purposes - this flag is GC_FUNCLET_REFERENCE_REPORTING.
-                    // The presence of this flag influences how stackwalker will enumerate frames, which frames will
-                    // result in the callback being invoked, etc. The idea is that we want to report only the 
+                    // The presence of this flag influences how the stackwalker will enumerate frames; which frames will
+                    // result in the callback being invoked; etc. The idea is that we want to report only the 
                     // relevant frames via the callback that are active on the callstack. This removes the need to
-                    // double report (even though JIT64 does it today), reporting of dead frames, and makes the
+                    // double report (even though JIT64 does it), reporting of dead frames, and makes the
                     // design of reference reporting more consistent (and easier to understand) across architectures.
-                    // 
-                    // NOTE: This flag is applicable only to X64 and ARM.
                     // 
                     // The algorithm is as follows (at a conceptual level):
                     // 
                     // 1) For each enumerated managed (frameless) frame, check if it is a funclet or not.
-                    //  1.1) If its not a funclet, pass the frame to the callback and goto (2).
-                    //  1.2) If its a funclet, we preserve the callerSP of the parent frame where the funclet was invoked from. 
-                    //       Passthe funclet to the callback.
+                    //  1.1) If it is not a funclet, pass the frame to the callback and goto (2).
+                    //  1.2) If it is a funclet, we preserve the callerSP of the parent frame where the funclet was invoked from. 
+                    //       Pass the funclet to the callback.
                     //  1.3) For filter funclets, we enumerate all frames until we reach the parent. Once the parent is reached,
                     //       pass it to the callback with a flag indicating that its corresponding funclet has already performed
                     //       the reporting. 
@@ -1702,48 +1719,109 @@ ProcessFuncletsForGCReporting:
                     //       the reporting.
                     //  1.5) If we see non-filter funclets while processing a filter funclet, then goto (1.4). Once we have reached the 
                     //       parent of the non-filter funclet, resume filter funclet processing as described in (1.3).
-                    // 2) If another frame enumerated, goto (1). Otherwise, stackwalk is complete.
+                    // 2) If another frame is enumerated, goto (1). Otherwise, stackwalk is complete.
                     // 
                     // Note: When a flag is passed to the callback indicating that the funclet for a parent frame has already
-                    //       reported the references, RyuJIT (ARM) will simply do nothing and return from the callback.
-                    //       JIT64, on the other hand, will ignore the flag and perform reporting (again), like it does today.
-                    //       
-                    // Note: For non-filter funcelts there is a small window during unwind where we have conceptually unwound past a
+                    //       reported the references, RyuJIT will simply do nothing and return from the callback.
+                    //       JIT64, on the other hand, will ignore the flag and perform reporting (again).
+                    //
+                    // Note: For non-filter funclets there is a small window during unwind where we have conceptually unwound past a
                     //       funclet but have not yet reached the parent/handling frame.  In this case we might need the parent to
                     //       report its GC roots.  See comments around use of m_fDidFuncletReportGCReferences for more details.
                     //
                     // Needless to say, all applicable (read: active) explicit frames are also processed.
-                    // 
+
                     // Check if we are in the mode of enumerating GC references (or not)
                     if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                     {
+#ifdef FEATURE_PAL
+                        // For interleaved exception handling on non-windows systems, we need to find out if the current frame
+                        // was a caller of an already executed exception handler based on the previous exception trackers.
+                        // The handler funclet frames are already gone from the stack, so the exception trackers are the
+                        // only source of evidence about it.
+                        // This is different from Windows where the full stack is preserved until an exception is fully handled
+                        // and so we can detect it just from walking the stack.
+                        // The filter funclet frames are different, they behave the same way on Windows and Unix. They can be present
+                        // on the stack when we reach their parent frame if the filter hasn't finished running yet or they can be
+                        // gone if the filter completed running, either succesfully or with unhandled exception.
+                        // So the special handling below ignores trackers belonging to filter clauses.
+                        bool fProcessingFilterFunclet = !m_sfFuncletParent.IsNull() && !(m_fProcessNonFilterFunclet || m_fProcessIntermediaryNonFilterFunclet);
+                        if (!fRecheckCurrentFrame && !fSkippingFunclet && (pTracker != NULL) && !fProcessingFilterFunclet)
+                        {
+                            // The stack walker is not skipping frames now, which means it didn't find a funclet frame that
+                            // would require skipping the current frame. If we find a tracker with caller of actual handling
+                            // frame matching the current frame, it means that the funclet stack frame was reclaimed.
+                            StackFrame sfFuncletParent;
+                            ExceptionTracker* pCurrTracker = pTracker;
+
+                            bool hasFuncletStarted = pTracker->GetEHClauseInfo()->IsManagedCodeEntered();
+
+                            while (pCurrTracker != NULL)
+                            {
+                                // Ignore exception trackers for filter clauses, since their frames are handled the same way as on Windows
+                                if (pCurrTracker->GetEHClauseInfo()->GetClauseType() != COR_PRF_CLAUSE_FILTER)
+                                {
+                                    if (hasFuncletStarted)
+                                    {
+                                        sfFuncletParent = pCurrTracker->GetCallerOfEnclosingClause();
+                                        if (!sfFuncletParent.IsNull() && ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    sfFuncletParent = pCurrTracker->GetCallerOfCollapsedEnclosingClause();
+                                    if (!sfFuncletParent.IsNull() && ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, sfFuncletParent))
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                // Funclets handling exception for trackers older than the current one were always started,
+                                // since the current tracker was created due to an exception in the funclet belonging to 
+                                // the previous tracker.
+                                hasFuncletStarted = true;
+                                pCurrTracker = pCurrTracker->GetPreviousExceptionTracker();
+                            }
+
+                            if (pCurrTracker != NULL)
+                            {
+                                // The current frame is a parent of a funclet that was already unwound and removed from the stack
+                                // Set the members the same way we would set them on Windows when we
+                                // would detect this just from stack walking.
+                                m_sfParent = sfFuncletParent;
+                                m_sfFuncletParent = sfFuncletParent;
+                                m_fProcessNonFilterFunclet = true;
+                                m_fDidFuncletReportGCReferences = false;
+                                fSkippingFunclet = true;
+                            }
+                        }
+#endif // FEATURE_PAL
+
+                        fRecheckCurrentFrame = false;
                         // Do we already have a reference to a funclet parent?
                         if (!m_sfFuncletParent.IsNull())
                         {
                             // Have we been processing a filter funclet without encountering any non-filter funclets?
                             if ((m_fProcessNonFilterFunclet == false) && (m_fProcessIntermediaryNonFilterFunclet == false))
                             {
-                                // Yes, we have. Check the current frame
-                                // and if it is the parent we are looking for,
-                                // clear the flag indicating that its funclet
-                                // has already reported the GC references (see
-                                // below comment for Dev11 376329 explaining
-                                // why we do this).
+                                // Yes, we have. Check the current frame and if it is the parent we are looking for,
+                                // clear the flag indicating that its funclet has already reported the GC references (see
+                                // below comment for Dev11 376329 explaining why we do this).
                                 if (ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, m_sfFuncletParent))
                                 {
                                     STRESS_LOG2(LF_GCROOTS, LL_INFO100, 
                                     "STACKWALK: Reached parent of filter funclet @ CallerSP: %p, m_crawl.pFunc = %p\n", 
                                     m_sfFuncletParent.SP, m_crawl.pFunc);
                                  
-                                    // Dev11 376329 - ARM: GC hole during filter funclet dispatch
-                                    // filters are invoked during the first pass so we cannot skip
-                                    // reporting the parent frame since it's still live.  normally
-                                    // this would cause double reporting however for filters the JIT
+                                    // Dev11 376329 - ARM: GC hole during filter funclet dispatch.
+                                    // Filters are invoked during the first pass so we cannot skip
+                                    // reporting the parent frame since it's still live.  Normally
+                                    // this would cause double reporting, however for filters the JIT
                                     // will report all GC roots as pinned to alleviate this problem.
-                                    // note that JIT64 does not have this problem since it always
+                                    // Note that JIT64 does not have this problem since it always
                                     // reports the parent frame (this flag is essentially ignored)
-                                    // so it's safe to make this change for both architectures (but
-                                    // once AMD64 moves to RyuJIT the fix will become relevant there).
+                                    // so it's safe to make this change for all (non-x86) architectures.
                                     m_crawl.fShouldParentToFuncletSkipReportingGCReferences = false;
                                     ResetGCRefReportingState();
                                     
@@ -1779,8 +1857,9 @@ ProcessFuncletsForGCReporting:
                         }
                         else
                         {
-                            // We dont have any funclet parent reference. Check if the current
-                            // frame represents a funclet.
+                            _ASSERTE(m_sfFuncletParent.IsNull());
+
+                            // We don't have any funclet parent reference. Check if the current frame represents a funclet.
                             if (m_crawl.IsFunclet())
                             {
                                 // Get a reference to the funclet's parent frame.
@@ -1798,9 +1877,9 @@ ProcessFuncletsForGCReporting:
                                 
                                     bool fIsFilterFunclet = m_crawl.IsFilterFunclet();
                                 
-                                     STRESS_LOG4(LF_GCROOTS, LL_INFO100, 
-                                     "STACKWALK: Found %sFilter funclet @ SP: %p, m_crawl.pFunc = %p; FuncletParentCallerSP: %p\n", 
-                                     (fIsFilterFunclet)?"":"Non-", m_crawl.GetRegisterSet()->SP, m_crawl.pFunc, m_sfFuncletParent.SP);
+                                    STRESS_LOG4(LF_GCROOTS, LL_INFO100, 
+                                    "STACKWALK: Found %sFilter funclet @ SP: %p, m_crawl.pFunc = %p; FuncletParentCallerSP: %p\n", 
+                                    (fIsFilterFunclet) ? "" : "Non-", GetRegdisplaySP(m_crawl.GetRegisterSet()), m_crawl.pFunc, m_sfFuncletParent.SP);
                                  
                                     if (!fIsFilterFunclet)
                                     {
@@ -1819,19 +1898,20 @@ ProcessFuncletsForGCReporting:
                                     }
                                     else
                                     {
+                                        _ASSERTE(fIsFilterFunclet);
                                         m_fProcessNonFilterFunclet = false;
                                     
                                         // Nothing more to do as we have come across a filter funclet. In this case, we will:
                                         // 
                                         // 1) Get a reference to the parent frame
                                         // 2) Report the funclet
-                                        // 3) Continue to report the parent frame, alongwith a flag that funclet has been reported (see above)
+                                        // 3) Continue to report the parent frame, along with a flag that funclet has been reported (see above)
                                         // 4) Continue to report all upstack frames
                                     }
                                 }
-                            }
+                            } // end if (m_crawl.IsFunclet())
                         }
-                    }
+                    } // end if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                 }
                 while(fRecheckCurrentFrame == true);
                 
@@ -1841,19 +1921,19 @@ ProcessFuncletsForGCReporting:
 
                     if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                     {
-                        // When a nested exception escapes, it will unwind pass a funclet.  In addition, it'll
+                        // When a nested exception escapes, it will unwind past a funclet.  In addition, it will
                         // unwind the frame chain up to the funclet.  When that happens, we'll basically lose 
-                        // all the stack frames higher than and equal to he funclet.  We can't skip funclets in 
-                        // the usual way because the first frame we see won't be a funclet.  It'll be something 
-                        // which have conceptually been unwound.  We need to use the information on the 
+                        // all the stack frames higher than and equal to the funclet.  We can't skip funclets in 
+                        // the usual way because the first frame we see won't be a funclet.  It will be something 
+                        // which has conceptually been unwound.  We need to use the information on the 
                         // ExceptionTracker to determine if a stack frame is in the unwound stack region.
                         //
                         // If we are enumerating frames for GC reporting and we determined that
                         // the current frame needs to be reported, ensure that it has not already
                         // been unwound by the active exception. If it has been, then we will set a flag
                         // indicating that its references need not be reported. The CrawlFrame, however,
-                        // will still be passed to the GC stackwalk callback incase it represents a dynamic
-                        // method, to allow the GC to keep them alive.
+                        // will still be passed to the GC stackwalk callback in case it represents a dynamic
+                        // method, to allow the GC to keep that method alive.
                         if (ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(&m_crawl))
                         {
                             // Invoke the GC callback for this crawlframe (to keep any dynamic methods alive) but do not report its references.
@@ -1868,7 +1948,7 @@ ProcessFuncletsForGCReporting:
 
                                 _ASSERTE(m_fDidFuncletReportGCReferences);
                                 m_fDidFuncletReportGCReferences = false;
-                                
+
                                 STRESS_LOG0(LF_GCROOTS, LL_INFO100, "Unwound funclet will skip reporting references\n");
                             }
                         }
@@ -1894,6 +1974,9 @@ ProcessFuncletsForGCReporting:
                                 if (m_sfParent.IsMaxVal() ||
                                     ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, m_sfParent))
                                 {
+                                    // Reset flag as we have reached target method frame so no more skipping required
+                                    fSkippingFunclet = false;
+
                                     // We've finished skipping as told.  Now check again.
                                     
                                     if ((m_fProcessIntermediaryNonFilterFunclet == true) || (m_fProcessNonFilterFunclet == true))
@@ -1901,9 +1984,6 @@ ProcessFuncletsForGCReporting:
                                         STRESS_LOG2(LF_GCROOTS, LL_INFO100, 
                                         "STACKWALK: Reached parent of non-filter funclet @ CallerSP: %p, m_crawl.pFunc = %p\n", 
                                         m_sfParent.SP, m_crawl.pFunc);
-                                        
-                                        // If we are here, we should be in GC reference reporting mode.
-                                        _ASSERTE(m_flags & GC_FUNCLET_REFERENCE_REPORTING);
                                         
                                         // landing here indicates that the funclet's parent has been unwound so
                                         // this will always be true, no need to predicate on the state of the funclet
@@ -1913,7 +1993,6 @@ ProcessFuncletsForGCReporting:
                                         m_fDidFuncletReportGCReferences = true;
                                         
                                         ResetGCRefReportingState(m_fProcessIntermediaryNonFilterFunclet);
-                                        
                                     }
 
                                     m_sfParent.Clear();
@@ -1924,15 +2003,16 @@ ProcessFuncletsForGCReporting:
                                         // Since we are in GC reference reporting mode,
                                         // then avoid code duplication and go to
                                         // funclet processing.
+                                        fRecheckCurrentFrame = true;
                                         goto ProcessFuncletsForGCReporting;
                                     }
                                 }
                             }
-                        }
+                        } // end if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                         
                         if (m_crawl.fShouldCrawlframeReportGCReferences)
                         {
-                            // Skip the callback for this frame - we dont do this for unwound frames encountered
+                            // Skip the callback for this frame - we don't do this for unwound frames encountered
                             // in GC stackwalk since they may represent dynamic methods whose resolver objects
                             // the GC may need to keep alive.
                             break;
@@ -1940,10 +2020,12 @@ ProcessFuncletsForGCReporting:
                     }
                     else
                     {
+                        _ASSERTE(!fSkipFrameDueToUnwind);
+
                         // Check if we are skipping frames.
                         if (!m_sfParent.IsNull())
                         {
-                            // Check if our have reached our target method frame.
+                            // Check if we have reached our target method frame.
                             // IsMaxVal() is a special value to indicate that we should skip one frame.
                             if (m_sfParent.IsMaxVal() ||
                                 ExceptionTracker::IsUnwoundToTargetParentFrame(&m_crawl, m_sfParent))
@@ -1955,7 +2037,7 @@ ProcessFuncletsForGCReporting:
                                     _ASSERTE(m_flags & GC_FUNCLET_REFERENCE_REPORTING);
 
                                     STRESS_LOG2(LF_GCROOTS, LL_INFO100, 
-                                    "STACKWALK: Reached parent of non-filter funclet @ CallerSP: %p, m_crawl.pFunc = %p\n", 
+                                    "STACKWALK: Reached parent of non-filter funclet @ CallerSP: %p, m_crawl.pFunc = %p\n",
                                     m_sfParent.SP, m_crawl.pFunc);
 
                                     // by default a funclet's parent won't report its GC roots since they would have already
@@ -1968,8 +2050,10 @@ ProcessFuncletsForGCReporting:
                                         // we have reached the parent frame of the funclet which didn't report roots since it was already unwound.
                                         // check if the parent frame of the funclet is also handling an exception. if it is, then we will need to
                                         // report roots for it since the catch handler may use references inside it.
-                                    
-                                        ExceptionTracker* pTracker = m_crawl.pThread->GetExceptionState()->GetCurrentExceptionTracker();
+
+                                        STRESS_LOG0(LF_GCROOTS, LL_INFO100,
+                                        "STACKWALK: Reached parent of funclet which didn't report GC roots, since funclet is already unwound.\n");
+
                                         if (pTracker->GetCallerOfActualHandlingFrame() == m_sfFuncletParent)
                                         {
                                             // we should not skip reporting for this parent frame
@@ -1977,6 +2061,23 @@ ProcessFuncletsForGCReporting:
                                             
                                             // now that we've found the parent that will report roots reset our state.
                                             m_fDidFuncletReportGCReferences = true;
+
+                                            // After funclet gets unwound parent will begin to report gc references. Reporting GC references
+                                            // using the IP of throw in parent method can crash application. Parent could have locals objects 
+                                            // which might not have been reported by funclet as live and would have already been collected 
+                                            // when funclet was on stack. Now if parent starts using IP of throw to report gc references it 
+                                            // would report garbage values as live objects. So instead parent can use the IP of the resume 
+                                            // address of catch funclet to report live GC references.
+                                            m_crawl.fShouldParentFrameUseUnwindTargetPCforGCReporting = true;
+                                            // Store catch clause info. Helps retrieve IP of resume address.
+                                            m_crawl.ehClauseForCatch = pTracker->GetEHClauseForCatch();
+
+                                            STRESS_LOG3(LF_GCROOTS, LL_INFO100,
+                                            "STACKWALK: Parent of funclet which didn't report GC roots is handling an exception at 0x%p"
+                                            "(EH handler range [%x, %x) ), so we need to specially report roots to ensure variables alive"
+                                            " in its handler stay live.\n",
+                                            pTracker->GetCatchToCallPC(), m_crawl.ehClauseForCatch.HandlerStartPC, 
+                                            m_crawl.ehClauseForCatch.HandlerEndPC);
                                         }
                                         else if (!m_crawl.IsFunclet())
                                         {
@@ -1998,7 +2099,7 @@ ProcessFuncletsForGCReporting:
 
                                 m_sfParent.Clear();
                             }
-                        }
+                        } // end if (!m_sfParent.IsNull())
 
                         if (m_sfParent.IsNull() && m_crawl.IsFunclet())
                         {
@@ -2008,6 +2109,7 @@ ProcessFuncletsForGCReporting:
                                 // If we are in GC reference reporting mode,
                                 // then avoid code duplication and go to
                                 // funclet processing.
+                                fRecheckCurrentFrame = true;
                                 goto ProcessFuncletsForGCReporting;
                             }
                             else
@@ -2278,7 +2380,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
         }
         else
         {
-#if defined(_TARGET_X86_)
+#ifndef PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
             // On x86, we process a managed stack frame before processing any explicit frames contained in it.
             // So when we are done with the skipped explicit frame, we have already processed the managed
             // stack frame, and it is time to move onto the next stack frame.
@@ -2287,7 +2389,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             {
                 goto Cleanup;
             }
-#else // _TARGET_X86_
+#else // !PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
             // We are done handling the skipped explicit frame at this point.  So move on to the 
             // managed stack frame.
             m_crawl.isFrameless = true;
@@ -2297,7 +2399,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
 
             PreProcessingForManagedFrames();
             goto Cleanup;
-#endif // _TARGET_X86_
+#endif // PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
         }
     }
     else if (m_frameState == SFITER_FRAMELESS_METHOD)
@@ -2319,7 +2421,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
                 OBJECTREF      orUnwind = NULL;
 
                 if (m_crawl.GetCodeManager()->IsInSynchronizedRegion(m_crawl.GetRelOffset(),
-                                                                    m_crawl.GetGCInfo(), 
+                                                                    m_crawl.GetGCInfoToken(), 
                                                                     m_crawl.GetCodeManagerFlags()))
                 {
                     if (pMD->IsStatic())
@@ -2370,7 +2472,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
              DBG_ADDR(GetRegdisplaySP(m_crawl.pRD)), 
              DBG_ADDR(GetControlPC(m_crawl.pRD))));
 
-#if !defined(DACCESS_COMPILE)
+#if !defined(DACCESS_COMPILE) && defined(HAS_QUICKUNWIND)
         StackwalkCacheEntry *pCacheEntry = m_crawl.GetStackwalkCacheEntry();
         if (pCacheEntry != NULL)
         {
@@ -2380,7 +2482,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             EECodeManager::QuickUnwindStackFrame(m_crawl.pRD, pCacheEntry, EECodeManager::UnwindCurrentStackFrame);
         }
         else
-#endif // !DACCESS_COMPILE
+#endif // !DACCESS_COMPILE && HAS_QUICKUNWIND
         {
 #if !defined(DACCESS_COMPILE)
             // non-optimized stack unwind schema, doesn't use StackwalkCache
@@ -2391,6 +2493,12 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             bool fInsertCacheEntry = m_crawl.stackWalkCache.Enabled() && 
                                      (m_flags & LIGHTUNWIND) &&
                                      (m_pCachedGSCookie == NULL);
+ 
+            // Is this a dynamic method. Dynamic methods can be GC collected and so IP to method mapping
+            // is not persistent. Therefore do not cache information for this frame.
+            BOOL isCollectableMethod = ExecutionManager::IsCollectibleMethod(m_crawl.GetMethodToken());
+            if(isCollectableMethod)
+                fInsertCacheEntry = FALSE;
 
             StackwalkCacheUnwindInfo unwindInfo;
 
@@ -2457,7 +2565,9 @@ StackWalkAction StackFrameIterator::NextRaw(void)
         // to recover from AVs during profiler stackwalk.)
 
         PTR_VOID newSP = PTR_VOID((TADDR)GetRegdisplaySP(m_crawl.pRD));
+#ifndef NO_FIXED_STACK_LIMIT
         FAIL_IF_SPECULATIVE_WALK(newSP >= m_crawl.pThread->GetCachedStackLimit());
+#endif // !NO_FIXED_STACK_LIMIT
         FAIL_IF_SPECULATIVE_WALK(newSP < m_crawl.pThread->GetCachedStackBase());
 
 #undef FAIL_IF_SPECULATIVE_WALK
@@ -2474,14 +2584,14 @@ StackWalkAction StackFrameIterator::NextRaw(void)
         m_crawl.hasFaulted    = FALSE;
         m_crawl.isIPadjusted  = FALSE;
 
-#if defined(_TARGET_X86_)
-        // remember, x86 handles the manages stack frame before the explicit frames contained in it
+#ifndef PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
+        // remember, x86 handles the managed stack frame before the explicit frames contained in it
         if (CheckForSkippedFrames())
         {
             _ASSERTE(m_frameState == SFITER_SKIPPED_FRAME_FUNCTION);
             goto Cleanup;
         }
-#endif // _TARGET_X86_
+#endif // !PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
 
         PostProcessingForManagedFrames();
         if (m_frameState == SFITER_NATIVE_MARKER_FRAME)
@@ -2539,7 +2649,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
             {
                 m_crawl.pFrame->UpdateRegDisplay(m_crawl.pRD);
 
-#if !defined(_TARGET_X86_)
+#if defined(RECORD_RESUMABLE_FRAME_SP)
                 CONSISTENCY_CHECK(NULL == m_pvResumableFrameTargetSP);
 
                 if (m_crawl.isFirst)
@@ -2567,14 +2677,14 @@ StackWalkAction StackFrameIterator::NextRaw(void)
                     EECodeManager::EnsureCallerContextIsValid(m_crawl.pRD, m_crawl.GetStackwalkCacheEntry());
                     m_pvResumableFrameTargetSP = (LPVOID)GetSP(m_crawl.pRD->pCallerContext);
                 }
-#endif // !_TARGET_X86_
+#endif // RECORD_RESUMABLE_FRAME_SP
 
 
+#if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(WIN64EXCEPTIONS)
                 // We are transitioning from unmanaged code to managed code... lets do some validation of our
                 // EH mechanism on platforms that we can.
-#if defined(_DEBUG)  && !defined(DACCESS_COMPILE) && defined(_TARGET_X86_)
                 VerifyValidTransitionFromManagedCode(m_crawl.pThread, &m_crawl);
-#endif // _DEBUG && !DACCESS_COMPILE && _TARGET_X86_
+#endif // _DEBUG && !DACCESS_COMPILE &&  !WIN64EXCEPTIONS
             }
         }
 
@@ -2867,7 +2977,7 @@ void StackFrameIterator::ProcessCurrentFrame(void)
             // Cache values which may be updated by CheckForSkippedFrames()
             m_cachedCodeInfo = m_crawl.codeInfo;
 
-#if !defined(_TARGET_X86_)
+#ifdef PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
             // On non-X86, we want to process the skipped explicit frames before the managed stack frame
             // containing them.
             if (CheckForSkippedFrames())
@@ -2875,7 +2985,7 @@ void StackFrameIterator::ProcessCurrentFrame(void)
                 _ASSERTE(m_frameState == SFITER_SKIPPED_FRAME_FUNCTION);
             }
             else
-#endif // !_TARGET_X86_
+#endif // PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
             {
                 PreProcessingForManagedFrames();
                 _ASSERTE(m_frameState == SFITER_FRAMELESS_METHOD);
@@ -2922,9 +3032,9 @@ BOOL StackFrameIterator::CheckForSkippedFrames(void)
     // Can the caller handle skipped frames;
     fHandleSkippedFrames = (m_flags & HANDLESKIPPEDFRAMES);
 
-#if defined(_TARGET_X86_)
+#ifndef PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
     pvReferenceSP = GetRegdisplaySP(m_crawl.pRD);
-#else // _TARGET_X86_
+#else // !PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
     // Order the Frames relative to the caller SP of the methods
     // this makes it so that any Frame that is in a managed call
     // frame will be reported before its containing method.
@@ -2932,7 +3042,7 @@ BOOL StackFrameIterator::CheckForSkippedFrames(void)
     // This should always succeed!  If it doesn't, it's a bug somewhere else!
     EECodeManager::EnsureCallerContextIsValid(m_crawl.pRD, m_crawl.GetStackwalkCacheEntry(), &m_cachedCodeInfo);
     pvReferenceSP = GetSP(m_crawl.pRD->pCallerContext);
-#endif // _TARGET_X86_
+#endif // PROCESS_EXPLICIT_FRAME_BEFORE_MANAGED_FRAME
 
     if ( !( (m_crawl.pFrame != FRAME_TOP) && 
             (dac_cast<TADDR>(m_crawl.pFrame) < pvReferenceSP) )
@@ -3018,7 +3128,7 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
-#if !defined(_TARGET_X86_)
+#if defined(RECORD_RESUMABLE_FRAME_SP)
     if (m_pvResumableFrameTargetSP)
     {
         // We expect that if we saw a resumable frame, the next managed
@@ -3032,7 +3142,7 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
         m_pvResumableFrameTargetSP = NULL;
         m_crawl.isFirst = true;
     }
-#endif // !_TARGET_X86_
+#endif // RECORD_RESUMABLE_FRAME_SP
 
 #if !defined(DACCESS_COMPILE)
     m_pCachedGSCookie = (GSCookie*)m_crawl.GetCodeManager()->GetGSCookieAddr(
@@ -3048,14 +3158,17 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
 
     INDEBUG(m_crawl.pThread->DebugLogStackWalkInfo(&m_crawl, "CONSIDER", m_uFramesProcessed));
 
-#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(DACCESS_COMPILE)
+#if defined(_DEBUG) && !defined(WIN64EXCEPTIONS) && !defined(DACCESS_COMPILE)
+    //
+    // VM is responsible for synchronization on non-funclet EH model.
+    //
     // m_crawl.GetThisPointer() requires full unwind
     // In GC's relocate phase, objects is not verifiable
     if ( !(m_flags & (LIGHTUNWIND | QUICKUNWIND | ALLOW_INVALID_OBJECTS)) && 
          m_crawl.pFunc->IsSynchronized() && 
          !m_crawl.pFunc->IsStatic()      &&
          m_crawl.GetCodeManager()->IsInSynchronizedRegion(m_crawl.GetRelOffset(), 
-                                                         m_crawl.GetGCInfo(), 
+                                                         m_crawl.GetGCInfoToken(), 
                                                          m_crawl.GetCodeManagerFlags()))
     {
         BEGIN_GCX_ASSERT_COOP;
@@ -3072,7 +3185,7 @@ void StackFrameIterator::PreProcessingForManagedFrames(void)
 
         END_GCX_ASSERT_COOP;
     }
-#endif // _DEBUG && _TARGET_X86_ && !DACCESS_COMPILE
+#endif // _DEBUG && !WIN64EXCEPTIONS && !DACCESS_COMPILE
 
     m_frameState = SFITER_FRAMELESS_METHOD;
 } // StackFrameIterator::PreProcessingForManagedFrames()

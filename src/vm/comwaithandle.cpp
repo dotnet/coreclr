@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*============================================================
@@ -182,11 +181,6 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNS
     Context* defaultContext;
     defaultContext = pThread->GetDomain()->GetDefaultContext();
     _ASSERTE(defaultContext);
-#ifndef FEATURE_CORECLR
-    // DoAppropriateWait calls LeaveRuntime/EnterRuntime which may cause the current
-    // fiber to be re-scheduled.
-    ThreadAffinityAndCriticalRegionHolder affinityAndCriticalRegionHolder(hasThreadAffinity);
-#endif
     SafeHandleHolder shh(&sh);
     // Note that SafeHandle is a GC object, and RequestCallback and 
     // DoAppropriateWait work on an array of handles.  Don't pass the address
@@ -194,18 +188,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNS
     // array.
     HANDLE handles[1];
     handles[0] = sh->GetHandle();
-#ifdef FEATURE_REMOTING
-    if (exitContext != NULL &&
-        targetContext != defaultContext)
-    {
-        Context::WaitArgs waitOneArgs = {1, handles, TRUE, timeout, TRUE, &res};
-        Context::CallBackInfo callBackInfo = {Context::Wait_callback, (void*) &waitOneArgs};
-        Context::RequestCallBack(CURRENT_APPDOMAIN_ID,defaultContext, &callBackInfo);
-    }
-    else
-#else
     _ASSERTE(exitContext == NULL || targetContext == defaultContext);
-#endif        
     {
         // Support for pause/resume (FXFREEZE)
         while(true)
@@ -223,18 +206,6 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitOneNative, SafeHandle* safeWaitHandleUNS
 
     retVal = res;
 
-#ifndef FEATURE_CORECLR
-    if (res == WAIT_OBJECT_0 && hasThreadAffinity) {
-        affinityAndCriticalRegionHolder.SuppressRelease();
-    }
-    else if(res == WAIT_ABANDONED_0) {
-        // WAIT_ABANDONED means the specified object is a mutex object that was not released by the thread 
-        // that owned the mutex object before the owning thread terminated. 
-        // Ownership of the mutex object is granted to the calling thread, and the mutex is set to nonsignaled.    
-        _ASSERTE(hasThreadAffinity);
-        affinityAndCriticalRegionHolder.SuppressRelease();    
-    }
-#endif
 
     HELPER_METHOD_FRAME_END();
     return retVal;
@@ -260,24 +231,14 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
     // Because it's not, CoreCLR will allow WaitAll on STA threads.
     // But fixing this would be a breaking change at this point, since we already shipped
     // SL 2 and 3 this way.
-    // We we'll also check for FEATURE_CORECLR here, so that if we enable FEATURE_COMINTEROP
-    // on CoreCLR we won't break anyone.
     // Perhaps in a future release we can fix this, if we aren't quite so concerned about
     // compatibility....
-#if defined(FEATURE_COMINTEROP) && !defined(FEATURE_CORECLR)
-    if (waitForAll && numWaiters > 1 && pThread->GetApartment() == Thread::AS_InSTA) {
-        COMPlusThrow(kNotSupportedException, W("NotSupported_WaitAllSTAThread"));
-    }
-#endif // FEATURE_COMINTEROP && !FEATURE_CORECLR
 
     WaitHandleArrayHolder arrayHolder;
     arrayHolder.Initialize(numWaiters, (PTRARRAYREF*) &waitObjects);
     
     pWaitObjects = (PTRARRAYREF)waitObjects;  // array of objects on which to wait
     HANDLE* internalHandles = (HANDLE*) _alloca(numWaiters*sizeof(HANDLE));
-    BOOL *hasThreadAffinity = (BOOL*) _alloca(numWaiters*sizeof(BOOL));
-
-    BOOL mayRequireThreadAffinity = FALSE;
     for (int i=0;i<numWaiters;i++)
     {
         WAITHANDLEREF waitObject = (WAITHANDLEREF) pWaitObjects->m_Array[i];
@@ -288,33 +249,16 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
         //   this behavior seems wrong but someone explicitly coded that condition so it must have been for a reason.        
         internalHandles[i] = waitObject->m_handle;
 
-        // m_hasThreadAffinity is set for Mutex only 
-        hasThreadAffinity[i] = waitObject->m_hasThreadAffinity;
-        if (hasThreadAffinity[i]) {
-            mayRequireThreadAffinity = TRUE;
-        }
     }
 
     DWORD res = (DWORD) -1;
-    ThreadAffinityHolder affinityHolder(mayRequireThreadAffinity);
     Context* targetContext;
     targetContext = pThread->GetContext();
     _ASSERTE(targetContext);
     Context* defaultContext;
     defaultContext = pThread->GetDomain()->GetDefaultContext();
     _ASSERTE(defaultContext);
-#ifdef FEATURE_REMOTING    
-    if (exitContext != NULL &&
-        targetContext != defaultContext)
-    {
-        Context::WaitArgs waitMultipleArgs = {numWaiters, internalHandles, waitForAll, timeout, TRUE, &res};
-        Context::CallBackInfo callBackInfo = {Context::Wait_callback, (void*) &waitMultipleArgs};
-        Context::RequestCallBack(CURRENT_APPDOMAIN_ID,defaultContext, &callBackInfo);
-    }
-    else
-#else
     _ASSERTE(exitContext == NULL || targetContext == defaultContext);
-#endif        
     {
         // Support for pause/resume (FXFREEZE)
         while(true)
@@ -330,43 +274,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
         }
     }
 
-    if (mayRequireThreadAffinity) {
-        if (waitForAll) {
-            if (res >= (DWORD) WAIT_OBJECT_0 && res < (DWORD) WAIT_OBJECT_0 + numWaiters) {
-                for (int i = 0; i < numWaiters; i ++) {
-                    if (hasThreadAffinity[i]) {
-                        Thread::BeginThreadAffinityAndCriticalRegion();
-                    }
-                }
-            }
-            // If some mutex is abandoned
-            else if (res >= (DWORD) WAIT_ABANDONED_0 && res < (DWORD) WAIT_ABANDONED_0+numWaiters) {
-                for (int i = 0; i < numWaiters; i ++) {
-                    if (hasThreadAffinity[i])
-                    {
-                        if (WaitForSingleObject(internalHandles[i],0) == WAIT_OBJECT_0)
-                        {
-                            BOOL result;
-                            result = ReleaseMutex(internalHandles[i]);
-                            _ASSERTE (result);
-                            Thread::BeginThreadAffinityAndCriticalRegion();
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            if ( res >= (DWORD)WAIT_OBJECT_0 && res < (DWORD)WAIT_OBJECT_0 + numWaiters) {
-                if (hasThreadAffinity[res - WAIT_OBJECT_0]) {
-                    Thread::BeginThreadAffinityAndCriticalRegion();
-                }
-            }
-            else if (res >= (DWORD)WAIT_ABANDONED_0 && res < (DWORD)WAIT_ABANDONED_0 + numWaiters) {
-                _ASSERTE (hasThreadAffinity[res - WAIT_ABANDONED_0]);
-                Thread::BeginThreadAffinityAndCriticalRegion();                
-            }
-        }
-    }
+
     retVal = res;
 
     HELPER_METHOD_FRAME_END();
@@ -374,7 +282,6 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
 FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE,SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout, CLR_BOOL hasThreadAffinity, CLR_BOOL exitContext)
 {
     FCALL_CONTRACT;
@@ -407,9 +314,6 @@ FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWait
     Context* defaultContext = pThread->GetDomain()->GetDefaultContext();
     _ASSERTE(defaultContext);
 
-    // DoSignalAndWait calls LeaveRuntime/EnterRuntime which may cause the current
-    // fiber to be re-scheduled.
-    ThreadAffinityAndCriticalRegionHolder affinityAndCriticalRegionHolder(hasThreadAffinity);
 
     SafeHandleHolder shhSignal(&shSignal);
     SafeHandleHolder shhWait(&shWait);
@@ -418,29 +322,11 @@ FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWait
     HANDLE handles[2];
     handles[0] = shSignal->GetHandle();
     handles[1] = shWait->GetHandle();
-#ifdef FEATURE_REMOTING
-    if (exitContext != NULL &&
-        targetContext != defaultContext)
-    {
-        Context::SignalAndWaitArgs signalAndWaitArgs = {handles, timeout, TRUE, &res};
-        Context::CallBackInfo callBackInfo = {Context::SignalAndWait_callback, (void*) &signalAndWaitArgs};
-        Context::RequestCallBack(CURRENT_APPDOMAIN_ID,defaultContext, &callBackInfo);
-    }
-    else
-#else
     _ASSERTE(exitContext == NULL || targetContext == defaultContext);
-#endif        
     {
         res = pThread->DoSignalAndWait(handles,timeout,TRUE /*alertable*/);
     }
 
-    if (res == WAIT_OBJECT_0 && hasThreadAffinity) {
-        affinityAndCriticalRegionHolder.SuppressRelease();
-    }
-    else if(res == WAIT_ABANDONED_0) {
-        _ASSERTE(hasThreadAffinity);
-        affinityAndCriticalRegionHolder.SuppressRelease();    
-    }
 
     retVal = res;
 
@@ -448,6 +334,3 @@ FCIMPL5(INT32, WaitHandleNative::CorSignalAndWaitOneNative, SafeHandle* safeWait
     return retVal;
 }
 FCIMPLEND
-#endif // !FEATURE_CORECLR
-
-

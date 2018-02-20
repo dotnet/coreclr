@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #pragma once
@@ -35,6 +34,36 @@ struct remove_volatile<volatile T>
 template <typename T>
 struct remove_cv : remove_const<typename remove_volatile<T>::type>
 {
+};
+
+template <typename T>
+struct remove_reference
+{
+    typedef T type;
+};
+
+template <typename T>
+struct remove_reference<T&>
+{
+    typedef T type;
+};
+
+template <typename T>
+struct remove_reference<T&&>
+{
+    typedef T type;
+};
+
+template <typename T>
+struct is_lvalue_reference
+{
+    enum { value = false };
+};
+
+template <typename T>
+struct is_lvalue_reference<T&>
+{
+    enum { value = true };
 };
 
 template <typename T>
@@ -149,19 +178,47 @@ struct make_unsigned<int>
     typedef unsigned int type;
 };
 
-#ifndef PLATFORM_UNIX
+#ifndef _HOST_UNIX_
 
 template<>
 struct make_unsigned<long>
 {
     typedef unsigned long type;
 };
-#endif // PLATFORM_UNIX
+
+#endif // !_HOST_UNIX_
 
 template<>
 struct make_unsigned<__int64>
 {
     typedef unsigned __int64 type;
+};
+
+template<typename Type1>
+struct make_signed
+{
+};
+
+template<>
+struct make_signed<unsigned int>
+{
+    typedef signed int type;
+};
+
+#ifndef _HOST_UNIX_
+
+template<>
+struct make_signed<unsigned long>
+{
+    typedef signed long type;
+};
+
+#endif // !_HOST_UNIX_
+
+template<>
+struct make_signed<unsigned __int64>
+{
+    typedef signed __int64 type;
 };
 
 } // namespace jit_std

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: StubGen.h
 // 
@@ -432,7 +431,7 @@ public:
 
     void ClearCodeStreams();
 
-    void LogILStub(DWORD dwJitFlags, SString *pDumpILStubCode = NULL);
+    void LogILStub(CORJIT_FLAGS jitFlags, SString *pDumpILStubCode = NULL);
 protected:
     void LogILStubWorker(ILInstruction* pInstrBuffer, UINT numInstr, size_t* pcbCode, INT* piCurStack, SString *pDumpILStubCode = NULL);
     void LogILInstruction(size_t curOffset, bool isLabeled, INT iCurStack, ILInstruction* pInstruction, SString *pDumpILStubCode = NULL);

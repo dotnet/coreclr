@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: mlinfo.cpp
 // 
@@ -41,13 +40,6 @@
 
 
 #ifdef FEATURE_COMINTEROP
-
-#ifdef FEATURE_CORECLR
-#define FX_PLATFORM_KEY g_CoreClrKeyToken
-#else
-#define FX_PLATFORM_KEY g_ECMAKeyToken
-#endif
-
     DEFINE_ASM_QUAL_TYPE_NAME(ENUMERATOR_TO_ENUM_VARIANT_CM_NAME, g_EnumeratorToEnumClassName, "CustomMarshalers", VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
 
     static const int        ENUMERATOR_TO_ENUM_VARIANT_CM_NAME_LEN    = lengthof(ENUMERATOR_TO_ENUM_VARIANT_CM_NAME);
@@ -57,13 +49,15 @@
     DEFINE_ASM_QUAL_TYPE_NAME(COLOR_TRANSLATOR_ASM_QUAL_TYPE_NAME, g_ColorTranslatorClassName, g_DrawingAsmName, VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
     DEFINE_ASM_QUAL_TYPE_NAME(COLOR_ASM_QUAL_TYPE_NAME, g_ColorClassName, g_DrawingAsmName, VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
 
-    DEFINE_ASM_QUAL_TYPE_NAME(URI_ASM_QUAL_TYPE_NAME, g_SystemUriClassName, g_SystemAsmName, VER_ASSEMBLYVERSION_STR, FX_PLATFORM_KEY);
+    DEFINE_ASM_QUAL_TYPE_NAME(URI_ASM_QUAL_TYPE_NAME, g_SystemUriClassName, g_SystemRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
 
-    DEFINE_ASM_QUAL_TYPE_NAME(NCCEVENTARGS_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedEventArgsName, g_SystemAsmName, VER_ASSEMBLYVERSION_STR, FX_PLATFORM_KEY);
-    DEFINE_ASM_QUAL_TYPE_NAME(NCCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedEventArgsMarshalerName, g_SystemAsmName, VER_ASSEMBLYVERSION_STR, FX_PLATFORM_KEY);
+    DEFINE_ASM_QUAL_TYPE_NAME(NCCEVENTARGS_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedEventArgsName, g_ObjectModelAsmName, VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
+    DEFINE_ASM_QUAL_TYPE_NAME(NCCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedEventArgsMarshalerName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
 
-    DEFINE_ASM_QUAL_TYPE_NAME(PCEVENTARGS_ASM_QUAL_TYPE_NAME, g_PropertyChangedEventArgsName, g_SystemAsmName, VER_ASSEMBLYVERSION_STR, FX_PLATFORM_KEY);
-    DEFINE_ASM_QUAL_TYPE_NAME(PCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME, g_PropertyChangedEventArgsMarshalerName, g_SystemAsmName, VER_ASSEMBLYVERSION_STR, FX_PLATFORM_KEY);
+
+    DEFINE_ASM_QUAL_TYPE_NAME(PCEVENTARGS_ASM_QUAL_TYPE_NAME, g_PropertyChangedEventArgsName, g_ObjectModelAsmName, VER_ASSEMBLYVERSION_STR, g_FXKeyToken);
+    DEFINE_ASM_QUAL_TYPE_NAME(PCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME, g_PropertyChangedEventArgsMarshalerName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+
 
     #define OLECOLOR_TO_SYSTEMCOLOR_METH_NAME   "FromOle"
     #define SYSTEMCOLOR_TO_OLECOLOR_METH_NAME   "ToOle"
@@ -1521,9 +1515,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
     CorNativeType nativeType        = NATIVE_TYPE_DEFAULT;
     Assembly *pAssembly             = pModule->GetAssembly();
-#ifndef FEATURE_CORECLR
-    BOOL fNeedsCopyCtor             = FALSE;
-#endif //  !FEATURE_CORECLR
     m_BestFit                       = BestFit;
     m_ThrowOnUnmappableChar         = ThrowOnUnmappableChar;
     m_ms                            = ms;
@@ -1634,23 +1625,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
         IfFailGoto(sig.GetElemType(NULL), lFail);
         mtype = sig.PeekElemTypeNormalized(pModule, pTypeContext); 
 
-#ifndef FEATURE_CORECLR // no copy ctor support in CoreCLR
-        // Check for Copy Constructor Modifier - peek closed elem type here to prevent ELEMENT_TYPE_VALUETYPE
-        // turning into a primitive.
-        if (sig.PeekElemTypeClosed(pModule, pTypeContext) == ELEMENT_TYPE_VALUETYPE) 
-        {
-            // Skip ET_BYREF
-            IfFailGoto(sigtmp.GetByte(NULL), lFail);
-            
-            if (sigtmp.HasCustomModifier(pModule, "Microsoft.VisualC.NeedsCopyConstructorModifier", ELEMENT_TYPE_CMOD_REQD) ||
-                sigtmp.HasCustomModifier(pModule, "System.Runtime.CompilerServices.IsCopyConstructed", ELEMENT_TYPE_CMOD_REQD) )
-            {
-                mtype = ELEMENT_TYPE_VALUETYPE;
-                fNeedsCopyCtor = TRUE;
-                m_byref = FALSE;
-            }
-        }
-#endif // !FEATURE_CORECLR
     }
     else
     {
@@ -1693,28 +1667,12 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     IfFailGoto(E_FAIL, lFail);
                 }
 
-#ifndef FEATURE_CORECLR
-                // Check for Copy Constructor Modifier
-                if (sigtmp.HasCustomModifier(pModule, "Microsoft.VisualC.NeedsCopyConstructorModifier", ELEMENT_TYPE_CMOD_REQD) ||
-                    sigtmp.HasCustomModifier(pModule, "System.Runtime.CompilerServices.IsCopyConstructed", ELEMENT_TYPE_CMOD_REQD) )
-                {
-                    mtype = mtype2;
-
-                    // Keep the sig pointer in sync with mtype (skip ELEMENT_TYPE_PTR) because for the rest
-                    // of this method we are pretending that the parameter is a value type passed by-value.
-                    IfFailGoto(sig.GetElemType(NULL), lFail);
-
-                    fNeedsCopyCtor = TRUE;
-                    m_byref = FALSE;
-                }
-#endif // !FEATURE_CORECLR
             }
         }
         else
         {
             if (!(mtype2 != ELEMENT_TYPE_CLASS &&
                   mtype2 != ELEMENT_TYPE_STRING &&
-                  mtype2 != ELEMENT_TYPE_CLASS &&
                   mtype2 != ELEMENT_TYPE_OBJECT &&
                   mtype2 != ELEMENT_TYPE_SZARRAY))
             {
@@ -2169,6 +2127,10 @@ MarshalInfo::MarshalInfo(Module* pModule,
         
                         case NATIVE_TYPE_LPSTR:
                             m_type = builder ? MARSHAL_TYPE_LPSTR_BUFFER : MARSHAL_TYPE_LPSTR;
+                            break;
+
+                        case NATIVE_TYPE_LPUTF8STR:
+                            m_type = builder ? MARSHAL_TYPE_UTF8_BUFFER : MARSHAL_TYPE_LPUTF8STR;
                             break;
     
                         case NATIVE_TYPE_LPTSTR:
@@ -2799,29 +2761,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     }
                     else
                     {
-#ifndef FEATURE_CORECLR
-                        if (fNeedsCopyCtor)
-                        {
-                            if (m_ms == MARSHAL_SCENARIO_WINRT)
-                            {
-                                // our WinRT-optimized GetCOMIPFromRCW helpers don't support copy
-                                // constructor stubs so make sure that this marshaler will not be used
-                                m_resID = IDS_EE_BADMARSHAL_WINRT_COPYCTOR;
-                                IfFailGoto(E_FAIL, lFail);
-                            }
-
-                            MethodDesc *pCopyCtor;
-                            MethodDesc *pDtor;
-                            FindCopyCtor(pModule, m_pMT, &pCopyCtor);
-                            FindDtor(pModule, m_pMT, &pDtor);
-
-                            m_args.mm.m_pMT = m_pMT;
-                            m_args.mm.m_pCopyCtor = pCopyCtor;
-                            m_args.mm.m_pDtor = pDtor;
-                            m_type = MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR;
-                        }
-                        else
-#endif // !FEATURE_CORECLR
 #ifdef _TARGET_X86_
                         // JIT64 is not aware of normalized value types and this optimization
                         // (returning small value types by value in registers) is already done in JIT64.
@@ -2903,7 +2842,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
 lExit:
 #ifdef FEATURE_COMINTEROP
-#ifdef FEATURE_CORECLR
 //Field scenario is not blocked here because we don't want to block loading structs that 
 //have the types which we are blocking, but never pass it to Interop.
 
@@ -2943,7 +2881,6 @@ lExit:
             COMPlusThrow(kPlatformNotSupportedException, m_resID);
 
     }
-#endif // FEATURE_CORECLR
     
     if (IsWinRTScenario() && !IsSupportedForWinRT(m_type))
     {
@@ -3554,9 +3491,6 @@ UINT16 MarshalInfo::GetNativeSize(MarshalType mtype, MarshalScenario ms)
         {
             case MARSHAL_TYPE_BLITTABLEVALUECLASS:
             case MARSHAL_TYPE_VALUECLASS:
-#ifndef FEATURE_CORECLR
-            case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
-#endif // !FEATURE_CORECLR
                 return (UINT16) m_pMT->GetNativeSize();
 
             default:
@@ -4208,9 +4142,6 @@ DispParamMarshaler *MarshalInfo::GenerateDispParamMarshaler()
         case MARSHAL_TYPE_BLITTABLEVALUECLASS:
         case MARSHAL_TYPE_BLITTABLEPTR:
         case MARSHAL_TYPE_LAYOUTCLASSPTR:
-#ifndef FEATURE_CORECLR
-        case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
-#endif
             pDispParamMarshaler = new DispParamRecordMarshaler(m_pMT);
             break;
 
@@ -4462,6 +4393,9 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
             case MARSHAL_TYPE_LPSTR:
                 strRetVal = W("LPSTR");
                 break;
+            case MARSHAL_TYPE_LPUTF8STR:
+                strRetVal = W("LPUTF8STR");
+                break;
 #ifdef FEATURE_COMINTEROP
             case MARSHAL_TYPE_ANSIBSTR:
                 strRetVal = W("AnsiBStr");
@@ -4472,6 +4406,9 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
                 break;
             case MARSHAL_TYPE_LPSTR_BUFFER:
                 strRetVal = W("LPSTR buffer");
+                break;
+            case MARSHAL_TYPE_UTF8_BUFFER:
+                strRetVal = W("UTF8 buffer");
                 break;
             case MARSHAL_TYPE_ASANYA:
                 strRetVal = W("AsAnyA");
@@ -4508,11 +4445,6 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
             case MARSHAL_TYPE_ARGITERATOR:
                 strRetVal = W("ArgIterator");
                 break;
-#ifndef FEATURE_CORECLR
-            case MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR:
-                strRetVal = W("blittable value class with copy constructor");
-                break;
-#endif // FEATURE_CORECLR
 #ifdef FEATURE_COMINTEROP
             case MARSHAL_TYPE_OBJECT:
                 strRetVal = W("VARIANT");
@@ -4854,6 +4786,8 @@ void ArrayMarshalInfo::InitForHiddenLengthArray(TypeHandle thElement)
 {
     STANDARD_VM_CONTRACT;
     
+    MethodTable *pMT = NULL;
+
     // WinRT supports arrays of any WinRT-legal types
     if (thElement.IsArray())
     {
@@ -4866,7 +4800,7 @@ void ArrayMarshalInfo::InitForHiddenLengthArray(TypeHandle thElement)
 
     m_thElement = thElement;
 
-    MethodTable *pMT = thElement.GetMethodTable();
+    pMT = thElement.GetMethodTable();
     if (pMT->IsString())
     {
         m_vtElement = VTHACK_HSTRING;
@@ -5256,7 +5190,6 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
         }
     }
 
-#ifdef FEATURE_CORECLR
    // Avoid throwing exceptions for any managed structs that have layouts and have types of fields that gets default to those banned types by default 
    // We don't know if they will be passed to native code anyway, and the right place to make the check is in the marshallers
    if (AppX::IsAppXProcess() && ms != MarshalInfo::MARSHAL_SCENARIO_FIELD)
@@ -5273,7 +5206,6 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
         if (set_error)
             COMPlusThrow(kPlatformNotSupportedException, m_resID);
     }
-#endif // FEATURE_CORECLR
 
     // If we are exporting, we need to substitute the VTHACK_* VARTYPE with the actual
     // types as expressed in the type library.

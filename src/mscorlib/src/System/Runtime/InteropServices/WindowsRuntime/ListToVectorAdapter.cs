@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -9,9 +10,10 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,15 +29,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private ListToVectorAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // T GetAt(uint index)
-        [SecurityCritical]
         internal T GetAt<T>(uint index)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            EnsureIndexInt32(index, _this.Count);        
+            IList<T> _this = Unsafe.As<IList<T>>(this);
+            EnsureIndexInt32(index, _this.Count);
 
             try
             {
@@ -43,24 +44,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
+                throw WindowsRuntimeMarshal.GetExceptionForHR(HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
             }
         }
 
         // uint Size { get }
-        [SecurityCritical]
         internal uint Size<T>()
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             return (uint)_this.Count;
         }
 
         // IVectorView<T> GetView()
-        [SecurityCritical]
         internal IReadOnlyList<T> GetView<T>()
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            Contract.Assert(_this != null);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
+            Debug.Assert(_this != null);
 
             // Note: This list is not really read-only - you could QI for a modifiable
             // list.  We gain some perf by doing this.  We believe this is acceptable.
@@ -73,10 +72,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IndexOf(T value, out uint index)
-        [SecurityCritical]
         internal bool IndexOf<T>(T value, out uint index)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             int ind = _this.IndexOf(value);
 
             if (-1 == ind)
@@ -90,10 +88,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void SetAt(uint index, T value)
-        [SecurityCritical]
         internal void SetAt<T>(uint index, T value)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             EnsureIndexInt32(index, _this.Count);
 
             try
@@ -102,15 +99,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
+                throw WindowsRuntimeMarshal.GetExceptionForHR(HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
             }
         }
 
         // void InsertAt(uint index, T value)
-        [SecurityCritical]
         internal void InsertAt<T>(uint index, T value)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
 
             // Inserting at an index one past the end of the list is equivalent to appending
             // so we need to ensure that we're within (0, count + 1).
@@ -123,17 +119,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (ArgumentOutOfRangeException ex)
             {
                 // Change error code to match what WinRT expects
-                ex.SetErrorCode(__HResults.E_BOUNDS);
+                ex.SetErrorCode(HResults.E_BOUNDS);
                 throw;
             }
         }
 
         // void RemoveAt(uint index)
-        [SecurityCritical]
         internal void RemoveAt<T>(uint index)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            EnsureIndexInt32(index, _this.Count); 
+            IList<T> _this = Unsafe.As<IList<T>>(this);
+            EnsureIndexInt32(index, _this.Count);
 
             try
             {
@@ -142,28 +137,26 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (ArgumentOutOfRangeException ex)
             {
                 // Change error code to match what WinRT expects
-                ex.SetErrorCode(__HResults.E_BOUNDS);
+                ex.SetErrorCode(HResults.E_BOUNDS);
                 throw;
             }
         }
 
         // void Append(T value)
-        [SecurityCritical]
         internal void Append<T>(T value)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             _this.Add(value);
         }
 
         // void RemoveAtEnd()
-        [SecurityCritical]
         internal void RemoveAtEnd<T>()
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             if (_this.Count == 0)
             {
-                Exception e = new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CannotRemoveLastFromEmptyCollection"));
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                Exception e = new InvalidOperationException(SR.InvalidOperation_CannotRemoveLastFromEmptyCollection);
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
 
@@ -172,26 +165,23 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<T>()
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             _this.Clear();
         }
 
         // uint GetMany(uint startIndex, T[] items)
-        [SecurityCritical]
         internal uint GetMany<T>(uint startIndex, T[] items)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             return GetManyHelper<T>(_this, startIndex, items);
         }
 
         // void ReplaceAll(T[] items)
-        [SecurityCritical]
         internal void ReplaceAll<T>(T[] items)
         {
-            IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
+            IList<T> _this = Unsafe.As<IList<T>>(this);
             _this.Clear();
 
             if (items != null)
@@ -211,8 +201,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // that Size > Int32.MaxValue:
             if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
             {
-                Exception e = new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_IndexLargerThanMaxValue"));
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
         }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // File: genmeth.cpp
 //
 // Most functionality for generic methods is put here
@@ -121,33 +120,9 @@ static MethodDesc* CreateMethodDesc(LoaderAllocator *pAllocator,
     {
         pMD->SetSynchronized();
     }
-    if (pTemplateMD->RequiresLinktimeCheck())
+    if (pTemplateMD->IsJitIntrinsic())
     {
-        pMD->SetRequiresLinktimeCheck();
-    }
-    if (pTemplateMD->RequiresInheritanceCheck())
-    {
-        pMD->SetRequiresInheritanceCheck();
-    }
-    if (pTemplateMD->ParentRequiresInheritanceCheck())
-    {
-        pMD->SetParentRequiresInheritanceCheck();
-    }
-    if (pTemplateMD->IsInterceptedForDeclSecurity())
-    {
-        pMD->SetInterceptedForDeclSecurity();
-    }
-    if (pTemplateMD->IsInterceptedForDeclSecurityCASDemandsOnly())
-    {
-        pMD->SetInterceptedForDeclSecurityCASDemandsOnly();
-    }
-    if (pTemplateMD->HasCriticalTransparentInfo())
-    {
-        pMD->SetCriticalTransparentInfo(pTemplateMD->IsCritical(), pTemplateMD->IsTreatAsSafe());
-    }
-    if (pTemplateMD->RequiresLinkTimeCheckHostProtectionOnly())
-    {
-        pMD->SetRequiresLinkTimeCheckHostProtectionOnly();
+        pMD->SetIsJitIntrinsic();
     }
 
     pMD->SetMemberDef(token);
@@ -466,7 +441,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
             {
                 if (pWrappedMD->IsSharedByGenericMethodInstantiations())
                 {
-                    pDL = pWrappedMD->AsInstantiatedMethodDesc()->m_pDictLayout;
+                    pDL = pWrappedMD->AsInstantiatedMethodDesc()->GetDictLayoutRaw();
                 }
             }
             else if (getWrappedCode)
@@ -1519,9 +1494,9 @@ void InstantiatedMethodDesc::SetupGenericMethodDefinition(IMDInternalImport *pIM
     S_SIZE_T dwAllocSize = S_SIZE_T(numTyPars) * S_SIZE_T(sizeof(TypeHandle));
 
     // the memory allocated for m_pMethInst will be freed if the declaring type fails to load
-    m_pPerInstInfo = (Dictionary *) pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(dwAllocSize));
+    m_pPerInstInfo.SetValue((Dictionary *) pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(dwAllocSize)));
 
-    TypeHandle * pInstDest = (TypeHandle *)m_pPerInstInfo;
+    TypeHandle * pInstDest = (TypeHandle *) IMD_GetMethodDictionaryNonNull();
     for(unsigned int i = 0; i < numTyPars; i++)
     {
         hEnumTyPars.EnumNext(&tkTyPar);
@@ -1554,7 +1529,7 @@ void InstantiatedMethodDesc::SetupWrapperStubWithInstantiations(MethodDesc* wrap
 
     m_pWrappedMethodDesc.SetValue(wrappedMD);
     m_wFlags2 = WrapperStubWithInstantiations | (m_wFlags2 & ~KindMask);
-    m_pPerInstInfo = (Dictionary*)pInst;
+    m_pPerInstInfo.SetValueMaybeNull((Dictionary*)pInst);
 
     _ASSERTE(FitsIn<WORD>(numGenericArgs));
     m_wNumGenericArgs = static_cast<WORD>(numGenericArgs);
@@ -1572,12 +1547,12 @@ void InstantiatedMethodDesc::SetupSharedMethodInstantiation(DWORD numGenericArgs
     _ASSERTE(numGenericArgs != 0);
     // Initially the dictionary layout is empty
     m_wFlags2 = SharedMethodInstantiation | (m_wFlags2 & ~KindMask);
-    m_pPerInstInfo = (Dictionary *)pPerInstInfo;
+    m_pPerInstInfo.SetValueMaybeNull((Dictionary *)pPerInstInfo);
 
     _ASSERTE(FitsIn<WORD>(numGenericArgs));
     m_wNumGenericArgs = static_cast<WORD>(numGenericArgs);
 
-    m_pDictLayout = pDL;
+    m_pDictLayout.SetValueMaybeNull(pDL);
 
 
     _ASSERTE(IMD_IsSharedByGenericMethodInstantiations());
@@ -1590,7 +1565,7 @@ void InstantiatedMethodDesc::SetupUnsharedMethodInstantiation(DWORD numGenericAr
 
     // The first field is never used
     m_wFlags2 = UnsharedMethodInstantiation | (m_wFlags2 & ~KindMask);
-    m_pPerInstInfo = (Dictionary *)pInst;
+    m_pPerInstInfo.SetValueMaybeNull((Dictionary *)pInst);
 
     _ASSERTE(FitsIn<WORD>(numGenericArgs));
     m_wNumGenericArgs = static_cast<WORD>(numGenericArgs);

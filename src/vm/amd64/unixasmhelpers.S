@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -63,21 +62,19 @@ DoRestore:
         // So, if m_pReg points into the MachState, we need to update
         // the register here.  That's what this macro does.
         //
-#define RestoreReg(reg) \
-        lea     rax, [rdi + OFFSETOF__MachState__m_Capture##reg]; \
-        mov     rdx, [rdi + OFFSETOF__MachState__m_p##reg]; \
+#define RestoreReg(reg, regnum) \
+        lea     rax, [rdi + OFFSETOF__MachState__m_Capture + 8 * regnum]; \
+        mov     rdx, [rdi + OFFSETOF__MachState__m_Ptrs + 8 * regnum]; \
         cmp     rax, rdx; \
         cmove   reg, [rax];
-// .endm
 
-        //RestoreReg(Rdi)
-        //RestoreReg(Rsi)
-        RestoreReg(Rbx)
-        RestoreReg(Rbp)
-        RestoreReg(R12)
-        RestoreReg(R13)
-        RestoreReg(R14)
-        RestoreReg(R15)
+        // regnum has to match ENUM_CALLEE_SAVED_REGISTERS macro
+        RestoreReg(R12, 0)
+        RestoreReg(R13, 1)
+        RestoreReg(R14, 2)
+        RestoreReg(R15, 3)
+        RestoreReg(Rbx, 4)
+        RestoreReg(Rbp, 5)
 
         xor     eax, eax
         ret
@@ -139,8 +136,8 @@ NESTED_END NDirectImportThunk, _TEXT
 // MOVDQA is not an atomic operation.  You need to call this function in a crst.
 // </NOTE>
 LEAF_ENTRY moveOWord, _TEXT
-        movdqu          xmm0, [rdi]
-        movdqu          [rsi], xmm0
+        movdqu          xmm0, xmmword ptr [rdi]
+        movdqu          xmmword ptr [rsi], xmm0
 
         ret
 LEAF_END moveOWord, _TEXT
@@ -159,20 +156,62 @@ NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
     alloc_stack         0x28
     END_PROLOGUE
     // First float return register
-    movdqa              [rsp], xmm0
+    movdqa              xmmword ptr [rsp], xmm0
     // Second float return register
-    movdqa              [rsp+0x10], xmm1
+    movdqa              xmmword ptr [rsp+0x10], xmm1
 
     call                C_FUNC(JIT_RareDisableHelperWorker)
 
-    movdqa              xmm0, [rsp]
-    movdqa              xmm1, [rsp+0x10]
+    movdqa              xmm0, xmmword ptr [rsp]
+    movdqa              xmm1, xmmword ptr [rsp+0x10]
     free_stack          0x28
     pop_register        rdx
     pop_register        rax
     ret
 
 NESTED_END JIT_RareDisableHelper, _TEXT
+
+#ifdef FEATURE_HIJACK
+
+//------------------------------------------------
+// OnHijackTripThread
+//
+NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
+
+    // Make room for the real return address (rip)
+    push_register rax
+
+    PUSH_CALLEE_SAVED_REGISTERS
+
+    push_register rdx
+    // Push rax again - this is where integer/pointer return values are returned
+    push_register rax
+
+    mov                 rdi, rsp
+
+    alloc_stack         0x28
+
+    // First float return register
+    movdqa              [rsp], xmm0
+    // Second float return register
+    movdqa              [rsp+0x10], xmm1
+
+    END_PROLOGUE
+
+    call                C_FUNC(OnHijackWorker)
+
+    movdqa              xmm0, [rsp]
+    movdqa              xmm1, [rsp+0x10]
+    free_stack          0x28
+    pop_register        rax
+    pop_register        rdx
+
+    POP_CALLEE_SAVED_REGISTERS
+    ret
+
+NESTED_END OnHijackTripThread, _TEXT
+
+#endif // FEATURE_HIJACK
 
 LEAF_ENTRY SinglecastDelegateInvokeStub, _TEXT                                        
                                                                                       

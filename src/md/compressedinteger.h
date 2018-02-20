@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: CompressedInteger.h
 // 
@@ -67,6 +66,7 @@ public:
     // Returns FALSE if the value cannot be encoded as compressed integer, doesn't fill *pcbEncodingSize 
     // then.
     __checkReturn 
+    __success(return)
     static inline BOOL GetEncodingSize(
               UINT32  nValue, 
         __out UINT32 *pcbEncodingSize);
@@ -74,6 +74,7 @@ public:
     // *pcbEncodingSize with 1, 2 or 4 and *pnEncodedValue with the encoded value.
     // Returns FALSE if the value cannot be encoded as compressed integer, doesn't fill *pcbEncodingSize 
     // nor *pnEncodedValue then.
+    __success(return)
     static inline BOOL Encode(
               UINT32  nValue, 
         __out UINT32 *pnEncodedValue, 

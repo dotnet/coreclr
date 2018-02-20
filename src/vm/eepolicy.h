@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -125,7 +124,7 @@ public:
 
     static void HandleExitProcess(ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete);
 
-    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL);
+    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, LPCWSTR errorSource=NULL);
 
     static void DECLSPEC_NORETURN HandleFatalStackOverflow(EXCEPTION_POINTERS *pException, BOOL fSkipDebugger = FALSE);
 
@@ -148,7 +147,7 @@ private:
     BOOL IsValidActionForFailure(EClrFailure failure, EPolicyAction action);
     EPolicyAction GetFinalAction(EPolicyAction action, Thread *pThread);
 
-    static void LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage, PEXCEPTION_POINTERS pExceptionInfo);
+    static void LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource);
 
     // IMPORTANT NOTE: only the following two functions should be calling ExitProcessViaShim.
     // - CorHost2::ExitProcess
@@ -188,5 +187,8 @@ extern ULONGLONG GetObjFinalizeStartTime();
 
 // FailFast with specific error code and exception details
 #define EEPOLICY_HANDLE_FATAL_ERROR_USING_EXCEPTION_INFO(_exitcode, _pExceptionInfo) EEPolicy::HandleFatalError(_exitcode, GetCurrentIP(), NULL, _pExceptionInfo);
+
+// Failfast with specific error code, exception details, and debug info
+#define EEPOLICY_HANDLE_FATAL_ERROR_USING_EXCEPTION_AND_DEBUG_INFO(_exitcode, _pExceptionInfo, _isDebug) EEPolicy::HandleFatalError(_exitcode, GetCurrentIP(), NULL, _pExceptionInfo, _isDebug);
 
 #endif  // EEPOLICY_H_

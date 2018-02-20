@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: debugger.h
 //
@@ -49,7 +48,6 @@
 #include "dllimportcallback.h"
 
 #include "canary.h"
-#include "inprocdac.h"
 
 #undef ASSERT
 #define CRASH(x)  _ASSERTE(!x)
@@ -112,7 +110,10 @@ typedef DPTR(struct DebuggerIPCControlBlock) PTR_DebuggerIPCControlBlock;
 
 GPTR_DECL(Debugger,         g_pDebugger);
 GPTR_DECL(EEDebugInterface, g_pEEInterface);
+GVAL_DECL(ULONG,            CLRJitAttachState);
+#ifndef FEATURE_PAL
 GVAL_DECL(HANDLE,           g_hContinueStartupEvent);
+#endif
 extern DebuggerRCThread     *g_pRCThread;
 
 //---------------------------------------------------------------------------------------
@@ -226,7 +227,7 @@ private:
         startInCoop = bStartInCoop;
         conditional = bConditional;
 
-        if (!conditional || IFTHREAD && g_pEEInterface->GetThread() == NULL)
+        if (!conditional || (IFTHREAD && g_pEEInterface->GetThread() == NULL))
         {
             return;
         }
@@ -246,7 +247,7 @@ private:
 
     void LeaveInternal()
     {
-        if (!conditional || IFTHREAD && g_pEEInterface->GetThread() == NULL)
+        if (!conditional || (IFTHREAD && g_pEEInterface->GetThread() == NULL))
         {
             return;
         }
@@ -397,9 +398,9 @@ inline LPVOID PushedRegAddr(REGDISPLAY* pRD, LPVOID pAddr)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(_TARGET_AMD64_)
+#ifdef WIN64EXCEPTIONS
     if ( ((UINT_PTR)(pAddr) >= (UINT_PTR)pRD->pCurrentContextPointers) &&
-         ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pCurrentContextPointers + sizeof(_KNONVOLATILE_CONTEXT_POINTERS))) )
+         ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pCurrentContextPointers + sizeof(T_KNONVOLATILE_CONTEXT_POINTERS))) )
 #else
     if ( ((UINT_PTR)(pAddr) >= (UINT_PTR)pRD->pContext) &&
          ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pContext + sizeof(T_CONTEXT))) )
@@ -836,17 +837,9 @@ private:
     DebuggerIPCEvent * GetRCThreadReceiveBuffer()
     {
 #if defined(FEATURE_DBGIPC_TRANSPORT_VM)
-        DWORD useTransport = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_DbgUseTransport);
-        if(useTransport)
-        {
-            return reinterpret_cast<DebuggerIPCEvent *>(&m_receiveBuffer[0]);
-        }
-        else
-        {
-#endif  // FEATURE_DBGIPC_TRANSPORT_VM
-            return reinterpret_cast<DebuggerIPCEvent *>(&m_pDCB->m_receiveBuffer[0]);
-#ifdef FEATURE_DBGIPC_TRANSPORT_VM
-        }
+        return reinterpret_cast<DebuggerIPCEvent *>(&m_receiveBuffer[0]);
+#else
+        return reinterpret_cast<DebuggerIPCEvent *>(&m_pDCB->m_receiveBuffer[0]);
 #endif
     }
 
@@ -855,17 +848,9 @@ private:
     DebuggerIPCEvent * GetRCThreadSendBuffer()
     {
 #if defined(FEATURE_DBGIPC_TRANSPORT_VM)
-        DWORD useTransport = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_DbgUseTransport);
-        if(useTransport)
-        {
-            return reinterpret_cast<DebuggerIPCEvent *>(&m_sendBuffer[0]);
-        }
-        else
-        {
-#endif  // FEATURE_DBGIPC_TRANSPORT_VM
-            return reinterpret_cast<DebuggerIPCEvent *>(&m_pDCB->m_sendBuffer[0]);
-#ifdef FEATURE_DBGIPC_TRANSPORT_VM
-        }
+        return reinterpret_cast<DebuggerIPCEvent *>(&m_sendBuffer[0]);
+#else  // FEATURE_DBGIPC_TRANSPORT_VM
+        return reinterpret_cast<DebuggerIPCEvent *>(&m_pDCB->m_sendBuffer[0]);
 #endif  // FEATURE_DBGIPC_TRANSPORT_VM
     }
 
@@ -971,6 +956,7 @@ public:
 
         DebuggerJitInfo* m_pCurrent;
         Module* m_pLoaderModuleFilter;
+        MethodDesc* m_pMethodDescFilter;
     public:
         DJIIterator();
 
@@ -980,8 +966,12 @@ public:
 
     };
 
-    // Ensure the DJI cache is completely up to date. (This is heavy weight).
-    void CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pModuleFilter = NULL);
+    // Ensure the DJI cache is completely up to date. (This can be an expensive call, but
+    // much less so if pMethodDescFilter is used).
+    void CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pModuleFilter, MethodDesc * pMethodDescFilter);
+
+    // Ensure the DJI cache is up to date for a particular closed method desc
+    void CreateDJIsForMethodDesc(MethodDesc * pMethodDesc);
 
     // Get an iterator for all native blobs (accounts for Generics, Enc, + Prejiiting).
     // Must be stopped when we do this. This could be heavy weight.
@@ -989,7 +979,9 @@ public:
     // You may optionally pass pLoaderModuleFilter to restrict the DJIs iterated to
     // exist only on MethodDescs whose loader module matches the filter (pass NULL not
     // to filter by loader module).
-    void IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, DJIIterator * pEnum);
+    // You may optionally pass pMethodDescFilter to restrict the DJIs iterated to only
+    // a single generic instantiation.
+    void IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, MethodDesc * pMethodDescFilter, DJIIterator * pEnum);
 
 private:
     // The linked list of JIT's of this version of the method.   This will ALWAYS
@@ -1018,8 +1010,8 @@ public:
     DebuggerJitInfo * FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
 
     // Creating the Jit-infos.
-    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd);
-    DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr);
+    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, PCODE startAddr);
+    DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 
     void DeleteJitInfo(DebuggerJitInfo *dji);
@@ -1089,6 +1081,141 @@ protected:
     bool m_fHasInstrumentedILMap;
 };
 
+// ------------------------------------------------------------------------ *
+// Executable code memory management for the debugger heap.
+//
+//     Rather than allocating memory that needs to be executable on the process heap (which
+//     is forbidden on some flavors of SELinux and is generally a bad idea), we use the
+//     allocator below. It will handle allocating and managing the executable memory in a
+//     different part of the address space (not on the heap).
+// ------------------------------------------------------------------------ */
+
+#define DBG_MAX_EXECUTABLE_ALLOC_SIZE 48
+
+// Forward declaration
+struct DebuggerHeapExecutableMemoryPage;
+
+// ------------------------------------------------------------------------ */
+// DebuggerHeapExecutableMemoryChunk
+//
+// Each DebuggerHeapExecutableMemoryPage is divided into 64 of these chunks.
+// The first chunk is a BookkeepingChunk used for bookkeeping information
+// for the page, and the remaining ones are DataChunks and are handed out
+// by the allocator when it allocates memory.
+// ------------------------------------------------------------------------ */
+union DECLSPEC_ALIGN(64) DebuggerHeapExecutableMemoryChunk {
+
+    struct DataChunk
+    {
+        char data[DBG_MAX_EXECUTABLE_ALLOC_SIZE];
+
+        DebuggerHeapExecutableMemoryPage *startOfPage;
+
+        // The chunk number within the page.
+        uint8_t chunkNumber;
+
+    } data;
+
+    struct BookkeepingChunk
+    {
+        DebuggerHeapExecutableMemoryPage *nextPage;
+
+        uint64_t pageOccupancy;
+
+    } bookkeeping;
+
+    char _alignpad[64];
+};
+
+static_assert(sizeof(DebuggerHeapExecutableMemoryChunk) == 64, "DebuggerHeapExecutableMemoryChunk is expect to be 64 bytes.");
+
+// ------------------------------------------------------------------------ */
+// DebuggerHeapExecutableMemoryPage
+//
+// We allocate the size of DebuggerHeapExecutableMemoryPage each time we need
+// more memory and divide each page into DebuggerHeapExecutableMemoryChunks for
+// use. The pages are self describing; the first chunk contains information
+// about which of the other chunks are used/free as well as a pointer to 
+// the next page.
+// ------------------------------------------------------------------------ */
+struct DECLSPEC_ALIGN(4096) DebuggerHeapExecutableMemoryPage
+{
+    inline DebuggerHeapExecutableMemoryPage* GetNextPage()
+    {
+        return chunks[0].bookkeeping.nextPage;
+    }
+
+    inline void SetNextPage(DebuggerHeapExecutableMemoryPage* nextPage)
+    {
+        chunks[0].bookkeeping.nextPage = nextPage;
+    }
+
+    inline uint64_t GetPageOccupancy() const
+    {
+        return chunks[0].bookkeeping.pageOccupancy;
+    }
+
+    inline void SetPageOccupancy(uint64_t newOccupancy)
+    {
+        // Can't unset first bit of occupancy!
+        ASSERT((newOccupancy & 0x8000000000000000) != 0);
+
+        chunks[0].bookkeeping.pageOccupancy = newOccupancy;
+    }
+
+    inline void* GetPointerToChunk(int chunkNum) const
+    {
+        return (char*)this + chunkNum * sizeof(DebuggerHeapExecutableMemoryChunk);
+    }
+
+    DebuggerHeapExecutableMemoryPage()
+    {
+        SetPageOccupancy(0x8000000000000000); // only the first bit is set.
+        for (uint8_t i = 1; i < sizeof(chunks)/sizeof(chunks[0]); i++)
+        {
+            ASSERT(i != 0);
+            chunks[i].data.startOfPage = this;
+            chunks[i].data.chunkNumber = i;
+        }
+    }
+
+private:
+    DebuggerHeapExecutableMemoryChunk chunks[64];
+};
+
+// ------------------------------------------------------------------------ */
+// DebuggerHeapExecutableMemoryAllocator class
+// Handles allocation and freeing (and all necessary bookkeeping) for 
+// executable memory that the DebuggerHeap class needs. This is especially
+// useful on systems (like SELinux) where having executable code on the
+// heap is explicity disallowed for security reasons.
+// ------------------------------------------------------------------------ */
+
+class DebuggerHeapExecutableMemoryAllocator
+{
+public:
+    DebuggerHeapExecutableMemoryAllocator()
+    : m_pages(NULL)
+    , m_execMemAllocMutex(CrstDebuggerHeapExecMemLock, (CrstFlags)(CRST_UNSAFE_ANYMODE | CRST_REENTRANCY | CRST_DEBUGGER_THREAD))
+    { }
+
+    ~DebuggerHeapExecutableMemoryAllocator();
+
+    void* Allocate(DWORD numberOfBytes);
+    int Free(void* addr);
+
+private:
+    enum class ChangePageUsageAction {ALLOCATE, FREE};
+
+    DebuggerHeapExecutableMemoryPage* AddNewPage();
+    bool CheckPageForAvailability(DebuggerHeapExecutableMemoryPage* page, /* _Out_ */ int* chunkToUse);
+    void* ChangePageUsage(DebuggerHeapExecutableMemoryPage* page, int chunkNumber, ChangePageUsageAction action);
+
+private:
+    // Linked list of pages that have been allocated
+    DebuggerHeapExecutableMemoryPage* m_pages;
+    Crst m_execMemAllocMutex;
+};
 
 // ------------------------------------------------------------------------ *
 // DebuggerHeap class
@@ -1120,6 +1247,10 @@ protected:
 #ifdef USE_INTEROPSAFE_HEAP
     HANDLE m_hHeap;
 #endif
+    BOOL m_fExecutable;
+
+private:
+    DebuggerHeapExecutableMemoryAllocator *m_execMemAllocator;
 };
 
 class DebuggerJitInfo;
@@ -1672,7 +1803,9 @@ public:
 
 #ifndef DACCESS_COMPILE
     Debugger();
-    ~Debugger();
+    virtual ~Debugger();
+#else    
+    virtual ~Debugger() {}
 #endif
 
     // If 0, then not yet initialized. If non-zero, then LS is initialized.
@@ -1893,11 +2026,12 @@ public:
     DebuggerJitInfo *GetLatestJitInfoFromMethodDesc(MethodDesc * pMethodDesc);
 
 
-    HRESULT GetILToNativeMapping(MethodDesc *pMD, ULONG32 cMap, ULONG32 *pcMap,
+    HRESULT GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap,
                                  COR_DEBUG_IL_TO_NATIVE_MAP map[]);
 
     HRESULT GetILToNativeMappingIntoArrays(
-        MethodDesc * pMD, 
+        MethodDesc * pMethodDesc,
+        PCODE pCode, 
         USHORT cMapMax, 
         USHORT * pcMap,
         UINT ** prguiILOffset, 
@@ -1935,11 +2069,6 @@ public:
 
     void Terminate();
     void Continue();
-
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    VOID InvokeLegacyNetCFHostPauseCallback();
-    VOID InvokeLegacyNetCFHostResumeCallback();
-#endif
 
     bool HandleIPCEvent(DebuggerIPCEvent* event);
 
@@ -2074,7 +2203,7 @@ public:
     void SendInterceptExceptionComplete(Thread *thread);
 
     HRESULT AttachDebuggerForBreakpoint(Thread *thread,
-                                        __in_opt __in_z WCHAR *wszLaunchReason);
+                                        __in_opt WCHAR *wszLaunchReason);
 
 
     void ThreadIsSafe(Thread *thread);
@@ -2652,8 +2781,6 @@ public:
 
     bool ResumeThreads(AppDomain* pAppDomain);
 
-    static DWORD WaitForSingleObjectHelper(HANDLE handle, DWORD dwMilliseconds);
-
     void ProcessAnyPendingEvals(Thread *pThread);
 
     bool HasLazyData();
@@ -2723,13 +2850,7 @@ private:
 #endif
     LONG                  m_threadsAtUnsafePlaces;
     Volatile<BOOL>        m_jitAttachInProgress;
-
-    // True if after the jit attach we plan to send a managed non-catchup
-    // debug event
-    BOOL                  m_attachingForManagedEvent;
     BOOL                  m_launchingDebugger;
-    BOOL                  m_userRequestedDebuggerLaunch;
-
     BOOL                  m_LoggingEnabled;
     AppDomainEnumerationIPCBlock    *m_pAppDomainCB;
 
@@ -2758,6 +2879,9 @@ private:
         kRedirectedForDbgThreadControl,
         kRedirectedForUserSuspend,
         kRedirectedForYieldTask,
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
+        kRedirectedForGCStress,
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
         kMaxHijackFunctions,
     };
 
@@ -2805,11 +2929,6 @@ private:
 
     PTR_DebuggerLazyInit         m_pLazyData;
 
-#if defined(FEATURE_DBGIPC_TRANSPORT_VM)
-    InProcDac                    m_inProcDac;
-#endif // FEATURE_DBGIPC_TRANSPORT_VM
-
-
 
     // A list of all defines that affect layout of MD types
     typedef enum _Target_Defines
@@ -2849,8 +2968,10 @@ void RedirectedHandledJITCaseForDbgThreadControl_StubEnd();
 void RedirectedHandledJITCaseForUserSuspend_Stub();
 void RedirectedHandledJITCaseForUserSuspend_StubEnd();
 
-void RedirectedHandledJITCaseForYieldTask_Stub();
-void RedirectedHandledJITCaseForYieldTask_StubEnd();
+#if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
+void RedirectedHandledJITCaseForGCStress_Stub();
+void RedirectedHandledJITCaseForGCStress_StubEnd();
+#endif // HAVE_GCCOVER && _TARGET_AMD64_
 };
 
 
@@ -2957,6 +3078,9 @@ public:
 
 class DebuggerPendingFuncEvalTable : private CHashTableAndData<CNewZeroData>
 {
+  public:
+    virtual ~DebuggerPendingFuncEvalTable() = default;
+
   private:
 
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3040,6 +3164,11 @@ typedef DPTR(struct DebuggerModuleEntry) PTR_DebuggerModuleEntry;
 
 class DebuggerModuleTable : private CHashTableAndData<CNewZeroData>
 {
+#ifdef DACCESS_COMPILE
+  public:
+    virtual ~DebuggerModuleTable() = default;
+#endif
+
   private:
 
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3079,7 +3208,7 @@ public:
 #ifndef DACCESS_COMPILE
 
     DebuggerModuleTable();
-    ~DebuggerModuleTable();
+    virtual ~DebuggerModuleTable();
 
     void AddModule(DebuggerModule *module);
 
@@ -3146,6 +3275,9 @@ struct DebuggerMethodInfoEntry
 class DebuggerMethodInfoTable : private CHashTableAndData<CNewZeroData>
 {
     VPTR_BASE_CONCRETE_VTABLE_CLASS(DebuggerMethodInfoTable);
+
+  public:
+    virtual ~DebuggerMethodInfoTable() = default;
 
   private:
     BOOL Cmp(SIZE_T k1, const HASHENTRY * pc2)
@@ -3225,6 +3357,26 @@ public:
 #endif
 };
 
+class DebuggerEvalBreakpointInfoSegment
+{
+public:
+    // DebuggerEvalBreakpointInfoSegment contains just the breakpoint 
+    // instruction and a pointer to the associated DebuggerEval. It makes
+    // it easy to go from the instruction to the corresponding DebuggerEval
+    // object. It has been separated from the rest of the DebuggerEval 
+    // because it needs to be in a section of memory that's executable, 
+    // while the rest of DebuggerEval does not. By having it separate, we
+    // don't need to have the DebuggerEval contents in executable memory.
+    BYTE          m_breakpointInstruction[CORDbg_BREAK_INSTRUCTION_SIZE];
+    DebuggerEval *m_associatedDebuggerEval;
+
+    DebuggerEvalBreakpointInfoSegment(DebuggerEval* dbgEval)
+    : m_associatedDebuggerEval(dbgEval)
+    {
+        ASSERT(dbgEval != NULL);
+    }
+};
+
 /* ------------------------------------------------------------------------ *
  * DebuggerEval class
  *
@@ -3261,38 +3413,35 @@ public:
         FE_ABORT_RUDE = 2
     };
 
-    // Note: this first field must be big enough to hold a breakpoint
-    // instruction, and it MUST be the first field. (This
-    // is asserted in debugger.cpp)
-    BYTE                           m_breakpointInstruction[CORDbg_BREAK_INSTRUCTION_SIZE];
-    T_CONTEXT                      m_context;
-    Thread                        *m_thread;
-    DebuggerIPCE_FuncEvalType      m_evalType;
-    mdMethodDef                    m_methodToken;
-    mdTypeDef                      m_classToken;
-    ADID                           m_appDomainId;       // Safe even if AD unloaded
-    PTR_DebuggerModule             m_debuggerModule;     // Only valid if AD is still around
-    RSPTR_CORDBEVAL                m_funcEvalKey;
-    bool                           m_successful;        // Did the eval complete successfully
-    Debugger::AreValueTypesBoxed   m_retValueBoxing;        // Is the return value boxed?
-    unsigned int                   m_argCount;
-    unsigned int                   m_genericArgsCount;
-    unsigned int                   m_genericArgsNodeCount;
-    SIZE_T                         m_stringSize;
-    BYTE                          *m_argData;
-    MethodDesc                    *m_md;
-    PCODE                          m_targetCodeAddr;
-    INT64                          m_result;
-    TypeHandle                     m_resultType;
-    SIZE_T                         m_arrayRank;
-    FUNC_EVAL_ABORT_TYPE           m_aborting;          // Has an abort been requested, and what type.
-    bool                           m_aborted;           // Was this eval aborted
-    bool                           m_completed;          // Is the eval complete - successfully or by aborting
-    bool                           m_evalDuringException;
-    bool                           m_rethrowAbortException;
-    Thread::ThreadAbortRequester   m_requester;         // For aborts, what kind?
-    VMPTR_OBJECTHANDLE             m_vmObjectHandle;
-    TypeHandle                     m_ownerTypeHandle;
+    T_CONTEXT                          m_context;
+    Thread                            *m_thread;
+    DebuggerIPCE_FuncEvalType          m_evalType;
+    mdMethodDef                        m_methodToken;
+    mdTypeDef                          m_classToken;
+    ADID                               m_appDomainId;       // Safe even if AD unloaded
+    PTR_DebuggerModule                 m_debuggerModule;     // Only valid if AD is still around
+    RSPTR_CORDBEVAL                    m_funcEvalKey;
+    bool                               m_successful;        // Did the eval complete successfully
+    Debugger::AreValueTypesBoxed       m_retValueBoxing;        // Is the return value boxed?
+    unsigned int                       m_argCount;
+    unsigned int                       m_genericArgsCount;
+    unsigned int                       m_genericArgsNodeCount;
+    SIZE_T                             m_stringSize;
+    BYTE                              *m_argData;
+    MethodDesc                        *m_md;
+    PCODE                              m_targetCodeAddr;
+    ARG_SLOT                           m_result[NUMBER_RETURNVALUE_SLOTS];
+    TypeHandle                         m_resultType;
+    SIZE_T                             m_arrayRank;
+    FUNC_EVAL_ABORT_TYPE               m_aborting;          // Has an abort been requested, and what type.
+    bool                               m_aborted;           // Was this eval aborted
+    bool                               m_completed;          // Is the eval complete - successfully or by aborting
+    bool                               m_evalDuringException;
+    bool                               m_rethrowAbortException;
+    Thread::ThreadAbortRequester       m_requester;         // For aborts, what kind?
+    VMPTR_OBJECTHANDLE                 m_vmObjectHandle;
+    TypeHandle                         m_ownerTypeHandle;
+    DebuggerEvalBreakpointInfoSegment* m_bpInfoSegment;
 
     DebuggerEval(T_CONTEXT * pContext, DebuggerIPCE_FuncEvalInfo * pEvalInfo, bool fInException);
 
@@ -3301,10 +3450,9 @@ public:
 
     bool Init()
     {
-        _ASSERTE(DbgIsExecutable(&m_breakpointInstruction, sizeof(m_breakpointInstruction)));
+        _ASSERTE(DbgIsExecutable(&m_bpInfoSegment->m_breakpointInstruction, sizeof(m_bpInfoSegment->m_breakpointInstruction)));
         return true;
     }
-
 
     // The m_argData buffer holds both the type arg data (for generics) and the main argument data.
     //
@@ -3363,10 +3511,10 @@ public:
  * ------------------------------------------------------------------------ */
 
 class InteropSafe {};
-#define interopsafe (*(InteropSafe*)NULL)
+extern InteropSafe interopsafe;
 
 class InteropSafeExecutable {};
-#define interopsafeEXEC (*(InteropSafeExecutable*)NULL)
+extern InteropSafeExecutable interopsafeEXEC;
 
 #ifndef DACCESS_COMPILE
 inline void * __cdecl operator new(size_t n, const InteropSafe&)
@@ -3402,7 +3550,7 @@ inline void * __cdecl operator new[](size_t n, const InteropSafe&)
     return result;
 }
 
-inline void * __cdecl operator new(size_t n, const InteropSafe&, const NoThrow&)
+inline void * __cdecl operator new(size_t n, const InteropSafe&, const NoThrow&) throw()
 {
     CONTRACTL
     {
@@ -3421,7 +3569,7 @@ inline void * __cdecl operator new(size_t n, const InteropSafe&, const NoThrow&)
     return result;
 }
 
-inline void * __cdecl operator new[](size_t n, const InteropSafe&, const NoThrow&)
+inline void * __cdecl operator new[](size_t n, const InteropSafe&, const NoThrow&) throw()
 {
     CONTRACTL
     {
@@ -3527,7 +3675,7 @@ inline void * __cdecl operator new(size_t n, const InteropSafeExecutable&)
     return result;
 }
 
-inline void * __cdecl operator new(size_t n, const InteropSafeExecutable&, const NoThrow&)
+inline void * __cdecl operator new(size_t n, const InteropSafeExecutable&, const NoThrow&) throw()
 {
     CONTRACTL
     {
@@ -3611,7 +3759,7 @@ void DbgLogHelper(DebuggerIPCEventType event);
 // Helpers for cleanup
 // These are various utility functions, mainly where we factor out code.
 //-----------------------------------------------------------------------------
-void GetPidDecoratedName(__out_z __in_ecount(cBufSizeInChars) WCHAR * pBuf,
+void GetPidDecoratedName(__out_ecount(cBufSizeInChars) WCHAR * pBuf,
                          int cBufSizeInChars,
                          const WCHAR * pPrefix);
 
@@ -3830,4 +3978,3 @@ void FixupDispatcherContext(T_DISPATCHER_CONTEXT* pDispatcherContext, T_CONTEXT*
 #endif
 
 #endif /* DEBUGGER_H_ */
-

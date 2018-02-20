@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -9,9 +10,10 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,21 +29,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private DictionaryToMapAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // V Lookup(K key)
-        [SecurityCritical]
         internal V Lookup<K, V>(K key)
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             V value;
             bool keyFound = _this.TryGetValue(key, out value);
 
             if (!keyFound)
             {
-                Exception e = new KeyNotFoundException(Environment.GetResourceString("Arg_KeyNotFound"));
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
 
@@ -49,27 +50,24 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        [SecurityCritical]
         internal uint Size<K, V>()
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
-        
+
         // bool HasKey(K key)
-        [SecurityCritical]
         internal bool HasKey<K, V>(K key)
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // IMapView<K, V> GetView()
-        [SecurityCritical]
         internal IReadOnlyDictionary<K, V> GetView<K, V>()
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
-            Contract.Assert(_this != null);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
+            Debug.Assert(_this != null);
 
             // Note: This dictionary is not really read-only - you could QI for a modifiable
             // dictionary.  We gain some perf by doing this.  We believe this is acceptable.
@@ -82,35 +80,32 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Insert(K key, V value)
-        [SecurityCritical]
         internal bool Insert<K, V>(K key, V value)
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool replacing = _this.ContainsKey(key);
             _this[key] = value;
             return replacing;
         }
 
         // void Remove(K key)
-        [SecurityCritical]
         internal void Remove<K, V>(K key)
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool removed = _this.Remove(key);
 
             if (!removed)
             {
-                Exception e = new KeyNotFoundException(Environment.GetResourceString("Arg_KeyNotFound"));
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<K, V>()
         {
-            IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
+            IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             _this.Clear();
         }
     }

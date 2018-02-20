@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -7,19 +8,21 @@
 ** Purpose: A wrapper for establishing a WeakReference to a generic type.
 **
 ===========================================================*/
+
+using System;
+using System.Runtime.Serialization;
+using System.Security;
+using System.Runtime;
+using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+
 namespace System
 {
-    using System;
-    using System.Runtime.Serialization;
-    using System.Security;
-    using System.Runtime;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
     // This class is sealed to mitigate security issues caused by Object::MemberwiseClone.
-    public sealed class WeakReference<T> : ISerializable where T : class
+    public sealed class WeakReference<T> : ISerializable
+        where T : class
     {
         // If you fix bugs here, please fix them in WeakReference at the same time.
 
@@ -43,13 +46,13 @@ namespace System
 
         internal WeakReference(SerializationInfo info, StreamingContext context)
         {
-            if (info == null) {
-                throw new ArgumentNullException("info");
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
-            T target = (T)info.GetValue("TrackedObject", typeof(T));
-            bool trackResurrection = info.GetBoolean("TrackResurrection");
+            T target = (T)info.GetValue("TrackedObject", typeof(T)); // Do not rename (binary serialization)
+            bool trackResurrection = info.GetBoolean("TrackResurrection"); // Do not rename (binary serialization)
 
             Create(target, trackResurrection);
         }
@@ -79,10 +82,8 @@ namespace System
         private extern T Target
         {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             get;
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             set;
         }
 
@@ -93,27 +94,23 @@ namespace System
         // This is needed for subclasses deriving from WeakReference<T>, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         extern ~WeakReference();
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info == null) {
-                throw new ArgumentNullException("info");
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
-            info.AddValue("TrackedObject", this.Target, typeof(T));
-            info.AddValue("TrackResurrection", IsTrackResurrection());
+            info.AddValue("TrackedObject", this.Target, typeof(T)); // Do not rename (binary serialization)
+            info.AddValue("TrackResurrection", IsTrackResurrection()); // Do not rename (binary serialization)
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern void Create(T target, bool trackResurrection);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern bool IsTrackResurrection();
     }
 }

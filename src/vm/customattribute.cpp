@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -11,14 +10,13 @@
 #include "threads.h"
 #include "excep.h"
 #include "corerror.h"
-#include "security.h"
 #include "classnames.h"
 #include "fcall.h"
 #include "assemblynative.hpp"
 #include "typeparse.h"
-#include "securityattributes.h"
 #include "reflectioninvocation.h"
 #include "runtimehandles.h"
+#include "typestring.h"
 
 typedef InlineFactory<InlineSString<64>, 16> SStringFactory;
 
@@ -142,58 +140,56 @@ CustomAttributeManagedValues Attribute::GetManagedCaValue(CaValue* pCaVal)
 
     CustomAttributeManagedValues gc;
     ZeroMemory(&gc, sizeof(gc));
-   
-    CorSerializationType type = pCaVal->type.tag;
-    
-    if (type == SERIALIZATION_TYPE_ENUM)
-    {
-        gc.string = StringObject::NewString(pCaVal->type.szEnumName, pCaVal->type.cEnumName);                      
-    }
-    else if (type == SERIALIZATION_TYPE_STRING)
-    {
-        gc.string = NULL;
+    GCPROTECT_BEGIN(gc)
+    {  
+        CorSerializationType type = pCaVal->type.tag;
         
-        if (pCaVal->str.pStr)
-            gc.string = StringObject::NewString(pCaVal->str.pStr, pCaVal->str.cbStr);
-    }
-    else if (type == SERIALIZATION_TYPE_TYPE)
-    {
-        gc.string = StringObject::NewString(pCaVal->str.pStr, pCaVal->str.cbStr);              
-    }
-    else if (type == SERIALIZATION_TYPE_SZARRAY)
-    {
-        CorSerializationType arrayType = pCaVal->type.arrayType;
-        ULONG length = pCaVal->arr.length;
-        BOOL bAllBlittableCa = arrayType != SERIALIZATION_TYPE_ENUM;
-
-        if (length == (ULONG)-1)
-            return gc;
-        
-        gc.array = (CaValueArrayREF)AllocateValueSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
-        CustomAttributeValue* pValues = gc.array->GetDirectPointerToNonObjectElements();
-
-        for (COUNT_T i = 0; i < length; i ++)
-            Attribute::SetBlittableCaValue(&pValues[i], &pCaVal->arr[i], &bAllBlittableCa); 
-
-        if (!bAllBlittableCa)
+        if (type == SERIALIZATION_TYPE_ENUM)
         {
-            GCPROTECT_BEGIN(gc)
-            {   
-                if (arrayType == SERIALIZATION_TYPE_ENUM)
-                    gc.string = StringObject::NewString(pCaVal->type.szEnumName, pCaVal->type.cEnumName);                      
-                
+            gc.string = StringObject::NewString(pCaVal->type.szEnumName, pCaVal->type.cEnumName);                      
+        }
+        else if (type == SERIALIZATION_TYPE_STRING)
+        {
+            gc.string = NULL;
+            
+            if (pCaVal->str.pStr)
+                gc.string = StringObject::NewString(pCaVal->str.pStr, pCaVal->str.cbStr);
+        }
+        else if (type == SERIALIZATION_TYPE_TYPE)
+        {
+            gc.string = StringObject::NewString(pCaVal->str.pStr, pCaVal->str.cbStr);              
+        }
+        else if (type == SERIALIZATION_TYPE_SZARRAY)
+        {
+            CorSerializationType arrayType = pCaVal->type.arrayType;
+            ULONG length = pCaVal->arr.length;
+            BOOL bAllBlittableCa = arrayType != SERIALIZATION_TYPE_ENUM;
+
+            if (arrayType == SERIALIZATION_TYPE_ENUM)
+                gc.string = StringObject::NewString(pCaVal->type.szEnumName, pCaVal->type.cEnumName);  
+
+            if (length != (ULONG)-1)
+            {
+                gc.array = (CaValueArrayREF)AllocateValueSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
+                CustomAttributeValue* pValues = gc.array->GetDirectPointerToNonObjectElements();
+
                 for (COUNT_T i = 0; i < length; i ++)
+                    Attribute::SetBlittableCaValue(&pValues[i], &pCaVal->arr[i], &bAllBlittableCa); 
+
+                if (!bAllBlittableCa)
                 {
-                    CustomAttributeManagedValues managedCaValue = Attribute::GetManagedCaValue(&pCaVal->arr[i]);
-                    Attribute::SetManagedValue(
-                        managedCaValue,
-                        &gc.array->GetDirectPointerToNonObjectElements()[i]);
+                    for (COUNT_T i = 0; i < length; i ++)
+                    {
+                        CustomAttributeManagedValues managedCaValue = Attribute::GetManagedCaValue(&pCaVal->arr[i]);
+                        Attribute::SetManagedValue(
+                            managedCaValue,
+                            &gc.array->GetDirectPointerToNonObjectElements()[i]);
+                    }
                 }
             }
-            GCPROTECT_END();
         }
     }
-
+    GCPROTECT_END();
     return gc;
 }
 
@@ -909,91 +905,6 @@ FCIMPL5(VOID, COMCustomAttribute::ParseAttributeUsageAttribute, PVOID pData, ULO
 }
 FCIMPLEND
 
-FCIMPL4(VOID, COMCustomAttribute::GetSecurityAttributes, ReflectModuleBaseObject *pModuleUNSAFE, DWORD tkToken, CLR_BOOL fAssembly, PTRARRAYREF* ppArray)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF throwable = NULL;
-    REFLECTMODULEBASEREF refModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pModuleUNSAFE);
-
-    if(refModule == NULL)
-        FCThrowResVoid(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    Module *pModule = refModule->GetModule();
-
-    HELPER_METHOD_FRAME_BEGIN_2(throwable, refModule);
-    {
-        IMDInternalImport* pScope = pModule->GetMDImport();
-
-        DWORD action;    
-
-        CORSEC_ATTRSET_ARRAY aAttrset;
-        DWORD dwCount = 0;
-        for(action = 1; action <= dclMaximumValue; action++)
-        {
-            // We cannot use IsAssemblyDclAction(action) != fAssembly because CLR_BOOL is defined 
-            // as BYTE in PAL so it might contain a value other than 0 or 1.
-            if (IsNGenOnlyDclAction(action) || IsAssemblyDclAction(action) == !fAssembly)
-                continue;
-
-            HENUMInternalHolder hEnum(pScope);                                                                   
-            if (!hEnum.EnumPermissionSetsInit(tkToken, (CorDeclSecurity)action))
-                continue;
-
-            mdPermission tkPerm;
-            BYTE* pbBlob;
-            ULONG cbBlob;
-            DWORD dwAction;
-
-            while (pScope->EnumNext(&hEnum, &tkPerm))
-            {
-                IfFailThrow(pScope->GetPermissionSetProps(
-                    tkPerm,
-                    &dwAction,
-                    (void const **)&pbBlob,
-                    &cbBlob));
-                
-                CORSEC_ATTRSET* pAttrSet = &*aAttrset.Append();
-                IfFailThrow(BlobToAttributeSet(pbBlob, cbBlob, pAttrSet, dwAction));
-
-                dwCount += pAttrSet->dwAttrCount;
-            }
-        }
-
-        *ppArray = (PTRARRAYREF)AllocateObjectArray(dwCount, g_pObjectClass);
-
-        CQuickBytes qb;
-
-        COUNT_T c = 0;
-        for (COUNT_T i = 0; i < aAttrset.GetCount(); i ++)
-        {
-            CORSEC_ATTRSET& attrset = aAttrset[i];
-            OBJECTREF* attrArray = (OBJECTREF*)qb.AllocThrows(attrset.dwAttrCount * sizeof(OBJECTREF));
-            memset(attrArray, 0, attrset.dwAttrCount * sizeof(OBJECTREF));
-            {
-                // Convert to a managed array of attribute objects
-                DWORD dwErrorIndex;
-                HRESULT hr = E_FAIL;
-                GCPROTECT_ARRAY_BEGIN(*attrArray, attrset.dwAttrCount);
-                // This is very tricky.
-                // We have a GCFrame local here.  The local goes out of scope beyond for loop.  The stack location of the local
-                // is then reused by other variables, and the content in GCFrame may be changed.  But the Frame is still chained
-                // on our Thread object.
-                // If exception is thrown before we pop our frame chain, we will have corrupted frame chain.
-                hr = SecurityAttributes::AttributeSetToManaged(attrArray, &attrset, &throwable, &dwErrorIndex, true);
-                GCPROTECT_END();
-                if (FAILED(hr))
-                    COMPlusThrowHR(hr);
-
-                for (COUNT_T j = 0; j < attrset.dwAttrCount; j ++)
-                    (*ppArray)->SetAt(c++, attrArray[j]);
-            }
-            
-        }
-    }
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
 
 FCIMPL7(void, COMCustomAttribute::GetPropertyOrFieldData, ReflectModuleBaseObject *pModuleUNSAFE, BYTE** ppBlobStart, BYTE* pBlobEnd, STRINGREF* pName, CLR_BOOL* pbIsProperty, OBJECTREF* pType, OBJECTREF* value)
 {
@@ -1171,7 +1082,7 @@ TypeHandle COMCustomAttribute::GetTypeHandleFromBlob(Assembly *pCtorAssembly,
     TypeHandle nullTH;
     TypeHandle RtnTypeHnd;
 
-    switch (objType) {
+    switch ((DWORD)objType) {
     case SERIALIZATION_TYPE_BOOLEAN:
     case SERIALIZATION_TYPE_I1:
     case SERIALIZATION_TYPE_U1:
@@ -1333,7 +1244,7 @@ void COMCustomAttribute::ReadArray(Assembly *pCtorAssembly,
     
     ARG_SLOT element = 0;
 
-    switch (arrayType) {
+    switch ((DWORD)arrayType) {
     case SERIALIZATION_TYPE_BOOLEAN:
     case SERIALIZATION_TYPE_I1:
     case SERIALIZATION_TYPE_U1:
@@ -1457,7 +1368,7 @@ ARG_SLOT COMCustomAttribute::GetDataFromBlob(Assembly *pCtorAssembly,
     TypeHandle nullTH;
     TypeHandle typeHnd;
 
-    switch (type) {
+    switch ((DWORD)type) {
 
     case SERIALIZATION_TYPE_BOOLEAN:
     case SERIALIZATION_TYPE_I1:
@@ -1655,40 +1566,3 @@ ARG_SLOT COMCustomAttribute::GetDataFromBlob(Assembly *pCtorAssembly,
 
     return retValue;
 }
-
-FCIMPL2(VOID, COMCustomAttribute::PushSecurityContextFrame, SecurityContextFrame *pFrame, AssemblyBaseObject *pAssemblyObjectUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
-
-    // Adjust frame pointer for the presence of the GSCookie at a negative
-    // offset (it's hard for us to express neginfo in the managed definition of
-    // the frame).
-    pFrame = (SecurityContextFrame*)((BYTE*)pFrame + sizeof(GSCookie));
-
-    *((TADDR*)pFrame) = SecurityContextFrame::GetMethodFrameVPtr();
-    pFrame->SetAssembly(pAssemblyObjectUNSAFE->GetAssembly());
-    *pFrame->GetGSCookiePtr() = GetProcessGSCookie();
-    pFrame->Push();
-
-    END_SO_INTOLERANT_CODE;
-}
-FCIMPLEND
-
-FCIMPL1(VOID, COMCustomAttribute::PopSecurityContextFrame, SecurityContextFrame *pFrame)
-{
-    FCALL_CONTRACT;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
-
-    // Adjust frame pointer for the presence of the GSCookie at a negative
-    // offset (it's hard for us to express neginfo in the managed definition of
-    // the frame).
-    pFrame = (SecurityContextFrame*)((BYTE*)pFrame + sizeof(GSCookie));
-
-    pFrame->Pop();
-
-    END_SO_INTOLERANT_CODE;
-}
-FCIMPLEND

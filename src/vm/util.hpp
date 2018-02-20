@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // util.hpp
 //
@@ -26,7 +25,6 @@
 
                   
 // Prevent the use of UtilMessageBox and WszMessageBox from inside the EE.
-#ifndef CLR_STANDALONE_BINDER
 #undef UtilMessageBoxCatastrophic
 #undef UtilMessageBoxCatastrophicNonLocalized
 #undef UtilMessageBoxCatastrophic
@@ -45,6 +43,12 @@
 #define UtilMessageBoxVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define UtilMessageBoxNonLocalizedVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
+
+// Hot cache lines need to be aligned to cache line size to improve performance
+#if defined(ARM64)
+#define MAX_CACHE_LINE_SIZE 128
+#else
+#define MAX_CACHE_LINE_SIZE 64
 #endif
 
 //========================================================================
@@ -357,29 +361,10 @@ HRESULT VMPostError(                    // Returned error.
     ...);                               // Error arguments.
     
 //=====================================================================
-// Displays the messaage box or logs the message, corresponding to the last COM+ error occured
+// Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
 void VMDumpCOMErrors(HRESULT hrErr);
-HRESULT LoadMscorsn();
 
 #include "nativevaraccessors.h"
-
-#ifndef FEATURE_PAL
-
-HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_PATH) LPWSTR pszwPath);
-HRESULT WszShellExecute(HWND hwnd, LPCTSTR lpOperation, LPCTSTR lpFile, LPCTSTR lpParameters, LPCTSTR lpDirectory, INT nShowCmd);
-
-#ifndef DACCESS_COMPILE
-#include "shellapi.h"
-HRESULT WszShellExecuteEx(LPSHELLEXECUTEINFO lpExecInfo);
-#endif // #ifndef DACCESS_COMPILE
-
-#endif // !FEATURE_PAL
-
-BOOL GetUserDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount, BOOL fRoaming);
-BOOL GetInternetCacheDir(__out_ecount(bufferCount) WCHAR * buffer, size_t bufferCount );
-
-HRESULT GetUserSidString (HANDLE hToken,  __deref_out LPWSTR *wszSid);
-BOOL IsUserProfileLoaded();
 
 //======================================================================
 // Stack friendly registry helpers
@@ -652,14 +637,14 @@ public:
     }
 #endif
 
-    void SetThreadId()
+    void SetToCurrentThread()
     {
         WRAPPER_NO_CONTRACT;
 
         m_FiberPtrId = ClrTeb::GetFiberPtrId();
     }
 
-    BOOL IsSameThread() const
+    bool IsCurrentThread() const
     {
         WRAPPER_NO_CONTRACT;
 
@@ -668,29 +653,19 @@ public:
 
     
 #ifdef _DEBUG
-    BOOL IsUnknown() const
+    bool IsUnknown() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_FiberPtrId == NULL;
     }
 #endif
-    void ResetThreadId()
+    void Clear()
     {
         LIMITED_METHOD_CONTRACT;
         m_FiberPtrId = NULL;
     }
 };
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-#define CLRMEMORYHOSTED                             0x1
-#define CLRTASKHOSTED                               0x2
-#define CLRSYNCHOSTED                               0x4
-#define CLRTHREADPOOLHOSTED                         0x8
-#define CLRIOCOMPLETIONHOSTED                       0x10
-#define CLRASSEMBLYHOSTED                           0x20
-#define CLRGCHOSTED                                 0x40
-#define CLRSECURITYHOSTED                           0x80
-#endif
 #define CLRHOSTED           0x80000000
 
 GVAL_DECL(DWORD, g_fHostConfig);
@@ -702,110 +677,6 @@ inline BOOL CLRHosted()
 
     return g_fHostConfig;
 }
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-inline BOOL CLRMemoryHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRMEMORYHOSTED;
-}
-
-inline BOOL CLRTaskHosted()
-{
-    // !!! Can not use contract here.
-    // !!! This function is called by Thread::DetachThread after we free TLS memory.
-    // !!! Contract will recreate TLS memory.
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return g_fHostConfig&CLRTASKHOSTED;
-}
-
-inline BOOL CLRSyncHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRSYNCHOSTED;
-}
-inline BOOL CLRThreadpoolHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRTHREADPOOLHOSTED;
-}
-inline BOOL CLRIoCompletionHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRIOCOMPLETIONHOSTED;
-}
-inline BOOL CLRAssemblyHosted()
-{
-    return g_fHostConfig&CLRASSEMBLYHOSTED;
-}
-
-inline BOOL CLRGCHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRGCHOSTED;
-}
-
-inline BOOL CLRSecurityHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRSECURITYHOSTED;
-}
-#else // FEATURE_INCLUDE_ALL_INTERFACES
-inline BOOL CLRMemoryHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRTaskHosted()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRSyncHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRThreadpoolHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRIoCompletionHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRAssemblyHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRGCHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRSecurityHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 #ifndef FEATURE_PAL
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName);
@@ -877,30 +748,17 @@ BOOL IsHostRegisteredForEvent(EClrEvent event);
 SetupThreadForComCall(OOMRetVal);                       \
 if (CheckCanRunManagedCode && !CanRunManagedCode())     \
     return CannotEnterRetVal;                           \
-SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)  \
-
-#define ComCallHostNotificationHR()                                         \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    HRESULT hr = REHolder.AcquireNoThrow();                                 \
-    if (FAILED(hr))                                                         \
-    {                                                                       \
-        return hr;                                                          \
-    }                                                                       \
-}
+SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)
 
 #define SetupForComCallHRNoHostNotif() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 #define SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
 #define SetupForComCallDWORDNoHostNotif() InternalSetupForComCall(-1, -1, -1, true)
 
 #define SetupForComCallHR()                                                                \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)  \
-ComCallHostNotificationHR()
+InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 
 #define SetupForComCallHRNoCheckCanRunManagedCode()                                        \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false) \
-ComCallHostNotificationHR()
+InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -915,11 +773,6 @@ BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, SORetVal)                  \
 #define BeginSetupForComCallHRWithEscapingCorruptingExceptions()            \
 HRESULT __hr = S_OK;                                                        \
 InternalSetupForComCallWithEscapingCorruptingExceptions(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)              \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    __hr = REHolder.AcquireNoThrow();                                       \
-}                                                                           \
                                                                             \
 if (SUCCEEDED(__hr))                                                        \
 {                                                                           \
@@ -936,28 +789,12 @@ if (FAILED(__hr))                                                           \
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
 #define SetupForComCallDWORD()                                              \
-InternalSetupForComCall(-1, -1, -1, true)                                   \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    if (FAILED(REHolder.AcquireNoThrow()))                                  \
-    {                                                                       \
-        return -1;                                                          \
-    }                                                                       \
-}
+InternalSetupForComCall(-1, -1, -1, true)
 
 // Special version of SetupForComCallDWORD that doesn't call
 // CanRunManagedCode() to avoid firing LoaderLock MDA
 #define SetupForComCallDWORDNoCheckCanRunManagedCode()                      \
-InternalSetupForComCall(-1, -1, -1, false)                                  \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    if (FAILED(REHolder.AcquireNoThrow()))                                  \
-    {                                                                       \
-        return -1;                                                          \
-    }                                                                       \
-}
+InternalSetupForComCall(-1, -1, -1, false)
 
 #include "unsafe.h"
 
@@ -988,8 +825,6 @@ FORCEINLINE void VoidFreeWinAllocatedBlock(LPVOID pv)
 {
     LIMITED_METHOD_CONTRACT;
 
-    _ASSERTE(!CLRMemoryHosted());
-
 #pragma push_macro("GetProcessHeap")
 #pragma push_macro("HeapFree")
 #undef GetProcessHeap
@@ -1004,7 +839,6 @@ typedef Wrapper<LPVOID, DoNothing<LPVOID>, VoidFreeWinAllocatedBlock, NULL> WinA
 
 #endif // !FEATURE_PAL
 
-#ifndef CLR_STANDALONE_BINDER
 // For debugging, we can track arbitrary Can't-Stop regions.
 // In V1.0, this was on the Thread object, but we need to track this for threads w/o a Thread object.
 FORCEINLINE void IncCantStopCount()
@@ -1034,7 +868,6 @@ inline bool IsInCantStopRegion()
     return (GetCantStopCount() > 0);
 }
 #endif // _DEBUG
-#endif // !CLR_STANDALONE_BINDER
 
 
 // PAL does not support per-thread locales. The holder is no-op for FEATURE_PALs
@@ -1078,8 +911,23 @@ struct JITNotification
     }
 };
 
-GPTR_DECL(JITNotification,g_pNotificationTable);
+// The maximum number of TADDR sized arguments that the SOS exception notification can use
+#define MAX_CLR_NOTIFICATION_ARGS 3
+GARY_DECL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
+extern void InitializeClrNotifications();
+
+GPTR_DECL(JITNotification, g_pNotificationTable);
 GVAL_DECL(ULONG32, g_dacNotificationFlags);
+
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)
+
+inline void
+InitializeJITNotificationTable()
+{
+    g_pNotificationTable = new (nothrow) JITNotification[1001];
+}
+
+#endif // FEATURE_PAL && !DACCESS_COMPILE
 
 class JITNotifications
 {
@@ -1223,15 +1071,16 @@ public:
         MODULE_LOAD_NOTIFICATION=1,
         MODULE_UNLOAD_NOTIFICATION=2,
         JIT_NOTIFICATION=3,
-        JIT_DISCARD_NOTIFICATION=4,
+        JIT_PITCHING_NOTIFICATION=4,
         EXCEPTION_NOTIFICATION=5,
         GC_NOTIFICATION= 6,
         CATCH_ENTER_NOTIFICATION = 7,
+        JIT_NOTIFICATION2=8,
     };
     
     // called from the runtime
-    static void DoJITNotification(MethodDesc *MethodDescPtr);
-    static void DoJITDiscardNotification(MethodDesc *MethodDescPtr);    
+    static void DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation);
+    static void DoJITPitchingNotification(MethodDesc *MethodDescPtr);
     static void DoModuleLoadNotification(Module *Module);
     static void DoModuleUnloadNotification(Module *Module);
     static void DoExceptionNotification(class Thread* ThreadPtr);
@@ -1240,8 +1089,8 @@ public:
 
     // called from the DAC
     static int GetType(TADDR Args[]);
-    static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr);
-    static BOOL ParseJITDiscardNotification(TADDR Args[], TADDR& MethodDescPtr);
+    static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation);
+    static BOOL ParseJITPitchingNotification(TADDR Args[], TADDR& MethodDescPtr);
     static BOOL ParseModuleLoadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseModuleUnloadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseExceptionNotification(TADDR Args[], TADDR& ThreadPtr);
@@ -1284,35 +1133,7 @@ public:
 
 extern LONG g_OLEAUT32_Loaded;
 
-#ifndef FEATURE_CORECLR
-#define ENSURE_OLEAUT32_LOADED()                                            \
-{                                                                           \
-    /* Should only be used in FCALL */                                      \
-    _ASSERTE (__me != 0);                                                   \
-    if (g_OLEAUT32_Loaded == 0)                                             \
-    {                                                                       \
-        /* CLRLoadLibrary/CLRFreeLibrary claim they trigger, but this */    \
-        /* isn't really true in this case because we're loading oleaut32 */ \
-        /* which we know doesn't contain any managed code in its DLLMain */ \
-        CONTRACT_VIOLATION(GCViolation|SOToleranceViolation);               \
-        HMODULE hMod = CLRLoadLibrary(W("oleaut32"));                         \
-        if (hMod == NULL)                                                   \
-        {                                                                   \
-            __FCThrow(__me, kOutOfMemoryException, 0, 0, 0, 0);             \
-        }                                                                   \
-        else                                                                \
-        {                                                                   \
-            if (FastInterlockExchange(&g_OLEAUT32_Loaded, 1) == 1)          \
-            {                                                               \
-                CLRFreeLibrary(hMod);                                       \
-            }                                                               \
-        }                                                                   \
-    }                                                                       \
-}                                                                           \
-INDEBUG(DisableDelayLoadCheckForOleaut32 _disableOleaut32Check);
-#else // !FEATURE_CORECLR
 #define ENSURE_OLEAUT32_LOADED()
-#endif // !FEATURE_CORECLR
 
 BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);
 

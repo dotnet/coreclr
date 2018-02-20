@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: OleVariant.cpp
 // 
@@ -15,7 +14,6 @@
 #include "excep.h"
 #include "frames.h"
 #include "vars.hpp"
-#include "security.h"
 #include "olevariant.h"
 #include "comdatetime.h"
 #include "fieldmarshaler.h"
@@ -996,8 +994,8 @@ VariantArray:
             ClearLPWSTRArray
         );
 
-#ifdef FEATURE_CLASSIC_COMINTEROP
     case VT_RECORD:
+#ifdef FEATURE_CLASSIC_COMINTEROP
         RETURN_MARSHALER(
             MarshalRecordVariantOleToCom,
             MarshalRecordVariantComToOle,
@@ -1006,7 +1004,14 @@ VariantArray:
             MarshalRecordArrayComToOle,
             ClearRecordArray
         );
-#endif
+#else
+        RETURN_MARSHALER(
+            NULL, NULL, NULL,
+            MarshalRecordArrayOleToCom,
+            MarshalRecordArrayComToOle,
+            ClearRecordArray
+        );
+#endif // FEATURE_CLASSIC_COMINTEROP
 
     case VT_CARRAY:
     case VT_USERDEFINED:
@@ -1101,7 +1106,7 @@ void VariantData::NewVariant(VariantData * const& dest, const CVTypes type, INT6
     }
 }
 
-void SafeVariantClearHelper(VARIANT* pVar)
+void SafeVariantClearHelper(_Inout_ VARIANT* pVar)
 {
     STATIC_CONTRACT_SO_INTOLERANT;
     WRAPPER_NO_CONTRACT;
@@ -1269,7 +1274,8 @@ void OleVariant::MarshalBoolArrayOleToCom(void *oleArray, BASEARRAYREF *pComArra
 
 void OleVariant::MarshalBoolArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar,
+                                          BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -1282,10 +1288,9 @@ void OleVariant::MarshalBoolArrayComToOle(BASEARRAYREF *pComArray, void *oleArra
     CONTRACTL_END;
     
     ASSERT_PROTECTED(pComArray);
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
 
     VARIANT_BOOL *pOle = (VARIANT_BOOL *) oleArray;
-    VARIANT_BOOL *pOleEnd = pOle + elementCount;
+    VARIANT_BOOL *pOleEnd = pOle + cElements;
     
     UCHAR *pCom = (UCHAR *) (*pComArray)->GetDataPtr();
 
@@ -1359,7 +1364,8 @@ void OleVariant::MarshalWinBoolArrayOleToCom(void *oleArray, BASEARRAYREF *pComA
 
 void OleVariant::MarshalWinBoolArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar, 
+                                          BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -1372,10 +1378,9 @@ void OleVariant::MarshalWinBoolArrayComToOle(BASEARRAYREF *pComArray, void *oleA
     CONTRACTL_END;
     
     ASSERT_PROTECTED(pComArray);
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
 
     BOOL *pOle = (BOOL *) oleArray;
-    BOOL *pOleEnd = pOle + elementCount;
+    BOOL *pOleEnd = pOle + cElements;
     
     UCHAR *pCom = (UCHAR *) (*pComArray)->GetDataPtr();
 
@@ -1449,7 +1454,8 @@ void OleVariant::MarshalCBoolArrayOleToCom(void* oleArray, BASEARRAYREF* pComArr
 
 void OleVariant::MarshalCBoolArrayComToOle(BASEARRAYREF* pComArray, void* oleArray,
                                         MethodTable* pInterfaceMT, BOOL fBestFitMapping,
-                                        BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                        BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid,
+                                        SIZE_T cElements)
 {
     LIMITED_METHOD_CONTRACT;
       
@@ -1466,10 +1472,9 @@ void OleVariant::MarshalCBoolArrayComToOle(BASEARRAYREF* pComArray, void* oleArr
     ASSERT_PROTECTED(pComArray);
     
     _ASSERTE((*pComArray)->GetArrayElementType() == ELEMENT_TYPE_BOOLEAN);
-
-    SIZE_T cbArray = (*pComArray)->GetNumComponents();
+        
     BYTE *pOle = (BYTE *) oleArray;
-    BYTE *pOleEnd = pOle + cbArray;
+    BYTE *pOleEnd = pOle + cElements;
     
     UCHAR *pCom = (UCHAR *) (*pComArray)->GetDataPtr();
       
@@ -1548,7 +1553,8 @@ void OleVariant::MarshalAnsiCharArrayOleToCom(void *oleArray, BASEARRAYREF *pCom
 
 void OleVariant::MarshalAnsiCharArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid,
+                                          SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -1559,15 +1565,13 @@ void OleVariant::MarshalAnsiCharArrayComToOle(BASEARRAYREF *pComArray, void *ole
         PRECONDITION(CheckPointer(pComArray));
     }
     CONTRACTL_END;
-    
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
 
     const WCHAR *pCom = (const WCHAR *) (*pComArray)->GetDataPtr();
 
-    if (!FitsIn<int>(elementCount))
+    if (!FitsIn<int>(cElements))
         COMPlusThrowHR(COR_E_OVERFLOW);
 
-    int cchCount = (int)elementCount;
+    int cchCount = (int)cElements;
     int cbBuffer;
 
     if (!ClrSafeInt<int>::multiply(cchCount, GetMaxDBCSCharByteSize(), cbBuffer))
@@ -1717,10 +1721,6 @@ void OleVariant::MarshalInterfaceArrayOleToCom(void *oleArray, BASEARRAYREF *pCo
     BASEARRAYREF unprotectedArray = *pComArray;
     OBJECTREF *pCom = (OBJECTREF *) unprotectedArray->GetDataPtr();
 
-#if CHECK_APP_DOMAIN_LEAKS
-    AppDomain *pDomain = unprotectedArray->GetAppDomain();
-#endif  // CHECK_APP_DOMAIN_LEAKS
-
     OBJECTREF obj = NULL; 
     GCPROTECT_BEGIN(obj)
     {
@@ -1768,11 +1768,12 @@ void OleVariant::MarshalInterfaceArrayOleToCom(void *oleArray, BASEARRAYREF *pCo
 
 void OleVariant::MarshalIUnknownArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                               MethodTable *pElementMT, BOOL fBestFitMapping,
-                                              BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                              BOOL fThrowOnUnmappableChar, 
+                                              BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     WRAPPER_NO_CONTRACT;
     
-    MarshalInterfaceArrayComToOleHelper(pComArray, oleArray, pElementMT, FALSE);
+    MarshalInterfaceArrayComToOleHelper(pComArray, oleArray, pElementMT, FALSE, cElements);
 }
 
 void OleVariant::ClearInterfaceArray(void *oleArray, SIZE_T cElements, MethodTable *pInterfaceMT)
@@ -1881,10 +1882,6 @@ void OleVariant::MarshalBSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArra
 
     BASEARRAYREF unprotectedArray = *pComArray;
     STRINGREF *pCom = (STRINGREF *) unprotectedArray->GetDataPtr();
-    
-#if CHECK_APP_DOMAIN_LEAKS
-    AppDomain *pDomain = unprotectedArray->GetAppDomain();
-#endif  // CHECK_APP_DOMAIN_LEAKS
 
     while (pOle < pOleEnd)
     {
@@ -1913,7 +1910,8 @@ void OleVariant::MarshalBSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArra
 
 void OleVariant::MarshalBSTRArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar, 
+                                          BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -1931,10 +1929,8 @@ void OleVariant::MarshalBSTRArrayComToOle(BASEARRAYREF *pComArray, void *oleArra
     {
     ASSERT_PROTECTED(pComArray);
 
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
-
     BSTR *pOle = (BSTR *) oleArray;
-    BSTR *pOleEnd = pOle + elementCount;
+    BSTR *pOleEnd = pOle + cElements;
 
     STRINGREF *pCom = (STRINGREF *) (*pComArray)->GetDataPtr();
 
@@ -2015,7 +2011,8 @@ void OleVariant::MarshalNonBlittableRecordArrayOleToCom(void *oleArray, BASEARRA
 
 void OleVariant::MarshalNonBlittableRecordArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar, 
+                                          BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -2029,12 +2026,11 @@ void OleVariant::MarshalNonBlittableRecordArrayComToOle(BASEARRAYREF *pComArray,
     CONTRACTL_END;
     
     ASSERT_PROTECTED(pComArray);
-
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
+    
     SIZE_T elemSize     = pInterfaceMT->GetNativeSize();
 
     BYTE *pOle = (BYTE *) oleArray;
-    BYTE *pOleEnd = pOle + elemSize * elementCount;
+    BYTE *pOleEnd = pOle + elemSize * cElements;
 
     if (!fOleArrayIsValid)
     {
@@ -2100,10 +2096,6 @@ void OleVariant::MarshalLPWSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComAr
 
     BASEARRAYREF unprotectedArray = *pComArray;
     STRINGREF *pCom = (STRINGREF *) unprotectedArray->GetDataPtr();
-    
-#if CHECK_APP_DOMAIN_LEAKS
-    AppDomain *pDomain = unprotectedArray->GetAppDomain();
-#endif  // CHECK_APP_DOMAIN_LEAKS
 
     while (pOle < pOleEnd)
     {
@@ -2134,7 +2126,8 @@ void OleVariant::MarshalLPWSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComAr
 
 void OleVariant::MarshalLPWSTRRArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                              MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                             BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                             BOOL fThrowOnUnmappableChar, 
+                                             BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -2149,10 +2142,8 @@ void OleVariant::MarshalLPWSTRRArrayComToOle(BASEARRAYREF *pComArray, void *oleA
 
     ASSERT_PROTECTED(pComArray);
 
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
-
     LPWSTR *pOle = (LPWSTR *) oleArray;
-    LPWSTR *pOleEnd = pOle + elementCount;
+    LPWSTR *pOleEnd = pOle + cElements;
 
     STRINGREF *pCom = (STRINGREF *) (*pComArray)->GetDataPtr();
 
@@ -2241,10 +2232,6 @@ void OleVariant::MarshalLPSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArr
 
     BASEARRAYREF unprotectedArray = *pComArray;
     STRINGREF *pCom = (STRINGREF *) unprotectedArray->GetDataPtr();
-    
-#if CHECK_APP_DOMAIN_LEAKS
-    AppDomain *pDomain = unprotectedArray->GetAppDomain();
-#endif  // CHECK_APP_DOMAIN_LEAKS
 
     while (pOle < pOleEnd)
     {
@@ -2275,7 +2262,8 @@ void OleVariant::MarshalLPSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArr
 
 void OleVariant::MarshalLPSTRRArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                             MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                            BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                            BOOL fThrowOnUnmappableChar, 
+                                            BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -2290,10 +2278,8 @@ void OleVariant::MarshalLPSTRRArrayComToOle(BASEARRAYREF *pComArray, void *oleAr
 
     ASSERT_PROTECTED(pComArray);
 
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
-
     LPSTR *pOle = (LPSTR *) oleArray;
-    LPSTR *pOleEnd = pOle + elementCount;
+    LPSTR *pOleEnd = pOle + cElements;
 
     STRINGREF *pCom = (STRINGREF *) (*pComArray)->GetDataPtr();
 
@@ -2419,7 +2405,8 @@ void OleVariant::MarshalDateArrayOleToCom(void *oleArray, BASEARRAYREF *pComArra
 
 void OleVariant::MarshalDateArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                           MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                          BOOL fThrowOnUnmappableChar, 
+                                          BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -2432,11 +2419,9 @@ void OleVariant::MarshalDateArrayComToOle(BASEARRAYREF *pComArray, void *oleArra
     CONTRACTL_END;
     
     ASSERT_PROTECTED(pComArray);
-
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
-
+    
     DATE *pOle = (DATE *) oleArray;
-    DATE *pOleEnd = pOle + elementCount;
+    DATE *pOleEnd = pOle + cElements;
     
     INT64 *pCom = (INT64 *) (*pComArray)->GetDataPtr();
 
@@ -2561,12 +2546,6 @@ void OleVariant::MarshalRecordVariantOleToCom(VARIANT *pOleVariant,
             if (!pValueClass)
                 COMPlusThrow(kArgumentException, IDS_EE_CANNOT_MAP_TO_MANAGED_VC);
 
-            Module* pModule = pValueClass->GetModule();
-            if (!Security::CanCallUnmanagedCode(pModule))
-            {
-                COMPlusThrow(kArgumentException, IDS_EE_VTRECORD_SECURITY);
-            }
-
             // Now that we have the value class, allocate an instance of the 
             // boxed value class and copy the contents of the record into it.
             BoxedValueClass = AllocateObject(pValueClass);
@@ -2595,12 +2574,6 @@ void OleVariant::MarshalRecordVariantComToOle(VariantData *pComVariant,
     GCPROTECT_BEGIN(BoxedValueClass)
     {
         _ASSERTE(BoxedValueClass != NULL);
-        Module* pModule = BoxedValueClass->GetMethodTable()->GetModule();
-        if (!Security::CanCallUnmanagedCode(pModule))
-        {
-            COMPlusThrow(kArgumentException, IDS_EE_VTRECORD_SECURITY);
-        }
-
         ConvertValueClassToVariant(&BoxedValueClass, pOleVariant);
     }
     GCPROTECT_END();
@@ -2631,12 +2604,6 @@ void OleVariant::MarshalRecordArrayOleToCom(void *oleArray, BASEARRAYREF *pComAr
     }
     CONTRACTL_END;
 
-    Module* pModule = pElementMT->GetModule();
-    if (!Security::CanCallUnmanagedCode(pModule))
-    {
-        COMPlusThrow(kArgumentException, IDS_EE_VTRECORD_SECURITY);
-    }
-
     if (pElementMT->IsBlittable())
     {
         // The array is blittable so we can simply copy it.
@@ -2655,7 +2622,8 @@ void OleVariant::MarshalRecordArrayOleToCom(void *oleArray, BASEARRAYREF *pComAr
 
 void OleVariant::MarshalRecordArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                             MethodTable *pElementMT, BOOL fBestFitMapping,
-                                            BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                            BOOL fThrowOnUnmappableChar, 
+                                            BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -2668,25 +2636,18 @@ void OleVariant::MarshalRecordArrayComToOle(BASEARRAYREF *pComArray, void *oleAr
     }
     CONTRACTL_END;
 
-    Module* pModule = pElementMT->GetModule();
-    if (!Security::CanCallUnmanagedCode(pModule))
-    {
-        COMPlusThrow(kArgumentException, IDS_EE_VTRECORD_SECURITY);
-    }
-
     if (pElementMT->IsBlittable())
     {
         // The array is blittable so we can simply copy it.
         _ASSERTE(pComArray);
-        SIZE_T elementCount = (*pComArray)->GetNumComponents();
         SIZE_T elemSize     = pElementMT->GetNativeSize();
-        memcpyNoGCRefs(oleArray, (*pComArray)->GetDataPtr(), elementCount * elemSize);
+        memcpyNoGCRefs(oleArray, (*pComArray)->GetDataPtr(), cElements * elemSize);
     }
     else
     {
         // The array is non blittable so we need to marshal the elements.
         _ASSERTE(pElementMT->HasLayout());
-        MarshalNonBlittableRecordArrayComToOle(pComArray, oleArray, pElementMT, fBestFitMapping, fThrowOnUnmappableChar, fOleArrayIsValid);
+        MarshalNonBlittableRecordArrayComToOle(pComArray, oleArray, pElementMT, fBestFitMapping, fThrowOnUnmappableChar, fOleArrayIsValid, cElements);
     }
 }
 
@@ -2727,12 +2688,10 @@ void OleVariant::MarshalOleVariantForObject(OBJECTREF * const & pObj, VARIANT *p
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
     if (AppX::IsAppXProcess())
     { 
         COMPlusThrow(kPlatformNotSupportedException, IDS_EE_BADMARSHAL_TYPE_VARIANTASOBJECT);
     }
-#endif // FEATURE_CORECLR
     
     SafeVariantClear(pOle);
 
@@ -2857,12 +2816,10 @@ void OleVariant::MarshalOleRefVariantForObject(OBJECTREF *pObj, VARIANT *pOle)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
    if (AppX::IsAppXProcess())
    { 
        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_BADMARSHAL_TYPE_VARIANTASOBJECT);
    }
-#endif // FEATURE_CORECLR
 
     HRESULT hr = MarshalCommonOleRefVariantForObject(pObj, pOle);
 
@@ -3082,12 +3039,10 @@ void OleVariant::MarshalObjectForOleVariant(const VARIANT * pOle, OBJECTREF * co
     }
     CONTRACT_END;
 
-#ifdef FEATURE_CORECLR
     if (AppX::IsAppXProcess())
     { 
         COMPlusThrow(kPlatformNotSupportedException, IDS_EE_BADMARSHAL_TYPE_VARIANTASOBJECT);
     }
-#endif // FEATURE_CORECLR
 
 #ifdef MDA_SUPPORTED
     MdaInvalidVariant* pProbe = MDA_GET_ASSISTANT(InvalidVariant);
@@ -3601,7 +3556,8 @@ void OleVariant::MarshalOleVariantForComVariant(VariantData *pCom, VARIANT *pOle
 }
 
 void OleVariant::MarshalInterfaceArrayComToOleHelper(BASEARRAYREF *pComArray, void *oleArray,
-                                                     MethodTable *pElementMT, BOOL bDefaultIsDispatch)
+                                                     MethodTable *pElementMT, BOOL bDefaultIsDispatch,
+                                                     SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -3614,7 +3570,7 @@ void OleVariant::MarshalInterfaceArrayComToOleHelper(BASEARRAYREF *pComArray, vo
     CONTRACTL_END;
    
     ASSERT_PROTECTED(pComArray);
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
+    
 
     BOOL bDispatch = bDefaultIsDispatch;
     BOOL bHeterogenous = (pElementMT == NULL);
@@ -3632,7 +3588,7 @@ void OleVariant::MarshalInterfaceArrayComToOleHelper(BASEARRAYREF *pComArray, vo
 
     // Determine the start and the end of the data in the OLE array.
     IUnknown **pOle = (IUnknown **) oleArray;
-    IUnknown **pOleEnd = pOle + elementCount;
+    IUnknown **pOleEnd = pOle + cElements;
 
     // Retrieve the start of the data in the managed array.
     BASEARRAYREF unprotectedArray = *pComArray;
@@ -3781,11 +3737,12 @@ HRESULT OleVariant::ClearAndInsertContentsIntoByrefRecordVariant(VARIANT* pOle, 
 
 void OleVariant::MarshalIDispatchArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                                MethodTable *pElementMT, BOOL fBestFitMapping,
-                                               BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                               BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid,
+                                               SIZE_T cElements)
 {
     WRAPPER_NO_CONTRACT;
     
-    MarshalInterfaceArrayComToOleHelper(pComArray, oleArray, pElementMT, TRUE);
+    MarshalInterfaceArrayComToOleHelper(pComArray, oleArray, pElementMT, TRUE, cElements);
 }
 
 
@@ -3907,7 +3864,8 @@ void OleVariant::MarshalCurrencyArrayOleToCom(void *oleArray, BASEARRAYREF *pCom
 
 void OleVariant::MarshalCurrencyArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                               MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                              BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                              BOOL fThrowOnUnmappableChar, 
+                                              BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -3919,11 +3877,10 @@ void OleVariant::MarshalCurrencyArrayComToOle(BASEARRAYREF *pComArray, void *ole
     }
     CONTRACTL_END;
 
-    ASSERT_PROTECTED(pComArray);
-    SIZE_T elementCount = (*pComArray)->GetNumComponents();
+    ASSERT_PROTECTED(pComArray);    
 
     CURRENCY *pOle = (CURRENCY *) oleArray;
-    CURRENCY *pOleEnd = pOle + elementCount;
+    CURRENCY *pOleEnd = pOle + cElements;
     
     DECIMAL *pCom = (DECIMAL *) (*pComArray)->GetDataPtr();
 
@@ -3986,7 +3943,8 @@ void OleVariant::MarshalVariantArrayOleToCom(void *oleArray, BASEARRAYREF *pComA
 
 void OleVariant::MarshalVariantArrayComToOle(BASEARRAYREF *pComArray, void *oleArray,
                                              MethodTable *pInterfaceMT, BOOL fBestFitMapping,
-                                          BOOL fThrowOnUnmappableChar, BOOL fOleArrayIsValid)
+                                             BOOL fThrowOnUnmappableChar, 
+                                             BOOL fOleArrayIsValid, SIZE_T cElements)
 {
     CONTRACTL
     {
@@ -4601,9 +4559,9 @@ void OleVariant::MarshalSafeArrayForArrayRef(BASEARRAYREF *pArrayRef,
                     // of UnknownWrapper or DispatchWrapper. It shall use a different logic and marshal each
                     // element according to its specific default interface.
                     pInterfaceMT = NULL;
-		}
-	            marshal->ComToOleArray(&Array, pSafeArray->pvData, pInterfaceMT, TRUE, FALSE, fSafeArrayIsValid);
-	    }			
+                }
+                marshal->ComToOleArray(&Array, pSafeArray->pvData, pInterfaceMT, TRUE, FALSE, fSafeArrayIsValid, dwNumComponents);
+            }
             
             if (pSafeArray->cDims != 1)
             {

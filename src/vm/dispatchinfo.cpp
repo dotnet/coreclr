@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: DispatchInfo.cpp
 // 
@@ -23,14 +22,12 @@
 #include "comcallablewrapper.h"
 #include "threads.h"
 #include "excep.h"
-#include "objecthandle.h"
 #include "comutilnative.h"
 #include "eeconfig.h"
 #include "interoputil.h"
 #include "olevariant.h"
 #include "commtmemberinfomap.h" 
 #include "dispparammarshaler.h"
-#include "security.h"
 #include "reflectioninvocation.h"
 #include "dbginterface.h"
 
@@ -1590,50 +1587,6 @@ void DispatchInfo::InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
         pObjs->MemberInfo = ObjectFromHandle(pDispMemberInfo->m_hndMemberInfo);
         MemberType = pDispMemberInfo->GetMemberType();
     
-        // Determine whether the member has a link time security check. If so we
-        // need to emulate this (since the caller is obviously not jitted in this
-        // case). Only methods and properties can have a link time check.
-        MethodDesc *pMDforSecurity = NULL;
-
-        if (MemberType == Method)
-        {
-            MethodDescCallSite getMethodHandle(METHOD__METHOD_BASE__GET_METHODDESC, &pObjs->MemberInfo);
-            ARG_SLOT arg = ObjToArgSlot(pObjs->MemberInfo);
-            pMDforSecurity = (MethodDesc*) getMethodHandle.Call_RetLPVOID(&arg);
-        }
-        else if (MemberType == Property)
-        {
-            MethodDescCallSite getSetter(METHOD__PROPERTY__GET_SETTER, &pObjs->MemberInfo);
-            ARG_SLOT args[] =
-            {
-                ObjToArgSlot(pObjs->MemberInfo),
-                BoolToArgSlot(false)
-            };
-            OBJECTREF method = getSetter.Call_RetOBJECTREF(args);
-            if (method == NULL)
-            {
-                MethodDescCallSite getGetter(METHOD__PROPERTY__GET_GETTER, &pObjs->MemberInfo);
-                ARG_SLOT args1[] =
-                {
-                    ObjToArgSlot(pObjs->MemberInfo),
-                    BoolToArgSlot(false)
-                };
-                method = getGetter.Call_RetOBJECTREF(args1);
-            }
-
-            if (method != NULL)
-            {
-                GCPROTECT_BEGIN(method)
-                MethodDescCallSite getMethodHandle(METHOD__METHOD_BASE__GET_METHODDESC, &method);
-                ARG_SLOT arg = ObjToArgSlot(method);
-                pMDforSecurity = (MethodDesc*) getMethodHandle.Call_RetLPVOID(&arg);
-                GCPROTECT_END();
-            }
-        }
-
-        if (pMDforSecurity)
-            Security::CheckLinkDemandAgainstAppDomain(pMDforSecurity);
-
         switch (MemberType)
         {
             case Field:

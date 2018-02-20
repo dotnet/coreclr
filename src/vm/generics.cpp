@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: generics.cpp
 //
@@ -147,9 +146,9 @@ TypeHandle ClassLoader::LoadCanonicalGenericInstantiation(TypeKey *pTypeKey,
     TypeHandle ret = TypeHandle();
     DECLARE_INTERIOR_STACK_PROBE;
 #ifndef DACCESS_COMPILE
-    if ((dwAllocSize/PAGE_SIZE+1) >= 2)
+    if ((dwAllocSize/GetOsPageSize()+1) >= 2)
     {
-        DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+dwAllocSize/PAGE_SIZE+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
+        DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+dwAllocSize/GetOsPageSize()+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
     }
 #endif // DACCESS_COMPILE
     TypeHandle *repInst = (TypeHandle*) _alloca(dwAllocSize);
@@ -225,13 +224,8 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
     // These are all copied across from the old MT, i.e. don't depend on the
     // instantiation.
-#ifdef FEATURE_REMOTING  
-    BOOL fHasRemotingVtsInfo = pOldMT->HasRemotingVtsInfo();
-    BOOL fHasContextStatics = pOldMT->HasContextStatics();
-#else
     BOOL fHasRemotingVtsInfo = FALSE;
     BOOL fHasContextStatics = FALSE;
-#endif
     BOOL fHasGenericsStaticsInfo = pOldMT->HasGenericsStaticsInfo();
     BOOL fHasThreadStatics = (pOldMT->GetNumThreadStaticFields() > 0);
 
@@ -261,7 +255,7 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
     // Bytes are required for the vtable itself
     S_SIZE_T safe_cbMT = S_SIZE_T( cbGC ) + S_SIZE_T( sizeof(MethodTable) );
-    safe_cbMT += MethodTable::GetNumVtableIndirections(cSlots) * sizeof(PTR_PCODE);
+    safe_cbMT += MethodTable::GetNumVtableIndirections(cSlots) * sizeof(MethodTable::VTableIndir_t);
     if (safe_cbMT.IsOverflow())
     {
         ThrowHR(COR_E_OVERFLOW);
@@ -446,7 +440,7 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
         if (canShareVtableChunks)
         {
             // Share the canonical chunk
-            it.SetIndirectionSlot(pOldMT->GetVtableIndirections()[it.GetIndex()]);
+            it.SetIndirectionSlot(pOldMT->GetVtableIndirections()[it.GetIndex()].GetValueMaybeNull());
         }
         else
         {
@@ -480,12 +474,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     //    enum_flag_NGEN_NeedsRestore
 #endif // FEATURE_PREJIT
 
-#if defined(_DEBUG) && defined (FEATURE_REMOTING)
-    if (pOldMT->IsContextful() || pOldMT->GetClass()->HasRemotingProxyAttribute())
-    {
-        _ASSERTE(pOldMT->RequiresManagedActivation());
-    }
-#endif // _DEBUG
     if (pOldMT->RequiresManagedActivation())
     {
         // Will also set enum_flag_RemotingConfigChecked
@@ -498,12 +486,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     if (fHasGenericsStaticsInfo)
         pMT->SetDynamicStatics(TRUE);
 
-#ifdef FEATURE_REMOTING  
-    if (fHasRemotingVtsInfo)
-        pMT->SetHasRemotingVtsInfo();
-    if (fHasContextStatics)
-        pMT->SetHasContextStatics();
-#endif
 
 #ifdef FEATURE_COMINTEROP
     if (fHasCCWTemplate)
@@ -517,7 +499,7 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     _ASSERTE(pOldMT->HasPerInstInfo());
 
     // Fill in per-inst map pointer (which points to the array of generic dictionary pointers)
-    pMT->SetPerInstInfo ((Dictionary**) (pMemory + cbMT + cbOptional + cbIMap + sizeof(GenericsDictInfo)));
+    pMT->SetPerInstInfo((MethodTable::PerInstInfoElem_t *) (pMemory + cbMT + cbOptional + cbIMap + sizeof(GenericsDictInfo)));
     _ASSERTE(FitsIn<WORD>(pOldMT->GetNumDicts()));
     _ASSERTE(FitsIn<WORD>(pOldMT->GetNumGenericArgs()));
     pMT->SetDictInfo(static_cast<WORD>(pOldMT->GetNumDicts()), static_cast<WORD>(pOldMT->GetNumGenericArgs()));
@@ -526,7 +508,8 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     // The others are filled in by LoadExactParents which copied down any inherited generic
     // dictionary pointers.
     Dictionary * pDict = (Dictionary*) (pMemory + cbMT + cbOptional + cbIMap + cbPerInst);
-    *(pMT->GetPerInstInfo() + (pOldMT->GetNumDicts()-1)) = pDict;
+    MethodTable::PerInstInfoElem_t *pPInstInfo = (MethodTable::PerInstInfoElem_t *) (pMT->GetPerInstInfo() + (pOldMT->GetNumDicts()-1));
+    pPInstInfo->SetValueMaybeNull(pDict);
 
     // Fill in the instantiation section of the generic dictionary.  The remainder of the
     // generic dictionary will be zeroed, which is the correct initial state.
@@ -615,42 +598,18 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
             for (DWORD i = 0; i < pOldMT->GetNumStaticFields(); i++)
             {
-                pStaticFieldDescs[i] = pOldFD[i];
-                pStaticFieldDescs[i].SetMethodTable(pMT);
+                pStaticFieldDescs[i].InitializeFrom(pOldFD[i], pMT);
             }
         }
         pMT->SetupGenericsStaticsInfo(pStaticFieldDescs);
     }
 
-#ifdef FEATURE_REMOTING  
-    // We do not cache the data for for non-canonical methods.
-    _ASSERTE(!pMT->HasRemotableMethodInfo());
-#endif
 
     // VTS info doesn't depend on the exact instantiation but we make a copy
     // anyway since we can't currently deal with the possibility of having a
     // cross module pointer to the data block. Eventually we might be able to
     // tokenize this reference, but determine first whether there's enough
     // performance degradation to justify the extra complexity.
-#ifdef FEATURE_REMOTING  
-    if (fHasRemotingVtsInfo)
-    {
-        RemotingVtsInfo *pOldInfo = pOldMT->GetRemotingVtsInfo();
-        DWORD            cbInfo   = RemotingVtsInfo::GetSize(pOldMT->GetNumIntroducedInstanceFields());
-        RemotingVtsInfo *pNewInfo = (RemotingVtsInfo*)pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(cbInfo)));
-
-        memcpyNoGCRefs(pNewInfo, pOldInfo, cbInfo);
-
-        *(pMT->GetRemotingVtsInfoPtr()) = pNewInfo;
-    }
-    
-    // if there are thread or context static make room for them there is no sharing with the other MethodTable
-    if (fHasContextStatics)
-    {
-        // this is responsible for setting the flag and allocation in the loader heap
-        pMT->SetupContextStatics(pamTracker, pOldMT->GetContextStaticsSize());
-    }
-#endif //FEATURE_REMOTING
 
     pMT->SetCl(pOldMT->GetCl());
     
@@ -658,10 +617,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     _ASSERTE(!fContainsGenericVariables == !pMT->ContainsGenericVariables());
     _ASSERTE(!fHasGenericsStaticsInfo == !pMT->HasGenericsStaticsInfo());
     _ASSERTE(!pLoaderModule->GetAssembly()->IsDomainNeutral() == !pMT->IsDomainNeutral());
-#ifdef FEATURE_REMOTING      
-    _ASSERTE(!fHasRemotingVtsInfo == !pMT->HasRemotingVtsInfo());
-    _ASSERTE(!fHasContextStatics == !pMT->HasContextStatics());
-#endif    
 #ifdef FEATURE_COMINTEROP
     _ASSERTE(!fHasDynamicInterfaceMap == !pMT->HasDynamicInterfaceMap());
     _ASSERTE(!fHasRCWPerTypeData == !pMT->HasRCWPerTypeData());
@@ -733,7 +688,7 @@ BOOL CheckInstantiation(Instantiation inst)
         MethodTable* pMT = th.GetMethodTable();
         if (pMT != NULL)
         {
-            if (pMT->ContainsStackPtr())
+            if (pMT->IsByRefLike())
             {
                 return FALSE;
             }

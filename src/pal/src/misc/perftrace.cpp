@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -24,26 +23,6 @@ Abstract:
 
 #ifdef PAL_PERF
 
-#ifndef PLATFORM_UNIX
-/* PAL Headers */
-#include "perftrace.h"
-
-/* Standard Headers */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#define snprintf _snprintf
-#define MiscGetenv getenv
-#define pthread_getspecific TlsGetValue
-#define THREADSilentGetCurrentThreadId GetCurrentThreadId
-#define getpid GetCurrentProcessId 
-#define PAL_fgets fgets // on Windows, we want fgets.
-#define PAL_fwrite fwrite // on Windows, we want fwrite.
-#define PAL_fseek fseek // on Windows, we want fseek.
-
-#else
 /* PAL Headers */
 #include "pal/palinternal.h"
 #include "pal/perftrace.h"
@@ -60,10 +39,7 @@ Abstract:
 #include <dirent.h>
 #include <unistd.h>
 
-#define THREADSilentGetCurrentThreadId() (DWORD) pthread_self()
-
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
-#endif  //End of PLATFORM_UNIX
 
 
 #define PAL_PERF_MAX_LOGLINE     0x400  /* 1K */ 
@@ -113,28 +89,19 @@ typedef struct _pal_perf_program_info
     ULONGLONG total_duration; /* Total CPU clock ticks of all the threads */
     ULONGLONG pal_duration; /* Total CPU clock ticks spent inside PAL */
 
-#ifndef PLATFORM_UNIX
-    DWORD   process_id;
-#else
     pid_t   process_id;
-#endif
     char    start_time[32]; /*  must be at least 26 characters */
 } pal_perf_program_info;
 
-#ifndef PLATFORM_UNIX
-typedef FILE PERF_FILE;
-#define PERF_FILEFN(x) x
-#else
 typedef PAL_FILE PERF_FILE;
 #define PERF_FILEFN(x) PAL_ ## x
-#endif
 
 static ULONGLONG PERFGetTicks();
 static double PERFComputeStandardDeviation(pal_perf_api_info *api);
 static void PERFPrintProgramHeaderInfo(PERF_FILE * hFile, BOOL completedExecution);
 static BOOL PERFInitProgramInfo(LPWSTR command_line, LPWSTR exe_path);
 static BOOL PERFReadSetting( );
-static void PERFLogFileName(char *destFileName, const char *fileName, const char *suffix, int max_length);
+static void PERFLogFileName(PathCharString * destFileString, const char *fileName, const char *suffix, int max_length);
 static void PERFlushAllLogs();
 static int PERFWriteCounters(pal_perf_api_info * table); 
 static BOOL PERFFlushLog(pal_perf_thread_info * local_buffer, BOOL output_header);
@@ -147,11 +114,7 @@ typedef char PAL_API_NAME[PAL_PERF_MAX_FUNCTION_NAME];
 static PAL_API_NAME API_list[PAL_API_NUMBER] ;
 static pal_perf_program_info program_info;
 
-#ifndef PLATFORM_UNIX
-static DWORD PERF_tlsTableKey=0 ;
-#else
 static pthread_key_t PERF_tlsTableKey=0 ;
-#endif
 
 static pal_thread_list_node * process_pal_thread_list=NULL;
 static BOOL pal_profile_on=FALSE;
@@ -202,19 +165,11 @@ static const char PAL_PERF_HISTOGRAM_SIZE[]="PAL_PERF_HISTOGRAM_SIZE";
 static const char PAL_PERF_HISTOGRAM_STEP[]="PAL_PERF_HISTOGRAM_STEP";
 static const char traced_apis_filename[]="PerfTracedAPIs.txt";
 static const char perf_enabled_filename[]="AllPerfEnabledAPIs.txt";
-#ifndef PLATFORM_UNIX
-static const char PATH_SEPARATOR[] = "\\";
-#else
 static const char PATH_SEPARATOR[] = "/";
-#endif
 
 
 
-#ifndef PLATFORM_UNIX
-#define LLFORMAT "%I64u"
-#else
 #define LLFORMAT "%llu"
-#endif
 
 static
 ULONGLONG
@@ -234,11 +189,7 @@ PERFGetTicks(){
   #endif
   return ((ULONGLONG)((unsigned int)(d)) << 32) | (unsigned int)(a);
 #else
-#ifdef __sparc__
-  return (ULONGLONG)gethrtime();
-#else
   return 0; // on non-BSD and non-Windows, we'll return 0 for now.
-#endif // __sparc__
 #endif // _X86_
 }
 
@@ -286,13 +237,7 @@ BOOL
 PERFInitProgramInfo(LPWSTR command_line, LPWSTR exe_path)
 {
     ULONGLONG start_tick;
-#ifndef PLATFORM_UNIX
-    time_t tv;
-    WSADATA WsaData;
-    WORD VersionRequested = MAKEWORD(2, 2);
-#else
     struct timeval tv;
-#endif
 
     if (WideCharToMultiByte(CP_ACP, 0, command_line, -1, 
                         program_info.command_line, PAL_PERF_MAX_LOGLINE-1, NULL, NULL) == 0)
@@ -301,34 +246,17 @@ PERFInitProgramInfo(LPWSTR command_line, LPWSTR exe_path)
                         program_info.exe_path, PAL_PERF_MAX_LOGLINE-1, NULL, NULL) == 0)
         return FALSE;
 
-#ifndef PLATFORM_UNIX
-/* Windows needs a call to WSAStartup before calling gethostname */
-/* Immediately after gethostname call, we call WSACleanup to prevent */
-/* affecting networking test cases */
-    WSAStartup(VersionRequested, &WsaData);
-#endif
-
     gethostname(program_info.hostname, PAL_PERF_MAX_FUNCTION_NAME);
     program_info.process_id = getpid();
 
-#ifndef PLATFORM_UNIX
-    WSACleanup( );
-    time( &tv );
-    strcpy(program_info.start_time, ctime( &tv ));
-#else
     gettimeofday(&tv, NULL);
     ctime_r(&tv.tv_sec, program_info.start_time);
-#endif
 
     // estimate the cpu clock cycles
     start_tick = PERFGetTicks();
     if (start_tick != 0)
     {
-#ifndef PLATFORM_UNIX
-        Sleep(1000); //Sleep on Windows takes milliseconds as argument
-#else
         sleep(1);
-#endif
         program_info.cpu_clock_frequency = (double) (PERFGetTicks() - start_tick);
     }
     else
@@ -392,13 +320,8 @@ PERFInitialize(LPWSTR command_line, LPWSTR exe_path)
 
     pal_profile_on = FALSE;  // turn it off until we setup everything. 
     // allocate the TLS index for  structures 
-#ifndef PLATFORM_UNIX
-    if( ( PERF_tlsTableKey = TlsAlloc() ) == -1 )
-        ret = FALSE;
-#else
     if( pthread_key_create(&PERF_tlsTableKey , NULL) != 0 )
        ret = FALSE;
-#endif
 
     if( ret == TRUE )
     {
@@ -412,11 +335,7 @@ PERFInitialize(LPWSTR command_line, LPWSTR exe_path)
         else
         {
 
-#ifndef PLATFORM_UNIX
-            TlsFree(PERF_tlsTableKey );
-#else
             pthread_key_delete(PERF_tlsTableKey );
-#endif
             ret = FALSE;
         }
     }
@@ -439,11 +358,7 @@ void PERFTerminate(  )
         return;
 
     PERFlushAllLogs();
-#ifndef PLATFORM_UNIX
-    TlsFree(PERF_tlsTableKey );
-#else
-        pthread_key_delete(PERF_tlsTableKey );
-#endif
+    pthread_key_delete(PERF_tlsTableKey );
     PAL_free(pal_function_map);
 }
 
@@ -529,13 +444,8 @@ BOOL PERFAllocThreadInfo(  )
     local_info->start_ticks = 0;
     memset(log_buf, 0, PAL_PERF_PROFILE_BUFFER_SIZE);
 
-#ifndef PLATFORM_UNIX
-    if ( TlsSetValue(PERF_tlsTableKey, local_info) == 0)
-        ret = FALSE;
-#else
     if (pthread_setspecific(PERF_tlsTableKey, local_info) != 0)
        ret = FALSE;
-#endif
 
 PERFAllocThreadInfoExit:
     if (ret == TRUE)
@@ -672,34 +582,44 @@ PERFlushAllLogs( )
 
 static
 void
-PERFLogFileName(char *destFileName, const char *fileName, const char *suffix, int max_length)
+PERFLogFileName(PathCharString& destFileString, const char *fileName, const char *suffix)
 {
     const char *dir_path;
+    CPalThread* pThread = InternalGetCurrentThread();
     dir_path = (profile_log_path == NULL) ? "." : profile_log_path;
-
+        
+    destFileString.Append(dir_path, strlen(dir_path));
+    destFileString.Append(PATH_SEPARATOR, strlen(PATH_SEPARATOR));
     if (fileName != NULL)
     {
-        snprintf(destFileName, max_length, "%s%s%s", dir_path, PATH_SEPARATOR, fileName);
+        destFileString.Append(fileName, strlen(fileName));
     }
     else
     {
-        snprintf(destFileName, max_length, "%s%s%d_%d%s", dir_path, PATH_SEPARATOR,
-            program_info.process_id, THREADSilentGetCurrentThreadId(), suffix);
+        char buffer[33];
+        char* process_id     = itoa(program_info.process_id, buffer, 10);
+        destFileString.Append(process_id, strlen(process_id));
+        destFileString.Append("_", 1);
+        
+        char* current_thread = itoa(THREADSilentGetCurrentThreadId(),buffer, 10);
+        destFileString.Append(current_thread, strlen( current_thread));
+        destFileString.Append(suffix, strlen(suffix));
     }
-
+    
 }
 
 static
 int
 PERFWriteCounters( pal_perf_api_info * table )
 {
-    char fileName[MAX_PATH];
+    PathCharString fileName;
     pal_perf_api_info * off;
     PERF_FILE * hFile;
     int i;
 
     off = table;
-    PERFLogFileName(fileName, profile_summary_log_name, "_perf_summary.log", MAX_PATH);
+    
+    PERFLogFileName(fileName, profile_summary_log_name, "_perf_summary.log");
     hFile = PERF_FILEFN(fopen)(fileName, "a+");
     if(hFile != NULL)
     {   
@@ -739,7 +659,7 @@ PERFWriteCounters( pal_perf_api_info * table )
     if (pal_perf_histogram_size > 0)
     {
         off = table;
-        PERFLogFileName(fileName, profile_summary_log_name, "_perf_summary.hist", MAX_PATH);
+        PERFLogFileName(fileName, profile_summary_log_name, "_perf_summary.hist");
         hFile = PERF_FILEFN(fopen)(fileName, "a+");
 
         if (hFile != NULL)
@@ -787,11 +707,12 @@ PERFReadSetting(  )
     //more code is required to deal with corrupted input file.
     BOOL ret;
     unsigned int index;
-    char line[256 /* PAL_PERF_MAX_INPUT */]; // just use it. can define a new one like MAX_LINE=1024;
+    char line[PAL_PERF_MAX_INPUT];
     char * ptr;
     char function_name[PAL_PERF_MAX_FUNCTION_NAME];  //no function can be longer than 127 bytes.
 
-    char  file_name_buf[MAX_PATH];  
+    char * file_name_buf;
+    PathCharString file_name_bufPS;
     char  * input_file_name; 
     char  * summary_flag_env;
     char  * nested_tracing_env;
@@ -801,11 +722,7 @@ PERFReadSetting(  )
     char  * pal_perf_histogram_size_env;
     char  * pal_perf_histogram_step_env;
 
-#ifdef PLATFORM_UNIX
     PAL_FILE * hFile;
-#else
-    FILE * hFile;
-#endif
 
     if((pal_function_map == NULL) || (PAL_API_NUMBER < 0) )
     {
@@ -908,15 +825,19 @@ PERFReadSetting(  )
         {
             if( PERFIsValidFile(perf_default_path,traced_apis_filename))
             {
-                if ((strcpy_s(file_name_buf, sizeof(file_name_buf), perf_default_path) != SAFECRT_SUCCESS) ||
-                    (strcat_s(file_name_buf, sizeof(file_name_buf), PATH_SEPARATOR) != SAFECRT_SUCCESS) ||
-                    (strcat_s(file_name_buf, sizeof(file_name_buf), traced_apis_filename) != SAFECRT_SUCCESS))
+                int length = strlen(perf_default_path) + strlen(PATH_SEPARATOR) + strlen(traced_apis_filename);
+                file_name_buf = file_name_bufPS.OpenStringBuffer(length);
+                if ((strcpy_s(file_name_buf, file_name_bufPS.GetSizeOf(), perf_default_path) != SAFECRT_SUCCESS) ||
+                    (strcat_s(file_name_buf, file_name_bufPS.GetSizeOf(), PATH_SEPARATOR) != SAFECRT_SUCCESS) ||
+                    (strcat_s(file_name_buf, file_name_bufPS.GetSizeOf(), traced_apis_filename) != SAFECRT_SUCCESS))
                 {
+                    file_name_bufPS.CloseBuffer(0);
                     ret = FALSE;
                     input_file_name = NULL;
                 }
                 else
                 {
+                    file_name_bufPS.CloseBuffer(length);
                     input_file_name = file_name_buf;
                 }
             }
@@ -934,11 +855,7 @@ PERFReadSetting(  )
 
     if(input_file_name)
     { 
-#ifdef PLATFORM_UNIX
         hFile = PAL_fopen(input_file_name, "r+");
-#else
-        hFile = fopen(input_file_name, "r+");
-#endif
         if ( hFile == NULL )
         {
             memset(pal_function_map, 1, PAL_API_NUMBER);
@@ -977,11 +894,7 @@ PERFReadSetting(  )
 
             }
 
-#ifdef PLATFORM_UNIX       
             PAL_fclose(hFile);
-#else
-            fclose(hFile);
-#endif
             ret = TRUE;
         }
     }
@@ -1029,11 +942,7 @@ PERFReadSetting(  )
         return ret; 
     }
 
-#ifdef PLATFORM_UNIX
     hFile = PAL_fopen(input_file_name, "r+");
-#else
-    hFile = fopen(input_file_name, "r+");
-#endif
 
     if ( hFile != NULL )
     {
@@ -1063,11 +972,7 @@ PERFReadSetting(  )
             }
         }
 
-#ifdef PLATFORM_UNIX       
         PAL_fclose(hFile);
-#else
-        fclose(hFile);
-#endif
     }
 
     return ret;
@@ -1080,14 +985,14 @@ BOOL
 PERFFlushLog(pal_perf_thread_info * local_info, BOOL output_header)
 {
     BOOL ret = FALSE;
-    char fileName[MAX_PATH];
+    PathCharString fileName;
     int nWrittenBytes = 0;
     PERF_FILE * hFile;
 
     if (summary_only)
         return TRUE;
 
-    PERFLogFileName(fileName, profile_time_log_name, "_perf_time.log", MAX_PATH);
+    PERFLogFileName(fileName, profile_time_log_name, "_perf_time.log");
 
     hFile = PERF_FILEFN(fopen)(fileName, "a+");
 
@@ -1110,6 +1015,7 @@ PERFFlushLog(pal_perf_thread_info * local_info, BOOL output_header)
         PERF_FILEFN(fclose)(hFile);
         ret = TRUE;
     }
+    
     return ret;
 }
 
@@ -1123,13 +1029,7 @@ PERFLogFunctionEntry(unsigned int pal_api_id, ULONGLONG *pal_perf_start_tick )
     short bufused = 0;
 
 
-#ifndef PLATFORM_UNIX
-    DWORD tv;
-    DWORD last_error;
-    last_error = GetLastError();
-#else
     struct timeval tv;
-#endif
 
 
     if(!pal_perf_enabled || pal_function_map==NULL || !pal_profile_on )  // haven't initialize, just quit.
@@ -1160,28 +1060,17 @@ PERFLogFunctionEntry(unsigned int pal_api_id, ULONGLONG *pal_perf_start_tick )
                 PERFFlushLog(local_info, FALSE);
             }
 
-#ifndef PLATFORM_UNIX
-            tv = GetTickCount();
-#else
             gettimeofday(&tv, NULL);
-#endif
 
             buf_off = local_info->buf_offset;
 
-#ifndef PLATFORM_UNIX
-            bufused = snprintf(&write_buf[buf_off], PAL_PERF_MAX_LOGLINE, "----> %d %lu entry.\n", pal_api_id, tv );
-#else
             bufused = snprintf(&write_buf[buf_off], PAL_PERF_MAX_LOGLINE, "----> %d %lu %06u entry.\n", pal_api_id, tv.tv_sec,  tv.tv_usec );
-#endif
             local_info->buf_offset += bufused;
         }
         if(nested_tracing)
             local_info->profile_enabled = TRUE; 
         *pal_perf_start_tick = PERFGetTicks();
     }
-#ifndef PLATFORM_UNIX
-    SetLastError( last_error );
-#endif
     return;
 }
 
@@ -1220,14 +1109,8 @@ PERFLogFunctionExit(unsigned int pal_api_id, ULONGLONG *pal_perf_start_tick )
     short bufused = 0;
     DWORD  off;
     ULONGLONG duration = 0;
-#ifndef PLATFORM_UNIX
-    DWORD timev;
-    DWORD last_error;
-    last_error = GetLastError();
-#else
     struct timeval timev;
 
-#endif
 
     if(!pal_perf_enabled || (pal_function_map == NULL) || !pal_profile_on ) // haven't initiallize yet, just quit.
         return;
@@ -1254,17 +1137,10 @@ PERFLogFunctionExit(unsigned int pal_api_id, ULONGLONG *pal_perf_start_tick )
         if(summary_only)
         {
             local_info->profile_enabled = TRUE;
-#ifndef PLATFORM_UNIX
-            SetLastError( last_error );
-#endif
             return;
         }
 
-#ifndef PLATFORM_UNIX
-        timev = GetTickCount();
-#else
         gettimeofday(&timev, NULL);
-#endif
 
         buf = local_info->pal_write_buf;
         if(local_info->buf_offset >= PAL_PERF_BUFFER_FULL)
@@ -1273,17 +1149,10 @@ PERFLogFunctionExit(unsigned int pal_api_id, ULONGLONG *pal_perf_start_tick )
         }
         off = local_info->buf_offset;
 
-#ifndef PLATFORM_UNIX
-        bufused = snprintf(&buf[off], PAL_PERF_MAX_LOGLINE, "<---- %d %lu exit. \n", pal_api_id, timev);
-#else
         bufused = snprintf(&buf[off], PAL_PERF_MAX_LOGLINE, "<---- %d %lu %06u exit. \n", pal_api_id, timev.tv_sec,  timev.tv_usec );
-#endif
         local_info->buf_offset += bufused;
         local_info->profile_enabled = TRUE;  
     }
-#ifndef PLATFORM_UNIX
-    SetLastError( last_error );
-#endif
     return;
 }
 
@@ -1292,10 +1161,6 @@ PERFNoLatencyProfileEntry(unsigned int pal_api_id )
 {
     pal_perf_thread_info * local_info=NULL;
     pal_perf_api_info * table;
-#ifndef PLATFORM_UNIX
-    DWORD last_error;
-    last_error = GetLastError();
-#endif
 
     if(!pal_perf_enabled || pal_function_map==NULL || !pal_profile_on )  // haven't initialize, just quit.
         return;
@@ -1304,9 +1169,6 @@ PERFNoLatencyProfileEntry(unsigned int pal_api_id )
          local_info= (pal_perf_thread_info * )pthread_getspecific(PERF_tlsTableKey);
          if (local_info==NULL  )
          {
-#ifndef PLATFORM_UNIX
-            SetLastError( last_error );
-#endif
             return;
          }
          else{
@@ -1314,9 +1176,6 @@ PERFNoLatencyProfileEntry(unsigned int pal_api_id )
             table[pal_api_id].entries++;
         }
    }
-#ifndef PLATFORM_UNIX
-    SetLastError( last_error );
-#endif
    return;
 }
 
@@ -1325,10 +1184,6 @@ void
 PERFEnableThreadProfile(BOOL isInternal)
 {
     pal_perf_thread_info * local_info;
-#ifndef PLATFORM_UNIX
-    DWORD last_error;
-    last_error = GetLastError();
-#endif
     if (!pal_perf_enabled)
         return;
     if (NULL != (local_info = (pal_perf_thread_info*)pthread_getspecific(PERF_tlsTableKey)))
@@ -1338,9 +1193,6 @@ PERFEnableThreadProfile(BOOL isInternal)
             local_info->start_ticks = PERFGetTicks();
          }
     }
-#ifndef PLATFORM_UNIX
-    SetLastError( last_error );
-#endif
 }
 
 
@@ -1348,10 +1200,6 @@ void
 PERFDisableThreadProfile(BOOL isInternal)
 {
     pal_perf_thread_info * local_info;
-#ifndef PLATFORM_UNIX
-    DWORD last_error;
-    last_error = GetLastError();
-#endif
     if (!pal_perf_enabled)
         return;
     if (NULL != (local_info = (pal_perf_thread_info*)pthread_getspecific(PERF_tlsTableKey)))
@@ -1361,9 +1209,6 @@ PERFDisableThreadProfile(BOOL isInternal)
             local_info->total_duration = PERFGetTicks() - local_info->start_ticks;
          }
     }
-#ifndef PLATFORM_UNIX
-    SetLastError( last_error );
-#endif
 }
 
 
@@ -1403,29 +1248,17 @@ static
 char *
 PERFIsValidPath( const char * path )
 {
-#ifndef PLATFORM_UNIX
-    DWORD result;
-#else
     DIR * dir;
-#endif
 
     if(( path==NULL) || (strlen(path)==0))
        return NULL; 
 
-#ifndef PLATFORM_UNIX
-    result = GetFileAttributesA( path );
-    if ((result != INVALID_FILE_ATTRIBUTES) && (result & FILE_ATTRIBUTE_DIRECTORY))
-    {
-        return ((char *) path );
-    }
-#else
     dir = opendir(path);
     if( dir!=NULL)
     {
         closedir(dir);
         return ((char *)path);
     }
-#endif
     return NULL;
 }
 
@@ -1434,20 +1267,25 @@ char *
 PERFIsValidFile( const char * path, const char * file)
 {
     FILE * hFile;
-    char temp[MAX_PATH];
+    char * temp;
+    PathCharString tempPS;
 
     if(file==NULL || strlen(file)==0) 
         return NULL;
 
 	if ( strcmp(path, "") )
-    {   
+    {
+        int length = strlen(path) + strlen(PATH_SEPARATOR) + strlen(file);
+        temp = tempPS.OpenStringBuffer(length);   
         if ((strcpy_s(temp, sizeof(temp), path) != SAFECRT_SUCCESS) ||
             (strcat_s(temp, sizeof(temp), PATH_SEPARATOR) != SAFECRT_SUCCESS) ||
             (strcat_s(temp, sizeof(temp), file) != SAFECRT_SUCCESS))
         {
+            tempPS.CloseBuffer(0);
             return NULL;
         }
 
+        tempPS.CloseBuffer(length);
         hFile = fopen(temp, "r");
     }
     else
@@ -1499,13 +1337,6 @@ PAL_GetCpuTickCount(VOID)
 {
     return PERFGetTicks();
 }
-
-#ifndef PLATFORM_UNIX
-#undef snprintf 
-#undef MiscGetenv
-#undef pthread_key_t
-#undef pthread_getspecific
-#endif /* ifndef PLATFORM_UNIX definitions */
 
 #endif /* PAL_PERF */
 

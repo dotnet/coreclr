@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ProfilingHelper.inl
 // 
@@ -135,7 +134,7 @@ inline void ProfilingAPIUtility::LogNoInterfaceError(REFIID iidRequested, LPCWST
 // ProfilingAPIUtility::ShouldInjectProfAPIFault
 //
 // Description: 
-//    Determines whether COMPLUS_ProfAPIFault is set to a bitmask value
+//    Determines whether COMPlus_ProfAPIFault is set to a bitmask value
 //    with the specified flag set
 //
 // Return Value:

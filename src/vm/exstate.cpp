@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -103,7 +102,7 @@ void ThreadExceptionState::FreeAllStackTraces()
     }
 }
 
-void ThreadExceptionState::ClearThrowablesForUnload(HandleTableBucket* pHndTblBucket)
+void ThreadExceptionState::ClearThrowablesForUnload(IGCHandleStore* handleStore)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -117,7 +116,7 @@ void ThreadExceptionState::ClearThrowablesForUnload(HandleTableBucket* pHndTblBu
           pNode != NULL;
           pNode = pNode->m_pPrevNestedInfo)
     {
-        if (pHndTblBucket->Contains(pNode->m_hThrowable))
+        if (handleStore->ContainsHandle(pNode->m_hThrowable))
         {
             pNode->DestroyExceptionHandle();
         }
@@ -499,7 +498,7 @@ BOOL DebuggerExState::SetDebuggerInterceptInfo(IJitManager *pJitManager,
 
     int nestingLevel = 0;
     
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
     //
     // Get the SEH frame that covers this location on the stack. Note: we pass a skip count of 1. We know that when
     // this is called, there is a nested exception handler on pThread's stack that is only there during exception
@@ -518,11 +517,7 @@ BOOL DebuggerExState::SetDebuggerInterceptInfo(IJitManager *pJitManager,
     nestingLevel = ComputeEnclosingHandlerNestingLevel(pJitManager,
                                                            methodToken,
                                                            natOffset);
-#elif !defined(WIN64EXCEPTIONS)  
-    // !_TARGET_X86_ && !WIN64EXCEPTIONS
-    PORTABILITY_ASSERT("SetDebuggerInterceptInfo() (ExState.cpp) - continuable exceptions NYI\n");
-    return FALSE;
-#endif // !_TARGET_X86_
+#endif // !WIN64EXCEPTIONS
 
     //
     // These values will override the normal information used by the EH subsystem to handle the exception.
@@ -538,6 +533,8 @@ BOOL DebuggerExState::SetDebuggerInterceptInfo(IJitManager *pJitManager,
     return TRUE;
 }
 #endif // DEBUGGING_SUPPORTED
+
+#endif // DACCESS_COMPILE
 
 EHClauseInfo* ThreadExceptionState::GetCurrentEHClauseInfo()
 {
@@ -565,8 +562,6 @@ EHClauseInfo* ThreadExceptionState::GetCurrentEHClauseInfo()
     return &(m_currentExInfo.m_EHClauseInfo);
 #endif // WIN64EXCEPTIONS
 }
-
-#endif // DACCESS_COMPILE
 
 void ThreadExceptionState::SetThreadExceptionFlag(ThreadExceptionFlag flag)
 {

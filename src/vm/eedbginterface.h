@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // COM+99 EE to Debugger Interface Header
 //
@@ -63,7 +62,7 @@ struct DebugOffsetToHandlerInfo
 
 class EEDebugInterface
 {
-    VPTR_BASE_VTABLE_CLASS(EEDebugInterface);
+    VPTR_BASE_VTABLE_CLASS_AND_CTOR(EEDebugInterface);
 
 public:
 
@@ -136,12 +135,16 @@ public:
 
 #endif // #ifndef DACCESS_COMPILE
 
+    virtual PCODE GetNativeCodeStartAddress(PCODE address) = 0;
+
     virtual MethodDesc *GetNativeCodeMethodDesc(const PCODE address) = 0;
 
 #ifndef DACCESS_COMPILE
 
+#ifndef USE_GC_INFO_DECODER
     virtual BOOL IsInPrologOrEpilog(const BYTE *address,
                                     size_t* prologSize) = 0;
+#endif
 
     // Determine whether certain native offsets of the specified function are within
     // an exception filter or handler.
@@ -279,7 +282,6 @@ public:
    virtual void GetRuntimeOffsets(SIZE_T *pTLSIndex,
                                   SIZE_T *pTLSIsSpecialIndex,
                                   SIZE_T *pTLSCantStopIndex,
-                                  SIZE_T *pTLSIndexOfPredefs,
                                   SIZE_T *pEEThreadStateOffset,
                                   SIZE_T *pEEThreadStateNCOffset,
                                   SIZE_T *pEEThreadPGCDisabledOffset,

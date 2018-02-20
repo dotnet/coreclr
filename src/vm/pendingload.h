@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // pendingload.h
 //
@@ -136,10 +135,6 @@ public:
             m_pException=NULL;
         }
         EX_END_CATCH(SwallowAllExceptions);
-
-        _ASSERTE(m_fLockAcquired);
-        m_Crst.Leave();
-        m_fLockAcquired = FALSE;
     }
     
     void SetResult(TypeHandle typeHnd)
@@ -154,6 +149,17 @@ public:
         CONTRACTL_END;
 
         m_typeHandle = typeHnd;
+    }
+    
+    void UnblockWaiters()
+    {
+        CONTRACTL
+        {
+              NOTHROW;
+              PRECONDITION(HasLock());
+              PRECONDITION(m_dwWaitCount > 0);
+        }
+        CONTRACTL_END;
 
         _ASSERTE(m_fLockAcquired);
         m_Crst.Leave();

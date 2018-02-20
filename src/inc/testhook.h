@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -104,6 +103,7 @@ public:
     {
         m_cRef=0;
     }
+    virtual ~CLRTestHook() {}
     STDMETHOD(AppDomainStageChanged)(DWORD adid,DWORD oldstage,DWORD newstage){ return S_OK;};
     STDMETHOD(NextFileLoadLevel)(DWORD adid, LPVOID domainfile,DWORD newlevel){ return S_OK;};
     STDMETHOD(CompletingFileLoadLevel)(DWORD adid, LPVOID domainfile,DWORD newlevel){ return S_OK;};
@@ -143,7 +143,7 @@ public:
 			|| IsEqualIID(riid, IID_ICLRTestHook3))
         {
             AddRef();
-            *ppv = (ICLRTestHook*) (this);
+            *ppv = static_cast<ICLRTestHook3*>(this);
             return S_OK;
         }
         else

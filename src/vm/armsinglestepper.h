@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 // 
@@ -89,7 +88,11 @@ private:
         kMaxCodeBuffer = 2 + 3 + 1, // WORD slots in our redirect buffer (2 for current instruction, 3 for
                                     // breakpoint instructions used to pad out slots in an IT block and one
                                     // for the final breakpoint)
+#ifdef __linux__
+        kBreakpointOp = 0xde01,     // Opcode for the breakpoint instruction used on ARM Linux
+#else
         kBreakpointOp = 0xdefe,     // Opcode for the breakpoint instruction used on CoreARM
+#endif
     };
 
     // Bit numbers of the condition flags in the CPSR.

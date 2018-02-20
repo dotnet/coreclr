@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -15,8 +14,9 @@
 //
 //      EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 //
-NESTED_ENTRY FastCallFinalizeWorker, _TEXT, CallDescrWorkerUnwindFrameChainHandler
-        alloc_stack     0x28     // alloc callee scratch and align the stack
+NESTED_ENTRY FastCallFinalizeWorker, _TEXT, NoHandler
+        push_nonvol_reg rbp
+        mov     rbp, rsp
         END_PROLOGUE
         
         //
@@ -32,7 +32,7 @@ NESTED_ENTRY FastCallFinalizeWorker, _TEXT, CallDescrWorkerUnwindFrameChainHandl
         xor     rax, rax
         
         // epilog
-        add     rsp, 0x28
+        pop_nonvol_reg rbp
         ret
 
 
@@ -40,12 +40,12 @@ NESTED_END FastCallFinalizeWorker, _TEXT
 
 //extern "C" void CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
-NESTED_ENTRY CallDescrWorkerInternal, _TEXT, CallDescrWorkerUnwindFrameChainHandler
-        push_nonvol_reg rbx             // save nonvolatile registers
-        push_nonvol_reg rbp             // 
-        set_frame rbp, 0                // set frame pointer
-        lea     rsp, [rsp - 8]          // ensure proper alignment of the rsp
-
+NESTED_ENTRY CallDescrWorkerInternal, _TEXT, NoHandler
+        push_nonvol_reg rbp
+        mov     rbp, rsp
+        push_nonvol_reg rbx
+        alloc_stack 8                   // ensure proper alignment of the rsp 
+        set_cfa_register rbp, (2*8)
         END_PROLOGUE
 
         mov     rbx, rdi                // save pCallDescrData in rbx
@@ -107,19 +107,49 @@ LOCAL_LABEL(NoFloatArguments):
         je      LOCAL_LABEL(ReturnsFloat)
         cmp     ecx, 8
         je      LOCAL_LABEL(ReturnsDouble)
-        // unexpected
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        // Struct with two integer eightbytes
+        cmp     ecx, 16
+        jne     LOCAL_LABEL(NotTwoIntegerEightbytes)
+        mov     qword ptr [rbx+CallDescrData__returnValue], rax
+        mov     qword ptr [rbx+CallDescrData__returnValue + 8], rdx
+        jmp     LOCAL_LABEL(Epilog)
+
+LOCAL_LABEL(NotTwoIntegerEightbytes):
+        // Struct with the first eightbyte SSE and the second one integer
+        cmp     ecx, 16 + 1
+        jne     LOCAL_LABEL(NotFirstSSESecondIntegerEightbyte)
+        movsd   real8 ptr [rbx+CallDescrData__returnValue], xmm0
+        mov     qword ptr [rbx+CallDescrData__returnValue + 8], rax
+        jmp     LOCAL_LABEL(Epilog)
+
+LOCAL_LABEL(NotFirstSSESecondIntegerEightbyte):
+        // Struct with the first eightbyte integer and the second one SSE
+        cmp     ecx, 16 + 2
+        jne     LOCAL_LABEL(NotFirstIntegerSecondSSEEightbyte)
+        mov     qword ptr [rbx+CallDescrData__returnValue], rax
+        movsd   real8 ptr [rbx+CallDescrData__returnValue + 8], xmm0
+        jmp     LOCAL_LABEL(Epilog)
+
+LOCAL_LABEL(NotFirstIntegerSecondSSEEightbyte):
+        // Struct with two SSE eightbytes
+        cmp     ecx, 16 + 3
+        jne     LOCAL_LABEL(Epilog) // unexpected
+        movsd   real8 ptr [rbx+CallDescrData__returnValue], xmm0
+        movsd   real8 ptr [rbx+CallDescrData__returnValue + 8], xmm1
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
         jmp     LOCAL_LABEL(Epilog)
 
 LOCAL_LABEL(ReturnsInt):
-        mov     [rbx+CallDescrData__returnValue], rax
+        mov     qword ptr [rbx+CallDescrData__returnValue], rax
 
 LOCAL_LABEL(Epilog):
-        lea     rsp, 0[rbp]             // deallocate argument list
-        .cfi_def_cfa_register rsp
-        pop     rbp                     // restore nonvolatile register
-        .cfi_adjust_cfa_offset -8       //
-        pop     rbx                     //
-        .cfi_adjust_cfa_offset -8       //
+        lea     rsp, [rbp - 8]          // deallocate arguments
+        set_cfa_register rsp, (3*8)
+        pop_nonvol_reg rbx
+        pop_nonvol_reg rbp
         ret
 
 LOCAL_LABEL(ReturnsFloat):

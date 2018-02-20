@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * Generational GC handle manager.  Entrypoint Header.
@@ -15,6 +14,7 @@
 #ifndef _HANDLETABLE_H
 #define _HANDLETABLE_H
 
+#include "gcinterface.h"
 
 /****************************************************************************
  *
@@ -53,40 +53,38 @@ typedef PTR_PTR_HandleTable PTR_HHANDLETABLE;
 /*
  * handle manager init and shutdown routines
  */
-HHANDLETABLE    HndCreateHandleTable(const UINT *pTypeFlags, UINT uTypeCount, ADIndex uADIndex);
+HHANDLETABLE    HndCreateHandleTable(const uint32_t *pTypeFlags, uint32_t uTypeCount, ADIndex uADIndex);
 void            HndDestroyHandleTable(HHANDLETABLE hTable);
 #endif // !DACCESS_COMPILE
 
 /*
  * retrieve index stored in table at creation 
  */
-void            HndSetHandleTableIndex(HHANDLETABLE hTable, UINT uTableIndex);
-UINT            HndGetHandleTableIndex(HHANDLETABLE hTable);
+void            HndSetHandleTableIndex(HHANDLETABLE hTable, uint32_t uTableIndex);
+uint32_t        HndGetHandleTableIndex(HHANDLETABLE hTable);
 ADIndex         HndGetHandleTableADIndex(HHANDLETABLE hTable);
+
+GC_DAC_VISIBLE
 ADIndex         HndGetHandleADIndex(OBJECTHANDLE handle);
 
 #ifndef DACCESS_COMPILE
 /*
  * individual handle allocation and deallocation
  */
-OBJECTHANDLE    HndCreateHandle(HHANDLETABLE hTable, UINT uType, OBJECTREF object, LPARAM lExtraInfo = 0);
-void            HndDestroyHandle(HHANDLETABLE hTable, UINT uType, OBJECTHANDLE handle);
+OBJECTHANDLE    HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF object, uintptr_t lExtraInfo = 0);
+void            HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle);
 
 void            HndDestroyHandleOfUnknownType(HHANDLETABLE hTable, OBJECTHANDLE handle);
 
 /*
- * bulk handle allocation and deallocation
- */
-UINT            HndCreateHandles(HHANDLETABLE hTable, UINT uType, OBJECTHANDLE *pHandles, UINT uCount);
-void            HndDestroyHandles(HHANDLETABLE hTable, UINT uType, const OBJECTHANDLE *pHandles, UINT uCount);
-
-/*
  * owner data associated with handles
  */
-void            HndSetHandleExtraInfo(OBJECTHANDLE handle, UINT uType, LPARAM lExtraInfo);
+void            HndSetHandleExtraInfo(OBJECTHANDLE handle, uint32_t uType, uintptr_t lExtraInfo);
+uintptr_t          HndCompareExchangeHandleExtraInfo(OBJECTHANDLE handle, uint32_t uType, uintptr_t lOldExtraInfo, uintptr_t lNewExtraInfo);
 #endif // !DACCESS_COMPILE
 
-LPARAM          HndGetHandleExtraInfo(OBJECTHANDLE handle);
+GC_DAC_VISIBLE
+uintptr_t          HndGetHandleExtraInfo(OBJECTHANDLE handle);
 
 /*
  * get parent table of handle
@@ -103,16 +101,12 @@ void            HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF value);
  */
 void            HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value);
 
- /*
-  * Scanning callback.
-  */
-typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM param1, LPARAM param2);
-
 /*
  * NON-GC handle enumeration
  */
-void HndEnumHandles(HHANDLETABLE hTable, const UINT *puType, UINT uTypeCount,
-                    HANDLESCANPROC pfnEnum, LPARAM lParam1, LPARAM lParam2, BOOL fAsync);
+GC_DAC_VISIBLE_NO_MANGLE
+void HndEnumHandles(HHANDLETABLE hTable, const uint32_t *puType, uint32_t uTypeCount,
+                    HANDLESCANPROC pfnEnum, uintptr_t lParam1, uintptr_t lParam2, bool fAsync);
 
 /*
  * GC-time handle scanning
@@ -122,39 +116,31 @@ void HndEnumHandles(HHANDLETABLE hTable, const UINT *puType, UINT uTypeCount,
 #define HNDGCF_ASYNC        (0x00000002)    // drop the table lock while scanning
 #define HNDGCF_EXTRAINFO    (0x00000004)    // iterate per-handle data while scanning
 
-
+GC_DAC_VISIBLE_NO_MANGLE
 void            HndScanHandlesForGC(HHANDLETABLE hTable,
                                     HANDLESCANPROC scanProc,
-                                    LPARAM param1,
-                                    LPARAM param2,
-                                    const UINT *types,
-                                    UINT typeCount,
-                                    UINT condemned,
-                                    UINT maxgen,
-                                    UINT flags);
+                                    uintptr_t param1,
+                                    uintptr_t param2,
+                                    const uint32_t *types,
+                                    uint32_t typeCount,
+                                    uint32_t condemned,
+                                    uint32_t maxgen,
+                                    uint32_t flags);
 
-void            HndResetAgeMap(HHANDLETABLE hTable, const UINT *types, UINT typeCount, UINT condemned, UINT maxgen, UINT flags);
-void            HndVerifyTable(HHANDLETABLE hTable, const UINT *types, UINT typeCount, UINT condemned, UINT maxgen, UINT flags);
+void            HndResetAgeMap(HHANDLETABLE hTable, const uint32_t *types, uint32_t typeCount, uint32_t condemned, uint32_t maxgen, uint32_t flags);
+void            HndVerifyTable(HHANDLETABLE hTable, const uint32_t *types, uint32_t typeCount, uint32_t condemned, uint32_t maxgen, uint32_t flags);
 
-void            HndNotifyGcCycleComplete(HHANDLETABLE hTable, UINT condemned, UINT maxgen);
+void            HndNotifyGcCycleComplete(HHANDLETABLE hTable, uint32_t condemned, uint32_t maxgen);
 
 /*
  * Handle counting
  */
 
-UINT            HndCountHandles(HHANDLETABLE hTable);
-UINT            HndCountAllHandles(BOOL fUseLocks);
+uint32_t        HndCountHandles(HHANDLETABLE hTable);
+uint32_t        HndCountAllHandles(BOOL fUseLocks);
 
 /*--------------------------------------------------------------------------*/
 
-
-#if defined(USE_CHECKED_OBJECTREFS) && !defined(_NOVM)
-#define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (*((_UNCHECKED_OBJECTREF*)&(objref)))
-#define UNCHECKED_OBJECTREF_TO_OBJECTREF(obj)       (OBJECTREF(obj))
-#else
-#define OBJECTREF_TO_UNCHECKED_OBJECTREF(objref)    (objref)
-#define UNCHECKED_OBJECTREF_TO_OBJECTREF(obj)       (obj)
-#endif
 
 #ifdef _DEBUG_IMPL
 void ValidateAssignObjrefForHandle(OBJECTREF, ADIndex appDomainIndex);
@@ -181,9 +167,14 @@ BOOL HndFirstAssignHandle(OBJECTHANDLE handle, OBJECTREF objref);
 
 /*
  * inline handle dereferencing
+ *
+ * NOTE: Changes to this implementation should be kept in sync with ObjectFromHandle
+ *       on the VM side.
+ *
  */
-
-FORCEINLINE OBJECTREF HndFetchHandle(OBJECTHANDLE handle)
+GC_DAC_VISIBLE
+FORCEINLINE
+OBJECTREF HndFetchHandle(OBJECTHANDLE handle)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -214,18 +205,6 @@ FORCEINLINE BOOL HndIsNull(OBJECTHANDLE handle)
     _ASSERTE(handle);
 
     return NULL == *(Object **)handle;
-}
-
-
-
-/*
- * inline handle checking
- */
-FORCEINLINE BOOL HndCheckForNullUnchecked(OBJECTHANDLE handle)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (handle == NULL || (*(_UNCHECKED_OBJECTREF *)handle) == NULL);
 }
 
 

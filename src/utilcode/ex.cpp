@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -25,7 +24,7 @@
 
 #define MAX_EXCEPTION_MSG   200
 
-// Set if fatal error (like stack overflow or out of memory) occured in this process.
+// Set if fatal error (like stack overflow or out of memory) occurred in this process.
 GVAL_IMPL_INIT(HRESULT, g_hrFatalError, S_OK);
 
 // Helper function to get an exception object from outside the exception.  In
@@ -47,7 +46,7 @@ Exception * Exception::GetOOMException()
         // This avoids race conditions caused by multiple initializations of vtable in the constructor       
 
         OutOfMemoryException local(TRUE);  // Construct a "preallocated" instance.
-        memcpy(&g_OOMExceptionInstance, &local, sizeof(OutOfMemoryException));           
+        memcpy((void*)&g_OOMExceptionInstance, (void*)&local, sizeof(OutOfMemoryException));
 
         g_OOMException = (OutOfMemoryException*)&g_OOMExceptionInstance;
     }
@@ -1698,7 +1697,8 @@ void DECLSPEC_NORETURN ThrowOutOfMemory()
     
 #ifndef DACCESS_COMPILE
 
-    g_hrFatalError = COR_E_OUTOFMEMORY;
+    // Use volatile store to prevent compiler from optimizing the static variable away
+    VolatileStoreWithoutBarrier<HRESULT>(&g_hrFatalError, COR_E_OUTOFMEMORY);
 
     // Regular CLR builds - throw our pre-created OOM exception object
     PAL_CPP_THROW(Exception *, Exception::GetOOMException());
@@ -1815,16 +1815,20 @@ Exception *ExThrowWithInnerHelper(Exception *inner)
 
 #ifdef _DEBUG
 
-#pragma warning(disable: 4748)
+#ifdef _MSC_VER
 #pragma optimize("", off)
-#pragma warning(disable: 4748)
-
+#endif // _MSC_VER
 
 void ExThrowTrap(const char *fcn, const char *file, int line, const char *szType, HRESULT hr, const char *args)
 {
     SUPPORTS_DAC;
     return;
 }
+
+#ifdef _MSC_VER
+#pragma optimize("", on)
+#endif // _MSC_VER
+
 #endif
 
 
@@ -2033,9 +2037,9 @@ static DWORD MarkAsThrownByUsWorker(UINT numArgs, /*out*/ ULONG_PTR exceptionArg
 
     exceptionArgs[0] = arg0;
 
-#if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES) && (defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE))
+#if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
     exceptionArgs[INSTANCE_TAGGED_SEH_PARAM_ARRAY_SIZE - 1] = (ULONG_PTR) (GetCLRModule());
-#endif // !defined(FEATURE_UTILCODE_NO_DEPENDENCIES) && defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
+#endif // !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
     
     return INSTANCE_TAGGED_SEH_PARAM_ARRAY_SIZE;
 }
@@ -2082,15 +2086,15 @@ BOOL WasThrownByUs(const EXCEPTION_RECORD *pcER, DWORD dwExceptionCode)
     {
         return FALSE;
     }
-#if!defined(FEATURE_UTILCODE_NO_DEPENDENCIES) && (defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE))
+#if!defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
     if ( ((ULONG_PTR)(GetCLRModule())) != pcER->ExceptionInformation[INSTANCE_TAGGED_SEH_PARAM_ARRAY_SIZE - 1] )
     {
         return FALSE;
     }
     return TRUE;
-#else // !(!defined(FEATURE_UTILCODE_NO_DEPENDENCIES) && (defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)))
+#else // !(!defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
     return FALSE;
-#endif // !defined(FEATURE_UTILCODE_NO_DEPENDENCIES) && defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
+#endif // !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 }
 
 

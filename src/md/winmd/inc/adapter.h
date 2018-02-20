@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #ifndef __MDWinMDAdapter__h__
 #define __MDWinMDAdapter__h__
 
@@ -83,7 +82,8 @@ public:
     enum FrameworkAssemblyIndex
     {
         FrameworkAssembly_Mscorlib,
-        FrameworkAssembly_System,
+        FrameworkAssembly_SystemObjectModel,
+        FrameworkAssembly_SystemRuntime,
         FrameworkAssembly_SystemRuntimeWindowsRuntime,
         FrameworkAssembly_SystemRuntimeWindowsRuntimeUIXaml,
         FrameworkAssembly_SystemNumericsVectors,
@@ -101,7 +101,8 @@ public:
         ContractAssembly_SystemObjectModel,
         ContractAssembly_SystemRuntimeWindowsRuntime,
         ContractAssembly_SystemRuntimeWindowsRuntimeUIXaml,
-        ContractAssembly_SystemNumericsVectors,
+        ContractAssembly_SystemNumericsVectors, // GetExtraAssemblyRefCount assumes SystemNumericsVectors is the last assembly.
+                                                // If you add an assembly you must update GetActualExtraAssemblyRefCount.
 
         ContractAssembly_Count,
     };
@@ -119,10 +120,7 @@ public:
         WinMDTypeKind_Runtimeclass,
     };
 
-    static int GetExtraAssemblyRefCount()
-    {
-        return ContractAssembly_Count;
-    }
+    int GetExtraAssemblyRefCount();
 
     // Factory and destructor
     static HRESULT Create(IMDCommon *pRawMDCommon, /*[out]*/ WinMDAdapter **ppAdapter);
@@ -138,7 +136,7 @@ public:
     static BOOL ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszFullName);
 
     // Map a well-known CLR typename to WinRT typename
-    static BOOL WinMDAdapter::ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszNamespace, LPCSTR *pszName);
+    static BOOL ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszNamespace, LPCSTR *pszName);
         
     // Returns names of redirected type 'index'.
     static void GetRedirectedTypeInfo(
@@ -238,14 +236,12 @@ public:
             if (pusRevisionNumber != nullptr)
                 *pusRevisionNumber = VER_ASSEMBLYBUILD_QFE;
 
-#ifdef FEATURE_CORECLR
             // Under CoreCLR, we replace the ECMA key in the mscorlib assembly ref with the CoreCLR platform public key token
             if (ppbPublicKeyOrToken != nullptr)
             {
                 *ppbPublicKeyOrToken = g_rbTheSilverlightPlatformKeyToken;
                 *pcbPublicKeyOrToken = _countof(g_rbTheSilverlightPlatformKeyToken);
             }
-#endif
         }
         else if (RidFromToken(mdar) > m_rawAssemblyRefCount)
         {
@@ -625,8 +621,10 @@ public:
         _ASSERTE(index != FrameworkAssembly_Mscorlib);
         switch(index)
         {
-            case FrameworkAssembly_System:
-                return "System";
+            case FrameworkAssembly_SystemObjectModel:
+                return "System.ObjectModel";
+            case FrameworkAssembly_SystemRuntime:
+                return "System.Runtime";
             case FrameworkAssembly_SystemRuntimeWindowsRuntime:
                 return "System.Runtime.WindowsRuntime";
             case FrameworkAssembly_SystemRuntimeWindowsRuntimeUIXaml:
@@ -810,7 +808,8 @@ private:
     //-----------------------------------------------------------------------------------     
     mdAssemblyRef       m_assemblyRefMscorlib;
     BOOL                m_fReferencesMscorlibV4;    // m_assemblyRefMscorlib is a version=4.0.0.0 AssemblyRef
-    ULONG               m_rawAssemblyRefCount;      // the saw assembly ref count not including the extra ones.
+    ULONG               m_rawAssemblyRefCount;      // the raw assembly ref count not including the extra ones.
+    LONG                m_extraAssemblyRefCount;    // the assembly ref count to return from IMetaDataAssemblyImport::EnumAssemblyRefs
 
 
   private:

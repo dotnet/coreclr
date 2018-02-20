@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -39,6 +38,7 @@
 #define BINDER_OptionalParamBinding 0x040000
 
 #define BINDER_IgnoreReturn         0x1000000
+#define BINDER_DoNotWrapExceptions  0x2000000
 
 #define BINDER_DefaultLookup        (BINDER_Instance | BINDER_Static | BINDER_Public)
 #define BINDER_AllLookup            (BINDER_Instance | BINDER_Static | BINDER_Public | BINDER_Instance)
@@ -51,16 +51,12 @@ public:
 
     static FCDECL1(void, RunClassConstructor, ReflectClassBaseObject *pTypeUNSAFE);
     static FCDECL1(void, RunModuleConstructor, ReflectModuleBaseObject *pModuleUNSAFE);
-#ifndef FEATURE_CORECLR
     static FCDECL3(void, PrepareMethod, ReflectMethodObject* pMethodUNSAFE, TypeHandle *pInstantiation, UINT32 cInstantiation);
     static FCDECL1(void, PrepareDelegate, Object* delegateUNSAFE);
-#endif // !FEATURE_CORECLR
     static FCDECL1(void, PrepareContractedDelegate, Object* delegateUNSAFE);
     static FCDECL0(void, ProbeForSufficientStack);    
-	static FCDECL0(void, EnsureSufficientExecutionStack);
-#ifdef FEATURE_CORECLR // currently only used from mscorlib in FEATURE_CORECLR
-	static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
-#endif // FEATURE_CORECLR
+    static FCDECL0(void, EnsureSufficientExecutionStack);
+    static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
     static FCDECL3(void, ExecuteCodeWithGuaranteedCleanup, Object* pCodeDelegateUNSAFE, Object* pBackoutDelegateUNSAFE, Object* pUserDataUNSAFE);
 
     // TypedReference functions, should go somewhere else
@@ -87,8 +83,6 @@ public:
     static FCDECL4(void, PerformSecurityCheck, Object *target, MethodDesc *pMeth, ReflectClassBaseObject *pParent, DWORD dwFlags);
     static FCDECL2(void, CheckArgs, PTRArray *objs, SignatureNative sig);
 
-    static FCDECL5(void, PerformVisibilityCheckOnField, FieldDesc *fieldDesc, Object *target, ReflectClassBaseObject *pDeclaringType, DWORD attr, DWORD invocationFlags);
-
     static void PrepareDelegateHelper(OBJECTREF* pDelegate, BOOL onlyContractedMethod);
     static void CanCacheTargetAndCrackedSig(MethodDesc* pMD);
 };
@@ -96,8 +90,6 @@ public:
 class ReflectionSerialization {
 public:
     static FCDECL1(Object*, GetUninitializedObject, ReflectClassBaseObject* objTypeUNSAFE);
-    static FCDECL1(Object*, GetSafeUninitializedObject, ReflectClassBaseObject* objTypeUNSAFE);
-    static FCDECL0(FC_BOOL_RET, GetEnableUnsafeTypeForwarders);
 };
 
 class ReflectionEnum {

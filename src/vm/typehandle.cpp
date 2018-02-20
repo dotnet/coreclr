@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: typehandle.cpp
 //
@@ -492,14 +491,9 @@ BOOL TypeHandle::IsAbstract() const
 DWORD TypeHandle::IsTransparentProxy() const
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_REMOTING
-    return !IsTypeDesc() && AsMethodTable()->IsTransparentProxy();
-#else
     return FALSE;
-#endif
 }
 
-#ifdef FEATURE_HFA
 bool TypeHandle::IsHFA() const
 {
     WRAPPER_NO_CONTRACT;
@@ -525,7 +519,7 @@ CorElementType TypeHandle::GetHFAType() const
 
     return ELEMENT_TYPE_END;
 }
-#endif // FEATURE_HFA
+
 
 #ifdef FEATURE_64BIT_ALIGNMENT
 bool TypeHandle::RequiresAlign8() const
@@ -1448,7 +1442,7 @@ OBJECTREF TypeHandle::GetManagedClassObjectFast() const
 
 #endif // #ifndef DACCESS_COMPILE
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
 
 BOOL TypeHandle::IsAppDomainAgile() const
 {
@@ -1540,7 +1534,7 @@ BOOL TypeHandle::IsArrayOfElementsCheckAppDomainAgile() const
     }
 }
 
-#endif // defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#endif // defined(_DEBUG)
 
 
 BOOL TypeHandle::IsByRef()  const
@@ -1548,6 +1542,14 @@ BOOL TypeHandle::IsByRef()  const
     LIMITED_METHOD_CONTRACT;
 
     return(IsTypeDesc() && AsTypeDesc()->IsByRef());
+
+}
+
+BOOL TypeHandle::IsByRefLike()  const
+{ 
+    LIMITED_METHOD_CONTRACT;
+
+    return(!IsTypeDesc() && AsMethodTable()->IsByRefLike());
 
 }
 

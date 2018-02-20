@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtrace.h
 // Abstract: This module implements Event Tracing support.  This includes
@@ -35,7 +34,29 @@
 #define _VMEVENTTRACE_H_
 
 #include "eventtracebase.h"
+#include "gcinterface.h"
 
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+struct ProfilingScanContext : ScanContext
+{
+    BOOL fProfilerPinned;
+    void * pvEtwContext;
+    void *pHeapId;
+    
+    ProfilingScanContext(BOOL fProfilerPinnedParam) : ScanContext()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        pHeapId = NULL;
+        fProfilerPinned = fProfilerPinnedParam;
+        pvEtwContext = NULL;
+#ifdef FEATURE_CONSERVATIVE_GC
+        // To not confuse GCScan::GcScanRoots
+        promotion = g_pConfig->GetGCConservative();
+#endif
+    }
+};
+#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
 #ifndef FEATURE_REDHAWK
 
@@ -151,6 +172,7 @@ namespace ETW
         static void OnKeywordsChanged();
         static void Cleanup();
         static VOID DeleteTypeHashNoLock(AllLoggedTypes **ppAllLoggedTypes);
+        static VOID FlushObjectAllocationEvents();
 
     private:
         static BOOL ShouldLogType(TypeHandle th);
@@ -230,18 +252,32 @@ namespace ETW
             // These values are gotten from the gc_reason
             // in gcimpl.h
             typedef  enum _GC_REASON { 
-                GC_ALLOC_SOH = 0 , 
-                GC_INDUCED = 1 , 
+                GC_ALLOC_SOH = 0, 
+                GC_INDUCED = 1, 
                 GC_LOWMEMORY = 2,
                 GC_EMPTY = 3,
                 GC_ALLOC_LOH = 4,
                 GC_OOS_SOH = 5,
                 GC_OOS_LOH = 6,
-                GC_INDUCED_NOFORCE = 7
+                GC_INDUCED_NOFORCE = 7,
+                GC_GCSTRESS = 8,
+                GC_LOWMEMORY_BLOCKING = 9,
+                GC_INDUCED_COMPACTING = 10,
+                GC_LOWMEMORY_HOST = 11
             } GC_REASON;
             typedef  enum _GC_TYPE { 
-                GC_NGC = 0 , GC_BGC = 1 , GC_FGC = 2
+                GC_NGC = 0, 
+                GC_BGC = 1, 
+                GC_FGC = 2
             } GC_TYPE;
+            typedef  enum _GC_ROOT_KIND { 
+              GC_ROOT_STACK = 0,
+              GC_ROOT_FQ = 1,
+              GC_ROOT_HANDLES = 2,
+              GC_ROOT_OLDER = 3,
+              GC_ROOT_SIZEDREF = 4,
+              GC_ROOT_OVERFLOW = 5
+            } GC_ROOT_KIND;
             struct {
                 ULONG Count;
                 ULONG Depth;
@@ -289,14 +325,7 @@ namespace ETW
         static BOOL ShouldTrackMovementForEtw();
         static HRESULT ForceGCForDiagnostics();
         static VOID ForceGC(LONGLONG l64ClientSequenceNumber);
-        static VOID FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo);
-        static VOID FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth);
-        static VOID FireSingleGenerationRangeEvent(
-            void * /* context */,
-            int generation, 
-            BYTE * rangeStart, 
-            BYTE * rangeEnd,
-            BYTE * rangeEndReserved);
+        static VOID FireGcStart(ETW_GC_INFO * pGcInfo);
         static VOID RootReference(
             LPVOID pvHandle,
             Object * pRootedNode,
@@ -314,9 +343,16 @@ namespace ETW
         static BOOL ShouldWalkStaticsAndCOMForEtw();
         static VOID WalkStaticsAndCOMForETW();
         static VOID EndHeapDump(ProfilerWalkHeapContext * profilerWalkHeapContext);
+#ifdef FEATURE_EVENT_TRACE        
         static VOID BeginMovedReferences(size_t * pProfilingContext);
         static VOID MovedReference(BYTE * pbMemBlockStart, BYTE * pbMemBlockEnd, ptrdiff_t cbRelocDistance, size_t profilingContext, BOOL fCompacting, BOOL fAllowProfApiNotification = TRUE);
         static VOID EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiNotification = TRUE);
+#else
+        // TODO: Need to be implemented for PROFILING_SUPPORTED.
+        static VOID BeginMovedReferences(size_t * pProfilingContext) {};
+        static VOID MovedReference(BYTE * pbMemBlockStart, BYTE * pbMemBlockEnd, ptrdiff_t cbRelocDistance, size_t profilingContext, BOOL fCompacting, BOOL fAllowProfApiNotification = TRUE) {};
+        static VOID EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiNotification = TRUE) {};
+#endif // FEATURE_EVENT_TRACE        
         static VOID SendFinalizeObjectEvent(MethodTable * pMT, Object * pObj);
     };
 };

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // StubMgr.h
 //
 
@@ -26,6 +25,22 @@
 //
 // The set of stub managers is extensible, but should be kept to a reasonable number
 // as they are currently linearly searched & queried for each stub.
+//
+//
+// IMPORTANT IMPLEMENTATION NOTE: Due to code versioning, tracing through a jitted code 
+// call is a speculative exercise. A trace could predict that calling method Foo would run 
+// jitted code at address 0x1234, however afterwards code versioning redirects Foo to call
+// an alternate jitted code body at address 0x5678. To handle this stub managers should
+// either: 
+//  a) stop tracing at offset zero of the newly called jitted code. The debugger knows
+//     to treat offset 0 in jitted code as potentially being any jitted code instance
+//  b) trace all the way through the jitted method such that regardless of which jitted
+//     code instance gets called the trace will still end at the predicted location.
+//
+//  If we wanted to be more rigorous about this we should probably have different trace
+//  results for intra-jitted and inter-jitted trace results but given the relative
+//  stability of this part of the code I haven't attacked that problem right now. It does
+//  work as-is.
 //
 
 
@@ -193,7 +208,9 @@ typedef VPTR(class StubManager) PTR_StubManager;
 
 class StubManager
 {
+#ifndef CROSSGEN_COMPILE
     friend class StubManagerIterator;
+
     VPTR_BASE_VTABLE_CLASS(StubManager)
     
   public:
@@ -319,12 +336,13 @@ public:
     // This is used by DAC to provide more information on who owns a stub.
     virtual LPCWSTR GetStubManagerName(PCODE addr) = 0;
 #endif
-
+ 
 private:
     SPTR_DECL(StubManager, g_pFirstManager);
     PTR_StubManager m_pNextManager;
 
     static CrstStatic s_StubManagerListCrst;
+#endif // !CROSSGEN_COMPILE
 };
 
 // -------------------------------------------------------
@@ -373,6 +391,8 @@ class LockedRangeList : public RangeList
 
     SimpleRWLock m_RangeListRWLock;
 };
+
+#ifndef CROSSGEN_COMPILE
 
 //-----------------------------------------------------------
 // Stub manager for the prestub.  Although there is just one, it has
@@ -435,15 +455,13 @@ class PrecodeStubManager : public StubManager
 #endif
 
   public:
-    static BOOL IsPrecodeByAsm(PCODE stubStartAddress);
-
     virtual BOOL CheckIsStub_Internal(PCODE stubStartAddress);
 
     virtual BOOL DoTraceStub(PCODE stubStartAddress, TraceDestination *trace);
 #ifndef DACCESS_COMPILE
     virtual BOOL TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              CONTEXT *pContext,
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr);
 #endif
 
@@ -507,7 +525,7 @@ class StubLinkStubManager : public StubManager
 #ifndef DACCESS_COMPILE
     virtual BOOL TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              CONTEXT *pContext,
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr);
 #endif
 
@@ -644,7 +662,7 @@ class RangeSectionStubManager : public StubManager
 #ifndef DACCESS_COMPILE
     virtual BOOL TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              CONTEXT *pContext,
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr);
 #endif
 
@@ -706,7 +724,7 @@ class ILStubManager : public StubManager
 
     virtual BOOL TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              CONTEXT *pContext,
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr);
 #endif
 
@@ -750,7 +768,7 @@ class InteropDispatchStubManager : public StubManager
 #ifndef DACCESS_COMPILE
     virtual BOOL TraceManager(Thread *thread,
                               TraceDestination *trace,
-                              CONTEXT *pContext,
+                              T_CONTEXT *pContext,
                               BYTE **pRetAddr);
 #endif
 
@@ -795,7 +813,7 @@ class DelegateInvokeStubManager : public StubManager
     virtual BOOL CheckIsStub_Internal(PCODE stubStartAddress);
 
 #if !defined(DACCESS_COMPILE)
-    virtual BOOL TraceManager(Thread *thread, TraceDestination *trace, CONTEXT *pContext, BYTE **pRetAddr);
+    virtual BOOL TraceManager(Thread *thread, TraceDestination *trace, T_CONTEXT *pContext, BYTE **pRetAddr);
     static BOOL TraceDelegateObject(BYTE *orDel, TraceDestination *trace);
 #endif // DACCESS_COMPILE
 
@@ -844,7 +862,7 @@ public:
     TailCallStubManager() : StubManager() {WRAPPER_NO_CONTRACT;}
     ~TailCallStubManager() {WRAPPER_NO_CONTRACT;}
 
-    virtual BOOL TraceManager(Thread * pThread, TraceDestination * pTrace, CONTEXT * pContext, BYTE ** ppRetAddr);
+    virtual BOOL TraceManager(Thread * pThread, TraceDestination * pTrace, T_CONTEXT * pContext, BYTE ** ppRetAddr);
 
     static bool IsTailCallStubHelper(PCODE code);
 #endif // DACCESS_COMPILE
@@ -931,7 +949,7 @@ public:
 #elif defined(_TARGET_ARM_)
         return pContext->R12;
 #elif defined(_TARGET_ARM64_)
-        return pContext->X15;
+        return pContext->X12;
 #else
         PORTABILITY_ASSERT("StubManagerHelpers::GetHiddenArg");
         return NULL;
@@ -992,4 +1010,5 @@ public:
 
 };
 
-#endif
+#endif // !CROSSGEN_COMPILE
+#endif // !__stubmgr_h__

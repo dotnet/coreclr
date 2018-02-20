@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // APIThreadStress.h  (API thread stresser)
 // ---------------------------------------------------------------------------
@@ -50,28 +49,9 @@
 class APIThreadStress
 {
  public:
-    APIThreadStress();
-    ~APIThreadStress();
-
-    BOOL DoThreadStress();
-    static void SyncThreadStress();
-
-    static void SetThreadStressCount(int count);
-
- protected:
-    virtual void Invoke() {LIMITED_METHOD_CONTRACT;};
-
- private:
-    static DWORD WINAPI StartThread(void *arg);
-
-    static int s_threadStressCount;     
-
-    int       m_threadCount;
-    HANDLE    *m_hThreadArray;
-    BOOL      m_setupOK;
-    LONG      m_runCount;
-    HANDLE    m_syncEvent;
-
+    BOOL DoThreadStress() { return FALSE; }
+    static void SyncThreadStress() { }
+    static void SetThreadStressCount(int count) { }
 };
 
 #endif  // _APITHREADSTRESS_H_

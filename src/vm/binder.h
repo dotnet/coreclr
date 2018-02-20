@@ -1,10 +1,9 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
-#if !defined(_BINDERMODULE_H_) && !defined(CLR_STANDALONE_BINDER)
+#ifndef _BINDERMODULE_H_
 #define _BINDERMODULE_H_
 
 class DataImage;
@@ -278,6 +277,7 @@ private:
 
     Signature GetSignatureLocal(LPHARDCODEDMETASIG pHardcodedSig);
 
+    bool ConvertType(const BYTE*& pSig, SigBuilder * pSigBuilder);
     void BuildConvertedSignature(const BYTE* pSig, SigBuilder * pSigBuilder);
     const BYTE* ConvertSignature(LPHARDCODEDMETASIG pHardcodedSig, const BYTE* pSig);
 

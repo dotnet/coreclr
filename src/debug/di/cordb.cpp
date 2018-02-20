@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // CorDB.cpp
 // 
@@ -21,11 +20,17 @@
 #include "dbgtransportmanager.h"
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
-// Helper function returns the instance handle of this module.
-HINSTANCE GetModuleInst();
+#if defined(PLATFORM_UNIX) || defined(__ANDROID__)
+// Local (in-process) debugging is not supported for UNIX and Android.
+#define SUPPORT_LOCAL_DEBUGGING 0
+#else
+#define SUPPORT_LOCAL_DEBUGGING 1
+#endif
 
 //********** Globals. *********************************************************
+#ifndef FEATURE_PAL
 HINSTANCE       g_hInst;                // Instance handle to this piece of code.
+#endif
 
 //-----------------------------------------------------------------------------
 // SxS Versioning story for Mscordbi (ICorDebug + friends)
@@ -88,7 +93,7 @@ HINSTANCE       g_hInst;                // Instance handle to this piece of code
 //*****************************************************************************
 STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 {
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
     // This API should not be called for Windows CoreCLR unless we are doing interop-debugging
     // (which is only supported internally).  Use code:CoreCLRCreateCordbObject instead.
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgEnableMixedModeDebugging) == 0)
@@ -96,7 +101,7 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
         _ASSERTE(!"Deprecated entry point CreateCordbObject() is called on Windows CoreCLR\n");
         return E_NOTIMPL;
     }
-#endif // FEATURE_CORECLR && !FEATURE_DBGIPC_TRANSPORT_DI
+#endif // !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
 
     if (ppCordb == NULL)
     {
@@ -110,7 +115,6 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
     return Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, IID_ICorDebug, (void **) ppCordb);
 }
 
-#if defined(FEATURE_CORECLR)
 //
 // Public API.  
 // Telesto Creation path - only way to debug multi-instance.  
@@ -163,7 +167,6 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
     return hr;
 }
 
-#endif // FEATURE_CORECLR
 
 
 
@@ -174,32 +177,40 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
 //*****************************************************************************
 BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
-#if defined(_DEBUG)
-    static int BreakOnDILoad = -1;
-    if (BreakOnDILoad == -1)
-        BreakOnDILoad = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnDILoad);
-
-    if (BreakOnDILoad)
-    {
-        _ASSERTE(!"DI Loaded");
-    }
-#endif
-
     // Save off the instance handle for later use.
     switch (dwReason)
     {
 
         case DLL_PROCESS_ATTACH:
         {
+#ifndef FEATURE_PAL
             g_hInst = hInstance;
+#else
+            int err = PAL_InitializeDLL();
+            if(err != 0)
+            {
+                return FALSE;
+            }
+#endif
+
+#if defined(_DEBUG)
+            static int BreakOnDILoad = -1;
+            if (BreakOnDILoad == -1)
+                BreakOnDILoad = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_BreakOnDILoad);
+
+            if (BreakOnDILoad)
+            {
+                _ASSERTE(!"DI Loaded");
+            }
+#endif
 
 #if defined(LOGGING)
             {
-                WCHAR   rcFile[_MAX_PATH];
-                WszGetModuleFileName(hInstance, rcFile, NumItems(rcFile));
+                PathString rcFile;
+                WszGetModuleFileName(hInstance, rcFile);
                 LOG((LF_CORDB, LL_INFO10000,
                     "DI::DbgDllMain: load right side support from file '%s'\n",
-                     rcFile));
+                     rcFile.GetUnicode()));
             }
 #endif
 
@@ -210,7 +221,12 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 #endif
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-            g_pDbgTransportManager = NULL;
+            g_pDbgTransportTarget = new (nothrow) DbgTransportTarget();
+            if (g_pDbgTransportTarget == NULL)
+                return FALSE;
+
+            if (FAILED(g_pDbgTransportTarget->Init()))
+                return FALSE;
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
         }
         break;
@@ -234,6 +250,15 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
         case DLL_PROCESS_DETACH:
         {
+#if defined(FEATURE_DBGIPC_TRANSPORT_DI)
+            if (g_pDbgTransportTarget != NULL)
+            {
+                g_pDbgTransportTarget->Shutdown();
+                delete g_pDbgTransportTarget;
+                g_pDbgTransportTarget = NULL;
+            }
+#endif // FEATURE_DBGIPC_TRANSPORT_DI
+            
 #ifdef RSCONTRACTS
             TlsFree(DbgRSThread::s_TlsSlot);
             DbgRSThread::s_TlsSlot = TLS_OUT_OF_INDEXES;
@@ -245,51 +270,14 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
     return TRUE;
 }
 
-#if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-// Routines to initialize and shutdown the debugger transport manager. Can't do these operations from DllMain
-// since they perform blocking network operations which can easily cause deadlocks on the loader lock.
-// Note: These routines are *not* thread safe (it's assumed the caller implements its own serialization).
-extern "C" HRESULT __stdcall InitDbgTransportManager()
-{
-    if (g_pDbgTransportManager)
-        return S_OK;
-
-    DbgTransportManager *pManager = new (nothrow) DbgTransportManager();
-    if (pManager == NULL)
-        return E_OUTOFMEMORY;
-
-    HRESULT hr = pManager->Init();
-    if (FAILED(hr))
-    {
-        pManager->Shutdown();
-        delete pManager;
-        return hr;
-    }
-
-    _ASSERTE(g_pDbgTransportManager == NULL);
-    g_pDbgTransportManager = pManager;
-
-    return S_OK;
-}
-
-extern "C" void __stdcall ShutdownDbgTransportManager()
-{
-    if (g_pDbgTransportManager)
-    {
-        g_pDbgTransportManager->Shutdown();
-        delete g_pDbgTransportManager;
-        g_pDbgTransportManager = NULL;
-    }
-}
-#endif // FEATURE_DBGIPC_TRANSPORT_DI
 
 // The obsolete v1 CLSID - see comment above for details.
 static const GUID CLSID_CorDebug_V1 = {0x6fef44d0,0x39e7,0x4c77, { 0xbe,0x8e,0xc9,0xf8,0xcf,0x98,0x86,0x30}};
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
 
-// include the GUID for Mac SilverLight debugging
-#include <maccoreclrdebugguids.h>
+// GUID for pipe-based debugging (Unix platforms)
+const GUID CLSID_CorDebug_Telesto = {0x8bd1daae, 0x188e, 0x42f4, {0xb0, 0x09, 0x08, 0xfa, 0xfd, 0x17, 0x81, 0x3b}};
 
 // The debug engine needs to implement an internal Visual Studio debugger interface (defined by the CPDE)
 // which augments launch and attach requests so that we can obtain information from the port supplier (the
@@ -321,7 +309,7 @@ STDAPI DllGetClassObjectInternal(               // Return code.
     else
 #endif
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-    if (rclsid == CLSID_CorDebug_Mac_SilverLight)
+    if (rclsid == CLSID_CorDebug_Telesto)
     {
         pfnCreateObject = Cordb::CreateObjectTelesto;
     }
@@ -444,16 +432,15 @@ HRESULT STDMETHODCALLTYPE CClassFactory::LockServer(
 }
 
 
-
-
-
 //*****************************************************************************
 // This helper provides access to the instance handle of the loaded image.
 //*****************************************************************************
+#ifndef FEATURE_PAL
 HINSTANCE GetModuleInst()
 {
     return g_hInst;
 }
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -501,7 +488,7 @@ CLRRuntimeHostInternal_GetImageVersionString(
     DWORD *pcchBuffer)
 {
     // Construct the cannoncial version string we're built as - eg. "v4.0.1234"
-    const WCHAR k_wszBuiltFor[] = W("v")VER_PRODUCTVERSION_NO_QFE_STR_L;
+    const WCHAR k_wszBuiltFor[] = W("v") VER_PRODUCTVERSION_NO_QFE_STR_L;
 
     // Copy our buffer in
     HRESULT hr = HRESULT_FROM_WIN32(wcscpy_s(wszBuffer, *pcchBuffer, k_wszBuiltFor));
@@ -519,7 +506,7 @@ DbiGetThreadContext(HANDLE hThread,
     DT_CONTEXT *lpContext)
 {
     // if we aren't local debugging this isn't going to work
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
@@ -558,7 +545,7 @@ BOOL
 DbiSetThreadContext(HANDLE hThread,
     const DT_CONTEXT *lpContext)
 {
-#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(_ARM_) || defined(FEATURE_DBGIPC_TRANSPORT_DI) || !SUPPORT_LOCAL_DEBUGGING
     _ASSERTE(!"Can't use local GetThreadContext remotely, this needed to go to datatarget");
     return FALSE;
 #else
@@ -571,7 +558,7 @@ DbiSetThreadContext(HANDLE hThread,
             *ctx = *(CONTEXT*)lpContext;
             res = ::SetThreadContext(hThread, ctx);
             _aligned_free(ctx);
-        }	
+        }   
         else
         {
             // malloc does not set the last error, but the caller of SetThreadContext

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -8,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -29,52 +30,50 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IVectorViewToIReadOnlyListAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // T this[int index] { get }
-        [SecurityCritical]
         internal T Indexer_Get<T>(int index)
         {
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVectorView<T> _this = JitHelpers.UnsafeCast<IVectorView<T>>(this);
+            IVectorView<T> _this = Unsafe.As<IVectorView<T>>(this);
 
             try
             {
-                return _this.GetAt((uint) index);
+                return _this.GetAt((uint)index);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new ArgumentOutOfRangeException("index");
+                if (HResults.E_BOUNDS == ex._HResult)
+                    throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
             }
         }
 
         // T this[int index] { get }
-        [SecurityCritical]
         internal T Indexer_Get_Variance<T>(int index) where T : class
         {
             bool fUseString;
             Delegate target = System.StubHelpers.StubHelpers.GetTargetForAmbiguousVariantCall(
-                this, 
-                typeof(IReadOnlyList<T>).TypeHandle.Value, 
+                this,
+                typeof(IReadOnlyList<T>).TypeHandle.Value,
                 out fUseString);
 
             if (target != null)
             {
-                return (JitHelpers.UnsafeCast<Indexer_Get_Delegate<T>>(target))(index);
+                return (Unsafe.As<Indexer_Get_Delegate<T>>(target))(index);
             }
-            
+
             if (fUseString)
             {
-                return JitHelpers.UnsafeCast<T>(Indexer_Get<string>(index));
+                return Unsafe.As<T>(Indexer_Get<string>(index));
             }
 
             return Indexer_Get<T>(index);

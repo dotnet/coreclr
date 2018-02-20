@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: decimal.cpp
 //
@@ -210,7 +209,7 @@ FCIMPL2_IV(void, COMDecimal::DoToCurrency, CY * result, DECIMAL d)
 }
 FCIMPLEND
 
-FCIMPL1(double, COMDecimal::ToDouble, DECIMAL d)
+FCIMPL1(double, COMDecimal::ToDouble, FC_DECIMAL d)
 {
     FCALL_CONTRACT;
 
@@ -223,12 +222,7 @@ FCIMPL1(double, COMDecimal::ToDouble, DECIMAL d)
 }
 FCIMPLEND
 
-#ifdef _MSC_VER
-// C4702: unreachable code on IA64 retail
-#pragma warning(push)
-#pragma warning(disable:4702)
-#endif
-FCIMPL1(INT32, COMDecimal::ToInt32, DECIMAL d)
+FCIMPL1(INT32, COMDecimal::ToInt32, FC_DECIMAL d)
 {
     FCALL_CONTRACT;
 
@@ -252,6 +246,10 @@ FCIMPL1(INT32, COMDecimal::ToInt32, DECIMAL d)
             if (i >= 0) return i;
         }
         else {
+            // Int32.MinValue is represented as sign being negative
+            // and Lo32 being 0x80000000 (-ve number). Return that as is without
+            // reversing the sign of the number.
+            if(i == 0x80000000) return i;
             i = -i;
             if (i <= 0) return i;
         }
@@ -259,11 +257,8 @@ FCIMPL1(INT32, COMDecimal::ToInt32, DECIMAL d)
     FCThrowRes(kOverflowException, W("Overflow_Int32"));    
 }
 FCIMPLEND
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
-FCIMPL1(float, COMDecimal::ToSingle, DECIMAL d)
+FCIMPL1(float, COMDecimal::ToSingle, FC_DECIMAL d)
 {
     FCALL_CONTRACT;
 
@@ -293,33 +288,6 @@ FCIMPL1(void, COMDecimal::DoTruncate, DECIMAL * d)
 }
 FCIMPLEND
 
-
-void COMDecimal::DecimalToNumber(DECIMAL* value, NUMBER* number)
-{
-    WRAPPER_NO_CONTRACT
-    _ASSERTE(number != NULL);
-    _ASSERTE(value != NULL);
-
-    wchar_t buffer[DECIMAL_PRECISION+1];
-    DECIMAL d = *value;
-    number->precision = DECIMAL_PRECISION;
-    number->sign = DECIMAL_SIGN(d)? 1: 0;
-    wchar_t* p = buffer + DECIMAL_PRECISION;
-    while (DECIMAL_MID32(d) | DECIMAL_HI32(d)) {
-        p = COMNumber::Int32ToDecChars(p, DecDivMod1E9(&d), 9);
-        _ASSERTE(p != NULL);
-    }
-    p = COMNumber::Int32ToDecChars(p, DECIMAL_LO32(d), 0);
-    _ASSERTE(p != NULL);
-    int i = (int) (buffer + DECIMAL_PRECISION - p);
-    number->scale = i - DECIMAL_SCALE(d);
-    wchar_t* dst = number->digits;
-    _ASSERTE(dst != NULL);
-    while (--i >= 0) *dst++ = *p++;
-    *dst = 0;
-    
-}
-
 int COMDecimal::NumberToDecimal(NUMBER* number, DECIMAL* value)
 {
     WRAPPER_NO_CONTRACT
@@ -343,10 +311,10 @@ int COMDecimal::NumberToDecimal(NUMBER* number, DECIMAL* value)
         }
     } else {
         if (e > DECIMAL_PRECISION) return 0;
-        while ((e > 0 || *p && e > -28) &&
-                (DECIMAL_HI32(d) < 0x19999999 || DECIMAL_HI32(d) == 0x19999999 &&
-                    (DECIMAL_MID32(d) < 0x99999999 || DECIMAL_MID32(d) == 0x99999999 &&
-                        (DECIMAL_LO32(d) < 0x99999999 || DECIMAL_LO32(d) == 0x99999999 && *p <= '5')))) {
+        while ((e > 0 || (*p && e > -28)) &&
+                (DECIMAL_HI32(d) < 0x19999999 || (DECIMAL_HI32(d) == 0x19999999 &&
+                    (DECIMAL_MID32(d) < 0x99999999 || (DECIMAL_MID32(d) == 0x99999999 &&
+                        (DECIMAL_LO32(d) < 0x99999999 || (DECIMAL_LO32(d) == 0x99999999 && *p <= '5'))))))) {
             DecMul10(&d);
             if (*p) DecAddInt32(&d, *p++ - '0');
             e--;
@@ -1314,10 +1282,10 @@ HaveScale64:
         rgulRem[1] = (rgulRem[1] << 1) + ulTmp;
         rgulRem[2] = (rgulRem[2] << 1) + ulTmp1;
 
-        if (rgulRem[2] > rgulDivisor[2] || rgulRem[2] == rgulDivisor[2] &&
-        (rgulRem[1] > rgulDivisor[1] || rgulRem[1] == rgulDivisor[1] &&
-        (rgulRem[0] > rgulDivisor[0] || rgulRem[0] == rgulDivisor[0] &&
-        (rgulQuo[0] & 1))))
+        if (rgulRem[2] > rgulDivisor[2] || (rgulRem[2] == rgulDivisor[2] &&
+        (rgulRem[1] > rgulDivisor[1] || (rgulRem[1] == rgulDivisor[1] &&
+        (rgulRem[0] > rgulDivisor[0] || (rgulRem[0] == rgulDivisor[0] &&
+        (rgulQuo[0] & 1)))))))
           goto RoundUp;
         break;
       }
@@ -1715,10 +1683,10 @@ HaveScale64:
         rgulRem[1] = (rgulRem[1] << 1) + ulTmp;
         rgulRem[2] = (rgulRem[2] << 1) + ulTmp1;
 
-        if (rgulRem[2] > rgulDivisor[2] || rgulRem[2] == rgulDivisor[2] &&
-        (rgulRem[1] > rgulDivisor[1] || rgulRem[1] == rgulDivisor[1] &&
-        (rgulRem[0] > rgulDivisor[0] || rgulRem[0] == rgulDivisor[0] &&
-        (rgulQuo[0] & 1))))
+        if (rgulRem[2] > rgulDivisor[2] || (rgulRem[2] == rgulDivisor[2] &&
+        (rgulRem[1] > rgulDivisor[1] || (rgulRem[1] == rgulDivisor[1] &&
+        (rgulRem[0] > rgulDivisor[0] || (rgulRem[0] == rgulDivisor[0] &&
+        (rgulQuo[0] & 1)))))))
           goto RoundUp;
         break;
       }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: typedesc.cpp
 // 
@@ -41,7 +40,7 @@ BOOL ParamTypeDesc::Verify() {
     STATIC_CONTRACT_DEBUG_ONLY;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
-    _ASSERTE(m_TemplateMT.IsNull() || m_TemplateMT.GetValue()->SanityCheck());
+    _ASSERTE(m_TemplateMT.IsNull() || GetTemplateMethodTableInternal()->SanityCheck());
     _ASSERTE(!GetTypeParam().IsNull());
     BAD_FORMAT_NOTHROW_ASSERT(GetTypeParam().IsTypeDesc() || !GetTypeParam().AsMethodTable()->IsArray());
     BAD_FORMAT_NOTHROW_ASSERT(CorTypeInfo::IsModifier_NoThrow(GetInternalCorElementType()) ||
@@ -60,7 +59,7 @@ BOOL ArrayTypeDesc::Verify() {
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     // m_TemplateMT == 0 may be null when building types involving TypeVarTypeDesc's
-    BAD_FORMAT_NOTHROW_ASSERT(m_TemplateMT.IsNull() || m_TemplateMT.GetValue()->IsArray());
+    BAD_FORMAT_NOTHROW_ASSERT(m_TemplateMT.IsNull() || GetTemplateMethodTable()->IsArray());
     BAD_FORMAT_NOTHROW_ASSERT(CorTypeInfo::IsArray_NoThrow(GetInternalCorElementType()));
     ParamTypeDesc::Verify();
     return(true);
@@ -442,14 +441,16 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     // then we must be trying to cast to a class or interface type.
     if (!toType.IsTypeDesc())
     {
-        MethodTable *pMT = GetMethodTable();
-        if (pMT == 0) {
-            // I don't have an underlying method table, therefore I'm
-            // a variable type, pointer type, function pointer type
+        if (!IsArray())
+        {
+            // I am a variable type, pointer type, function pointer type
             // etc.  I am not an object or value type.  Therefore
             // I can't be cast to an object or value type.
             return FALSE;
         }
+
+        MethodTable *pMT = GetMethodTable();
+        _ASSERTE(pMT != 0);
 
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
         if (pMT->CanCastToClassOrInterface(toType.AsMethodTable(), pVisited) != 0)
@@ -610,14 +611,16 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
     // then we must be trying to cast to a class or interface type.
     if (!toType.IsTypeDesc())
     {
-        MethodTable *pMT = GetMethodTable();
-        if (pMT == 0) {
-            // I don't have an underlying method table, therefore I'm
-            // a variable type, pointer type, function pointer type
+        if (!IsArray())
+        {
+            // I am a variable type, pointer type, function pointer type
             // etc.  I am not an object or value type.  Therefore
             // I can't be cast to an object or value type.
             return TypeHandle::CannotCast;
         }
+
+        MethodTable *pMT = GetMethodTable();
+        _ASSERTE(pMT != 0);
 
         // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
         return pMT->CanCastToClassOrInterfaceNoGC(toType.AsMethodTable());
@@ -838,6 +841,12 @@ OBJECTREF ParamTypeDesc::GetManagedClassObject()
             pLoaderAllocator->ClearHandle(hExposedClassObject);
         }
 
+        if (OwnsTemplateMethodTable())
+        {
+            // Set the handle on template methodtable as well to make Object.GetType for arrays take the fast path
+            EnsureWritablePages(GetTemplateMethodTableInternal()->GetWriteableDataForWrite())->m_hExposedClassObject = m_hExposedClassObject;
+        }
+
         // Log the TypeVarTypeDesc access
         g_IBCLogger.LogTypeMethodTableWriteableAccess(&th);
 
@@ -1002,7 +1011,7 @@ void TypeDesc::DoFullyLoad(Generics::RecursionGraph *pVisited, ClassLoadLevel le
         // Fully load the template method table
         if (!pPTD->m_TemplateMT.IsNull())
         {
-            pPTD->m_TemplateMT.GetValue()->DoFullyLoad(&newVisited, level, pPending, &fBailed, pInstContext);
+            pPTD->GetTemplateMethodTableInternal()->DoFullyLoad(&newVisited, level, pPending, &fBailed, pInstContext);
         }
     }
 
@@ -1180,8 +1189,8 @@ void ParamTypeDesc::Save(DataImage *image)
     if (OwnsTemplateMethodTable())
     {
         // This TypeDesc should be the only one saving this MT
-        _ASSERTE(!image->IsStored(m_TemplateMT.GetValue()));
-        Module::SaveMethodTable(image, m_TemplateMT.GetValue(), 0);
+        _ASSERTE(!image->IsStored(GetTemplateMethodTableInternal()));
+        Module::SaveMethodTable(image, GetTemplateMethodTableInternal(), 0);
     }
 
 }
@@ -1210,8 +1219,8 @@ void ParamTypeDesc::Fixup(DataImage *image)
             // TypeDesc and the MT are "tightly-knit") In other words if one is present in
             // an NGEN image then then other will be, and if one is "used" at runtime then
             // the other will be too.
-            image->FixupPointerField(this, offsetof(ParamTypeDesc, m_TemplateMT));
-            m_TemplateMT.GetValue()->Fixup(image);
+            image->FixupMethodTablePointer(this, &m_TemplateMT);
+            GetTemplateMethodTableInternal()->Fixup(image);
         }
         else
         {
@@ -1266,14 +1275,14 @@ BOOL ParamTypeDesc::ComputeNeedsRestore(DataImage *image, TypeHandleList *pVisit
     { 
         if (OwnsTemplateMethodTable())
         {
-            if (m_TemplateMT.GetValue()->ComputeNeedsRestore(image, pVisited))
+            if (GetTemplateMethodTableInternal()->ComputeNeedsRestore(image, pVisited))
             {
                 res = TRUE;
             }
         }
         else
         {
-            if (!image->CanPrerestoreEagerBindToMethodTable(m_TemplateMT.GetValue(), pVisited))
+            if (!image->CanPrerestoreEagerBindToMethodTable(GetTemplateMethodTableInternal(), pVisited))
             {
                 res = TRUE;
             }
@@ -1364,7 +1373,7 @@ void TypeVarTypeDesc::Fixup(DataImage *image)
     STANDARD_VM_CONTRACT;
 
     LOG((LF_ZAP, LL_INFO10000, "  TypeVarTypeDesc::Fixup %x (%p)\n", GetToken(), this));
-    image->FixupPointerField(this, offsetof(TypeVarTypeDesc, m_pModule));
+    image->FixupRelativePointerField(this, offsetof(TypeVarTypeDesc, m_pModule));
     image->ZeroField(this, offsetof(TypeVarTypeDesc, m_hExposedClassObject), sizeof(m_hExposedClassObject));
 
     // We don't persist the constraints: instead, load them back on demand
@@ -1385,10 +1394,10 @@ MethodDesc * TypeVarTypeDesc::LoadOwnerMethod()
     }
     CONTRACTL_END;
 
-    MethodDesc *pMD = m_pModule->LookupMethodDef(m_typeOrMethodDef);
+    MethodDesc *pMD = GetModule()->LookupMethodDef(m_typeOrMethodDef);
     if (pMD == NULL)
     {
-        pMD = MemberLoader::GetMethodDescFromMethodDef(m_pModule, m_typeOrMethodDef, FALSE);
+        pMD = MemberLoader::GetMethodDescFromMethodDef(GetModule(), m_typeOrMethodDef, FALSE);
     }
     return pMD;
 }
@@ -1405,10 +1414,10 @@ TypeHandle TypeVarTypeDesc::LoadOwnerType()
     }
     CONTRACTL_END;
 
-    TypeHandle genericType = m_pModule->LookupTypeDef(m_typeOrMethodDef);
+    TypeHandle genericType = GetModule()->LookupTypeDef(m_typeOrMethodDef);
     if (genericType.IsNull())
     {
-        genericType = ClassLoader::LoadTypeDefThrowing(m_pModule, m_typeOrMethodDef,
+        genericType = ClassLoader::LoadTypeDefThrowing(GetModule(), m_typeOrMethodDef,
             ClassLoader::ThrowIfNotFound,
             ClassLoader::PermitUninstDefOrRef);
     }
@@ -1497,7 +1506,7 @@ void TypeVarTypeDesc::LoadConstraints(ClassLoadLevel level /* = CLASS_LOADED */)
         numConstraints = pInternalImport->EnumGetCount(&hEnum);
         if (numConstraints != 0)
         {
-            LoaderAllocator* pAllocator=m_pModule->GetLoaderAllocator();
+            LoaderAllocator* pAllocator = GetModule()->GetLoaderAllocator();
             // If there is a single class constraint we put in in element 0 of the array
             AllocMemHolder<TypeHandle> constraints 
                 (pAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(numConstraints) * S_SIZE_T(sizeof(TypeHandle))));
@@ -2410,7 +2419,7 @@ ParamTypeDesc::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     SUPPORTS_DAC;
     DAC_ENUM_DTHIS();
 
-    PTR_MethodTable pTemplateMT = m_TemplateMT.GetValue();
+    PTR_MethodTable pTemplateMT = GetTemplateMethodTableInternal();
     if (pTemplateMT.IsValid())
     {
         pTemplateMT->EnumMemoryRegions(flags);
@@ -2425,9 +2434,11 @@ TypeVarTypeDesc::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     SUPPORTS_DAC;
     DAC_ENUM_DTHIS();
 
-    if (m_pModule.IsValid())
+    PTR_TypeVarTypeDesc ptrThis(this);
+
+    if (GetModule().IsValid())
     {
-        m_pModule->EnumMemoryRegions(flags, true);
+        GetModule()->EnumMemoryRegions(flags, true);
     }
 
     if (m_numConstraints != (DWORD)-1)

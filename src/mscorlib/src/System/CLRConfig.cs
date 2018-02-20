@@ -1,35 +1,28 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System {
+namespace System
+{
+    // CLRConfig is mainly reading the config switch values. this is used when we cannot use the AppContext class
+    // one example, is using the context switch in the globalization code which require to read the switch very
+    // early even before the appdomain get initialized.
+    // In general AppContext should be used instead of CLRConfig if there is no reason prevent that.
+    internal class CLRConfig
+    {
+        internal static bool GetBoolValue(string switchName, out bool exist)
+        {
+            return GetConfigBoolValue(switchName, out exist);
+        }
 
-/// <summary>
-/// For now, this class should be the central point to collect all managed declarations
-/// of native functions designed to expose config switches.
-/// In Dev11 M2.2 we will redesign this class to expose CLRConfig from within the CLR
-/// and refactor managed Fx code to access all compat switches through here.
-/// </summary>
-[FriendAccessAllowed]
-internal class CLRConfig {
-    
-    [FriendAccessAllowed]
-    [System.Security.SecurityCritical]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
-    [SuppressUnmanagedCodeSecurity]
-    internal static extern bool CheckLegacyManagedDeflateStream();
-
-    [System.Security.SecurityCritical]
-    [MethodImplAttribute(MethodImplOptions.InternalCall)]
-    [SuppressUnmanagedCodeSecurity]
-    internal static extern bool CheckThrowUnobservedTaskExceptions();
-
-}  // internal class CLRConfig
-
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private extern static bool GetConfigBoolValue(string configSwitchName, out bool exist);
+    }
 }  // namespace System
 
 // file CLRConfig

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // vars.cpp - Global Var definitions
 //
@@ -23,15 +22,15 @@ bool g_fAllowNativeImages = true;
 //
 // Default install library
 //
-const WCHAR g_pwBaseLibrary[]     = W("mscorlib.dll");
-const WCHAR g_pwBaseLibraryName[] = W("mscorlib");
-const char g_psBaseLibrary[]      = "mscorlib.dll";
-const char g_psBaseLibraryName[]  = "mscorlib";
-const char g_psBaseLibrarySatelliteAssemblyName[]  = "mscorlib.resources";
+const WCHAR g_pwBaseLibrary[]     = CoreLibName_IL_W;
+const WCHAR g_pwBaseLibraryName[] = CoreLibName_W;
+const char g_psBaseLibrary[]      = CoreLibName_IL_A;
+const char g_psBaseLibraryName[]  = CoreLibName_A;
+const char g_psBaseLibrarySatelliteAssemblyName[]  = CoreLibSatelliteName_A;
 
 #ifdef FEATURE_COMINTEROP
-const WCHAR g_pwBaseLibraryTLB[]  = W("mscorlib.tlb");
-const char g_psBaseLibraryTLB[]   = "mscorlib.tlb";
+const WCHAR g_pwBaseLibraryTLB[]  = CoreLibName_TLB_W;
+const char g_psBaseLibraryTLB[]   = CoreLibName_TLB_A;
 #endif  // FEATURE_COMINTEROP
 
 Volatile<LONG>       g_TrapReturningThreads;
@@ -70,6 +69,7 @@ GPTR_IMPL(MethodTable,      g_pStringClass);
 GPTR_IMPL(MethodTable,      g_pArrayClass);
 GPTR_IMPL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_IMPL(MethodTable,      g_pNullableClass);
+GPTR_IMPL(MethodTable,      g_pByReferenceClass);
 GPTR_IMPL(MethodTable,      g_pExceptionClass);
 GPTR_IMPL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_IMPL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -80,24 +80,25 @@ GPTR_IMPL(MethodTable,      g_pMulticastDelegateClass);
 GPTR_IMPL(MethodTable,      g_pValueTypeClass);
 GPTR_IMPL(MethodTable,      g_pEnumClass);
 GPTR_IMPL(MethodTable,      g_pThreadClass);
-GPTR_IMPL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_IMPL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_IMPL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_IMPL(MethodTable,      g_ArgumentHandleMT);
-GPTR_IMPL(MethodTable,      g_ArgIteratorMT);
 GPTR_IMPL(MethodTable,      g_TypedReferenceMT);
+
+GPTR_IMPL(MethodTable,      g_pByteArrayMT);
 
 #ifdef FEATURE_COMINTEROP
 GPTR_IMPL(MethodTable,      g_pBaseCOMObject);
 GPTR_IMPL(MethodTable,      g_pBaseRuntimeClass);
 #endif
 
-GPTR_IMPL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
+#ifdef FEATURE_ICASTABLE
+GPTR_IMPL(MethodTable,      g_pICastableInterface);
+#endif // FEATURE_ICASTABLE
+
+
 GPTR_IMPL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
-GPTR_IMPL(MethodDesc,       g_pObjectCtorMD);
 GPTR_IMPL(MethodDesc,       g_pObjectFinalizerMD);
 
 GPTR_IMPL(Thread,g_pFinalizerThread);
@@ -115,15 +116,9 @@ GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
 
+GVAL_IMPL_INIT(DWORD, g_TlsIndex, TLS_OUT_OF_INDEXES);
 
 #ifndef DACCESS_COMPILE
-
-// <TODO> @TODO Remove eventually - </TODO> determines whether the verifier throws an exception when something fails
-bool                g_fVerifierOff;
-
-#ifndef FEATURE_CORECLR
-IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // <TODO> @TODO - PROMOTE. </TODO>
 OBJECTHANDLE         g_pPreallocatedOutOfMemoryException;
@@ -133,10 +128,6 @@ OBJECTHANDLE         g_pPreallocatedRudeThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedSentinelObject;
 OBJECTHANDLE         g_pPreallocatedBaseException;
-
-#ifdef FEATURE_CAS_POLICY
-CertificateCache *g_pCertificateCache = NULL;
-#endif
 
 // 
 //
@@ -151,7 +142,8 @@ SpinConstants g_SpinConstants = {
     50,        // dwInitialDuration 
     40000,     // dwMaximumDuration - ideally (20000 * max(2, numProc))
     3,         // dwBackoffFactor
-    10         // dwRepetitions
+    10,        // dwRepetitions
+    0          // dwMonitorSpinCount
 };
 
 // support for Event Tracing for Windows (ETW)
@@ -224,7 +216,6 @@ GVAL_IMPL(SIZE_T, g_runtimeVirtualSize);
 #ifndef DACCESS_COMPILE
 
 Volatile<LONG> g_fForbidEnterEE = false;
-bool g_fFinalizerRunOnShutDown = false;
 bool g_fManagedAttach = false;
 bool g_fNoExceptions = false;
 #ifdef FEATURE_COMINTEROP
@@ -232,14 +223,6 @@ bool g_fShutDownCOM = false;
 #endif //FEATURE_COMINTEROP
 
 DWORD g_FinalizerWaiterStatus = 0;
-
-const WCHAR g_pwzClickOnceEnv_FullName[] = W("__COR_COMMAND_LINE_APP_FULL_NAME__");
-const WCHAR g_pwzClickOnceEnv_Manifest[] = W("__COR_COMMAND_LINE_MANIFEST__");
-const WCHAR g_pwzClickOnceEnv_Parameter[] = W("__COR_COMMAND_LINE_PARAMETER__");
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-DWORD g_dwGlobalSharePolicy = AppDomain::SHARE_POLICY_UNSPECIFIED;
-#endif
 
 //
 // Do we own the lifetime of the process, ie. is it an EXE?
@@ -257,15 +240,6 @@ bool g_fInControlC = false;
 //
 LPWSTR g_pCachedCommandLine = NULL;
 LPWSTR g_pCachedModuleFileName = 0;
-
-// host configuration file. If set, it is added to every AppDomain (fusion context)
-LPCWSTR  g_pszHostConfigFile = NULL;
-SIZE_T  g_dwHostConfigFile = 0;
-
-// AppDomainManager assembly and type names provided as environment variables.
-LPWSTR g_wszAppDomainManagerAsm = NULL;
-LPWSTR g_wszAppDomainManagerType = NULL;
-bool g_fDomainManagerInitialized = false;
 
 //
 // IJW needs the shim HINSTANCE
@@ -314,50 +288,5 @@ extern "C" RAW_KEYWORD(volatile) const GSCookie s_gsCookie = 0;
 __GlobalVal< GSCookie > s_gsCookie(&g_dacGlobals.dac__s_gsCookie);
 #endif //!DACCESS_COMPILE
 
-BOOL IsCompilationProcess()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-#if defined(FEATURE_NATIVE_IMAGE_GENERATION) && !defined(DACCESS_COMPILE)
-    return g_pCEECompileInfo != NULL;
-#else
-    return FALSE;
-#endif
-}
-
 //==============================================================================
 
-enum NingenState
-{
-    kNotInitialized = 0,
-    kNingenEnabled = 1,
-    kNingenDisabled = 2,
-};
-
-extern int g_ningenState;
-int g_ningenState = kNotInitialized;
-
-// Removes all execution of managed or third-party code in the ngen compilation process.
-BOOL NingenEnabled()
-{
-    LIMITED_METHOD_CONTRACT;
-
-#ifdef CROSSGEN_COMPILE
-    // Always enable ningen for cross-compile
-    return TRUE;
-#else // CROSSGEN_COMPILE
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-    // Note that ningen is enabled by default to get byte-to-byte identical NGen images between native compile and cross-compile
-    if (g_ningenState == kNotInitialized)
-    {
-        // This code must be idempotent as we don't have a lock to prevent a race to initialize g_ningenState.
-        g_ningenState = (IsCompilationProcess() && (0 != CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Ningen))) ? kNingenEnabled : kNingenDisabled;
-    }
-
-    return g_ningenState == kNingenEnabled;
-#else
-    return FALSE;
-#endif
-
-#endif // CROSSGEN_COMPILE
-}

@@ -1,11 +1,19 @@
-add_library(mscorrc.debug SHARED
-  ../include.rc
-)
-
 add_definitions(-DFX_VER_INTERNALNAME_STR=mscorrc.debug.dll)
 
-# add the install targets
-install (TARGETS mscorrc.debug DESTINATION .)
 if(WIN32)
-install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscorrc.debug.pdb DESTINATION PDB)
+
+  add_library_clr(mscorrc.debug SHARED
+    ../include.rc
+  )
+
+  install_clr (mscorrc.debug) 
+
+else()
+  build_resources(${CMAKE_CURRENT_SOURCE_DIR}/../include.rc mscorrc_debug TARGET_CPP_FILE)
+
+  add_library_clr(mscorrc_debug STATIC
+    ${TARGET_CPP_FILE}
+  )
+
 endif(WIN32)
+

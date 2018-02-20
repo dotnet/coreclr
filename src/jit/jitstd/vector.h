@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -35,8 +34,8 @@ public:
     typedef Allocator allocator_type;
     typedef T* pointer;
     typedef T& reference;
-    typedef const pointer const_pointer;
-    typedef const reference const_reference;
+    typedef const T* const_pointer;
+    typedef const T& const_reference;
 
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
@@ -282,7 +281,7 @@ size_t iterator_difference(InputIterator first, const InputIterator& last)
 template <typename T, typename Allocator>
 vector<T, Allocator>::vector(const Allocator& allocator)
     : m_allocator(allocator)
-    , m_pArray(NULL)
+    , m_pArray(nullptr)
     , m_nSize(0)
     , m_nCapacity(0)
 {
@@ -398,7 +397,7 @@ typename vector<T, Allocator>::reference
 }
 
 template <typename T, typename Allocator>
-typename vector<T, Allocator>::reference
+typename vector<T, Allocator>::const_reference
     vector<T, Allocator>::back() const
 {
     return operator[](m_nSize - 1);

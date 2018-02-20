@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // UtilCode.h
 //
@@ -30,7 +29,13 @@
 #include "winnls.h"
 #include "check.h"
 #include "safemath.h"
+#include "new.hpp"
+
+#ifdef PAL_STDCPP_COMPAT
+#include <type_traits>
+#else
 #include "clr_std/type_traits"
+#endif
 
 #include "contract.h"
 #include "entrypoints.h"
@@ -43,15 +48,21 @@ const WCHAR kWatsonName2[] = W("drwtsn32");
 
 #include "random.h"
 
-// Windows CoreSystem has a different naming scheme for some dlls, which we must take account of when doing
-// LoadLibrary and the like.
-#if defined(FEATURE_CORESYSTEM)
-#define WINDOWS_KERNEL32_DLLNAME_A "kernelbase"
-#define WINDOWS_KERNEL32_DLLNAME_W W("kernelbase")
-#elif !defined(FEATURE_CORESYSTEM) || defined(CROSS_COMPILE)
 #define WINDOWS_KERNEL32_DLLNAME_A "kernel32"
 #define WINDOWS_KERNEL32_DLLNAME_W W("kernel32")
-#endif
+
+#define CoreLibName_W W("System.Private.CoreLib")
+#define CoreLibName_IL_W W("System.Private.CoreLib.dll")
+#define CoreLibName_NI_W W("System.Private.CoreLib.ni.dll")
+#define CoreLibName_TLB_W W("System.Private.CoreLib.tlb")
+#define CoreLibName_A "System.Private.CoreLib"
+#define CoreLibName_IL_A "System.Private.CoreLib.dll"
+#define CoreLibName_NI_A "System.Private.CoreLib.ni.dll"
+#define CoreLibName_TLB_A "System.Private.CoreLib.tlb"
+#define CoreLibNameLen 22
+#define CoreLibSatelliteName_A "System.Private.CoreLib.resources"
+#define CoreLibSatelliteNameLen 32
+#define LegacyCoreLibName_A "mscorlib"
 
 class StringArrayList;
 
@@ -105,6 +116,17 @@ inline TADDR PCODEToPINSTR(PCODE pc)
     return ThumbCodeToDataPointer<TADDR,PCODE>(pc);
 #else
     return dac_cast<PCODE>(pc);
+#endif
+}
+
+// Convert from a PINSTR to the corresponding PCODE.  On many architectures this will be the identity function;
+// on ARM, this will raise the THUMB bit.
+inline PCODE PINSTRToPCODE(TADDR addr)
+{
+#ifdef _TARGET_ARM_
+    return DataPointerToThumbCode<PCODE,TADDR>(addr);
+#else
+    return dac_cast<PCODE>(addr);
 #endif
 }
 
@@ -502,14 +524,14 @@ inline void *__cdecl operator new(size_t, void *_P)
 void * __cdecl
 operator new(size_t n);
 
-_Ret_bytecap_(_Size) void * __cdecl
+_Ret_bytecap_(n) void * __cdecl
 operator new[](size_t n);
 
 void __cdecl
-operator delete(void *p);
+operator delete(void *p) NOEXCEPT;
 
 void __cdecl
-operator delete[](void *p);
+operator delete[](void *p) NOEXCEPT;
 
 #ifdef _DEBUG_IMPL
 HRESULT _OutOfMemory(LPCSTR szFile, int iLine);
@@ -573,7 +595,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if ENABLE_DOWNLEVEL_FOR_NLS
+#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 
@@ -743,6 +765,9 @@ public:
         m_nHashSize = 0;
         m_csMap = NULL;
         m_pResourceFile = NULL;
+#ifdef FEATURE_PAL
+        m_pResourceDomain = NULL;
+#endif // FEATURE_PAL
 
     }// CCompRC
 
@@ -774,10 +799,8 @@ public:
 
     // Get the default resource location (mscorrc.dll for desktop, mscorrc.debug.dll for CoreCLR)
     static CCompRC* GetDefaultResourceDll();
-#ifdef FEATURE_CORECLR
     // Get the generic messages dll (Silverlight only, mscorrc.dll)
     static CCompRC* GetFallbackResourceDll();
-#endif
     static void ShutdownDefaultResourceDll();
     static void GetDefaultCallbacks(
                     FPGETTHREADUICULTURENAMES* fpGetThreadUICultureNames,
@@ -802,12 +825,10 @@ public:
                 fpGetThreadUICultureNames,
                 fpGetThreadUICultureId);
 
-#ifdef FEATURE_CORECLR
         m_FallbackResourceDll.SetResourceCultureCallbacks(
                 fpGetThreadUICultureNames,
                 fpGetThreadUICultureId);
 
-#endif
     }
 
 #ifdef USE_FORMATMESSAGE_WRAPPER
@@ -830,7 +851,8 @@ private:
     HRESULT GetLibrary(LocaleID langId, HRESOURCEDLL* phInst);
 #ifndef DACCESS_COMPILE
     HRESULT LoadLibraryHelper(HRESOURCEDLL *pHInst,
-                              __out_ecount(rcPathSize) WCHAR *rcPath, const DWORD rcPathSize);
+                              SString& rcPath);
+    HRESULT LoadLibraryThrows(HRESOURCEDLL * pHInst);
     HRESULT LoadLibrary(HRESOURCEDLL * pHInst);
     HRESULT LoadResourceFile(HRESOURCEDLL * pHInst, LPCWSTR lpFileName);
 #endif
@@ -840,12 +862,10 @@ private:
     static CCompRC  m_DefaultResourceDll;
     static LPCWSTR  m_pDefaultResource;
 
-#ifdef FEATURE_CORECLR
     // fallback resources if debug pack is not installed
     static LONG     m_dwFallbackInitialized;
     static CCompRC  m_FallbackResourceDll;
     static LPCWSTR  m_pFallbackResource;
-#endif
 
     // We must map between a thread's int and a dll instance.
     // Since we only expect 1 language almost all of the time, we'll special case
@@ -857,6 +877,12 @@ private:
     CRITSEC_COOKIE m_csMap;
 
     LPCWSTR m_pResourceFile;
+#ifdef FEATURE_PAL
+    // Resource domain is an ANSI string identifying a native resources file
+    static LPCSTR  m_pDefaultResourceDomain;
+    static LPCSTR  m_pFallbackResourceDomain;
+    LPCSTR m_pResourceDomain;
+#endif // FEATURE_PAL
 
     // Main accessors for hash
     HRESOURCEDLL LookupNode(LocaleID langId, BOOL &fMissing);
@@ -1021,53 +1047,7 @@ inline int CountBits(int iNum)
     return (iBits);
 }
 
-//------------------------------------------------------------------------
-// BitPosition: Return the position of the single bit that is set in 'value'.
-//
-// Return Value:
-//    The position (0 is LSB) of bit that is set in 'value'
-//
-// Notes:
-//    'value' must have exactly one bit set.
-//    The algorithm is as follows:
-//    - PRIME is a prime bigger than sizeof(unsigned int), which is not of the
-//      form 2^n-1.
-//    - Taking the modulo of 'value' with this will produce a unique hash for all
-//      powers of 2 (which is what "value" is).
-//    - Entries in hashTable[] which are -1 should never be used. There
-//      should be PRIME-8*sizeof(value) entries which are -1 .
-//
-inline
-unsigned            BitPosition(unsigned value)
-{
-    _ASSERTE((value != 0) && ((value & (value-1)) == 0));
-#ifndef _TARGET_AMD64_
-    const unsigned PRIME = 37;
-
-    static const char hashTable[PRIME] =
-    {
-        -1,  0,  1, 26,  2, 23, 27, -1,  3, 16,
-        24, 30, 28, 11, -1, 13,  4,  7, 17, -1,
-        25, 22, 31, 15, 29, 10, 12,  6, -1, 21,
-        14,  9,  5, 20,  8, 19, 18
-    };
-
-    _ASSERTE(PRIME >= 8*sizeof(value));
-    _ASSERTE(sizeof(hashTable) == PRIME);
-
-
-    unsigned hash   = value % PRIME;
-    unsigned index  = hashTable[hash];
-    _ASSERTE(index != (unsigned char)-1);
-#else
-    // not enabled for x86 because BSF is extremely slow on Atom
-    // (15 clock cycles vs 1-3 on any other Intel CPU post-P4)
-    DWORD index;
-    BitScanForward(&index, value);
-#endif
-    return index;
-}
-
+#include "bitposition.h"
 
 // Used to remove trailing zeros from Decimal types.
 // NOTE: Assumes hi32 bits are empty (used for conversions from Cy->Dec)
@@ -1142,10 +1122,11 @@ void    SplitPathInterior(
     __out_opt LPCWSTR *pwszFileName, __out_opt size_t *pcchFileName,
     __out_opt LPCWSTR *pwszExt,      __out_opt size_t *pcchExt);
 
-void    MakePath(__out_ecount (MAX_PATH) register WCHAR *path, 
-                 __in LPCWSTR drive, 
-                 __in LPCWSTR dir, 
-                 __in LPCWSTR fname, 
+
+void    MakePath(__out CQuickWSTR &path,
+                 __in LPCWSTR drive,
+                 __in LPCWSTR dir,
+                 __in LPCWSTR fname,
                  __in LPCWSTR ext);
 
 WCHAR * FullPath(__out_ecount (maxlen) WCHAR *UserBuf, const WCHAR *path, size_t maxlen);
@@ -1160,6 +1141,8 @@ void    SplitPath(__in SString const &path,
                   __inout_opt SString *dir,
                   __inout_opt SString *fname,
                   __inout_opt SString *ext);
+
+#if !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 //
@@ -1232,13 +1215,9 @@ public:
 
     static void   FreeConfigString(__in __in_z LPWSTR name);
 
-#ifdef FEATURE_CORECLR
 private:
-#endif //FEATURE_CORECLR
     static LPWSTR EnvGetString(LPCWSTR name, BOOL fPrependCOMPLUS);
-#ifdef FEATURE_CORECLR
 public:
-#endif //FEATURE_CORECLR
 
     static BOOL UseRegistry();
 
@@ -1256,138 +1235,6 @@ private:
         BOOL fPrependCOMPLUS = TRUE);
 public:
 
-#ifndef FEATURE_CORECLR
-    static void AllowRegistryUse(BOOL fAllowUse);
-
-
-//*****************************************************************************
-// Open's the given key and returns the value desired.  If the key or value is
-// not found, then the default is returned.
-//*****************************************************************************
-    static long GetLong(                    // Return value from registry or default.
-        LPCTSTR     szName,                 // Name of value to get.
-        long        iDefault,               // Default value to return if not found.
-        LPCTSTR     szKey=NULL,             // Name of key, NULL==default.
-        HKEY        hKey=HKEY_LOCAL_MACHINE);// What key to work on.
-
-//*****************************************************************************
-// Open's the given key and returns the value desired.  If the key or value is
-// not found, then the default is returned.
-//*****************************************************************************
-    static long SetLong(                    // Return value from registry or default.
-        LPCTSTR     szName,                 // Name of value to get.
-        long        iValue,                 // Value to set.
-        LPCTSTR     szKey=NULL,             // Name of key, NULL==default.
-        HKEY        hKey=HKEY_LOCAL_MACHINE);// What key to work on.
-
-//*****************************************************************************
-// Open's the given key and returns the value desired.  If the key or value is
-// not found, then it's created
-//*****************************************************************************
-    static long SetOrCreateLong(            // Return value from registry or default.
-        LPCTSTR     szName,                 // Name of value to get.
-        long        iValue,                 // Value to set.
-        LPCTSTR     szKey=NULL,             // Name of key, NULL==default.
-        HKEY        hKey=HKEY_LOCAL_MACHINE);// What key to work on.
-
-
-
-//*****************************************************************************
-// Set an entry in the registry of the form:
-// HKEY_CLASSES_ROOT\szKey\szSubkey = szValue.  If szSubkey or szValue are
-// NULL, omit them from the above expression.
-//*****************************************************************************
-    static BOOL SetKeyAndValue(             // TRUE or FALSE.
-        LPCTSTR     szKey,                  // Name of the reg key to set.
-        LPCTSTR     szSubkey,               // Optional subkey of szKey.
-        LPCTSTR     szValue);               // Optional value for szKey\szSubkey.
-
-//*****************************************************************************
-// Delete an entry in the registry of the form:
-// HKEY_CLASSES_ROOT\szKey\szSubkey.
-//*****************************************************************************
-    static LONG DeleteKey(                  // TRUE or FALSE.
-        LPCTSTR     szKey,                  // Name of the reg key to set.
-        LPCTSTR     szSubkey);              // Subkey of szKey.
-
-//*****************************************************************************
-// Open the key, create a new keyword and value pair under it.
-//*****************************************************************************
-    static BOOL SetRegValue(                // Return status.
-        LPCTSTR     szKeyName,              // Name of full key.
-        LPCTSTR     szKeyword,              // Name of keyword.
-        LPCTSTR     szValue);               // Value of keyword.
-
-//*****************************************************************************
-// Does standard registration of a CoClass with a progid.
-//*****************************************************************************
-    static HRESULT RegisterCOMClass(        // Return code.
-        REFCLSID    rclsid,                 // Class ID.
-        LPCTSTR     szDesc,                 // Description of the class.
-        LPCTSTR     szProgIDPrefix,         // Prefix for progid.
-        int         iVersion,               // Version # for progid.
-        LPCTSTR     szClassProgID,          // Class progid.
-        LPCTSTR     szThreadingModel,       // What threading model to use.
-        LPCTSTR     szModule,               // Path to class.
-        HINSTANCE   hInst,                  // Handle to module being registered
-        LPCTSTR     szAssemblyName,         // Optional assembly name
-        LPCTSTR     szVersion,              // Optional Runtime Version (directry containing runtime)
-        BOOL        fExternal,              // flag - External to mscoree.
-        BOOL        fRelativePath);         // flag - Relative path in szModule
-
-//*****************************************************************************
-// Unregister the basic information in the system registry for a given object
-// class.
-//*****************************************************************************
-    static HRESULT UnregisterCOMClass(      // Return code.
-        REFCLSID    rclsid,                 // Class ID we are registering.
-        LPCTSTR     szProgIDPrefix,         // Prefix for progid.
-        int         iVersion,               // Version # for progid.
-        LPCTSTR     szClassProgID,          // Class progid.
-        BOOL        fExternal);             // flag - External to mscoree.
-
-//*****************************************************************************
-// Does standard registration of a CoClass with a progid.
-// NOTE: This is the non-side-by-side execution version.
-//*****************************************************************************
-    static HRESULT RegisterCOMClass(        // Return code.
-        REFCLSID    rclsid,                 // Class ID.
-        LPCTSTR     szDesc,                 // Description of the class.
-        LPCTSTR     szProgIDPrefix,         // Prefix for progid.
-        int         iVersion,               // Version # for progid.
-        LPCTSTR     szClassProgID,          // Class progid.
-        LPCTSTR     szThreadingModel,       // What threading model to use.
-        LPCTSTR     szModule,               // Path to class.
-        BOOL        bInprocServer = true);  // Whether we register the server as inproc or local
-
-//*****************************************************************************
-// Unregister the basic information in the system registry for a given object
-// class.
-// NOTE: This is the non-side-by-side execution version.
-//*****************************************************************************
-    static HRESULT UnregisterCOMClass(      // Return code.
-        REFCLSID    rclsid,                 // Class ID we are registering.
-        LPCTSTR     szProgIDPrefix,         // Prefix for progid.
-        int         iVersion,               // Version # for progid.
-        LPCTSTR     szClassProgID);         // Class progid.
-
-//*****************************************************************************
-// Register a type library.
-//*****************************************************************************
-    static HRESULT RegisterTypeLib(         // Return code.
-        REFGUID     rtlbid,                 // TypeLib ID we are registering.
-        int         iVersion,               // Typelib version.
-        LPCTSTR     szDesc,                 // TypeLib description.
-        LPCTSTR     szModule);              // Path to the typelib.
-
-//*****************************************************************************
-// Remove the registry keys for a type library.
-//*****************************************************************************
-    static HRESULT UnregisterTypeLib(       // Return code.
-        REFGUID     rtlbid,                 // TypeLib ID we are registering.
-        int         iVersion);              // Typelib version.
-
-#endif //#ifndef FEATURE_CORECLR
 
 //*****************************************************************************
 // (Optional) Initialize the config registry cache
@@ -1397,31 +1244,6 @@ public:
 
 private:
 
-#ifndef FEATURE_CORECLR
-
-//*****************************************************************************
-// Register the basics for a in proc server.
-//*****************************************************************************
-    static HRESULT RegisterClassBase(       // Return code.
-        REFCLSID    rclsid,                 // Class ID we are registering.
-        LPCTSTR     szDesc,                 // Class description.
-        LPCTSTR     szProgID,               // Class prog ID.
-        LPCTSTR     szIndepProgID,          // Class version independant prog ID.
-        __out_ecount (cchOutCLSID) LPTSTR szOutCLSID, // CLSID formatted in character form.
-        DWORD      cchOutCLSID);           // Out CLS ID buffer size in characters
-
-
-//*****************************************************************************
-// Delete the basic settings for an inproc server.
-//*****************************************************************************
-    static HRESULT UnregisterClassBase(     // Return code.
-        REFCLSID    rclsid,                 // Class ID we are registering.
-        LPCTSTR     szProgID,               // Class prog ID.
-        LPCTSTR     szIndepProgID,          // Class version independant prog ID.
-        __out_ecount (cchOutCLSID) LPTSTR      szOutCLSID,            // Return formatted class ID here.
-        DWORD      cchOutCLSID);           // Out CLS ID buffer size in characters
-
-#endif //#ifndef FEATURE_CORECLR
 
 //*****************************************************************************
 // Return TRUE if the registry value name might have been seen in the registry
@@ -1495,6 +1317,8 @@ private:
     LPWSTR m_wszString;
 };
 
+#endif // defined(NO_CLRCONFIG)
+
 #include "ostype.h"
 
 #define CLRGetTickCount64() GetTickCount64()
@@ -1556,13 +1380,8 @@ public:
     static BOOL CanEnableGCNumaAware();
     static void InitNumaNodeInfo();
 
-#if !defined(FEATURE_REDHAWK)&& !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 private:	// apis types
-#if !defined(FEATURE_CORESYSTEM)
-    //GetNumaProcessorNode()
-    typedef BOOL
-    (WINAPI *PGNPN)(UCHAR, PUCHAR);
-#endif
 
     //GetNumaHighestNodeNumber()
     typedef BOOL
@@ -1572,21 +1391,14 @@ private:	// apis types
     (WINAPI *PVAExN)(HANDLE,LPVOID,SIZE_T,DWORD,DWORD,DWORD);
 
     // api pfns and members
-#if !defined(FEATURE_CORESYSTEM)
-    static PGNPN    m_pGetNumaProcessorNode;
-#endif
     static PGNHNN   m_pGetNumaHighestNodeNumber;
     static PVAExN   m_pVirtualAllocExNuma;
 
 public: 	// functions
-#if !defined(FEATURE_CORESYSTEM)
-    static BOOL GetNumaProcessorNode(UCHAR proc_no, PUCHAR node_no);
-#endif
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
 
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
 private:
     //GetNumaProcessorNodeEx()
     typedef BOOL
@@ -1595,7 +1407,6 @@ private:
 
 public:
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
-#endif
 #endif
 };
 
@@ -1637,7 +1448,7 @@ public:
     static DWORD CalculateCurrentProcessorNumber();
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 private:
     //GetLogicalProcessorInforomationEx()
     typedef BOOL
@@ -1648,7 +1459,6 @@ private:
     //GetThreadGroupAffinity()
     typedef BOOL
     (WINAPI *PGTGA)(HANDLE, GROUP_AFFINITY *);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     //GetCurrentProcessorNumberEx()
     typedef void
     (WINAPI *PGCPNEx)(PROCESSOR_NUMBER *);
@@ -1658,16 +1468,12 @@ private:
     //NtQuerySystemInformationEx()
     //typedef int
     //(WINAPI *PNTQSIEx)(SYSTEM_INFORMATION_CLASS, PULONG, ULONG, PVOID, ULONG, PULONG);
-#endif
-
     static PGLPIEx m_pGetLogicalProcessorInformationEx;
     static PSTGA   m_pSetThreadGroupAffinity;
     static PGTGA   m_pGetThreadGroupAffinity;
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static PGCPNEx m_pGetCurrentProcessorNumberEx;
     static PGST    m_pGetSystemTimes;
     //static PNTQSIEx m_pNtQuerySystemInformationEx;
-#endif
 
 public:
     static BOOL GetLogicalProcessorInformationEx(DWORD relationship,
@@ -1675,16 +1481,17 @@ public:
     static BOOL SetThreadGroupAffinity(HANDLE h,
 		    GROUP_AFFINITY *groupAffinity, GROUP_AFFINITY *previousGroupAffinity);
     static BOOL GetThreadGroupAffinity(HANDLE h, GROUP_AFFINITY *groupAffinity);
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
-#endif
 #endif
 };
 
 int GetCurrentProcessCpuCount();
 DWORD_PTR GetCurrentProcessCpuMask();
+
+uint32_t GetOsPageSize();
+
 
 //*****************************************************************************
 // Return != 0 if the bit at the specified index in the array is on and 0 if
@@ -3188,8 +2995,16 @@ inline DWORD HashThreeToOne(DWORD a, DWORD b, DWORD c)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    // Current implementation taken from lookup3.c, by Bob Jenkins, May 2006
-    
+    /*
+    lookup3.c, by Bob Jenkins, May 2006, Public Domain.
+
+    These are functions for producing 32-bit hashes for hash table lookup.
+    hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final() 
+    are externally useful functions.  Routines to test the hash are included 
+    if SELF_TEST is defined.  You can use this free for any purpose.  It's in
+    the public domain.  It has no warranty.
+    */
+
     #define rot32(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
     c ^= b; c -= rot32(b,14);
     a ^= c; a -= rot32(c,11);
@@ -3342,15 +3157,6 @@ inline ULONG HashiStringNKnownLower80(LPCWSTR szStr, DWORD count) {
     return hash;
 }
 
-// // //
-// // //  See $\src\utilcode\Debug.cpp for "Binomial (K, M, N)", which
-// // //  computes the binomial distribution, with which to compare your
-// // //  hash-table statistics.
-// // //
-
-
-
-
 //*****************************************************************************
 // IMPORTANT: This data structure is deprecated, please do not add any new uses.
 // The hashtable implementation that should be used instead is code:SHash.
@@ -3408,7 +3214,7 @@ public:
         m_iSize = iBuckets + 7;
     }
 
-    ~CClosedHashBase()
+    virtual ~CClosedHashBase()
     {
         WRAPPER_NO_CONTRACT;
         Clear();
@@ -4083,6 +3889,8 @@ public:
 // Class to parse a list of method names and then find a match
 //*****************************************************************************
 
+struct CORINFO_SIG_INFO;
+
 class MethodNamesListBase
 {
     struct MethodName
@@ -4094,6 +3902,8 @@ class MethodNamesListBase
     };
 
     MethodName     *pNames;         // List of names
+
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, int numArgs);
 
 public:
     void Init()
@@ -4113,7 +3923,8 @@ public:
 
     void Insert(__in __in_z LPWSTR list);
 
-    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig);
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig = NULL);
+    bool IsInList(LPCUTF8 methodName, LPCUTF8 className, CORINFO_SIG_INFO* pSigInfo);
     bool IsEmpty()
     {
         LIMITED_METHOD_CONTRACT;
@@ -4142,6 +3953,8 @@ public:
         Destroy();
     }
 };
+
+#if !defined(NO_CLRCONFIG)
 
 /**************************************************************************/
 /* simple wrappers around the REGUTIL and MethodNameList routines that make
@@ -4228,7 +4041,8 @@ public:
         return m_list.IsEmpty();
     }
 
-    bool contains(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig);
+    bool contains(LPCUTF8 methodName, LPCUTF8 className, PCCOR_SIGNATURE sig = NULL);
+    bool contains(LPCUTF8 methodName, LPCUTF8 className, CORINFO_SIG_INFO* pSigInfo);
 
     inline void ensureInit(const CLRConfig::ConfigStringInfo & info)
     {
@@ -4247,6 +4061,8 @@ private:
 
     BYTE m_inited;
 };
+
+#endif // !defined(NO_CLRCONFIG)
 
 //*****************************************************************************
 // Convert a pointer to a string into a GUID.
@@ -4443,7 +4259,7 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,              // Parent key.
                           long    *pValue,                 // Put value here, if found.
                           BOOL    fReadNonVirtualizedKey); // Whether to read 64-bit hive on WOW64
 
-HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __inout DWORD *pcchBuffer);
+HRESULT GetCurrentModuleFileName(SString& pBuffer);
 
 //*****************************************************************************
 // Retrieve information regarding what registered default debugger
@@ -4451,7 +4267,7 @@ HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __ino
 void GetDebuggerSettingInfo(SString &debuggerKeyValue, BOOL *pfAuto);
 HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, *pcchDebuggerString) LPWSTR wszDebuggerString, DWORD * pcchDebuggerString, BOOL * pfAuto);
 
-void TrimWhiteSpace(__deref_inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
+void TrimWhiteSpace(__inout_ecount(*pcch)  LPCWSTR *pwsz, __inout LPDWORD pcch);
 
 
 //*****************************************************************************
@@ -4474,18 +4290,6 @@ UINT64 GetIA64Imm64(UINT64 qword0, UINT64 qword1);
 //  (Format X2)
 //*****************************************************************************
 void PutIA64Imm64(UINT64 * pBundle, UINT64 imm64);
-
-//*****************************************************************************
-//  Extract the addl 22-bit signed immediate from an IA64 bundle
-//  (Format A5)
-//*****************************************************************************
-INT32 GetIA64Imm22(UINT64 * pBundle, UINT32 slot);
-
-//*****************************************************************************
-//  Deposit the addl 22-bit signed immediate into an IA64 bundle
-//  (Format A5)
-//*****************************************************************************
-void  PutIA64Imm22(UINT64 * pBundle, UINT32 slot, INT32 imm22);
 
 //*****************************************************************************
 //  Extract the IP-Relative signed 25-bit immediate from an IA64 bundle
@@ -4543,9 +4347,29 @@ void PutThumb2BlRel24(UINT16 * p, INT32 imm24);
 INT32 GetArm64Rel28(UINT32 * pCode);
 
 //*****************************************************************************
+//  Extract the PC-Relative page address from an adrp instruction
+//*****************************************************************************
+INT32 GetArm64Rel21(UINT32 * pCode);
+
+//*****************************************************************************
+//  Extract the page offset from an add instruction
+//*****************************************************************************
+INT32 GetArm64Rel12(UINT32 * pCode);
+
+//*****************************************************************************
 //  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28);
+
+//*****************************************************************************
+//  Deposit the PC-Relative page address 'imm21' into an adrp instruction
+//*****************************************************************************
+void PutArm64Rel21(UINT32 * pCode, INT32 imm21);
+
+//*****************************************************************************
+//  Deposit the page offset 'imm12' into an add instruction
+//*****************************************************************************
+void PutArm64Rel12(UINT32 * pCode, INT32 imm12);
 
 //*****************************************************************************
 // Returns whether the offset fits into bl instruction
@@ -4561,6 +4385,22 @@ inline bool FitsInThumb2BlRel24(INT32 imm24)
 inline bool FitsInRel28(INT32 val32)
 {
     return (val32 >= -0x08000000) && (val32 < 0x08000000);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 adrp instruction
+//*****************************************************************************
+inline bool FitsInRel21(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x001FFFFF);
+}
+
+//*****************************************************************************
+// Returns whether the offset fits into an Arm64 add instruction
+//*****************************************************************************
+inline bool FitsInRel12(INT32 val32)
+{
+    return (val32 >= 0) && (val32 <= 0x00000FFF);
 }
 
 //*****************************************************************************
@@ -4662,18 +4502,6 @@ public:
         return NtCurrentTeb()->ProcessEnvironmentBlock;
     }
 
-#ifndef FEATURE_CORECLR
-    static void* GetFiberDataPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return ClrTeb::IsCurrentThreadAFiber()? GetCurrentFiber() : NULL;
-    }
-
-    static BOOL IsCurrentThreadAFiber()
-    {
-        return IsThreadAFiber();
-    }
-#endif
 
     static void* InvalidFiberPtrId()
     {
@@ -4682,7 +4510,7 @@ public:
 #endif // !FEATURE_PAL
 };
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
 
 // check if current thread is a GC thread (concurrent or server)
 inline BOOL IsGCSpecialThread ()
@@ -4859,6 +4687,8 @@ inline void ClrFlsClearThreadType (TlsThreadTypeFlag flag)
 #define CLEAR_THREAD_TYPE_STACKWALKER() ClrFlsSetValue(TlsIdx_StackWalkerWalkingThread, NULL)
 #endif  // DACCESS_COMPILE
 
+HRESULT SetThreadName(HANDLE hThread, PCWSTR lpThreadDescription);
+
 inline BOOL IsStackWalkerThread()
 {
     STATIC_CONTRACT_NOTHROW;
@@ -4866,7 +4696,7 @@ inline BOOL IsStackWalkerThread()
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
-#if defined(DACCESS_COMPILE) || defined(CLR_STANDALONE_BINDER)
+#if defined(DACCESS_COMPILE)
     return FALSE;
 #else
     return ClrFlsGetValue (TlsIdx_StackWalkerWalkingThread) != NULL;
@@ -4881,13 +4711,13 @@ inline BOOL IsGCThread ()
     STATIC_CONTRACT_SUPPORTS_DAC;
     STATIC_CONTRACT_SO_TOLERANT;
 
-#if !defined(DACCESS_COMPILE) && !defined(CLR_STANDALONE_BINDER)
+#if !defined(DACCESS_COMPILE)
     return IsGCSpecialThread () || IsSuspendEEThread ();
 #else
     return FALSE;
 #endif
 }
-#ifndef CLR_STANDALONE_BINDER
+
 class ClrFlsThreadTypeSwitch
 {
 public:
@@ -4978,7 +4808,6 @@ private:
     PVOID m_PreviousValue;
     PredefinedTlsSlots m_slot;
 };
-#endif // !CLR_STANDALONE_BINDER
 
 //*********************************************************************************
 
@@ -5156,6 +4985,11 @@ template<class T> void DeleteExecutable(T *p)
 
 INDEBUG(BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);)
 
+BOOL NoGuiOnAssert();
+#ifdef _DEBUG
+VOID TerminateOnAssert();
+#endif // _DEBUG
+
 class HighCharHelper {
 public:
     static inline BOOL IsHighChar(int c) {
@@ -5175,22 +5009,6 @@ typedef Wrapper<BSTR, DoNothing, HolderSysFreeString> BSTRHolder;
 
 BOOL FileExists(LPCWSTR filename);
 
-#ifndef FEATURE_CORECLR
-class FileLockHolder
-{
-public:
-    FileLockHolder();   
-    ~FileLockHolder();
-    
-    virtual void Acquire(LPCWSTR lockName, HANDLE hInterrupt = 0, BOOL* pInterrupted = NULL);
-    HRESULT AcquireNoThrow(LPCWSTR lockName, HANDLE hInterrupt = 0, BOOL* pInterrupted = NULL);
-    
-    static BOOL IsTaken(LPCWSTR lockName);
-    void Release();    
-private:        
-    HANDLE  _hLock;
-};
-#endif // FEATURE_CORECLR
 
 // a class for general x.x version info
 class MajorMinorVersionInfo
@@ -5296,9 +5114,9 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 //----------------------------------------------------------------------------------------
 struct CoreClrCallbacks
 {
-    typedef IExecutionEngine* (__stdcall * pfnIEE_t)();
-    typedef HRESULT (__stdcall * pfnGetCORSystemDirectory_t)(LPWSTR pbuffer, DWORD cchBuffer, DWORD* pdwlength);
-    typedef void* (__stdcall * pfnGetCLRFunction_t)(LPCSTR functionName);
+    typedef IExecutionEngine* (* pfnIEE_t)();
+    typedef HRESULT (* pfnGetCORSystemDirectory_t)(SString& pbuffer);
+    typedef void* (* pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
     pfnIEE_t                    m_pfnIEE;
@@ -5306,7 +5124,6 @@ struct CoreClrCallbacks
     pfnGetCLRFunction_t         m_pfnGetCLRFunction;
 };
 
-#if defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
 
 // For DAC, we include this functionality only when EH SxS is enabled.
 
@@ -5332,7 +5149,6 @@ void OnUninitializedCoreClrCallbacks();
 #define VALIDATECORECLRCALLBACKS()
 #endif //_DEBUG
 
-#endif // defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -5531,8 +5347,8 @@ inline T* InterlockedCompareExchangeT(
 
 // Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
 // then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
-HRESULT GetHModuleDirectory(HMODULE hMod, __out_z __out_ecount(cchPath) LPWSTR wszPath, size_t cchPath);
-SString & GetHModuleDirectory(HMODULE hMod, SString &ssDir);
+HRESULT GetHModuleDirectory(HMODULE hMod, SString& wszPath);
+HRESULT CopySystemDirectory(const SString& pPathString, SString& pbuffer);
 
 HMODULE LoadLocalizedResourceDLLForSDK(_In_z_ LPCWSTR wzResourceDllName, _In_opt_z_ LPCWSTR modulePath=NULL, bool trySelf=true);
 // This is a slight variation that can be used for anything else
@@ -5542,33 +5358,6 @@ void* FindLocalizedFile(_In_z_ LPCWSTR wzResourceDllName, LocalizedFileHandler l
 BOOL IsClrHostedLegacyComObject(REFCLSID rclsid);
 
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-
-// No utilcode code should use the global LoadLibraryShim anymore. UtilCode::LoadLibraryShim will do
-// the right thing based on whether the hosted or non-hosted utilcode is linked to. Using the global
-// LoadLibraryShim will result in a deprecated use warning.
-
-#ifdef SELF_NO_HOST
-#define LEGACY_ACTIVATION_SHIM_LOAD_LIBRARY WszLoadLibrary
-#include "legacyactivationshim.h"
-#include "mscoreepriv.h"
-
-namespace UtilCode
-{
-    inline HRESULT LoadLibraryShim(LPCWSTR szDllName, LPCWSTR szVersion, LPVOID pvReserved, HMODULE *phModDll)
-    {
-        return LegacyActivationShim::LoadLibraryShim(szDllName, szVersion, pvReserved, phModDll);
-    }
-};
-#else // SELF_NO_HOST
-namespace UtilCode
-{
-    // Hosted environment
-    HRESULT LoadLibraryShim(LPCWSTR szDllName, LPCWSTR szVersion, LPVOID pvReserved, HMODULE *phModDll);
-};
-#endif // SELF_NO_HOST
-
-#endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
 
 
 // Helper to support termination due to heap corruption
@@ -5576,10 +5365,6 @@ namespace UtilCode
 void EnableTerminationOnHeapCorruption();
 
 
-#if !defined(FEATURE_CORECLR)
-// On success, sets pwszProcessExePath (required) to full path to process EXE.
-HRESULT GetProcessExePath(LPCWSTR *pwszProcessExePath);
-#endif
 
 namespace Clr { namespace Util
 {
@@ -5592,6 +5377,7 @@ namespace Clr { namespace Util
 namespace Reg
 {
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
+    __success(return == S_OK)
     HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
 }
 
@@ -5617,6 +5403,7 @@ namespace Win32
         SString & ssFileName,
         bool fAllowLongFileNames = false);
 
+    __success(return == S_OK)
     HRESULT GetModuleFileName(
         HMODULE hModule,
         __deref_out_z LPWSTR * pwszFileName,
@@ -5728,10 +5515,13 @@ struct SpinConstants
     DWORD dwMaximumDuration;
     DWORD dwBackoffFactor;
     DWORD dwRepetitions;
+    DWORD dwMonitorSpinCount;
 };
 
 extern SpinConstants g_SpinConstants;
 
 // ======================================================================================
+
+void* GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__

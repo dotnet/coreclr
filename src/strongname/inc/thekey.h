@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #pragma once
 // This file allows customization of the strongname key used to replace the ECMA key
 
@@ -22,7 +21,6 @@ static const BYTE g_rbTheKey[] =
 static const BYTE g_rbTheKeyToken[] = {0xb0,0x3f,0x5f,0x7f,0x11,0xd5,0x0a,0x3a};
 
 
-#ifdef FEATURE_CORECLR
 static const BYTE g_rbTheSilverlightPlatformKey[] = 
 {
 0x00,0x24,0x00,0x00,0x04,0x80,0x00,0x00,0x94,0x00,0x00,0x00,0x06,0x02,0x00,0x00,
@@ -101,5 +99,4 @@ static const BYTE g_rbTheMicrosoftXNAKeyToken[] = {0xCC,0xAC,0x92,0xED,0x87,0x3B
 #endif
 // for FEATURE_WINDOWSPHONE, we can add the Microsoft.Phone key and the Xna key to the list of blessed keys...
 
-#endif // FEATURE_CORECLR
 

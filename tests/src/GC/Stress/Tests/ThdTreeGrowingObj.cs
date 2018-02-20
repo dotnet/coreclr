@@ -1,4 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+
+using System.Threading;
+using System;
+using System.IO;
+
+
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
@@ -10,11 +19,8 @@
 
 
 
-namespace DefaultNamespace {
-    using System.Threading;
-    using System;
-    using System.IO;
-
+namespace DefaultNamespace
+{
     public enum TreeType
     {
         Normal,
@@ -43,14 +49,14 @@ namespace DefaultNamespace {
             if (Switch)
             {
                 m_aMem = new byte[1000];
-                m_aMem[0] = (byte) 10;
-                m_aMem[999] = (byte) 10;
+                m_aMem[0] = (byte)10;
+                m_aMem[999] = (byte)10;
             }
             else
             {
                 m_aMem = new byte[10];
-                m_aMem[0] = (byte) 10;
-                m_aMem[9] = (byte) 10;
+                m_aMem[0] = (byte)10;
+                m_aMem[9] = (byte)10;
             }
 
             Switch = !Switch;
@@ -58,9 +64,9 @@ namespace DefaultNamespace {
 
         public void Grow()
         {
-            m_aMem = new byte[(m_iCount+=100)];
-            m_aMem[0] = (byte) 10;
-            m_aMem[m_iCount-1] = (byte) 10;
+            m_aMem = new byte[(m_iCount += 100)];
+            m_aMem[0] = (byte)10;
+            m_aMem[m_iCount - 1] = (byte)10;
         }
     }
 
@@ -79,14 +85,14 @@ namespace DefaultNamespace {
         }
 
 
-        public void Empty (int ThreadId)
+        public void Empty(int ThreadId)
         {
             Console.Out.WriteLine("Thread " + ThreadId + ": Tree Empty");
             m_pRoot = null;
         }
 
 
-        public void AddNodes (int howMany, int ThreadId)
+        public void AddNodes(int howMany, int ThreadId)
         {
             for (int i = 0; i < howMany; i++)
             {
@@ -96,26 +102,26 @@ namespace DefaultNamespace {
         }
 
 
-        public void DeleteNodes (int howMany, int ThreadId)
+        public void DeleteNodes(int howMany, int ThreadId)
         {
             for (int i = 0; i < howMany; i++)
             {
-                m_pRoot = Delete(m_pRoot, m_Random.Next(100) );
+                m_pRoot = Delete(m_pRoot, m_Random.Next(100));
             }
-            Console.Out.WriteLine("Thread " + ThreadId +" Deleted: " + howMany + " Nodes: " + GC.GetTotalMemory(false));
+            Console.Out.WriteLine("Thread " + ThreadId + " Deleted: " + howMany + " Nodes: " + GC.GetTotalMemory(false));
         }
 
 
         public Node Insert(Node root, int element)
         {
-            if(root == null)                                            //if is NULL make a new node
+            if (root == null)                                            //if is NULL make a new node
             {                                                           //and copy number to the new node
-                root=new Node();                                        //make new node
+                root = new Node();                                        //make new node
                 root.m_data = element;                                  //copy number
-                root.m_pLeft=null ;                                     //set the children to NULL
-                root.m_pRight=null;
+                root.m_pLeft = null;                                     //set the children to NULL
+                root.m_pRight = null;
             }
-            else if(element < root.m_data)
+            else if (element < root.m_data)
             {
                 root.m_pLeft = Insert(root.m_pLeft, element);
             }
@@ -124,11 +130,11 @@ namespace DefaultNamespace {
                 root.m_pRight = Insert(root.m_pRight, element);
             }
 
-            if (m_TreeType==TreeType.Growing)
+            if (m_TreeType == TreeType.Growing)
             {
                 root.Grow();
             }
-            else if (m_TreeType==TreeType.Living)
+            else if (m_TreeType == TreeType.Living)
             {
                 root.Live();
             }
@@ -147,7 +153,7 @@ namespace DefaultNamespace {
             }
             else if (element == root.m_data)                                 //if it was the first data (node)
             {
-                if(root.m_pRight == null)                                       //check if it has right child.
+                if (root.m_pRight == null)                                       //check if it has right child.
                 {                                                           //If it has no right child
                     return root.m_pLeft;
                 }
@@ -158,7 +164,7 @@ namespace DefaultNamespace {
                 }
                 else
                 {
-                    for (temp = root.m_pLeft; temp.m_pRight != null; temp = temp.m_pRight);
+                    for (temp = root.m_pLeft; temp.m_pRight != null; temp = temp.m_pRight) ;
                     root.m_data = temp.m_data;
                     root.m_pLeft = Delete(root.m_pLeft, temp.m_data);
                 }
@@ -172,11 +178,11 @@ namespace DefaultNamespace {
                 root.m_pRight = Delete(root.m_pRight, element);
             }
 
-            if (m_TreeType==TreeType.Growing)
+            if (m_TreeType == TreeType.Growing)
             {
                 root.Grow();
             }
-            else if (m_TreeType==TreeType.Living)
+            else if (m_TreeType == TreeType.Living)
             {
                 root.Live();
             }
@@ -185,9 +191,8 @@ namespace DefaultNamespace {
         }
     }
 
-    public class TreeThread 
+    public class TreeThread
     {
-
         internal int[] mA_Count;
         internal int m_id = 0;
         internal BinTree m_BinTree;
@@ -198,8 +203,8 @@ namespace DefaultNamespace {
             mA_Count = count;
             m_BinTree = new BinTree(ThreadId, treeType);
             m_id = ThreadId;
-            Mv_Thread = new Thread( new ThreadStart(this.ThreadStart));
-            Mv_Thread.Start( );
+            Mv_Thread = new Thread(new ThreadStart(this.ThreadStart));
+            Mv_Thread.Start();
             Console.Out.WriteLine("Started Thread: " + m_id);
         }
 
@@ -211,7 +216,7 @@ namespace DefaultNamespace {
                 {
                     m_BinTree.Empty(m_id);
                 }
-                else if (mA_Count[i] > 0 )
+                else if (mA_Count[i] > 0)
                 {
                     m_BinTree.AddNodes(mA_Count[i], m_id);
                 }
@@ -221,20 +226,17 @@ namespace DefaultNamespace {
                 }
             }
         }
-
     }
 
     public class ThdTreeGrowingObj
     {
-
-        public static int Main (System.String[] Args)
+        public static int Main(System.String[] Args)
         {
-
             int iNofThread = 0;
 
             if (Args.Length == 1)
             {
-                if (!Int32.TryParse( Args[0], out iNofThread ))
+                if (!Int32.TryParse(Args[0], out iNofThread))
                 {
                     iNofThread = 2;
                 }
@@ -244,7 +246,7 @@ namespace DefaultNamespace {
                 iNofThread = 2;
             }
 
-            int[] count = {300, 1000, -350, 0, 71, 200};
+            int[] count = { 300, 1000, -350, 0, 71, 200 };
             TreeThread Mv_TreeThread;
             for (int i = 0; i < iNofThread; i++)
             {
@@ -252,6 +254,5 @@ namespace DefaultNamespace {
             }
             return 100;
         }
-
     }
 }

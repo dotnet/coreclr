@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -17,12 +16,11 @@
 #include "utilcode.h"
 #include "eventreporter.h"
 #include "typestring.h"
+#include "debugdebugger.h"
 
 #include "../dlls/mscorrc/resource.h"
 
-#if defined(FEATURE_CORECLR)
 #include "getproductversionnumber.h"
-#endif // FEATURE_CORECLR
 
 //---------------------------------------------------------------------------------------
 //
@@ -47,8 +45,8 @@ EventReporter::EventReporter(EventReporterType type)
     m_eventType = type;
 
     HMODULE hModule = WszGetModuleHandle(NULL);
-    WCHAR appPath[MAX_PATH];
-    DWORD ret = WszGetModuleFileName(hModule, appPath, NumItems(appPath));
+    PathString appPath;
+    DWORD ret = WszGetModuleFileName(hModule, appPath);
 
     fBufferFull = FALSE;
 
@@ -65,8 +63,8 @@ EventReporter::EventReporter(EventReporterType type)
     if (ret != 0)
     {
         // If app name has a '\', consider the part after that; otherwise consider whole name.
-        WCHAR* appName =  wcsrchr(appPath, W('\\'));
-        appName = appName ? appName+1 : appPath;
+        LPCWSTR appName =  wcsrchr(appPath, W('\\'));
+        appName = appName ? appName+1 : (LPCWSTR)appPath;
         m_Description.Append(appName);
         m_Description.Append(W("\n"));
     }
@@ -84,30 +82,13 @@ EventReporter::EventReporter(EventReporterType type)
 
     ssMessage.Clear();
     if(!ssMessage.LoadResource(CCompRC::Optional, IDS_ER_FRAMEWORK_VERSION))
-#ifndef FEATURE_CORECLR
-        m_Description.Append(W("Framework Version: "));
-#else // FEATURE_CORECLR
         m_Description.Append(W("CoreCLR Version: "));
-#endif // !FEATURE_CORECLR
     else
     {
         m_Description.Append(ssMessage);
     }
 
     BOOL fHasVersion = FALSE;
-#ifndef FEATURE_CORECLR
-    if (GetCLRModule() != NULL)
-    {
-        WCHAR buffer[80];
-        DWORD length;
-        if (SUCCEEDED(GetCORVersionInternal(buffer, 80, &length)))
-        {
-            m_Description.Append(buffer);
-            m_Description.Append(W("\n"));
-            fHasVersion = TRUE;
-        }
-    }
-#else // FEATURE_CORECLR
     DWORD dwMajorVersion = 0;
     DWORD dwMinorVersion = 0;
     DWORD dwBuild = 0;
@@ -115,7 +96,6 @@ EventReporter::EventReporter(EventReporterType type)
     EventReporter::GetCoreCLRInstanceProductVersion(&dwMajorVersion, &dwMinorVersion, &dwBuild, &dwRevision);
     m_Description.AppendPrintf(W("%lu.%lu.%lu.%lu\n"),dwMajorVersion, dwMinorVersion, dwBuild, dwRevision);
     fHasVersion = TRUE;
-#endif // !FEATURE_CORECLR
 
     if (!fHasVersion)
     {
@@ -596,6 +576,73 @@ void LogCallstackForEventReporter(EventReporter& reporter)
     LogCallstackForEventReporterWorker(reporter);
 }
 
+void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallStackSString& wordAt, int recursionLimit)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    if (exObj == NULL || recursionLimit == 0)
+    {
+        return;
+    }
+
+    struct
+    {
+        OBJECTREF exObj;
+        EXCEPTIONREF ex;
+        STRINGREF remoteStackTraceString;
+    } gc;
+    ZeroMemory(&gc, sizeof(gc));
+    gc.exObj = exObj;
+    gc.ex = (EXCEPTIONREF)exObj;
+
+    GCPROTECT_BEGIN(gc);
+
+    ReportExceptionStackHelper((gc.ex)->GetInnerException(), reporter, wordAt, recursionLimit - 1);
+
+    StackSString exTypeStr;
+    TypeString::AppendType(exTypeStr, TypeHandle((gc.ex)->GetMethodTable()), TypeString::FormatNamespace | TypeString::FormatFullInst);
+    reporter.AddDescription(exTypeStr);
+
+    gc.remoteStackTraceString = (gc.ex)->GetRemoteStackTraceString();
+    if (gc.remoteStackTraceString != NULL && gc.remoteStackTraceString->GetStringLength())
+    {
+        SString remoteStackTrace;
+        gc.remoteStackTraceString->GetSString(remoteStackTrace);
+
+        // If source info is contained, trim it
+        StripFileInfoFromStackTrace(remoteStackTrace);
+
+        reporter.AddStackTrace(remoteStackTrace);
+    }
+
+    DebugStackTrace::GetStackFramesData stackFramesData;
+    stackFramesData.pDomain = NULL;
+    stackFramesData.skip = 0;
+    stackFramesData.NumFramesRequested = 0;
+
+    DebugStackTrace::GetStackFramesFromException(&(gc.exObj), &stackFramesData);
+
+    for (int j = 0; j < stackFramesData.cElements; j++)
+    {
+        StackSString str;
+        str = wordAt;
+        TypeString::AppendMethodInternal(str, stackFramesData.pElements[j].pFunc, TypeString::FormatNamespace | TypeString::FormatFullInst | TypeString::FormatSignature);
+        reporter.AddStackTrace(str);
+    }
+
+    StackSString separator(L""); // This will result in blank line
+    reporter.AddStackTrace(separator);
+
+    GCPROTECT_END();
+}
+
+
 //---------------------------------------------------------------------------------------
 //
 // Generate an EventLog entry for unhandled exception.
@@ -609,7 +656,7 @@ void LogCallstackForEventReporter(EventReporter& reporter)
 void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
 {
     WRAPPER_NO_CONTRACT;
-
+    
     if (ShouldLogInEventLog())
     {
         Thread *pThread = GetThread();
@@ -623,7 +670,6 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 struct
                 {
                     OBJECTREF throwable;
-                    STRINGREF remoteStackTraceString;
                     STRINGREF originalExceptionMessage;
                 } gc;
                 ZeroMemory(&gc, sizeof(gc));
@@ -633,7 +679,6 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 gc.throwable = pThread->GetThrowable();
                 _ASSERTE(gc.throwable != NULL);
 
-#ifdef FEATURE_CORECLR
                 // On CoreCLR, managed code execution happens in non-default AppDomains and all threads have an AD transition
                 // at their base from DefaultDomain to the target Domain before they start executing managed code. Thus, when 
                 // an exception goes unhandled in a non-default AppDomain on a reverse pinvoke thread, the original exception details are copied 
@@ -675,27 +720,29 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                     }
                 }
                 else
-#endif // FEATURE_CORECLR
                 {
-                    // Add the details of the exception object to the event reporter.
-                    TypeString::AppendType(s, TypeHandle(gc.throwable->GetMethodTable()), TypeString::FormatNamespace|TypeString::FormatFullInst);
-                    reporter.AddDescription(s);
-                    reporter.BeginStackTrace();
                     if (IsException(gc.throwable->GetMethodTable()))
                     {
-                        gc.remoteStackTraceString = ((EXCEPTIONREF)gc.throwable)->GetRemoteStackTraceString();
-                        if (gc.remoteStackTraceString != NULL && gc.remoteStackTraceString->GetStringLength())
+                        SmallStackSString wordAt;
+                        if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
                         {
-                            SString remoteStackTrace;
-                            gc.remoteStackTraceString->GetSString(remoteStackTrace);
-                            
-                            // If source info is contained, trim it
-                            StripFileInfoFromStackTrace(remoteStackTrace);
-
-                            reporter.AddStackTrace(remoteStackTrace);
+                            wordAt.Set(W("   at"));
                         }
+                        else
+                        {
+                            wordAt.Insert(wordAt.Begin(), W("   "));
+                        }
+                        wordAt += W(" ");
+
+                        ReportExceptionStackHelper(gc.throwable, reporter, wordAt, /* recursionLimit = */10);
                     }
-                    LogCallstackForEventReporterWorker(reporter);
+                    else
+                    {
+                        TypeString::AppendType(s, TypeHandle(gc.throwable->GetMethodTable()), TypeString::FormatNamespace | TypeString::FormatFullInst);
+                        reporter.AddDescription(s);
+                        reporter.BeginStackTrace();
+                        LogCallstackForEventReporterWorker(reporter);
+                    }
                 }
 
                 GCPROTECT_END();
@@ -727,7 +774,6 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
     }
 }
 
-#if defined(FEATURE_CORECLR)
 // This function will return the product version of CoreCLR
 // instance we are executing in.
 void EventReporter::GetCoreCLRInstanceProductVersion(DWORD * pdwMajor, DWORD * pdwMinor, DWORD * pdwBuild, DWORD * pdwRevision)
@@ -739,8 +785,8 @@ void EventReporter::GetCoreCLRInstanceProductVersion(DWORD * pdwMajor, DWORD * p
     _ASSERTE(hModRuntime != NULL);
 
     // Get the path to the runtime
-    WCHAR runtimePath[MAX_PATH];
-    DWORD ret = WszGetModuleFileName(hModRuntime, runtimePath, NumItems(runtimePath));
+    PathString runtimePath;
+    DWORD ret = WszGetModuleFileName(hModRuntime, runtimePath);
     if (ret != 0)
     {
         // Got the path - get the file version from the path
@@ -765,4 +811,3 @@ void EventReporter::GetCoreCLRInstanceProductVersion(DWORD * pdwMajor, DWORD * p
         LOG((LF_CORDB, LL_INFO100, "GetCoreCLRInstanceVersion: Unable to get CoreCLR version.\n"));
     }
 }
-#endif // FEATURE_CORECLR

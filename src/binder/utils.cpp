@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // Utils.cpp
@@ -260,37 +259,6 @@ namespace BINDER_SPACE
         BINDER_LOG_LEAVE(W("Utils::PlatformPath"));
     }
 
-    void CanonicalizePath(SString &path, BOOL fAppendPathSeparator)
-    {
-        BINDER_LOG_ENTER(W("Utils::CanonicalizePath"));
-        BINDER_LOG_STRING(W("input path"), path);
-
-        if (!path.IsEmpty())
-        {
-            WCHAR wszCanonicalPath[MAX_PATH];
-            PlatformPath(path);
-
-            // This is also defined in rotor pal
-            if (PathCanonicalizeW(wszCanonicalPath, path))
-            {
-                path.Set(wszCanonicalPath);
-            }
-
-            if (fAppendPathSeparator)
-            {
-                SString platformPathSeparator(SString::Literal, GetPlatformPathSeparator());
-
-                if (!path.EndsWith(platformPathSeparator))
-                {
-                    path.Append(platformPathSeparator);
-                }
-            }
-        }
-
-        BINDER_LOG_STRING(W("canonicalized path"), path);
-        BINDER_LOG_LEAVE(W("Utils::CanonicalizePath"));
-    }
-
     void CombinePath(SString &pathA,
                      SString &pathB,
                      SString &combinedPath)
@@ -300,16 +268,15 @@ namespace BINDER_SPACE
         BINDER_LOG_STRING(W("path A"), pathA);
         BINDER_LOG_STRING(W("path B"), pathB);
 
-        WCHAR tempResultPath[MAX_PATH];
-        if (PathCombineW(tempResultPath, pathA, pathB))
+        SString platformPathSeparator(SString::Literal, GetPlatformPathSeparator());
+        combinedPath.Set(pathA);
+        
+        if (!combinedPath.EndsWith(platformPathSeparator))
         {
-            combinedPath.Set(tempResultPath);
-            BINDER_LOG_STRING(W("combined path"), tempResultPath);
+            combinedPath.Append(platformPathSeparator);
         }
-        else
-        {
-            combinedPath.Clear();
-        }
+        
+        combinedPath.Append(pathB);
         
         BINDER_LOG_LEAVE(W("Utils::CombinePath"));
     }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #pragma warning disable 0420
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -11,16 +12,10 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System;
 using System.Diagnostics;
-using System.Security.Permissions;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Diagnostics.Contracts;
 
 namespace System.Threading
 {
-
     // ManualResetEventSlim wraps a manual-reset event internally with a little bit of
     // spinning. When an event will be set imminently, it is often advantageous to avoid
     // a 4k+ cycle context switch in favor of briefly spinning. Therefore we layer on to
@@ -44,14 +39,11 @@ namespace System.Threading
     /// completed, and Reset, which should only be used when no other threads are
     /// accessing the event.
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerDisplay("Set = {IsSet}")]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public class ManualResetEventSlim : IDisposable
     {
         // These are the default spin counts we use on single-proc and MP machines.
         private const int DEFAULT_SPIN_SP = 1;
-        private const int DEFAULT_SPIN_MP = SpinWait.YIELD_THRESHOLD;
 
         private volatile object m_lock;
         // A lock used for waiting and pulsing. Lazily initialized via EnsureLockObjectCreated()
@@ -100,7 +92,6 @@ namespace System.Threading
         /// </remarks>
         public WaitHandle WaitHandle
         {
-
             get
             {
                 ThrowIfDisposed();
@@ -143,8 +134,8 @@ namespace System.Threading
 
             private set
             {
-                Contract.Assert(value >= 0, "SpinCount is a restricted-width integer. The value supplied is outside the legal range.");
-                Contract.Assert(value <= SpinCountState_MaxValue, "SpinCount is a restricted-width integer. The value supplied is outside the legal range.");
+                Debug.Assert(value >= 0, "SpinCount is a restricted-width integer. The value supplied is outside the legal range.");
+                Debug.Assert(value <= SpinCountState_MaxValue, "SpinCount is a restricted-width integer. The value supplied is outside the legal range.");
                 // Don't worry about thread safety because it's set one time from the constructor
                 m_combinedState = (m_combinedState & ~SpinCountState_BitMask) | (value << SpinCountState_ShiftCount);
             }
@@ -163,15 +154,14 @@ namespace System.Threading
             set
             {
                 //setting to <0 would indicate an internal flaw, hence Assert is appropriate.
-                Contract.Assert(value >= 0, "NumWaiters should never be less than zero. This indicates an internal error.");
+                Debug.Assert(value >= 0, "NumWaiters should never be less than zero. This indicates an internal error.");
 
                 // it is possible for the max number of waiters to be exceeded via user-code, hence we use a real exception here.
                 if (value >= NumWaitersState_MaxValue)
-                    throw new InvalidOperationException(String.Format(Environment.GetResourceString("ManualResetEventSlim_ctor_TooManyWaiters"), NumWaitersState_MaxValue));
+                    throw new InvalidOperationException(String.Format(SR.ManualResetEventSlim_ctor_TooManyWaiters, NumWaitersState_MaxValue));
 
                 UpdateStateAtomically(value << NumWaitersState_ShiftCount, NumWaitersState_BitMask);
             }
-
         }
 
         //-----------------------------------------------------------------------------------
@@ -186,12 +176,11 @@ namespace System.Threading
         public ManualResetEventSlim()
             : this(false)
         {
-
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManualResetEventSlim"/>
-        /// class with a Boolen value indicating whether to set the intial state to signaled.
+        /// class with a boolean value indicating whether to set the initial state to signaled.
         /// </summary>
         /// <param name="initialState">true to set the initial state signaled; false to set the initial state
         /// to nonsignaled.</param>
@@ -199,12 +188,12 @@ namespace System.Threading
         {
             // Specify the defualt spin count, and use default spin if we're
             // on a multi-processor machine. Otherwise, we won't.
-            Initialize(initialState, DEFAULT_SPIN_MP);
+            Initialize(initialState, SpinWait.SpinCountforSpinBeforeWait);
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManualResetEventSlim"/>
-        /// class with a Boolen value indicating whether to set the intial state to signaled and a specified
+        /// class with a Boolean value indicating whether to set the initial state to signaled and a specified
         /// spin count.
         /// </summary>
         /// <param name="initialState">true to set the initial state to signaled; false to set the initial state
@@ -217,14 +206,14 @@ namespace System.Threading
         {
             if (spinCount < 0)
             {
-                throw new ArgumentOutOfRangeException("spinCount");
+                throw new ArgumentOutOfRangeException(nameof(spinCount));
             }
 
             if (spinCount > SpinCountState_MaxValue)
             {
                 throw new ArgumentOutOfRangeException(
-                    "spinCount",
-                    String.Format(Environment.GetResourceString("ManualResetEventSlim_ctor_SpinCountOutOfRange"), SpinCountState_MaxValue));
+                    nameof(spinCount),
+                    String.Format(SR.ManualResetEventSlim_ctor_SpinCountOutOfRange, SpinCountState_MaxValue));
             }
 
             // We will suppress default spin  because the user specified a count.
@@ -238,14 +227,13 @@ namespace System.Threading
         /// <param name="spinCount">The spin count that decides when the event will block.</param>
         private void Initialize(bool initialState, int spinCount)
         {
-            this.m_combinedState = initialState ? (1 << SignalledState_ShiftCount) : 0;
+            m_combinedState = initialState ? (1 << SignalledState_ShiftCount) : 0;
             //the spinCount argument has been validated by the ctors.
             //but we now sanity check our predefined constants.
-            Contract.Assert(DEFAULT_SPIN_SP >= 0, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
-            Contract.Assert(DEFAULT_SPIN_SP <= SpinCountState_MaxValue, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
+            Debug.Assert(DEFAULT_SPIN_SP >= 0, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
+            Debug.Assert(DEFAULT_SPIN_SP <= SpinCountState_MaxValue, "Internal error - DEFAULT_SPIN_SP is outside the legal range.");
 
             SpinCount = PlatformHelper.IsSingleProcessor ? DEFAULT_SPIN_SP : spinCount;
-
         }
 
         /// <summary>
@@ -253,8 +241,6 @@ namespace System.Threading
         /// </summary>
         private void EnsureLockObjectCreated()
         {
-            Contract.Ensures(m_lock != null);
-
             if (m_lock != null)
                 return;
 
@@ -285,7 +271,6 @@ namespace System.Threading
             }
             else
             {
-
                 // Now that the event is published, verify that the state hasn't changed since
                 // we snapped the preInitializeState. Another thread could have done that
                 // between our initial observation above and here. The barrier incurred from
@@ -294,7 +279,7 @@ namespace System.Threading
                 bool currentIsSet = IsSet;
                 if (currentIsSet != preInitializeIsSet)
                 {
-                    Contract.Assert(currentIsSet,
+                    Debug.Assert(currentIsSet,
                         "The only safe concurrent transition is from unset->set: detected set->unset.");
 
                     // We saw it as unsignaled, but it has since become set.
@@ -336,10 +321,9 @@ namespace System.Threading
             // If there are waiting threads, we need to pulse them.
             if (Waiters > 0)
             {
-                Contract.Assert(m_lock != null); //if waiters>0, then m_lock has already been created.
+                Debug.Assert(m_lock != null); //if waiters>0, then m_lock has already been created.
                 lock (m_lock)
                 {
-
                     Monitor.PulseAll(m_lock);
                 }
             }
@@ -463,7 +447,7 @@ namespace System.Threading
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("timeout");
+                throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
             return Wait((int)totalMilliseconds, new CancellationToken());
@@ -494,7 +478,7 @@ namespace System.Threading
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("timeout");
+                throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
             return Wait((int)totalMilliseconds, cancellationToken);
@@ -543,7 +527,7 @@ namespace System.Threading
 
             if (millisecondsTimeout < -1)
             {
-                throw new ArgumentOutOfRangeException("millisecondsTimeout");
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout));
             }
 
             if (!IsSet)
@@ -572,44 +556,19 @@ namespace System.Threading
                     bNeedTimeoutAdjustment = true;
                 }
 
-                //spin
-                int HOW_MANY_SPIN_BEFORE_YIELD = 10;
-                int HOW_MANY_YIELD_EVERY_SLEEP_0 = 5;
-                int HOW_MANY_YIELD_EVERY_SLEEP_1 = 20;
-
+                // Spin
                 int spinCount = SpinCount;
-                for (int i = 0; i < spinCount; i++)
+                var spinner = new SpinWait();
+                while (spinner.Count < spinCount)
                 {
+                    spinner.SpinOnce(SpinWait.Sleep1ThresholdForSpinBeforeWait);
+
                     if (IsSet)
                     {
                         return true;
                     }
 
-                    else if (i < HOW_MANY_SPIN_BEFORE_YIELD)
-                    {
-                        if (i == HOW_MANY_SPIN_BEFORE_YIELD / 2)
-                        {
-                            Thread.Yield();
-                        }
-                        else
-                        {
-                            Thread.SpinWait(PlatformHelper.ProcessorCount * (4 << i));
-                        }
-                    }
-                    else if (i % HOW_MANY_YIELD_EVERY_SLEEP_1 == 0)
-                    {
-                        Thread.Sleep(1);
-                    }
-                    else if (i % HOW_MANY_YIELD_EVERY_SLEEP_0 == 0)
-                    {
-                        Thread.Sleep(0);
-                    }
-                    else
-                    {
-                        Thread.Yield();
-                    }
-
-                    if (i >= 100 && i % 10 == 0) // check the cancellation token if the user passed a very large spin count
+                    if (spinner.Count >= 100 && spinner.Count % 10 == 0) // check the cancellation token if the user passed a very large spin count
                         cancellationToken.ThrowIfCancellationRequested();
                 }
 
@@ -667,7 +626,6 @@ namespace System.Threading
                             // Now just loop back around, and the right thing will happen.  Either:
                             //     1. We had a spurious wake-up due to some other wait being canceled via a different cancellationToken (rewait)
                             // or  2. the wait was successful. (the loop will break)
-
                         }
                     }
                 }
@@ -727,7 +685,7 @@ namespace System.Threading
         private void ThrowIfDisposed()
         {
             if ((m_combinedState & Dispose_BitMask) != 0)
-                throw new ObjectDisposedException(Environment.GetResourceString("ManualResetEventSlim_Disposed"));
+                throw new ObjectDisposedException(SR.ManualResetEventSlim_Disposed);
         }
 
         /// <summary>
@@ -737,8 +695,8 @@ namespace System.Threading
         private static void CancellationTokenCallback(object obj)
         {
             ManualResetEventSlim mre = obj as ManualResetEventSlim;
-            Contract.Assert(mre != null, "Expected a ManualResetEventSlim");
-            Contract.Assert(mre.m_lock != null); //the lock should have been created before this callback is registered for use.
+            Debug.Assert(mre != null, "Expected a ManualResetEventSlim");
+            Debug.Assert(mre.m_lock != null); //the lock should have been created before this callback is registered for use.
             lock (mre.m_lock)
             {
                 Monitor.PulseAll(mre.m_lock); // awaken all waiters
@@ -758,7 +716,7 @@ namespace System.Threading
         {
             SpinWait sw = new SpinWait();
 
-            Contract.Assert((newBits | updateBitsMask) == updateBitsMask, "newBits do not fall within the updateBitsMask.");
+            Debug.Assert((newBits | updateBitsMask) == updateBitsMask, "newBits do not fall within the updateBitsMask.");
 
             do
             {

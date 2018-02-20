@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef __STRONGNAME_HOLDERS_H__
 #define __STRONGNAME_HOLDERS_H__
@@ -22,7 +21,7 @@ void VoidStrongNameFreeBuffer(__in T *pBuffer)
 }
 NEW_WRAPPER_TEMPLATE1(StrongNameBufferHolder, VoidStrongNameFreeBuffer<_TYPE>);
 
-#if !defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
+#if defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX)
 // Holder for HCRYPTPROV handles directly allocated from CAPI
 inline void ReleaseCapiProvider(HCRYPTPROV hProv)
 {
@@ -41,7 +40,7 @@ inline void ReleaseCapiHash(HCRYPTHASH hHash)
     CryptDestroyHash(hHash);
 }
 typedef Wrapper<HCRYPTHASH, DoNothing, ReleaseCapiHash, 0> CapiHashHolder;
-#endif // !FEATURE_CORECLR || CROSSGEN_COMPILE
+#endif // defined(CROSSGEN_COMPILE) && !defined(PLATFORM_UNIX)
 
 #if SNAPI_INTERNAL
 

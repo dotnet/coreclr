@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -15,43 +14,54 @@
 #include "gcenv.h"
 #include "gc.h"
 
-#ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(DWORD,GCHeap,gcHeapType,GCHeap::GC_HEAP_INVALID);
-#endif // FEATURE_SVR_GC
+IGCHeapInternal* g_theGCHeap;
+IGCHandleManager* g_theGCHandleManager;
 
-GPTR_IMPL(GCHeap,g_pGCHeap);
+#ifdef BUILD_AS_STANDALONE
+IGCToCLR* g_theGCToCLR;
+#endif // BUILD_AS_STANDALONE
 
-/* global versions of the card table and brick table */ 
-GPTR_IMPL(DWORD,g_card_table);
-
-/* absolute bounds of the GC memory */
-GPTR_IMPL_INIT(BYTE,g_lowest_address,0);
-GPTR_IMPL_INIT(BYTE,g_highest_address,0);
+#ifdef GC_CONFIG_DRIVEN
+size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
+#endif //GC_CONFIG_DRIVEN
 
 #ifndef DACCESS_COMPILE
 
-BYTE* g_ephemeral_low = (BYTE*)1; 
-BYTE* g_ephemeral_high = (BYTE*)~0;
-
 #ifdef WRITE_BARRIER_CHECK
-BYTE* g_GCShadow;
-BYTE* g_GCShadowEnd;
-BYTE* g_shadow_lowest_address = NULL;
+uint8_t* g_GCShadow;
+uint8_t* g_GCShadowEnd;
+uint8_t* g_shadow_lowest_address = NULL;
 #endif
 
-VOLATILE(LONG) m_GCLock = -1;
+uint32_t* g_gc_card_table;
 
-LONG g_bLowMemoryFromHost = 0;
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+uint32_t* g_gc_card_bundle_table;
+#endif
+
+uint8_t* g_gc_lowest_address  = 0;
+uint8_t* g_gc_highest_address = 0;
+GCHeapType g_gc_heap_type = GC_HEAP_INVALID;
+uint32_t g_max_generation = max_generation;
+MethodTable* g_gc_pFreeObjectMethodTable = nullptr;
+uint32_t g_num_processors = 0;
+
+#ifdef GC_CONFIG_DRIVEN
+void record_global_mechanism (int mech_index)
+{
+    (gc_global_mechanisms[mech_index])++;
+}
+#endif //GC_CONFIG_DRIVEN
 
 #ifdef WRITE_BARRIER_CHECK
 
-#define INVALIDGCVALUE (LPVOID)((size_t)0xcccccccd)
+#define INVALIDGCVALUE (void *)((size_t)0xcccccccd)
 
     // called by the write barrier to update the shadow heap
 void updateGCShadow(Object** ptr, Object* val)
 {
-    Object** shadow = (Object**) &g_GCShadow[((BYTE*) ptr - g_lowest_address)];
-    if ((BYTE*) shadow < g_GCShadowEnd)
+    Object** shadow = (Object**) &g_GCShadow[((uint8_t*) ptr - g_lowest_address)];
+    if ((uint8_t*) shadow < g_GCShadowEnd)
     {
         *shadow = val;
 
@@ -69,8 +79,8 @@ void updateGCShadow(Object** ptr, Object* val)
 
 struct changed_seg
 {
-    BYTE              * start;
-    BYTE              * end;
+    uint8_t           * start;
+    uint8_t           * end;
     size_t              gc_index;
     bgc_state           bgc;
     changed_seg_state   changed;
@@ -82,8 +92,8 @@ const int max_saved_changed_segs = 128;
 changed_seg saved_changed_segs[max_saved_changed_segs];
 int saved_changed_segs_count = 0;
 
-void record_changed_seg (BYTE* start, BYTE* end, 
-                         size_t current_gc_index, 
+void record_changed_seg (uint8_t* start, uint8_t* end,
+                         size_t current_gc_index,
                          bgc_state current_bgc_state,
                          changed_seg_state changed_state)
 {

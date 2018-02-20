@@ -1,13 +1,7 @@
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_definitions(-DNO_CRT)
-
-if(WIN32)
-    add_compile_options(/wd4996)
-endif(WIN32)
-
-set(UTILCODE_SOURCES
+set(UTILCODE_COMMON_SOURCES
   clrhost_nodependencies.cpp
   ccomprc.cpp
   ex.cpp
@@ -18,21 +12,18 @@ set(UTILCODE_SOURCES
   makepath.cpp
   splitpath.cpp
   clrconfig.cpp
-  registrywrapper.cpp
+  configuration.cpp
   collections.cpp
-  genericstackprobe.cpp
   posterror.cpp
   fstream.cpp
   clrhelpers.cpp
   stgpool.cpp
   stgpooli.cpp
   stgpoolreadonly.cpp
-  lazycow.cpp
   utsem.cpp
   peinformation.cpp
   check.cpp
   log.cpp
-  apithreadstress.cpp
   arraylist.cpp
   bitvector.cpp
   comex.cpp
@@ -40,15 +31,11 @@ set(UTILCODE_SOURCES
   guidfromname.cpp
   jitperf.cpp
   memorypool.cpp
-  rangetree.cpp
   iallocator.cpp
   loaderheap.cpp
-  perflog.cpp
   outstring.cpp
   ilformatter.cpp
   opinfo.cpp
-  dacutil.cpp
-  sortversioning.cpp
   corimage.cpp
   format1.cpp
   prettyprintsig.cpp
@@ -66,27 +53,60 @@ set(UTILCODE_SOURCES
   stresslog.cpp
   debug.cpp
   pedecoder.cpp
+  winfix.cpp
+  longfilepathwrappers.cpp 
+  jithost.cpp
 )
 
 # These source file do not yet compile on Linux.
 # They should be moved out from here into the declaration
 # of UTILCODE_SOURCES above after fixing compiler errors.
 if(WIN32)
-  list(APPEND UTILCODE_SOURCES 
+  list(APPEND UTILCODE_COMMON_SOURCES 
     appxutil.cpp
+    dacutil.cpp
     dlwrap.cpp
     downlevel.cpp
     loadrc.cpp
     newapis.cpp
-    tls.cpp
     securitywrapper.cpp
     securityutil.cpp
     stacktrace.cpp
-    winfix.cpp
   )
+
+  if(CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+    list(APPEND UTILCODE_COMMON_SOURCES
+      lazycow.cpp
+    )
+  endif()
+  
 endif(WIN32)
+  
+set(UTILCODE_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  perflog.cpp
+)
+
+set(UTILCODE_DAC_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  hostimpl.cpp
+)
+
+set(UTILCODE_CROSSGEN_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  hostimpl.cpp
+  perflog.cpp
+)
+
+set(UTILCODE_STATICNOHOST_SOURCES 
+  ${UTILCODE_COMMON_SOURCES}
+  hostimpl.cpp
+)
 
 convert_to_absolute_path(UTILCODE_SOURCES ${UTILCODE_SOURCES})
+convert_to_absolute_path(UTILCODE_DAC_SOURCES ${UTILCODE_DAC_SOURCES})
+convert_to_absolute_path(UTILCODE_CROSSGEN_SOURCES ${UTILCODE_CROSSGEN_SOURCES})
+convert_to_absolute_path(UTILCODE_STATICNOHOST_SOURCES ${UTILCODE_STATICNOHOST_SOURCES})
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
@@ -95,4 +115,4 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 add_subdirectory(dac)
 add_subdirectory(dyncrt)
 add_subdirectory(staticnohost)
-
+add_subdirectory(crossgen)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************\
 *                                                                             *
@@ -30,6 +29,10 @@
 #define _COR_JIT_H_
 
 #include <corinfo.h>
+
+#include <stdarg.h>
+
+#include <corjitflags.h>
 
 #define CORINFO_STACKPROBE_DEPTH        256*sizeof(UINT_PTR)          // Guaranteed stack until an fcall/unmanaged
                                                     // code can set up a frame. Please make sure
@@ -69,112 +72,13 @@ enum CorJitResult
     CORJIT_INTERNALERROR =     MAKE_HRESULT(SEVERITY_ERROR,FACILITY_NULL, 3),
     CORJIT_SKIPPED       =     MAKE_HRESULT(SEVERITY_ERROR,FACILITY_NULL, 4),
     CORJIT_RECOVERABLEERROR =  MAKE_HRESULT(SEVERITY_ERROR,FACILITY_NULL, 5),
-    CORJIT_SKIPMDIL      =     MAKE_HRESULT(SEVERITY_ERROR,FACILITY_NULL, 6)
-};
-
-
-/* values for flags in compileMethod */
-
-enum CorJitFlag
-{
-    CORJIT_FLG_SPEED_OPT           = 0x00000001,
-    CORJIT_FLG_SIZE_OPT            = 0x00000002,
-    CORJIT_FLG_DEBUG_CODE          = 0x00000004, // generate "debuggable" code (no code-mangling optimizations)
-    CORJIT_FLG_DEBUG_EnC           = 0x00000008, // We are in Edit-n-Continue mode
-    CORJIT_FLG_DEBUG_INFO          = 0x00000010, // generate line and local-var info
-    CORJIT_FLG_MIN_OPT             = 0x00000020, // disable all jit optimizations (not necesarily debuggable code)
-    CORJIT_FLG_GCPOLL_CALLS        = 0x00000040, // Emit calls to JIT_POLLGC for thread suspension.
-    CORJIT_FLG_MCJIT_BACKGROUND    = 0x00000080, // Calling from multicore JIT background thread, do not call JitComplete
-
-#ifdef FEATURE_LEGACYNETCF
-
-    CORJIT_FLG_NETCF_QUIRKS        = 0x00000100, // Mimic .NetCF JIT's quirks for generated code (currently just inlining heuristics)
-
-#else // FEATURE_LEGACYNETCF
-
-    CORJIT_FLG_UNUSED1             = 0x00000100,
-
-#endif // FEATURE_LEGACYNETCF
-
-#if defined(_TARGET_X86_)
-
-    CORJIT_FLG_PINVOKE_RESTORE_ESP = 0x00000200, // Restore ESP after returning from inlined PInvoke
-    CORJIT_FLG_TARGET_P4           = 0x00000400,
-    CORJIT_FLG_USE_FCOMI           = 0x00000800, // Generated code may use fcomi(p) instruction
-    CORJIT_FLG_USE_CMOV            = 0x00001000, // Generated code may use cmov instruction
-    CORJIT_FLG_USE_SSE2            = 0x00002000, // Generated code may use SSE-2 instructions
-
-#elif defined(_TARGET_AMD64_)
-
-    CORJIT_FLG_USE_SSE3_4          = 0x00000200,
-    CORJIT_FLG_USE_AVX             = 0x00000400,
-    CORJIT_FLG_USE_AVX2            = 0x00000800,
-    CORJIT_FLG_USE_AVX_512         = 0x00001000,
-    CORJIT_FLG_FEATURE_SIMD        = 0x00002000,
-
-#else // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
-
-    CORJIT_FLG_UNUSED2             = 0x00000200,
-    CORJIT_FLG_UNUSED3             = 0x00000400,
-    CORJIT_FLG_UNUSED4             = 0x00000800,
-    CORJIT_FLG_UNUSED5             = 0x00001000,
-    CORJIT_FLG_UNUSED6             = 0x00002000,
-
-#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
-
-#ifdef MDIL
-    CORJIT_FLG_MDIL                = 0x00004000, // Generate MDIL code instead of machine code
-#else // MDIL
-    CORJIT_FLG_UNUSED7             = 0x00004000,
-#endif // MDIL
-
-#ifdef MDIL
-    // Safe to overlap with CORJIT_FLG_MAKEFINALCODE below. Not used by the JIT, used internally by NGen only.
-    CORJIT_FLG_MINIMAL_MDIL        = 0x00008000, // Generate MDIL code suitable for use to bind other assemblies.
-
-    // Safe to overlap with CORJIT_FLG_READYTORUN below. Not used by the JIT, used internally by NGen only.
-    CORJIT_FLG_NO_MDIL             = 0x00010000, // Generate an MDIL section but no code or CTL. Not used by the JIT, used internally by NGen only.
-#endif // MDIL
-
-#if defined(FEATURE_INTERPRETER)
-    CORJIT_FLG_MAKEFINALCODE       = 0x00008000, // Use the final code generator, i.e., not the interpreter.
-#endif // FEATURE_INTERPRETER
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    CORJIT_FLG_READYTORUN          = 0x00010000, // Use version-resilient code generation
-#endif
-
-    CORJIT_FLG_PROF_ENTERLEAVE     = 0x00020000, // Instrument prologues/epilogues
-    CORJIT_FLG_PROF_REJIT_NOPS     = 0x00040000, // Insert NOPs to ensure code is re-jitable
-    CORJIT_FLG_PROF_NO_PINVOKE_INLINE
-                                   = 0x00080000, // Disables PInvoke inlining
-    CORJIT_FLG_SKIP_VERIFICATION   = 0x00100000, // (lazy) skip verification - determined without doing a full resolve. See comment below
-    CORJIT_FLG_PREJIT              = 0x00200000, // jit or prejit is the execution engine.
-    CORJIT_FLG_RELOC               = 0x00400000, // Generate relocatable code
-    CORJIT_FLG_IMPORT_ONLY         = 0x00800000, // Only import the function
-    CORJIT_FLG_IL_STUB             = 0x01000000, // method is an IL stub
-    CORJIT_FLG_PROCSPLIT           = 0x02000000, // JIT should separate code into hot and cold sections
-    CORJIT_FLG_BBINSTR             = 0x04000000, // Collect basic block profile information
-    CORJIT_FLG_BBOPT               = 0x08000000, // Optimize method based on profile information
-    CORJIT_FLG_FRAMED              = 0x10000000, // All methods have an EBP frame
-    CORJIT_FLG_ALIGN_LOOPS         = 0x20000000, // add NOPs before loops to align them at 16 byte boundaries
-    CORJIT_FLG_PUBLISH_SECRET_PARAM= 0x40000000, // JIT must place stub secret param into local 0.  (used by IL stubs)
-    CORJIT_FLG_GCPOLL_INLINE       = 0x80000000, // JIT must inline calls to GCPoll when possible
-};
-
-enum CorJitFlag2
-{
-#ifdef FEATURE_STACK_SAMPLING
-    CORJIT_FLG2_SAMPLING_JIT_BACKGROUND  
-                                   = 0x00000001, // JIT is being invoked as a result of stack sampling for hot methods in the background
-#endif
 };
 
 /*****************************************************************************
-Here is how CORJIT_FLG_SKIP_VERIFICATION should be interepreted.
+Here is how CORJIT_FLAG_SKIP_VERIFICATION should be interepreted.
 Note that even if any method is inlined, it need not be verified.
 
-if (CORJIT_FLG_SKIP_VERIFICATION is passed in to ICorJitCompiler::compileMethod())
+if (CORJIT_FLAG_SKIP_VERIFICATION is passed in to ICorJitCompiler::compileMethod())
 {
     No verification needs to be done.
     Just compile the method, generating unverifiable code if necessary
@@ -259,7 +163,7 @@ else
 
     case INSTVER_GENERIC_PASSED_VERIFICATION:
         {
-            This cannot ever happen because the VM would pass in CORJIT_FLG_SKIP_VERIFICATION.
+            This cannot ever happen because the VM would pass in CORJIT_FLAG_SKIP_VERIFICATION.
         }
 
     case INSTVER_GENERIC_FAILED_VERIFICATION:
@@ -274,7 +178,7 @@ else
 
             case CORINFO_VERIFICATION_CAN_SKIP:
                 {
-                    This cannot ever happen because the CLR would pass in CORJIT_FLG_SKIP_VERIFICATION.
+                    This cannot ever happen because the CLR would pass in CORJIT_FLAG_SKIP_VERIFICATION.
                 }
 
             case CORINFO_VERIFICATION_RUNTIME_CHECK:
@@ -300,7 +204,13 @@ enum CorJitAllocMemFlag
 {
     CORJIT_ALLOCMEM_DEFAULT_CODE_ALIGN = 0x00000000, // The code will be use the normal alignment
     CORJIT_ALLOCMEM_FLG_16BYTE_ALIGN   = 0x00000001, // The code will be 16-byte aligned
+    CORJIT_ALLOCMEM_FLG_RODATA_16BYTE_ALIGN = 0x00000002, // The read-only data will be 16-byte aligned
 };
+
+inline CorJitAllocMemFlag operator |(CorJitAllocMemFlag a, CorJitAllocMemFlag b)
+{
+    return static_cast<CorJitAllocMemFlag>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 enum CorJitFuncKind
 {
@@ -309,9 +219,9 @@ enum CorJitFuncKind
     CORJIT_FUNC_FILTER         // a funclet associated with an EH filter
 };
 
-#if !defined(FEATURE_USE_ASM_GC_WRITE_BARRIERS) && defined(FEATURE_COUNT_GC_WRITE_BARRIERS)
-// We have a performance-investigation mode (defined by the FEATURE settings above) in which the
-// JIT adds an argument of this enumeration to checked write barrier calls, to classify them.
+// We have a performance-investigation mode (defined by the FEATURE_USE_ASM_GC_WRITE_BARRIERS and
+// FEATURE_COUNT_GC_WRITE_BARRIER preprocessor symbols) in which the JIT adds an argument of this
+// enumeration to checked write barrier calls in order to classify them.
 enum CheckedWriteBarrierKinds {
     CWBKind_Unclassified,    // Not one of the ones below.
     CWBKind_RetBuf,          // Store through a return buffer pointer argument.
@@ -319,60 +229,16 @@ enum CheckedWriteBarrierKinds {
     CWBKind_OtherByRefLocal, // Store through a by-ref local variable.
     CWBKind_AddrOfLocal,     // Store through the address of a local (arguably a bug that this happens at all).
 };
-#endif
+
+#include "corjithost.h"
+
+extern "C" void __stdcall jitStartup(ICorJitHost* host);
 
 class ICorJitCompiler;
 class ICorJitInfo;
-
 struct IEEMemoryManager;
 
 extern "C" ICorJitCompiler* __stdcall getJit();
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
-//
-// #JITEEVersionIdentifier
-//
-// This GUID represents the version of the JIT/EE interface. Any time the interface between the JIT and
-// the EE changes (by adding or removing methods to any interface shared between them), this GUID should
-// be changed. This is the identifier verified by ICorJitCompiler::getVersionIdentifier().
-//
-// You can use "uuidgen.exe -s" to generate this value.
-//
-// **** NOTE TO INTEGRATORS:
-//
-// If there is a merge conflict here, because the version changed in two different places, you must
-// create a **NEW** GUID, not simply choose one or the other!
-//
-// NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE
-//
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if !defined(SELECTANY)
-    #define SELECTANY extern __declspec(selectany)
-#endif
-
-#if !defined(RYUJIT_CTPBUILD)
-
-// Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 9110edd8-8fc3-4e3d-8ac9-12555ff9be9c */
-    0x9110edd8,
-    0x8fc3,
-    0x4e3d,
-    {0x8a, 0xc9, 0x12, 0x55, 0x5f, 0xf9, 0xbe, 0x9c}
-  };
-
-#else
-// Leave this one alone
-// We need it to build a .NET 4.5.1 compatible JIT for the RyuJIT CTP releases
-SELECTANY const GUID JITEEVersionIdentifier = { /* 72d8f09d-1052-4466-94e9-d095b370bdae */
-    0x72d8f09d,
-    0x1052,
-    0x4466,
-    {0x94, 0xe9, 0xd0, 0x95, 0xb3, 0x70, 0xbd, 0xae}
-};
-#endif
 
 // #EEToJitInterface
 // ICorJitCompiler is the interface that the EE uses to get IL bytecode converted to native code. Note that
@@ -422,11 +288,10 @@ public:
             GUID*   versionIdentifier   /* OUT */
             ) = 0;
 
-#ifndef RYUJIT_CTPBUILD
     // When the EE loads the System.Numerics.Vectors assembly, it asks the JIT what length (in bytes) of
     // SIMD vector it supports as an intrinsic type.  Zero means that the JIT does not support SIMD
     // intrinsics, so the EE should use the default size (i.e. the size of the IL implementation).
-    virtual unsigned getMaxIntrinsicSIMDVectorLength(DWORD cpuCompileFlags) { return 0; }
+    virtual unsigned getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags) { return 0; }
 
     // IL obfuscators sometimes interpose on the EE-JIT interface. This function allows the VM to
     // tell the JIT to use a particular ICorJitCompiler to implement the methods of this interface,
@@ -435,7 +300,6 @@ public:
     // ICorJitCompiler implementation. If 'realJitCompiler' is nullptr, then the JIT should resume
     // executing all the functions itself.
     virtual void setRealJit(ICorJitCompiler* realJitCompiler) { }
-#endif // !RYUJIT_CTPBUILD
 
 };
 
@@ -573,7 +437,6 @@ public:
             ULONG *               numRuns
             ) = 0;
 
-#if !defined(RYUJIT_CTPBUILD)
     // Associates a native call site, identified by its offset in the native code stream, with
     // the signature information and method handle the JIT used to lay out the call site. If
     // the call site has no signature information (e.g. a helper call) or has no method handle
@@ -583,7 +446,6 @@ public:
             CORINFO_SIG_INFO *    callSig,      /* IN */
             CORINFO_METHOD_HANDLE methodHandle  /* IN */
             ) = 0;
-#endif // !defined(RYUJIT_CTPBUILD)
 
     // A relocation is recorded if we are pre-jitting.
     // A jump thunk may be inserted if we are jitting
@@ -611,6 +473,14 @@ public:
     // different value than if it was compiling for the host architecture.
     // 
     virtual DWORD getExpectedTargetArchitecture() = 0;
+
+    // Fetches extended flags for a particular compilation instance. Returns
+    // the number of bytes written to the provided buffer.
+    virtual DWORD getJitFlags(
+        CORJIT_FLAGS* flags,       /* IN: Points to a buffer that will hold the extended flags. */
+        DWORD        sizeInBytes   /* IN: The size of the buffer. Note that this is effectively a
+                                          version number for the CORJIT_FLAGS value. */
+        ) = 0;
 };
 
 /**********************************************************************************/

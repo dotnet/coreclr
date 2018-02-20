@@ -1,13 +1,7 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-// ==++==
-//
- 
-//
-// ==--==
 //
 // TO DO: we currently use raw printf() for output. Maybe we need to pick up something like ngen's Output() handling
 // to handle multiple code pages, etc, better.
@@ -28,9 +22,6 @@
 #include "coregen.h"
 #include "consoleargs.h"
 
-#define SEPARATOR_CHAR_W W('\\')
-#define SEPARATOR_STRING_W W("\\")
-
 // Return values from wmain() in case of error
 enum ReturnValues
 {
@@ -42,12 +33,10 @@ enum ReturnValues
 
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
-STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths);
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL);
+STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
-#ifdef FEATURE_CORECLR
-void SetMscorlibPath(LPCWCHAR wzSystemDirectory);
-#endif
+void SetMscorlibPath(LPCWSTR wzSystemDirectory);
 
 /* --------------------------------------------------------------------------- *    
  * Console stuff
@@ -62,7 +51,7 @@ void Outputf(LPCWSTR szFormat, ...)
 {
     va_list args;
     va_start(args, szFormat);
-    vwprintf(szFormat, args);
+    vfwprintf(stdout, szFormat, args);
     va_end(args);
 }
 
@@ -103,14 +92,7 @@ void ErrorWin32(DWORD err)
 
 void PrintLogoHelper()
 {
-#ifdef FEATURE_CORECLR
     Output(W("Microsoft (R) CoreCLR Native Image "));
-#else
-    Output(W("Microsoft (R) CLR Native Image "));
-#endif
-#ifdef MDIL
-    Output(W("/ MDIL "));
-#endif
     Outputf(W("Generator - Version %S\n"), VER_FILEVERSION_STR);
     Outputf(W("%S\n"), VER_LEGALCOPYRIGHT_LOGO_STR);
     Output(W("\n"));
@@ -126,38 +108,34 @@ void PrintUsageHelper()
        W("\n")
        W("    /? or /help          - Display this screen\n")
        W("    /nologo              - Prevents displaying the logo\n")
+       W("    /silent              - Do not display completion message\n")
+       W("    /verbose             - Display verbose information\n")
        W("    @response.rsp        - Process command line arguments from specified\n")
        W("                           response file\n")
        W("    /partialtrust        - Assembly will be run in a partial trust domain.\n")
        W("    /in <file>           - Specifies input filename (optional)\n")
-#ifdef MDIL
-       W("    /out <file>          - Specifies output filename (optional with native images,\n")
-       W("                           required with MDIL)\n")
-#else
        W("    /out <file>          - Specifies output filename (optional)\n")
-#endif
-#ifdef FEATURE_CORECLR
-       W("    /Trusted_Platform_Assemblies <path[;path]>\n")
+       W("    /Trusted_Platform_Assemblies <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of assemblies treated as trusted platform\n")
        W("                         - Cannot be used with Platform_Assemblies_Paths\n")
-       W("    /Platform_Resource_Roots <path[;path]>\n")
+       W("    /Platform_Resource_Roots <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing localized assembly directories\n")
-       W("    /App_Paths <path>    - List of paths containing user-application assemblies and resources\n")
-       W("    /App_Ni_Paths <path[;path]>\n")
+       W("    /App_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
+       W("                         - List of paths containing user-application assemblies and resources\n")
+#ifndef NO_NGENPDB
+       W("    /App_Ni_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing user-application native images\n")
        W("                         - Must be used with /CreatePDB switch\n")
-#endif // FEATURE_CORECLR
+#endif // NO_NGENPDB
 
-       W("    /Platform_Assemblies_Paths\n")
+       W("    /Platform_Assemblies_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing target platform assemblies\n")
-#ifdef FEATURE_CORECLR
        // If Platform_Assemblies_Paths, we will use it to build the TPA list and thus,
        // TPA list cannot be explicitly specified.
        W("                         - Cannot be used with Trusted_Platform_Assemblies\n")
-#endif // FEATURE_CORECLR
        
 #ifdef FEATURE_COMINTEROP
-       W("    /Platform_Winmd_Paths\n")
+       W("    /Platform_Winmd_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing target platform WinMDs used\n")
        W("                           for emulating RoResolveNamespace\n")
 #endif
@@ -168,35 +146,33 @@ void PrintUsageHelper()
        W("    /Tuning              - Generate an instrumented image to collect\n")
        W("                           scenario traces, which can be used with ibcmerge.exe\n")
 #endif
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+       W("    /JITPath <path>\n")
+       W("                         - Specifies the absolute file path to JIT compiler to be used.\n")
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 #ifdef FEATURE_READYTORUN_COMPILER
        W("    /ReadyToRun          - Generate images resilient to the runtime and\n")
        W("                           dependency versions\n")
 #endif
-#ifdef FEATURE_LEGACYNETCF
-       W(" Compatability Modes\n")
-       W("    /PreWP8App           - Set the Windows Phone 8 \"Quirks\" mode, namely AppDomainCompatSwitch=\n")
-       W("                           WindowsPhone_3.7.0.0 or WindowsPhone_3.8.0.0.\n")
-#endif
-#ifdef MDIL
-       W(" MDIL Generation Parameters\n")
-       W("    /mdil           - Generate MDIL rather than native code. Requires presence of /out switch.\n")
-       W("    /nomdil         - create MDIL image with no MDIL code or CTL data structures, use to force\n")
-       W("                      fall back to JIT\n")
-       W("    /EmbedMDIL      - Embed a previously created mdil data in IL image into native image.\n")
-       W("    /fxmdil         - Generate framework assembly MDIL images containing minimal MDIL\n")
-#endif // MDIL
 #ifdef FEATURE_WINMD_RESILIENT
        W(" WinMD Parameters\n")
        W("    /WinMDResilient - Generate images resilient to WinMD dependency changes.\n")
 #endif
-#ifdef FEATURE_CORECLR
        W(" Size on Disk Parameters\n")
        W("    /NoMetaData     - Do not copy metadata and IL into native image.\n")
+#ifndef NO_NGENPDB
        W(" Debugging Parameters\n")
        W("    /CreatePDB <Dir to store PDB> [/lines [<search path for managed PDB>] ]\n")
        W("        When specifying /CreatePDB, the native image should be created\n")
-       W("        first, and <assembly name> should be the path to the NI.")
-#endif // FEATURE_CORECLR
+       W("        first, and <assembly name> should be the path to the NI.\n")
+       W("    /DiasymreaderPath <Path to diasymreader.dll>\n")
+       W("        - Specifies the absolute file path to diasymreader.dll to be used.\n")
+#elif defined(FEATURE_PERFMAP)
+       W(" Debugging Parameters\n")
+       W("    /CreatePerfMap <Dir to store perf map>\n")
+       W("        When specifying /CreatePerfMap, the native image should be created\n")
+       W("        first, and <assembly name> should be the path to the NI.\n")
+#endif
        );
 }
 
@@ -260,7 +236,7 @@ bool MatchParameter(LPCWSTR szArg, LPCWSTR szTestParamName)
 // Returns true if pwzString ends with the string in pwzCandidate
 // Ignores case
 //
-bool StringEndsWith(LPWSTR pwzString, LPWSTR pwzCandidate)
+bool StringEndsWith(LPCWSTR pwzString, LPCWSTR pwzCandidate)
 {
     size_t stringLength = wcslen(pwzString);
     size_t candidateLength = wcslen(pwzCandidate);
@@ -270,21 +246,21 @@ bool StringEndsWith(LPWSTR pwzString, LPWSTR pwzCandidate)
         return false;
     }
 
-    LPWSTR pwzStringEnd = pwzString + stringLength - candidateLength;
+    LPCWSTR pwzStringEnd = pwzString + stringLength - candidateLength;
 
     return !_wcsicmp(pwzStringEnd, pwzCandidate);
 }
 
-#ifdef FEATURE_CORECLR
 //
 // When using the Phone binding model (TrustedPlatformAssemblies), automatically
-// detect which path mscorlib.[ni.]dll lies in.
+// detect which path CoreLib.[ni.]dll lies in.
 //
-bool ComputeMscorlibPathFromTrustedPlatformAssemblies(LPWSTR pwzMscorlibPath, DWORD cbMscorlibPath, LPCWSTR pwzTrustedPlatformAssemblies)
+bool ComputeMscorlibPathFromTrustedPlatformAssemblies(SString& pwzMscorlibPath, LPCWSTR pwzTrustedPlatformAssemblies)
 {
     LPWSTR wszTrustedPathCopy = new WCHAR[wcslen(pwzTrustedPlatformAssemblies) + 1];
     wcscpy_s(wszTrustedPathCopy, wcslen(pwzTrustedPlatformAssemblies) + 1, pwzTrustedPlatformAssemblies);
-    LPWSTR wszSingleTrustedPath = wcstok(wszTrustedPathCopy, W(";"));
+    wchar_t *context;
+    LPWSTR wszSingleTrustedPath = wcstok_s(wszTrustedPathCopy, PATH_SEPARATOR_STR_W, &context);
     
     while (wszSingleTrustedPath != NULL)
     {
@@ -296,24 +272,23 @@ bool ComputeMscorlibPathFromTrustedPlatformAssemblies(LPWSTR pwzMscorlibPath, DW
             wszSingleTrustedPath++;
         }
 
-        if (StringEndsWith(wszSingleTrustedPath, W("\\mscorlib.dll")) ||
-            StringEndsWith(wszSingleTrustedPath, W("\\mscorlib.ni.dll")))
+        if (StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_IL_W) ||
+            StringEndsWith(wszSingleTrustedPath, DIRECTORY_SEPARATOR_STR_W CoreLibName_NI_W))
         {
-            wcscpy_s(pwzMscorlibPath, cbMscorlibPath, wszSingleTrustedPath);
+            pwzMscorlibPath.Set(wszSingleTrustedPath);
+            SString::Iterator pwzSeparator = pwzMscorlibPath.End();
+            bool retval = true;
             
-            LPWSTR pwzSeparator = wcsrchr(pwzMscorlibPath, W('\\'));
-            if (pwzSeparator == NULL)
+            if (!SUCCEEDED(CopySystemDirectory(pwzMscorlibPath, pwzMscorlibPath)))
             {
-                delete [] wszTrustedPathCopy;
-                return false;
+                retval = false;
             }
-            pwzSeparator[1] = W('\0'); // after '\'
 
             delete [] wszTrustedPathCopy;
-            return true;
+            return retval;
         }
         
-        wszSingleTrustedPath = wcstok(NULL, W(";"));
+        wszSingleTrustedPath = wcstok_s(NULL, PATH_SEPARATOR_STR_W, &context);
     }
     delete [] wszTrustedPathCopy;
 
@@ -323,7 +298,7 @@ bool ComputeMscorlibPathFromTrustedPlatformAssemblies(LPWSTR pwzMscorlibPath, DW
 // Given a path terminated with "\\" and a search mask, this function will add
 // the enumerated files, corresponding to the search mask, from the path into
 // the refTPAList.
-void PopulateTPAList(SString path, LPWSTR pwszMask, SString &refTPAList, bool fCompilingMscorlib, bool fCreatePDB)
+void PopulateTPAList(SString path, LPCWSTR pwszMask, SString &refTPAList, bool fCompilingMscorlib, bool fCreatePDB)
 {
     _ASSERTE(path.GetCount() > 0);
     ClrDirectoryEnumerator folderEnumerator(path.GetUnicode(), pwszMask);
@@ -337,31 +312,12 @@ void PopulateTPAList(SString path, LPWSTR pwszMask, SString &refTPAList, bool fC
             bool fAddDelimiter = (refTPAList.GetCount() > 0)?true:false;
             bool fAddFileToTPAList = true;
             LPCWSTR pwszFilename = folderEnumerator.GetFileName();
-            if (fCompilingMscorlib)
+            
+            // No NIs are supported when creating NI images (other than NI of System.Private.CoreLib.dll).
+            if (!fCreatePDB)
             {
-                // When compiling mscorlib.dll, no ".ni.dll" should be on the TPAList.
+                // Only CoreLib's ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
                 if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
-                {
-                    fAddFileToTPAList = false;
-                }
-            }
-            else
-            {
-                // When creating PDBs, we must ensure that .ni.dlls are in the TPAList
-                if (!fCreatePDB)
-                {
-                    // Only mscorlib.ni.dll should be in the TPAList for the compilation of non-mscorlib assemblies.
-                    if (StringEndsWith((LPWSTR)pwszFilename, W(".ni.dll")))
-                    {
-                        if (!StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.ni.dll")))
-                        {
-                            fAddFileToTPAList = false;
-                        }
-                    }
-                }
-                
-                // Ensure that mscorlib.dll is also not on the TPAlist for this case.                
-                if (StringEndsWith((LPWSTR)pwszFilename, W("mscorlib.dll")))
                 {
                     fAddFileToTPAList = false;
                 }
@@ -372,7 +328,7 @@ void PopulateTPAList(SString path, LPWSTR pwszMask, SString &refTPAList, bool fC
                 if (fAddDelimiter)
                 {
                     // Add the path delimiter if we already have entries in the TPAList
-                    refTPAList.Append(W(";"));
+                    refTPAList.Append(PATH_SEPARATOR_CHAR_W);
                 }
                 // Add the path to the TPAList
                 refTPAList.Append(path);
@@ -402,7 +358,7 @@ void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths
         while (itr != end)
         {
             start = itr;
-            BOOL found = ssPlatformAssembliesPath.Find(itr, W(';'));
+            BOOL found = ssPlatformAssembliesPath.Find(itr, PATH_SEPARATOR_CHAR_W);
             if (!found)
             {
                 itr = end;
@@ -419,9 +375,9 @@ void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths
 
             if (len > 0)
             {
-                if (qualifiedPath[len-1]!='\\')
+                if (qualifiedPath[len-1]!=DIRECTORY_SEPARATOR_CHAR_W)
                 {
-                    qualifiedPath.Append('\\');
+                    qualifiedPath.Append(DIRECTORY_SEPARATOR_CHAR_W);
                 }
 
                 // Enumerate the EXE/DLL modules within this path and add them to the TPAList
@@ -439,13 +395,14 @@ void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths
         }
     }
 }
-#endif // FEATURE_CORECLR
 
 extern HMODULE g_hThisInst;
 
 int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 {
+#ifndef FEATURE_PAL
     g_hThisInst = WszGetModuleHandle(NULL);
+#endif
 
     /////////////////////////////////////////////////////////////////////////
     //
@@ -460,17 +417,25 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPCWSTR pwzAppNiPaths = nullptr;
     LPCWSTR pwzPlatformAssembliesPaths = nullptr;
     LPCWSTR pwzPlatformWinmdPaths = nullptr;
-    WCHAR wzDirectoryToStorePDB[MAX_PATH] = W("\0");
+    StackSString wzDirectoryToStorePDB;
     bool fCreatePDB = false;
     bool fGeneratePDBLinesInfo = false;
     LPWSTR pwzSearchPathForManagedPDB = NULL;
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
 
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    LPCWSTR pwszCLRJITPath = nullptr;
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+    LPCWSTR pwzDiasymreaderPath = nullptr;
+
     HRESULT hr;
 
+#ifndef PLATFORM_UNIX
     // This is required to properly display Unicode characters
     _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
 
     // Skip this executable path
     argv++;
@@ -498,10 +463,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     argc = argc2;
     argv = argv2;
 
-    bool fCopySourceToOut = false;
-    
     // By default, Crossgen will assume code-generation for fulltrust domains unless /PartialTrust switch is specified
     dwFlags |= NGENWORKER_FLAGS_FULLTRUSTDOMAIN;
+
+    // By default, Crossgen will generate readytorun images unless /FragileNonVersionable switch is specified
+    dwFlags |= NGENWORKER_FLAGS_READYTORUN;
 
     while (argc > 0)
     {
@@ -514,6 +480,14 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("nologo")))
         {
             fDisplayLogo = false;
+        }
+        else if (MatchParameter(*argv, W("silent")))
+        {
+            dwFlags |= NGENWORKER_FLAGS_SILENT;
+        }
+        else if (MatchParameter(*argv, W("verbose")))
+        {
+            dwFlags |= NGENWORKER_FLAGS_VERBOSE;
         }
         else if (MatchParameter(*argv, W("Tuning")))
         {
@@ -537,40 +511,16 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             // We dont explicitly set the flag here again so that if "/PartialTrust" is specified, then it will successfully override the default
             // fulltrust behaviour.
         }
-#ifdef FEATURE_LEGACYNETCF
-        else if (MatchParameter(*argv, W("PreWP8App")))
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+        else if (MatchParameter(*argv, W("JITPath")) && (argc > 1))
         {
-            dwFlags |= NGENWORKER_FLAGS_APPCOMPATWP8;
+            pwszCLRJITPath = argv[1];
+            
+            // skip JIT Path
+            argv++;
+            argc--;
         }
-#endif
-#ifdef MDIL
-        else if (MatchParameter(*argv, W("mdil")))
-        {
-            dwFlags |= NGENWORKER_FLAGS_CREATEMDIL;
-        }
-        else if (MatchParameter(*argv, W("fxmdil")))
-        {
-            dwFlags |= NGENWORKER_FLAGS_MINIMAL_MDIL | NGENWORKER_FLAGS_CREATEMDIL;
-        }
-        else if (MatchParameter(*argv, W("EmbedMDIL")))
-        {
-            dwFlags |= NGENWORKER_FLAGS_EMBEDMDIL;
-        }
-        else if (MatchParameter(*argv, W("NoMDIL")))
-        {
-            dwFlags |= NGENWORKER_FLAGS_NOMDIL;
-        }
-#else // !MDIL
-        else if (MatchParameter(*argv, W("mdil")) || MatchParameter(*argv, W("fxmdil")) || MatchParameter(*argv, W("NoMDIL")))
-        {
-            // Copy the "in" file as the "out" file
-            fCopySourceToOut = true;
-        }
-        else if (MatchParameter(*argv, W("EmbedMDIL")))
-        {
-            // Dont do anything - simply generate the NI
-        }
-#endif
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 #ifdef FEATURE_WINMD_RESILIENT
         else if (MatchParameter(*argv, W("WinMDResilient")))
         {
@@ -582,13 +532,15 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             dwFlags |= NGENWORKER_FLAGS_READYTORUN;
         }
+        else if (MatchParameter(*argv, W("FragileNonVersionable")))
+        {
+            dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
+        }
 #endif
-#ifdef FEATURE_CORECLR
         else if (MatchParameter(*argv, W("NoMetaData")))
         {
             dwFlags |= NGENWORKER_FLAGS_NO_METADATA;
         }
-#endif
         else if (MatchParameter(*argv, W("out")))
         {
             if (pwzOutputFilename != NULL)
@@ -611,7 +563,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
         }
-#ifdef FEATURE_CORECLR
         else if (MatchParameter(*argv, W("Trusted_Platform_Assemblies")) && (argc > 1))
         {
             pwzTrustedPlatformAssemblies = argv[1];
@@ -636,6 +587,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
         }
+#ifndef NO_NGENPDB
         else if (MatchParameter(*argv, W("App_Ni_Paths")) && (argc > 1))
         {
             pwzAppNiPaths = argv[1];
@@ -644,7 +596,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
         }
-#endif // FEATURE_CORECLR
+#endif // NO_NGENPDB
         else if (MatchParameter(*argv, W("Platform_Assemblies_Paths")) && (argc > 1))
         {
             pwzPlatformAssembliesPaths = argv[1];
@@ -663,7 +615,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argc--;
         }
 #endif // FEATURE_COMINTEROP
-#ifdef FEATURE_CORECLR
+#ifndef NO_NGENPDB
         else if (MatchParameter(*argv, W("CreatePDB")) && (argc > 1))
         {
             // syntax: /CreatePDB <directory to store PDB> [/lines  [<search path for managed PDB>] ]
@@ -673,32 +625,18 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv++;
             argc--;
 
-            // Clear the /fulltrust flag - /CreatePDB does not work with any other flags.
-            dwFlags = dwFlags & ~NGENWORKER_FLAGS_FULLTRUSTDOMAIN;
+            // Clear any extra flags - using /CreatePDB fails if any of these are set.
+            dwFlags = dwFlags & ~(NGENWORKER_FLAGS_FULLTRUSTDOMAIN | NGENWORKER_FLAGS_READYTORUN);
 
             // Parse: <directory to store PDB>
-            if (wcscpy_s(
-                wzDirectoryToStorePDB, 
-                _countof(wzDirectoryToStorePDB), 
-                argv[0]) != 0)
-            {
-                Output(W("Unable to parse output directory to store PDB"));
-                exit(FAILURE_RESULT);
-            }
+            wzDirectoryToStorePDB.Set(argv[0]);
             argv++;
             argc--;
 
             // Ensure output dir ends in a backslash, or else diasymreader has issues
-            if (wzDirectoryToStorePDB[wcslen(wzDirectoryToStorePDB)-1] != SEPARATOR_CHAR_W)
+            if (wzDirectoryToStorePDB[wzDirectoryToStorePDB.GetCount()-1] != DIRECTORY_SEPARATOR_CHAR_W)
             {
-                if (wcscat_s(
-                        wzDirectoryToStorePDB, 
-                        _countof(wzDirectoryToStorePDB), 
-                        SEPARATOR_STRING_W) != 0)
-                {
-                    Output(W("Unable to parse output directory to store PDB"));
-                    exit(FAILURE_RESULT);
-                }
+                wzDirectoryToStorePDB.Append(DIRECTORY_SEPARATOR_STR_W);
             }
 
             if (argc == 0)
@@ -735,7 +673,55 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv--;
             argc++;
         }
-#endif // FEATURE_CORECLR
+        else if (MatchParameter(*argv, W("DiasymreaderPath")) && (argc > 1))
+        {
+            pwzDiasymreaderPath = argv[1];
+
+            // skip diasymreader Path
+            argv++;
+            argc--;
+        }
+#endif // NO_NGENPDB
+#ifdef FEATURE_PERFMAP
+        else if (MatchParameter(*argv, W("CreatePerfMap")) && (argc > 1))
+        {
+            // syntax: /CreatePerfMap <directory to store perfmap>
+
+            // Parse: /CreatePerfMap
+            // NOTE: We use the same underlying PDB logic.
+            fCreatePDB = true;
+            argv++;
+            argc--;
+
+            // Clear the /fulltrust flag - /CreatePerfMap does not work with any other flags.
+            dwFlags = dwFlags & ~NGENWORKER_FLAGS_FULLTRUSTDOMAIN;
+
+            // Clear the /ready to run flag - /CreatePerfmap does not work with any other flags.
+            dwFlags = dwFlags & ~NGENWORKER_FLAGS_READYTORUN;
+
+            // Parse: <directory to store PDB>
+            wzDirectoryToStorePDB.Set(argv[0]);
+            argv++;
+            argc--;
+
+            // Ensure output dir ends in a backslash
+            if (wzDirectoryToStorePDB[wcslen(wzDirectoryToStorePDB)-1] != DIRECTORY_SEPARATOR_CHAR_W)
+            {
+                wzDirectoryToStorePDB.Append(DIRECTORY_SEPARATOR_STR_W);
+            }
+
+            if (argc == 0)
+            {
+                Output(W("The /CreatePerfMap switch requires <directory to store perfmap> and <assembly name>.\n"));
+                exit(FAILURE_RESULT);
+            }
+
+            // Undo last arg iteration, since we do it for all cases at the bottom of
+            // the loop
+            argv--;
+            argc++;
+        }
+#endif // FEATURE_PERFMAP
         else
         {
             if (argc == 1)
@@ -781,49 +767,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         exit(INVALID_ARGUMENTS);
     }
 
-#ifdef MDIL
-    if (pwzOutputFilename == NULL)
-    {
-        if (dwFlags & NGENWORKER_FLAGS_CREATEMDIL)
-        {
-            Output(W("You must specify an output filename (/out <file>)\n"));
-            exit(INVALID_ARGUMENTS);
-        }
-    }
-    
-    if ((dwFlags & NGENWORKER_FLAGS_EMBEDMDIL) && (dwFlags & NGENWORKER_FLAGS_CREATEMDIL))
-    {
-        Output(W("The /EmbedMDIL switch cannot be used with the /mdil or /createmdil switch.\n"));
-        exit(INVALID_ARGUMENTS);
-    }
-    
-    if ((dwFlags & NGENWORKER_FLAGS_NOMDIL) && !(dwFlags & NGENWORKER_FLAGS_CREATEMDIL))
-    {
-        Output(W("The /NoMDIL switch must be used with the /mdil or /createmdil switch.\n"));
-        exit(INVALID_ARGUMENTS);
-    }
-#else // !MDIL
-    if (fCopySourceToOut == true)
-    {
-        if (pwzOutputFilename == NULL)
-        {
-            Output(W("You must specify an output filename (/out <file>)\n"));
-            exit(INVALID_ARGUMENTS);
-        }
-        if (CopyFileExW(pwzFilename, pwzOutputFilename, NULL, NULL, NULL, 0) == 0)
-        {
-            DWORD dwLastError = GetLastError();
-            OutputErrf(W("Error: x86 copy failed for \"%s\" (0x%08x)\n"), pwzFilename, HRESULT_FROM_WIN32(dwLastError));
-        }
-        else
-        {
-            Outputf(W("[x86] %s generated successfully\n"),pwzOutputFilename);
-        }
-        
-        return 0;
-    }
-#endif //MDIL
-
     if (fCreatePDB && (dwFlags != 0))
     {
         Output(W("The /CreatePDB switch cannot be used with other switches, except /lines and the various path switches.\n"));
@@ -836,7 +779,22 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         exit(FAILURE_RESULT);
     }
 
-#if defined(FEATURE_CORECLR)
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (pwszCLRJITPath != nullptr && fCreatePDB)
+    {
+        Output(W("The /JITPath switch can not be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if !defined(NO_NGENPDB)
+    if (pwzDiasymreaderPath != nullptr && !fCreatePDB)
+    {
+        Output(W("The /DiasymreaderPath switch can only be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // !defined(NO_NGENPDB)
+
     if ((pwzTrustedPlatformAssemblies != nullptr) && (pwzPlatformAssembliesPaths != nullptr))
     {
         Output(W("The /Trusted_Platform_Assemblies and /Platform_Assemblies_Paths switches cannot be both specified.\n"));
@@ -867,15 +825,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             exit(FAILURE_RESULT);
         }
     }
-#endif // FEATURE_CORESYSTEM
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (((dwFlags & NGENWORKER_FLAGS_TUNING) != 0) && ((dwFlags & NGENWORKER_FLAGS_READYTORUN) != 0))
-    {
-        Output(W("The /Tuning switch cannot be used with /ReadyToRun switch.\n"));
-        exit(FAILURE_RESULT);
-    }
-#endif
     
     // All argument processing has happened by now. The only messages that should appear before here are errors
     // related to argument parsing, such as the Usage message. Afterwards, other messages can appear.
@@ -890,14 +839,24 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         PrintLogoHelper();
     }
 
-    WCHAR wzTrustedPathRoot[MAX_PATH];
+    PathString wzTrustedPathRoot;
 
-#ifdef FEATURE_CORECLR
     SString ssTPAList;  
+
+    if (fCreatePDB)
+    {
+        // While creating PDB, assembly binder gives preference to files in TPA.
+        // This can create difficulties if the input file is not in TPA.
+        // To avoid this issue, put the input file as the first item in TPA.
+        ssTPAList.Append(pwzFilename);
+    }
     
     // Are we compiling mscorlib.dll? 
-    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, W("mscorlib.dll"));
-    
+    bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, CoreLibName_IL_W);
+
+    if (fCompilingMscorlib)
+        dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
+
     if(pwzPlatformAssembliesPaths != nullptr)
     {
         // Platform_Assemblies_Paths command line switch has been specified.
@@ -911,31 +870,32 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
     if (pwzTrustedPlatformAssemblies != nullptr)
     {
-        if (ComputeMscorlibPathFromTrustedPlatformAssemblies(wzTrustedPathRoot, MAX_PATH, pwzTrustedPlatformAssemblies))
+        if (ComputeMscorlibPathFromTrustedPlatformAssemblies(wzTrustedPathRoot, pwzTrustedPlatformAssemblies))
         {
-            pwzPlatformAssembliesPaths = wzTrustedPathRoot;
+            pwzPlatformAssembliesPaths = wzTrustedPathRoot.GetUnicode();
             SetMscorlibPath(pwzPlatformAssembliesPaths);
         }
     }
-#endif // FEATURE_CORECLR
 
     if (pwzPlatformAssembliesPaths == NULL)
     {
-        if (!WszGetModuleFileName(NULL, wzTrustedPathRoot, MAX_PATH))
+        if (!WszGetModuleFileName(NULL, wzTrustedPathRoot))
         {
             ERROR_WIN32(W("Error: GetModuleFileName failed (%d)\n"), GetLastError());
             exit(CLR_INIT_ERROR);
         }
-
-        wchar_t* pszSep = wcsrchr(wzTrustedPathRoot, SEPARATOR_CHAR_W);
-        if (pszSep == NULL)
+        
+        if (SUCCEEDED(CopySystemDirectory(wzTrustedPathRoot, wzTrustedPathRoot)))
+        {
+            pwzPlatformAssembliesPaths = wzTrustedPathRoot.GetUnicode();
+        }
+        else
         {
             ERROR_HR(W("Error: wcsrchr returned NULL; GetModuleFileName must have given us something bad\n"), E_UNEXPECTED);
             exit(CLR_INIT_ERROR);
         }
-        *pszSep = '\0';
-
-        pwzPlatformAssembliesPaths = wzTrustedPathRoot;
+        
+        
     }
 
     // Initialize the logger
@@ -955,7 +915,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             wzDirectoryToStorePDB, 
             fGeneratePDBLinesInfo, 
             pwzSearchPathForManagedPDB,
-            pwzPlatformWinmdPaths);
+            pwzPlatformWinmdPaths,
+            pwzDiasymreaderPath);
         
     }
     else
@@ -967,6 +928,11 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
          pwzAppPaths,
          pwzOutputFilename,
          pwzPlatformWinmdPaths
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+        ,
+        NULL, // ICorSvcLogger
+        pwszCLRJITPath   
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
          );
     }
     
@@ -987,3 +953,31 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 
     return 0;
 }
+
+#ifdef PLATFORM_UNIX
+int main(int argc, char *argv[])
+{
+    if (0 != PAL_Initialize(argc, argv))
+    {
+        return FAILURE_RESULT;
+    }
+
+    wchar_t **wargv = new wchar_t*[argc];
+    for (int i = 0; i < argc; i++)
+    {
+        size_t len = strlen(argv[i]) + 1;
+        wargv[i] = new wchar_t[len];
+        WszMultiByteToWideChar(CP_ACP, 0, argv[i], -1, wargv[i], len);
+    }
+
+    int ret = wmain(argc, wargv);
+
+    for (int i = 0; i < argc; i++)
+    {
+        delete[] wargv[i];
+    }
+    delete[] wargv;
+
+    return ret;
+}
+#endif // PLATFORM_UNIX

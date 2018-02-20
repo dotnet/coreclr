@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef __GCINFODUMPER_H__
 #define __GCINFODUMPER_H__
@@ -19,7 +18,7 @@ class GcInfoDumper
 {
 public:
 
-    GcInfoDumper (PTR_CBYTE pbGCInfo);
+    GcInfoDumper (GCInfoToken gcInfoToken);
     ~GcInfoDumper ();
 
     // Returns TRUE to stop decoding.
@@ -81,7 +80,7 @@ private:
         UINT marked;
     };
 
-    PTR_CBYTE m_pbGCInfo;
+    GCInfoToken m_gcTable;
     UINT32 m_StackBaseRegister;
     UINT32 m_SizeOfEditAndContinuePreservedArea;
     LivePointerRecord *m_pRecords;
@@ -94,7 +93,7 @@ private:
     static void LivePointerCallback (
             LPVOID          hCallback,      // callback data
             OBJECTREF*      pObject,        // address of obect-reference we are reporting
-            DWORD           flags           // is this a pinned and/or interior pointer
+            uint32_t        flags           // is this a pinned and/or interior pointer
             DAC_ARG(DacSlotLocation loc));  // the location the pointer came from
 
     static void FreePointerRecords (LivePointerRecord *pRecords);

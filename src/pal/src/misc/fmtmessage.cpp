@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -30,6 +29,8 @@ Revision History:
 
 #include "pal/printfcpp.hpp"
 
+#include "errorstrings.h"
+
 #include <stdarg.h>
 #if NEED_DLCOMPAT
 #include "dlcompat.h"
@@ -42,179 +43,7 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
 /* Defines */
 
-/* The PAL_GetSatelliteStringW function assumes the buffer is going to be
-   big enough. */
-#define MAX_SAT_STRING_LENGTH 511
-
-/* Function pointers and handles. */
-typedef VOID * HSATELLITE;
-static HSATELLITE s_hSatellite = NULL;
-static LPVOID s_lpLibRotorPalRt = NULL;
-typedef HSATELLITE (__stdcall *FnLoadSatelliteResource)(LPCWSTR);
-static FnLoadSatelliteResource LoadSatelliteResource;
-typedef BOOL (__stdcall *FnFreeSatelliteResource)(HSATELLITE);
-static FnFreeSatelliteResource FreeSatelliteResource;
-typedef UINT (__stdcall *FnLoadSatelliteStringW)(HSATELLITE, UINT, LPWSTR, UINT);
-static FnLoadSatelliteStringW LoadSatelliteStringW;
-
-/*++
-Function :
-
-    FMTMSG_LoadLibrary
-    
-    Loads the dynamic library
---*/
-static LPVOID FMTMSG_LoadLibrary( )
-{
-    CHAR PathAndFileName[ MAX_PATH ];
-    LPVOID lpLibRotorPalRt;
-    
-    if ( !PAL_GetPALDirectoryA( PathAndFileName, MAX_PATH ) )
-    {
-        ERROR( "Unable to retrieve the path.\n" );
-        goto error;
-    }
-
-#define ROTOR_PALRT PAL_SHLIB_PREFIX "rotor_palrt" PAL_SHLIB_SUFFIX
-
-    if (strncat_s( PathAndFileName, sizeof(PathAndFileName), ROTOR_PALRT, MAX_PATH ) != SAFECRT_SUCCESS)
-    {
-        ERROR( "strncat_s failed!\n" );
-        goto error;
-    }
-
-    TRACE( "%s'\n",PathAndFileName ); 
-
-    /* the refcounting in dlopen / dlclose calls does not tend to be threadsafe - take 
-       the modulelist lock to avoid a potential race condition from the PAL side */
-    LockModuleList();
-    lpLibRotorPalRt = dlopen( PathAndFileName, RTLD_LAZY );
-    if ( lpLibRotorPalRt )
-    {
-        if ( InterlockedCompareExchangePointer(&s_lpLibRotorPalRt, lpLibRotorPalRt, NULL) != NULL )
-        {
-            /* somebody beat us to it */
-            dlclose( lpLibRotorPalRt );
-        }
-    }
-    else
-    {
-        ERROR( "%s\n", strerror( errno ) );
-    }
-    UnlockModuleList();
-
-error:
-    return s_lpLibRotorPalRt;
-}
-
-
-/*++
-Function :
-
-    FMTMSG_FormatMessageInit
-    
-    Loads the dynamic library, resolves symbols.
-    
-    Loads the satellite file into memory.
---*/
-static HSATELLITE FMTMSG_FormatMessageInit( void )
-{
-    static const WCHAR ROTORPALSATFILE[] = {
-        'p','a','l','.','s','a','t','e','l','l','i','t','e', '\0'
-    };
-    
-    WCHAR SatPathAndFile[ MAX_PATH ];
-
-    HSATELLITE hSatellite;
-
-    LPVOID lpLibRotorPalRt;
-
-    TRACE( "Initilizing the dynamic library and the satellite files.\n" );
-
-    lpLibRotorPalRt = s_lpLibRotorPalRt;
-
-    if ( !lpLibRotorPalRt )
-    {
-        lpLibRotorPalRt = FMTMSG_LoadLibrary( );
-        if ( !lpLibRotorPalRt )
-        {
-            ERROR( "Unable to load the shared library. Reason %s.\n", dlerror() );
-            goto error;
-        }
-    }
-
-    /* Get the symbols. */
-    LoadSatelliteResource = reinterpret_cast<FnLoadSatelliteResource>(
-        dlsym( lpLibRotorPalRt, "PAL_LoadSatelliteResourceW" ));
-    FreeSatelliteResource = reinterpret_cast<FnFreeSatelliteResource>(
-        dlsym( lpLibRotorPalRt, "PAL_FreeSatelliteResource" ));
-    LoadSatelliteStringW = reinterpret_cast<FnLoadSatelliteStringW>(
-        dlsym( lpLibRotorPalRt, "PAL_LoadSatelliteStringW" ));
-
-    if ( !LoadSatelliteResource || !FreeSatelliteResource || 
-            !LoadSatelliteStringW )
-    {
-        ERROR( "Unable to load the shared library symbols. "
-                "Reason %s.\n", dlerror() );
-        goto error;
-    }
-
-    /* Load the satellite file. */
-    if ( !PAL_GetPALDirectoryW( SatPathAndFile, MAX_PATH ) )
-    {
-        ERROR( "Unable to retrieve the path.\n" );
-        goto error;
-    }
-   
-    PAL_wcsncat( SatPathAndFile, ROTORPALSATFILE, MAX_PATH );
-    hSatellite = ((*LoadSatelliteResource)( SatPathAndFile ));
-
-    if ( !hSatellite )
-    {
-        ERROR( "Unable to load the satellite file\n" );
-        goto error;
-    }
-
-    if ( InterlockedCompareExchangePointer(&s_hSatellite, hSatellite, NULL) != NULL )
-    {
-        /* somebody beat us to it */
-        (*FreeSatelliteResource)(hSatellite);
-    }
-
-error:
-    return s_hSatellite;
-}
-
-
-/*++
-Function :
-
-    FMTMSG_FormatMessageCleanUp
-    
-    Frees the satellite file from memory.
-    Closes the dynamic library.
-    Releases all resources used by FormatMessage,
-    including the satellite file and critical section.
-    
---*/
-BOOL FMTMSG_FormatMessageCleanUp( void )
-{    
-    TRACE( "Cleaning up the dynamic library and the satellite files.\n" );
-    if ( s_lpLibRotorPalRt )
-    {
-        if (s_hSatellite)
-        {
-            (*FreeSatelliteResource)(s_hSatellite);
-            s_hSatellite = NULL;
-        }
-        if ( dlclose( s_lpLibRotorPalRt ) != 0 )
-        {
-            ASSERT( "Unable to close the dynamic library\n" );
-        }
-        s_lpLibRotorPalRt = NULL;
-    }
-    return TRUE;
-}
+#define MAX_ERROR_STRING_LENGTH 32
 
 /*++
 Function:
@@ -225,63 +54,38 @@ Returns the message as a wide string.
 --*/
 static LPWSTR FMTMSG_GetMessageString( DWORD dwErrCode )
 {
-    LPWSTR lpRetVal = NULL;
-    HSATELLITE hSatellite;
+    TRACE("Entered FMTMSG_GetMessageString\n");
 
-    TRACE( "Entered FMTMSG_GetMessageString\n" );
+    LPCWSTR lpErrorString = GetPalErrorString(dwErrCode);
+    int allocChars;
 
-    hSatellite = s_hSatellite;
-    if ( hSatellite == NULL )
+    if (lpErrorString != NULL)
     {
-        hSatellite = FMTMSG_FormatMessageInit();
-        if ( !hSatellite )
-        {
-            ASSERT( "Unable to continue due to missing library.\n" );
-            SetLastError( ERROR_INTERNAL_ERROR );
-            goto error;
-        }
+        allocChars = PAL_wcslen(lpErrorString) + 1;
     }
-        
-    lpRetVal = 
-        (LPWSTR)LocalAlloc( LMEM_FIXED, (MAX_SAT_STRING_LENGTH + 1 ) 
-                            * sizeof( WCHAR ) );
-    if ( lpRetVal )
+    else 
     {
-        if ( ((*LoadSatelliteStringW)( hSatellite, dwErrCode, lpRetVal, 
-                                        MAX_SAT_STRING_LENGTH ) ) != 0 )
+        allocChars = MAX_ERROR_STRING_LENGTH + 1;
+    }
+
+    LPWSTR lpRetVal = (LPWSTR)LocalAlloc(LMEM_FIXED, allocChars * sizeof(WCHAR));
+
+    if (lpRetVal)
+    {
+        if (lpErrorString != NULL)
         {
-            /* Lets see if we can save memory here. */
-            UINT Length;
-            LPWSTR temp;
-            Length = PAL_wcslen( lpRetVal ) + 1; 
-            temp = static_cast<WCHAR *>(
-                LocalAlloc( LMEM_FIXED, Length * sizeof( WCHAR ) ) );
-            
-            if ( temp )
-            {
-                memcpy( temp, lpRetVal, Length*sizeof(WCHAR) );
-                LocalFree( lpRetVal );
-                lpRetVal = temp;
-            }
-            else
-            {
-                WARN( "Memory is running low. Continuing "
-                        "with original memory allocation.\n" );
-            }
+            PAL_wcscpy(lpRetVal, lpErrorString);
         }
-        else
+        else 
         {
-            ERROR( "LoadSatelliteStringW failed!\n" );
-            LocalFree( lpRetVal );
-            lpRetVal = NULL;
+            swprintf_s(lpRetVal, MAX_ERROR_STRING_LENGTH, W("Error %u"), dwErrCode);
         }
     }
     else
     {
-        ERROR( "Unable to allocate memory.\n" );
+        ERROR("Unable to allocate memory.\n");
     }
 
-error:
     return lpRetVal;
 }
 
@@ -401,7 +205,7 @@ static LPWSTR FMTMSG_ProcessPrintf( wchar_t c ,
     UINT nFormatLength = 0;
     int nBufferLength = 0;
 
-    TRACE( "FMTMSG_ProcessPrintf( %C, %S, %S )\n", c, 
+    TRACE( "FMTMSG_ProcessPrintf( %C, %S, %p )\n", c,
            lpPrintfString, lpInsertString );
 
     switch ( c )
@@ -495,7 +299,6 @@ FormatMessageW(
     LPWSTR lpReturnString = NULL;
     LPWSTR lpWorkingString = NULL; 
     
-
     PERF_ENTRY(FormatMessageW);
     ENTRY( "FormatMessageW(dwFlags=%#x, lpSource=%p, dwMessageId=%#x, "
            "dwLanguageId=%#x, lpBuffer=%p, nSize=%u, va_list=%p)\n", 
@@ -689,7 +492,7 @@ FormatMessageW(
 
                     if ( !bIsVaList )
                     {
-                        lpInsertString = (LPWSTR)Arguments[ Index - 1 ];
+                        lpInsertString = ((LPWSTR*)Arguments)[ Index - 1 ];
                     }
                     else
                     {
@@ -769,7 +572,7 @@ FormatMessageW(
 
                     if ( !bIsVaList )
                     {
-                         lpInsert = (LPWSTR)Arguments[ Index - 1 ];
+                        lpInsert = ((LPWSTR*)Arguments)[Index - 1];
                     }
                     else
                     {
@@ -884,7 +687,7 @@ exit: /* Function clean-up and exit. */
             LocalFree( lpReturnString );
         }
     }
-    else /* Error, something occured. */
+    else /* Error, something occurred. */
     {
         if ( lpReturnString )
         {

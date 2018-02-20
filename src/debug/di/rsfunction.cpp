@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: rsfunction.cpp
 // 
@@ -132,6 +131,10 @@ HRESULT CordbFunction::QueryInterface(REFIID id, void **pInterface)
     else if (id == IID_ICorDebugFunction3)
     {
         *pInterface = static_cast<ICorDebugFunction3*>(this);
+    }
+    else if (id == IID_ICorDebugFunction4)
+    {
+        *pInterface = static_cast<ICorDebugFunction4*>(this);
     }
     else if (id == IID_IUnknown)
     {
@@ -558,18 +561,48 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
     {
         *ppReJitedILCode = NULL;
 
-        VMPTR_ReJitInfo vmReJitInfo = VMPTR_ReJitInfo::NullPtr();
-        GetProcess()->GetDAC()->GetReJitInfo(GetModule()->m_vmModule, m_MDToken, &vmReJitInfo);
-        if (!vmReJitInfo.IsNull())
+        VMPTR_ILCodeVersionNode vmILCodeVersionNode = VMPTR_ILCodeVersionNode::NullPtr();
+        GetProcess()->GetDAC()->GetActiveRejitILCodeVersionNode(GetModule()->m_vmModule, m_MDToken, &vmILCodeVersionNode);
+        if (!vmILCodeVersionNode.IsNull())
         {
-            VMPTR_SharedReJitInfo vmSharedReJitInfo = VMPTR_SharedReJitInfo::NullPtr();
-            GetProcess()->GetDAC()->GetSharedReJitInfo(vmReJitInfo, &vmSharedReJitInfo);
             RSSmartPtr<CordbReJitILCode> pILCode;
-            IfFailThrow(LookupOrCreateReJitILCode(vmSharedReJitInfo, &pILCode));
+            IfFailThrow(LookupOrCreateReJitILCode(vmILCodeVersionNode, &pILCode));
             IfFailThrow(pILCode->QueryInterface(IID_ICorDebugILCode, (void**)ppReJitedILCode));
         }
     }
     PUBLIC_API_END(hr);
+    return hr;
+}
+
+//-----------------------------------------------------------------------------
+// CordbFunction::CreateNativeBreakpoint
+//  Public method for ICorDebugFunction4::CreateNativeBreakpoint.
+//   Sets a breakpoint at native offset 0 for all native code versions of a method.
+// 
+// Parameters
+//   pnVersion - out parameter to hold the version number.
+// 
+// Returns:
+//   S_OK on success.
+//-----------------------------------------------------------------------------
+HRESULT CordbFunction::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
+{
+    PUBLIC_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
+
+    HRESULT hr = S_OK;
+
+    RSExtSmartPtr<CordbILCode> pCode;
+
+    hr = GetILCode(&pCode);
+
+    if (SUCCEEDED(hr))
+    {        
+        hr = pCode->CreateNativeBreakpoint(ppBreakpoint);
+    }
+
     return hr;
 }
 
@@ -1166,21 +1199,21 @@ VOID CordbFunction::NotifyCodeCreated(CordbNativeCode* nativeCode)
 // If the CordbReJitILCode doesn't exist, it creates it.
 //
 //
-HRESULT CordbFunction::LookupOrCreateReJitILCode(VMPTR_SharedReJitInfo vmSharedReJitInfo, CordbReJitILCode** ppILCode)
+HRESULT CordbFunction::LookupOrCreateReJitILCode(VMPTR_ILCodeVersionNode vmILCodeVersionNode, CordbReJitILCode** ppILCode)
 {
     INTERNAL_API_ENTRY(this);
 
     HRESULT hr = S_OK;
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
 
-    CordbReJitILCode * pILCode = m_reJitILCodes.GetBase(VmPtrToCookie(vmSharedReJitInfo));
+    CordbReJitILCode * pILCode = m_reJitILCodes.GetBase(VmPtrToCookie(vmILCodeVersionNode));
 
     // special case non-existance as need to add to the hash table too
     if (pILCode == NULL)
     {
         // we don't yet support ENC and ReJIT together, so the version should be 1
         _ASSERTE(m_dwEnCVersionNumber == 1);
-        RSInitHolder<CordbReJitILCode> pILCodeHolder(new CordbReJitILCode(this, 1, vmSharedReJitInfo));
+        RSInitHolder<CordbReJitILCode> pILCodeHolder(new CordbReJitILCode(this, 1, vmILCodeVersionNode));
         IfFailRet(m_reJitILCodes.AddBase(pILCodeHolder));
         pILCode = pILCodeHolder;
         pILCodeHolder.ClearAndMarkDontNeuter();

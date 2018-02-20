@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -92,11 +91,7 @@ static IErrorInfo *CheckForFuncEvalAbortNoThrow(HRESULT hr)
             else
             {
                 // QI failed, put the IErrorInfo back
-                LeaveRuntimeHolderNoThrow lrh((size_t)SetErrorInfo);
-                if (SUCCEEDED(lrh.GetHR()))
-                {
-                    SetErrorInfo(0, pErrorInfo);
-                }
+                SetErrorInfo(0, pErrorInfo);
             }
         }
     }
@@ -1513,7 +1508,6 @@ HRESULT CtxEntry::EnterContext(PFNCTXCALLBACK pCallbackFunc, LPVOID pData)
 
     EX_TRY
     {
-        LeaveRuntimeHolder lrHolder(**(size_t**)(IContextCallback*)pCallback);
         hr = ((IContextCallback*)pCallback)->ContextCallback(EnterContextCallback, &callBackData, IID_IEnterActivityWithNoLock, 2, NULL);
     }
     EX_CATCH
@@ -1532,13 +1526,7 @@ HRESULT CtxEntry::EnterContext(PFNCTXCALLBACK pCallbackFunc, LPVOID pData)
             LOG((LF_INTEROP, LL_INFO100, "Entering into context 0x08X has failed since the debugger is blocking it\n", m_pCtxCookie)); 
 
             // put the IErrorInfo back 
-            {
-                LeaveRuntimeHolderNoThrow lrh((size_t)SetErrorInfo);
-                if (SUCCEEDED(lrh.GetHR()))
-                {
-                    SetErrorInfo(0, pErrorInfo);
-                }
-            }
+            SetErrorInfo(0, pErrorInfo);
         }
         else
         {

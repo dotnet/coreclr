@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -48,7 +47,7 @@ static HRESULT NameForTypeDef_s(mdTypeDef tkTypeDef, IMetaDataImport *pImport,
     if (hr != S_OK) {
         return hr;
     }
-    size_t Len = wcslen (mdName);
+    size_t Len = _wcslen (mdName);
     if (Len < mdNameLen-2) {
         mdName[Len++] = L'+';
         mdName[Len] = L'\0';
@@ -245,10 +244,10 @@ HRESULT NameForTokenNew(mdTypeDef mb, IMDInternalImport *pImport, WCHAR *mdName,
                     if (mdClass != mdTypeDefNil && bClassName)
                     {
                         hr = NameForTypeDefNew (mdClass, pImport, mdName);
-                        wcscat (mdName, W("."));
+                        _wcscat (mdName, W("."));
                     }
                     name[size] = L'\0';
-                    wcscat (mdName, name);
+                    _wcscat (mdName, name);
                 }
             }
             else if (TypeFromToken(mb) ==  mdtMethodDef)
@@ -263,10 +262,10 @@ HRESULT NameForTokenNew(mdTypeDef mb, IMDInternalImport *pImport, WCHAR *mdName,
                     if (mdClass != mdTypeDefNil && bClassName)
                     {
                         hr = NameForTypeDefNew (mdClass, pImport, mdName);
-                        wcscat (mdName, W("."));
+                        _wcscat (mdName, W("."));
                     }
                     name[size] = L'\0';
-                    wcscat (mdName, name);
+                    _wcscat (mdName, name);
                 }
             }
             else
@@ -427,7 +426,7 @@ void GetMethodName(mdMethodDef methodDef, IMetaDataImport * pImport, CQuickBytes
 
 
 // Tables for mapping element type to text
-const wchar_t *g_wszMapElementType[] = 
+const WCHAR *g_wszMapElementType[] = 
 {
     W("End"),          // 0x0
     W("Void"),         // 0x1
@@ -465,7 +464,7 @@ const wchar_t *g_wszMapElementType[] =
     W("INTERNAL"),
 };
  
-const wchar_t *g_wszCalling[] = 
+const WCHAR *g_wszCalling[] = 
 {   
     W("[DEFAULT]"),
     W("[C]"),
@@ -755,7 +754,7 @@ LPCWSTR MDInfo::TypeDeforRefName(mdToken inToken)
 HRESULT MDInfo::AddToSigBuffer(LPCWSTR string)
 {
     HRESULT     hr;
-    IfFailRet(m_pSigBuf->ReSize((wcslen((LPWSTR)m_pSigBuf->Ptr()) + wcslen(string) + 1) * sizeof(WCHAR)));
+    IfFailRet(m_pSigBuf->ReSize((_wcslen((LPWSTR)m_pSigBuf->Ptr()) + _wcslen(string) + 1) * sizeof(WCHAR)));
     wcscat_s((LPWSTR)m_pSigBuf->Ptr(), m_pSigBuf->Size()/sizeof(WCHAR),string);
     return NOERROR;
 }

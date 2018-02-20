@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 
@@ -17,7 +16,7 @@ BOOL EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::OwnLock()
         return TRUE;
 
     if (m_pfnLockOwner == NULL) {
-        return m_writerThreadId.IsSameThread();
+        return m_writerThreadId.IsCurrentThread();
     }
     else {
         BOOL ret = m_pfnLockOwner(m_lockData);
@@ -211,7 +210,7 @@ BOOL EEHashTableBase<KeyType, Helper, bDefaultCopyIsDeep>::Init(DWORD dwNumBucke
     }
 
     if (m_pfnLockOwner == NULL) {
-        m_writerThreadId.SetThreadId();
+        m_writerThreadId.SetToCurrentThread();
     }
     m_CheckThreadSafety = CheckThreadSafety;
 #endif

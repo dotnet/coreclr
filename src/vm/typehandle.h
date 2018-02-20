@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: typehandle.h
 //
@@ -395,10 +394,8 @@ public:
     CHECK CheckFullyLoaded();
 #endif
 
-#ifdef FEATURE_HFA
     bool IsHFA() const;   
     CorElementType GetHFAType() const;
-#endif // FEATURE_HFA
 
 #ifdef FEATURE_64BIT_ALIGNMENT
     bool RequiresAlign8() const;
@@ -461,11 +458,7 @@ public:
     // The module where this type lives for the purposes of loading and prejitting
     // Note: NGen time result might differ from runtime result for parametrized types (generics, arrays, etc.)
     // See code:ClassLoader::ComputeLoaderModule or file:clsload.hpp#LoaderModule for more information
-#ifndef BINDER
     PTR_Module GetLoaderModule() const;
-#else
-    MdilModule* GetLoaderModule() const;
-#endif
 
     // The assembly that defined this type (== GetModule()->GetAssembly())
     Assembly * GetAssembly() const;
@@ -517,6 +510,9 @@ public:
 
     // BYREF
     BOOL IsByRef() const;
+
+    // BYREFLIKE (does not return TRUE for IsByRef types)
+    BOOL IsByRefLike() const;
 
     // PTR
     BOOL IsPointer() const;
@@ -578,7 +574,7 @@ public:
 
     INDEBUGIMPL(BOOL Verify();)             // DEBUGGING Make certain this is a valid type handle 
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
     BOOL IsAppDomainAgile() const;
     BOOL IsCheckAppDomainAgile() const;
 

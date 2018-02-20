@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // FILE: ProfilingEnumerators.cpp
 //
@@ -80,7 +79,7 @@ BOOL ProfilerFunctionEnum::Init(BOOL fWithReJITIDs)
         if (fWithReJITIDs)
         {
             // This guy causes triggering and locking, while the non-rejitid case does not.
-            element->reJitId = pMD->GetReJitManager()->GetReJitId(pMD, heapIterator.GetMethodCode());
+            element->reJitId = ReJitManager::GetReJitId(pMD, heapIterator.GetMethodCode());
         }
         else
         {

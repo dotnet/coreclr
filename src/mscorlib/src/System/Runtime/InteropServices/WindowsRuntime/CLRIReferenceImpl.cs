@@ -1,28 +1,30 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
 using System;
 using System.Collections;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Reflection;
 using System.Security;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
-    internal sealed class CLRIReferenceImpl<T> : CLRIPropertyValueImpl, IReference<T>, ICustomPropertyProvider
+    internal sealed class CLRIReferenceImpl<T> : CLRIPropertyValueImpl, IReference<T>, IGetProxyTarget
     {
         private T _value;
 
         public CLRIReferenceImpl(PropertyType type, T obj)
             : base(type, obj)
         {
-            BCLDebug.Assert(obj != null, "Must not be null");
+            Debug.Assert(obj != null, "Must not be null");
             _value = obj;
         }
 
-        public T Value {
+        public T Value
+        {
             get { return _value; }
         }
 
@@ -38,57 +40,29 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
-        ICustomProperty ICustomPropertyProvider.GetCustomProperty(string name)
+        object IGetProxyTarget.GetTarget()
         {
-            // _value should not be null
-            return ICustomPropertyProviderImpl.CreateProperty((object)_value, name);
+            return (object)_value;
         }
 
-        [Pure]
-        ICustomProperty ICustomPropertyProvider.GetIndexedProperty(string name, Type indexParameterType)
-        {
-            // _value should not be null
-            return ICustomPropertyProviderImpl.CreateIndexedProperty((object)_value, name, indexParameterType);
-        }
-
-        [Pure]
-        string ICustomPropertyProvider.GetStringRepresentation()
-        {
-            // _value should not be null
-            return ((object)_value).ToString();
-        }
-
-        Type ICustomPropertyProvider.Type 
-        { 
-            [Pure]        
-            get
-            {
-                // _value should not be null
-                return ((object)_value).GetType();
-            }
-        }
-        
         // We have T in an IReference<T>.  Need to QI for IReference<T> with the appropriate GUID, call
         // the get_Value property, allocate an appropriately-sized managed object, marshal the native object
         // to the managed object, and free the native method.  Also we want the return value boxed (aka normal value type boxing).
         //
-        // This method is called by VM. Mark the method with FriendAccessAllowed attribute to ensure that the unreferenced method
-        // optimization skips it and the code will be saved into NGen image.
-        [System.Runtime.CompilerServices.FriendAccessAllowed]
+        // This method is called by VM.
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
-            IReference<T> reference = (IReference<T>) wrapper;
-            Contract.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<"+typeof(T)+">, but that failed.");
+            Debug.Assert(wrapper != null);
+            IReference<T> reference = (IReference<T>)wrapper;
+            Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<" + typeof(T) + ">, but that failed.");
             return reference.Value;
         }
     }
 
     // T can be any WinRT-compatible type
-    internal sealed class CLRIReferenceArrayImpl<T> : CLRIPropertyValueImpl, 
-                                                      IReferenceArray<T>, 
-                                                      ICustomPropertyProvider,
+    internal sealed class CLRIReferenceArrayImpl<T> : CLRIPropertyValueImpl,
+                                                      IGetProxyTarget,
+                                                      IReferenceArray<T>,
                                                       IList                     // Jupiter data binding needs IList/IEnumerable
     {
         private T[] _value;
@@ -97,14 +71,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public CLRIReferenceArrayImpl(PropertyType type, T[] obj)
             : base(type, obj)
         {
-            BCLDebug.Assert(obj != null, "Must not be null");
+            Debug.Assert(obj != null, "Must not be null");
 
             _value = obj;
 
-            _list = (IList) _value;
+            _list = (IList)_value;
         }
 
-        public T[] Value {
+        public T[] Value
+        {
             get { return _value; }
         }
 
@@ -117,37 +92,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             else
             {
                 return base.ToString();
-            }
-        }
-
-        [Pure]
-        ICustomProperty ICustomPropertyProvider.GetCustomProperty(string name)
-        {
-            // _value should not be null
-            return ICustomPropertyProviderImpl.CreateProperty((object)_value, name);
-        }
-
-        [Pure]
-        ICustomProperty ICustomPropertyProvider.GetIndexedProperty(string name, Type indexParameterType)
-        {
-            // _value should not be null
-            return ICustomPropertyProviderImpl.CreateIndexedProperty((object)_value, name, indexParameterType);
-        }
-
-        [Pure]
-        string ICustomPropertyProvider.GetStringRepresentation()
-        {
-            // _value should not be null
-            return ((object)_value).ToString();
-        }
-
-        Type ICustomPropertyProvider.Type 
-        { 
-            [Pure]        
-            get
-            {
-                // _value should not be null
-                return ((object)_value).GetType();
             }
         }
 
@@ -164,7 +108,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // IList & ICollection methods. 
         // This enables two-way data binding and index access in Jupiter
         //
-        Object IList.this[int index] {
+        Object IList.this[int index]
+        {
             get
             {
                 return _list[index];
@@ -175,30 +120,30 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 _list[index] = value;
             }
         }
-    
+
         int IList.Add(Object value)
         {
             return _list.Add(value);
         }
-    
+
         bool IList.Contains(Object value)
         {
             return _list.Contains(value);
         }
-    
+
         void IList.Clear()
         {
             _list.Clear();
         }
 
-        bool IList.IsReadOnly 
-        { 
+        bool IList.IsReadOnly
+        {
             get
             {
                 return _list.IsReadOnly;
             }
         }
-    
+
         bool IList.IsFixedSize
         {
             get
@@ -211,17 +156,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             return _list.IndexOf(value);
         }
-    
+
         void IList.Insert(int index, Object value)
         {
             _list.Insert(index, value);
         }
-    
+
         void IList.Remove(Object value)
         {
             _list.Remove(value);
         }
-    
+
         void IList.RemoveAt(int index)
         {
             _list.RemoveAt(index);
@@ -231,9 +176,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             _list.CopyTo(array, index);
         }
-        
+
         int ICollection.Count
-        { 
+        {
             get
             {
                 return _list.Count;
@@ -241,33 +186,36 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         Object ICollection.SyncRoot
-        { 
+        {
             get
             {
                 return _list.SyncRoot;
             }
         }
-            
+
         bool ICollection.IsSynchronized
-        { 
+        {
             get
             {
                 return _list.IsSynchronized;
             }
         }
-        
+
+        object IGetProxyTarget.GetTarget()
+        {
+            return (object)_value;
+        }
+
         // We have T in an IReferenceArray<T>.  Need to QI for IReferenceArray<T> with the appropriate GUID, call
         // the get_Value property, allocate an appropriately-sized managed object, marshal the native object
         // to the managed object, and free the native method.
         //
-        // This method is called by VM. Mark the method with FriendAccessAllowed attribute to ensure that the unreferenced method
-        // optimization skips it and the code will be saved into NGen image.
-        [System.Runtime.CompilerServices.FriendAccessAllowed]
+        // This method is called by VM.
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
             IReferenceArray<T> reference = (IReferenceArray<T>)wrapper;
-            Contract.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
+            Debug.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
             T[] marshaled = reference.Value;
             return marshaled;
         }
@@ -280,16 +228,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, " + AssemblyRef.SystemRuntimeWindowsRuntime);
         internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, " + AssemblyRef.SystemRuntimeWindowsRuntime);
 
-        [SecuritySafeCritical]
         internal static Object CreateIReference(Object obj)
         {
-            Contract.Requires(obj != null, "Null should not be boxed.");
-            Contract.Ensures(Contract.Result<Object>() != null);
+            Debug.Assert(obj != null, "Null should not be boxed.");
 
             Type type = obj.GetType();
 
             if (type.IsArray)
-                return CreateIReferenceArray((Array) obj);
+                return CreateIReferenceArray((Array)obj);
 
             if (type == typeof(int))
                 return new CLRIReferenceImpl<int>(PropertyType.Int32, (int)obj);
@@ -353,20 +299,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return Activator.CreateInstance(specificType, new Object[] { propType.Value, obj });
             }
 
-            Contract.Assert(false, "We should not see non-WinRT type here");
+            Debug.Fail("We should not see non-WinRT type here");
             return null;
         }
 
-        [SecuritySafeCritical]
         internal static Object CreateIReferenceArray(Array obj)
         {
-            Contract.Requires(obj != null);
-            Contract.Requires(obj.GetType().IsArray);
-            Contract.Ensures(Contract.Result<Object>() != null);
+            Debug.Assert(obj != null);
+            Debug.Assert(obj.GetType().IsArray);
 
             Type type = obj.GetType().GetElementType();
-            
-            Contract.Assert(obj.Rank == 1 && obj.GetLowerBound(0) == 0 && !type.IsArray);
+
+            Debug.Assert(obj.Rank == 1 && obj.GetLowerBound(0) == 0 && !type.IsArray);
 
             if (type == typeof(int))
                 return new CLRIReferenceArrayImpl<int>(PropertyType.Int32Array, (int[])obj);

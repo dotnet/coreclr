@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //#include <stdio.h>
 #include <assert.h>
@@ -65,7 +64,7 @@ int MTXEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     DWORD thread_id;
     int retcode = 0;
 	
-    thread_id = (DWORD)pthread_self();
+    thread_id = (DWORD)THREADSilentGetCurrentThreadId();
 
     /* check if the current thread already owns the criticalSection */
     if (lpCriticalSection->OwningThread == (HANDLE)thread_id)

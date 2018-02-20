@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"                     // Precompiled header key.
 #include "loaderheap.h"
@@ -10,6 +9,8 @@
 #include "pedecoder.h"
 #define DONOT_DEFINE_ETW_CALLBACK
 #include "eventtracebase.h"
+
+#define LHF_EXECUTABLE  0x1
 
 #ifndef DACCESS_COMPILE
 
@@ -940,10 +941,12 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
 
     m_pPrivatePerfCounter_LoaderBytes = pPrivatePerfCounter_LoaderBytes;
 
+    m_Options                    = 0;
+
+#ifndef CROSSGEN_COMPILE
     if (fMakeExecutable)
-        m_flProtect = PAGE_EXECUTE_READWRITE;
-    else
-        m_flProtect = PAGE_READWRITE;
+        m_Options                |= LHF_EXECUTABLE;
+#endif // CROSSGEN_COMPILE
 
     m_pFirstFreeBlock            = NULL;
 
@@ -1076,7 +1079,7 @@ BOOL UnlockedLoaderHeap::UnlockedReservePages(size_t dwSizeToCommit)
     dwSizeToCommit += sizeof(LoaderHeapBlock);
 
     // Round to page size again
-    dwSizeToCommit = ALIGN_UP(dwSizeToCommit, PAGE_SIZE);
+    dwSizeToCommit = ALIGN_UP(dwSizeToCommit, GetOsPageSize());
 
     void *pData = NULL;
     BOOL fReleaseMemory = TRUE;
@@ -1134,7 +1137,7 @@ BOOL UnlockedLoaderHeap::UnlockedReservePages(size_t dwSizeToCommit)
     }
 
     // Commit first set of pages, since it will contain the LoaderHeapBlock
-    void *pTemp = ClrVirtualAlloc(pData, dwSizeToCommit, MEM_COMMIT, m_flProtect);
+    void *pTemp = ClrVirtualAlloc(pData, dwSizeToCommit, MEM_COMMIT, (m_Options & LHF_EXECUTABLE) ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
     if (pTemp == NULL)
     {
         //_ASSERTE(!"Unable to ClrVirtualAlloc commit in a loaderheap");
@@ -1223,10 +1226,10 @@ BOOL UnlockedLoaderHeap::GetMoreCommittedPages(size_t dwMinSize)
             dwSizeToCommit = min((SIZE_T)(m_pEndReservedRegion - m_pPtrToEndOfCommittedRegion), (SIZE_T)m_dwCommitBlockSize);
 
         // Round to page size
-        dwSizeToCommit = ALIGN_UP(dwSizeToCommit, PAGE_SIZE);
+        dwSizeToCommit = ALIGN_UP(dwSizeToCommit, GetOsPageSize());
 
         // Yes, so commit the desired number of reserved pages
-        void *pData = ClrVirtualAlloc(m_pPtrToEndOfCommittedRegion, dwSizeToCommit, MEM_COMMIT, m_flProtect);
+        void *pData = ClrVirtualAlloc(m_pPtrToEndOfCommittedRegion, dwSizeToCommit, MEM_COMMIT, (m_Options & LHF_EXECUTABLE) ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
         if (pData == NULL)
             return FALSE;
 
@@ -1530,7 +1533,7 @@ void UnlockedLoaderHeap::UnlockedBackoutMem(void *pMem,
     {
         // Cool. This was the last block allocated. We can just undo the allocation instead
         // of going to the freelist.
-        memset(pMem, 0, dwSize);  // Must zero init this memory as AllocMem expect it
+        memset(pMem, 0x00, dwSize); // Fill freed region with 0
         m_pAllocPtr = (BYTE*)pMem;
     }
     else
@@ -1640,6 +1643,7 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem_NoThrow(size_t  dwRequestedSiz
 
     
     ((BYTE*&)pResult) += extra;
+
 #ifdef _DEBUG
      BYTE *pAllocatedBytes = (BYTE *)pResult;
 #if LOADER_HEAP_DEBUG_BOUNDARY > 0
@@ -1721,7 +1725,7 @@ void *UnlockedLoaderHeap::UnlockedAllocAlignedMem(size_t  dwRequestedSize,
 
 
 
-void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment)
+void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment, size_t dwReserveForJumpStubs)
 {
     CONTRACT(void*)
     {
@@ -1743,7 +1747,7 @@ void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, s
     //
     // Thus, we'll request as much heap growth as is needed for the worst case (we request an extra dwCodeAlignment - 1 bytes)
 
-    S_SIZE_T cbAllocSize = S_SIZE_T(dwHeaderSize) + S_SIZE_T(dwCodeSize) + S_SIZE_T(dwCodeAlignment - 1);
+    S_SIZE_T cbAllocSize = S_SIZE_T(dwHeaderSize) + S_SIZE_T(dwCodeSize) + S_SIZE_T(dwCodeAlignment - 1) + S_SIZE_T(dwReserveForJumpStubs);
     if( cbAllocSize.IsOverflow() )
     {
         RETURN NULL;
@@ -1766,6 +1770,11 @@ void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, s
 
 
 #endif // #ifndef DACCESS_COMPILE
+
+BOOL UnlockedLoaderHeap::IsExecutable()
+{
+    return (m_Options & LHF_EXECUTABLE);
+}
 
 #ifdef DACCESS_COMPILE
 

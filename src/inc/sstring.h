@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // SString.h  (Safe String)
 // 
@@ -73,6 +72,8 @@ typedef const UTF8 *LPCUTF8;
 typedef DPTR(class SString) PTR_SString;
 class SString : private SBuffer
 {
+    friend struct _DacGlobals;
+
 private:
     enum Representation
     {
@@ -624,6 +625,9 @@ private:
     UTF8 *OpenUTF8Buffer(COUNT_T maxSingleCharCount);
     ANSI *OpenANSIBuffer(COUNT_T maxSingleCharCount);
 
+    //Returns the unicode string, the caller is reponsible for lifetime of the string
+    WCHAR *GetCopyOfUnicodeString();
+
     // Get the max size that can be passed to OpenUnicodeBuffer without causing allocations.
     COUNT_T GetUnicodeAllocation();
 
@@ -757,7 +761,6 @@ private:
     SString(void *buffer, COUNT_T size);
 
  private:
- 
     static int CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount);
     static int CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount);
     
@@ -1004,6 +1007,17 @@ typedef InlineSString<512> StackSString;
 // This is a smaller version for when it is known that the string that's going to
 // be needed is small and it's preferable not to take up the stack space.
 typedef InlineSString<32>  SmallStackSString;
+
+// To be used specifically for path strings.
+#ifdef _DEBUG
+// This is a smaller version for debug builds to exercise the buffer allocation path
+typedef InlineSString<32> PathString;
+typedef InlineSString<2 * 32> LongPathString;
+#else
+// Set it to the current MAX_PATH
+typedef InlineSString<260> PathString;
+typedef InlineSString<2 * 260> LongPathString;
+#endif
 
 // ================================================================================
 // Quick macro to create an SString around a literal string.

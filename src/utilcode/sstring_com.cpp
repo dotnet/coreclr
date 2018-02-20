@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // SString_COM.cpp
 
@@ -61,7 +60,7 @@ HRESULT SString::LoadResourceAndReturnHR(CCompRC* pResourceDLL, CCompRC::Resourc
                 // In fatal error reporting scenarios, we may not have enough memory to 
                 // allocate a larger buffer.
             
-                hr = pResourceDLL->LoadString(eCategory, resourceID, GetRawUnicode(), GetRawCount()+1,&size);
+                hr = pResourceDLL->LoadString(eCategory, resourceID, GetRawUnicode(), GetRawCount()+1, &size);
                 if (hr != HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))
                 {
                     if (FAILED(hr))

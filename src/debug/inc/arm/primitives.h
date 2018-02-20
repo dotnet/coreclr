@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: primitives.h
 // 
@@ -31,7 +30,11 @@ typedef DPTR(CORDB_ADDRESS_TYPE)    PTR_CORDB_ADDRESS_TYPE;
 #define STACKWALK_CONTROLPC_ADJUST_OFFSET 2
 
 #define CORDbg_BREAK_INSTRUCTION_SIZE 2
+#ifdef __linux__
+#define CORDbg_BREAK_INSTRUCTION (USHORT)0xde01
+#else
 #define CORDbg_BREAK_INSTRUCTION (USHORT)0xdefe
+#endif
 
 inline CORDB_ADDRESS GetPatchEndAddr(CORDB_ADDRESS patchAddr)
 {

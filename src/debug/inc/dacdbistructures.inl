@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 
 // 
@@ -343,7 +342,7 @@ DWORD SequencePoints::MapNativeOffsetToIL(DWORD                  dwNativeOffset,
         // If the end offset is 0, we want to check if we're in the prologue before concluding that the 
         // value of dwNativeOffset is out of range. 
         if ((dwNativeOffset >= m_map[i].nativeStartOffset) &&     
-            ((m_map[i].nativeEndOffset == 0) && (m_map[i].ilOffset != (ULONG)ICorDebugInfo::PROLOG) || 
+            (((m_map[i].nativeEndOffset == 0) && (m_map[i].ilOffset != (ULONG)ICorDebugInfo::PROLOG)) || 
              (dwNativeOffset < m_map[i].nativeEndOffset)))
         {
             ULONG uILOffset = m_map[i].ilOffset;

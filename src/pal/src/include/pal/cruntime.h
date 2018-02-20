@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -35,6 +34,7 @@ extern "C"
 
 typedef enum
 {
+    PFF_NONE  =  0,
     PFF_MINUS =  1,
     PFF_POUND =  2,
     PFF_ZERO  =  4,
@@ -44,6 +44,14 @@ typedef enum
 
 typedef enum
 {
+    WIDTH_DEFAULT = -1,
+    WIDTH_STAR    = -2, /* e.g. "%*.10s"  */
+    WIDTH_INVALID = -3  /* e.g. "%*3.10s" */
+}WIDTH_FLAGS;
+
+typedef enum
+{
+    PRECISION_DEFAULT = -1,
     PRECISION_STAR    = -2, /* e.g. "%10.*s"  */
     PRECISION_DOT     = -3, /* e.g. "%10.s"   */
     PRECISION_INVALID = -4  /* e.g. "%10.*3s" */
@@ -51,6 +59,7 @@ typedef enum
 
 typedef enum
 {
+    PFF_PREFIX_DEFAULT  = -1,
     PFF_PREFIX_SHORT    = 1,
     PFF_PREFIX_LONG     = 2,
     PFF_PREFIX_LONGLONG = 3,
@@ -59,6 +68,7 @@ typedef enum
 
 typedef enum
 {
+    PFF_TYPE_DEFAULT = -1,
     PFF_TYPE_CHAR    = 1,
     PFF_TYPE_STRING  = 2,
     PFF_TYPE_WSTRING = 3,
@@ -88,21 +98,21 @@ typedef enum
 
 /*******************************************************************************
 Function:
-  Internal_AddPaddingA
+  PAL_printf_arg_remover
 
 Parameters:
-  Out
-    - buffer to place padding and given string (In)
-  Count
-    - maximum chars to be copied so as not to overrun given buffer
-  In
-    - string to place into (Out) accompanied with padding
-  Padding
-    - number of padding chars to add
-  Flags
-    - padding style flags (PRINTF_FORMAT_FLAGS)
+  ap
+    - pointer to the va_list from which to remove arguments
+  Width
+    - the width of the current format option
+  Precision
+    - the precision of the current format option
+  Type
+    - the type of the argument for the current format option
+  Prefix
+    - the prefix for the current format option
 *******************************************************************************/
-BOOL Internal_AddPaddingA(LPSTR *Out, INT Count, LPSTR In, INT Padding, INT Flags);
+void PAL_printf_arg_remover(va_list *ap, INT Width, INT Precision, INT Type, INT Prefix);
 
 /*++
 Function:

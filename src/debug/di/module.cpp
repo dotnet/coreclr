@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //*****************************************************************************
 // File: module.cpp
@@ -814,11 +813,12 @@ HRESULT CordbModule::InitPublicMetaDataFromFile()
         // Its possible that the debugger would still load the NGEN image sometime in the future and we will miss a sharing
         // opportunity. Its an acceptable loss from an imperfect heuristic.
         if (NULL == WszGetModuleHandle(szFullPathName))
+#endif            
         {
             szFullPathName = NULL;
             fDebuggerLoadingNgen = false;
         }
-#endif
+
     }
 
     // If we don't have or decided not to load the NGEN image, check to see if IL image is available
@@ -880,6 +880,11 @@ HRESULT CordbModule::InitPublicMetaDataFromFile(const WCHAR * pszFullPathName,
                                                 DWORD dwOpenFlags,
                                                 bool validateFileInfo)
 {
+#ifdef FEATURE_PAL    
+    // UNIXTODO: Some intricate details of file mapping don't work on Linux as on Windows.
+    // We have to revisit this and try to fix it for POSIX system. 
+    return E_FAIL;
+#else    
     if (validateFileInfo)
     {
         // Check that we've got the right file to target.
@@ -988,6 +993,7 @@ HRESULT CordbModule::InitPublicMetaDataFromFile(const WCHAR * pszFullPathName,
     }
 
     return hr;
+#endif // FEATURE_PAL     
 }
 
 //---------------------------------------------------------------------------------------
@@ -2195,8 +2201,17 @@ HRESULT CordbModule::ApplyChanges(ULONG  cbMetaData,
                                                     (void **)&pMDImport));
 
     // The left-side will call this same method on its copy of the metadata.
-    IfFailGo(pMDImport->ApplyEditAndContinue(pbMetaData, cbMetaData, &pMDImport2));
-    pMDImport2->AddRef(); // @todo - issue in ApplyEditAndContinue, doesn't addref the out parameter.
+    hr = pMDImport->ApplyEditAndContinue(pbMetaData, cbMetaData, &pMDImport2);
+    if (pMDImport2 != NULL) 
+    {
+        // ApplyEditAndContinue() expects IMDInternalImport**, but we give it RSExtSmartPtr<IMDInternalImport>
+        // Silent cast of RSExtSmartPtr to IMDInternalImport* leads to assignment of a raw pointer
+        // without calling AddRef(), thus we need to do it manually.
+
+        // @todo -  ApplyEditAndContinue should probably AddRef the out parameter.
+        pMDImport2->AddRef(); 
+    }
+    IfFailGo(hr);
 
    
     // We're about to get a new importer object, so release the old one.
@@ -2550,13 +2565,20 @@ HRESULT CordbModule::CreateReaderForInMemorySymbols(REFIID riid, void** ppObj)
         ReleaseHolder<ISymUnmanagedBinder> pBinder;
         if (symFormat == IDacDbiInterface::kSymbolFormatPDB)
         {
+#ifndef FEATURE_PAL
             // PDB format - use diasymreader.dll with COM activation
             InlineSString<_MAX_PATH> ssBuf;
+            IfFailThrow(GetHModuleDirectory(GetModuleInst(), ssBuf));
             IfFailThrow(FakeCoCreateInstanceEx(CLSID_CorSymBinder_SxS,
-                                               GetHModuleDirectory(GetModuleInst(), ssBuf).GetUnicode(),
+                                               ssBuf.GetUnicode(),
                                                IID_ISymUnmanagedBinder,
                                                (void**)&pBinder,
                                                NULL));
+#else
+            IfFailThrow(FakeCoCreateInstance(CLSID_CorSymBinder_SxS,
+                                             IID_ISymUnmanagedBinder,
+                                             (void**)&pBinder));
+#endif
         }
         else if (symFormat == IDacDbiInterface::kSymbolFormatILDB)
         {
@@ -2790,10 +2812,10 @@ BOOL CordbModule::IsWinMD()
 CordbCode::CordbCode(CordbFunction * pFunction, UINT_PTR id, SIZE_T encVersion, BOOL fIsIL)
   : CordbBase(pFunction->GetProcess(), id, enumCordbCode),
     m_fIsIL(fIsIL),
-    m_pFunction(pFunction),
     m_nVersion(encVersion),
     m_rgbCode(NULL),
-    m_continueCounterLastSync(0)
+    m_continueCounterLastSync(0),
+    m_pFunction(pFunction)
 {
     _ASSERTE(pFunction != NULL);
     _ASSERTE(m_nVersion >= CorDB_DEFAULT_ENC_FUNCTION_VERSION);
@@ -2953,8 +2975,9 @@ HRESULT CordbCode::CreateBreakpoint(ULONG32 offset,
 
     HRESULT hr;
     ULONG32 size = GetSize();
+    BOOL offsetIsIl = IsIL();
     LOG((LF_CORDB, LL_INFO10000, "CCode::CreateBreakpoint, offset=%d, size=%d, IsIl=%d, this=0x%p\n",
-        offset, size, m_fIsIL, this));
+        offset, size, offsetIsIl, this));
 
     // Make sure the offset is within range of the method.
     // If we're native code, then both offset & total code size are bytes of native code,
@@ -2964,7 +2987,7 @@ HRESULT CordbCode::CreateBreakpoint(ULONG32 offset,
         return CORDBG_E_UNABLE_TO_SET_BREAKPOINT;
     }
 
-    CordbFunctionBreakpoint *bp = new (nothrow) CordbFunctionBreakpoint(this, offset);
+    CordbFunctionBreakpoint *bp = new (nothrow) CordbFunctionBreakpoint(this, offset, offsetIsIl);
 
     if (bp == NULL)
         return E_OUTOFMEMORY;
@@ -3369,15 +3392,49 @@ mdSignature CordbILCode::GetLocalVarSigToken()
     return m_localVarSigToken;
 }
 
-CordbReJitILCode::CordbReJitILCode(CordbFunction *pFunction, SIZE_T encVersion, VMPTR_SharedReJitInfo vmSharedReJitInfo) :
-CordbILCode(pFunction, TargetBuffer(), encVersion, mdSignatureNil, VmPtrToCookie(vmSharedReJitInfo)),
+HRESULT CordbILCode::CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint)
+{
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppBreakpoint, ICorDebugFunctionBreakpoint **);
+
+    HRESULT hr;
+    ULONG32 size = GetSize();
+    LOG((LF_CORDB, LL_INFO10000, "CordbILCode::CreateNativeBreakpoint, size=%d, this=0x%p\n",
+        size, this));
+
+    ULONG32 offset = 0;
+    CordbFunctionBreakpoint *bp = new (nothrow) CordbFunctionBreakpoint(this, offset, FALSE);
+
+    if (bp == NULL)
+    {
+        return E_OUTOFMEMORY;
+    }
+
+    hr = bp->Activate(TRUE);
+    if (SUCCEEDED(hr))
+    {
+        *ppBreakpoint = static_cast<ICorDebugFunctionBreakpoint*> (bp);
+        bp->ExternalAddRef();
+        return S_OK;
+    }
+    else
+    {
+        delete bp;
+        return hr;
+    }
+}
+
+
+
+CordbReJitILCode::CordbReJitILCode(CordbFunction *pFunction, SIZE_T encVersion, VMPTR_ILCodeVersionNode vmILCodeVersionNode) :
+CordbILCode(pFunction, TargetBuffer(), encVersion, mdSignatureNil, VmPtrToCookie(vmILCodeVersionNode)),
 m_cClauses(0),
 m_cbLocalIL(0),
 m_cILMap(0)
 {
-    _ASSERTE(!vmSharedReJitInfo.IsNull());
+    _ASSERTE(!vmILCodeVersionNode.IsNull());
     DacSharedReJitInfo data = { 0 };
-    IfFailThrow(GetProcess()->GetDAC()->GetSharedReJitInfoData(vmSharedReJitInfo, &data));
+    IfFailThrow(GetProcess()->GetDAC()->GetILCodeVersionNodeData(vmILCodeVersionNode, &data));
     IfFailThrow(Init(&data));
 }
 
@@ -3733,7 +3790,269 @@ HRESULT FindNativeInfoInILVariableArray(DWORD                                   
     return CORDBG_E_IL_VAR_NOT_AVAILABLE;
 } // FindNativeInfoInILVariableArray
 
-//* ------------------------------------------------------------------------- *
+
+// * ------------------------------------------------------------------------- *
+// * Variable Enum class
+// * ------------------------------------------------------------------------- *
+//-----------------------------------------------------------------------------
+// CordbVariableHome constructor
+// Arguments:
+//    Input:
+//        pCode          - CordbNativeCode instance containing this variable home
+//        pNativeVarInfo - native location, lifetime, and index information for
+//                         this variable
+//        isLocal        - indicates whether the instance is a local variable,
+//                         as opposed to an argument
+//        index          - the argument or slot index
+//    Output:
+//        fields of the CordbVariableHome instance have been initialized
+//-----------------------------------------------------------------------------
+CordbVariableHome::CordbVariableHome(CordbNativeCode *pCode,
+                                     const ICorDebugInfo::NativeVarInfo nativeVarInfo,
+                                     BOOL isLocal,
+                                     ULONG index) :
+    CordbBase(pCode->GetModule()->GetProcess(), 0)
+{
+    _ASSERTE(pCode != NULL);
+    
+    m_pCode.Assign(pCode);
+    m_nativeVarInfo = nativeVarInfo;
+    m_isLocal = isLocal;
+    m_index = index;
+}
+
+CordbVariableHome::~CordbVariableHome()
+{
+    _ASSERTE(this->IsNeutered());
+}
+
+void CordbVariableHome::Neuter()
+{
+    m_pCode.Clear();
+    CordbBase::Neuter();
+}
+
+//-----------------------------------------------------------------------------
+// Public method for IUnknown::QueryInterface.
+// Has standard QI semantics.
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::QueryInterface(REFIID id, void **pInterface)
+{
+    if (id == IID_ICorDebugVariableHome)
+    {
+        *pInterface = static_cast<ICorDebugVariableHome *>(this);
+    }
+    else if (id == IID_IUnknown)
+    {
+        *pInterface = static_cast<IUnknown *>(static_cast<ICorDebugVariableHome *>(this));
+    }
+    else
+    {
+        *pInterface = NULL;
+        return E_NOINTERFACE;
+    }
+
+    ExternalAddRef();
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetCode
+// Public method to get the Code object containing this variable home.
+// 
+// Parameters:
+//   ppCode - OUT: returns the Code object for this variable home.
+//
+// Returns:
+//   S_OK - on success.
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetCode(ICorDebugCode **ppCode)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppCode, ICorDebugCode **);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    HRESULT hr = m_pCode->QueryInterface(IID_ICorDebugCode, (LPVOID*)ppCode);
+
+    return hr;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetSlotIndex
+// Public method to get the slot index for this variable home.
+// 
+// Parameters:
+//   pSlotIndex - OUT: returns the managed slot-index of this variable home.
+//
+// Returns:
+//   S_OK - on success
+//   E_FAIL - if the variable is not a local variable, but an argument
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetSlotIndex(ULONG32 *pSlotIndex)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pSlotIndex, ULONG32 *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    if (!m_isLocal)
+    {
+        return E_FAIL;
+    }
+    *pSlotIndex = m_index;
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetArgumentIndex
+// Public method to get the slot index for this variable home.
+// 
+// Parameters:
+//   pSlotIndex - OUT: returns the managed argument-index of this variable home.
+//
+// Returns:
+//   S_OK - on success
+//   E_FAIL - if the variable is not an argument, but a local variable
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetArgumentIndex(ULONG32 *pArgumentIndex)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pArgumentIndex, ULONG32 *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    if (m_isLocal)
+    {
+        return E_FAIL;
+    }
+    *pArgumentIndex = m_index;
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetLiveRange
+// Public method to get the native range over which this variable is live.
+// 
+// Parameters:
+//   pStartOffset - OUT: returns the logical offset at which the variable is
+//                  first live
+//   pEndOffset   - OUT: returns the logical offset immediately after that at
+//                  which the variable is last live
+//
+// Returns:
+//   S_OK - on success
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetLiveRange(ULONG32 *pStartOffset,
+                                        ULONG32 *pEndOffset)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pStartOffset, ULONG32 *);
+    VALIDATE_POINTER_TO_OBJECT(pEndOffset, ULONG32 *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    *pStartOffset = m_nativeVarInfo.startOffset;
+    *pEndOffset = m_nativeVarInfo.endOffset;
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetLocationType
+// Public method to get the type of native location for this variable home.
+// 
+// Parameters:
+//   pLocationType - OUT: the type of native location
+//
+// Returns:
+//   S_OK - on success
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetLocationType(VariableLocationType *pLocationType)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pLocationType, VariableLocationType *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    switch (m_nativeVarInfo.loc.vlType)
+    {
+    case ICorDebugInfo::VLT_REG:
+        *pLocationType = VLT_REGISTER;
+        break;
+    case ICorDebugInfo::VLT_STK:
+        *pLocationType = VLT_REGISTER_RELATIVE;
+        break;
+    default:
+        *pLocationType = VLT_INVALID;
+    }
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetRegister
+// Public method to get the register or base register for this variable hom.
+// 
+// Parameters:
+//   pRegister - OUT: for VLT_REGISTER location types, gives the register.
+//                    for VLT_REGISTER_RELATIVE location types, gives the base
+//                    register.
+//
+// Returns:
+//   S_OK - on success
+//   E_FAIL - for VLT_INVALID location types
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetRegister(CorDebugRegister *pRegister)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pRegister, CorDebugRegister *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+    
+    switch (m_nativeVarInfo.loc.vlType)
+    {
+    case ICorDebugInfo::VLT_REG:
+        *pRegister = ConvertRegNumToCorDebugRegister(m_nativeVarInfo.loc.vlReg.vlrReg);
+        break;
+    case ICorDebugInfo::VLT_STK:
+        *pRegister = ConvertRegNumToCorDebugRegister(m_nativeVarInfo.loc.vlStk.vlsBaseReg);
+        break;
+    default:
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// CordbVariableHome::GetOffset
+// Public method to get the offset from the base register for this variable home.
+// 
+// Parameters:
+//   pOffset - OUT: gives the offset from the base register
+//
+// Returns:
+//   S_OK - on success
+//   E_FAIL - for location types other than VLT_REGISTER_RELATIVE
+//-----------------------------------------------------------------------------
+HRESULT CordbVariableHome::GetOffset(LONG *pOffset)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(pOffset, LONG *);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(m_pCode->GetProcess());
+
+    switch (m_nativeVarInfo.loc.vlType)
+    {
+    case ICorDebugInfo::VLT_STK:
+        *pOffset = m_nativeVarInfo.loc.vlStk.vlsOffset;
+        break;
+    default:
+        return E_FAIL;
+    }
+    return S_OK;
+}
+
+
+// * ------------------------------------------------------------------------- *
 // * Native Code class
 // * ------------------------------------------------------------------------- */
 
@@ -3758,7 +4077,7 @@ CordbNativeCode::CordbNativeCode(CordbFunction *                pFunction,
     m_fIsInstantiatedGeneric(fIsInstantiatedGeneric != FALSE)
 {
     _ASSERTE(GetVersion() >= CorDB_DEFAULT_ENC_FUNCTION_VERSION);
-    
+ 
     for (CodeBlobRegion region = kHot; region < MAX_REGIONS; ++region)
     {
         m_rgCodeRegions[region] = pJitData->m_rgCodeRegions[region];
@@ -3782,6 +4101,10 @@ HRESULT CordbNativeCode::QueryInterface(REFIID id, void ** pInterface)
     else if (id == IID_ICorDebugCode3)
     {
         *pInterface = static_cast<ICorDebugCode3 *>(this);
+    }
+    else if (id == IID_ICorDebugCode4)
+    {
+        *pInterface = static_cast<ICorDebugCode4 *>(this);
     }
     else if (id == IID_IUnknown)
     {
@@ -4089,12 +4412,119 @@ HRESULT CordbNativeCode::GetReturnValueLiveOffset(ULONG32 ILoffset, ULONG32 buff
     return hr;
 }
 
+//-----------------------------------------------------------------------------
+// CordbNativeCode::EnumerateVariableHomes
+// Public method to get an enumeration of native variable homes. This may
+// include multiple ICorDebugVariableHomes for the same slot or argument index
+// if they have different homes at different points in the function.
+// 
+// Parameters:
+//   ppEnum - OUT: returns the enum of variable homes.
+//
+// Returns:
+//   HRESULT for success or failure.
+//-----------------------------------------------------------------------------
+HRESULT CordbNativeCode::EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEnum)
+{
+    PUBLIC_REENTRANT_API_ENTRY(this);
+    FAIL_IF_NEUTERED(this);
+    VALIDATE_POINTER_TO_OBJECT(ppEnum, ICorDebugVariableHomeEnum **);
+    ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
+    
+    HRESULT hr = S_OK;
+    
+    // Get the argument count
+    ULONG argCount = 0;
+    CordbFunction *func = GetFunction();
+    _ASSERTE(func != NULL);
+    IfFailRet(func->GetSig(NULL, &argCount, NULL));
+
+#ifdef _DEBUG
+    // Get the number of locals
+    ULONG localCount = 0;
+    EX_TRY
+    {
+        GetFunction()->GetILCode()->GetLocalVarSig(NULL, &localCount);
+    }
+    EX_CATCH_HRESULT(hr);
+    IfFailRet(hr);
+#endif
+    
+    RSSmartPtr<CordbVariableHome> *rsHomes = NULL;
+    
+    EX_TRY
+    {
+        CordbProcess *pProcess = GetProcess();
+        _ASSERTE(pProcess != NULL);
+        
+        const DacDbiArrayList<ICorDebugInfo::NativeVarInfo> *pOffsetInfoList = m_nativeVarData.GetOffsetInfoList();
+        _ASSERTE(pOffsetInfoList != NULL);
+        DWORD countHomes = 0;
+        for (int i = 0; i < pOffsetInfoList->Count(); i++)
+        {
+            const ICorDebugInfo::NativeVarInfo *pNativeVarInfo = &((*pOffsetInfoList)[i]);
+            _ASSERTE(pNativeVarInfo != NULL);
+            
+            // The variable information list can include variables
+            // with special varNumbers representing, for instance, the
+            // parameter types for generic methods. Here we are only
+            // interested in local variables and arguments.
+            if (pNativeVarInfo->varNumber < (DWORD)ICorDebugInfo::MAX_ILNUM)
+            {
+                countHomes++;
+            }
+        }
+        rsHomes = new RSSmartPtr<CordbVariableHome>[countHomes];
+
+        DWORD varHomeInd = 0;
+        for (int i = 0; i < pOffsetInfoList->Count(); i++)
+        {
+            const ICorDebugInfo::NativeVarInfo *pNativeVarInfo = &((*pOffsetInfoList)[i]);
+
+            // Again, only look for native var info representing local
+            // variables and arguments.
+            if (pNativeVarInfo->varNumber < (DWORD)ICorDebugInfo::MAX_ILNUM)
+            {
+                // determine whether this variable home represents and argument or local variable
+                BOOL isLocal = ((ULONG)pNativeVarInfo->varNumber >= argCount);
+                
+                // determine the argument-index or slot-index of this variable home
+                ULONG argOrSlotIndex;
+                if (isLocal) {
+                    argOrSlotIndex = pNativeVarInfo->varNumber - argCount;
+                    _ASSERTE(argOrSlotIndex < localCount);
+                } else {
+                    argOrSlotIndex = pNativeVarInfo->varNumber;
+                }
+
+                RSInitHolder<CordbVariableHome> pCVH(new CordbVariableHome(this,
+                                                                           (*pOffsetInfoList)[i],
+                                                                           isLocal,
+                                                                           argOrSlotIndex));
+                pProcess->GetContinueNeuterList()->Add(pProcess, pCVH);
+                _ASSERTE(varHomeInd < countHomes);
+                rsHomes[varHomeInd].Assign(pCVH);
+                pCVH.ClearAndMarkDontNeuter();
+                varHomeInd++;
+            }
+        }
+
+        RSInitHolder<CordbVariableHomeEnumerator> pCDVHE(
+            new CordbVariableHomeEnumerator(GetProcess(), &rsHomes, countHomes));
+        pProcess->GetContinueNeuterList()->Add(pProcess, pCDVHE);
+        pCDVHE.TransferOwnershipExternal(ppEnum);
+    }
+    EX_CATCH_HRESULT(hr);
+
+    return hr;
+}
+
 int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
 {
 #if defined(DBG_TARGET_ARM)
-    return E_NOTIMPL;
+    return MAX_INSTRUCTION_LENGTH;
 #elif defined(DBG_TARGET_ARM64)
-    return E_NOTIMPL;
+    return MAX_INSTRUCTION_LENGTH;
 #elif defined(DBG_TARGET_X86)
     if (count < 2)
         return -1;

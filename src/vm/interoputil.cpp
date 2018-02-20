@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -15,9 +14,6 @@
 #include "eeconfig.h"
 #include "mlinfo.h"
 #include "comdelegate.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "appdomain.hpp"
 #include "prettyprintsig.h"
 #include "util.hpp"
@@ -47,9 +43,6 @@
 #include "clrtocomcall.h"
 #include "comcache.h"
 #include "commtmemberinfomap.h"
-#ifdef FEATURE_COMINTEROP_TLB_SUPPORT
-#include "comtypelibconverter.h"
-#endif
 #include "olevariant.h"
 #include "stdinterfaces.h"
 #include "notifyexternals.h"
@@ -295,20 +288,38 @@ static const BinderMethodID s_stubsDisposableToClosable[] =
     METHOD__IDISPOSABLE_TO_ICLOSABLE_ADAPTER__CLOSE
 };
 
+DEFINE_ASM_QUAL_TYPE_NAME(NCCWINRT_ASM_QUAL_TYPE_NAME, g_INotifyCollectionChanged_WinRTName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NCCMA_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedToManagedAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NCCWA_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedToWinRTAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NPCWINRT_ASM_QUAL_TYPE_NAME, g_INotifyPropertyChanged_WinRTName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NPCMA_ASM_QUAL_TYPE_NAME, g_NotifyPropertyChangedToManagedAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NPCWA_ASM_QUAL_TYPE_NAME, g_NotifyPropertyChangedToWinRTAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(CMDWINRT_ASM_QUAL_TYPE_NAME, g_ICommand_WinRTName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(CMDMA_ASM_QUAL_TYPE_NAME, g_ICommandToManagedAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(CMDWA_ASM_QUAL_TYPE_NAME, g_ICommandToWinRTAdapterName, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(NCCEHWINRT_ASM_QUAL_TYPE_NAME, g_NotifyCollectionChangedEventHandler_WinRT, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+DEFINE_ASM_QUAL_TYPE_NAME(PCEHWINRT_ASM_QUAL_TYPE_NAME, g_PropertyChangedEventHandler_WinRT_Name, g_SystemRuntimeWindowsRuntimeAsmName, VER_ASSEMBLYVERSION_STR, g_ECMAKeyToken);
+
 const WinRTInterfaceRedirector::NonMscorlibRedirectedInterfaceInfo WinRTInterfaceRedirector::s_rNonMscorlibInterfaceInfos[3] =
 {
-    { WinMDAdapter::FrameworkAssembly_System, W("System.Runtime.InteropServices.WindowsRuntime.INotifyCollectionChanged_WinRT"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedToManagedAdapter"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedToWinRTAdapter"),
-                                              s_stubNamesNotifyCollectionChanged },
-    { WinMDAdapter::FrameworkAssembly_System, W("System.Runtime.InteropServices.WindowsRuntime.INotifyPropertyChanged_WinRT"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.NotifyPropertyChangedToManagedAdapter"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.NotifyPropertyChangedToWinRTAdapter"),
-                                              s_stubNamesNotifyPropertyChanged },
-    { WinMDAdapter::FrameworkAssembly_System, W("System.Runtime.InteropServices.WindowsRuntime.ICommand_WinRT"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.ICommandToManagedAdapter"),
-                                              W("System.Runtime.InteropServices.WindowsRuntime.ICommandToWinRTAdapter"),
-                                              s_stubNamesICommand },
+    {
+        NCCWINRT_ASM_QUAL_TYPE_NAME,
+        NCCMA_ASM_QUAL_TYPE_NAME,
+        NCCWA_ASM_QUAL_TYPE_NAME,
+        s_stubNamesNotifyCollectionChanged 
+    },
+    {
+        NPCWINRT_ASM_QUAL_TYPE_NAME,
+        NPCMA_ASM_QUAL_TYPE_NAME,
+        NPCWA_ASM_QUAL_TYPE_NAME,
+        s_stubNamesNotifyPropertyChanged 
+    },
+    {
+        CMDWINRT_ASM_QUAL_TYPE_NAME,
+        CMDMA_ASM_QUAL_TYPE_NAME,
+        CMDWA_ASM_QUAL_TYPE_NAME,
+        s_stubNamesICommand 
+    },
 };
 
 #define SYSTEMDLL__INOTIFYCOLLECTIONCHANGED ((BinderClassID)(WinRTInterfaceRedirector::NON_MSCORLIB_MARKER | 0))
@@ -516,17 +527,15 @@ BOOL IsManagedObject(IUnknown *pIUnknown)
     }
     CONTRACTL_END;
 
-    if (AppX::IsAppXProcess())
+    //Check based on IUnknown slots, i.e. we'll see whether the IP maps to a CCW.
+    if (MapIUnknownToWrapper(pIUnknown) != NULL)
     {
-        //In AppX we don't support IManagedObject so we'll do the check based on
-        //IUnknown slots, i.e. we'll see whether the IP maps to a CCW.
-        if (MapIUnknownToWrapper(pIUnknown) != NULL)
-        {
-            // We found an existing CCW hence this is a managed exception.
-            return TRUE;
-        }
+        // We found an existing CCW hence this is a managed exception.
+        return TRUE;
     }
-    else
+    
+    // QI IManagedObject. Note AppX doesn't support IManagedObject
+    if (!AppX::IsAppXProcess())
     {
         SafeComHolder<IManagedObject> pManagedObject = NULL;
         HRESULT hrLocal = SafeQueryInterface(pIUnknown, IID_IManagedObject, (IUnknown**)&pManagedObject);
@@ -775,7 +784,6 @@ HRESULT SetupErrorInfo(OBJECTREF pThrownObject, BOOL bIsWinRTScenario /* = FALSE
                         pErr = (IErrorInfo *)GetComIPFromObjectRef(&pThrownObject, IID_IErrorInfo);
                         {
                             GCX_PREEMP();
-                            LeaveRuntimeHolder lrh((size_t)SetErrorInfo);
                             SetErrorInfo(0, pErr);
                         }
                     }
@@ -878,7 +886,6 @@ void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedE
 }
 #endif // CROSSGEN_COMPILE
 
-#ifndef FEATURE_CORECLR
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
 //if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
@@ -915,7 +922,6 @@ BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, md
     *pDllImportSearchPathFlag = args[0].val.u4;
     return TRUE;
 }
-#endif // !FEATURE_CORECLR
 
 
 //---------------------------------------------------------------------------
@@ -1415,7 +1421,7 @@ void SafeRelease_OnException(IUnknown* pUnk, RCW* pRCW
 #endif  // MDA_SUPPORTED
 
 #ifdef FEATURE_COMINTEROP
-    LogInterop(W("An exception occured during release"));
+    LogInterop(W("An exception occurred during release"));
     LogInteropLeak(pUnk);
 #endif // FEATURE_COMINTEROP
 
@@ -1451,9 +1457,6 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
-        LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+2));
-        if (FAILED(lrh.GetHR()))
-            return -1;
         return pUnk->Release();
     }   
 #endif // MDA_SUPPORTED    
@@ -1472,15 +1475,8 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
         // down the Runtime. Mark that an AV is alright, and handled, in this scope using this holder.
         AVInRuntimeImplOkayHolder AVOkay(pThread);
 
-        if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-        {                       // keep LeaveRuntimeHolder off of common path.
-            LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+2));
-            res = pUnk->Release();
-        }
-        else
-        {
-            res = pUnk->Release();
-        }
+        res = pUnk->Release();
+
         SCAN_EHMARKER_END_TRY();
     }
     PAL_CPP_CATCH_ALL
@@ -1509,7 +1505,7 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
     return res;
 }
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) && defined(_MSC_VER)
 // codegen bug on amd64 causes BBT to fail for the following function.  as a
 // workaround I have disabled optimizations for it until we get an updated toolset.
 #pragma optimize( "", off )
@@ -1541,9 +1537,6 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
-        LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+2));
-        if (FAILED(lrh.GetHR()))
-            return -1;
         return pUnk->Release();
     }   
 #endif // MDA_SUPPORTED    
@@ -1562,15 +1555,8 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
         // down the Runtime. Mark that an AV is alright, and handled, in this scope using this holder.
         AVInRuntimeImplOkayHolder AVOkay(pThread);
 
-        if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-        {                       // keep LeaveRuntimeHolder off of common path.
-            LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+2));
-            res = pUnk->Release();
-        }
-        else
-        {
-            res = pUnk->Release();
-        }
+        res = pUnk->Release();
+
         SCAN_EHMARKER_END_TRY();
     }
     PAL_CPP_CATCH_ALL
@@ -1600,7 +1586,7 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
 
     return res;
 }
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) && defined(_MSC_VER)
 // turn optimizations back on
 #pragma optimize( "", on )
 #endif
@@ -1878,7 +1864,6 @@ HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo)
     HRESULT hr = S_OK;
     EX_TRY
     {
-        LeaveRuntimeHolder lrh((size_t)GetErrorInfo);
         hr = GetErrorInfo(0, ppIErrInfo);
     }
     EX_CATCH
@@ -1892,22 +1877,6 @@ HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo)
     // Indicate no error object
     return S_FALSE;
 #endif
-}
-
-HRESULT SafeQueryInterfaceHosted(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk)
-{
-    CONTRACTL
-    {
-        THROWS; // message pump could happen, so arbitrary managed code could run
-        GC_TRIGGERS;
-        DISABLED(MODE_PREEMPTIVE);  // disabled because I couldn't figure out how to tell SCAN about my
-                                    // manual mode change in SafeQueryInterface
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+0));
-    return pUnk->QueryInterface(riid, (void**) pResUnk);
 }
 
 
@@ -1938,14 +1907,7 @@ HRESULT SafeQueryInterface(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk)
 #define PAL_TRY_REFARG(argName) (pParam->argName)
     PAL_TRY(Param * const, pParam, &param)
     {
-        if (CLRTaskHosted())
-        {
-            PAL_TRY_ARG(hr) = SafeQueryInterfaceHosted(PAL_TRY_ARG(pUnk), PAL_TRY_REFARG(riid), PAL_TRY_ARG(pResUnk));
-        }
-        else
-        {
-            PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
-        }
+        PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -2004,14 +1966,7 @@ HRESULT SafeQueryInterfacePreemp(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk
 #define PAL_TRY_REFARG(argName) (pParam->argName)
     PAL_TRY(Param * const, pParam, &param)
     {
-        if (CLRTaskHosted())
-        {
-            PAL_TRY_ARG(hr) = SafeQueryInterfaceHosted(PAL_TRY_ARG(pUnk), PAL_TRY_REFARG(riid), PAL_TRY_ARG(pResUnk));
-        }
-        else
-        {
-            PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
-        }
+        PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -2102,7 +2057,7 @@ void MinorCleanupSyncBlockComData(InteropSyncBlockInfo* pInteropInfo)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION( GCHeap::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
+        PRECONDITION( GCHeapUtilities::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ) );
     }
     CONTRACTL_END;
 
@@ -2312,7 +2267,6 @@ HRESULT LoadRegTypeLibWithFlags(REFGUID guid,
 
     EX_TRY
     {
-        LeaveRuntimeHolder lrh((size_t)QueryPathOfRegTypeLib);
         hr = QueryPathOfRegTypeLib(guid, wVerMajor, wVerMinor, LOCALE_USER_DEFAULT, &wzPath);
     }
     EX_CATCH
@@ -2342,48 +2296,7 @@ HRESULT LoadTypeLibExWithFlags(LPCOLESTR  szFile,
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_COMINTEROP_TLB_SUPPORT
     return E_FAIL;
-#else //FEATURE_COMINTEROP_TLB_SUPPORT
-
-    *pptlib = NULL;
-
-    GCX_PREEMP();
-
-    REGKIND rk = REGKIND_NONE;
-
-    if ((flags & TlbExporter_ExportAs64Bit) == TlbExporter_ExportAs64Bit)
-    {
-        rk = (REGKIND)(REGKIND_NONE | LOAD_TLB_AS_64BIT);
-    }
-    else if ((flags & TlbExporter_ExportAs32Bit) == TlbExporter_ExportAs32Bit)
-    {
-        rk = (REGKIND)(REGKIND_NONE | LOAD_TLB_AS_32BIT);
-    }
-
-    HRESULT hr = S_OK;
-    
-    EX_TRY
-    {
-        LeaveRuntimeHolder lrh((size_t)LoadTypeLibEx);
-        
-        hr = LoadTypeLibEx(szFile, rk, pptlib);
-
-        // If we fail with E_INVALIDARG, it's probably because we're on a downlevel
-        //  platform that doesn't support loading type libraries by bitness.
-        if (hr == E_INVALIDARG)
-        {
-            hr = LoadTypeLibEx(szFile, REGKIND_NONE, pptlib);
-        }
-    }
-    EX_CATCH
-    {
-        hr = E_OUTOFMEMORY;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-
-    return hr;
-#endif //FEATURE_COMINTEROP_TLB_SUPPORT
 }
 
 
@@ -2508,39 +2421,12 @@ HRESULT GetCLSIDFromProgID(__in_z WCHAR *strProgId, GUID *pGuid)
     HRESULT     hr = S_OK;
 
 #ifdef FEATURE_CORESYSTEM
-    LeaveRuntimeHolderNoThrow lrh((size_t)CLSIDFromProgID);
-#else
-    LeaveRuntimeHolderNoThrow lrh((size_t)CLSIDFromProgIDEx);
-#endif
-    hr = lrh.GetHR();
-    if (FAILED(hr))
-        return hr;
-
-#ifdef FEATURE_CORESYSTEM
     return CLSIDFromProgID(strProgId, pGuid);
 #else
     return CLSIDFromProgIDEx(strProgId, pGuid);
 #endif
 }
 #endif // FEATURE_CLASSIC_COMINTEROP
-
-NOINLINE ULONG SafeAddRefHosted(IUnknown* pUnk)
-{
-    CONTRACTL
-    {
-        THROWS;         // arbitrary managed code could run
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+1));
-    if (FAILED(lrh.GetHR()))
-        return ~0;
-
-    return pUnk->AddRef();
-}
 
 #include <optsmallperfcritical.h>
 //--------------------------------------------------------------------------------
@@ -2567,14 +2453,7 @@ ULONG SafeAddRef(IUnknown* pUnk)
 
     CONTRACT_VIOLATION(ThrowsViolation); // arbitrary managed code could run
 
-    if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-    {                       // keep LeaveRuntimeHolder off of common path.
-        res = SafeAddRefHosted(pUnk);
-    }
-    else
-    {
-        res = pUnk->AddRef();
-    }
+    res = pUnk->AddRef();
 
     GCX_PREEMP_NO_DTOR_END();
 
@@ -2604,14 +2483,7 @@ ULONG SafeAddRefPreemp(IUnknown* pUnk)
 
     CONTRACT_VIOLATION(ThrowsViolation); // arbitrary managed code could run
 
-    if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-    {                       // keep LeaveRuntimeHolder off of common path.
-        res = SafeAddRefHosted(pUnk);
-    }
-    else
-    {
-        res = pUnk->AddRef();
-    }
+    res = pUnk->AddRef();
 
     return res;
 }
@@ -2678,7 +2550,7 @@ HRESULT ClrSafeArrayGetVartype(SAFEARRAY *psa, VARTYPE *pvt)
 //--------------------------------------------------------------------------------
 // // safe VariantChangeType
 // Release helper, enables and disables GC during call-outs
-HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeType(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                               unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL
@@ -2697,11 +2569,7 @@ HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
         GCX_PREEMP();
         EX_TRY
         {
-            LeaveRuntimeHolderNoThrow lrh((size_t)VariantChangeType);
-            hr = lrh.GetHR();
-    
-            if (!FAILED(hr))
-                hr = VariantChangeType(pVarRes, pVarSrc, wFlags, vt);
+            hr = VariantChangeType(pVarRes, pVarSrc, wFlags, vt);
         }
         EX_CATCH
         {
@@ -2714,7 +2582,7 @@ HRESULT SafeVariantChangeType(VARIANT* pVarRes, VARIANT* pVarSrc,
 }
 
 //--------------------------------------------------------------------------------
-HRESULT SafeVariantChangeTypeEx(VARIANT* pVarRes, VARIANT* pVarSrc,
+HRESULT SafeVariantChangeTypeEx(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
                           LCID lcid, unsigned short wFlags, VARTYPE vt)
 {
     CONTRACTL
@@ -2731,12 +2599,7 @@ HRESULT SafeVariantChangeTypeEx(VARIANT* pVarRes, VARIANT* pVarSrc,
     _ASSERTE(GetModuleHandleA("oleaut32.dll") != NULL);
     CONTRACT_VIOLATION(ThrowsViolation);
 
-    HRESULT hr = S_OK;
-    LeaveRuntimeHolderNoThrow lrh((size_t)VariantChangeTypeEx);
-    hr = lrh.GetHR();
-
-    if (!FAILED(hr))
-        hr = VariantChangeTypeEx (pVarRes, pVarSrc,lcid,wFlags,vt);
+    HRESULT hr = VariantChangeTypeEx (pVarRes, pVarSrc,lcid,wFlags,vt);
     
     return hr;
 }
@@ -2773,18 +2636,11 @@ void SafeReleaseStream(IStream *pStream)
     GCX_PREEMP();
 
     {
-        HRESULT hr = S_OK;
-        
-        LeaveRuntimeHolderNoThrow lrh((size_t)CoReleaseMarshalData);
-        hr = lrh.GetHR();
-
-        if (!FAILED(hr))
-        {
-            hr = CoReleaseMarshalData(pStream);
+        HRESULT hr = CoReleaseMarshalData(pStream);
     
 #ifdef _DEBUG          
         wchar_t      logStr[200];
-        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+        swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
         LogInterop(logStr);
         if (hr != S_OK)
         {
@@ -2794,11 +2650,10 @@ void SafeReleaseStream(IStream *pStream)
             ULARGE_INTEGER li2;
             pStream->Seek(li, STREAM_SEEK_SET, &li2);
             hr = CoReleaseMarshalData(pStream);
-            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %s, line %d\n"), hr, __FILE__, __LINE__);
+            swprintf_s(logStr, NumItems(logStr), W("Object gone: CoReleaseMarshalData returned %x, file %S, line %d\n"), hr, __FILE__, __LINE__);
             LogInterop(logStr);
         }
 #endif
-        }
     }
 
     ULONG cbRef = SafeReleasePreemp(pStream);
@@ -4376,13 +4231,11 @@ static void DoIUInvokeDispMethod(IDispatchEx* pDispEx, IDispatch* pDisp, DISPID 
 
                 if (pDispEx)
                 {
-                    LeaveRuntimeHolder holder(**(size_t**)pDispEx);
                     hr = InvokeExHelper(pDispEx, MemberID, lcid, flags, pDispParams,
                                         pVarResult, &ExcepInfo, NULL);
                 }
                 else
                 {
-                    LeaveRuntimeHolder holder(**(size_t**)pDisp);
                     hr = InvokeHelper(  pDisp, MemberID, IID_NULL, lcid, flags,
                                         pDispParams, pVarResult, &ExcepInfo, &iArgErr);
                 }
@@ -4735,13 +4588,11 @@ void IUInvokeDispMethod(REFLECTCLASSBASEREF* pRefClassObj, OBJECTREF* pTarget, O
                         if (!bstrTmpName)
                             COMPlusThrowOM();
 
-                        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pDispEx);
                         hr = pDispEx->GetDispID(bstrTmpName, fdexNameCaseSensitive, aDispID);
                     }
                     else
                     {
                         // Call GetIdsOfNames() to retrieve the DISPID's of the method and of the arguments.
-                        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pDisp);
                         hr = pDisp->GetIDsOfNames(
                                                     IID_NULL,
                                                     aNamesToConvert,
@@ -5152,7 +5003,7 @@ void GetComClassFromCLSID(REFCLSID clsid, STRINGREF srefServer, OBJECTREF *pRef)
     _ASSERTE(*pRef != NULL);
 }
 
-void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt __in_z WCHAR *wszProgID)
+void GetComClassHelper(OBJECTREF *pRef, EEClassFactoryInfoHashTable *pClassFactHash, ClassFactoryInfo *pClassFactInfo, __in_opt WCHAR *wszProgID)
 {
     CONTRACTL
     {
@@ -5285,18 +5136,6 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
         }
         else
         {
-#ifdef FEATURE_WINDOWSPHONE
-            //
-            // On the phone, anyone can activate WinRT objects, but only platform code can do legacy COM interop.  
-            // (Hosts can override this.)
-            //
-            if (!pClassMT->GetModule()->GetFile()->GetAssembly()->IsProfileAssembly() &&
-                !GetAppDomain()->EnablePInvokeAndClassicComInterop())
-            {
-                COMPlusThrow(kNotSupportedException, W("NotSupported_UserCOM"));
-            }
-#endif //FEATURE_WINDOWSPHONE
-
             GUID guid;
             pClassMT->GetGuid(&guid, TRUE);
 
@@ -5366,9 +5205,7 @@ TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
 
     SString ssAssemblyName(SString::Utf8Literal, "WindowsRuntimeAssemblyName, ContentType=WindowsRuntime");
     DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, NULL, 
-#ifdef FEATURE_HOSTED_BINDER
                                                    NULL, 
-#endif
                                                    bThrowIfNotFound, FALSE, ssTypeName);
     if (pAssembly != NULL)
     {
@@ -6065,12 +5902,14 @@ MethodTable *WinRTInterfaceRedirector::GetWinRTTypeForRedirectedInterfaceIndex(W
     {
         // the redirected interface lives in some other Framework assembly
         const NonMscorlibRedirectedInterfaceInfo *pInfo = &s_rNonMscorlibInterfaceInfos[id & ~NON_MSCORLIB_MARKER];
-        RETURN LoadTypeFromRedirectedAssembly(pInfo->m_AssemblyIndex, pInfo->m_wzWinRTInterfaceTypeName);
+        SString assemblyQualifiedTypeName(SString::Utf8, pInfo->m_szWinRTInterfaceAssemblyQualifiedTypeName);
+
+        RETURN TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
     }
 }
 
 //
-MethodTable *WinRTInterfaceRedirector::LoadTypeFromRedirectedAssembly(WinMDAdapter::FrameworkAssemblyIndex index, LPCWSTR wzTypeName)
+MethodDesc *WinRTInterfaceRedirector::LoadMethodFromRedirectedAssembly(LPCUTF8 szAssemblyQualifiedTypeName, LPCUTF8 szMethodName)
 {
     CONTRACTL
     {
@@ -6080,26 +5919,9 @@ MethodTable *WinRTInterfaceRedirector::LoadTypeFromRedirectedAssembly(WinMDAdapt
     }
     CONTRACTL_END;
 
-    Assembly *pAssembly;
+    SString assemblyQualifiedTypeName(SString::Utf8, szAssemblyQualifiedTypeName);
 
-    if (!::GetAppDomain()->FindRedirectedAssemblyFromIndexIfLoaded(index, &pAssembly))
-        return NULL;
-
-    return TypeName::GetTypeFromAssembly(wzTypeName, pAssembly).GetMethodTable();
-}
-
-//
-MethodDesc *WinRTInterfaceRedirector::LoadMethodFromRedirectedAssembly(WinMDAdapter::FrameworkAssemblyIndex index, LPCWSTR wzTypeName, LPCUTF8 szMethodName)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    MethodTable *pMT = LoadTypeFromRedirectedAssembly(index, wzTypeName);
+    MethodTable *pMT = TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
     return MemberLoader::FindMethodByName(pMT, szMethodName);
 }
 
@@ -6215,8 +6037,7 @@ MethodDesc *WinRTInterfaceRedirector::GetStubMethodForRedirectedInterface(WinMDA
         const NonMscorlibRedirectedInterfaceInfo *pInfo = &s_rNonMscorlibInterfaceInfos[pStubInfo->m_WinRTInterface & ~NON_MSCORLIB_MARKER];
 
         pMD = LoadMethodFromRedirectedAssembly(
-            pInfo->m_AssemblyIndex,
-            (interopKind == TypeHandle::Interop_NativeToManaged) ? pInfo->m_wzWinRTStubClassTypeName : pInfo->m_wzCLRStubClassTypeName,
+            (interopKind == TypeHandle::Interop_NativeToManaged) ? pInfo->m_szWinRTStubClassAssemblyQualifiedTypeName : pInfo->m_szCLRStubClassAssemblyQualifiedTypeName,
             pInfo->m_rszMethodNames[method]);
     }
 
@@ -6368,16 +6189,14 @@ MethodTable *WinRTDelegateRedirector::GetWinRTTypeForRedirectedDelegateIndex(Win
         
     case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventHandler:
     {
-        Assembly *pAssembly;
-        VERIFY(::GetAppDomain()->FindRedirectedAssemblyFromIndexIfLoaded(WinMDAdapter::FrameworkAssembly_System, &pAssembly));
-        return TypeName::GetTypeFromAssembly(W("System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedEventHandler_WinRT"), pAssembly).GetMethodTable();
+        SString assemblyQualifiedTypeName(SString::Utf8, NCCEHWINRT_ASM_QUAL_TYPE_NAME);
+        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
     }
 
     case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventHandler:
     {
-        Assembly *pAssembly;
-        VERIFY(::GetAppDomain()->FindRedirectedAssemblyFromIndexIfLoaded(WinMDAdapter::FrameworkAssembly_System, &pAssembly));
-        return TypeName::GetTypeFromAssembly(W("System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventHandler_WinRT"), pAssembly).GetMethodTable();
+        SString assemblyQualifiedTypeName(SString::Utf8, PCEHWINRT_ASM_QUAL_TYPE_NAME);
+        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
     }
 
     default:
@@ -6854,7 +6673,6 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk)
         {
             GCX_PREEMP();
 
-            LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pclsInfo);
             hr = pclsInfo->GetClassInfo(&pTypeInfo);
         }
 
@@ -6864,7 +6682,6 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk)
         {
             {
             GCX_PREEMP();
-                LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pTypeInfo);
             hr = pTypeInfo->GetTypeAttr(&ptattr);
             }
         
@@ -6938,7 +6755,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
     WinRtString winrtClassName;
     {
         GCX_PREEMP();
-        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pInsp);
         if (FAILED(pInsp->GetRuntimeClassName(winrtClassName.Address())))
         {
             RETURN TypeHandle();
@@ -6954,12 +6770,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
     LPCWSTR pwszClassName = winrtClassName.GetRawBuffer(&cchClassName);
     SString ssClassName(SString::Literal, pwszClassName, cchClassName);
 
-#ifndef FEATURE_CORECLR
-    if (ETW_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATE_DYNAMICTYPEUSAGE_KEYWORD))
-    {
-        FireEtwIInspectableRuntimeClassName(pwszClassName, GetClrInstanceId());
-    }
-#endif
     
     // Check a cache to see if this has already been looked up.
     AppDomain *pDomain = GetAppDomain();
@@ -7097,7 +6907,6 @@ ABI::Windows::Foundation::IUriRuntimeClass *CreateWinRTUri(LPCWSTR wszUri, INT32
     ABI::Windows::Foundation::IUriRuntimeClassFactory* pFactory = marshalingInfo->GetUriFactory();
 
     SafeComHolder<ABI::Windows::Foundation::IUriRuntimeClass> pIUriRC;
-    LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pFactory);
     HRESULT hrCreate = pFactory->CreateUri(WinRtStringRef(wszUri, cchUri), &pIUriRC);
     if (FAILED(hrCreate))
     {

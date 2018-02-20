@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // Implementation for CBlobFetcher
 // 
@@ -12,14 +11,6 @@
 #include "stdafx.h" // for ASSERTE and friends
 #include "blobfetcher.h"
 #include "log.h"
-
-//-----------------------------------------------------------------------------
-//  round a pointer back down to something aligned
-static inline char* truncateTo(__in char* val, unsigned align) {
-    _ASSERTE((align & (align - 1)) == 0);       // align must be a power of 2
-
-    return((char*) ((UINT_PTR)(val) & ~(((UINT_PTR)align)-1)));
-}
 
 //-----------------------------------------------------------------------------
 //  round up to a certain alignment

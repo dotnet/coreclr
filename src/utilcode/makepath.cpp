@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /***
 *makepath.c - create path name from components
 *
@@ -16,14 +15,15 @@
 #include "utilcode.h"
 #include "ex.h"
 
+
 /***
-*void _makepath() - build path name from components
+*void Makepath() - build path name from components
 *
 *Purpose:
 *       create a path name from its individual components
 *
 *Entry:
-*       WCHAR *path  - pointer to buffer for constructed path
+*       CQuickWSTR &szPath - Buffer for constructed path
 *       WCHAR *drive - pointer to drive component, may or may not contain
 *                     trailing ':'
 *       WCHAR *dir   - pointer to subdirectory component, may or may not include
@@ -40,7 +40,7 @@
 *******************************************************************************/
 
 void MakePath (
-        __out_ecount (MAX_PATH) register WCHAR *path,
+        __out CQuickWSTR &szPath,
         __in LPCWSTR drive,
         __in LPCWSTR dir,
         __in LPCWSTR fname,
@@ -51,12 +51,18 @@ void MakePath (
         {
             NOTHROW;
             GC_NOTRIGGER;
-            FORBID_FAULT;
         }
         CONTRACTL_END
 
-        register const WCHAR *p;
-        register DWORD count = 0;
+        SIZE_T maxCount = 4      // Possible separators between components, plus null terminator
+            + (drive != nullptr ? 2 : 0)
+            + (dir != nullptr ? wcslen(dir) : 0)
+            + (fname != nullptr ? wcslen(fname) : 0)
+            + (ext != nullptr ? wcslen(ext) : 0);
+        LPWSTR path = szPath.AllocNoThrow(maxCount);
+
+        const WCHAR *p;
+        DWORD count = 0;
 
         /* we assume that the arguments are in the following form (although we
          * do not diagnose invalid arguments or illegal filenames (such as
@@ -92,11 +98,7 @@ void MakePath (
                         *path++ = *p++;
                         count++;
 
-                        if (count == MAX_PATH) {
-                            --path;
-                            *path = _T('\0');
-                            return;
-                        }
+                        _ASSERTE(count < maxCount);
                 }
 
 #ifdef _MBCS
@@ -112,11 +114,7 @@ void MakePath (
                         *path++ = _T('\\');
                         count++;
 
-                        if (count == MAX_PATH) {
-                            --path;
-                            *path = _T('\0');
-                            return;
-                        }
+                        _ASSERTE(count < maxCount);
                 }
         }
 
@@ -127,11 +125,7 @@ void MakePath (
                         *path++ = *p++;
                         count++;
 
-                        if (count == MAX_PATH) {
-                            --path;
-                            *path = _T('\0');
-                            return;
-                        }
+                        _ASSERTE(count < maxCount);
                 }
         }
 
@@ -144,65 +138,84 @@ void MakePath (
                         *path++ = _T('.');
                         count++;
 
-                        if (count == MAX_PATH) {
-                            --path;
-                            *path = _T('\0');
-                            return;
-                        }
+                        _ASSERTE(count < maxCount);
                 }
 
                 while ((*path++ = *p++)) {
                     count++;
 
-                    if (count == MAX_PATH) {
-                        --path;
-                        *path = _T('\0');
-                        return;
-                    }
+                    _ASSERTE(count < maxCount);
                 }
         }
         else {
                 /* better add the 0-terminator */
                 *path = _T('\0');
         }
+
+        szPath.Shrink(count + 1);
 }
 
-#if !defined(FEATURE_CORECLR)
-static LPCWSTR g_wszProcessExePath = NULL;
 
-HRESULT GetProcessExePath(LPCWSTR *pwszProcessExePath)
+// Returns the directory for HMODULE. So, if HMODULE was for "C:\Dir1\Dir2\Filename.DLL",
+// then this would return "C:\Dir1\Dir2\" (note the trailing backslash).
+HRESULT GetHModuleDirectory(
+    __in                          HMODULE   hMod,
+    SString&                                 wszPath)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
-        CONSISTENCY_CHECK(CheckPointer(pwszProcessExePath));
+        CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END;
 
+    DWORD dwRet = WszGetModuleFileName(hMod, wszPath);
+   
+     if (dwRet == 0)
+    {   // Some other error.
+        return HRESULT_FROM_GetLastError();
+    }
+
+     CopySystemDirectory(wszPath, wszPath);
+         
+
+    return S_OK;
+}
+
+//
+// Returns path name from a file name. 
+// Example: For input "C:\Windows\System.dll" returns "C:\Windows\".
+// Warning: The input file name string might be destroyed.
+// 
+// Arguments:
+//    pPathString - [in] SString with file  name
+//                
+//    pBuffer    - [out] SString .
+// 
+// Return Value:
+//    S_OK - Output buffer contains path name.
+//    other errors - If Sstring throws.
+//
+HRESULT CopySystemDirectory(const SString& pPathString,
+                            SString& pbuffer)
+{
     HRESULT hr = S_OK;
-
-    if (g_wszProcessExePath == NULL)
+    EX_TRY
     {
-        NewArrayHolder<WCHAR> wszProcName = new (nothrow) WCHAR[_MAX_PATH];
-        IfNullRet(wszProcName);
-
-        DWORD cchProcName = WszGetModuleFileName(NULL, wszProcName, _MAX_PATH);
-        if (cchProcName == 0)
+        pbuffer.Set(pPathString);
+        SString::Iterator iter = pbuffer.End();
+        if (pbuffer.FindBack(iter,DIRECTORY_SEPARATOR_CHAR_W))
         {
-            return HRESULT_FROM_GetLastError();
+            iter++;
+            pbuffer.Truncate(iter);
         }
-
-        if (InterlockedCompareExchangeT(&g_wszProcessExePath, const_cast<LPCWSTR>(wszProcName.GetValue()), NULL) == NULL)
+        else
         {
-            wszProcName.SuppressRelease();
+            hr = E_UNEXPECTED;
         }
     }
-    _ASSERTE(g_wszProcessExePath != NULL);
-    _ASSERTE(SUCCEEDED(hr));
+    EX_CATCH_HRESULT(hr);
 
-    *pwszProcessExePath = g_wszProcessExePath;
     return hr;
 }
-#endif
-

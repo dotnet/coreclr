@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -103,14 +102,11 @@ namespace CorUnix
 
         PAL_ERROR
         CopyString(
-            CPalThread *pthr,
             CPalString *psSource
             );
 
         void
-        FreeBuffer(
-            CPalThread *pthr
-            );            
+        FreeBuffer();
 
         const WCHAR *
         GetString()
@@ -177,11 +173,21 @@ namespace CorUnix
         void *          // pProcessLocalData
         );
 
+    typedef void (*OBJECT_IMMUTABLE_DATA_COPY_ROUTINE) (
+        void *,
+        void *);
+    typedef void (*OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE) (
+        void *);
+    typedef void (*OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE) (
+        CPalThread *,   // pThread
+        IPalObject *);
+
     enum PalObjectTypeId
     {
         otiAutoResetEvent = 0,
         otiManualResetEvent,
         otiMutex,
+        otiNamedMutex,
         otiSemaphore,
         otiFile,
         otiFileMapping,
@@ -318,7 +324,10 @@ namespace CorUnix
         OBJECTCLEANUPROUTINE m_pCleanupRoutine;
         OBJECTINITROUTINE m_pInitRoutine;
         DWORD m_dwImmutableDataSize;
+        OBJECT_IMMUTABLE_DATA_COPY_ROUTINE m_pImmutableDataCopyRoutine;
+        OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE m_pImmutableDataCleanupRoutine;
         DWORD m_dwProcessLocalDataSize;
+        OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE m_pProcessLocalDataCleanupRoutine;
         DWORD m_dwSharedDataSize;
         DWORD m_dwSupportedAccessRights;
         // Generic access rights mapping
@@ -338,7 +347,10 @@ namespace CorUnix
             OBJECTCLEANUPROUTINE pCleanupRoutine,
             OBJECTINITROUTINE pInitRoutine,
             DWORD dwImmutableDataSize,
+            OBJECT_IMMUTABLE_DATA_COPY_ROUTINE pImmutableDataCopyRoutine,
+            OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE pImmutableDataCleanupRoutine,
             DWORD dwProcessLocalDataSize,
+            OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE pProcessLocalDataCleanupRoutine,
             DWORD dwSharedDataSize,
             DWORD dwSupportedAccessRights,
             SecuritySupport eSecuritySupport,
@@ -355,7 +367,10 @@ namespace CorUnix
             m_pCleanupRoutine(pCleanupRoutine),
             m_pInitRoutine(pInitRoutine),
             m_dwImmutableDataSize(dwImmutableDataSize),
+            m_pImmutableDataCopyRoutine(pImmutableDataCopyRoutine),
+            m_pImmutableDataCleanupRoutine(pImmutableDataCleanupRoutine),
             m_dwProcessLocalDataSize(dwProcessLocalDataSize),
+            m_pProcessLocalDataCleanupRoutine(pProcessLocalDataCleanupRoutine),
             m_dwSharedDataSize(dwSharedDataSize),
             m_dwSupportedAccessRights(dwSupportedAccessRights),
             m_eSecuritySupport(eSecuritySupport),
@@ -411,6 +426,38 @@ namespace CorUnix
             return  m_dwImmutableDataSize;
         };
         
+        void
+        SetImmutableDataCopyRoutine(
+            OBJECT_IMMUTABLE_DATA_COPY_ROUTINE ptr
+            )
+        {
+            m_pImmutableDataCopyRoutine = ptr;
+        };
+
+        OBJECT_IMMUTABLE_DATA_COPY_ROUTINE
+        GetImmutableDataCopyRoutine(
+            void
+            )
+        {
+            return m_pImmutableDataCopyRoutine;
+        };
+
+        void
+        SetImmutableDataCleanupRoutine(
+            OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE ptr
+            )
+        {
+            m_pImmutableDataCleanupRoutine = ptr;
+        };
+
+        OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE
+        GetImmutableDataCleanupRoutine(
+            void
+            )
+        {
+            return m_pImmutableDataCleanupRoutine;
+        }
+
         DWORD
         GetProcessLocalDataSize(
             void
@@ -418,7 +465,15 @@ namespace CorUnix
         {
             return m_dwProcessLocalDataSize;
         };
-        
+
+        OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE
+        GetProcessLocalDataCleanupRoutine(
+            void
+            )
+        {
+            return m_pProcessLocalDataCleanupRoutine;
+        }
+
         DWORD
         GetSharedDataSize(
             void
@@ -602,25 +657,25 @@ namespace CorUnix
         virtual
         PAL_ERROR
         GetSignalCount(
-            DWORD *pdwSignalCount
+            LONG *plSignalCount
             ) = 0;
 
         virtual
         PAL_ERROR
         SetSignalCount(
-            DWORD dwNewCount
+            LONG lNewCount
             ) = 0;
 
         virtual
         PAL_ERROR
         IncrementSignalCount(
-            DWORD dwAmountToIncrement
+            LONG lAmountToIncrement
             ) = 0;
 
         virtual
         PAL_ERROR
         DecrementSignalCount(
-            DWORD dwAmountToDecrement
+            LONG lAmountToDecrement
             ) = 0;
 
         //
@@ -718,7 +773,8 @@ namespace CorUnix
         RegisterWaitingThread(
             WaitType eWaitType,
             DWORD dwIndex,
-            bool fAltertable
+            bool fAltertable,
+            bool fPrioritize
             ) = 0;
 
         //
@@ -1128,6 +1184,10 @@ namespace CorUnix
             CPalThread *pThread
             ) = 0;
 
+        virtual
+        PAL_ERROR
+        SendTerminationRequestToWorkerThread() = 0;
+
         //
         // This routine is primarily meant for use by WaitForMultipleObjects[Ex].
         // The caller must individually release each of the returned controller
@@ -1240,9 +1300,7 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseLock(
-            CPalThread *pThread                 // IN, OPTIONAL
-            ) = 0;
+        ReleaseLock() = 0;
     };
 
     class IFileLockController
@@ -1317,10 +1375,7 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseController(
-            CPalThread *pThread                 // IN, OPTIONAL
-            ) = 0;
-        
+        ReleaseController() = 0;
     };
 
     class IFileLockManager
@@ -1350,27 +1405,13 @@ namespace CorUnix
         // not found)
         // 
         virtual
-	PAL_ERROR
-	GetFileShareModeForFile(
-            CPalThread *pThread,
+        PAL_ERROR
+        GetFileShareModeForFile(
             LPCSTR szFileName,
             DWORD* pdwShareMode) = 0;
     };
 
     extern IFileLockManager *g_pFileLockManager;
-
-    //
-    // Utility function for converting sz object names to wsz
-    //
-
-    PAL_ERROR
-    InternalWszNameFromSzName(
-        CPalThread *pthr,
-        LPCSTR pszName,
-        LPWSTR pwszName,
-        DWORD cch
-        );
-
 }
 
 #endif // _CORUNIX_H

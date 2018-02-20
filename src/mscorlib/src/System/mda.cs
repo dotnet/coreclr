@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 using System.Runtime.CompilerServices;
@@ -17,7 +18,6 @@ namespace System
             private static volatile int _captureAllocatedCallStackState;
 
             internal static bool Enabled {
-                [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
                     if (_enabledState == 0) {
                         if (Mda.IsStreamWriterBufferedDataLostEnabled())
@@ -31,7 +31,6 @@ namespace System
             }
 
             internal static bool CaptureAllocatedCallStack {
-                [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
                     if (_captureAllocatedCallStackState == 0) {
                         if (Mda.IsStreamWriterBufferedDataLostCaptureAllocatedCallStack())
@@ -44,42 +43,33 @@ namespace System
                 }
             }
 
-            [System.Security.SecuritySafeCritical]  // auto-generated
             internal static void ReportError(String text) {
                 Mda.ReportStreamWriterBufferedDataLost(text);
             }
 
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ReportStreamWriterBufferedDataLost(String text);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsStreamWriterBufferedDataLostEnabled();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsStreamWriterBufferedDataLostCaptureAllocatedCallStack();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void MemberInfoCacheCreation();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void DateTimeInvalidLocalFormat();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsInvalidGCHandleCookieProbeEnabled();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void FireInvalidGCHandleCookieProbe(IntPtr cookie);
 
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ReportErrorSafeHandleRelease(Exception ex);
     }

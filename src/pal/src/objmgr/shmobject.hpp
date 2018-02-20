@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -66,6 +65,9 @@ namespace CorUnix
         SHMPTR shmObjImmutableData;
         SHMPTR shmObjSharedData;
 
+        OBJECT_IMMUTABLE_DATA_COPY_ROUTINE pCopyRoutine;
+        OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE pCleanupRoutine;
+
         LONG lProcessRefCount;
         DWORD dwNameLength;
 
@@ -76,7 +78,7 @@ namespace CorUnix
 
     class CSharedMemoryObject : public CPalObjectBase
     {
-        template <class T> friend void InternalDelete(CorUnix::CPalThread *, T *p);
+        template <class T> friend void InternalDelete(T *p);
         
     protected:
 
@@ -122,8 +124,7 @@ namespace CorUnix
         // m_fSharedDataDereferenced will be TRUE if DereferenceSharedData
         // has already been called. (N.B. -- this is a LONG instead of a bool
         // because it is passed to InterlockedExchange). If the shared data blob
-        // should be freed in the object's destructor (i.e., SHMfree should be
-        // called on the appropriate SHMPTRs) DereferenceSharedData will
+        // should be freed in the object's destructor DereferenceSharedData will
         // set m_fDeleteSharedData to TRUE.
         //
 
@@ -140,12 +141,6 @@ namespace CorUnix
         void
         FreeSharedDataAreas(
             SHMPTR shmObjData
-            );
-
-        void
-        PromoteSharedData(
-            SHMPTR shmObjData,
-            SHMObjData *psmod
             );
 
         bool
@@ -179,7 +174,7 @@ namespace CorUnix
             :
             CPalObjectBase(pot),
             m_pcsObjListLock(pcsObjListLock),
-            m_shmod(SHMNULL),
+            m_shmod(NULL),
             m_pvSharedData(NULL),
             m_ObjectDomain(ProcessLocalObject),
             m_fSharedDataDereferenced(FALSE),
@@ -228,12 +223,6 @@ namespace CorUnix
         InitializeFromExistingSharedData(
             CPalThread *pthr,
             CObjectAttributes *poa
-            );
-
-        virtual
-        PAL_ERROR
-        EnsureObjectIsShared(
-            CPalThread *pthr
             );
 
         void
@@ -310,7 +299,7 @@ namespace CorUnix
 
     class CSharedMemoryWaitableObject : public CSharedMemoryObject
     {
-        template <class T> friend void InternalDelete(CorUnix::CPalThread *, T *p);
+        template <class T> friend void InternalDelete(T *p);
         
     protected:
 
@@ -353,12 +342,6 @@ namespace CorUnix
         Initialize(
             CPalThread *pthr,
             CObjectAttributes *poa
-            );
-
-        virtual
-        PAL_ERROR
-        EnsureObjectIsShared(
-            CPalThread *pthr
             );
 
         //

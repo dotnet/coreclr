@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -55,9 +54,6 @@ LPCWSTR EHTypedClauseTypeName(const DACEHInfo* pEHInfo);
 
 struct SOSEHInfo
 {
-#ifndef FEATURE_CORECLR
-    __field_ecount(EHCount)
-#endif
     DACEHInfo  *m_pInfos;
     UINT        EHCount;
     CLRDATA_ADDRESS methodStart;
@@ -74,13 +70,13 @@ void DumpStackWorker (DumpStackFlag &DSFlag);
 
 void UnassemblyUnmanaged (DWORD_PTR IP, BOOL bSuppressLines);
 
-BOOL GetCalleeSite (DWORD_PTR IP, DWORD_PTR &IPCallee);
-
 HRESULT CheckEEDll ();
 
-void DisasmAndClean (DWORD_PTR &IP, __out_ecount (length) __out_opt char *line, ULONG length);
+BOOL GetCalleeSite (DWORD_PTR IP, DWORD_PTR &IPCallee);
 
-INT_PTR GetValueFromExpr(__in __in_z char *ptr, INT_PTR &value);
+void DisasmAndClean (DWORD_PTR &IP, __out_ecount_opt(length) char *line, ULONG length);
+
+INT_PTR GetValueFromExpr(___in __in_z char *ptr, INT_PTR &value);
 
 void NextTerm (__deref_inout_z char *& ptr);
 
@@ -91,6 +87,7 @@ BOOL IsTermSep (char ch);
 const char * HelperFuncName (size_t IP);
 
 enum eTargetType { ettUnk = 0, ettNative = 1, ettJitHelp = 2, ettStub = 3, ettMD = 4 };
+
 // GetFinalTarget is based on HandleCall, but avoids printing anything to the output.
 // This is currently only called on x64
 eTargetType GetFinalTarget(DWORD_PTR callee, DWORD_PTR* finalMDorIP);
@@ -101,7 +98,6 @@ eTargetType GetFinalTarget(DWORD_PTR callee, DWORD_PTR* finalMDorIP);
 #pragma warning(disable:4640)
 #endif // _MSC_VER
 
-
 //-----------------------------------------------------------------------------------------
 //
 //  Implementations for the supported target platforms
@@ -109,9 +105,9 @@ eTargetType GetFinalTarget(DWORD_PTR callee, DWORD_PTR* finalMDorIP);
 //-----------------------------------------------------------------------------------------
 
 #ifndef THUMB_CODE
-#define THUMB_CODE 1;
+#define THUMB_CODE 1
 #endif
-#define STACKWALK_CONTROLPC_ADJUST_OFFSET 2;
+#define STACKWALK_CONTROLPC_ADJUST_OFFSET 2
 
 #ifdef SOS_TARGET_X86
 
@@ -160,7 +156,7 @@ public:
     virtual void GetGCRegisters(LPCSTR** regNames, unsigned int* cntRegs) const
     { _ASSERTE(cntRegs != NULL); *regNames = s_GCRegs; *cntRegs = _countof(s_GCRegs); }
 
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
 
 private:
     X86Machine()  {}
@@ -187,7 +183,7 @@ public:
     typedef ARM_CONTEXT TGT_CTXT;
     
     static IMachine* GetInstance()
-    { static ARMMachine s_ARMMachineInstance; return &s_ARMMachineInstance; }
+    { return &s_ARMMachineInstance; }
 
     ULONG GetPlatform()             const { return IMAGE_FILE_MACHINE_ARMNT; }
     ULONG GetContextSize()          const { return sizeof(ARM_CONTEXT); }
@@ -226,7 +222,7 @@ public:
     virtual void GetGCRegisters(LPCSTR** regNames, unsigned int* cntRegs) const
     { _ASSERTE(cntRegs != NULL); *regNames = s_GCRegs; *cntRegs = _countof(s_GCRegs); }
 
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
 
 private:
     ARMMachine()  {}
@@ -239,6 +235,7 @@ private:
     static LPCSTR     s_DSOHeading;
     static LPCSTR     s_GCRegs[14];
     static LPCSTR     s_SPName;
+    static ARMMachine s_ARMMachineInstance;
 }; // class ARMMachine
 
 #endif // SOS_TARGET_ARM
@@ -256,6 +253,7 @@ public:
 
     ULONG GetPlatform()             const { return IMAGE_FILE_MACHINE_AMD64; }
     ULONG GetContextSize()          const { return sizeof(AMD64_CONTEXT); }
+
     virtual void Unassembly(
                 TADDR IPBegin, 
                 TADDR IPEnd, 
@@ -265,9 +263,11 @@ public:
                 SOSEHInfo *pEHInfo,
                 BOOL bSuppressLines,
                 BOOL bDisplayOffsets) const;
+
     virtual void IsReturnAddress(
                 TADDR retAddr, 
                 TADDR* whereCalled) const;
+
     virtual BOOL GetExceptionContext (
                 TADDR stack, 
                 TADDR PC, 
@@ -290,7 +290,7 @@ public:
     virtual void GetGCRegisters(LPCSTR** regNames, unsigned int* cntRegs) const
     { _ASSERTE(cntRegs != NULL); *regNames = s_GCRegs; *cntRegs = _countof(s_GCRegs); }
 
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
 
 private:
     AMD64Machine()  {}
@@ -354,7 +354,7 @@ public:
     virtual void GetGCRegisters(LPCSTR** regNames, unsigned int* cntRegs) const
     { _ASSERTE(cntRegs != NULL); *regNames = s_GCRegs; *cntRegs = _countof(s_GCRegs);}
 
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const;
 
 private:
     ARM64Machine()  {}

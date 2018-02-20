@@ -1,11 +1,15 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
 
 */
+
+#ifndef PAL_STDCPP_COMPAT
+#undef __in
+#undef __out
+#endif // !PAL_STDCPP_COMPAT
 
 #undef _At_
 #undef _Deref_out_
@@ -288,7 +292,6 @@
 #undef __format_string
 #undef __format_string
 #undef __gdi_entry
-#undef __in
 #undef __in_awcount
 #undef __in_bcount
 #undef __in_bcount_nz
@@ -391,7 +394,6 @@
 #undef __null
 #undef __nullnullterminated
 #undef __nullterminated
-#undef __out
 #undef __out_awcount
 #undef __out_bcount
 #undef __out_bcount_full
@@ -443,7 +445,7 @@
 #undef __readableTo
 #undef __readonly
 #undef __refparam
-#undef __reserved
+#undef __clr_reserved
 #undef __rpc_entry
 #undef __source_code_content
 #undef __struct_bcount

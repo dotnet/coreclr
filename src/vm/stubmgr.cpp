@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -10,9 +9,6 @@
 #include "dllimportcallback.h"
 #include "stubhelpers.h"
 #include "asmconstants.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #ifdef FEATURE_COMINTEROP
 #include "olecontexthelpers.h"
 #endif
@@ -1005,89 +1001,6 @@ void PrecodeStubManager::Init()
 
 #endif // #ifndef DACCESS_COMPILE
 
-
-BOOL PrecodeStubManager::IsPrecodeByAsm(PCODE stubStartAddress)
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    //
-    // First, check if it looks like a stub.
-    //
-    PREFIX_ASSUME(stubStartAddress!=NULL);
-
-    // Mask off the ThumbBit before performing any checks
-    TADDR pInstr = PCODEToPINSTR(stubStartAddress);
-
-#ifdef HAS_COMPACT_ENTRYPOINTS
-    if (MethodDescChunk::IsCompactEntryPointAtAddress(pInstr))
-    {
-        if (*PTR_BYTE(pInstr) != X86_INSTR_MOV_AL)
-        {
-            return FALSE;
-        }
-        return TRUE;
-    }
-#endif // HAS_COMPACT_ENTRYPOINTS
-
-    if (!IS_ALIGNED(pInstr, PRECODE_ALIGNMENT))
-        return FALSE;
-
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-    if (
-#if defined(_TARGET_AMD64_)
-        *PTR_USHORT(pInstr) != X86_INSTR_MOV_R10_IMM64
-#else
-        *PTR_BYTE(pInstr) != X86_INSTR_MOV_EAX_IMM32
-#endif
-#ifdef HAS_FIXUP_PRECODE
-        && *PTR_BYTE(pInstr) != X86_INSTR_CALL_REL32 // unpatched fixup precode
-        && *PTR_BYTE(pInstr) != X86_INSTR_JMP_REL32 // patched fixup precode
-#endif
-#ifdef HAS_THISPTR_RETBUF_PRECODE
-        && *PTR_DWORD(pInstr) != IN_WIN64(0xC8894890) IN_WIN32(0xD189C889) // mov eax,ecx; mov ecx,edx
-#endif
-       )
-    {
-        return FALSE;
-    }
-#elif defined(_TARGET_ARM_)
-    // Check if we point to a valid stub start. The values used here
-    // are picked up from various stub "::Init" methods implemented in
-    // arm\stubs.cpp. If those are changed, or a new one is introduced,
-    // then please update it here!
-    if ((*PTR_DWORD(pInstr) != 0xc008f8df) // Is this not StubPrecode?
-        && (*PTR_DWORD(pInstr) != 0xf8df46fc) // Is this not FixupPrecode?
-        && (*PTR_DWORD(pInstr) != 0x46084684) // Is this not ThisPtrRetBufPrecode?
-#if defined(HAS_REMOTING_PRECODE)
-        && (*PTR_DWORD(pInstr) != 0x4904b502) // Is this not RemotingPrecode?
-#endif // HAS_REMOTING_PRECODE            
-#if defined(HAS_NDIRECT_IMPORT_PRECODE)
-        && (*PTR_DWORD(pInstr) != 0xc004f8df) // Is this not NDirectImportPrecode?
-#endif
-        )
-    {
-        // If this is not an expected stubStartAddress, then return failure.
-        return FALSE;
-    }
-#elif defined(_TARGET_ARM64_)
-    if ((*PTR_DWORD(pInstr) != 0x10000089) // Is this not StubPrecode?
-#if defined(HAS_NDIRECT_IMPORT_PRECODE)
-        && (*PTR_DWORD(pInstr) != 0x10000088) // Is this not NDirectImportPrecode?
-#endif
-        )
-    {
-        //ARM64TODO: remove this after all valid stubs have been added in if condition above
-        _ASSERTE(!"Unexpected Stub");
-        // If this is not an expected stubStartAddress, then return failure.
-        return FALSE;
-    }
-#else
-    PORTABILITY_ASSERT("PrecodeStubManager::IsPrecodeByAsm");
-#endif
-
-    return TRUE;
-}
-
 /* static */
 BOOL PrecodeStubManager::CheckIsStub_Internal(PCODE stubStartAddress)
 {
@@ -1793,14 +1706,14 @@ BOOL ILStubManager::DoTraceStub(PCODE stubStartAddress,
 
     PCODE traceDestination = NULL;
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     MethodDesc* pStubMD = ExecutionManager::GetCodeMethodDesc(stubStartAddress);
     if (pStubMD != NULL && pStubMD->AsDynamicMethodDesc()->IsMulticastStub())
     {
         traceDestination = GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper);
     }
     else
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_MULTICASTSTUB_AS_IL
     {
         // This call is going out to unmanaged code, either through pinvoke or COM interop.
         traceDestination = stubStartAddress;
@@ -1900,7 +1813,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
     PCODE stubIP = GetIP(pContext);
     *pRetAddr = (BYTE *)StubManagerHelpers::GetReturnAddress(pContext);
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     if (stubIP == GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper))
     {
         stubIP = (PCODE)*pRetAddr;
@@ -1917,7 +1830,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
     // See code:ILStubCache.CreateNewMethodDesc for the code that sets flags on stub MDs
     PCODE target;
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     if(pStubMD->IsMulticastStub())
     {
         _ASSERTE(GetIP(pContext) == GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper));
@@ -1946,7 +1859,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
 
     }
     else 
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_MULTICASTSTUB_AS_IL
     if (pStubMD->IsReverseStub())
     {
         if (pStubMD->IsStatic())
@@ -2186,18 +2099,6 @@ BOOL InteropDispatchStubManager::TraceManager(Thread *thread,
 
         Object * pThis = StubManagerHelpers::GetThisPtr(pContext);
 
-#ifdef FEATURE_REMOTING
-        if (pThis != NULL && pThis->IsTransparentProxy())
-        {
-            // We have remoting proxy in the way
-#ifdef DACCESS_COMPILE
-            DacNotImpl();
-#else
-            trace->InitForFramePush(GetEEFuncEntryPoint(TransparentProxyStubPatchLabel));
-#endif
-        }
-        else
-#endif // FEATURE_REMOTING
         {
             if (!pCMD->m_pComPlusCallInfo->m_pInterfaceMT->IsComEventItfType() && (pCMD->m_pComPlusCallInfo->m_pILStub != NULL))
             {
@@ -2352,7 +2253,7 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
     {
         LOG((LF_CORDB, LL_INFO10000, "DISM::TraceManager: isSingle\n"));
 
-        orDelegate = (DELEGATEREF)ObjectToOBJECTREF((Object*)(size_t)pContext->Rcx);  // The "this" pointer is rcx
+        orDelegate = (DELEGATEREF)ObjectToOBJECTREF(StubManagerHelpers::GetThisPtr(pContext));
 
         // _methodPtr is where we are going to next.  However, in ngen cases, we may have a shuffle thunk
         // burned into the ngen image, in which case the shuffle thunk is not added to the range list of
@@ -2376,11 +2277,11 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
         if (pStub->GetPatchOffset() != 0)
         {
             // This stub has a hidden return buffer argument.
-            orDelegate = (DELEGATEREF)ObjectToOBJECTREF((Object*)(size_t)(pContext->Rdx));
+            orDelegate = (DELEGATEREF)ObjectToOBJECTREF(StubManagerHelpers::GetSecondArg(pContext));
         }
         else
         {
-            orDelegate = (DELEGATEREF)ObjectToOBJECTREF((Object*)(size_t)(pContext->Rcx));
+            orDelegate = (DELEGATEREF)ObjectToOBJECTREF(StubManagerHelpers::GetThisPtr(pContext));
         }
     }
 
@@ -2388,6 +2289,18 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
 #elif defined(_TARGET_ARM_)
     (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
     pThis = (BYTE*)(size_t)(pContext->R0);
+
+    // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
+    // shuffle thunk (destination in _methodPtrAux).
+    int offsetOfNextDest;
+    if (pc == GetEEFuncEntryPoint(SinglecastDelegateInvokeStub))
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtr();
+    else
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtrAux();
+    destAddr = *(PCODE*)(pThis + offsetOfNextDest);
+#elif defined(_TARGET_ARM64_)
+    (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
+    pThis = (BYTE*)(size_t)(pContext->X0);
 
     // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
     // shuffle thunk (destination in _methodPtrAux).

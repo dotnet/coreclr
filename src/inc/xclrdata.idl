@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*****************************************************************************
  **                                                                         **
  ** clrdata.idl - Common Language Runtime data access interfaces for         **
@@ -2536,4 +2535,18 @@ interface IXCLRDataExceptionNotification4 : IXCLRDataExceptionNotification3
      * A managed catch clause is about to be executed
      */
     HRESULT ExceptionCatcherEnter([in] IXCLRDataMethodInstance* catchingMethod, DWORD catcherNativeOffset);
+}
+
+[
+    object,
+    local,
+    uuid(e77a39ea-3548-44d9-b171-8569ed1a9423)
+]
+interface IXCLRDataExceptionNotification5 : IXCLRDataExceptionNotification4
+{
+    /*
+     * New code was generated for a method. The given address is the start address of 
+     * the native newly jitted code.
+     */
+    HRESULT OnCodeGenerated2([in] IXCLRDataMethodInstance* method, [in] CLRDATA_ADDRESS nativeCodeLocation);
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // precode.h
 //
 
@@ -171,6 +170,11 @@ public:
             align = 8;
 #endif // _TARGET_X86_ && HAS_FIXUP_PRECODE
 
+#if defined(_TARGET_ARM_) && defined(HAS_COMPACT_ENTRYPOINTS)
+        // Precodes have to be aligned to allow fast compact entry points check
+        _ASSERTE (align >= sizeof(void*));
+#endif // _TARGET_ARM_ && HAS_COMPACT_ENTRYPOINTS
+
         return align;
     }
 
@@ -257,7 +261,8 @@ public:
     void Init(PrecodeType t, MethodDesc* pMD, LoaderAllocator *pLoaderAllocator);
 
 #ifndef DACCESS_COMPILE
-    BOOL SetTargetInterlocked(PCODE target);
+    void ResetTargetInterlocked();
+    BOOL SetTargetInterlocked(PCODE target, BOOL fOnlyRedirectFromPrestub = TRUE);
 
     // Reset precode to point to prestub
     void Reset();
@@ -312,13 +317,8 @@ public:
 
     static Precode * GetPrecodeForTemporaryEntryPoint(TADDR temporaryEntryPoints, int index);
 
-    static SIZE_T SizeOfTemporaryEntryPoints(PrecodeType t, int count);
-    static SIZE_T SizeOfTemporaryEntryPoints(TADDR temporaryEntryPoints, int count)
-    {
-        WRAPPER_NO_CONTRACT;
-        SUPPORTS_DAC;
-        return SizeOfTemporaryEntryPoints(PTR_Precode(temporaryEntryPoints)->GetType(), count);
-    }
+    static SIZE_T SizeOfTemporaryEntryPoints(PrecodeType t, bool preallocateJumpStubs, int count);
+    static SIZE_T SizeOfTemporaryEntryPoints(TADDR temporaryEntryPoints, int count);
 
     static TADDR AllocateTemporaryEntryPoints(MethodDescChunk* pChunk,
         LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);

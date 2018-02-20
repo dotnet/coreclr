@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: typedesc.h
 //
@@ -204,7 +203,6 @@ public:
     PTR_BaseDomain GetDomain();
     BOOL IsDomainNeutral();
 
-#ifndef BINDER
     PTR_LoaderAllocator GetLoaderAllocator()
     {
         SUPPORTS_DAC;
@@ -213,7 +211,6 @@ public:
     }
 
  protected:
-#endif // !BINDER
     // See methodtable.h for details of the flags with the same name there
     enum
     {
@@ -249,9 +246,6 @@ class ParamTypeDesc : public TypeDesc {
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
-#ifdef BINDER
-    friend class MdilModule;
-#endif
 
 public:
 #ifndef DACCESS_COMPILE
@@ -260,7 +254,7 @@ public:
 
         LIMITED_METHOD_CONTRACT;
 
-        m_TemplateMT.SetValue(pMT);
+        m_TemplateMT.SetValueMaybeNull(pMT);
 
         // ParamTypeDescs start out life not fully loaded
         m_typeAndFlags |= TypeDesc::enum_flag_IsNotFullyLoaded;
@@ -278,7 +272,7 @@ public:
     INDEBUGIMPL(BOOL Verify();)
 
     OBJECTREF GetManagedClassObject();
-#ifndef BINDER
+
     OBJECTREF GetManagedClassObjectIfExists()
     {
         CONTRACTL
@@ -301,7 +295,6 @@ public:
         LoaderAllocator::GetHandleValueFast(m_hExposedClassObject, &objRet);
         return objRet;
     }
-#endif
 
     TypeHandle GetModifiedType()
     {
@@ -330,8 +323,13 @@ public:
     friend class ArrayOpLinker;
 #endif
 protected:
+    PTR_MethodTable GetTemplateMethodTableInternal() {
+        WRAPPER_NO_CONTRACT;
+        return ReadPointerMaybeNull(this, &ParamTypeDesc::m_TemplateMT);
+    }
+
     // the m_typeAndFlags field in TypeDesc tell what kind of parameterized type we have
-    FixupPointer<PTR_MethodTable> m_TemplateMT; // The shared method table, some variants do not use this field (it is null)
+    RelativeFixupPointer<PTR_MethodTable> m_TemplateMT; // The shared method table, some variants do not use this field (it is null)
     TypeHandle      m_Arg;              // The type that is being modified
     LOADERHANDLE    m_hExposedClassObject;  // handle back to the internal reflection Type object
 };
@@ -355,9 +353,7 @@ public:
     {
         STATIC_CONTRACT_SO_TOLERANT;
         WRAPPER_NO_CONTRACT;
-#ifndef BINDER
         INDEBUG(Verify());
-#endif
     }
 
 //private:    TypeHandle      m_Arg;              // The type that is being modified
@@ -374,7 +370,6 @@ public:
         return GetTypeParam();
     }
 
-#ifndef CLR_STANDALONE_BINDER
     unsigned GetRank() {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
@@ -384,23 +379,16 @@ public:
         else
             return dac_cast<PTR_ArrayClass>(GetMethodTable()->GetClass())->GetRank();
     }
-#else
-    unsigned GetRank();
-#endif
 
     MethodTable* GetParent()
     {
-#ifndef BINDER
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE(!m_TemplateMT.IsNull());
-        _ASSERTE(m_TemplateMT.GetValue()->IsArray());
-        _ASSERTE(m_TemplateMT.GetValue()->ParentEquals(g_pArrayClass));
+        _ASSERTE(GetTemplateMethodTableInternal()->IsArray());
+        _ASSERTE(GetTemplateMethodTableInternal()->ParentEquals(g_pArrayClass));
 
         return g_pArrayClass;
-#else
-        _ASSERTE(0);
-#endif
     }
 
 #ifdef FEATURE_COMINTEROP
@@ -433,16 +421,16 @@ public:
     void Fixup(DataImage *image);
 #endif
 
-    MethodTable * GetTemplateMethodTable() {
+    PTR_MethodTable GetTemplateMethodTable() {
         WRAPPER_NO_CONTRACT;
-        MethodTable * pTemplateMT = m_TemplateMT.GetValue();
-        _ASSERTE(pTemplateMT->IsArray());
-        return pTemplateMT;
+        PTR_MethodTable ptrTemplateMT = GetTemplateMethodTableInternal();
+        _ASSERTE(ptrTemplateMT->IsArray());
+        return ptrTemplateMT;
     }
 
     TADDR GetTemplateMethodTableMaybeTagged() {
         WRAPPER_NO_CONTRACT;
-        return m_TemplateMT.GetValueMaybeTagged();
+        return m_TemplateMT.GetValueMaybeTagged(dac_cast<TADDR>(this) + offsetof(ArrayTypeDesc, m_TemplateMT));
     }
 
 #ifdef FEATURE_COMINTEROP
@@ -460,9 +448,6 @@ class TypeVarTypeDesc : public TypeDesc
 {
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
-#endif
-#ifdef BINDER
-    friend class MdilModule;
 #endif
 public:
 
@@ -482,7 +467,7 @@ public:
         }
         CONTRACTL_END;
 
-        m_pModule = pModule;
+        m_pModule.SetValue(pModule);
         m_typeOrMethodDef = typeOrMethodDef;
         m_token = token;
         m_index = index;
@@ -499,7 +484,8 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
-        return m_pModule;
+
+        return ReadPointer(this, &TypeVarTypeDesc::m_pModule);
     }
 
     unsigned int GetIndex() 
@@ -524,7 +510,6 @@ public:
     }
 
     OBJECTREF GetManagedClassObject();
-#ifndef BINDER
     OBJECTREF GetManagedClassObjectIfExists()
     {
         CONTRACTL
@@ -547,7 +532,6 @@ public:
         LoaderAllocator::GetHandleValueFast(m_hExposedClassObject, &objRet);
         return objRet;
     }
-#endif
 
     // Load the owning type. Note that the result is not guaranteed to be full loaded
     MethodDesc * LoadOwnerMethod();
@@ -589,7 +573,7 @@ protected:
     BOOL ConstrainedAsObjRefHelper();
 
     // Module containing the generic definition, also the loader module for this type desc
-    PTR_Module m_pModule;
+    RelativePointer<PTR_Module> m_pModule;
 
     // Declaring type or method
     mdToken m_typeOrMethodDef;

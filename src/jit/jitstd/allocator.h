@@ -1,28 +1,9 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
-
-// ==++==
-//
-
-//
-
-//
-// ==--==
-
-/*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XX                                                                           XX
-XX                            allocator<T>                                   XX
-XX                                                                           XX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-*/
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #pragma once
 
-#include "iallocator.h"
 #include "new.h"
 
 namespace jitstd
@@ -38,7 +19,7 @@ public:
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
     typedef void* pointer;
-    typedef const pointer const_pointer;
+    typedef const void* const_pointer;
     typedef void value_type;
 
     template <typename U>
@@ -51,7 +32,7 @@ private:
     allocator();
 
 public:
-    inline allocator(IAllocator* pAlloc);
+    inline allocator(CompAllocator* pAlloc);
 
     template <typename U>
     inline allocator(const allocator<U>& alloc);
@@ -62,12 +43,12 @@ public:
     inline allocator& operator=(const allocator<U>& alloc);
 
 private:
-    IAllocator* m_pAlloc;
+    CompAllocator* m_pAlloc;
     template <typename U>
     friend class allocator;
 };
 
-allocator<void>::allocator(IAllocator* pAlloc)
+allocator<void>::allocator(CompAllocator* pAlloc)
     : m_pAlloc(pAlloc)
 {
 }
@@ -98,14 +79,14 @@ public:
     typedef ptrdiff_t difference_type;
     typedef T* pointer;
     typedef T& reference;
-    typedef const pointer const_pointer;
-    typedef const reference const_reference;
+    typedef const T* const_pointer;
+    typedef const T& const_reference;
     typedef T value_type;
 
 private:
     allocator();
 public:
-    allocator(IAllocator* pAlloc);
+    allocator(CompAllocator* pAlloc);
 
     template <typename U>
     allocator(const allocator<U>& alloc);
@@ -117,7 +98,7 @@ public:
 
     pointer address(reference val);
     const_pointer address(const_reference val) const;
-    pointer allocate(size_type count, allocator<void>::const_pointer hint = 0);
+    pointer allocate(size_type count, allocator<void>::const_pointer hint = nullptr);
     void construct(pointer ptr, const_reference val);
     void deallocate(pointer ptr, size_type size);
     void destroy(pointer ptr);
@@ -129,7 +110,7 @@ public:
     };
 
 private:
-    IAllocator* m_pAlloc;
+    CompAllocator* m_pAlloc;
     template <typename U>
     friend class allocator;
 };
@@ -141,7 +122,7 @@ namespace jitstd
 {
 
 template <typename T>
-allocator<T>::allocator(IAllocator* pAlloc)
+allocator<T>::allocator(CompAllocator* pAlloc)
     : m_pAlloc(pAlloc)
 {
 }

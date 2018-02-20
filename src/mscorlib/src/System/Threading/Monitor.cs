@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 /*=============================================================================
@@ -13,21 +14,18 @@
 =============================================================================*/
 
 
-namespace System.Threading {
 
-    using System;
-    using System.Security.Permissions;
-    using System.Runtime;
-    using System.Runtime.Remoting;
-    using System.Threading;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
+using System;
+using System.Runtime;
+using System.Threading;
+using System.Runtime.CompilerServices;
+using System.Runtime.ConstrainedExecution;
+using System.Runtime.Versioning;
+using System.Diagnostics;
 
-    [HostProtection(Synchronization=true, ExternalThreading=true)]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public static class Monitor 
+namespace System.Threading
+{
+    public static class Monitor
     {
         /*=========================================================================
         ** Obtain the monitor lock of obj. Will block if another thread holds the lock
@@ -37,7 +35,6 @@ namespace System.Threading {
         **
         ** Exceptions: ArgumentNullException if object is null.
         =========================================================================*/
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Enter(Object obj);
 
@@ -53,15 +50,14 @@ namespace System.Threading {
                 ThrowLockTakenException();
 
             ReliableEnter(obj, ref lockTaken);
-            Contract.Assert(lockTaken);
+            Debug.Assert(lockTaken);
         }
 
         private static void ThrowLockTakenException()
         {
-            throw new ArgumentException(Environment.GetResourceString("Argument_MustBeFalse"), "lockTaken");
+            throw new ArgumentException(SR.Argument_MustBeFalse, "lockTaken");
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnter(Object obj, ref bool lockTaken);
 
@@ -76,11 +72,9 @@ namespace System.Threading {
         **             SynchronizationLockException if the current thread does not
         **             own the lock.
         =========================================================================*/
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void Exit(Object obj);
-    
+
         /*=========================================================================
         ** Similar to Enter, but will never block. That is, if the current thread can
         ** acquire the monitor lock without blocking, it will do so and TRUE will
@@ -104,7 +98,7 @@ namespace System.Threading {
 
             ReliableEnterTimeout(obj, 0, ref lockTaken);
         }
-    
+
         /*=========================================================================
         ** Version of TryEnter that will block, but only up to a timeout period
         ** expressed in milliseconds. If timeout == Timeout.Infinite the method
@@ -126,7 +120,7 @@ namespace System.Threading {
         {
             long tm = (long)timeout.TotalMilliseconds;
             if (tm < -1 || tm > (long)Int32.MaxValue)
-                throw new ArgumentOutOfRangeException("timeout", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
+                throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return (int)tm;
         }
 
@@ -153,20 +147,17 @@ namespace System.Threading {
             ReliableEnterTimeout(obj, MillisecondsTimeoutFromTimeSpan(timeout), ref lockTaken);
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnterTimeout(Object obj, int timeout, ref bool lockTaken);
 
-        [System.Security.SecuritySafeCritical]
         public static bool IsEntered(object obj)
         {
             if (obj == null)
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
 
             return IsEnteredNative(obj);
         }
 
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool IsEnteredNative(Object obj);
 
@@ -181,15 +172,13 @@ namespace System.Threading {
     **
         ** Exceptions: ArgumentNullException if object is null.
     ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool ObjWait(bool exitContext, int millisecondsTimeout, Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static bool Wait(Object obj, int millisecondsTimeout, bool exitContext)
         {
             if (obj == null)
-                throw (new ArgumentNullException("obj"));
+                throw (new ArgumentNullException(nameof(obj)));
             return ObjWait(exitContext, millisecondsTimeout, obj);
         }
 
@@ -218,36 +207,30 @@ namespace System.Threading {
         * Exceptions: SynchronizationLockException if this method is not called inside
         * a synchronized block of code.
         ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulse(Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void Pulse(Object obj)
         {
             if (obj == null)
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             ObjPulse(obj);
         }
         /*========================================================================
         ** Sends a notification to all waiting objects. 
         ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulseAll(Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void PulseAll(Object obj)
         {
             if (obj == null)
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             }
-            Contract.EndContractBlock();
 
             ObjPulseAll(obj);
         }

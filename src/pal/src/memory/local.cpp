@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -79,6 +78,38 @@ done:
     return (HLOCAL) lpRetVal;
 }
 
+/*++
+Function:
+LocalReAlloc
+
+See MSDN doc.
+--*/
+HLOCAL
+PALAPI
+LocalReAlloc(
+       IN HLOCAL hMem,
+       IN SIZE_T uBytes,
+       IN UINT   uFlags)
+{
+    LPVOID lpRetVal = NULL;
+    PERF_ENTRY(LocalReAlloc);
+    ENTRY("LocalReAlloc (hMem=%p, uBytes=%u, uFlags=%#x)\n", hMem, uBytes, uFlags);
+
+    if (uFlags != LMEM_MOVEABLE) {
+        // Currently valid iff uFlags is LMEM_MOVEABLE
+        ASSERT("Invalid parameter uFlags=0x%x\n", uFlags);
+        SetLastError(ERROR_INVALID_PARAMETER);
+        goto done;
+    }
+    uFlags = 0;
+
+    lpRetVal = HeapReAlloc(GetProcessHeap(), uFlags, hMem, uBytes);
+
+done:
+    LOGEXIT("LocalReAlloc returning %p.\n", lpRetVal);
+    PERF_EXIT(LocalReAlloc);
+    return (HLOCAL)lpRetVal;
+}
 
 /*++
 Function:

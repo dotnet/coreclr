@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: frameinfo.cpp
 // 
@@ -1425,7 +1424,7 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
 
         d->info.fp = GetFramePointerForDebugger(d, pCF);
 
-#if defined(_DEBUG) && !defined(_TARGET_ARM_)
+#if defined(_DEBUG) && !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_)
         // Make sure the stackwalk is making progress.
 		// On ARM this is invalid as the stack pointer does necessarily have to move when unwinding a frame.
         _ASSERTE(IsCloserToLeaf(d->previousFP, d->info.fp));
@@ -1779,29 +1778,6 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
             }
             break;
 
-#ifdef FEATURE_REMOTING
-        case Frame::TYPE_TP_METHOD_FRAME:
-            LOG((LF_CORDB, LL_INFO100000, "DWSP: Frame type is TYPE_TP_METHOD_FRAME.\n"));
-            if (d->ShouldIgnoreNonmethodFrames())
-            {
-                // Transparant Proxies push a frame onto the stack that they
-                // use to figure out where they're really going; this frame
-                // doesn't actually contain any code, although it does have
-                // enough info into fooling our routines into thinking it does:
-                // Just ignore these.
-                LOG((LF_CORDB, LL_INFO100000, "DWSP: Skipping frame 0x%x b/c it's "
-                    "a transparant proxy frame!\n", frame));
-                use = false;
-            }
-            else
-            {
-                // Otherwise do the same thing as for internal frames
-                LOG((LF_CORDB, LL_INFO100000, "DWSP: NOT Skipping frame 0x%x even though it's "
-                    "a transparant proxy frame!\n", frame));
-                INTERNAL_FRAME_ACTION(d, use);
-            }
-            break;
-#endif
         default:
             _ASSERTE(!"Invalid frame type!");
             break;
@@ -1908,7 +1884,7 @@ bool IsInWaitSleepJoin(Thread * pThread)
 
 //-----------------------------------------------------------------------------
 // Decide if we should send an UM leaf chain.
-// This geoes through a bunch of heuristics.
+// This goes through a bunch of heuristics.
 // The driving guidelines here are:
 // - we try not to send an UM chain if it's just internal mscorwks stuff
 //   and we know it can't have native user code.
@@ -1956,7 +1932,6 @@ bool ShouldSendUMLeafChain(Thread * pThread)
     }
 
 #ifdef FEATURE_HIJACK
-    // Hijacked is only on non-pal.
     if ((ts & Thread::TS_Hijacked) != 0)
     {
         return false;

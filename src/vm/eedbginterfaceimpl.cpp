@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -470,6 +469,14 @@ BOOL EEDbgInterfaceImpl::IsManagedNativeCode(const BYTE *address)
     return ExecutionManager::IsManagedCode((PCODE)address);
 }
 
+PCODE EEDbgInterfaceImpl::GetNativeCodeStartAddress(PCODE address)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(address != NULL);
+
+    return ExecutionManager::GetCodeStartAddress(address);
+}
+
 MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
 { 
     CONTRACT(MethodDesc *)
@@ -484,6 +491,7 @@ MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
     RETURN ExecutionManager::GetCodeMethodDesc(address);
 }
 
+#ifndef USE_GC_INFO_DECODER
 // IsInPrologOrEpilog doesn't seem to be used for code that uses GC_INFO_DECODER
 BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
                                             size_t* prologSize)
@@ -502,9 +510,9 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     if (codeInfo.IsValid())
     {
-        LPVOID methodInfo = codeInfo.GetGCInfo();
+        GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), methodInfo, prologSize))
+        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), gcInfoToken, prologSize))
         {
             return TRUE;
         }
@@ -512,6 +520,7 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     return FALSE;
 }
+#endif // USE_GC_INFO_DECODER
 
 // 
 // Given a collection of native offsets of a certain function, determine if each falls
@@ -666,10 +675,8 @@ size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
         return 0;
 
     EECodeInfo codeInfo(methodStart);
-
-    PTR_VOID methodInfo = codeInfo.GetGCInfo();
-
-    return codeInfo.GetCodeManager()->GetFunctionSize(methodInfo);
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+    return codeInfo.GetCodeManager()->GetFunctionSize(gcInfoToken);
 }
 #endif //!DACCESS_COMPILE
 
@@ -1388,14 +1395,11 @@ void EEDbgInterfaceImpl::DisableTraceCall(Thread *thread)
     thread->DecrementTraceCallCount();
 }
 
-#ifdef FEATURE_IMPLICIT_TLS
 EXTERN_C UINT32 _tls_index;
-#endif
 
 void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
                                            SIZE_T *pTLSIsSpecialIndex,
                                            SIZE_T *pTLSCantStopIndex,
-                                           SIZE_T* pTLSIndexOfPredefs,
                                            SIZE_T *pEEThreadStateOffset,
                                            SIZE_T *pEEThreadStateNCOffset,
                                            SIZE_T *pEEThreadPGCDisabledOffset,
@@ -1418,7 +1422,6 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
         PRECONDITION(CheckPointer(pTLSIndex));
         PRECONDITION(CheckPointer(pTLSIsSpecialIndex));
         PRECONDITION(CheckPointer(pEEThreadStateOffset));
-        PRECONDITION(CheckPointer(pTLSIndexOfPredefs));
         PRECONDITION(CheckPointer(pEEThreadStateNCOffset));
         PRECONDITION(CheckPointer(pEEThreadPGCDisabledOffset));
         PRECONDITION(CheckPointer(pEEThreadPGCDisabledValue));
@@ -1434,14 +1437,9 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
     }
     CONTRACTL_END;
     
-#ifdef FEATURE_IMPLICIT_TLS
-    *pTLSIndex = _tls_index;
-#else
-    *pTLSIndex = GetThreadTLSIndex();
-#endif
+    *pTLSIndex = g_TlsIndex;
     *pTLSIsSpecialIndex = TlsIdx_ThreadType;
     *pTLSCantStopIndex = TlsIdx_CantStopCount;
-    *pTLSIndexOfPredefs = CExecutionEngine::TlsIndex;
     *pEEThreadStateOffset = Thread::GetOffsetOfState();
     *pEEThreadStateNCOffset = Thread::GetOffsetOfStateNC();
     *pEEThreadPGCDisabledOffset = Thread::GetOffsetOfGCFlag();
@@ -1467,8 +1465,6 @@ void EEDbgInterfaceImpl::DebuggerModifyingLogSwitch (int iNewLevel,
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-    
-    Log::DebuggerModifyingLogSwitch (iNewLevel, pLogSwitchName);
 }
 
 
@@ -1589,15 +1585,8 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
         ret |= (unsigned)USER_WAIT_SLEEP_JOIN;          
     }
 
-    // Don't report a SuspendRequested if the thread has actually Suspended.
-    if ( ((ts & Thread::TS_UserSuspendPending) && (ts & Thread::TS_SyncSuspended)))
-    {
-        ret |= (unsigned)USER_SUSPENDED;
-    }
-    else if (ts & Thread::TS_UserSuspendPending)
-    {
-        ret |= (unsigned)USER_SUSPEND_REQUESTED;
-    }
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(ts & Thread::TS_UserSuspendPending));
 
     LOG((LF_CORDB,LL_INFO1000, "EEDbgII::GUS: thread 0x%x (id:0x%x)"
         " userThreadState is 0x%x\n", pThread, pThread->GetThreadId(), ret));
@@ -1658,8 +1647,6 @@ BOOL EEDbgInterfaceImpl::ObjIsInstanceOf(Object *pElement, TypeHandle toTypeHnd)
 void EEDbgInterfaceImpl::ClearAllDebugInterfaceReferences()
 {
     LIMITED_METHOD_CONTRACT;
-
-    g_pDebugInterface = NULL;
 }
 
 #ifndef DACCESS_COMPILE

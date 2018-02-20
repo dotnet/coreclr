@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // Contract.h
 //
@@ -1839,11 +1838,7 @@ typedef __SafeToUsePostCondition __PostConditionOK;
 
 // GC_NOTRIGGER allowed but not currently enforced at runtime
 #define GC_NOTRIGGER STATIC_CONTRACT_GC_NOTRIGGER
-#ifndef CLR_STANDALONE_BINDER
 #define GC_TRIGGERS static_assert(false, "TriggersGC not supported in utilcode contracts")
-#else
-#define GC_TRIGGERS
-#endif
 
 #ifdef ENABLE_CONTRACTS_IMPL
 template <UINT_PTR VIOLATION_MASK>

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -143,7 +142,7 @@ enum __MIDL___MIDL_itf_clrinternal_0000_0000_0001
         CRST_DEBUG_ONLY_CHECK_FORBID_SUSPEND_THREAD	= 0x200
     } 	CrstFlags;
 
-typedef VOID ( __stdcall *PTLS_CALLBACK_FUNCTION )( 
+typedef VOID ( WINAPI *PTLS_CALLBACK_FUNCTION )(
     PVOID __MIDL____MIDL_itf_clrinternal_0000_00000000);
 
 

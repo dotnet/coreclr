@@ -71,6 +71,10 @@
                              message="$(string.RuntimePublisher.ThreadTransferKeywordMessage)" symbol="CLR_THREADTRANSFER_KEYWORD"/>
                     <keyword name="DebuggerKeyword" mask="0x100000000"
                              message="$(string.RuntimePublisher.DebuggerKeywordMessage)" symbol="CLR_DEBUGGER_KEYWORD" />
+                    <keyword name="MonitoringKeyword" mask="0x200000000"
+                             message="$(string.RuntimePublisher.MonitoringKeywordMessage)" symbol="CLR_MONITORING_KEYWORD" />
+                    <keyword name="CodeSymbolsKeyword" mask="0x400000000"
+                             message="$(string.RuntimePublisher.CodeSymbolsKeywordMessage)" symbol="CLR_CODESYMBOLS_KEYWORD" />
                 </keywords>
                 <!--Tasks-->
                 <tasks>
@@ -112,8 +116,13 @@
                             <opcode name="GCBulkRootCCW" message="$(string.RuntimePublisher.GCBulkRootCCWOpcodeMessage)" symbol="CLR_GC_BULKROOTCCW_OPCODE" value="38"> </opcode>
                             <opcode name="GCBulkRCW" message="$(string.RuntimePublisher.GCBulkRCWOpcodeMessage)" symbol="CLR_GC_BULKRCW_OPCODE" value="39"> </opcode>
                             <opcode name="GCBulkRootStaticVar" message="$(string.RuntimePublisher.GCBulkRootStaticVarOpcodeMessage)" symbol="CLR_GC_BULKROOTSTATICVAR_OPCODE" value="40"> </opcode>
+                            <opcode name="GCDynamicEvent" message="$(string.RuntimePublisher.GCDynamicEventOpcodeMessage)" symbol="CLR_GC_DYNAMICEVENT_OPCODE" value="41"> </opcode>
                             <opcode name="IncreaseMemoryPressure" message="$(string.RuntimePublisher.IncreaseMemoryPressureOpcodeMessage)" symbol="CLR_GC_INCREASEMEMORYPRESSURE_OPCODE" value="200"> </opcode>
                             <opcode name="DecreaseMemoryPressure" message="$(string.RuntimePublisher.DecreaseMemoryPressureOpcodeMessage)" symbol="CLR_GC_DECREASEMEMORYPRESSURE_OPCODE" value="201"> </opcode>
+                            <opcode name="GCMarkWithType" message="$(string.RuntimePublisher.GCMarkOpcodeMessage)" symbol="CLR_GC_MARK_OPCODE" value="202"> </opcode>
+                            <opcode name="GCJoin" message="$(string.RuntimePublisher.GCJoinOpcodeMessage)" symbol="CLR_GC_JOIN_OPCODE" value="203"> </opcode>
+                            <opcode name="GCPerHeapHistory" message="$(string.RuntimePublisher.GCPerHeapHistoryOpcodeMessage)" symbol="CLR_GC_GCPERHEAPHISTORY_OPCODE" value="204"> </opcode>
+                            <opcode name="GCGlobalHeapHistory" message="$(string.RuntimePublisher.GCGlobalHeapHistoryOpcodeMessage)" symbol="CLR_GC_GCGLOBALHEAPHISTORY_OPCODE" value="205"> </opcode>
                         </opcodes>
                     </task>
 
@@ -159,7 +168,28 @@
                         </opcodes>
                     </task>
 
-                    <task name="Contention" symbol="CLR_CONTENTION_TASK"
+                    <task name="ExceptionCatch" symbol="CLR_EXCEPTION_CATCH_TASK"
+                          value="27" eventGUID="{5BBF9499-1715-4658-88DC-AFD7690A8711}"
+                          message="$(string.RuntimePublisher.ExceptionCatchTaskMessage)">
+                      <opcodes>
+                      </opcodes>
+                    </task>
+
+                    <task name="ExceptionFinally" symbol="CLR_EXCEPTION_FINALLY_TASK"
+                          value="28" eventGUID="{9565BC31-300F-4EA2-A532-30BCE9A14199}"
+                          message="$(string.RuntimePublisher.ExceptionFinallyTaskMessage)">
+                      <opcodes>
+                      </opcodes>
+                    </task>
+
+                    <task name="ExceptionFilter" symbol="CLR_EXCEPTION_FILTER_TASK"
+                          value="29" eventGUID="{72E72606-BB71-4290-A242-D5F36CE5312E}"
+                          message="$(string.RuntimePublisher.ExceptionFilterTaskMessage)">
+                      <opcodes>
+                      </opcodes>
+                    </task>
+
+                  <task name="Contention" symbol="CLR_CONTENTION_TASK"
                           value="8" eventGUID="{561410f5-a138-4ab3-945e-516483cddfbc}"
                           message="$(string.RuntimePublisher.ContentionTaskMessage)">
                         <opcodes>
@@ -335,6 +365,13 @@
                     <opcodes>
                     </opcodes>
                   </task>
+                    <task name="CodeSymbols" symbol="CLR_CODE_SYMBOLS_TASK"
+                          value="30" eventGUID="{53aedf69-2049-4f7d-9345-d3018b5c4d80}"
+                          message="$(string.RuntimePublisher.CodeSymbolsTaskMessage)">
+                    <opcodes>
+                    </opcodes>
+                  </task>
+                <!--Next available ID is 31-->
                 </tasks>
                 <!--Maps-->
                 <maps>
@@ -398,7 +435,9 @@
                         <map value="0" message="$(string.RuntimePublisher.GCRootKind.Stack)"/>
                         <map value="1" message="$(string.RuntimePublisher.GCRootKind.Finalizer)"/>
                         <map value="2" message="$(string.RuntimePublisher.GCRootKind.Handle)"/>
-                        <map value="3" message="$(string.RuntimePublisher.GCRootKind.Other)"/>
+                        <map value="3" message="$(string.RuntimePublisher.GCRootKind.Older)"/>
+                        <map value="4" message="$(string.RuntimePublisher.GCRootKind.SizedRef)"/>
+                        <map value="5" message="$(string.RuntimePublisher.GCRootKind.Overflow)"/>
                     </valueMap>
                     <valueMap name="GCHandleKindMap">
                       <map value="0x0" message="$(string.RuntimePublisher.GCHandleKind.WeakShortMessage)"/>
@@ -511,6 +550,21 @@
 
                 <!--Templates-->
                 <templates>
+                    <template tid="EventSource">
+                        <data name="EventID" inType="win:Int32" />
+                        <data name="EventName" inType="win:UnicodeString" />
+                        <data name="EventSourceName" inType="win:UnicodeString" />
+                        <data name="Payload" inType="win:UnicodeString" />
+
+                        <UserData>
+                            <EventSource xmlns="myNs">
+                                <EventID> %1 </EventID>
+                                <EventName> %2 </EventName>
+                                <EventSourceName> %3 </EventSourceName>
+                                <Payload> %4 </Payload>
+                            </EventSource>
+                        </UserData>
+                    </template>
                     <template tid="StrongNameVerification">
                         <data name="VerificationFlags" inType="win:UInt32" outType="win:HexInt32"/>
                         <data name="ErrorCode" inType="win:UInt32" outType="win:HexInt32"/>
@@ -962,6 +1016,115 @@
                       </UserData>
                     </template>
 
+                    <template tid="GCMarkWithType">
+                      <data name="HeapNum" inType="win:UInt32" />
+                      <data name="ClrInstanceID" inType="win:UInt16" />
+                      <data name="Type" inType="win:UInt32" map="GCRootKindMap" />
+                      <data name="Bytes" inType="win:UInt64" />
+
+                      <UserData>
+                        <GCMarkWithType xmlns="myNs">
+                          <HeapNum> %1 </HeapNum>
+                          <ClrInstanceID> %2 </ClrInstanceID>
+                          <Type> %3 </Type>
+                          <Bytes> %4 </Bytes>
+                        </GCMarkWithType>
+                      </UserData>
+                    </template>
+
+                    <template tid="GCJoin_V2">
+                        <data name="Heap" inType="win:UInt32" />
+                        <data name="JoinTime" inType="win:UInt32" />
+                        <data name="JoinType" inType="win:UInt32" />
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                        <data name="JoinID" inType="win:UInt32" />
+
+                        <UserData>
+                            <GCJoin_V2 xmlns="myNs">
+                                <Heap> %1 </Heap>
+                                <JoinTime> %2 </JoinTime>
+                                <JoinType> %3 </JoinType>
+                                <ClrInstanceID> %4 </ClrInstanceID>
+                                <JoinID> %5 </JoinID>
+                            </GCJoin_V2>
+                        </UserData>
+                    </template>
+
+                    <template tid="GCPerHeapHistory_V3">
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+     					<data name="FreeListAllocated" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="FreeListRejected" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="EndOfSegAllocated" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="CondemnedAllocated" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="PinnedAllocated" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="PinnedAllocatedAdvance" inType="win:Pointer" outType="win:HexInt64" />
+     					<data name="RunningFreeListEfficiency" inType="win:UInt32" />
+     					<data name="CondemnReasons0" inType="win:UInt32" />
+     					<data name="CondemnReasons1" inType="win:UInt32" />
+     					<data name="CompactMechanisms" inType="win:UInt32" />
+     					<data name="ExpandMechanisms" inType="win:UInt32" />
+     					<data name="HeapIndex" inType="win:UInt32" />
+     					<data name="ExtraGen0Commit" inType="win:Pointer" outType="win:HexInt64" />
+                        <data name="Count" inType="win:UInt32"    />
+                        <struct name="Values"   count="Count"  >
+							<data name="SizeBefore" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="FreeListBefore" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="FreeObjBefore" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="SizeAfter" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="FreeListAfter" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="FreeObjAfter" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="In" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="PinnedSurv" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="NonePinnedSurv" inType="win:Pointer" outType="win:HexInt64" />
+							<data name="NewAllocation" inType="win:Pointer" outType="win:HexInt64" />
+                        </struct>
+                        <UserData>
+                            <GCPerHeapHistory_V3 xmlns="myNs">
+                                <ClrInstanceID> %1 </ClrInstanceID>
+                                <FreeListAllocated> %2 </FreeListAllocated>
+                                <FreeListRejected> %3 </FreeListRejected>
+                                <EndOfSegAllocated> %4 </EndOfSegAllocated>
+                                <CondemnedAllocated> %5 </CondemnedAllocated>
+                                <PinnedAllocated> %6 </PinnedAllocated>
+                                <PinnedAllocatedAdvance> %7 </PinnedAllocatedAdvance>
+                                <RunningFreeListEfficiency> %8 </RunningFreeListEfficiency>
+                                <CondemnReasons0> %9 </CondemnReasons0>
+                                <CondemnReasons1> %10 </CondemnReasons1>
+                                <CompactMechanisms> %11 </CompactMechanisms>
+                                <ExpandMechanisms> %12 </ExpandMechanisms>
+                                <HeapIndex> %13 </HeapIndex>
+                                <ExtraGen0Commit> %14 </ExtraGen0Commit>
+                                <Count> %15 </Count>
+                            </GCPerHeapHistory_V3>
+                        </UserData>
+                    </template>
+
+                    <template tid="GCGlobalHeap_V2">
+                        <data name="FinalYoungestDesired" inType="win:UInt64" outType="win:HexInt64" />
+                        <data name="NumHeaps" inType="win:Int32" />
+                        <data name="CondemnedGeneration" inType="win:UInt32" />
+                        <data name="Gen0ReductionCount" inType="win:UInt32" />
+                        <data name="Reason" inType="win:UInt32" />
+                        <data name="GlobalMechanisms" inType="win:UInt32" />
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                        <data name="PauseMode" inType="win:UInt32" />
+                        <data name="MemoryPressure" inType="win:UInt32" />
+
+                        <UserData>
+                            <GCGlobalHeap_V2 xmlns="myNs">
+                                <FinalYoungestDesired> %1 </FinalYoungestDesired>
+                                <NumHeaps> %2 </NumHeaps>
+                                <CondemnedGeneration> %3 </CondemnedGeneration>
+                                <Gen0ReductionCount> %4 </Gen0ReductionCount>
+                                <Reason> %5 </Reason>
+                                <GlobalMechanisms> %6 </GlobalMechanisms>
+                                <ClrInstanceID> %7 </ClrInstanceID>
+                                <PauseMode> %8 </PauseMode>
+                                <MemoryPressure> %9 </MemoryPressure>
+                            </GCGlobalHeap_V2>
+                        </UserData>
+                    </template>
+
                     <template tid="FinalizeObject">
                       <data name="TypeID" inType="win:Pointer" />
                       <data name="ObjectID" inType="win:Pointer" />
@@ -1022,6 +1185,13 @@
                         <data name="ObjectID" inType="win:Pointer" />
                         <data name="ObjectSize" inType="win:UInt64" />
                         <data name="TypeName" inType="win:UnicodeString" />
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                    </template>
+
+                    <template tid="GCDynamicEvent">
+                        <data name="Name" inType="win:UnicodeString" />
+                        <data name="DataSize" inType="win:UInt32" />
+                        <data name="Data" inType="win:Binary" length="DataSize" />
                         <data name="ClrInstanceID" inType="win:UInt16" />
                     </template>
                     
@@ -1208,6 +1378,21 @@
                                 <ExceptionFlags> %5 </ExceptionFlags>
                                 <ClrInstanceID> %6 </ClrInstanceID>
                             </Exception>
+                        </UserData>
+                    </template>
+
+                    <template tid="ExceptionHandling">
+                        <data name="EntryEIP" inType="win:UInt64" outType="win:HexInt64" />
+                        <data name="MethodID" inType="win:UInt64" outType="win:HexInt64" />
+                        <data name="MethodName" inType="win:UnicodeString" />
+                        <data name="ClrInstanceID" inType="win:UInt16" />
+                        <UserData>
+                            <ExceptionHandling xmlns="myNs">
+                                <EntryEIP> %1 </EntryEIP>
+                                <MethodID> %2 </MethodID>
+                                <MethodName> %3 </MethodName>
+                                <ClrInstanceID> %4 </ClrInstanceID>
+                            </ExceptionHandling>
                         </UserData>
                     </template>
 
@@ -2095,6 +2280,25 @@
                       </UserData>
                     </template>
 
+                    <template tid="CodeSymbols">
+                      <data name="ModuleId"           inType="win:UInt64"    />
+                      <data name="TotalChunks"        inType="win:UInt16"  />
+                      <data name="ChunkNumber"        inType="win:UInt16"  />
+                      <data name="ChunkLength"        inType="win:UInt32"  />
+                      <data name="Chunk"              inType="win:Binary" length="ChunkLength"/>
+                      <data name="ClrInstanceID" inType="win:UInt16" />
+                      <UserData>
+                        <CodeSymbols xmlns="myNs">
+                          <ClrInstanceID> %1 </ClrInstanceID>
+                          <ModuleId> %2 </ModuleId>
+                          <TotalChunks> %3 </TotalChunks>
+                          <ChunkNumber> %4 </ChunkNumber>
+                          <ChunkLength> %5 </ChunkLength>
+                          <Chunk> %6 </Chunk>
+                        </CodeSymbols>
+                      </UserData>
+                    </template>
+
                 </templates>
 
                 <events>
@@ -2297,7 +2501,7 @@
                            symbol="GCBulkMovedObjectRanges" message="$(string.RuntimePublisher.GCBulkMovedObjectRangesEventMessage)"/>
 
                     <event value="23" version="0" level="win:Informational"  template="GCGenerationRange"
-                           keywords ="GCKeyword"  opcode="GCGenerationRange"
+                           keywords ="GCHeapSurvivalAndMovementKeyword"  opcode="GCGenerationRange"
                            task="GarbageCollection"
                            symbol="GCGenerationRange" message="$(string.RuntimePublisher.GCGenerationRangeEventMessage)"/>
                   
@@ -2370,6 +2574,12 @@
                            keywords ="GCHeapDumpKeyword"  opcode="GCBulkRootStaticVar"
                            task="GarbageCollection"
                            symbol="GCBulkRootStaticVar" message="$(string.RuntimePublisher.GCBulkRootStaticVarEventMessage)"/>
+
+                    <event value="39" version="0" level="win:LogAlways" template="GCDynamicEvent"
+                           keywords= "GCKeyword GCHandleKeyword GCHeapDumpKeyword GCSampledObjectAllocationHighKeyword GCHeapSurvivalAndMovementKeyword GCHeapCollectKeyword GCHeapAndTypeNamesKeyword GCSampledObjectAllocationLowKeyword"
+                           opcode="GCDynamicEvent"
+                           task="GarbageCollection"
+                           symbol="GCDynamicEvent"/>
 
                     <!-- CLR Threading events, value reserved from 40 to 79 -->
                     <event value="40" version="0" level="win:Informational"  template="ClrWorkerThread"
@@ -2545,10 +2755,45 @@
                            symbol="ExceptionThrown" message="$(string.RuntimePublisher.ExceptionExceptionThrownEventMessage)"/>
 
                     <event value="80" version="1" level="win:Error"  template="Exception"
-                           keywords ="ExceptionKeyword"  opcode="win:Start"
+                           keywords ="ExceptionKeyword MonitoringKeyword"  opcode="win:Start"
                            task="Exception"
                            symbol="ExceptionThrown_V1" message="$(string.RuntimePublisher.ExceptionExceptionThrown_V1EventMessage)"/>
 
+                    <event value="250" version="0" level="win:Informational"  template="ExceptionHandling"
+                           keywords ="ExceptionKeyword"  opcode="win:Start"
+                           task="ExceptionCatch"
+                           symbol="ExceptionCatchStart" message="$(string.RuntimePublisher.ExceptionExceptionHandlingEventMessage)"/>
+
+                    <event value="251" version="0" level="win:Informational"
+                           keywords ="ExceptionKeyword"  opcode="win:Stop"
+                           task="ExceptionCatch"
+                           symbol="ExceptionCatchStop" message="$(string.RuntimePublisher.ExceptionExceptionHandlingNoneEventMessage)"/>
+                  
+                    <event value="252" version="0" level="win:Informational"  template="ExceptionHandling"
+                           keywords ="ExceptionKeyword"  opcode="win:Start"
+                           task="ExceptionFinally"
+                           symbol="ExceptionFinallyStart" message="$(string.RuntimePublisher.ExceptionExceptionHandlingEventMessage)"/>
+
+                    <event value="253" version="0" level="win:Informational"
+                           keywords ="ExceptionKeyword"  opcode="win:Stop"
+                           task="ExceptionFinally"
+                           symbol="ExceptionFinallyStop" message="$(string.RuntimePublisher.ExceptionExceptionHandlingNoneEventMessage)"/>
+                  
+                    <event value="254" version="0" level="win:Informational"  template="ExceptionHandling"
+                           keywords ="ExceptionKeyword"  opcode="win:Start"
+                           task="ExceptionFilter"
+                           symbol="ExceptionFilterStart" message="$(string.RuntimePublisher.ExceptionExceptionHandlingEventMessage)"/>
+
+                    <event value="255" version="0" level="win:Informational"
+                           keywords ="ExceptionKeyword"  opcode="win:Stop"
+                           task="ExceptionFilter"
+                           symbol="ExceptionFilterStop" message="$(string.RuntimePublisher.ExceptionExceptionHandlingNoneEventMessage)"/>
+                  
+                    <event value="256" version="0" level="win:Informational"
+                           keywords ="ExceptionKeyword"  opcode="win:Stop"
+                           task="Exception"
+                           symbol="ExceptionThrownStop" message="$(string.RuntimePublisher.ExceptionExceptionHandlingNoneEventMessage)"/>
+                           
                     <!-- CLR Contention events -->
                     <event value="81" version="0" level="win:Informational"
                            opcode="win:Start"
@@ -2895,6 +3140,26 @@
                            task="GarbageCollection"
                            symbol="DecreaseMemoryPressure" message="$(string.RuntimePublisher.DecreaseMemoryPressureEventMessage)"/>
 
+                    <event value="202" version="0" level="win:Informational"  template="GCMarkWithType"
+                           keywords ="GCKeyword"  opcode="GCMarkWithType"
+                           task="GarbageCollection"
+                           symbol="GCMarkWithType" message="$(string.RuntimePublisher.GCMarkWithTypeEventMessage)"/>
+
+                    <event value="203" version="2" level="win:Verbose"  template="GCJoin_V2"
+                           keywords ="GCKeyword"  opcode="GCJoin"
+                           task="GarbageCollection"
+                           symbol="GCJoin_V2" message="$(string.RuntimePublisher.GCJoin_V2EventMessage)"/>
+
+                    <event value="204" version="3" level="win:Informational"  template="GCPerHeapHistory_V3"
+                           keywords ="GCKeyword"  opcode="GCPerHeapHistory"
+                           task="GarbageCollection"
+                           symbol="GCPerHeapHistory_V3" message="$(string.RuntimePublisher.GCPerHeapHistory_V3EventMessage)"/>
+
+                    <event value="205" version="2" level="win:Informational"  template="GCGlobalHeap_V2"
+                           keywords ="GCKeyword"  opcode="GCGlobalHeapHistory"
+                           task="GarbageCollection"
+                           symbol="GCGlobalHeapHistory_V2" message="$(string.RuntimePublisher.GCGlobalHeap_V2EventMessage)"/>
+
                     <!-- CLR Debugger events 240-249 -->
                     <event value="240" version="0" level="win:Informational"
                            keywords="DebuggerKeyword" opcode="win:Start"
@@ -2912,6 +3177,16 @@
                            keywords="DebuggerKeyword" opcode="win:Stop"
                            task="DebugExceptionProcessing"
                            symbol="DebugExceptionProcessingEnd" />
+
+                    <!-- CLR Code Symbol Emission events 260-269 -->
+                    <event value="260" version="0" level="win:Verbose" template="CodeSymbols"
+                           keywords="CodeSymbolsKeyword" opcode="win:Start" 
+                           task="CodeSymbols"
+                           symbol="CodeSymbols" message="$(string.RuntimePublisher.CodeSymbolsEventMessage)"/>
+                    
+                   <event value="270" version="0" level="win:Informational"  template="EventSource"
+                           opcode="win:Start"
+                           symbol="EventSource" />
                 </events>
             </provider>
 
@@ -3294,7 +3569,7 @@
                                 <AppDomainFlags> %2 </AppDomainFlags>
                                 <AppDomainName> %3 </AppDomainName>
                                 <AppDomainIndex> %4 </AppDomainIndex>
-                                <ClrInstanceID> %4 </ClrInstanceID>
+                                <ClrInstanceID> %5 </ClrInstanceID>
                             </AppDomainLoadUnloadRundown_V1>
                         </UserData>
                     </template>
@@ -3498,7 +3773,7 @@
                                 <Flags> %3 </Flags>
                                 <ManagedThreadIndex> %4 </ManagedThreadIndex>
                                 <OSThreadID> %5 </OSThreadID>
-                                <ClrInstanceID> %5 </ClrInstanceID>
+                                <ClrInstanceID> %6 </ClrInstanceID>
                             </ThreadCreatedRundown>
                         </UserData>
                     </template>
@@ -5933,6 +6208,7 @@
                 <string id="RuntimePublisher.GCBulkRootCCWEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
                 <string id="RuntimePublisher.GCBulkRCWEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
                 <string id="RuntimePublisher.GCBulkRootStaticVarEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
+                <string id="RuntimePublisher.GCDynamicEventMessage" value="ClrInstanceID=%1;Data=%2;Size=%3" />
                 <string id="RuntimePublisher.GCBulkRootConditionalWeakTableElementEdgeEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
                 <string id="RuntimePublisher.GCBulkNodeEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
                 <string id="RuntimePublisher.GCBulkEdgeEventMessage" value="ClrInstanceID=%1;%nIndex=%2;%nCount=%3" />
@@ -5945,6 +6221,10 @@
                 <string id="RuntimePublisher.GCMarkFinalizeQueueRootsEventMessage" value="HeapNum=%1;%nClrInstanceID=%2"/>
                 <string id="RuntimePublisher.GCMarkHandlesEventMessage" value="HeapNum=%1;%nClrInstanceID=%2"/>
                 <string id="RuntimePublisher.GCMarkOlderGenerationRootsEventMessage" value="HeapNum=%1;%nClrInstanceID=%2"/>
+                <string id="RuntimePublisher.GCMarkWithTypeEventMessage" value="HeapNum=%1;%nClrInstanceID=%2;%nType=%3;%nBytes=%4"/>
+                <string id="RuntimePublisher.GCJoin_V2EventMessage" value="Heap=%1;%nJoinTime=%2;%nJoinType=%3;%nClrInstanceID=%4;%nJoinID=%5"/>
+                <string id="RuntimePublisher.GCPerHeapHistory_V3EventMessage" value="ClrInstanceID=%1;%nFreeListAllocated=%2;%nFreeListRejected=%3;%nEndOfSegAllocated=%4;%nCondemnedAllocated=%5;%nPinnedAllocated=%6;%nPinnedAllocatedAdvance=%7;%RunningFreeListEfficiency=%8;%nCondemnReasons0=%9;%nCondemnReasons1=%10;%nCompactMechanisms=%11;%nExpandMechanisms=%12;%nHeapIndex=%13;%nExtraGen0Commit=%14;%nCount=%15"/>
+                <string id="RuntimePublisher.GCGlobalHeap_V2EventMessage" value="FinalYoungestDesired=%1;%nNumHeaps=%2;%nCondemnedGeneration=%3;%nGen0ReductionCountD=%4;%nReason=%5;%nGlobalMechanisms=%6;%nClrInstanceID=%7;%nPauseMode=%8;%nMemoryPressure=%9"/>
                 <string id="RuntimePublisher.FinalizeObjectEventMessage" value="TypeID=%1;%nObjectID=%2;%nClrInstanceID=%3" />
                 <string id="RuntimePublisher.GCTriggeredEventMessage" value="Reason=%1" />
                 <string id="RuntimePublisher.PinObjectAtGCTimeEventMessage" value="HandleID=%1;%nObjectID=%2;%nObjectSize=%3;%nTypeName=%4;%n;%nClrInstanceID=%5" />
@@ -5979,6 +6259,8 @@
                 <string id="RuntimePublisher.ThreadRunningEventMessage" value="ID=%1;%nClrInstanceID=%s" />
                 <string id="RuntimePublisher.ExceptionExceptionThrownEventMessage" value="NONE" />
                 <string id="RuntimePublisher.ExceptionExceptionThrown_V1EventMessage" value="ExceptionType=%1;%nExceptionMessage=%2;%nExceptionEIP=%3;%nExceptionHRESULT=%4;%nExceptionFlags=%5;%nClrInstanceID=%6" />
+                <string id="RuntimePublisher.ExceptionExceptionHandlingEventMessage" value="EntryEIP=%1;%nMethodID=%2;%nMethodName=%3;%nClrInstanceID=%4" />
+                <string id="RuntimePublisher.ExceptionExceptionHandlingNoneEventMessage" value="NONE" />
                 <string id="RuntimePublisher.ContentionStartEventMessage" value="NONE" />
                 <string id="RuntimePublisher.ContentionStart_V1EventMessage" value="ContentionFlags=%1;%nClrInstanceID=%2"/>
                 <string id="RuntimePublisher.ContentionStopEventMessage" value="ContentionFlags=%1;%nClrInstanceID=%2"/>
@@ -6047,6 +6329,7 @@
                 <string id="RuntimePublisher.MethodJitTailCallSucceededEventMessage" value="MethodBeingCompiledNamespace=%1;%nMethodBeingCompiledName=%2;%nMethodBeingCompiledNameSignature=%3;%nCallerNamespace=%4;%nCallerName=%5;%nCallerNameSignature=%6;%nCalleeNamespace=%7;%nCalleeName=%8;%nCalleeNameSignature=%9;%nTailPrefix=%10;%nTailCallType=%11;%nClrInstanceID=%12" />
                 <string id="RuntimePublisher.SetGCHandleEventMessage" value="HandleID=%1;%nObjectID=%2;%nKind=%3;%nGeneration=%4;%nAppDomainID=%5;%nClrInstanceID=%6" />
                 <string id="RuntimePublisher.DestroyGCHandleEventMessage" value="HandleID=%1;%nClrInstanceID=%2" />
+                <string id="RuntimePublisher.CodeSymbolsEventMessage" value="%nClrInstanceId=%1;%nModuleId=%2;%nTotalChunks=%3;%nChunkNumber=%4;%nChunkLength=%5;%nChunk=%6" />
                 <string id="RundownPublisher.MethodDCStartEventMessage" value="MethodID=%1;%nModuleID=%2;%nMethodStartAddress=%3;%nMethodSize=%4;%nMethodToken=%5;%nMethodFlags=%6" />
                 <string id="RundownPublisher.MethodDCStart_V1EventMessage" value="MethodID=%1;%nModuleID=%2;%nMethodStartAddress=%3;%nMethodSize=%4;%nMethodToken=%5;%nMethodFlags=%6;%nClrInstanceID=%7" />
                 <string id="RundownPublisher.MethodDCStart_V2EventMessage" value="MethodID=%1;%nModuleID=%2;%nMethodStartAddress=%3;%nMethodSize=%4;%nMethodToken=%5;%nMethodFlags=%6;%nClrInstanceID=%7;%nReJITID=%8" />
@@ -6182,6 +6465,9 @@
                 <string id="RuntimePublisher.ThreadPoolWorkerThreadRetirementTaskMessage" value="ThreadPoolWorkerThreadRetirement" />
                 <string id="RuntimePublisher.ThreadPoolWorkerThreadAdjustmentTaskMessage" value="ThreadPoolWorkerThreadAdjustment" />
                 <string id="RuntimePublisher.ExceptionTaskMessage" value="Exception" />
+                <string id="RuntimePublisher.ExceptionCatchTaskMessage" value="ExceptionCatch" />
+                <string id="RuntimePublisher.ExceptionFinallyTaskMessage" value="ExceptionFinally" />
+                <string id="RuntimePublisher.ExceptionFilterTaskMessage" value="ExceptionFilter" />
                 <string id="RuntimePublisher.ContentionTaskMessage" value="Contention" />
                 <string id="RuntimePublisher.MethodTaskMessage" value="Method" />
                 <string id="RuntimePublisher.LoaderTaskMessage" value="Loader" />
@@ -6198,6 +6484,7 @@
                 <string id="RuntimePublisher.ThreadTaskMessage" value="Thread" />
                 <string id="RuntimePublisher.DebugIPCEventTaskMessage" value="DebugIPCEvent" />
                 <string id="RuntimePublisher.DebugExceptionProcessingTaskMessage" value="DebugExceptionProcessing" />
+                <string id="RuntimePublisher.CodeSymbolsTaskMessage" value="CodeSymbols" />
                 <string id="RundownPublisher.EEStartupTaskMessage" value="Runtime" />
                 <string id="RundownPublisher.MethodTaskMessage" value="Method" />
                 <string id="RundownPublisher.LoaderTaskMessage" value="Loader" />
@@ -6296,7 +6583,9 @@
                 <string id="RuntimePublisher.GCRootKind.Stack" value="Stack" />
                 <string id="RuntimePublisher.GCRootKind.Finalizer" value="Finalizer" />
                 <string id="RuntimePublisher.GCRootKind.Handle" value="Handle" />
-                <string id="RuntimePublisher.GCRootKind.Other" value="Other" />
+                <string id="RuntimePublisher.GCRootKind.Older" value="Older" />
+                <string id="RuntimePublisher.GCRootKind.SizedRef" value="SizedRef" />
+                <string id="RuntimePublisher.GCRootKind.Overflow" value="Overflow" />
                 <string id="RuntimePublisher.Startup.CONCURRENT_GCMapMessage" value="CONCURRENT_GC" />
                 <string id="RuntimePublisher.Startup.LOADER_OPTIMIZATION_SINGLE_DOMAINMapMessage" value="LOADER_OPTIMIZATION_SINGLE_DOMAIN" />
                 <string id="RuntimePublisher.Startup.LOADER_OPTIMIZATION_MULTI_DOMAINMapMessage" value="LOADER_OPTIMIZATION_MULTI_DOMAIN" />
@@ -6468,6 +6757,8 @@
                 <string id="RuntimePublisher.GCHandleKeywordMessage" value="GCHandle" />
                 <string id="RuntimePublisher.ThreadTransferKeywordMessage" value="ThreadTransfer" />
                 <string id="RuntimePublisher.DebuggerKeywordMessage" value="Debugger" />
+                <string id="RuntimePublisher.MonitoringKeywordMessage" value="Monitoring" />
+                <string id="RuntimePublisher.CodeSymbolsKeywordMessage" value="CodeSymbols" />
                 <string id="RundownPublisher.LoaderKeywordMessage" value="Loader" />
                 <string id="RundownPublisher.JitKeywordMessage" value="Jit" />
                 <string id="RundownPublisher.JittedMethodILToNativeMapRundownKeywordMessage" value="JittedMethodILToNativeMapRundown" />
@@ -6512,6 +6803,7 @@
                 <string id="RuntimePublisher.GCBulkRootCCWOpcodeMessage" value="GCBulkRootCCW" />
                 <string id="RuntimePublisher.GCBulkRCWOpcodeMessage" value="GCBulkRCW" />
                 <string id="RuntimePublisher.GCBulkRootStaticVarOpcodeMessage" value="GCBulkRootStaticVar" />
+                <string id="RuntimePublisher.GCDynamicEventOpcodeMessage" value="GCDynamicEvent" />
                 <string id="RuntimePublisher.GCBulkRootConditionalWeakTableElementEdgeOpcodeMessage" value="GCBulkRootConditionalWeakTableElementEdge" />
                 <string id="RuntimePublisher.GCBulkNodeOpcodeMessage" value="GCBulkNode" />
                 <string id="RuntimePublisher.GCBulkEdgeOpcodeMessage" value="GCBulkEdge" />
@@ -6523,6 +6815,10 @@
                 <string id="RuntimePublisher.GCMarkHandlesOpcodeMessage" value="MarkHandles" />
                 <string id="RuntimePublisher.GCMarkFinalizeQueueRootsOpcodeMessage" value="MarkFinalizeQueueRoots" />
                 <string id="RuntimePublisher.GCMarkOlderGenerationRootsOpcodeMessage" value="MarkCards" />
+                <string id="RuntimePublisher.GCMarkOpcodeMessage" value="Mark" />
+                <string id="RuntimePublisher.GCJoinOpcodeMessage" value="GCJoin" />
+                <string id="RuntimePublisher.GCPerHeapHistoryOpcodeMessage" value="PerHeapHistory" />
+                <string id="RuntimePublisher.GCGlobalHeapHistoryOpcodeMessage" value="GlobalHeapHistory" />
                 <string id="RuntimePublisher.FinalizeObjectOpcodeMessage" value="FinalizeObject" />
                 <string id="RuntimePublisher.BulkTypeOpcodeMessage" value="BulkType" />
                 <string id="RuntimePublisher.MethodLoadOpcodeMessage" value="Load" />

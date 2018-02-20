@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // EEToProfInterfaceImpl.cpp
 // 
@@ -17,7 +16,7 @@
 // PLEASE READ!
 //
 // There are strict rules for how to implement ICorProfilerCallback* wrappers.  Please read
-// http://devdiv/sites/CLR/ProfilingAPI/Shared%20Documents/ImplementingProfilability.doc
+// https://github.com/dotnet/coreclr/blob/master/Documentation/botr/profilability.md
 // to understand the rules and why they exist.
 //
 // As a reminder, here is a short summary of your responsibilities.  Every PUBLIC
@@ -370,6 +369,11 @@ EEToProfInterfaceImpl::CHashTableImpl::CHashTableImpl(ULONG iBuckets)
     WRAPPER_NO_CONTRACT;
 }
 
+EEToProfInterfaceImpl::CHashTableImpl::~CHashTableImpl()
+{
+    WRAPPER_NO_CONTRACT;
+}
+
 //---------------------------------------------------------------------------------------
 //
 // Comparison function for hash table of ClassIDs
@@ -409,6 +413,9 @@ EEToProfInterfaceImpl::EEToProfInterfaceImpl() :
     m_pCallback4(NULL),
     m_pCallback5(NULL),
     m_pCallback6(NULL),
+    m_pCallback7(NULL),
+    m_pCallback8(NULL),
+    m_pCallback9(NULL),
     m_hmodProfilerDLL(NULL),
     m_fLoadedViaAttach(FALSE),
     m_pProfToEE(NULL),
@@ -659,21 +666,32 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
     m_hmodProfilerDLL = hmodProfilerDLL.Extract();
     hmodProfilerDLL = NULL;
 
-    // The profiler may optionally support ICorProfilerCallback3,4,5,6.  Let's check.
-    
-    ReleaseHolder<ICorProfilerCallback6> pCallback6;
+    // The profiler may optionally support ICorProfilerCallback3,4,5,6,7,8,9.  Let's check.
+
+    ReleaseHolder<ICorProfilerCallback9> pCallback9;
     hr = m_pCallback2->QueryInterface(
-        IID_ICorProfilerCallback6,
-        (LPVOID *) &pCallback6);
-    if (SUCCEEDED(hr) && (pCallback6 != NULL))
+        IID_ICorProfilerCallback9,
+        (LPVOID *)&pCallback9);
+    if (SUCCEEDED(hr) && (pCallback9 != NULL))
     {
         // Nifty.  Transfer ownership to this class
-        _ASSERTE(m_pCallback6 == NULL);
-        m_pCallback6 = pCallback6.Extract();
-        pCallback6 = NULL;
+        _ASSERTE(m_pCallback9 == NULL);
+        m_pCallback9 = pCallback9.Extract();
+        pCallback9 = NULL;
 
-        // And while we're at it, we must now also have an ICorProfilerCallback3,4,5
+        // And while we're at it, we must now also have an ICorProfilerCallback3,4,5,6,7,8
         // due to inheritance relationship of the interfaces
+        _ASSERTE(m_pCallback8 == NULL);
+        m_pCallback8 = static_cast<ICorProfilerCallback8 *>(m_pCallback9);
+        m_pCallback8->AddRef();
+
+        _ASSERTE(m_pCallback7 == NULL);
+        m_pCallback7 = static_cast<ICorProfilerCallback7 *>(m_pCallback8);
+        m_pCallback7->AddRef();
+
+        _ASSERTE(m_pCallback6 == NULL);
+        m_pCallback6 = static_cast<ICorProfilerCallback6 *>(m_pCallback7);
+        m_pCallback6->AddRef();
 
         _ASSERTE(m_pCallback5 == NULL);
         m_pCallback5 = static_cast<ICorProfilerCallback5 *>(m_pCallback6);
@@ -686,6 +704,108 @@ HRESULT EEToProfInterfaceImpl::CreateProfiler(
         _ASSERTE(m_pCallback3 == NULL);
         m_pCallback3 = static_cast<ICorProfilerCallback3 *>(m_pCallback4);
         m_pCallback3->AddRef();
+    }
+
+    if (m_pCallback8 == NULL)
+    {
+        ReleaseHolder<ICorProfilerCallback8> pCallback8;
+        hr = m_pCallback2->QueryInterface(
+            IID_ICorProfilerCallback8,
+            (LPVOID *)&pCallback8);
+        if (SUCCEEDED(hr) && (pCallback8 != NULL))
+        {
+            // Nifty.  Transfer ownership to this class
+            _ASSERTE(m_pCallback8 == NULL);
+            m_pCallback8 = pCallback8.Extract();
+            pCallback8 = NULL;
+
+            // And while we're at it, we must now also have an ICorProfilerCallback3,4,5,6,7
+            // due to inheritance relationship of the interfaces
+
+            _ASSERTE(m_pCallback7 == NULL);
+            m_pCallback7 = static_cast<ICorProfilerCallback7 *>(m_pCallback8);
+            m_pCallback7->AddRef();
+
+            _ASSERTE(m_pCallback6 == NULL);
+            m_pCallback6 = static_cast<ICorProfilerCallback6 *>(m_pCallback7);
+            m_pCallback6->AddRef();
+
+            _ASSERTE(m_pCallback5 == NULL);
+            m_pCallback5 = static_cast<ICorProfilerCallback5 *>(m_pCallback6);
+            m_pCallback5->AddRef();
+
+            _ASSERTE(m_pCallback4 == NULL);
+            m_pCallback4 = static_cast<ICorProfilerCallback4 *>(m_pCallback5);
+            m_pCallback4->AddRef();
+
+            _ASSERTE(m_pCallback3 == NULL);
+            m_pCallback3 = static_cast<ICorProfilerCallback3 *>(m_pCallback4);
+            m_pCallback3->AddRef();
+        }
+    }
+
+    if (m_pCallback7 == NULL)
+    {
+        ReleaseHolder<ICorProfilerCallback7> pCallback7;
+        hr = m_pCallback2->QueryInterface(
+            IID_ICorProfilerCallback7,
+            (LPVOID *)&pCallback7);
+        if (SUCCEEDED(hr) && (pCallback7 != NULL))
+        {
+            // Nifty.  Transfer ownership to this class
+            _ASSERTE(m_pCallback7 == NULL);
+            m_pCallback7 = pCallback7.Extract();
+            pCallback7 = NULL;
+
+            // And while we're at it, we must now also have an ICorProfilerCallback3,4,5,6
+            // due to inheritance relationship of the interfaces
+
+            _ASSERTE(m_pCallback6 == NULL);
+            m_pCallback6 = static_cast<ICorProfilerCallback6 *>(m_pCallback7);
+            m_pCallback6->AddRef();
+
+            _ASSERTE(m_pCallback5 == NULL);
+            m_pCallback5 = static_cast<ICorProfilerCallback5 *>(m_pCallback6);
+            m_pCallback5->AddRef();
+
+            _ASSERTE(m_pCallback4 == NULL);
+            m_pCallback4 = static_cast<ICorProfilerCallback4 *>(m_pCallback5);
+            m_pCallback4->AddRef();
+
+            _ASSERTE(m_pCallback3 == NULL);
+            m_pCallback3 = static_cast<ICorProfilerCallback3 *>(m_pCallback4);
+            m_pCallback3->AddRef();
+        }
+    }
+
+    if (m_pCallback6 == NULL)
+    {
+        ReleaseHolder<ICorProfilerCallback6> pCallback6;
+        hr = m_pCallback2->QueryInterface(
+            IID_ICorProfilerCallback6,
+            (LPVOID *)&pCallback6);
+        if (SUCCEEDED(hr) && (pCallback6 != NULL))
+        {
+            // Nifty.  Transfer ownership to this class
+            _ASSERTE(m_pCallback6 == NULL);
+            m_pCallback6 = pCallback6.Extract();
+            pCallback6 = NULL;
+
+            // And while we're at it, we must now also have an ICorProfilerCallback3,4,5
+            // due to inheritance relationship of the interfaces
+
+            _ASSERTE(m_pCallback5 == NULL);
+            m_pCallback5 = static_cast<ICorProfilerCallback5 *>(m_pCallback6);
+            m_pCallback5->AddRef();
+
+            _ASSERTE(m_pCallback4 == NULL);
+            m_pCallback4 = static_cast<ICorProfilerCallback4 *>(m_pCallback5);
+            m_pCallback4->AddRef();
+
+            _ASSERTE(m_pCallback3 == NULL);
+            m_pCallback3 = static_cast<ICorProfilerCallback3 *>(m_pCallback4);
+            m_pCallback3->AddRef();
+        }
     }
         
     if (m_pCallback5 == NULL)
@@ -826,6 +946,20 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
             REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback6->Release();
             m_pCallback6 = NULL;
+        }
+
+        if (m_pCallback7 != NULL)
+        {
+            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
+            m_pCallback7->Release();
+            m_pCallback7 = NULL;
+        }
+
+        if (m_pCallback8 != NULL)
+        {
+            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
+            m_pCallback8->Release();
+            m_pCallback8 = NULL;
         }
 
         // Only unload the V4 profiler if this is not part of shutdown.  This protects
@@ -1872,7 +2006,8 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
 {
     LIMITED_METHOD_CONTRACT;
 
-    if ((g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE) != 0)
+    if (((g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE) != 0) ||
+        ((g_profControlBlock.dwEventMaskHigh & COR_PRF_HIGH_MONITOR_IMMUTABLE) != 0))
     {
         LOG((
             LF_CORPROF, 
@@ -2114,7 +2249,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     if (dwTestOnlyAllowedEventMask != 0)
     {
         // Remove from the immutable flag list those flags that a test-only profiler may
-        // need to set post-startup (specified via COMPLUS_TestOnlyAllowedEventMask)
+        // need to set post-startup (specified via COMPlus_TestOnlyAllowedEventMask)
         dwImmutableEventFlags &= ~dwTestOnlyAllowedEventMask;  
 
         // And add to the "allowable after attach" list the same test-only flags.
@@ -2134,12 +2269,14 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     if (g_profControlBlock.curProfStatus.Get() != kProfStatusInitializingForStartupLoad)
     {
 #ifdef _DEBUG
-        if ((dwEventMask & dwImmutableEventFlags) !=
-            (g_profControlBlock.dwEventMask & dwImmutableEventFlags))
+        if (((dwEventMask & dwImmutableEventFlags) !=
+                (g_profControlBlock.dwEventMask & dwImmutableEventFlags)) ||
 #else //!_DEBUG
-        if ((dwEventMask & COR_PRF_MONITOR_IMMUTABLE) !=
-            (g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE))
+        if (((dwEventMask & COR_PRF_MONITOR_IMMUTABLE) !=
+                (g_profControlBlock.dwEventMask & COR_PRF_MONITOR_IMMUTABLE)) ||
 #endif //_DEBUG
+            ((dwEventMaskHigh & COR_PRF_HIGH_MONITOR_IMMUTABLE) !=
+                (g_profControlBlock.dwEventMaskHigh & COR_PRF_HIGH_MONITOR_IMMUTABLE)))
         {
             // FUTURE: Should we have a dedicated HRESULT for setting immutable flag?
             return E_FAIL;
@@ -2150,10 +2287,11 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     // allowable after an attach
     if (m_fLoadedViaAttach &&
 #ifdef _DEBUG
-        ((dwEventMask & (~dwAllowableAfterAttachEventFlags)) != 0))
+        (((dwEventMask & (~dwAllowableAfterAttachEventFlags)) != 0) ||
 #else //!_DEBUG
-        ((dwEventMask & (~COR_PRF_ALLOWABLE_AFTER_ATTACH)) != 0))
+        (((dwEventMask & (~COR_PRF_ALLOWABLE_AFTER_ATTACH)) != 0) ||
 #endif //_DEBUG
+        (dwEventMaskHigh & (~COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH))))
     {
         return CORPROF_E_UNSUPPORTED_FOR_ATTACHING_PROFILER;
     }
@@ -2249,7 +2387,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
             // in this function
             if (g_profControlBlock.curProfStatus.Get() == kProfStatusInitializingForAttachLoad)
             {
-                if (GCHeap::GetGCHeap()->IsConcurrentGCEnabled())
+                if (GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled())
                 {
                     // We only allow turning off concurrent GC in the profiler attach thread inside
                     // InitializeForAttach, otherwise we would be vulnerable to weird races such as 
@@ -2271,24 +2409,12 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
                 // Fail if concurrent GC is enabled
                 // This should only happen for attach profilers if user didn't turn on COR_PRF_MONITOR_GC 
                 // at attach time
-                if (GCHeap::GetGCHeap()->IsConcurrentGCEnabled())
+                if (GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled())
                 {
                     return CORPROF_E_CONCURRENT_GC_NOT_PROFILABLE;
                 }        
             }
         }        
-    }
-
-    // Flags defined in COR_PRF_REQUIRE_PROFILE_IMAGE will force to JIT mscorlib if the
-    // user does not ngen mscorlib with /profiler. Similarly, the
-    // COR_PRF_DISABLE_ALL_NGEN_IMAGES flag always forces us to JIT mscorlib. Using the
-    // jitted version of mscorlib with HPA(Host Protection Attributes) enabled will cause
-    // stack overflow inside JIT. See Dev 10 Bug 637987 for the detail.
-    if (((dwEventMask & (COR_PRF_REQUIRE_PROFILE_IMAGE | COR_PRF_DISABLE_ALL_NGEN_IMAGES)) != 0) &&
-        (GetHostProtectionManager() != NULL) &&
-        (GetHostProtectionManager()->GetProtectedCategories() != eNoChecks))
-    {
-        return CORPROF_E_INCONSISTENT_FLAGS_WITH_HOST_PROTECTION_SETTING;
     }
 
     // High event bits
@@ -2297,6 +2423,12 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
         !IsCallback6Supported())
     {
         return CORPROF_E_CALLBACK6_REQUIRED;
+    }
+
+    if (((dwEventMaskHigh & COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED) != 0) &&
+        !IsCallback7Supported())
+    {
+        return CORPROF_E_CALLBACK7_REQUIRED;
     }
 
     // Now save the modified masks
@@ -2333,7 +2465,7 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
     if (fNeedToTurnOffConcurrentGC)
     {
         // Turn off concurrent GC if it is on so that user can walk the heap safely in GC callbacks
-        GCHeap * pGCHeap = GCHeap::GetGCHeap();
+        IGCHeap * pGCHeap = GCHeapUtilities::GetGCHeap();
         
         LOG((LF_CORPROF, LL_INFO10, "**PROF: Turning off concurrent GC at attach.\n"));
         
@@ -3133,6 +3265,118 @@ HRESULT EEToProfInterfaceImpl::JITCompilationStarted(FunctionID functionId,
     }
 }
 
+HRESULT EEToProfInterfaceImpl::DynamicMethodUnloaded(FunctionID functionId)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE; // RuntimeMethodHandle::Destroy (the caller) moves from QCALL to GCX_COOP
+        CAN_TAKE_LOCK;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: DynamicMethodUnloaded 0x%p.\n",
+        functionId));
+
+    _ASSERTE(functionId);
+
+    if (m_pCallback9 == NULL)
+    {
+        return S_OK;
+    }
+
+    {
+        // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
+        // whose try/catch blocks aren't visible to the contract system        
+        PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
+        return m_pCallback9->DynamicMethodUnloaded(functionId);
+    }
+}
+
+HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationFinished(FunctionID functionId,
+                                                                   HRESULT hrStatus,
+                                                                   BOOL fIsSafeToBlock)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        CAN_TAKE_LOCK;
+
+        // The JIT / MethodDesc code likely hold locks while this callback is made
+
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+    
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
+                                LL_INFO1000, 
+                                "**PROF: DynamicMethodJITCompilationFinished 0x%p.\n", 
+                                functionId));
+
+    _ASSERTE(functionId);
+
+    if (m_pCallback8 == NULL)
+    {
+        return S_OK;
+    }
+
+    {
+        // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
+        // whose try/catch blocks aren't visible to the contract system        
+        PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
+        return m_pCallback8->DynamicMethodJITCompilationFinished(functionId, hrStatus, fIsSafeToBlock);
+    }
+}
+
+HRESULT EEToProfInterfaceImpl::DynamicMethodJITCompilationStarted(FunctionID functionId,
+                                                                  BOOL fIsSafeToBlock,
+                                                                  LPCBYTE pILHeader,
+                                                                  ULONG cbILHeader)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        CAN_TAKE_LOCK;
+
+        // The JIT / MethodDesc code likely hold locks while this callback is made
+
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+    
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF, 
+                                LL_INFO1000, 
+                                "**PROF: DynamicMethodJITCompilationStarted 0x%p.\n", 
+                                functionId));
+
+    _ASSERTE(functionId);
+
+    // Currently DynamicMethodJITCompilationStarted is always called with fIsSafeToBlock==TRUE.  If this ever changes,
+    // it's safe to remove this assert, but this should serve as a trigger to change our
+    // public documentation to state that this callback is no longer called in preemptive mode all the time.
+    _ASSERTE(fIsSafeToBlock);
+
+    if (m_pCallback8 == NULL)
+    {
+        return S_OK;
+    }
+
+    {
+        // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
+        // whose try/catch blocks aren't visible to the contract system        
+        PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
+        return m_pCallback8->DynamicMethodJITCompilationStarted(functionId, fIsSafeToBlock, pILHeader, cbILHeader);
+    }
+}
+
 HRESULT EEToProfInterfaceImpl::JITCachedFunctionSearchStarted(
                                     /* [in] */  FunctionID functionId,
                                     /* [out] */ BOOL       *pbUseCachedFunction)
@@ -3647,6 +3891,45 @@ HRESULT EEToProfInterfaceImpl::ModuleAttachedToAssembly(
         PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
         return m_pCallback2->ModuleAttachedToAssembly(moduleId, AssemblyId);
     }
+}
+
+HRESULT EEToProfInterfaceImpl::ModuleInMemorySymbolsUpdated(ModuleID moduleId)
+{
+    CONTRACTL
+    {
+        // Yay!
+        NOTHROW;
+
+        // Yay!
+        GC_TRIGGERS;
+
+        // Yay!
+        MODE_PREEMPTIVE;
+
+        // Yay!
+        CAN_TAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    CLR_TO_PROFILER_ENTRYPOINT((LF_CORPROF,
+        LL_INFO10,
+        "**PROF: ModuleInMemorySymbolsUpdated.  moduleId: 0x%p.\n",
+        moduleId
+        ));
+    HRESULT hr = S_OK;
+
+    _ASSERTE(IsCallback7Supported());
+
+    {
+        // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
+        // whose try/catch blocks aren't visible to the contract system        
+        PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
+        hr = m_pCallback7->ModuleInMemorySymbolsUpdated(moduleId);
+    }
+
+    return hr;
 }
 
 //---------------------------------------------------------------------------------------
@@ -5519,7 +5802,7 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
         LL_INFO10000, 
         "**PROF: MovedReferences.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     if (pData->curIdx == 0)
     {
@@ -5715,7 +5998,7 @@ HRESULT EEToProfInterfaceImpl::ObjectReference(ObjectID objId,
         LL_INFO100000, 
         "**PROF: ObjectReferences.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     {                
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
@@ -5754,7 +6037,7 @@ HRESULT EEToProfInterfaceImpl::FinalizeableObjectQueued(BOOL isCritical, ObjectI
                                 LL_INFO100, 
                                 "**PROF: Notifying profiler of finalizeable object.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     {                
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
@@ -5793,7 +6076,7 @@ HRESULT EEToProfInterfaceImpl::RootReferences2(GCReferencesData *pData)
         LL_INFO10000, 
         "**PROF: RootReferences2.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     HRESULT hr = S_OK;
 
@@ -5858,7 +6141,7 @@ HRESULT EEToProfInterfaceImpl::ConditionalWeakTableElementReferences(GCReference
         LL_INFO10000, 
         "**PROF: ConditionalWeakTableElementReferences.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     HRESULT hr = S_OK;
 
@@ -5992,7 +6275,7 @@ HRESULT EEToProfInterfaceImpl::GarbageCollectionStarted(int cGenerations, BOOL g
         LL_INFO10000, 
         "**PROF: GarbageCollectionStarted.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     {            
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
@@ -6030,7 +6313,7 @@ HRESULT EEToProfInterfaceImpl::GarbageCollectionFinished()
         LL_INFO10000, 
         "**PROF: GarbageCollectionFinished.\n"));
 
-    _ASSERTE(!GCHeap::GetGCHeap()->IsConcurrentGCEnabled());
+    _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsConcurrentGCEnabled());
     
     {        
         // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
@@ -6078,116 +6361,6 @@ HRESULT EEToProfInterfaceImpl::ProfilerDetachSucceeded()
     }
 }
 
-#ifdef FEATURE_FUSION
-
-// Minimal wrappers so that Fusion can call the GetAssemblyReferences profiler callback
-// without needing a ton of profapi includes.
-
-BOOL ShouldCallGetAssemblyReferencesProfilerCallback()
-{
-    return CORProfilerAddsAssemblyReferences();
-}
-
-void CallGetAssemblyReferencesProfilerCallbackIfNecessary(LPCWSTR wszAssemblyPath, IAssemblyBindingClosure * pClosure, AssemblyReferenceClosureWalkContextForProfAPI * pContext)
-{
-    BEGIN_PIN_PROFILER(CORProfilerAddsAssemblyReferences());
-    g_profControlBlock.pProfInterface->GetAssemblyReferences(wszAssemblyPath, pClosure, pContext);
-    END_PIN_PROFILER();
-}
-
-// Implementation of ICorProfilerAssemblyReferenceProvider, which is given to the profiler so
-// that it can call back into the CLR with extra assembly references that should be considered
-// while Fusion performs its assembly reference closure walk.
-class ProfilerAssemblyReferenceProvider : public ICorProfilerAssemblyReferenceProvider
-{
-public:
-    // IUnknown functions
-    virtual HRESULT __stdcall QueryInterface(REFIID id, void** pInterface)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (id == IID_IUnknown)
-        {
-            *pInterface = static_cast<IUnknown *>(this);
-        }
-        else if (id == IID_ICorProfilerAssemblyReferenceProvider)
-        {
-            *pInterface = static_cast<ICorProfilerAssemblyReferenceProvider *>(this);
-        }
-        else
-        {
-            *pInterface = NULL;
-            return E_NOINTERFACE;
-        }
-
-        AddRef();
-        return S_OK;
-    }
-
-    virtual ULONG __stdcall AddRef()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return InterlockedIncrement(&m_refCount);
-    }
-
-    virtual ULONG __stdcall Release()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        ULONG refCount = InterlockedDecrement(&m_refCount);
-
-        if (0 == refCount)
-        {
-            delete this;
-        }
-
-        return refCount;
-    }
-
-    // ICorProfilerAssemblyReferenceProvider functions
-    
-    // This is what the profiler calls to tell us about an assembly reference we should include
-    // when Fusion performs its closure walk.  When this is called, the walk is already underway,
-    // and is sitting on our stack already.
-    virtual HRESULT __stdcall AddAssemblyReference(const COR_PRF_ASSEMBLY_REFERENCE_INFO * pAssemblyRefInfo)
-    {
-        _ASSERTE(m_pClosure != NULL);
-
-        return m_pClosure->AddProfilerAssemblyReference(
-                pAssemblyRefInfo->pbPublicKeyOrToken,
-                pAssemblyRefInfo->cbPublicKeyOrToken,
-                pAssemblyRefInfo->szName,
-                pAssemblyRefInfo->pMetaData,
-                pAssemblyRefInfo->pbHashValue,
-                pAssemblyRefInfo->cbHashValue,
-                pAssemblyRefInfo->dwAssemblyRefFlags,
-                m_pContext);
-    }
-
-    // Implementation
-    ProfilerAssemblyReferenceProvider(IAssemblyBindingClosure * pClosure, AssemblyReferenceClosureWalkContextForProfAPI * pContext) :
-        m_refCount(1),
-        m_pClosure(pClosure),
-        m_pContext(pContext)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pClosure->AddRef();
-    }
-
-protected:
-    Volatile<LONG> m_refCount;
-
-    // Our interface into Fusion's closure walk.  We use this to inform Fusion about
-    // the assembly reference the profiler gave us.
-    ReleaseHolder<IAssemblyBindingClosure> m_pClosure;
-
-    // Extra context built up by fusion's closure walk that we need to remember.  The
-    // walk is already in action by the time we're called, and this structure remembers
-    // the lists that are getting built up by the walk
-    AssemblyReferenceClosureWalkContextForProfAPI * m_pContext;
-};
-
-#endif // FEATURE_FUSION
 
 
 HRESULT EEToProfInterfaceImpl::GetAssemblyReferences(LPCWSTR wszAssemblyPath, IAssemblyBindingClosure * pClosure, AssemblyReferenceClosureWalkContextForProfAPI * pContext)
@@ -6217,30 +6390,6 @@ HRESULT EEToProfInterfaceImpl::GetAssemblyReferences(LPCWSTR wszAssemblyPath, IA
                                 ));
     HRESULT hr = S_OK;
 
-#ifdef FEATURE_FUSION
-
-    SString sPath;
-    _ASSERTE(IsCallback6Supported());
-
-    // Create an instance of the class implementing the interface we pass back to the profiler,
-    // feeding it the context we're currently at in Fusion's closure walk
-    ReleaseHolder<ProfilerAssemblyReferenceProvider> pReferenceProvider = 
-        new (nothrow) ProfilerAssemblyReferenceProvider(pClosure, pContext);
-    if (pReferenceProvider == NULL)
-    {
-        return E_OUTOFMEMORY;
-    }
-
-    {
-        // All callbacks are really NOTHROW, but that's enforced partially by the profiler,
-        // whose try/catch blocks aren't visible to the contract system        
-        PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonProfilerCallout);
-        hr = m_pCallback6->GetAssemblyReferences(
-            wszAssemblyPath, 
-            static_cast<ICorProfilerAssemblyReferenceProvider *>(pReferenceProvider));
-    }
-
-#endif // FEATURE_FUSION
 
     return hr;
 }

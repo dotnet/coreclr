@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /*============================================================
 **
 ** Header:  AppDomain.i
@@ -16,25 +15,9 @@
 #ifndef _APPDOMAIN_I
 #define _APPDOMAIN_I
 
-#ifndef BINDER
-
 #ifndef DACCESS_COMPILE
 
 #include "appdomain.hpp"
-
-#ifdef FEATURE_CORECLR 
-inline void BaseDomain::SetAppDomainCompatMode(AppDomainCompatMode compatMode)
-{
-    LIMITED_METHOD_CONTRACT;
-    m_CompatMode = compatMode;
-}
-
-inline BaseDomain::AppDomainCompatMode BaseDomain::GetAppDomainCompatMode()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_CompatMode;
-}
-#endif // FEATURE_CORECLR
 
 inline void AppDomain::SetUnloadInProgress(AppDomain *pThis)
 {
@@ -215,54 +198,6 @@ inline void AppDomain::RemoveMemoryPressure()
 
 #endif // DACCESS_COMPILE
 
-inline void AppDomain::SetAppDomainManagerInfo(LPCWSTR szAssemblyName, LPCWSTR szTypeName, EInitializeNewDomainFlags dwInitializeDomainFlags)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    m_AppDomainManagerAssembly=szAssemblyName;
-    m_AppDomainManagerType=szTypeName;
-    m_dwAppDomainManagerInitializeDomainFlags = dwInitializeDomainFlags;
-}
-
-inline BOOL AppDomain::HasAppDomainManagerInfo()
-{
-    WRAPPER_NO_CONTRACT;
-    return !m_AppDomainManagerAssembly.IsEmpty() && !m_AppDomainManagerType.IsEmpty();
-}
-
-inline LPCWSTR AppDomain::GetAppDomainManagerAsm()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_AppDomainManagerAssembly;
-}
-
-
-inline LPCWSTR AppDomain::GetAppDomainManagerType()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_AppDomainManagerType;
-}
-
-#ifndef FEATURE_CORECLR
-inline BOOL AppDomain::AppDomainManagerSetFromConfig()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_fAppDomainManagerSetInConfig;
-}
-#endif // !FEATURE_CORECLR
-
-inline EInitializeNewDomainFlags AppDomain::GetAppDomainManagerInitializeNewDomainFlags()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_dwAppDomainManagerInitializeDomainFlags;
-}
-
-#ifdef FEATURE_CORECLR
 inline AppDomain::PathIterator AppDomain::IterateNativeDllSearchDirectories()
 {
     WRAPPER_NO_CONTRACT;
@@ -277,7 +212,6 @@ inline BOOL AppDomain::HasNativeDllSearchDirectories()
     return m_NativeDllSearchDirectories.GetCount() !=0;
 }
 
-#endif // FEATURE_CORECLR
 
 inline BOOL AppDomain::CanReversePInvokeEnter()
 {
@@ -326,8 +260,6 @@ inline PTR_LoaderAllocator AppDomain::GetLoaderAllocator()
     WRAPPER_NO_CONTRACT;
     return PTR_LoaderAllocator(PTR_HOST_MEMBER_TADDR(AppDomain,this,m_LoaderAllocator));
 }
-
-#endif // !BINDER
 
 /* static */
 inline DWORD DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob() 

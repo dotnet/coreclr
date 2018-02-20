@@ -1,8 +1,8 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
-/*  EXCEP.CPP:  Copyright (C) 1998 Microsoft Corporation
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+/*  EXCEP.CPP
  *
  */
 //
@@ -21,7 +21,7 @@
 #include "comutilnative.h"
 #include "sigformat.h"
 #include "siginfo.hpp"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in COMPlusThrow
 #include "perfcounters.h"
 #include "asmconstants.h"
@@ -147,7 +147,7 @@ RtlVirtualUnwind (
           IN ULONG HandlerType,
           IN ULONG64 ImageBase,
           IN ULONG64 ControlPc,
-          IN PRUNTIME_FUNCTION FunctionEntry,
+          IN PT_RUNTIME_FUNCTION FunctionEntry,
           IN OUT PCONTEXT ContextRecord,
           OUT PVOID *HandlerData,
           OUT PULONG64 EstablisherFrame,
@@ -183,7 +183,7 @@ RtlVirtualUnwind_Worker (
           IN ULONG HandlerType,
           IN ULONG64 ImageBase,
           IN ULONG64 ControlPc,
-          IN PRUNTIME_FUNCTION FunctionEntry,
+          IN PT_RUNTIME_FUNCTION FunctionEntry,
           IN OUT PCONTEXT ContextRecord,
           OUT PVOID *HandlerData,
           OUT PULONG64 EstablisherFrame,
@@ -430,7 +430,7 @@ RtlVirtualUnwind_Worker (
         // as well as a single byte representation of the Function code so that tests to make sure
         // that we're out of the prologue will not fail. 
     
-        RUNTIME_FUNCTION FakeFunctionEntry;
+        T_RUNTIME_FUNCTION FakeFunctionEntry;
 
         //
         // The buffer contains 4 sections

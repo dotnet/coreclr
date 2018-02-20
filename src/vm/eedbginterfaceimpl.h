@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -36,9 +35,11 @@
 
 class EEDbgInterfaceImpl : public EEDebugInterface
 {
-    VPTR_VTABLE_CLASS(EEDbgInterfaceImpl, EEDebugInterface);
+    VPTR_VTABLE_CLASS_AND_CTOR(EEDbgInterfaceImpl, EEDebugInterface);
 
 public:
+
+    virtual ~EEDbgInterfaceImpl() {}
 
 #ifndef DACCESS_COMPILE
 
@@ -48,7 +49,7 @@ public:
     static FORCEINLINE void Init(void)
     {
         g_pEEDbgInterfaceImpl = new EEDbgInterfaceImpl(); // new throws on failure
-        }
+    }
 
     //
     // Cleanup any global data used by this interface.
@@ -121,10 +122,14 @@ public:
 
     BOOL IsManagedNativeCode(const BYTE *address);
 
+    PCODE GetNativeCodeStartAddress(PCODE address) DAC_UNEXPECTED();
+
     MethodDesc *GetNativeCodeMethodDesc(const PCODE address) DAC_UNEXPECTED();
 
+#ifndef USE_GC_INFO_DECODER
     BOOL IsInPrologOrEpilog(const BYTE *address,
                             size_t* prologSize);
+#endif
 
     void DetermineIfOffsetsInFilterOrHandler(const BYTE *functionAddress,
                                                   DebugOffsetToHandlerInfo *pOffsetToHandlerInfo,
@@ -269,7 +274,6 @@ public:
     void GetRuntimeOffsets(SIZE_T *pTLSIndex,
                            SIZE_T *pTLSIsSpecialIndex,
                            SIZE_T *pTLSCantStopIndex,
-                           SIZE_T *pTLSIndexOfPredefs,
                            SIZE_T *pEEThreadStateOffset,
                            SIZE_T *pEEThreadStateNCOffset,
                            SIZE_T *pEEThreadPGCDisabledOffset,

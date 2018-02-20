@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -82,8 +81,8 @@ Cor_RtlImageRvaToSection32(PTR_IMAGE_NT_HEADERS32 NtHeaders,
     NtSection = PTR_IMAGE_FIRST_SECTION( NtHeaders );
     for (i=0; i<NtHeaders->FileHeader.NumberOfSections; i++) {
         if (FileLength &&
-            ((VAL32(NtSection->PointerToRawData) > FileLength)) ||
-            (VAL32(NtSection->SizeOfRawData) > FileLength - VAL32(NtSection->PointerToRawData)))
+            (((VAL32(NtSection->PointerToRawData) > FileLength)) ||
+            (VAL32(NtSection->SizeOfRawData) > FileLength - VAL32(NtSection->PointerToRawData))))
             return NULL;
         if (Rva >= VAL32(NtSection->VirtualAddress) &&
             Rva < VAL32(NtSection->VirtualAddress) + VAL32(NtSection->SizeOfRawData))
@@ -107,8 +106,8 @@ Cor_RtlImageRvaToSection64(PTR_IMAGE_NT_HEADERS64 NtHeaders,
     NtSection = PTR_IMAGE_FIRST_SECTION( NtHeaders );
     for (i=0; i<VAL16(NtHeaders->FileHeader.NumberOfSections); i++) {
         if (FileLength &&
-            ((VAL32(NtSection->PointerToRawData) > FileLength)) ||
-            (VAL32(NtSection->SizeOfRawData) > FileLength - VAL32(NtSection->PointerToRawData)))
+            (((VAL32(NtSection->PointerToRawData) > FileLength)) ||
+            (VAL32(NtSection->SizeOfRawData) > FileLength - VAL32(NtSection->PointerToRawData))))
             return NULL;
         if (Rva >= VAL32(NtSection->VirtualAddress) &&
             Rva < VAL32(NtSection->VirtualAddress) + VAL32(NtSection->SizeOfRawData))

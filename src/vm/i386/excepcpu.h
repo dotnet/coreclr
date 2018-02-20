@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -22,6 +21,7 @@
 
 #define STATUS_CLR_GCCOVER_CODE         STATUS_PRIVILEGED_INSTRUCTION
 
+#ifndef WIN64EXCEPTIONS
 class Thread;
 
 #if defined(_MSC_VER)
@@ -29,12 +29,22 @@ class Thread;
                               // Actually, the handler getting set is properly registered
 #endif
 
+#define INSTALL_SEH_RECORD(record)                                        \
+    {                                                                     \
+       (record)->Next = (PEXCEPTION_REGISTRATION_RECORD)__readfsdword(0); \
+       __writefsdword(0, (DWORD) (record));                               \
+    }
+
+#define UNINSTALL_SEH_RECORD(record)                                      \
+    {                                                                     \
+        __writefsdword(0, (DWORD) ((record)->Next));                      \
+    }
+
 #define INSTALL_EXCEPTION_HANDLING_RECORD(record)               \
     {                                                           \
         PEXCEPTION_REGISTRATION_RECORD __record = (record);     \
         _ASSERTE(__record < GetCurrentSEHRecord());             \
-        __record->Next = (PEXCEPTION_REGISTRATION_RECORD)__readfsdword(0); \
-        __writefsdword(0, (DWORD)__record);                     \
+        INSTALL_SEH_RECORD(record);                             \
     }
 
 //
@@ -45,7 +55,7 @@ class Thread;
     {                                                           \
         PEXCEPTION_REGISTRATION_RECORD __record = (record);     \
         _ASSERTE(__record == GetCurrentSEHRecord());            \
-        __writefsdword(0, (DWORD)__record->Next);               \
+        UNINSTALL_SEH_RECORD(record);                           \
     }
 
 // stackOverwriteBarrier is used to detect overwriting of stack which will mess up handler registration
@@ -66,14 +76,28 @@ class Thread;
 
 #endif
 
+
+PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord();
+PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread*);
+
+LPVOID COMPlusEndCatchWorker(Thread *pCurThread);
+EXTERN_C LPVOID STDCALL COMPlusEndCatch(LPVOID ebp, DWORD ebx, DWORD edi, DWORD esi, LPVOID* pRetAddress);
+
+#else // WIN64EXCEPTIONS
+#define INSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define UNINSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define DECLARE_CPFH_EH_RECORD(pCurThread)
+
+#endif // WIN64EXCEPTIONS
+
 //
 // Retrieves the redirected CONTEXT* from the stack frame of one of the
 // RedirectedHandledJITCaseForXXX_Stub's.
 //
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext);
-
-PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord();
-PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread*);
+#ifdef WIN64EXCEPTIONS
+PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext);
+#endif // WIN64EXCEPTIONS
 
 // Determine the address of the instruction that made the current call.
 inline

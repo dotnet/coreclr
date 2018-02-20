@@ -1,12 +1,9 @@
-// ==++==
-//
-//   Copyright (c) Microsoft Corporation.  All rights reserved.
-//
-// ==--==
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 //
 // clr_std/utility
-//
-// <owner>simonhal</owner>
 //
 // Copy of some key Standard Template Library functionality
 // See http://msdn.microsoft.com/en-us/library/bb982077.aspx for documentation.
@@ -22,18 +19,27 @@
 #ifndef __clr_std_utility_h__
 #define __clr_std_utility_h__
 
-#include "type_traits"
+#include "clr_std/type_traits"
 
 namespace std
 {
+    //-----------------------------------------------------------------------------------------
+    // TEMPLATE FUNCTION move
+    template<class T> inline
+    typename remove_reference<T>::type&&
+    move(T&& arg)
+    {   // forward _Arg as movable
+        return ((typename remove_reference<T>::type&&)arg);
+    }
+
     //-----------------------------------------------------------------------------------------
     // TEMPLATE FUNCTION swap (from <algorithm>)
     template<class T> inline
     void swap(T& left, T& right)
     {   // exchange values stored at left and right
-        T tmp = move(left);
-        left = move(right);
-        right = move(tmp);
+        T tmp = std::move(left);
+        left = std::move(right);
+        right = std::move(tmp);
     }
 
     //-----------------------------------------------------------------------------------------
@@ -43,15 +49,6 @@ namespace std
     forward(typename identity<T>::type& _Arg)
     {   // forward _Arg, given explicitly specified type parameter
         return ((T&&)_Arg);
-    }
-
-    //-----------------------------------------------------------------------------------------
-    // TEMPLATE FUNCTION move
-    template<class T> inline
-    typename remove_reference<T>::type&&
-    move(T&& arg)
-    {   // forward _Arg as movable
-        return ((typename remove_reference<T>::type&&)arg);
     }
 }
 
@@ -253,3 +250,5 @@ namespace std
 
 #endif // !USE_STL
 
+// Help the VIM editor figure out what kind of file this no-extension file is.
+// vim: filetype=cpp

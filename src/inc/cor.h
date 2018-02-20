@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************
  **                                                                         **
@@ -172,7 +171,6 @@ DEPRECATED_CLR_STDAPI_(void)   CoUninitializeEE(BOOL fFlags);
 DEPRECATED_CLR_STDAPI_(void)   CoEEShutDownCOM(void);
 
 
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 
 #define MAIN_CLR_MODULE_NAME_W        W("coreclr")
 #define MAIN_CLR_MODULE_NAME_A         "coreclr"
@@ -180,24 +178,10 @@ DEPRECATED_CLR_STDAPI_(void)   CoEEShutDownCOM(void);
 #define MAIN_CLR_DLL_NAME_W           MAKEDLLNAME_W(MAIN_CLR_MODULE_NAME_W)
 #define MAIN_CLR_DLL_NAME_A           MAKEDLLNAME_A(MAIN_CLR_MODULE_NAME_A)
 
-#else //FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
-
-#define MAIN_CLR_MODULE_NAME_W        L"clr"
-#define MAIN_CLR_MODULE_NAME_A         "clr"
-
-#define MAIN_CLR_DLL_NAME_W           MAKEDLLNAME_W(MAIN_CLR_MODULE_NAME_W)
-#define MAIN_CLR_DLL_NAME_A           MAKEDLLNAME_A(MAIN_CLR_MODULE_NAME_A)
-
-#endif //FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 
 
-#ifdef FEATURE_CORECLR
 #define MSCOREE_SHIM_W               MAIN_CLR_DLL_NAME_W
 #define MSCOREE_SHIM_A               MAIN_CLR_DLL_NAME_A
-#else
-#define MSCOREE_SHIM_W                L"mscoree.dll"
-#define MSCOREE_SHIM_A                "mscoree.dll"
-#endif // FEATURE_CORECLR
 
 #define SWITCHOUT_HANDLE_VALUE ((HANDLE)(LONG_PTR)-2)
 
@@ -2012,7 +1996,7 @@ typedef enum
 // slot on the caller's stack.
 //
 
-#define COR_REQUIRES_SECOBJ_ATTRIBUTE L"System.Security.DynamicSecurityMethodAttribute"
+#define COR_REQUIRES_SECOBJ_ATTRIBUTE W("System.Security.DynamicSecurityMethodAttribute")
 #define COR_REQUIRES_SECOBJ_ATTRIBUTE_ANSI "System.Security.DynamicSecurityMethodAttribute"
 
 #define COR_COMPILERSERVICE_DISCARDABLEATTRIBUTE L"System.Runtime.CompilerServices.DiscardableAttribute"
@@ -2509,7 +2493,7 @@ inline ULONG CorSigUncompressPointer(   // return number of bytes of that compre
     PCCOR_SIGNATURE pData,              // [IN] compressed data
     void **         ppvPointer)         // [OUT] the expanded *pData
 {
-    *ppvPointer = *(void * UNALIGNED *)pData;
+    *ppvPointer = *(void * const UNALIGNED *)pData;
     return sizeof(void *);
 }
 

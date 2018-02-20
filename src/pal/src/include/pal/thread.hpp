@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -26,6 +25,7 @@ Abstract:
 #include "cs.hpp"
 
 #include <pthread.h>    
+#include <sys/syscall.h>
 #if HAVE_MACH_EXCEPTIONS
 #include <mach/mach.h>
 #endif // HAVE_MACH_EXCEPTIONS
@@ -33,6 +33,7 @@ Abstract:
 #include "threadsusp.hpp"
 #include "tls.hpp"
 #include "synchobjects.hpp"
+#include <errno.h>
 
 namespace CorUnix
 {
@@ -93,11 +94,6 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InitializeGlobalThreadData(
-        void
-        );
-
-    PAL_ERROR
     CreateThreadData(
         CPalThread **ppThread
         );
@@ -113,27 +109,15 @@ namespace CorUnix
     InitializeEndingThreadsData(
         void
         );
+
+    BOOL
+    GetThreadTimesInternal(
+        IN HANDLE hThread,
+        OUT LPFILETIME lpKernelTime,
+        OUT LPFILETIME lpUserTime);
         
 #ifdef FEATURE_PAL_SXS
 #if HAVE_MACH_EXCEPTIONS
-    // Structure used to record all Mach exception handlers registered on a given thread at a specific point
-    // in time.
-    struct CThreadMachExceptionHandlerNode
-    {
-        // Maximum number of exception ports we hook.  Must be the count
-        // of all bits set in the exception masks defined in machexception.h.
-        static const int s_nPortsMax = 6;
-
-        // Saved exception ports, exactly as returned by
-        // thread_swap_exception_ports.
-        int m_nPorts;
-        exception_mask_t m_masks[s_nPortsMax];
-        exception_handler_t m_handlers[s_nPortsMax];
-        exception_behavior_t m_behaviors[s_nPortsMax];
-        thread_state_flavor_t m_flavors[s_nPortsMax];
-        
-        CThreadMachExceptionHandlerNode() : m_nPorts(-1) {}
-    };
 
     // Structure used to return data about a single handler to a caller.
     struct MachExceptionHandler
@@ -144,37 +128,35 @@ namespace CorUnix
         thread_state_flavor_t m_flavor;
     };
 
-    // Class abstracting previousy registered Mach exception handlers for a thread.
-    class CThreadMachExceptionHandlers
+    // Class abstracting previously registered Mach exception handlers for a thread.
+    struct CThreadMachExceptionHandlers
     {
     public:
-        // Returns a pointer to the handler node that should be initialized next. The first time this is
-        // called for a thread the bottom node will be returned. Thereafter the top node will be returned.
-        // Also returns the Mach exception port that should be registered.
-        CThreadMachExceptionHandlerNode *GetNodeForInitialization(mach_port_t *pExceptionPort);
+        // Maximum number of exception ports we hook.  Must be the count
+        // of all bits set in the exception masks defined in machexception.h.
+        static const int s_nPortsMax = 6;
 
-        // Returns a pointer to the handler node for cleanup. This will always be the bottom node. This isn't
-        // really the right algorithm (because there isn't one). There are lots of reasonable scenarios where
-        // we will break chaining by removing our handler from a thread (by registering two handler ports we
-        // can support a lot more chaining scenarios but we can't pull the same sort of trick when
-        // unregistering, in particular we have two sets of chain back handlers and no way to reach into other
-        // components and alter what their chain-back information is).
-        CThreadMachExceptionHandlerNode *GetNodeForCleanup() { return &m_bottom; }
+        // Saved exception ports, exactly as returned by
+        // thread_swap_exception_ports.
+        mach_msg_type_number_t m_nPorts;
+        exception_mask_t m_masks[s_nPortsMax];
+        exception_handler_t m_handlers[s_nPortsMax];
+        exception_behavior_t m_behaviors[s_nPortsMax];
+        thread_state_flavor_t m_flavors[s_nPortsMax];
+        
+        CThreadMachExceptionHandlers() : 
+            m_nPorts(-1)
+        {
+        }
 
         // Get handler details for a given type of exception. If successful the structure pointed at by
-        // pHandler is filled in and true is returned. Otherwise false is returned. The fTopException argument
-        // indicates whether the handlers found at the time of a call to ICLRRuntimeHost2::RegisterMacEHPort()
-        // should be searched (if not, or a handler is not found there, we'll fallback to looking at the
-        // handlers discovered at the point when the CLR first saw this thread).
-        bool GetHandler(exception_type_t eException, bool fTopException, MachExceptionHandler *pHandler);
+        // pHandler is filled in and true is returned. Otherwise false is returned.
+        bool GetHandler(exception_type_t eException, MachExceptionHandler *pHandler);
 
     private:
         // Look for a handler for the given exception within the given handler node. Return its index if
         // successful or -1 otherwise.
-        int GetIndexOfHandler(exception_mask_t bmExceptionMask, CThreadMachExceptionHandlerNode *pNode);
-
-        CThreadMachExceptionHandlerNode m_top;
-        CThreadMachExceptionHandlerNode m_bottom;
+        int GetIndexOfHandler(exception_mask_t bmExceptionMask);
     };
 #endif // HAVE_MACH_EXCEPTIONS
 #endif // FEATURE_PAL_SXS
@@ -185,7 +167,7 @@ namespace CorUnix
 #if !HAVE_MACH_EXCEPTIONS
         BOOL safe_state;
         int signal_code;
-#endif // !HAVE_MACH_EXCEPTIONS
+#endif // !HAVE_MACH_EXCEPTIONSG
 
         CThreadSEHInfo()
         {
@@ -256,12 +238,6 @@ namespace CorUnix
 
         friend
             PAL_ERROR
-            InitializeGlobalThreadData(
-                void
-                );
-
-        friend
-            PAL_ERROR
             CreateThreadData(
                 CPalThread **ppThread
                 );
@@ -273,17 +249,12 @@ namespace CorUnix
                 CPalThread *pNewThread,
                 HANDLE *phThread
                 );
+
+        friend CatchHardwareExceptionHolder;
         
     private:
 
         CPalThread *m_pNext;
-        
-#ifdef _DEBUG
-        DWORD m_dwGuard;
-        friend CPalThread *InternalGetCurrentThread();
-#endif
-        
-        DWORD m_dwLastError;
         DWORD m_dwExitCode;
         BOOL m_fExitCodeSet;
         CRITICAL_SECTION m_csLock;
@@ -317,6 +288,15 @@ namespace CorUnix
 
         SIZE_T m_threadId;
         DWORD m_dwLwpId;
+        pthread_t m_pthreadSelf;        
+
+#if HAVE_MACH_THREADS
+        mach_port_t m_machPortSelf;
+#endif 
+
+        // > 0 when there is an exception holder which causes h/w
+        // exceptions to be sent down the C++ exception chain.
+        int m_hardwareExceptionHolderCount;
 
         //
         // Start info
@@ -342,12 +322,10 @@ namespace CorUnix
         bool m_fStartStatus;
         bool m_fStartStatusSet;
 
-        // The default stack size of a newly created thread (currently 256KB)
-        // when the dwStackSize paramter of PAL_CreateThread()
-        // is zero. This value can be set by setting the
-        // environment variable PAL_THREAD_DEFAULT_STACK_SIZE
-        // (the value should be in bytes and in hex).
-        static DWORD s_dwDefaultThreadStackSize; 
+        // Base address of the stack of this thread
+        void* m_stackBase;
+        // Limit address of the stack of this thread
+        void* m_stackLimit;
 
         //
         // The thread entry routine (called from InternalCreateThread)
@@ -389,10 +367,6 @@ namespace CorUnix
         CPalThread()
             :
             m_pNext(NULL),
-#ifdef _DEBUG
-            m_dwGuard(0),
-#endif
-            m_dwLastError(0),
             m_dwExitCode(STILL_ACTIVE),
             m_fExitCodeSet(FALSE),
             m_fLockInitialized(FALSE),
@@ -401,6 +375,11 @@ namespace CorUnix
             m_pThreadObject(NULL),
             m_threadId(0),
             m_dwLwpId(0),
+            m_pthreadSelf(0),
+#if HAVE_MACH_THREADS
+            m_machPortSelf(0),
+#endif            
+            m_hardwareExceptionHolderCount(0),
             m_lpStartAddress(NULL),
             m_lpStartParameter(NULL),
             m_bCreateSuspended(FALSE),
@@ -408,7 +387,9 @@ namespace CorUnix
             m_eThreadType(UserCreatedThread),
             m_fStartItemsInitialized(FALSE),
             m_fStartStatus(FALSE),
-            m_fStartStatusSet(FALSE)
+            m_fStartStatusSet(FALSE),
+            m_stackBase(NULL),
+            m_stackLimit(NULL)
 #ifdef FEATURE_PAL_SXS
           , m_fInPal(TRUE)
 #endif // FEATURE_PAL_SXS
@@ -495,20 +476,22 @@ namespace CorUnix
             return synchronizationInfo.TryAcquireNativeWaitLock();
         }
 
-        void
+        static void
         SetLastError(
             DWORD dwLastError
             )
         {
-            m_dwLastError = dwLastError;    
+            // Reuse errno to store last error
+            errno = dwLastError;
         };
 
-        DWORD
+        static DWORD
         GetLastError(
             void
             )
         {
-            return m_dwLastError;
+            // Reuse errno to store last error
+            return errno;
         };
 
         void
@@ -544,6 +527,30 @@ namespace CorUnix
         {
             return m_dwLwpId;
         };
+
+        pthread_t
+        GetPThreadSelf(
+            void
+            )
+        {
+            return m_pthreadSelf;
+        };
+
+#if HAVE_MACH_THREADS
+        mach_port_t
+        GetMachPortSelf(
+            void
+            )
+        {
+            return m_machPortSelf;
+        };
+#endif
+
+        bool 
+        IsHardwareExceptionsEnabled()
+        {
+            return m_hardwareExceptionHolderCount > 0;
+        }
 
         LPTHREAD_START_ROUTINE
         GetStartAddress(
@@ -626,6 +633,34 @@ namespace CorUnix
         ReleaseThreadReference(
             void
             );
+
+        // Get base address of the current thread's stack
+        static
+        void *
+        GetStackBase(
+            void
+            );
+
+        // Get cached base address of this thread's stack
+        // Can be called only for the current thread.
+        void *
+        GetCachedStackBase(
+            void
+            );
+
+        // Get limit address of the current thread's stack
+        static
+        void *
+        GetStackLimit(
+            void
+            );
+
+        // Get cached limit address of this thread's stack
+        // Can be called only for the current thread.
+        void *
+        GetCachedStackLimit(
+            void
+            );
         
 #ifdef FEATURE_PAL_SXS
         //
@@ -672,20 +707,25 @@ namespace CorUnix
             return &m_sMachExceptionHandlers;
         }
 #endif // HAVE_MACH_EXCEPTIONS
-        
-#ifdef _DEBUG
-        void CheckGuard();
-#endif // _DEBUG
 #endif // FEATURE_PAL_SXS
-
     };
 
-    inline CPalThread *InternalGetCurrentThread() {
-        CPalThread *pThread = reinterpret_cast<CPalThread*>(pthread_getspecific(thObjKey));
-#if defined(FEATURE_PAL_SXS) && defined(_DEBUG)
-        if (pThread)
-            pThread->CheckGuard();
-#endif // FEATURE_PAL_SXS && _DEBUG
+#if defined(FEATURE_PAL_SXS)
+    extern "C" CPalThread *CreateCurrentThreadData();
+#endif // FEATURE_PAL_SXS
+
+    inline CPalThread *GetCurrentPalThread()
+    {
+        return reinterpret_cast<CPalThread*>(pthread_getspecific(thObjKey));
+    }
+
+    inline CPalThread *InternalGetCurrentThread()
+    {
+        CPalThread *pThread = GetCurrentPalThread();
+#if defined(FEATURE_PAL_SXS)
+        if (pThread == nullptr)
+            pThread = CreateCurrentThreadData();
+#endif // FEATURE_PAL_SXS
         return pThread;
     }
 
@@ -738,6 +778,9 @@ WaitForEndingThreads(
 
 extern int free_threads_spinlock;
 
+extern PAL_ActivationFunction g_activationFunction;
+extern PAL_SafeActivationCheckFunction g_safeActivationCheckFunction;
+
 /*++
 Macro:
   THREADSilentGetCurrentThreadId
@@ -755,7 +798,23 @@ Abstract:
   bounds based lookaside system, why aren't we using it in the
   cache?
 
+  In order to match the thread ids that debuggers use at least for
+  linux we need to use gettid(). 
+
 --*/
-#define THREADSilentGetCurrentThreadId() (SIZE_T) pthread_self()
+#if defined(__linux__)
+#define THREADSilentGetCurrentThreadId() (SIZE_T)syscall(SYS_gettid)
+#elif defined(__APPLE__)
+inline SIZE_T THREADSilentGetCurrentThreadId() {
+    uint64_t tid;
+    pthread_threadid_np(pthread_self(), &tid);
+    return (SIZE_T)tid;
+}
+#elif defined(__NetBSD__)
+#include <lwp.h>
+#define THREADSilentGetCurrentThreadId() (SIZE_T)_lwp_self()
+#else
+#define THREADSilentGetCurrentThreadId() (SIZE_T)pthread_self()
+#endif
 
 #endif // _PAL_THREAD_HPP_

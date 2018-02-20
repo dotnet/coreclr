@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #include "stdafx.h"
 
@@ -357,8 +356,8 @@ BOOL RangeTree::OverlapsNode(Node *node, SIZE_T start, SIZE_T end, SIZE_T mask)
             && (end > node->start && start < node->end))
             return TRUE;
 
-        if (node->children[0] != NULL && OverlapsNode(node->children[0], start, end, mask)
-            || node->children[1] != NULL && OverlapsNode(node->children[1], start, end, mask))
+        if ((node->children[0] != NULL && OverlapsNode(node->children[0], start, end, mask))
+            || (node->children[1] != NULL && OverlapsNode(node->children[1], start, end, mask)))
             return TRUE;
 
         return FALSE;

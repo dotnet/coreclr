@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.IO;
@@ -320,7 +319,7 @@ Required:
                 // appear to be any mechanism for turning this sub-directory probing off, but all other searching mechanisms
                 // should be turned off by the DiaLoadCallback.  This could also happen if the user specified an incorrect
                 // (but still existing) filename in a path containing the real PDB.  Since DIA loaded it, it must match the DLL, 
-                // and so should only be an exact copy of the requested PDB (if the requested PDB actuall matches the DLL).  So 
+                // and so should only be an exact copy of the requested PDB (if the requested PDB actually matches the DLL).  So 
                 // go ahead and use it anyway with a warning.  To be less confusing, we could update the command-line syntax
                 // to take a PDB search path instead of a filename, but that inconsistent with the map path, and probably not
                 // worth changing semantics for.  In practice this warning will probably never be hit.

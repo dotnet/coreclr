@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #if MDA_SUPPORTED
 
@@ -90,7 +91,7 @@ namespace System.Runtime.InteropServices
                 }
 
                 if (cookie == GCHandleCookie.Zero)
-                    throw new OutOfMemoryException(Environment.GetResourceString("OutOfMemory_GCHandleMDA"));
+                    throw new OutOfMemoryException(SR.OutOfMemory_GCHandleMDA);
 
                 // This handle hasn't been added to the map yet so add it.
                 m_HandleToCookieMap.Add(handle, cookie);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -9,8 +8,8 @@
 // 
 // ==--==
 #include "exts.h"
-#ifndef FEATURE_PAL
 #include "disasm.h"
+#ifndef FEATURE_PAL
 #include "EventCallbacks.h"
 
 #define VER_PRODUCTVERSION_W        (0x0100)
@@ -33,47 +32,62 @@ ULONG   TargetMachine;
 BOOL    Connected;
 ULONG   g_TargetClass;
 DWORD_PTR g_filterHint = 0;
-IMachine* g_targetMachine = NULL;
-BOOL    g_bDacBroken = FALSE;
 
 PDEBUG_CLIENT         g_ExtClient;    
+PDEBUG_DATA_SPACES2   g_ExtData2;
+PDEBUG_SYMBOLS2       g_ExtSymbols2;
+PDEBUG_ADVANCED3      g_ExtAdvanced3;
+PDEBUG_CLIENT         g_pCallbacksClient;
+
+#else
+
+DebugClient*          g_DebugClient;
+ILLDBServices*        g_ExtServices;    
+
+#endif // FEATURE_PAL
+
+IMachine* g_targetMachine = NULL;
+BOOL      g_bDacBroken = FALSE;
+
 PDEBUG_CONTROL2       g_ExtControl;
 PDEBUG_DATA_SPACES    g_ExtData;
-PDEBUG_DATA_SPACES2   g_ExtData2;
 PDEBUG_REGISTERS      g_ExtRegisters;
 PDEBUG_SYMBOLS        g_ExtSymbols;
-PDEBUG_SYMBOLS2       g_ExtSymbols2;
 PDEBUG_SYSTEM_OBJECTS g_ExtSystem;
-PDEBUG_ADVANCED3      g_ExtAdvanced3;
-
-PDEBUG_CLIENT         g_pCallbacksClient;
 
 #define SOS_ExtQueryFailGo(var, riid)                       \
     var = NULL;                                             \
-    if ((Status = Client->QueryInterface(__uuidof(riid),    \
+    if ((Status = client->QueryInterface(__uuidof(riid),    \
                                  (void **)&var)) != S_OK)   \
     {                                                       \
         goto Fail;                                          \
     }
 
 // Queries for all debugger interfaces.
+#ifndef FEATURE_PAL    
 extern "C" HRESULT
-ExtQuery(PDEBUG_CLIENT Client)
+ExtQuery(PDEBUG_CLIENT client)
 {
+    g_ExtClient = client;
+#else
+extern "C" HRESULT
+ExtQuery(ILLDBServices* services)
+{
+    g_ExtServices = services;
+    DebugClient* client = new DebugClient(services);
+    g_DebugClient = client;
+#endif
     HRESULT Status;
-    
     SOS_ExtQueryFailGo(g_ExtControl, IDebugControl2);
     SOS_ExtQueryFailGo(g_ExtData, IDebugDataSpaces);
-    SOS_ExtQueryFailGo(g_ExtData2, IDebugDataSpaces2);
     SOS_ExtQueryFailGo(g_ExtRegisters, IDebugRegisters);
     SOS_ExtQueryFailGo(g_ExtSymbols, IDebugSymbols);
-    SOS_ExtQueryFailGo(g_ExtSymbols2, IDebugSymbols2);
     SOS_ExtQueryFailGo(g_ExtSystem, IDebugSystemObjects);
+#ifndef FEATURE_PAL
+    SOS_ExtQueryFailGo(g_ExtData2, IDebugDataSpaces2);
+    SOS_ExtQueryFailGo(g_ExtSymbols2, IDebugSymbols2);
     SOS_ExtQueryFailGo(g_ExtAdvanced3, IDebugAdvanced3);
-    g_ExtClient = Client;
-
-    
-
+#endif // FEATURE_PAL
     return S_OK;
 
  Fail:
@@ -97,30 +111,29 @@ ArchQuery(void)
     {
         targetMachine = AMD64Machine::GetInstance();
     }
-#endif // SOS_TARGET_AMD64
-#ifdef SOS_TARGET_X86
+#elif defined(SOS_TARGET_X86)
     if (targetArchitecture == IMAGE_FILE_MACHINE_I386)
     {
         targetMachine = X86Machine::GetInstance();
     }
-#endif // SOS_TARGET_X86
-#ifdef SOS_TARGET_ARM
+#elif defined(SOS_TARGET_ARM)
     if (targetArchitecture == IMAGE_FILE_MACHINE_ARMNT)
     {
         targetMachine = ARMMachine::GetInstance();
     }
-#endif // SOS_TARGET_ARM
-#ifdef SOS_TARGET_ARM64
+#elif defined(SOS_TARGET_ARM64)
     if (targetArchitecture == IMAGE_FILE_MACHINE_ARM64)
     {
         targetMachine = ARM64Machine::GetInstance();
     }
-#endif // SOS_TARGET_ARM64
+#else
+#error "Undefined target architecture"
+#endif
 
     if (targetMachine == NULL)
     {
         g_targetMachine = NULL;
-        ExtErr("SOS does not support the current target architecture.\n");
+        ExtErr("SOS does not support the current target architecture 0x%llx.\n", targetArchitecture);
         return E_FAIL;
     }
 
@@ -132,16 +145,23 @@ ArchQuery(void)
 void
 ExtRelease(void)
 {
-    g_ExtClient = NULL;
     EXT_RELEASE(g_ExtControl);
     EXT_RELEASE(g_ExtData);
-    EXT_RELEASE(g_ExtData2);
     EXT_RELEASE(g_ExtRegisters);
     EXT_RELEASE(g_ExtSymbols);
-    EXT_RELEASE(g_ExtSymbols2);
     EXT_RELEASE(g_ExtSystem);
+#ifndef FEATURE_PAL
+    EXT_RELEASE(g_ExtData2);
+    EXT_RELEASE(g_ExtSymbols2);
     EXT_RELEASE(g_ExtAdvanced3);
+    g_ExtClient = NULL;
+#else 
+    EXT_RELEASE(g_DebugClient);
+    g_ExtServices = NULL;
+#endif // FEATURE_PAL
 }
+
+#ifndef FEATURE_PAL
 
 BOOL IsMiniDumpFileNODAC();
 extern HMODULE g_hInstance;
@@ -149,9 +169,9 @@ extern HMODULE g_hInstance;
 // This function throws an exception that can be caught by the debugger,
 // instead of allowing the default CRT behavior of invoking Watson to failfast.
 void __cdecl _SOS_invalid_parameter(
-   const wchar_t * expression,
-   const wchar_t * function, 
-   const wchar_t * file, 
+   const WCHAR * expression,
+   const WCHAR * function, 
+   const WCHAR * file, 
    unsigned int line,
    uintptr_t pReserved
 )
@@ -170,6 +190,8 @@ void CleanupEventCallbacks()
     }
 }
 
+bool g_Initialized = false;
+
 extern "C"
 HRESULT
 CALLBACK
@@ -181,7 +203,12 @@ DebugExtensionInitialize(PULONG Version, PULONG Flags)
 
     *Version = DEBUG_EXTENSION_VERSION(1, 0);
     *Flags = 0;
-    
+
+    if (g_Initialized)
+    {
+        return S_OK;
+    }
+    g_Initialized = true;
 
     if ((Hr = DebugCreate(__uuidof(IDebugClient),
                           (void **)&DebugClient)) != S_OK)
@@ -199,6 +226,11 @@ DebugExtensionInitialize(PULONG Version, PULONG Flags)
     {
         return Hr;
     }
+    
+    // Fixes the "Unable to read dynamic function table entries" error messages by disabling the WinDbg security
+    // feature that prevents the loading of unknown out of proc tack walkers.
+    DebugControl->Execute(DEBUG_OUTCTL_IGNORE, ".settings set EngineInitialization.VerifyFunctionTableCallbacks=false", 
+        DEBUG_EXECUTE_NOT_LOGGED | DEBUG_EXECUTE_NO_REPEAT);
 
     ExtQuery(DebugClient);
     if (IsMiniDumpFileNODAC())
@@ -355,36 +387,48 @@ BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 
 #else // FEATURE_PAL
 
-BOOL g_bDacBroken = FALSE;
-
-PDEBUG_CLIENT         g_ExtClient;    
-PDEBUG_DATA_SPACES    g_ExtData;
-PDEBUG_CONTROL2       g_ExtControl;
-PDEBUG_SYMBOLS        g_ExtSymbols;
-
-extern "C" HRESULT
-ExtQuery(PDEBUG_CLIENT Client)
+HRESULT
+DebugClient::QueryInterface(
+    REFIID InterfaceId,
+    PVOID* Interface
+    )
 {
-    g_ExtClient = Client;
-    g_ExtControl = (PDEBUG_CONTROL2)Client;
-    g_ExtData = (PDEBUG_DATA_SPACES)Client;
-    g_ExtSymbols = (PDEBUG_SYMBOLS)Client;
-    return S_OK;
+    if (InterfaceId == __uuidof(IUnknown) ||
+        InterfaceId == __uuidof(IDebugControl2) ||
+        InterfaceId == __uuidof(IDebugControl4) ||
+        InterfaceId == __uuidof(IDebugDataSpaces) ||
+        InterfaceId == __uuidof(IDebugSymbols) ||
+        InterfaceId == __uuidof(IDebugSystemObjects) ||
+        InterfaceId == __uuidof(IDebugRegisters))
+    {
+        *Interface = this;
+        AddRef();
+        return S_OK;
+    }
+    else
+    {
+        *Interface = NULL;
+        return E_NOINTERFACE;
+    }
 }
 
-extern "C" HRESULT
-ArchQuery(void)
+ULONG
+DebugClient::AddRef()
 {
-    return S_OK;
+    LONG ref = InterlockedIncrement(&m_ref);    
+    return ref;
 }
 
-void
-ExtRelease(void)
+ULONG
+DebugClient::Release()
 {
-    g_ExtClient = NULL;
-    g_ExtControl = NULL;
-    g_ExtData = NULL;
-    g_ExtSymbols = NULL;
+    LONG ref = InterlockedDecrement(&m_ref);
+    if (ref == 0)
+    {
+        m_lldbservices->Release();
+        delete this;
+    }
+    return ref;
 }
 
 #endif // FEATURE_PAL

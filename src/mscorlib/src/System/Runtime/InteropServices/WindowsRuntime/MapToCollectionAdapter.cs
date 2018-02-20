@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -7,9 +8,10 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -28,15 +30,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private MapToCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // int Count { get }
-        [Pure]
-        [SecurityCritical]
         internal int Count<K, V>()
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
             if (_this_map != null)
@@ -45,19 +45,19 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (((uint)Int32.MaxValue) < size)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingDictionaryTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingDictionaryTooLarge);
                 }
 
                 return (int)size;
             }
             else
             {
-                IVector<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVector<KeyValuePair<K, V>>>(this);
+                IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
                 uint size = _this_vector.Size;
 
                 if (((uint)Int32.MaxValue) < size)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 
                 return (int)size;
@@ -65,17 +65,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IsReadOnly { get }
-        [SecurityCritical]
         internal bool IsReadOnly<K, V>()
         {
             return false;
         }
 
         // void Add(T item)
-        [SecurityCritical]
         internal void Add<K, V>(KeyValuePair<K, V> item)
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
             if (_this_dictionary != null)
@@ -84,16 +82,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                IVector<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVector<KeyValuePair<K, V>>>(this);
+                IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
                 _this_vector.Append(item);
             }
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<K, V>()
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IMap<K, V> _this_map = _this as IMap<K, V>;
             if (_this_map != null)
@@ -102,16 +99,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                IVector<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVector<KeyValuePair<K, V>>>(this);
+                IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
                 _this_vector.Clear();
             }
         }
 
         // bool Contains(T item)
-        [SecurityCritical]
         internal bool Contains<K, V>(KeyValuePair<K, V> item)
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
             if (_this_dictionary != null)
@@ -126,7 +122,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                IVector<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVector<KeyValuePair<K, V>>>(this);
+                IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
 
                 uint index;
                 return _this_vector.IndexOf(item, out index);
@@ -134,24 +130,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void CopyTo(T[] array, int arrayIndex)
-        [SecurityCritical]
         internal void CopyTo<K, V>(KeyValuePair<K, V>[] array, int arrayIndex)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             if (arrayIndex < 0)
-                throw new ArgumentOutOfRangeException("arrayIndex");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
             if (array.Length <= arrayIndex && Count<K, V>() > 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_IndexOutOfArrayBounds"));
+                throw new ArgumentException(SR.Argument_IndexOutOfArrayBounds);
 
             if (array.Length - arrayIndex < Count<K, V>())
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
-            Contract.EndContractBlock();
 
-            IIterable<KeyValuePair<K, V>> _this = JitHelpers.UnsafeCast<IIterable<KeyValuePair<K, V>>>(this);
+            IIterable<KeyValuePair<K, V>> _this = Unsafe.As<IIterable<KeyValuePair<K, V>>>(this);
             foreach (KeyValuePair<K, V> mapping in _this)
             {
                 array[arrayIndex++] = mapping;
@@ -159,10 +153,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Remove(T item)
-        [SecurityCritical]
         internal bool Remove<K, V>(KeyValuePair<K, V> item)
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IDictionary<K, V> _this_dictionary = _this as IDictionary<K, V>;
             if (_this_dictionary != null)
@@ -171,7 +164,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                IVector<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVector<KeyValuePair<K, V>>>(this);
+                IVector<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVector<KeyValuePair<K, V>>>(this);
                 uint index;
                 bool exists = _this_vector.IndexOf(item, out index);
 
@@ -180,7 +173,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (((uint)Int32.MaxValue) < index)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 
                 VectorToListAdapter.RemoveAtHelper<KeyValuePair<K, V>>(_this_vector, index);

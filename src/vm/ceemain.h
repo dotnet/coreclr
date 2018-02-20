@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEEMAIN.H
 // 
@@ -57,6 +56,8 @@ void InnerCoEEShutDownCOM();
 //        how the g_pCEE and related variables are initialized.
 class CExecutionEngine : public IExecutionEngine, public IEEMemoryManager
 {
+    friend struct _DacGlobals;
+
     //***************************************************************************
     // public API:
     //***************************************************************************
@@ -82,27 +83,13 @@ public:
     // Setup FLS simulation block, including ClrDebugState and StressLog.
     static void SetupTLSForThread(Thread *pThread);
 
-    static DWORD GetTlsIndex () {return TlsIndex;}
-
     static LPVOID* GetTlsData();
     static BOOL SetTlsData (void** ppTlsInfo);
-
-    static BOOL HasDetachedTlsInfo();
-
-    static void CleanupDetachedTlsInfo();
-
-    static void DetachTlsInfo(void **pTlsData);
 
     //***************************************************************************
     // private implementation:
     //***************************************************************************
 private:
-
-    // The debugger needs access to the TlsIndex so that we can read it from OOP.
-    friend class EEDbgInterfaceImpl;
-
-    SVAL_DECL (DWORD, TlsIndex);
-
     static PTLS_CALLBACK_FUNCTION Callbacks[MAX_PREDEFINED_TLS_SLOT];
 
     //***************************************************************************
@@ -209,44 +196,5 @@ INT32 GetLatchedExitCode (void);
 // Stronger than IsGCHeapInitialized
 BOOL IsGarbageCollectorFullyInitialized();
 
-#ifndef FEATURE_CORECLR
-//---------------------------------------------------------------------------------------
-// 
-// Class to encapsulate Cor Command line processing
-// 
-class CorCommandLine
-{
-public:
-
-//********** TYPES
-
-    // Note: We don't bother with interlocked operations as we manipulate these bits,
-    // because we don't anticipate free-threaded access.  (Most of this is used only
-    // during startup / shutdown).
-
-//********** DATA
-
-    // Hold the current (possibly parsed) command line here
-    static DWORD            m_NumArgs;
-    static LPWSTR          *m_ArgvW;
-
-    static LPWSTR          m_pwszAppFullName;
-    static DWORD           m_dwManifestPaths;
-    static LPWSTR         *m_ppwszManifestPaths;
-    static DWORD           m_dwActivationData;
-    static LPWSTR         *m_ppwszActivationData;
-
-//********** METHODS
-
-    // parse the command line
-    static HRESULT         SetArgvW(LPCWSTR lpCommandLine);
-
-    // Retrieve the parsed command line
-    static LPWSTR          *GetArgvW(DWORD *pNumArgs);
-
-private:
-    static HRESULT ReadClickOnceEnvVariables();
-};
-#endif // !FEATURE_CORECLR
 
 #endif

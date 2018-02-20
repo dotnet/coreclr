@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //=========================================================================
 
@@ -336,7 +335,7 @@ int HillClimbing::Update(int currentThreadCount, double sampleDuration, int numC
     // we'll simply stay at minThreads much longer, and only occasionally try a higher value.
     //
     if (ratio.r < 0.0 && newThreadCount == ThreadpoolMgr::MinLimitTotalWorkerThreads)
-        *pNewSampleInterval = (int)(0.5 + m_currentSampleInterval * (10.0 * max(-ratio.r, 1.0)));
+        *pNewSampleInterval = (int)(0.5 + m_currentSampleInterval * (10.0 * min(-ratio.r, 1.0)));
     else
         *pNewSampleInterval = m_currentSampleInterval; 
 

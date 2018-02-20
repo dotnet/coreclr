@@ -1,13 +1,12 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 //*****************************************************************************
 // unixinterface.cpp
 //
-// Implementation for the interface exposed by the libcoreclr.so on Unix
+// Implementation for the interface exposed by libcoreclr.so
 //
 
 //*****************************************************************************
@@ -15,6 +14,15 @@
 #include "stdafx.h"
 #include <utilcode.h>
 #include <corhost.h>
+#include <configuration.h>
+#ifdef FEATURE_GDBJIT
+#include "../../vm/gdbjithelpers.h"
+#endif // FEATURE_GDBJIT
+
+typedef int (STDMETHODCALLTYPE *HostMain)(
+    const int argc,
+    const wchar_t** argv
+    );
 
 #define ASSERTE_ALL_BUILDS(expr) _ASSERTE_ALL_BUILDS(__FILE__, (expr))
 
@@ -51,13 +59,13 @@ public:
 // Convert 8 bit string to unicode
 static LPCWSTR StringToUnicode(LPCSTR str)
 {
-    int length = MultiByteToWideChar(CP_ACP, 0, str, -1, NULL, 0);
+    int length = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
     ASSERTE_ALL_BUILDS(length != 0);
 
     LPWSTR result = new (nothrow) WCHAR[length];
     ASSERTE_ALL_BUILDS(result != NULL);
     
-    length = MultiByteToWideChar(CP_ACP, 0, str, length, result, length);
+    length = MultiByteToWideChar(CP_UTF8, 0, str, -1, result, length);
     ASSERTE_ALL_BUILDS(length != 0);
 
     return result;
@@ -82,41 +90,90 @@ static LPCWSTR* StringArrayToUnicode(int argc, LPCSTR* argv)
     return argvW;
 }
 
+static void InitializeStartupFlags(STARTUP_FLAGS* startupFlagsRef)
+{
+    STARTUP_FLAGS startupFlags = static_cast<STARTUP_FLAGS>(
+            STARTUP_FLAGS::STARTUP_LOADER_OPTIMIZATION_SINGLE_DOMAIN |
+            STARTUP_FLAGS::STARTUP_SINGLE_APPDOMAIN);
+
+    if (Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), CLRConfig::UNSUPPORTED_gcConcurrent))
+    {
+        startupFlags = static_cast<STARTUP_FLAGS>(startupFlags | STARTUP_CONCURRENT_GC);
+    }
+    if (Configuration::GetKnobBooleanValue(W("System.GC.Server"), CLRConfig::UNSUPPORTED_gcServer))
+    {
+        startupFlags = static_cast<STARTUP_FLAGS>(startupFlags | STARTUP_SERVER_GC);
+    }
+    if (Configuration::GetKnobBooleanValue(W("System.GC.RetainVM"), CLRConfig::UNSUPPORTED_GCRetainVM))
+    {
+        startupFlags = static_cast<STARTUP_FLAGS>(startupFlags | STARTUP_HOARD_GC_VM);
+    }
+
+    *startupFlagsRef = startupFlags;
+}
+
+static void ConvertConfigPropertiesToUnicode(
+    const char** propertyKeys,
+    const char** propertyValues,
+    int propertyCount,
+    LPCWSTR** propertyKeysWRef,
+    LPCWSTR** propertyValuesWRef)
+{
+    LPCWSTR* propertyKeysW = new (nothrow) LPCWSTR[propertyCount];
+    ASSERTE_ALL_BUILDS(propertyKeysW != nullptr);
+
+    LPCWSTR* propertyValuesW = new (nothrow) LPCWSTR[propertyCount];
+    ASSERTE_ALL_BUILDS(propertyValuesW != nullptr);
+
+    for (int propertyIndex = 0; propertyIndex < propertyCount; ++propertyIndex)
+    {
+        propertyKeysW[propertyIndex] = StringToUnicode(propertyKeys[propertyIndex]);
+        propertyValuesW[propertyIndex] = StringToUnicode(propertyValues[propertyIndex]);
+    }
+
+    *propertyKeysWRef = propertyKeysW;
+    *propertyValuesWRef = propertyValuesW;
+}
+
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+// Reference to the global holding the path to the JIT
+extern "C" LPCWSTR g_CLRJITPath;
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#ifdef FEATURE_GDBJIT
+GetInfoForMethodDelegate getInfoForMethodDelegate = NULL;
+extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const char*, const char*, void**);
+#endif //FEATURE_GDBJIT
+
 //
-// Execute a managed assembly with given arguments
+// Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
 //
 // Parameters:
 //  exePath                 - Absolute path of the executable that invoked the ExecuteAssembly
-//  coreClrPath             - Absolute path of the libcoreclr.so
 //  appDomainFriendlyName   - Friendly name of the app domain that will be created to execute the assembly
 //  propertyCount           - Number of properties (elements of the following two arguments)
 //  propertyKeys            - Keys of properties of the app domain
 //  propertyValues          - Values of properties of the app domain
-//  argc                    - Number of arguments passed to the executed assembly
-//  argv                    - Array of arguments passed to the executed assembly
-//  managedAssemblyPath     - Path of the managed assembly to execute
-//  exitCode                - Exit code returned by the executed assembly
+//  hostHandle              - Output parameter, handle of the created host
+//  domainId                - Output parameter, id of the created app domain 
 //
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
 extern "C"
-HRESULT ExecuteAssembly(
-            LPCSTR exePath,
-            LPCSTR coreClrPath,
-            LPCSTR appDomainFriendlyName,
+int coreclr_initialize(
+            const char* exePath,
+            const char* appDomainFriendlyName,
             int propertyCount,
-            LPCSTR* propertyKeys,
-            LPCSTR* propertyValues,
-            int argc,
-            LPCSTR* argv,
-            LPCSTR managedAssemblyPath,
-            DWORD* exitCode)
+            const char** propertyKeys,
+            const char** propertyValues,
+            void** hostHandle,
+            unsigned int* domainId)
 {
-    *exitCode = 0;
-
-    DWORD error = PAL_InitializeCoreCLR(exePath, coreClrPath, true);
-    HRESULT hr = HRESULT_FROM_WIN32(error);
+    HRESULT hr;
+#ifdef FEATURE_PAL
+    DWORD error = PAL_InitializeCoreCLR(exePath);
+    hr = HRESULT_FROM_WIN32(error);
 
     // If PAL initialization failed, then we should return right away and avoid
     // calling any other APIs because they can end up calling into the PAL layer again.
@@ -124,32 +181,40 @@ HRESULT ExecuteAssembly(
     {
         return hr;
     }
+#endif
 
-    ReleaseHolder<ICLRRuntimeHost2> host;
+    ReleaseHolder<ICLRRuntimeHost4> host;
 
-    hr = CorHost2::CreateObject(IID_ICLRRuntimeHost2, (void**)&host);
+    hr = CorHost2::CreateObject(IID_ICLRRuntimeHost4, (void**)&host);
     IfFailRet(hr);
 
-    hr = host->SetStartupFlags((STARTUP_FLAGS)
-                               (STARTUP_FLAGS::STARTUP_LOADER_OPTIMIZATION_SINGLE_DOMAIN |
-                                STARTUP_FLAGS::STARTUP_SINGLE_APPDOMAIN));
-    IfFailRet(hr);
+    ConstWStringHolder appDomainFriendlyNameW = StringToUnicode(appDomainFriendlyName);
 
-    hr = host->Authenticate(CORECLR_HOST_AUTHENTICATION_KEY);
+    LPCWSTR* propertyKeysW;
+    LPCWSTR* propertyValuesW;
+    ConvertConfigPropertiesToUnicode(
+        propertyKeys,
+        propertyValues,
+        propertyCount,
+        &propertyKeysW,
+        &propertyValuesW);
+
+    // This will take ownership of propertyKeysWTemp and propertyValuesWTemp
+    Configuration::InitializeConfigurationKnobs(propertyCount, propertyKeysW, propertyValuesW);
+
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    // Fetch the path to JIT binary, if specified
+    g_CLRJITPath = Configuration::GetKnobStringValue(W("JIT_PATH"));
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+    STARTUP_FLAGS startupFlags;
+    InitializeStartupFlags(&startupFlags);
+
+    hr = host->SetStartupFlags(startupFlags);
     IfFailRet(hr);
 
     hr = host->Start();
     IfFailRet(hr);
-    
-    ConstWStringHolder appDomainFriendlyNameW = StringToUnicode(appDomainFriendlyName);
-    
-    ConstWStringArrayHolder propertyKeysW;
-    propertyKeysW.Set(StringArrayToUnicode(propertyCount, propertyKeys), propertyCount);
-    
-    ConstWStringArrayHolder propertyValuesW;
-    propertyValuesW.Set(StringArrayToUnicode(propertyCount, propertyValues), propertyCount);
-
-    DWORD domainId;
 
     hr = host->CreateAppDomainWithManager(
         appDomainFriendlyNameW,
@@ -168,30 +233,179 @@ HRESULT ExecuteAssembly(
         // - Prevents the application from being torn down if a managed exception is unhandled
         //
         APPDOMAIN_ENABLE_PLATFORM_SPECIFIC_APPS |
-        APPDOMAIN_ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP,
+        APPDOMAIN_ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP |
+        APPDOMAIN_DISABLE_TRANSPARENCY_ENFORCEMENT,
         NULL,                    // Name of the assembly that contains the AppDomainManager implementation
         NULL,                    // The AppDomainManager implementation type name
         propertyCount,
         propertyKeysW,
         propertyValuesW,
-        &domainId);
+        (DWORD *)domainId);
+
+    if (SUCCEEDED(hr))
+    {
+        host.SuppressRelease();
+        *hostHandle = host;
+#ifdef FEATURE_GDBJIT
+        HRESULT createDelegateResult;
+        createDelegateResult = coreclr_create_delegate(*hostHandle,
+                                                       *domainId,
+                                                       "SOS.NETCore",
+                                                       "SOS.SymbolReader",
+                                                       "GetInfoForMethod",
+                                                       (void**)&getInfoForMethodDelegate);
+
+#if defined(_DEBUG)
+        if (!SUCCEEDED(createDelegateResult))
+        {
+            fprintf(stderr,
+                    "Can't create delegate for 'SOS.SymbolReader.GetInfoForMethod' "
+                    "method - status: 0x%08x\n", createDelegateResult);
+        }
+#endif // _DEBUG
+
+#endif
+    }
+    return hr;
+}
+
+//
+// Shutdown CoreCLR. It unloads the app domain and stops the CoreCLR host.
+//
+// Parameters:
+//  hostHandle              - Handle of the host
+//  domainId                - Id of the domain 
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
+//
+extern "C"
+int coreclr_shutdown(
+            void* hostHandle,
+            unsigned int domainId)
+{
+    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
+
+    HRESULT hr = host->UnloadAppDomain(domainId, true); // Wait until done
     IfFailRet(hr);
+
+    hr = host->Stop();
+
+#ifdef FEATURE_PAL
+    PAL_Shutdown();
+#endif
+
+    return hr;
+}
+
+//
+// Shutdown CoreCLR. It unloads the app domain and stops the CoreCLR host.
+//
+// Parameters:
+//  hostHandle              - Handle of the host
+//  domainId                - Id of the domain
+//  latchedExitCode         - Latched exit code after domain unloaded
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
+//
+extern "C"
+int coreclr_shutdown_2(
+            void* hostHandle,
+            unsigned int domainId,
+            int* latchedExitCode)
+{
+    ReleaseHolder<ICLRRuntimeHost4> host(reinterpret_cast<ICLRRuntimeHost4*>(hostHandle));
+
+    HRESULT hr = host->UnloadAppDomain2(domainId, true, latchedExitCode); // Wait until done
+    IfFailRet(hr);
+
+    hr = host->Stop();
+
+#ifdef FEATURE_PAL
+    PAL_Shutdown();
+#endif
+
+    return hr;
+}
+
+//
+// Create a native callable delegate for a managed method.
+//
+// Parameters:
+//  hostHandle              - Handle of the host
+//  domainId                - Id of the domain 
+//  entryPointAssemblyName  - Name of the assembly which holds the custom entry point
+//  entryPointTypeName      - Name of the type which holds the custom entry point
+//  entryPointMethodName    - Name of the method which is the custom entry point
+//  delegate                - Output parameter, the function stores a pointer to the delegate at the specified address
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
+//
+extern "C"
+int coreclr_create_delegate(
+            void* hostHandle,
+            unsigned int domainId,
+            const char* entryPointAssemblyName,
+            const char* entryPointTypeName,
+            const char* entryPointMethodName,
+            void** delegate)
+{
+    ICLRRuntimeHost4* host = reinterpret_cast<ICLRRuntimeHost4*>(hostHandle);
+
+    ConstWStringHolder entryPointAssemblyNameW = StringToUnicode(entryPointAssemblyName);
+    ConstWStringHolder entryPointTypeNameW = StringToUnicode(entryPointTypeName);
+    ConstWStringHolder entryPointMethodNameW = StringToUnicode(entryPointMethodName);
+
+    HRESULT hr = host->CreateDelegate(
+                            domainId,
+                            entryPointAssemblyNameW,
+                            entryPointTypeNameW,
+                            entryPointMethodNameW,
+                            (INT_PTR*)delegate);
+    
+    return hr;
+}
+
+//
+// Execute a managed assembly with given arguments
+//
+// Parameters:
+//  hostHandle              - Handle of the host
+//  domainId                - Id of the domain 
+//  argc                    - Number of arguments passed to the executed assembly
+//  argv                    - Array of arguments passed to the executed assembly
+//  managedAssemblyPath     - Path of the managed assembly to execute (or NULL if using a custom entrypoint).
+//  exitCode                - Exit code returned by the executed assembly
+//
+// Returns:
+//  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
+//
+extern "C"
+int coreclr_execute_assembly(
+            void* hostHandle,
+            unsigned int domainId,
+            int argc,
+            const char** argv,
+            const char* managedAssemblyPath,
+            unsigned int* exitCode)
+{
+    if (exitCode == NULL)
+    {
+        return HRESULT_FROM_WIN32(ERROR_INVALID_PARAMETER);
+    }
+    *exitCode = -1;
+
+    ICLRRuntimeHost4* host = reinterpret_cast<ICLRRuntimeHost4*>(hostHandle);
 
     ConstWStringArrayHolder argvW;
     argvW.Set(StringArrayToUnicode(argc, argv), argc);
     
     ConstWStringHolder managedAssemblyPathW = StringToUnicode(managedAssemblyPath);
 
-    hr = host->ExecuteAssembly(domainId, managedAssemblyPathW, argc, argvW, exitCode);
+    HRESULT hr = host->ExecuteAssembly(domainId, managedAssemblyPathW, argc, argvW, (DWORD *)exitCode);
     IfFailRet(hr);
-
-    hr = host->UnloadAppDomain(domainId,
-                               true); // Wait until done
-    IfFailRet(hr);
-
-    hr = host->Stop();
-
-    // The PAL_Terminate is not called here since it would terminate the current process.
 
     return hr;
 }

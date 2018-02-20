@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -13,6 +12,11 @@
 #if defined(_MSC_VER)
 #pragma inline_depth (20)
 #endif
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // Disable bogus unreachable code warning
+#endif // _MSC_VER
 
 inline SBuffer::SBuffer(PreallocFlag flag, void *buffer, COUNT_T size)
   : m_size(0),
@@ -229,7 +233,7 @@ inline void SBuffer::Set(const SBuffer &buffer)
         // From the code for Resize and EnsureMutable, this is clearly impossible.
         PREFIX_ASSUME( (this->m_buffer != NULL) || (buffer.m_size == 0) );
 
-        CopyMemory(m_buffer, buffer.m_buffer, buffer.m_size);
+        MoveMemory(m_buffer, buffer.m_buffer, buffer.m_size);
     }
 
     RETURN;
@@ -255,7 +259,7 @@ inline void SBuffer::Set(const BYTE *buffer, COUNT_T size)
     // From the code for Resize, this is clearly impossible.
     PREFIX_ASSUME( (this->m_buffer != NULL) || (size == 0) );
 
-    CopyMemory(m_buffer, buffer, size);
+    MoveMemory(m_buffer, buffer, size);
 
     RETURN;
 }
@@ -1700,5 +1704,8 @@ inline void SBuffer::Index::Resync(const SBuffer *buffer, BYTE *value) const
     RETURN;
 }
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 #endif  // _SBUFFER_INL_

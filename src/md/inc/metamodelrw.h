@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //*****************************************************************************
 // MetaModelRW.h -- header file for Read/Write compressed COM+ metadata.
@@ -583,7 +582,7 @@ public:
     VOID OrganizeStringPool(CorProfileData *pProfileData);
     
     // Result of hash search
-    typedef enum HashSearchResult
+    enum HashSearchResult
     {
         Found,      // Item was found.
         NotFound,   // Item not found.
@@ -1421,10 +1420,6 @@ public:
     void EnableDeltaMetadataGeneration() 
     {
         _ASSERTE(m_OptionValue.m_UpdateMode == MDUpdateENC);
-#ifndef FEATURE_CORECLR
-        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MD_UseMinimalDeltas))
-            m_OptionValue.m_UpdateMode = MDUpdateDelta;
-#endif //!FEATURE_CORECLR
     }
     void DisableDeltaMetadataGeneration() {m_OptionValue.m_UpdateMode = MDUpdateENC;}
 

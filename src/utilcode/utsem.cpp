@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 /******************************************************************************
     FILE : UTSEM.CPP
 
@@ -23,10 +22,10 @@ Revision History:
 #include "contract.h"
 
 // Consider replacing this with a #ifdef INTEROP_DEBUGGING
-#if !defined(SELF_NO_HOST) && defined(_TARGET_X86_)
+#if !defined(SELF_NO_HOST) && defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 // For Interop debugging, the UTSemReadWrite class must inform the debugger
 // that this thread can't be suspended currently.  See vm\util.hpp for the
-// implementation of these methods.  
+// implementation of these methods.
 void IncCantStopCount();
 void DecCantStopCount();
 #else
@@ -80,7 +79,8 @@ SpinConstants g_SpinConstants = {
     50,        // dwInitialDuration 
     40000,     // dwMaximumDuration - ideally (20000 * max(2, numProc)) ... updated in code:InitializeSpinConstants_NoHost
     3,         // dwBackoffFactor
-    10         // dwRepetitions
+    10,        // dwRepetitions
+    0          // dwMonitorSpinCount
 };
 
 inline void InitializeSpinConstants_NoHost()

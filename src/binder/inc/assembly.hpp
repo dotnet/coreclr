@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // Assembly.hpp
@@ -22,13 +21,11 @@
 #include "corpriv.h"
 #include "clrprivbinding.h"
 
-#if !defined(FEATURE_FUSION)
 #include "clrprivbindercoreclr.h"
-#endif // !defined(FEATURE_FUSION)
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #include "clrprivbinderassemblyloadcontext.h"
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 STDAPI BinderAcquirePEImage(LPCTSTR   szAssemblyPath,
                             PEImage **ppPEImage,
@@ -204,13 +201,11 @@ public:
             return m_pBinder;
         }
         
-#if !defined(FEATURE_FUSION)
         friend class ::CLRPrivBinderCoreCLR;
-#endif // !defined(FEATURE_FUSION)
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         friend class ::CLRPrivBinderAssemblyLoadContext;
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && !defined(MDILNIGEN)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     };
 
     // This is a fast version which goes around the COM interfaces and directly

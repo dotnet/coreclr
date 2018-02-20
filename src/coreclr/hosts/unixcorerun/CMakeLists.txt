@@ -1,19 +1,35 @@
 project(unixcorerun)
 
+include_directories(../unixcoreruncommon)
+
+add_compile_options(-fPIE)
+
 set(CORERUN_SOURCES 
     corerun.cpp 
 )
 
-add_executable(corerun
+_add_executable(corerun
     ${CORERUN_SOURCES}
 )
 
-target_link_libraries(corerun 
-    dl
+# FreeBSD and NetBSD implement dlopen(3) in libc
+if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+    target_link_libraries(corerun 
+        dl
+    )
+endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+
+# Libc turns locks into no-ops if pthread was not loaded into process yet. Loading
+# pthread by the process executable ensures that all locks are initialized properly.
+target_link_libraries(corerun
+    unixcoreruncommon
 )
 
-add_dependencies(corerun
-    coreclr
-)
+# Android implements pthread natively
+if(NOT CLR_CMAKE_PLATFORM_ANDROID)
+  target_link_libraries(corerun
+    pthread
+  )
+endif()
 
-install (TARGETS corerun DESTINATION .)
+install_clr(corerun)

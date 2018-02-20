@@ -1,17 +1,17 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 
 
-namespace System.Runtime.InteropServices.WindowsRuntime {
-    [Serializable]
+namespace System.Runtime.InteropServices.WindowsRuntime
+{
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue>
     {
@@ -20,7 +20,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public DictionaryValueCollection(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
@@ -28,13 +28,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public void CopyTo(TValue[] array, int index)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             if (array.Length <= index && this.Count > 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_IndexOutOfRangeException"));
+                throw new ArgumentException(SR.Arg_IndexOutOfRangeException);
             if (array.Length - index < dictionary.Count)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             int i = index;
             foreach (KeyValuePair<TKey, TValue> mapping in dictionary)
@@ -43,22 +43,24 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
             }
         }
 
-        public int Count {
+        public int Count
+        {
             get { return dictionary.Count; }
         }
 
-        bool ICollection<TValue>.IsReadOnly {
+        bool ICollection<TValue>.IsReadOnly
+        {
             get { return true; }
         }
 
         void ICollection<TValue>.Add(TValue item)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_ValueCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
         void ICollection<TValue>.Clear()
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_ValueCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
         public bool Contains(TValue item)
@@ -72,7 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
 
         bool ICollection<TValue>.Remove(TValue item)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_ValueCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -87,7 +89,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
     }  // public class DictionaryValueCollection<TKey, TValue>
 
 
-    [Serializable]
     internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
     {
         private readonly IDictionary<TKey, TValue> dictionary;
@@ -96,10 +97,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public DictionaryValueEnumerator(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
-            this.enumeration = dictionary.GetEnumerator();
+            enumeration = dictionary.GetEnumerator();
         }
 
         void IDisposable.Dispose()
@@ -112,11 +113,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current {
+        Object IEnumerator.Current
+        {
             get { return ((IEnumerator<TValue>)this).Current; }
         }
 
-        public TValue Current {
+        public TValue Current
+        {
             get { return enumeration.Current.Value; }
         }
 

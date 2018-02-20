@@ -10,10 +10,8 @@ add_executable(paltest_raiseexception_test2
   ${SOURCES}
 )
 
-add_dependencies(paltest_raiseexception_test2 CoreClrPal)
+add_dependencies(paltest_raiseexception_test2 coreclrpal)
 
 target_link_libraries(paltest_raiseexception_test2
-  pthread
-  m
-  CoreClrPal
+  ${COMMON_TEST_LIBRARIES}
 )

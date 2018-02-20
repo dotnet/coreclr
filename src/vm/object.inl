@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // OBJECT.INL
 //
@@ -14,7 +13,6 @@
 
 #include "object.h"
 
-#if !defined(BINDER)
 inline PTR_VOID Object::UnBox()       // if it is a value class, get the pointer to the first field
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -92,7 +90,7 @@ inline void Object::EnumMemoryRegions(void)
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DumpGeneration_IntentionallyCorruptDataFromTarget) == 1)
     {
         // Pretend all objects are incredibly large.
-        size |= 0xefefefef << 28;
+        size |= 0xf0000000;
     }
 #endif // defined (_DEBUG)
 
@@ -111,8 +109,40 @@ inline void Object::EnumMemoryRegions(void)
     // the enumeration to the MethodTable.
 }
 
-#endif // #ifdef DACCESS_COMPILE
-    
+#else // !DACCESS_COMPILE
+
+FORCEINLINE bool Object::TryEnterObjMonitorSpinHelper()
+{
+    CONTRACTL{
+        SO_TOLERANT;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    } CONTRACTL_END;
+
+    Thread *pCurThread = GetThread();
+    if (pCurThread->CatchAtSafePointOpportunistic())
+    {
+        return false;
+    }
+
+    AwareLock::EnterHelperResult result = EnterObjMonitorHelper(pCurThread);
+    if (result == AwareLock::EnterHelperResult_Entered)
+    {
+        return true;
+    }
+    if (result == AwareLock::EnterHelperResult_Contention)
+    {
+        result = EnterObjMonitorHelperSpin(pCurThread);
+        if (result == AwareLock::EnterHelperResult_Entered)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+#endif // DACCESS_COMPILE
 
 inline TypeHandle ArrayBase::GetTypeHandle() const
 { 
@@ -148,6 +178,7 @@ inline /* static */ TypeHandle ArrayBase::GetTypeHandle(MethodTable * pMT)
     // for T[] is available and restored
 
     // @todo  This should be turned into a probe with a hard SO when we have one
+    // See also: ArrayBase::SetArrayMethodTable, ArrayBase::SetArrayMethodTableForLargeObject and MethodTable::DoFullyLoad
     CONTRACT_VIOLATION(SOToleranceViolation);
     // == FailIfNotLoadedOrNotRestored
     TypeHandle arrayType = ClassLoader::LoadArrayTypeThrowing(pMT->GetApproxArrayElementTypeHandle(), kind, rank, ClassLoader::DontLoadTypes);  
@@ -175,7 +206,32 @@ inline DWORD ArrayBase::GetNumComponents() const
     SUPPORTS_DAC;
     return m_NumComponents; 
 }
-#endif //!BINDER
+
+#ifndef DACCESS_COMPILE
+inline void ArrayBase::SetArrayMethodTable(MethodTable *pArrayMT)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    SetMethodTable(pArrayMT
+                   DEBUG_ARG(TRUE));
+
+#ifdef _DEBUG
+    AssertArrayTypeDescLoaded();
+#endif // _DEBUG
+}
+
+inline void ArrayBase::SetArrayMethodTableForLargeObject(MethodTable *pArrayMT)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    SetMethodTableForLargeObject(pArrayMT
+                                 DEBUG_ARG(TRUE));
+
+#ifdef _DEBUG
+    AssertArrayTypeDescLoaded();
+#endif // _DEBUG
+}
+#endif // !DACCESS_COMPILE
 
 inline /* static */ unsigned ArrayBase::GetDataPtrOffset(MethodTable* pMT)
 {
@@ -209,7 +265,6 @@ inline /* static */ unsigned ArrayBase::GetLowerBoundsOffset(MethodTable* pMT)
         dac_cast<PTR_ArrayClass>(pMT->GetClass())->GetRank() *
         sizeof(INT32);
 }
-#ifndef BINDER
 
 // Get the element type for the array, this works whether the the element
 // type is stored in the array or not
@@ -302,6 +357,40 @@ inline TypeHandle Object::GetGCSafeTypeHandle() const
         return TypeHandle(pMT);
 }
 
-#endif //!BINDER
+template<class F>
+inline void FindByRefPointerOffsetsInByRefLikeObject(PTR_MethodTable pMT, SIZE_T baseOffset, const F processPointerOffset)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMT != nullptr);
+    _ASSERTE(pMT->IsByRefLike());
+
+    // TODO: TypedReference should ideally be implemented as a by-ref-like struct containing a ByReference<T> field,
+    // in which case the check for g_TypedReferenceMT below would not be necessary
+    if (pMT == g_TypedReferenceMT || pMT->HasSameTypeDefAs(g_pByReferenceClass))
+    {
+        processPointerOffset(baseOffset);
+        return;
+    }
+
+    ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+    for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
+    {
+        if (pFD->GetFieldType() != ELEMENT_TYPE_VALUETYPE)
+        {
+            continue;
+        }
+
+        // TODO: GetApproxFieldTypeHandleThrowing may throw. This is a potential stress problem for fragile NGen of non-CoreLib
+        // assemblies. It won't ever throw for CoreCLR with R2R. Figure out if anything needs to be done to deal with the
+        // exception.
+        PTR_MethodTable pFieldMT = pFD->GetApproxFieldTypeHandleThrowing().AsMethodTable();
+        if (!pFieldMT->IsByRefLike())
+        {
+            continue;
+        }
+
+        FindByRefPointerOffsetsInByRefLikeObject(pFieldMT, baseOffset + pFD->GetOffset(), processPointerOffset);
+    }
+}
 
 #endif  // _OBJECT_INL_

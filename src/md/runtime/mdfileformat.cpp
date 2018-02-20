@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MDFileFormat.cpp
 // 
@@ -78,7 +77,6 @@ MDFormat::VerifySignature(
         }
     }
     
-#if !defined(FEATURE_METADATA_STANDALONE_WINRT)
     // Only a specific version of the 0.x format is supported by this code
     // in order to support the NT 5 beta clients which used this format.
     if (pSig->GetMajorVer() == FILE_VER_MAJOR_v0)
@@ -90,7 +88,6 @@ MDFormat::VerifySignature(
         }
     }
     else
-#endif  // !defined(FEATURE_METADATA_STANDALONE_WINRT)
     // There is currently no code to migrate an old format of the 1.x.  This
     // would be added only under special circumstances.
     if ((pSig->GetMajorVer() != FILE_VER_MAJOR) || (pSig->GetMinorVer() != FILE_VER_MINOR))

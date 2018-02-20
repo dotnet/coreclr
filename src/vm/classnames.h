@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -17,6 +16,7 @@
 #define g_ArrayClassName "System.Array"
 
 #define g_NullableName "Nullable`1"
+#define g_ByReferenceName "ByReference`1"
 
 #define g_CollectionsEnumerableItfName "System.Collections.IEnumerable"
 #define g_CollectionsEnumeratorClassName "System.Collections.IEnumerator"
@@ -27,9 +27,11 @@
 #ifdef FEATURE_COMINTEROP
 #define g_ECMAKeyToken "B77A5C561934E089"       // The ECMA key used by some framework assemblies: mscorlib, system, etc.
 #define g_FXKeyToken "b03f5f7f11d50a3a"         // The FX key used by other framework assemblies: System.Web, System.Drawing, etc.
-#define g_CoreClrKeyToken "7CEC85D7BEA7798E"    // The silverlight platform key used by CoreClr framework assemblies: mscorlib, system, etc
 #define g_SystemAsmName "System"
+#define g_SystemRuntimeAsmName "System.Runtime"
 #define g_DrawingAsmName "System.Drawing"
+#define g_ObjectModelAsmName "System.ObjectModel"
+#define g_SystemRuntimeWindowsRuntimeAsmName "System.Runtime.WindowsRuntime"
 #define g_ColorClassName "System.Drawing.Color"
 #define g_ColorTranslatorClassName "System.Drawing.ColorTranslator"
 #define g_SystemUriClassName "System.Uri"
@@ -51,15 +53,33 @@
 #define g_ICommandName "System.Windows.Input.ICommand"
 #define g_ComObjectName "__ComObject"
 #define g_RuntimeClassName "RuntimeClass"
+#define g_INotifyCollectionChanged_WinRTName "System.Runtime.InteropServices.WindowsRuntime.INotifyCollectionChanged_WinRT"
+#define g_NotifyCollectionChangedToManagedAdapterName "System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedToManagedAdapter"
+#define g_NotifyCollectionChangedToWinRTAdapterName "System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedToWinRTAdapter"
+#define g_INotifyPropertyChanged_WinRTName "System.Runtime.InteropServices.WindowsRuntime.INotifyPropertyChanged_WinRT"
+#define g_NotifyPropertyChangedToManagedAdapterName "System.Runtime.InteropServices.WindowsRuntime.NotifyPropertyChangedToManagedAdapter"
+#define g_NotifyPropertyChangedToWinRTAdapterName "System.Runtime.InteropServices.WindowsRuntime.NotifyPropertyChangedToWinRTAdapter"
+#define g_ICommand_WinRTName "System.Runtime.InteropServices.WindowsRuntime.ICommand_WinRT"
+#define g_ICommandToManagedAdapterName "System.Runtime.InteropServices.WindowsRuntime.ICommandToManagedAdapter"
+#define g_ICommandToWinRTAdapterName "System.Runtime.InteropServices.WindowsRuntime.ICommandToWinRTAdapter"
+#define g_NotifyCollectionChangedEventHandler_WinRT "System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedEventHandler_WinRT"
+#define g_PropertyChangedEventHandler_WinRT_Name "System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventHandler_WinRT"
 #endif // FEATURE_COMINTEROP
-#ifdef FEATURE_REMOTING
-#define g_ContextBoundObjectClassName "System.ContextBoundObject"
-#endif
+
 
 #define g_DateClassName "System.DateTime"
 #define g_DateTimeOffsetClassName "System.DateTimeOffset"
 #define g_DecimalClassName "System.Decimal"
 #define g_DecimalName "Decimal"
+
+#define g_Vector64ClassName "System.Runtime.Intrinsics.Vector64`1"
+#define g_Vector64Name "Vector64`1"
+
+#define g_Vector128ClassName "System.Runtime.Intrinsics.Vector128`1"
+#define g_Vector128Name "Vector128`1"
+
+#define g_Vector256ClassName "System.Runtime.Intrinsics.Vector256`1"
+#define g_Vector256Name "Vector256`1"
 
 #ifdef FEATURE_COMINTEROP
 
@@ -134,33 +154,28 @@
 
 #define g_CompilerServicesFixedAddressValueTypeAttribute "System.Runtime.CompilerServices.FixedAddressValueTypeAttribute"
 #define g_CompilerServicesUnsafeValueTypeAttribute "System.Runtime.CompilerServices.UnsafeValueTypeAttribute"
+#define g_CompilerServicesIsByRefLikeAttribute "System.Runtime.CompilerServices.IsByRefLikeAttribute"
+#define g_CompilerServicesIntrinsicAttribute "System.Runtime.CompilerServices.IntrinsicAttribute"
 #define g_UnmanagedFunctionPointerAttribute "System.Runtime.InteropServices.UnmanagedFunctionPointerAttribute"
 #define g_DefaultDllImportSearchPathsAttribute "System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute"
+#define g_NativeCallableAttribute "System.Runtime.InteropServices.NativeCallableAttribute"
 
 #define g_CompilerServicesTypeDependencyAttribute "System.Runtime.CompilerServices.TypeDependencyAttribute"
 
 #define g_SecurityCriticalAttribute "System.Security.SecurityCriticalAttribute"
 #define g_SecurityTransparentAttribute "System.Security.SecurityTransparentAttribute"
-#ifndef FEATURE_CORECLR
-#define g_SecurityTreatAsSafeAttribute "System.Security.SecurityTreatAsSafeAttribute"
-#define g_SecurityRulesAttribute "System.Security.SecurityRulesAttribute"
-#endif //FEATURE_CORECLR
 
 #define g_SecuritySafeCriticalAttribute "System.Security.SecuritySafeCriticalAttribute"
 
-#if defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#if defined(FEATURE_CORESYSTEM)
 #define g_SecurityAPTCA "System.Security.AllowPartiallyTrustedCallersAttribute"
 #define g_SecurityPartialTrustVisibilityLevel "System.Security.PartialTrustVisibilityLevel"
 #define g_PartialTrustVisibilityLevel "PartialTrustVisibilityLevel"
-#endif // defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#endif // defined(FEATURE_CORESYSTEM)
 
 #define g_ReferenceAssemblyAttribute "System.Runtime.CompilerServices.ReferenceAssemblyAttribute"
 
 #define g_CriticalFinalizerObjectName "CriticalFinalizerObject"
-
-#ifdef FEATURE_SERIALIZATION
-#define g_StreamingContextName "StreamingContext"
-#endif
 
 #define g_AssemblySignatureKeyAttribute "System.Reflection.AssemblySignatureKeyAttribute"
 

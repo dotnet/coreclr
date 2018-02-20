@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /***
 *sal.h - markers for documenting the semantics of APIs
@@ -513,7 +512,7 @@ enum __SAL_YesNo {_SAL_notpresent, _SAL_no, _SAL_maybe, _SAL_yes, _SAL_default};
 //
 // describing conditions that hold for return values after the call
 
-// e.g. _Ret_z_ CString::operator const wchar_t*() const throw();
+// e.g. _Ret_z_ CString::operator const WCHAR*() const throw();
 #define _Ret_z_                             _SAL2_Source_(_Ret_z_, (), _Ret2_impl_(__notnull_impl,  __zterm_impl) _Ret_valid_impl_)
 #define _Ret_maybenull_z_                   _SAL2_Source_(_Ret_maybenull_z_, (), _Ret2_impl_(__maybenull_impl,__zterm_impl) _Ret_valid_impl_)
 
@@ -550,7 +549,7 @@ enum __SAL_YesNo {_SAL_notpresent, _SAL_no, _SAL_maybe, _SAL_yes, _SAL_default};
 #define _Check_return_           _SAL2_Source_(_Check_return_, (), _Check_return_impl_)
 #define _Must_inspect_result_    _SAL2_Source_(_Must_inspect_result_, (), _Must_inspect_impl_ _Check_return_impl_)
 
-// e.g. MyPrintF( _Printf_format_string_ const wchar_t* wzFormat, ... );
+// e.g. MyPrintF( _Printf_format_string_ const WCHAR* wzFormat, ... );
 #define _Printf_format_string_  _SAL2_Source_(_Printf_format_string_, (), _Printf_format_string_impl_)
 #define _Scanf_format_string_   _SAL2_Source_(_Scanf_format_string_, (), _Scanf_format_string_impl_)
 #define _Scanf_s_format_string_  _SAL2_Source_(_Scanf_s_format_string_, (), _Scanf_s_format_string_impl_)
@@ -1007,7 +1006,7 @@ enum __SAL_YesNo {_SAL_notpresent, _SAL_no, _SAL_maybe, _SAL_yes, _SAL_default};
 #define _Deref_opt_out_         _SAL1_1_Source_(_Deref_opt_out_, (), _Out_opt_ _Deref_post_valid_)
 #define _Deref_opt_out_opt_     _SAL1_1_Source_(_Deref_opt_out_opt_, (), _Out_opt_ _Deref_post_opt_valid_)
 
-// e.g.  void CloneString( _In_z_ const wchar_t* wzFrom, _Deref_out_z_ wchar_t** pWzTo );
+// e.g.  void CloneString( _In_z_ const WCHAR* wzFrom, _Deref_out_z_ WCHAR** pWzTo );
 #define _Deref_out_z_           _SAL1_1_Source_(_Deref_out_z_, (), _Out_ _Deref_post_z_)
 #define _Deref_out_opt_z_       _SAL1_1_Source_(_Deref_out_opt_z_, (), _Out_ _Deref_post_opt_z_)
 #define _Deref_opt_out_z_       _SAL1_1_Source_(_Deref_opt_out_z_, (), _Out_opt_ _Deref_post_z_)
@@ -1018,11 +1017,11 @@ enum __SAL_YesNo {_SAL_notpresent, _SAL_no, _SAL_maybe, _SAL_yes, _SAL_default};
 //
 // describing conditions for array elements of dereferenced pointer parameters that must be met before the call
 
-// e.g. void SaveStringArray( _In_count_(cStrings) _Deref_pre_z_ const wchar_t* const rgpwch[] );
+// e.g. void SaveStringArray( _In_count_(cStrings) _Deref_pre_z_ const WCHAR* const rgpwch[] );
 #define _Deref_pre_z_                           _SAL1_1_Source_(_Deref_pre_z_, (), _Deref_pre1_impl_(__notnull_impl_notref) _Deref_pre1_impl_(__zterm_impl) _Pre_valid_impl_)
 #define _Deref_pre_opt_z_                       _SAL1_1_Source_(_Deref_pre_opt_z_, (), _Deref_pre1_impl_(__maybenull_impl_notref) _Deref_pre1_impl_(__zterm_impl) _Pre_valid_impl_)
 
-// e.g. void FillInArrayOfStr32( _In_count_(cStrings) _Deref_pre_cap_c_(32) _Deref_post_z_ wchar_t* const rgpwch[] );
+// e.g. void FillInArrayOfStr32( _In_count_(cStrings) _Deref_pre_cap_c_(32) _Deref_post_z_ WCHAR* const rgpwch[] );
 // buffer capacity is described by another parameter
 #define _Deref_pre_cap_(size)                   _SAL1_1_Source_(_Deref_pre_cap_, (size), _Deref_pre1_impl_(__notnull_impl_notref)   _Deref_pre1_impl_(__cap_impl(size)))
 #define _Deref_pre_opt_cap_(size)               _SAL1_1_Source_(_Deref_pre_opt_cap_, (size), _Deref_pre1_impl_(__maybenull_impl_notref) _Deref_pre1_impl_(__cap_impl(size)))
@@ -1110,7 +1109,7 @@ enum __SAL_YesNo {_SAL_notpresent, _SAL_no, _SAL_maybe, _SAL_yes, _SAL_default};
 //
 // describing conditions for array elements or dereferenced pointer parameters that hold after the call
 
-// e.g. void CloneString( _In_z_ const Wchar_t* wzIn _Out_ _Deref_post_z_ wchar_t** pWzOut );
+// e.g. void CloneString( _In_z_ const Wchar_t* wzIn _Out_ _Deref_post_z_ WCHAR** pWzOut );
 #define _Deref_post_z_                           _SAL1_1_Source_(_Deref_post_z_, (), _Deref_post1_impl_(__notnull_impl_notref) _Deref_post1_impl_(__zterm_impl) _Post_valid_impl_)
 #define _Deref_post_opt_z_                       _SAL1_1_Source_(_Deref_post_opt_z_, (), _Deref_post1_impl_(__maybenull_impl_notref) _Deref_post1_impl_(__zterm_impl) _Post_valid_impl_)
 
@@ -2409,9 +2408,11 @@ extern "C" {
      in the negated form __notnull or the possibly null form __maybenull.
     */
 
+#ifndef PAL_STDCPP_COMPAT
     #define __null                  _Null_impl_
     #define __notnull               _Notnull_impl_
     #define __maybenull             _Maybenull_impl_
+#endif // !PAL_STDCPP_COMPAT
 
     /*
      __readonly l
@@ -2600,8 +2601,10 @@ extern "C" {
 
 
 #else // ][
+#ifndef PAL_STDCPP_COMPAT
     #define __null
     #define __notnull
+#endif // !PAL_STDCPP_COMPAT
     #define __maybenull
     #define __readonly
     #define __notreadonly
@@ -2650,9 +2653,14 @@ buffer, use the table in the buffer annotations section.
 -------------------------------------------------------------------------------
 */
 
+// These macros conflict with c++ headers.
+#ifndef PAL_STDCPP_COMPAT
+#define __in                                                     _SAL1_Source_(__in, (), _In_)
+#define __out                                                    _SAL1_Source_(__out, (), _Out_)
+#endif // !PAL_STDCPP_COMPAT
+
 #define __ecount(size)                                           _SAL1_Source_(__ecount, (size), __notnull __elem_writableTo(size))
 #define __bcount(size)                                           _SAL1_Source_(__bcount, (size), __notnull __byte_writableTo(size))
-#define __in                                                     _SAL1_Source_(__in, (), _In_)
 #define __in_ecount(size)                                        _SAL1_Source_(__in_ecount, (size), _In_reads_(size))
 #define __in_bcount(size)                                        _SAL1_Source_(__in_bcount, (size), _In_reads_bytes_(size))
 #define __in_z                                                   _SAL1_Source_(__in_z, (), _In_z_)
@@ -2661,7 +2669,6 @@ buffer, use the table in the buffer annotations section.
 #define __in_nz                                                  _SAL1_Source_(__in_nz, (), __in)
 #define __in_ecount_nz(size)                                     _SAL1_Source_(__in_ecount_nz, (size), __in_ecount(size))
 #define __in_bcount_nz(size)                                     _SAL1_Source_(__in_bcount_nz, (size), __in_bcount(size))
-#define __out                                                    _SAL1_Source_(__out, (), _Out_)
 #define __out_ecount(size)                                       _SAL1_Source_(__out_ecount, (size), _Out_writes_(size))
 #define __out_bcount(size)                                       _SAL1_Source_(__out_bcount, (size), _Out_writes_bytes_(size))
 #define __out_ecount_part(size,length)                           _SAL1_Source_(__out_ecount_part, (size,length), _Out_writes_to_(size,length))
@@ -2854,7 +2861,7 @@ of each annotation, see the advanced annotations section.
 #define __success(expr)                      _Success_(expr)
 #define __nullterminated                     _Null_terminated_
 #define __nullnullterminated
-#define __reserved                           _SAL1_Source_(__reserved, (), _Reserved_)
+#define __clr_reserved                       _SAL1_Source_(__reserved, (), _Reserved_)
 #define __checkReturn                        _SAL1_Source_(__checkReturn, (), _Check_return_)
 #define __typefix(ctype)                     _SAL1_Source_(__typefix, (ctype), __inner_typefix(ctype))
 #define __override                           __inner_override

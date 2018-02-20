@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // ImportHelper.h
 // 
@@ -23,7 +22,7 @@ class ImportHelper
 {
 public:
     // Options for code:FindMemberRef.
-    typedef enum HashSearchOption
+    enum HashSearchOption
     {
         DoNotCreateHash,    // Do not create hash if it does not exist (faster for isolated calls)
         CreateHash          // Create hash if it does not exist (faster for multiple calls)

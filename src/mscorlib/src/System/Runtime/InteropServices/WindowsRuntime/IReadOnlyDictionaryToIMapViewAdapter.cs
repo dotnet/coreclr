@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -8,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,21 +28,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IReadOnlyDictionaryToIMapViewAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // V Lookup(K key)
-        [SecurityCritical]
         internal V Lookup<K, V>(K key)
         {
-            IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
+            IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             V value;
             bool keyFound = _this.TryGetValue(key, out value);
 
             if (!keyFound)
             {
-                Exception e = new KeyNotFoundException(Environment.GetResourceString("Arg_KeyNotFound"));
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
 
@@ -49,28 +49,26 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        [SecurityCritical]
         internal uint Size<K, V>()
         {
-            IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
+            IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
-        
+
         // bool HasKey(K key)
-        [SecurityCritical]
         internal bool HasKey<K, V>(K key)
         {
-            IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
+            IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // void Split(out IMapView<K, V> first, out IMapView<K, V> second)
-        [SecurityCritical]
         internal void Split<K, V>(out IMapView<K, V> first, out IMapView<K, V> second)
         {
-            IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
+            IReadOnlyDictionary<K, V> _this = Unsafe.As<IReadOnlyDictionary<K, V>>(this);
 
-            if (_this.Count < 2) {
+            if (_this.Count < 2)
+            {
                 first = null;
                 second = null;
                 return;

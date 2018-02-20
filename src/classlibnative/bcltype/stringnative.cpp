@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: StringNative.cpp
 //
@@ -31,22 +30,6 @@
 #if defined(_MSC_VER) && defined(_TARGET_X86_)
 #pragma optimize("tgy", on)
 #endif
-
-
-#define PROBABILISTICMAP_BLOCK_INDEX_MASK    0X7
-#define PROBABILISTICMAP_BLOCK_INDEX_SHIFT   0x3
-#define PROBABILISTICMAP_SIZE                0X8
-
-//
-//
-// FORWARD DECLARATIONS
-//
-//
-int ArrayContains(WCHAR searchChar, __in_ecount(length) const WCHAR *begin, int length);
-void InitializeProbabilisticMap(int* charMap, __in_ecount(length) const WCHAR* charArray, int length);
-bool ProbablyContains(const int* charMap, WCHAR searchChar);
-bool IsBitSet(int value, int bitPos);
-void SetBit(int* value, int bitPos);
 
 //
 //
@@ -156,20 +139,13 @@ FCIMPL4(Object *, COMString::StringInitCharPtrPartial, StringObject *stringThis,
 }
 FCIMPLEND
 
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
-
 inline COMNlsHashProvider * GetCurrentNlsHashProvider()
 {
     LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-    AppDomain* curDomain = GetAppDomain();
-    return curDomain->m_pNlsHashProvider;
-#else
     return &COMNlsHashProvider::s_NlsHashProvider;
-#endif // FEATURE_CORECLR
 }
 
-FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32 strLen, INT64 additionalEntropy) {
+FCIMPL1(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE) {
     FCALL_CONTRACT;
 
     int iReturnHash = 0;
@@ -179,7 +155,7 @@ FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32
     }
 
     BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    iReturnHash = GetCurrentNlsHashProvider()->HashString(thisRefUNSAFE->GetBuffer(), thisRefUNSAFE->GetStringLength(), TRUE, additionalEntropy);
+    iReturnHash = GetCurrentNlsHashProvider()->HashString(thisRefUNSAFE->GetBuffer(), thisRefUNSAFE->GetStringLength());
     END_SO_INTOLERANT_CODE;
 
     FC_GC_POLL_RET();
@@ -187,21 +163,6 @@ FCIMPL3(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE, INT32
     return iReturnHash;
 }
 FCIMPLEND
-
-BOOL QCALLTYPE COMString::UseRandomizedHashing() {
-    QCALL_CONTRACT;
-
-    BOOL bUseRandomizedHashing = FALSE;
-
-    BEGIN_QCALL;
-
-    bUseRandomizedHashing = GetCurrentNlsHashProvider()->GetUseRandomHashing();
-
-    END_QCALL;
-
-    return bUseRandomizedHashing;
-}
-#endif
 
 /*===============================IsFastSort===============================
 **Action: Call the helper to walk the string and see if we have any high chars.
@@ -286,7 +247,7 @@ FCIMPLEND
         STRINGREF value; INT32 thisOffset;} _compareOrdinalArgsEx;
 ==============================================================================*/
 
-FCIMPL5(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, StringObject* strB, INT32 indexB, INT32 count)
+FCIMPL6(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, INT32 countA, StringObject* strB, INT32 indexB, INT32 countB)
 {
     FCALL_CONTRACT;
 
@@ -295,41 +256,16 @@ FCIMPL5(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, St
     DWORD *strAChars, *strBChars;
     int strALength, strBLength;
 
-    // This runtime test is handled in the managed wrapper.
+    // These runtime tests are handled in the managed wrapper.
     _ASSERTE(strA != NULL && strB != NULL);
-
-    //If any of our indices are negative throw an exception.
-    if (count<0)
-    {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_NegativeCount"));
-    }
-    if (indexA < 0)
-    {
-        FCThrowArgumentOutOfRange(W("indexA"), W("ArgumentOutOfRange_Index"));
-    }
-    if (indexB < 0)
-    {
-        FCThrowArgumentOutOfRange(W("indexB"), W("ArgumentOutOfRange_Index"));
-    }
+    _ASSERTE(indexA >= 0 && indexB >= 0);
+    _ASSERTE(countA >= 0 && countB >= 0);
 
     strA->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strAChars, &strALength);
     strB->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strBChars, &strBLength);
 
-    int countA = count;
-    int countB = count;
-
-    //Do a lot of range checking to make sure that everything is kosher and legit.
-    if (count  > (strALength - indexA)) {
-        countA = strALength - indexA;
-        if (countA < 0)
-            FCThrowArgumentOutOfRange(W("indexA"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count > (strBLength - indexB)) {
-        countB = strBLength - indexB;
-        if (countB < 0)
-            FCThrowArgumentOutOfRange(W("indexB"), W("ArgumentOutOfRange_Index"));
-    }
+    _ASSERTE(countA <= strALength - indexA);
+    _ASSERTE(countB <= strBLength - indexB);
 
     // Set up the loop variables.
     strAChars = (DWORD *) ((WCHAR *) strAChars + indexA);
@@ -343,219 +279,6 @@ FCIMPL5(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, St
 }
 FCIMPLEND
 
-/*=================================IndexOfChar==================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-
-FCIMPL4 (INT32, COMString::IndexOfChar, StringObject* thisRef, CLR_CHAR value, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    if (thisRef==NULL)
-        FCThrow(kNullReferenceException);
-
-    WCHAR *thisChars;
-    int thisLength;
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (startIndex < 0 || startIndex > thisLength) {
-        FCThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count   < 0 || count > thisLength - startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-    int endIndex = startIndex + count;
-    for (int i=startIndex; i<endIndex; i++)
-    {
-        if (thisChars[i]==((WCHAR)value))
-        {
-            FC_GC_POLL_RET();
-            return i;
-        }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-}
-FCIMPLEND
-
-/*===============================IndexOfCharArray===============================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-FCIMPL4(INT32, COMString::IndexOfCharArray, StringObject* thisRef, CHARArray* valueRef, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    VALIDATEOBJECT(valueRef);
-
-    if (thisRef == NULL)
-        FCThrow(kNullReferenceException);
-    if (valueRef == NULL)
-        FCThrow(kArgumentNullException);
-
-    WCHAR *thisChars;
-    WCHAR *valueChars;
-    int valueLength;
-    int thisLength;
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (startIndex < 0 || startIndex > thisLength) {
-        FCThrow(kArgumentOutOfRangeException);
-    }
-
-    if (count < 0 || count > thisLength - startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-    int endIndex = startIndex + count;
-
-    valueLength = valueRef->GetNumComponents();
-    valueChars = (WCHAR *)valueRef->GetDataPtr();
-
-    // use probabilistic map, see (code:InitializeProbabilisticMap)
-    int charMap[PROBABILISTICMAP_SIZE] = {0};
-
-    InitializeProbabilisticMap(charMap, valueChars, valueLength);
-
-    for(int i = startIndex; i < endIndex; i++) {
-        WCHAR thisChar = thisChars[i];
-        if (ProbablyContains(charMap, thisChar))
-            if (ArrayContains(thisChars[i], valueChars, valueLength) >= 0) {
-                FC_GC_POLL_RET();
-                return i;
-            }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-}
-FCIMPLEND
-
-
-/*===============================LastIndexOfChar================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-
-FCIMPL4(INT32, COMString::LastIndexOfChar, StringObject* thisRef, CLR_CHAR value, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    WCHAR *thisChars;
-    int thisLength;
-
-    if (thisRef==NULL) {
-        FCThrow(kNullReferenceException);
-    }
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (thisLength == 0) {
-        FC_GC_POLL_RET();
-        return -1;
-    }
-
-
-    if (startIndex<0 || startIndex>=thisLength) {
-        FCThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count<0 || count - 1 > startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-    int endIndex = startIndex - count + 1;
-
-    //We search [startIndex..EndIndex]
-    for (int i=startIndex; i>=endIndex; i--) {
-        if (thisChars[i]==((WCHAR)value)) {
-            FC_GC_POLL_RET();
-            return i;
-        }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-}
-FCIMPLEND
-/*=============================LastIndexOfCharArray=============================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-
-FCIMPL4(INT32, COMString::LastIndexOfCharArray, StringObject* thisRef, CHARArray* valueRef, INT32 startIndex, INT32 count )
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(thisRef);
-    VALIDATEOBJECT(valueRef);
-    WCHAR *thisChars, *valueChars;
-    int thisLength, valueLength;
-
-    if (thisRef==NULL) {
-        FCThrow(kNullReferenceException);
-    }
-
-    if (valueRef == NULL)
-        FCThrow(kArgumentNullException);
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    if (thisLength == 0) {
-        return -1;
-    }
-
-    if (startIndex < 0 || startIndex >= thisLength) {
-        FCThrowArgumentOutOfRange(W("startIndex"), W("ArgumentOutOfRange_Index"));
-    }
-
-    if (count<0 || count - 1 > startIndex) {
-        FCThrowArgumentOutOfRange(W("count"), W("ArgumentOutOfRange_Count"));
-    }
-
-
-    valueLength = valueRef->GetNumComponents();
-    valueChars = (WCHAR *)valueRef->GetDataPtr();
-
-    int endIndex = startIndex - count + 1;
-
-    // use probabilistic map, see (code:InitializeProbabilisticMap)
-    int charMap[PROBABILISTICMAP_SIZE] = {0};
-
-    InitializeProbabilisticMap(charMap, valueChars, valueLength);
-
-    //We search [startIndex..EndIndex]
-    for (int i=startIndex; i>=endIndex; i--) {
-        WCHAR thisChar = thisChars[i];
-        if (ProbablyContains(charMap, thisChar))
-            if (ArrayContains(thisChars[i],valueChars, valueLength) >= 0) {
-                FC_GC_POLL_RET();
-                return i;
-            }
-    }
-
-    FC_GC_POLL_RET();
-    return -1;
-
-}
-FCIMPLEND
 
 /*==================================GETCHARAT===================================
 **Returns the character at position index.  Thows IndexOutOfRangeException as
@@ -596,365 +319,6 @@ FCIMPL1(INT32, COMString::Length, StringObject* str) {
     return str->GetStringLength();
 }
 FCIMPLEND
-
-
-/*==================================PadHelper===================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-FCIMPL4(Object*, COMString::PadHelper, StringObject* thisRefUNSAFE, INT32 totalWidth, CLR_CHAR paddingChar, CLR_BOOL isRightPadded)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal = NULL;
-    STRINGREF thisRef = (STRINGREF) thisRefUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(thisRef);
-
-    WCHAR *thisChars, *padChars;
-    INT32 thisLength;
-
-
-    if (thisRef==NULL) {
-        COMPlusThrow(kNullReferenceException, W("NullReference_This"));
-    }
-
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-
-    //Don't let them pass in a negative totalWidth
-    if (totalWidth<0) {
-        COMPlusThrowArgumentOutOfRange(W("totalWidth"), W("ArgumentOutOfRange_NeedNonNegNum"));
-    }
-
-    //If the string is longer than the length which they requested, give them
-    //back the old string.
-    if (totalWidth<thisLength) {
-        refRetVal = thisRef;
-        goto lExit;
-    }
-
-    refRetVal = StringObject::NewString(totalWidth);
-
-    // Reget thisChars, since if NewString triggers GC, thisChars may become trash.
-    thisRef->RefInterpretGetStringValuesDangerousForGC(&thisChars, &thisLength);
-    padChars = refRetVal->GetBuffer();
-
-    if (isRightPadded) {
-
-        memcpyNoGCRefs(padChars, thisChars, thisLength * sizeof(WCHAR));
-
-        for (int i=thisLength; i<totalWidth; i++) {
-            padChars[i] = paddingChar;
-        }
-    } else {
-        INT32 startingPos = totalWidth-thisLength;
-        memcpyNoGCRefs(padChars+startingPos, thisChars, thisLength * sizeof(WCHAR));
-
-        for (int i=0; i<startingPos; i++) {
-            padChars[i] = paddingChar;
-        }
-    }
-    _ASSERTE(padChars[totalWidth] == 0);
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-
-/*===================================Replace====================================
-**Action: Replaces all instances of oldChar with newChar.
-**Returns: A new String with all instances of oldChar replaced with newChar
-**Arguments: oldChar -- the character to replace
-**           newChar -- the character with which to replace oldChar.
-**Exceptions: None
-==============================================================================*/
-FCIMPL3(LPVOID, COMString::Replace, StringObject* thisRefUNSAFE, CLR_CHAR oldChar, CLR_CHAR newChar)
-{
-    FCALL_CONTRACT;
-
-    int length = 0;
-    int firstFoundIndex = -1;
-    WCHAR *oldBuffer = NULL;
-    WCHAR *newBuffer;
-
-    STRINGREF   newString   = NULL;
-    STRINGREF   thisRef     = (STRINGREF)thisRefUNSAFE;
-
-    if (thisRef==NULL) {
-        FCThrowRes(kNullReferenceException, W("NullReference_This"));
-    }
-
-    //Perf: If no replacements required, return initial reference
-    oldBuffer = thisRef->GetBuffer();
-    length = thisRef->GetStringLength();
-
-    for(int i=0; i<length; i++) 
-    {
-        if ((WCHAR)oldChar==oldBuffer[i])
-        {
-            firstFoundIndex = i;
-            break;
-        }
-    }
-
-    if (-1==firstFoundIndex)
-    {	
-        return thisRefUNSAFE;
-    }
-
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(newString, thisRef);
-
-    //Get the length and allocate a new String
-    //We will definitely do an allocation here, but there's nothing which
-    //requires GC_PROTECT.
-    newString = StringObject::NewString(length);
-
-    //After allocation, thisRef may have moved
-    oldBuffer = thisRef->GetBuffer();
-
-    //Get the buffers in both of the Strings.
-    newBuffer = newString->GetBuffer();
-
-    //Copy the characters, doing the replacement as we go.
-    for (int i=0; i<firstFoundIndex; i++) {
-        newBuffer[i]=oldBuffer[i];
-    }
-    for (int i=firstFoundIndex; i<length; i++) {
-        newBuffer[i]=(oldBuffer[i]==((WCHAR)oldChar))?((WCHAR)newChar):oldBuffer[i];
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(newString);
-}
-FCIMPLEND
-
-// HELPER METHODS
-// 
-// 
-// A probabilistic map is an optimization that is used in IndexOfAny/
-// LastIndexOfAny methods. The idea is to create a bit map of the characters we
-// are searching for and use this map as a "cheap" check to decide if the
-// current character in the string exists in the array of input characters.
-// There are 256 bits in the map, with each character mapped to 2 bits. Every
-// character is divided into 2 bytes, and then every byte is mapped to 1 bit.
-// The character map is an array of 8 integers acting as map blocks. The 3 lsb
-// in each byte in the character is used to index into this map to get the
-// right block, the value of the remaining 5 msb are used as the bit position
-// inside this block. 
-void InitializeProbabilisticMap(int* charMap, __in_ecount(length) const WCHAR* charArray, int length) {
-    LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE(charMap != NULL);
-    _ASSERTE(charArray != NULL);
-    _ASSERTE(length >= 0);
-
-    for(int i = 0; i < length; ++i) {
-        int hi,lo;
-
-        WCHAR c = charArray[i];
-
-        hi = (c >> 8) & 0xFF;
-        lo = c & 0xFF;
-
-        int* value = &charMap[lo & PROBABILISTICMAP_BLOCK_INDEX_MASK];
-        SetBit(value, lo >> PROBABILISTICMAP_BLOCK_INDEX_SHIFT);
-
-        value = &charMap[hi & PROBABILISTICMAP_BLOCK_INDEX_MASK];
-        SetBit(value, hi >> PROBABILISTICMAP_BLOCK_INDEX_SHIFT);
-    }
-}
-
-// Use the probabilistic map to decide if the character value exists in the
-// map. When this method return false, we are certain the character doesn't
-// exist, however a true return means it *may* exist.
-inline bool ProbablyContains(const int* charMap, WCHAR searchValue) {
-    LIMITED_METHOD_CONTRACT;
-
-    int lo, hi;
-
-    lo = searchValue & 0xFF;
-    int value = charMap[lo & PROBABILISTICMAP_BLOCK_INDEX_MASK];
-
-    if (IsBitSet(value, lo >> PROBABILISTICMAP_BLOCK_INDEX_SHIFT)) {
-        hi = (searchValue >> 8) & 0xFF;
-        value = charMap[hi & PROBABILISTICMAP_BLOCK_INDEX_MASK];
-
-        return IsBitSet(value, hi >> PROBABILISTICMAP_BLOCK_INDEX_SHIFT);
-    }
-
-    return false;
-}
-
-inline void SetBit(int* value, int bitPos) {
-    LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE(bitPos <= 31);
-
-    *value |= (1 << bitPos);
-}
-
-inline bool IsBitSet(int value, int bitPos) {
-    LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE(bitPos <= 31);
-
-    return (value & (1 << bitPos)) != 0;
-}
-
-
-/*================================ArrayContains=================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-int ArrayContains(WCHAR searchChar, __in_ecount(length) const WCHAR *begin, int length) {
-    LIMITED_METHOD_CONTRACT;
-    _ASSERTE(begin != NULL);
-    _ASSERTE(length >= 0);
-
-    for(int i = 0; i < length; i++) {
-        if(begin[i] == searchChar) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-
-/*================================ReplaceString=================================
-**Action:
-**Returns:
-**Arguments:
-**Exceptions:
-==============================================================================*/
-FCIMPL3(Object*, COMString::ReplaceString, StringObject* thisRefUNSAFE, StringObject* oldValueUNSAFE, StringObject* newValueUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    struct _gc
-    {
-        STRINGREF     thisRef;
-        STRINGREF     oldValue;
-        STRINGREF     newValue;
-        STRINGREF     retValString;
-    } gc;
-
-    gc.thisRef        = ObjectToSTRINGREF(thisRefUNSAFE);
-    gc.oldValue       = ObjectToSTRINGREF(oldValueUNSAFE);
-    gc.newValue       = ObjectToSTRINGREF(newValueUNSAFE);
-    gc.retValString   = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    int *replaceIndex;
-    int index=0;
-    int replaceCount=0;
-    int readPos, writePos;
-    WCHAR *thisBuffer, *oldBuffer, *newBuffer, *retValBuffer;
-    int thisLength, oldLength, newLength;
-    int endIndex;
-    CQuickBytes replaceIndices;
-
-
-    if (gc.thisRef==NULL) {
-        COMPlusThrow(kNullReferenceException, W("NullReference_This"));
-    }
-
-    //Verify all of the arguments.
-    if (!gc.oldValue) {
-        COMPlusThrowArgumentNull(W("oldValue"), W("ArgumentNull_Generic"));
-    }
-
-    //If they asked to replace oldValue with a null, replace all occurances
-    //with the empty string.
-    if (!gc.newValue) {
-        gc.newValue = StringObject::GetEmptyString();
-    }
-
-    gc.thisRef->RefInterpretGetStringValuesDangerousForGC(&thisBuffer, &thisLength);
-    gc.oldValue->RefInterpretGetStringValuesDangerousForGC(&oldBuffer,  &oldLength);
-    gc.newValue->RefInterpretGetStringValuesDangerousForGC(&newBuffer,  &newLength);
-
-    //Record the endIndex so that we don't need to do this calculation all over the place.
-    endIndex = thisLength;
-
-    //If our old Length is 0, we won't know what to replace
-    if (oldLength==0) {
-        COMPlusThrowArgumentException(W("oldValue"), W("Argument_StringZeroLength"));
-    }
-
-    //replaceIndex is made large enough to hold the maximum number of replacements possible:
-    //The case where every character in the current buffer gets replaced.
-    replaceIndex = (int *)replaceIndices.AllocThrows((thisLength/oldLength+1)*sizeof(int));
-    index=0;
-
-    _ASSERTE(endIndex - oldLength <= endIndex);
-    //Prefix: oldLength validated in mscorlib.dll!String.Replace
-    PREFIX_ASSUME(endIndex - oldLength <= endIndex);
-
-    while (((index=StringBufferObject::LocalIndexOfString(thisBuffer,oldBuffer,thisLength,oldLength,index))>-1) && (index<=endIndex-oldLength))
-    {
-        replaceIndex[replaceCount++] = index;
-        index+=oldLength;
-    }
-
-    if (replaceCount != 0)
-    {
-        //Calculate the new length of the string and ensure that we have sufficent room.
-        INT64 retValBuffLength = thisLength - ((oldLength - newLength) * (INT64)replaceCount);
-        _ASSERTE(retValBuffLength >= 0);
-        if (retValBuffLength > 0x7FFFFFFF)
-            COMPlusThrowOM();
-
-        gc.retValString = StringObject::NewString((INT32)retValBuffLength);
-        retValBuffer = gc.retValString->GetBuffer();
-
-        //Get the update buffers for all the Strings since the allocation could have triggered a GC.
-        thisBuffer  = gc.thisRef->GetBuffer();
-        newBuffer   = gc.newValue->GetBuffer();
-        oldBuffer   = gc.oldValue->GetBuffer();
-
-
-        //Set replaceHolder to be the upper limit of our array.
-        int replaceHolder = replaceCount;
-        replaceCount=0;
-
-        //Walk the array forwards copying each character as we go.  If we reach an instance
-        //of the string being replaced, replace the old string with the new string.
-        readPos = 0;
-        writePos = 0;
-        while (readPos<thisLength)
-        {
-            if (replaceCount<replaceHolder&&readPos==replaceIndex[replaceCount])
-            {
-                replaceCount++;
-                readPos+=(oldLength);
-                memcpyNoGCRefs(&retValBuffer[writePos], newBuffer, newLength*sizeof(WCHAR));
-                writePos+=(newLength);
-            }
-            else
-            {
-                retValBuffer[writePos++] = thisBuffer[readPos++];
-            }
-        }
-        retValBuffer[retValBuffLength]='\0';
-    }
-    else
-    {
-        gc.retValString = gc.thisRef;
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.retValString);
-}
-FCIMPLEND
-
 
 
 #ifdef FEATURE_COMINTEROP

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /************************************************************************* 
 *  This file documents all the macros approved for use in windows source
@@ -627,7 +626,7 @@
 #define __in_awcount(expr,size)  __allowed(on_parameter)   
 #define __nullterminated         _SAL_VERSION_CHECK(__nullterminated)
 #define __nullnullterminated     _SAL_VERSION_CHECK(__nullnullterminated)
-#define __reserved               _SAL_VERSION_CHECK(__reserved)
+#define __clr_reserved           _SAL_VERSION_CHECK(__reserved)
 #define __checkReturn            _SAL_VERSION_CHECK(__checkReturn)
 #define __typefix(ctype)         __allowed(on_parameter_or_return) 
 #define __override               __allowed(on_function) 

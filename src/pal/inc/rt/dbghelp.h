@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++ BUILD Version: 0000     Increment this if a change has global effects
 
@@ -29,5 +28,10 @@ Revision History:
 #pragma once
 #endif
 
+//
+// options that are set/returned by SymSetOptions() & SymGetOptions()
+// these are used as a mask
+//
+#define SYMOPT_LOAD_LINES                0x00000010
 
 #endif // _DBGHELP_

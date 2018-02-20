@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -20,10 +19,10 @@ inline void RestoreSOToleranceState() {}
 #include <corsym.h>
 #include <clrdata.h>
 #include <palclr.h>
-
-#if !defined(FEATURE_PAL)
 #include <metahost.h>
 #include <new>
+
+#if !defined(FEATURE_PAL)
 #include <dia2.h>
 #endif
 
@@ -33,13 +32,10 @@ inline void RestoreSOToleranceState() {}
 #pragma warning(default:4200)
 #endif
 #include "data.h"
-
 #endif //STRIKE
 
-#include "cor.h"
 #include "cordebug.h"
 #include "static_assert.h"
-
 
 typedef LPCSTR  LPCUTF8;
 typedef LPSTR   LPUTF8;
@@ -157,17 +153,11 @@ class BaseObject
 };
 
 
-const DWORD gElementTypeInfo[] = {
+const BYTE gElementTypeInfo[] = {
 #define TYPEINFO(e,ns,c,s,g,ia,ip,if,im,gv)    s,
 #include "cortypeinfo.h"
 #undef TYPEINFO
 };
-
-// Under unix we need to implement ExtensionApis.
-#ifdef FEATURE_PAL
-#undef GetExpression
-DWORD_PTR GetExpression(const char *exp);
-#endif // FEATURE_PAL
 
 typedef struct tagLockEntry
 {
@@ -188,13 +178,11 @@ extern ISOSDacInterface *g_sos;
 
 #include "dacprivate.h"
 
-#ifndef FEATURE_PAL
 interface ICorDebugProcess;
 extern ICorDebugProcess * g_pCorDebugProcess;
-#endif // FEATURE_PAL
 
 // This class is templated for easy modification.  We may need to update the CachedString
-// or related classes to use wchar_t instead of char in the future.
+// or related classes to use WCHAR instead of char in the future.
 template <class T, int count, int size>
 class StaticData
 {
@@ -396,8 +384,8 @@ namespace Output
     *   simpleName - simple name of the managed variable                   *
     *                                                                      *
     \**********************************************************************/
-    CachedString BuildManagedVarValue(__in_z LPWSTR expansionName, ULONG frame, __in_z LPWSTR simpleName, FormatType type);
-    CachedString BuildManagedVarValue(__in_z LPWSTR expansionName, ULONG frame, int indexInArray, FormatType type);    //used for array indices (simpleName = "[<indexInArray>]")
+    CachedString BuildManagedVarValue(__in_z LPCWSTR expansionName, ULONG frame, __in_z LPCWSTR simpleName, FormatType type);
+    CachedString BuildManagedVarValue(__in_z LPCWSTR expansionName, ULONG frame, int indexInArray, FormatType type);    //used for array indices (simpleName = "[<indexInArray>]")
 }
 
 class NoOutputHolder
@@ -617,7 +605,7 @@ private:
 };
 
 typedef BaseString<char, strlen, strcpy_s> String;
-typedef BaseString<wchar_t, wcslen, wcscpy_s> WString;
+typedef BaseString<WCHAR, _wcslen, wcscpy_s> WString;
 
 
 template<class T>
@@ -704,7 +692,7 @@ namespace Output
             {
                 if (mFormat == Formats::Default || mFormat == Formats::Pointer)
                 {
-                    ExtOut("%p", (__int64)mValue);
+                    ExtOut("%p", SOS_PTR(mValue));
                 }
                 else
                 {
@@ -757,7 +745,7 @@ namespace Output
                     if (precision > width)
                         precision = width;
 
-                    ExtOut(leftAlign ? "%-*.*p" : "%*.*p", width, precision, (__int64)mValue);
+                    ExtOut(leftAlign ? "%-*.*p" : "%*.*p", width, precision, SOS_PTR(mValue));
                 }
                 else
                 {
@@ -794,7 +782,7 @@ namespace Output
             const char *cstr = (const char *)str;
         
             int len = MultiByteToWideChar(CP_ACP, 0, cstr, -1, NULL, 0);
-            wchar_t *buffer = (wchar_t *)alloca(len*sizeof(wchar_t));
+            WCHAR *buffer = (WCHAR *)alloca(len*sizeof(WCHAR));
         
             MultiByteToWideChar(CP_ACP, 0, cstr, -1, buffer, len);
         
@@ -820,7 +808,7 @@ namespace Output
                 char buffer[64];
                 if (mFormat == Formats::Default || mFormat == Formats::Pointer)
                 {
-                    sprintf_s(buffer, _countof(buffer), "%p", (int *)mValue);
+                    sprintf_s(buffer, _countof(buffer), "%p", (int *)(SIZE_T)mValue);
                     ConvertToLower(buffer, _countof(buffer));
                 }
                 else
@@ -970,15 +958,15 @@ namespace Output
     /* Format class for wide char strings.
      */
     template <>
-    class Format<const wchar_t *>
+    class Format<const WCHAR *>
     {
     public:
-        Format(const wchar_t *value)
+        Format(const WCHAR *value)
             : mValue(value)
         {
         }
 
-        Format(const Format<const wchar_t *> &rhs)
+        Format(const Format<const WCHAR *> &rhs)
             : mValue(rhs.mValue)
         {
         }
@@ -993,7 +981,7 @@ namespace Output
 
         void OutputColumn(Alignment align, int width) const
         {
-            int precision = (int)wcslen(mValue);
+            int precision = (int)_wcslen(mValue);
             if (precision > width)
                 precision = width;
 
@@ -1006,7 +994,7 @@ namespace Output
         }
 
     private:
-        const wchar_t *mValue;
+        const WCHAR *mValue;
     };
 
 
@@ -1044,6 +1032,7 @@ DefineFormatClass(ThreadID, Formats::Hex, Output::DML_ThreadID);
 DefineFormatClass(RCWrapper, Formats::Pointer, Output::DML_RCWrapper);
 DefineFormatClass(CCWrapper, Formats::Pointer, Output::DML_CCWrapper);
 DefineFormatClass(InstructionPtr, Formats::Pointer, Output::DML_IP);
+DefineFormatClass(NativePtr, Formats::Pointer, Output::DML_None);
 
 DefineFormatClass(Decimal, Formats::Decimal, Output::DML_None);
 DefineFormatClass(Pointer, Formats::Pointer, Output::DML_None);
@@ -1297,17 +1286,17 @@ public:
 
     void WriteColumn(int col, const WString &str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
 
     void WriteColumn(int col, __in_z WCHAR *str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
 
     void WriteColumn(int col, const WCHAR *str)
     {
-        WriteColumn(col, Output::Format<const wchar_t *>(str));
+        WriteColumn(col, Output::Format<const WCHAR *>(str));
     }
     
     inline void WriteColumn(int col, __in_z char *str)
@@ -1333,9 +1322,9 @@ public:
         WriteColumn(col, result);
     }
     
-    void WriteColumnFormat(int col, const wchar_t *fmt, ...)
+    void WriteColumnFormat(int col, const WCHAR *fmt, ...)
     {
-        wchar_t result[128];
+        WCHAR result[128];
         
         va_list list;
         va_start(list, fmt);
@@ -1373,15 +1362,15 @@ private:
 HRESULT GetMethodDefinitionsFromName(DWORD_PTR ModulePtr, IXCLRDataModule* mod, const char* name, IXCLRDataMethodDefinition **ppMethodDefinitions, int numMethods, int *numMethodsNeeded);
 HRESULT GetMethodDescsFromName(DWORD_PTR ModulePtr, IXCLRDataModule* mod, const char* name, DWORD_PTR **pOut, int *numMethodDescs);
 
-HRESULT FileNameForModule (DacpModuleData *pModule, __out_ecount (MAX_PATH) WCHAR *fileName);
-HRESULT FileNameForModule (DWORD_PTR pModuleAddr, __out_ecount (MAX_PATH) WCHAR *fileName);
+HRESULT FileNameForModule (DacpModuleData *pModule, __out_ecount (MAX_LONGPATH) WCHAR *fileName);
+HRESULT FileNameForModule (DWORD_PTR pModuleAddr, __out_ecount (MAX_LONGPATH) WCHAR *fileName);
 void IP2MethodDesc (DWORD_PTR IP, DWORD_PTR &methodDesc, JITTypes &jitType,
                     DWORD_PTR &gcinfoAddr);
 const char *ElementTypeName (unsigned type);
 void DisplayFields (CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodTableFieldData *pMTFD,
                     DWORD_PTR dwStartAddr = 0, BOOL bFirst=TRUE, BOOL bValueClass=FALSE);
-int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, __in_z LPWSTR wszFieldName, BOOL bFirst=TRUE);
-int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPWSTR wszFieldName, BOOL bFirst=TRUE);
+int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, __in_z LPCWSTR wszFieldName, BOOL bFirst=TRUE);
+int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCWSTR wszFieldName, BOOL bFirst=TRUE);
 
 BOOL IsValidToken(DWORD_PTR ModuleAddr, mdTypeDef mb);
 void NameForToken_s(DacpModuleData *pModule, mdTypeDef mb, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName, 
@@ -1424,13 +1413,13 @@ int bitidx(SCALAR bitflag)
 HRESULT
 DllsName(
     ULONG_PTR addrContaining,
-    __out_ecount (MAX_PATH) WCHAR *dllName
+    __out_ecount (MAX_LONGPATH) WCHAR *dllName
     );
 
 inline
 BOOL IsElementValueType (CorElementType cet)
 {
-    return cet >= ELEMENT_TYPE_BOOLEAN && cet <= ELEMENT_TYPE_R8 
+    return (cet >= ELEMENT_TYPE_BOOLEAN && cet <= ELEMENT_TYPE_R8) 
         || cet == ELEMENT_TYPE_VALUETYPE || cet == ELEMENT_TYPE_I || cet == ELEMENT_TYPE_U;
 }
 
@@ -1440,84 +1429,7 @@ SafeReadMemory (TO_TADDR(src), &(dst), sizeof(dst), NULL)
 
 extern "C" PDEBUG_DATA_SPACES g_ExtData;
 
-template <class T>
-class ArrayHolder    
-{
-public:
-    ArrayHolder(T *ptr)
-        : mPtr(ptr)
-    {
-    }
-
-    ~ArrayHolder()
-    {
-        Clear();
-    }
-    
-    ArrayHolder(const ArrayHolder &rhs)
-    {
-        mPtr = const_cast<ArrayHolder *>(&rhs)->Detach();
-    }
-
-    ArrayHolder &operator=(T *ptr)
-    {
-        Clear();
-        mPtr = ptr;
-        return *this;
-    }
-
-    const T &operator[](int i) const
-    {
-        return mPtr[i];
-    }
-
-    T &operator[](int i)
-    {
-        return mPtr[i];
-    }
-
-    operator const T *() const
-    {
-        return mPtr;
-    }
-
-    operator T *()
-    {
-        return mPtr;
-    }
-
-    T **operator&()
-    {
-        return &mPtr;
-    }
-
-    T *GetPtr()
-    {
-        return mPtr;
-    }
-
-    T *Detach()
-    {
-        T *ret = mPtr;
-        mPtr = NULL;
-        return ret;
-    }
-
-private:
-    void Clear()
-    {
-        if (mPtr)
-        {
-            delete [] mPtr;
-            mPtr = NULL;
-        }
-    }
-
-private:
-    T *mPtr;
-};
-
-
+#include <arrayholder.h>
 
 // This class acts a smart pointer which calls the Release method on any object
 // you place in it when the ToRelease class falls out of scope.  You may use it
@@ -1613,9 +1525,9 @@ void DecodeDynamicIL(BYTE *data, ULONG Size, DacpObjectData& tokenArray);
 
 BOOL IsRetailBuild (size_t base);
 EEFLAVOR GetEEFlavor ();
-#ifndef FEATURE_PAL
 HRESULT InitCorDebugInterface();
 VOID UninitCorDebugInterface();
+#ifndef FEATURE_PAL
 BOOL GetEEVersion(VS_FIXEDFILEINFO *pFileInfo);
 BOOL GetSOSVersion(VS_FIXEDFILEINFO *pFileInfo);
 #endif
@@ -1630,7 +1542,7 @@ BOOL IsMiniDumpFile();
 void ReportOOM();
 
 BOOL SafeReadMemory (TADDR offset, PVOID lpBuffer, ULONG cb, PULONG lpcbBytesRead);
-#if !defined(_TARGET_WIN64_)
+#if !defined(_TARGET_WIN64_) && !defined(_ARM64_)
 // on 64-bit platforms TADDR and CLRDATA_ADDRESS are identical
 inline BOOL SafeReadMemory (CLRDATA_ADDRESS offset, PVOID lpBuffer, ULONG cb, PULONG lpcbBytesRead)
 { return SafeReadMemory(TO_TADDR(offset), lpBuffer, cb, lpcbBytesRead); }
@@ -1639,23 +1551,10 @@ inline BOOL SafeReadMemory (CLRDATA_ADDRESS offset, PVOID lpBuffer, ULONG cb, PU
 BOOL NameForMD_s (DWORD_PTR pMD, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName);
 BOOL NameForMT_s (DWORD_PTR MTAddr, __out_ecount (capacity_mdName) WCHAR *mdName, size_t capacity_mdName);
 
-wchar_t *CreateMethodTableName(TADDR mt, TADDR cmt = NULL);
+WCHAR *CreateMethodTableName(TADDR mt, TADDR cmt = NULL);
 
 void isRetAddr(DWORD_PTR retAddr, DWORD_PTR* whereCalled);
-DWORD_PTR GetValueFromExpression (__in __in_z const char *const str);
-
-#ifndef FEATURE_PAL
-// ensure we always allocate on the process heap
-FORCEINLINE void* __cdecl operator new(size_t size) throw()
-{ return HeapAlloc(GetProcessHeap(), 0, size); }
-FORCEINLINE void __cdecl operator delete(void* pObj) throw()
-{ HeapFree(GetProcessHeap(), 0, pObj); }
-
-FORCEINLINE void* __cdecl operator new[](size_t size) throw()
-{ return HeapAlloc(GetProcessHeap(), 0, size); }
-FORCEINLINE void __cdecl operator delete[](void* pObj) throw()
-{ HeapFree(GetProcessHeap(), 0, pObj); }
-#endif
+DWORD_PTR GetValueFromExpression (___in __in_z const char *const str);
 
 enum ModuleHeapType
 {
@@ -1733,9 +1632,8 @@ private:
     void Linearize();
 };
 
-#ifndef FEATURE_PAL
-
 class CGCDesc;
+
 // The information MethodTableCache returns.
 struct MethodTableInfo
 {
@@ -1787,8 +1685,6 @@ private:
 };
 
 extern MethodTableCache g_special_mtCache;
-
-#endif //!FEATURE_PAL
 
 struct DumpArrayFlags
 {
@@ -1941,7 +1837,7 @@ BOOL IsObjectArray (DacpObjectData *pData);
  *      You must clean up the return value of this array by calling delete [] on it, or using the
  *      ArrayHolder class.
  */
-DWORD_PTR *ModuleFromName(__in __in_z __in_opt LPSTR name, int *numModules);
+DWORD_PTR *ModuleFromName(__in_opt LPSTR name, int *numModules);
 void GetInfoFromName(DWORD_PTR ModuleAddr, const char* name);
 void GetInfoFromModule (DWORD_PTR ModuleAddr, ULONG token, DWORD_PTR *ret=NULL);
 
@@ -2078,14 +1974,10 @@ struct StringHolder
 
 ULONG DebuggeeType();
 
-#ifndef FEATURE_PAL
-
 inline BOOL IsKernelDebugger ()
 {
     return DebuggeeType() == DEBUG_CLASS_KERNEL;
 }
-
-#endif // !FEATURE_PAL
 
 void    ResetGlobals(void);
 HRESULT LoadClrDebugDll(void);
@@ -2289,13 +2181,9 @@ void GetMethodName(mdMethodDef methodDef, IMetaDataImport * pImport, CQuickBytes
 #ifndef _TARGET_WIN64_
 #define     itoa_s_ptr _itoa_s
 #define     itow_s_ptr _itow_s
-#define     itoa_ptr   _itoa
-#define     itow_ptr   _itow
 #else
 #define     itoa_s_ptr _i64toa_s
 #define     itow_s_ptr _i64tow_s
-#define     itoa_ptr   _i64toa
-#define     itow_ptr   _i64tow
 #endif
 
 #ifdef FEATURE_PAL
@@ -2384,39 +2272,77 @@ private:
     volatile ULONG m_refCount;
 };
 
+#endif // !FEATURE_PAL
+
+static const char *SymbolReaderDllName = "SOS.NETCore";
+static const char *SymbolReaderClassName = "SOS.SymbolReader";
+
+typedef  int (*ReadMemoryDelegate)(ULONG64, char *, int);
+typedef  PVOID (*LoadSymbolsForModuleDelegate)(const char*, BOOL, ULONG64, int, ULONG64, int, ReadMemoryDelegate);
+typedef  void (*DisposeDelegate)(PVOID);
+typedef  BOOL (*ResolveSequencePointDelegate)(PVOID, const char*, unsigned int, unsigned int*, unsigned int*);
+typedef  BOOL (*GetLocalVariableName)(PVOID, int, int, BSTR*);
+typedef  BOOL (*GetLineByILOffsetDelegate)(PVOID, mdMethodDef, ULONG64, ULONG *, BSTR*);
+
 class SymbolReader
 {
 private:
+#ifndef FEATURE_PAL
     ISymUnmanagedReader* m_pSymReader;
+#endif
+    PVOID m_symbolReaderHandle;
 
-private:
-    HRESULT GetNamedLocalVariable(ISymUnmanagedScope * pScope, ICorDebugILFrame * pILFrame, mdMethodDef methodToken, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
+    static LoadSymbolsForModuleDelegate loadSymbolsForModuleDelegate;
+    static DisposeDelegate disposeDelegate;
+    static ResolveSequencePointDelegate resolveSequencePointDelegate;
+    static GetLocalVariableName getLocalVariableNameDelegate;
+    static GetLineByILOffsetDelegate getLineByILOffsetDelegate;
+    static HRESULT PrepareSymbolReader();
+
+    HRESULT GetNamedLocalVariable(___in ISymUnmanagedScope* pScope, ___in ICorDebugILFrame* pILFrame, ___in mdMethodDef methodToken, ___in ULONG localIndex, 
+        __out_ecount(paramNameLen) WCHAR* paramName, ___in ULONG paramNameLen, ___out ICorDebugValue** ppValue);
+    HRESULT LoadSymbolsForWindowsPDB(___in IMetaDataImport* pMD, ___in ULONG64 peAddress, __in_z WCHAR* pModuleName, ___in BOOL isFileLayout);
+    HRESULT LoadSymbolsForPortablePDB(__in_z WCHAR* pModuleName, ___in BOOL isInMemory, ___in BOOL isFileLayout, ___in ULONG64 peAddress, ___in ULONG64 peSize, 
+        ___in ULONG64 inMemoryPdbAddress, ___in ULONG64 inMemoryPdbSize);
 
 public:
-    SymbolReader() : m_pSymReader (NULL) {}
+    SymbolReader()
+    {
+#ifndef FEATURE_PAL
+        m_pSymReader = NULL;
+#endif
+        m_symbolReaderHandle = 0;
+    }
+
     ~SymbolReader()
     {
+#ifndef FEATURE_PAL
         if(m_pSymReader != NULL)
         {
             m_pSymReader->Release();
             m_pSymReader = NULL;
         }
+#endif
+        if (m_symbolReaderHandle != 0)
+        {
+            disposeDelegate(m_symbolReaderHandle);
+            m_symbolReaderHandle = 0;
+        }
     }
 
-    HRESULT LoadSymbols(IMetaDataImport * pMD, ICorDebugModule * pModule);
-    HRESULT LoadSymbols(IMetaDataImport * pMD, ULONG64 baseAddress, __in_z WCHAR* pModuleName, BOOL isInMemory);
-    HRESULT GetNamedLocalVariable(ICorDebugFrame * pFrame, ULONG localIndex, __inout_ecount(paramNameLen) WCHAR* paramName, ULONG paramNameLen, ICorDebugValue** ppValue);
-    HRESULT SymbolReader::ResolveSequencePoint(__in_z WCHAR* pFilename, ULONG32 lineNumber, mdMethodDef* pToken, ULONG32* pIlOffset);
+    HRESULT LoadSymbols(___in IMetaDataImport* pMD, ___in ICorDebugModule* pModule);
+    HRESULT LoadSymbols(___in IMetaDataImport* pMD, ___in IXCLRDataModule* pModule);
+    HRESULT GetLineByILOffset(___in mdMethodDef MethodToken, ___in ULONG64 IlOffset, ___out ULONG *pLinenum, __out_ecount(cchFileName) WCHAR* pwszFileName, ___in ULONG cchFileName);
+    HRESULT GetNamedLocalVariable(___in ICorDebugFrame * pFrame, ___in ULONG localIndex, __out_ecount(paramNameLen) WCHAR* paramName, ___in ULONG paramNameLen, ___out ICorDebugValue** ppValue);
+    HRESULT ResolveSequencePoint(__in_z WCHAR* pFilename, ___in ULONG32 lineNumber, ___in TADDR mod, ___out mdMethodDef* ___out pToken, ___out ULONG32* pIlOffset);
 };
-
-#endif // !FEATURE_PAL
 
 HRESULT
 GetLineByOffset(
-        __in  ULONG64 IP,
-        __out ULONG *pLinenum,
-        __out_ecount(cbFileName) LPSTR lpszFileName,
-        __in ULONG cbFileName);
+        ___in ULONG64 IP,
+        ___out ULONG *pLinenum,
+        __out_ecount(cchFileName) WCHAR* pwszFileName,
+        ___in ULONG cchFileName);
 
 /// X86 Context
 #define X86_SIZE_OF_80387_REGISTERS      80
@@ -2593,8 +2519,8 @@ typedef struct{
 
 /// ARM Context
 #define ARM_MAX_BREAKPOINTS_CONST     8
-#define ARM_MAX_WATCHPOINTS_CONST     4
-typedef struct {
+#define ARM_MAX_WATCHPOINTS_CONST     1
+typedef DECLSPEC_ALIGN(8) struct {
 
     DWORD ContextFlags;
 
@@ -2618,6 +2544,7 @@ typedef struct {
     DWORD Cpsr;
 
     DWORD Fpscr;
+    DWORD Padding;
     union {
         M128A_XPLAT Q[16];
         ULONGLONG D[32];
@@ -2629,6 +2556,8 @@ typedef struct {
     DWORD Wvr[ARM_MAX_WATCHPOINTS_CONST];
     DWORD Wcr[ARM_MAX_WATCHPOINTS_CONST];
 
+    DWORD Padding2[2];
+
 } ARM_CONTEXT;
 
 // On ARM this mask is or'ed with the address of code to get an instruction pointer
@@ -2636,7 +2565,6 @@ typedef struct {
 #define THUMB_CODE 1
 #endif
 
-//ARM64TODO: Verify the correctness of the following for ARM64
 ///ARM64 Context
 #define ARM64_MAX_BREAKPOINTS     8
 #define ARM64_MAX_WATCHPOINTS     2
@@ -2713,9 +2641,9 @@ typedef struct _CROSS_PLATFORM_CONTEXT {
 
 
 WString BuildRegisterOutput(const SOSStackRefData &ref, bool printObj = true);
-WString MethodNameFromIP(CLRDATA_ADDRESS methodDesc, BOOL bSuppressLines=FALSE);
+WString MethodNameFromIP(CLRDATA_ADDRESS methodDesc, BOOL bSuppressLines = FALSE, BOOL bAssemblyName = FALSE, BOOL bDisplacement = FALSE);
 HRESULT GetGCRefs(ULONG osID, SOSStackRefData **ppRefs, unsigned int *pRefCnt, SOSStackRefError **ppErrors, unsigned int *pErrCount);
-WString GetFrameFromAddress(TADDR frameAddr, IXCLRDataStackWalk *pStackwalk=0);
+WString GetFrameFromAddress(TADDR frameAddr, IXCLRDataStackWalk *pStackwalk = NULL, BOOL bAssemblyName = FALSE);
 
 /* This cache is used to read data from the target process if the reads are known
  * to be sequential.
@@ -2804,8 +2732,6 @@ public:
             MoveToPage(start, size);
         }
     }
-
-#ifndef FEATURE_PAL
     
     void ClearStats()
     {
@@ -2827,8 +2753,6 @@ public:
 #endif
     }
 
-#endif // !FEATURE_PAL
-    
 private:
     /* Sets the cache to the page specified by addr, or false if we could not move to
      * that page.
@@ -2865,11 +2789,9 @@ private:
 // Methods for creating a database out of the gc heap and it's roots in xml format or CLRProfiler format
 //
 
-#ifndef FEATURE_PAL
-#include <hash_map>
-#include <hash_set>
+#include <unordered_map>
+#include <unordered_set>
 #include <list>
-#endif
 
 class TypeTree;
 enum { FORMAT_XML=0, FORMAT_CLRPROFILER=1 };
@@ -2885,9 +2807,7 @@ private:
     bool m_verify;
     LinearReadCache mCache;
     
-#ifndef FEATURE_PAL
-    std::hash_map<TADDR, std::list<TADDR>> mDependentHandleMap;
-#endif
+    std::unordered_map<TADDR, std::list<TADDR>> mDependentHandleMap;
     
 public:           
     HeapTraverser(bool verify);
@@ -2927,7 +2847,6 @@ private:
     void TraceHandles();
 };
 
-#ifndef FEATURE_PAL
 
 class GCRootImpl
 {
@@ -2935,7 +2854,7 @@ private:
     struct MTInfo
     {
         TADDR MethodTable;
-        wchar_t  *TypeName;
+        WCHAR  *TypeName;
 
         TADDR *Buffer;
         CGCDesc *GCDesc;
@@ -2945,13 +2864,13 @@ private:
         size_t BaseSize;
         size_t ComponentSize;
         
-        const wchar_t *GetTypeName()
+        const WCHAR *GetTypeName()
         {
             if (!TypeName)
                 TypeName = CreateMethodTableName(MethodTable);
             
             if (!TypeName)
-                return L"<error>";
+                return W("<error>");
             
             return TypeName;
         }
@@ -2984,10 +2903,10 @@ private:
         RootNode *GCRefs;
         
         
-        const wchar_t *GetTypeName()
+        const WCHAR *GetTypeName()
         {
             if (!MTInfo)
-                return L"<unknown>";
+                return W("<unknown>");
                 
             return MTInfo->GetTypeName();
         }
@@ -3040,7 +2959,7 @@ private:
     };
 
 public:
-    static void GetDependentHandleMap(std::hash_map<TADDR, std::list<TADDR>> &map);
+    static void GetDependentHandleMap(std::unordered_map<TADDR, std::list<TADDR>> &map);
 
 public:
     // Finds all objects which root "target" and prints the path from the root
@@ -3059,7 +2978,7 @@ public:
     void ObjSize();
 
     // Returns the set of all live objects in the process.
-    const std::hash_set<TADDR> &GetLiveObjects(bool excludeFQ = false);
+    const std::unordered_set<TADDR> &GetLiveObjects(bool excludeFQ = false);
 
     // See !FindRoots.
     int FindRoots(int gen, TADDR target);
@@ -3117,17 +3036,15 @@ private:
     std::list<RootNode*> mCleanupList;  // A list of RootNode's we've newed up.  This is only used to delete all of them later.
     std::list<RootNode*> mRootNewList;  // A list of unused RootNodes that are free to use instead of having to "new" up more.
     
-    std::hash_map<TADDR, MTInfo*> mMTs;     // The MethodTable cache which maps from MT -> MethodTable data (size, gcdesc, string typename)
-    std::hash_map<TADDR, RootNode*> mTargets;   // The objects that we are searching for.
-    std::hash_set<TADDR> mConsidered;       // A hashtable of objects we've already visited.
-    std::hash_map<TADDR, size_t> mSizes;   // A mapping from object address to total size of data the object roots.
+    std::unordered_map<TADDR, MTInfo*> mMTs;     // The MethodTable cache which maps from MT -> MethodTable data (size, gcdesc, string typename)
+    std::unordered_map<TADDR, RootNode*> mTargets;   // The objects that we are searching for.
+    std::unordered_set<TADDR> mConsidered;       // A hashtable of objects we've already visited.
+    std::unordered_map<TADDR, size_t> mSizes;   // A mapping from object address to total size of data the object roots.
     
-    std::hash_map<TADDR, std::list<TADDR>> mDependentHandleMap;
+    std::unordered_map<TADDR, std::list<TADDR>> mDependentHandleMap;
     
     LinearReadCache mCache;     // A linear cache which stops us from having to read from the target process more than 1-2 times per object.
 };
-
-#endif // !FEATURE_PAL
 
 //
 // Helper class used for type-safe bitflags
@@ -3237,7 +3154,7 @@ HRESULT CreateInstanceCustom(
 template <typename T>
 BOOL
 GetProcAddressT(
-    __in PCSTR FunctionName,
+    ___in PCSTR FunctionName,
     __in_opt PCWSTR DllName,
     __inout T* OutFunctionPointer,
     __inout HMODULE* InOutDllHandle
@@ -3269,12 +3186,6 @@ struct ImageInfo
 {
     ULONG64 modBase;
 };
-
-HRESULT
-GetClrModuleImages(
-    __in IXCLRDataModule* Module,
-    __in CLRDataModuleExtentType DesiredType,
-    __out ImageInfo* FirstAdd);
 
 // Helper class used in ClrStackFromPublicInterface() to keep track of explicit EE Frames
 // (i.e., "internal frames") on the stack.  Call Init() with the appropriate

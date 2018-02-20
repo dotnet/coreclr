@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * GCSCAN.H
@@ -32,21 +31,9 @@ struct DhContext
     ScanContext    *m_pScanContext;             // The GC's scan context for this phase
 };
 
-
-// <TODO>
-// @TODO (JSW): For compatibility with the existing GC code we use CNamespace
-// as the name of this class.   I'm planning on changing it to
-// something like GCDomain....
-// </TODO>
-
-typedef void enum_alloc_context_func(alloc_context*);
-
-class CNameSpace
+class GCScan
 {
   public:
-    
-    // Called on gc start
-    static void GcStartDoWork();
 
     static void GcScanSizedRefs(promote_func* fn, int condemned, int max_gen, ScanContext* sc);
 
@@ -58,15 +45,13 @@ class CNameSpace
 
     static void GcRuntimeStructuresValid (BOOL bValid);
 
-    static BOOL GetGcRuntimeStructuresValid ();
+    static bool GetGcRuntimeStructuresValid ();
 #ifdef DACCESS_COMPILE    
     static void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif // DACCESS_COMPILE
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    static void GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc);
-    static void GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+    static void GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc, handle_scan_fn fn);
+    static void GcScanDependentHandlesForProfilerAndETW (int max_gen, ScanContext* sc, handle_scan_fn fn);
 
     // scan for dead weak pointers
     static void GcWeakPtrScan (promote_func* fn, int condemned, int max_gen, ScanContext*sc );
@@ -97,21 +82,12 @@ class CNameSpace
 
     // post-promotions callback some roots were demoted
     static void GcDemote (int condemned, int max_gen, ScanContext* sc);
-
-    static void GcEnumAllocContexts (enum_alloc_context_func* fn);
-
-    static void GcFixAllocContexts (void* arg, void *heap);
     
     static size_t AskForMoreReservedMemory (size_t old_size, size_t need_size);
 
     static void VerifyHandleTable(int condemned, int max_gen, ScanContext* sc);
     
-private:
-#ifdef DACCESS_COMPILE    
-    SVAL_DECL(LONG, m_GcStructuresInvalidCnt);
-#else
-    static VOLATILE(LONG) m_GcStructuresInvalidCnt;
-#endif //DACCESS_COMPILE
+    static VOLATILE(int32_t) m_GcStructuresInvalidCnt;
 };
 
 #endif // _GCSCAN_H_

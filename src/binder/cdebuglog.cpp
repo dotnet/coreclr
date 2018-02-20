@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // CDebugLog.cpp
@@ -56,17 +55,15 @@ namespace BINDER_SPACE
         {
             HRESULT hr=S_OK;
             LPTSTR  pszFileName;
-            TCHAR   szPath[MAX_PATH];
+            PathString szPathString;
             DWORD   dw = 0;
 
-            // _ASSERTE (pszPath ) ;
-            if (wcslen(pszName) >= MAX_PATH)
-            {
-                IF_FAIL_GO(HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW));
-            }
-        
-            IF_FAIL_GO(StringCbCopy(szPath, sizeof(szPath), pszName));
-
+            size_t pszNameLen = wcslen(pszName);
+            WCHAR * szPath = szPathString.OpenUnicodeBuffer(static_cast<COUNT_T>(pszNameLen));
+            size_t cbSzPath = (sizeof(WCHAR)) * (pszNameLen + 1); // SString allocates extra byte for null
+            IF_FAIL_GO(StringCbCopy(szPath, cbSzPath, pszName));
+            szPathString.CloseBuffer(static_cast<COUNT_T>(pszNameLen));
+            
             pszFileName = PathFindFileName(szPath);
 
             if (pszFileName <= szPath)
@@ -330,7 +327,6 @@ namespace BINDER_SPACE
         CombinePath(g_BinderVariables->logPath, sCategory, logFilePath);
         CombinePath(logFilePath, m_applicationName, logFilePath);
         CombinePath(logFilePath, m_logFileName, logFilePath);
-        CanonicalizePath(logFilePath);
 
         BINDER_LOG_STRING(L"logFilePath", logFilePath);
 

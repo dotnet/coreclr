@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #ifndef INTERPRETER_H_DEFINED
@@ -11,7 +10,6 @@
 #include "corinfo.h"
 #include "codeman.h"
 #include "jitinterface.h"
-#include "simplerhash.h"
 #include "stack.h"
 #include "crst.h"
 #include "callhelpers.h"
@@ -36,11 +34,7 @@ typedef SIZE_T NativePtr;
 #error INTERP_ILCYCLE_PROFILE may only be set if INTERP_ILINSTR_PROFILE is also set.
 #endif
 #endif
-#if defined(_DEBUG)
-#define INTERPLOG(...) if (s_TraceInterpreterVerboseFlag.val(CLRConfig::INTERNAL_TraceInterpreterVerbose)) { fprintf(GetLogFile(), __VA_ARGS__); }
-#else
-#define INTERPLOG(...)
-#endif
+
 #if defined(_DEBUG) || INTERP_ILINSTR_PROFILE
 // I define "INTERP_TRACING", rather than just using _DEBUG, so that I can easily make a build
 // in which tracing is enabled in retail.
@@ -48,6 +42,12 @@ typedef SIZE_T NativePtr;
 #else
 #define INTERP_TRACING 0
 #endif // defined(_DEBUG) || defined(INTERP_ILINSTR_PROFILE)
+
+#if INTERP_TRACING
+#define INTERPLOG(...) if (s_TraceInterpreterVerboseFlag.val(CLRConfig::INTERNAL_TraceInterpreterVerbose)) { fprintf(GetLogFile(), __VA_ARGS__); }
+#else
+#define INTERPLOG(...)
+#endif
 
 #if INTERP_TRACING
 #define InterpTracingArg(x) ,x
@@ -77,7 +77,7 @@ bool IsStackNormalType(CorInfoType cit);
 CorInfoType CorInfoTypeStackNormalize(CorInfoType cit);
 
 // Returns the (byte) size of "cit".  Requires that "cit" is not a CORINFO_TYPE_VALUECLASS.
-inline size_t CorInfoTypeSize(CorInfoType cit);
+size_t CorInfoTypeSize(CorInfoType cit);
 
 // Returns true iff "cit" is an unsigned integral type.
 bool CorInfoTypeIsUnsigned(CorInfoType cit);
@@ -101,7 +101,7 @@ inline size_t CorInfoTypeStackNormalSize(CorInfoType cit)
     return CorInfoTypeSize(cit);
 }
 
-inline getClassSize(CORINFO_CLASS_HANDLE clsHnd)
+inline unsigned getClassSize(CORINFO_CLASS_HANDLE clsHnd)
 {
     TypeHandle VMClsHnd(clsHnd);
     return VMClsHnd.GetSize();
@@ -552,9 +552,6 @@ struct InterpreterMethodInfo
     // The module containing the method.
     CORINFO_MODULE_HANDLE       m_module;
 
-    // If the method has been JITted, it's JITted code (for indirection).
-    PCODE                       m_jittedCode;
-
     // Code pointer, size, and max stack usage.
     BYTE*                       m_ILCode;
     BYTE*                       m_ILCodeEnd;        // One byte past the last byte of IL. IL Code Size = m_ILCodeEnd - m_ILCode.
@@ -720,7 +717,7 @@ class InterpreterCEEInfo: public CEEInfo
 {
     CEEJitInfo m_jitInfo;
 public:
-    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CorJitFlag(0)) { m_pOverride = this; }
+    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CORJIT_FLAGS::CORJIT_FLAG_SPEED_OPT) { m_pOverride = this; }
     
     // Certain methods are unimplemented by CEEInfo (they hit an assert).  They are implemented by CEEJitInfo, yet
     // don't seem to require any of the CEEJitInfo state we can't provide.  For those case, delegate to the "partial"
@@ -778,32 +775,31 @@ public:
     // operand type stack.
     Interpreter(InterpreterMethodInfo* methInfo_, bool directCall_, BYTE* ilArgs_, void* stubContext_, BYTE* frameMemory) 
         : m_methInfo(methInfo_),
+          m_interpCeeInfo(methInfo_->m_method),
+          m_ILCodePtr(methInfo_->m_ILCode),
           m_directCall(directCall_),
           m_ilArgs(ilArgs_),
           m_stubContext(stubContext_),
-          m_ILCodePtr(methInfo_->m_ILCode),
-          m_curStackHt(0),
-          m_interpCeeInfo(methInfo_->m_method),
+          m_orOfPushedInterpreterTypes(0),
           m_largeStructOperandStack(NULL),
           m_largeStructOperandStackHt(0),
           m_largeStructOperandStackAllocSize(0),
-          m_thisArg(NULL),
-          m_securityObject(TADDR(NULL)),
-          m_args(NULL),
-          m_argsSize(0),
-          m_structRetValITPtr(NULL),
-          m_callThisArg(NULL), 
-          m_orOfPushedInterpreterTypes(0),
-          m_preciseGenericsContext(NULL),
-          m_functionPointerStack(NULL),
-          m_genericsCtxtArg(NULL),
-          m_inFlightException(NULL),
+          m_curStackHt(0),
+          m_leaveInfoStack(),
           m_filterNextScan(0),
           m_filterHandlerOffset(0),
           m_filterExcILOffset(0),
+          m_inFlightException(NULL),
+          m_thisArg(NULL),
 #ifdef USE_CHECKED_OBJECTREFS
           m_retBufArg(NULL),  // Initialize to NULL so we can safely declare protected.
 #endif // USE_CHECKED_OBJECTREFS
+          m_genericsCtxtArg(NULL),
+          m_securityObject((Object*)NULL),
+          m_args(NULL),
+          m_argsSize(0),
+          m_callThisArg(NULL), 
+          m_structRetValITPtr(NULL),
 #ifndef DACCESS_COMPILE
           // Means "uninitialized"
           m_thisExecCache(UninitExecCache), 
@@ -811,7 +807,8 @@ public:
           m_constrainedFlag(false),
           m_readonlyFlag(false),
           m_locAllocData(NULL),
-          m_leaveInfoStack()
+          m_preciseGenericsContext(NULL),
+          m_functionPointerStack(NULL)
     {
         // We must zero the locals.
         memset(frameMemory, 0, methInfo_->LocalMemSize() + sizeof(GSCookie));
@@ -1018,7 +1015,7 @@ private:
 #endif
     };
 
-    typedef SimplerHashTable<void*, PtrKeyFuncs<void>, CORINFO_METHOD_HANDLE, DefaultSimplerHashBehavior> AddrToMDMap;
+    typedef MapSHash<void*, CORINFO_METHOD_HANDLE> AddrToMDMap;
     static AddrToMDMap* s_addrToMDMap;
     static AddrToMDMap* GetAddrToMdMap();
 
@@ -1031,7 +1028,7 @@ private:
         Thread* m_thread;
 #endif // _DEBUG
     };
-    typedef SimplerHashTable<CORINFO_METHOD_HANDLE, PtrKeyFuncs<CORINFO_METHOD_STRUCT_>, MethInfo, DefaultSimplerHashBehavior> MethodHandleToInterpMethInfoPtrMap;
+    typedef MapSHash<CORINFO_METHOD_HANDLE, MethInfo> MethodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* s_methodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* GetMethodHandleToInterpMethInfoPtrMap();
 
@@ -1604,7 +1601,7 @@ private:
             {
                 for (unsigned i = 0; i < m_locAllocCurIdx; i++)
                 {
-                    delete[] m_locAllocs[i];
+                    delete[] reinterpret_cast<char*>(m_locAllocs[i]);
                 }
             }
             delete[] m_locAllocs;

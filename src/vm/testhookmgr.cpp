@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // 
@@ -639,7 +638,6 @@ VOID CLRTestHookManager::DoApproriateWait( int cObjs, HANDLE *pObjs, INT32 iTime
         result=thread->DoAppropriateWait(cObjs,pObjs,bWaitAll,iTimeout,WaitMode_Alertable,NULL);
     else
     {
-        LeaveRuntimeHolder holder((size_t)WaitForSingleObjectEx);
         result = WaitForMultipleObjectsEx(cObjs,pObjs,bWaitAll,iTimeout,TRUE);
     }
 }
@@ -656,7 +654,7 @@ HRESULT CLRTestHookManager::GC(int generation)
     CONTRACTL_END;
 
     _ASSERTE(GetThread()==NULL || !GetThread()->PreemptiveGCDisabled());
-    GCHeap::GetGCHeap()->GarbageCollect(generation);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation);
     FinalizerThread::FinalizerThreadWait();
     return S_OK;
 }

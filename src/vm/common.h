@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // common.h - precompiled headers include for the COM+ Execution Engine
 //
@@ -12,17 +11,8 @@
 #ifndef _common_h_ 
 #define _common_h_
 
-#ifdef CLR_STANDALONE_BINDER
-
-#ifndef CLR_PRIV_BINDER_FOR_MDILBIND
-#include "..\tools\mdilbind\common.h"
-#endif //!CLR_PRIV_BINDER_FOR_MDILBIND
-
-#else //CLR_STANDALONE_BINDER
-
-
 #if defined(_MSC_VER) && defined(_X86_) && !defined(FPO_ON)
-#pragma optimize("y", on)		// Small critical routines, don't put in EBP frame 
+#pragma optimize("y", on)       // Small critical routines, don't put in EBP frame 
 #define FPO_ON 1
 #define COMMON_TURNED_FPO_ON 1
 #endif
@@ -89,6 +79,7 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#include <assert.h>
 
 #include <olectl.h>
 
@@ -105,12 +96,6 @@
 #include <../../debug/inc/dbgtargetcontext.h>
 
 //-----------------------------------------------------------------------------------------------------------
-
-#include "compatibilityflags.h"
-extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-#ifndef FEATURE_CORECLR
-extern DWORD* GetGlobalCompatibilityFlags();
-#endif // !FEATURE_CORECLR
 
 #include "strongname.h"
 #include "stdmacros.h"
@@ -186,7 +171,7 @@ typedef DPTR(class StringBufferObject)  PTR_StringBufferObject;
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
-typedef VPTR(class GCHeap)              PTR_GCHeap;
+typedef VPTR(class IGCHeap)             PTR_IGCHeap;
 
 //
 // _UNCHECKED_OBJECTREF is for code that can't deal with DEBUG OBJECTREFs
@@ -256,20 +241,30 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
 //
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
+    //If memcpy has been defined to PAL_memcpy, we undefine it so that this case
+    //can be covered by the if !defined(memcpy) block below
+    #ifdef FEATURE_PAL
+    #if IS_REDEFINED_IN_PAL(memcpy)
+    #undef memcpy
+    #endif //IS_REDEFINED_IN_PAL
+    #endif //FEATURE_PAL
+
         // You should be using CopyValueClass if you are doing an memcpy
         // in the CG heap.
-    #if !defined(memcpy) 
+    #if !defined(memcpy)
     FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
-            return memcpy(dest, src, len);
+
+            #ifndef FEATURE_PAL
+                return memcpy(dest, src, len);
+            #else //FEATURE_PAL
+                return PAL_memcpy(dest, src, len);
+            #endif //FEATURE_PAL
+            
         }
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
     #endif // !defined(memcpy)
-
-    #if !defined(CHECK_APP_DOMAIN_LEAKS)
-    #define CHECK_APP_DOMAIN_LEAKS 1
-    #endif
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
@@ -288,7 +283,6 @@ namespace Loader
     } LoadFlag;
 }
 
-
 // src/inc
 #include "utilcode.h"
 #include "log.h"
@@ -297,6 +291,9 @@ namespace Loader
 #include "lazycow.h"
 
 // src/vm
+#include "gcenv.interlocked.h"
+#include "gcenv.interlocked.inl"
+
 #include "util.hpp"
 #include "ibclogger.h"
 #include "eepolicy.h"
@@ -312,11 +309,11 @@ namespace Loader
 #include "pedecoder.h"
 #include "sstring.h"
 #include "slist.h"
+#include "yieldprocessornormalized.h"
 
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "objecthandle.h"
 #include "declsec.h"
 
 #ifdef FEATURE_COMINTEROP 
@@ -330,7 +327,6 @@ namespace Loader
 
 #include "eehash.h"
 
-#include "handletable.h"
 #include "vars.hpp"
 #include "eventstore.hpp"
 
@@ -359,7 +355,6 @@ namespace Loader
 #include "threads.h"
 #include "clrex.inl"
 #ifdef FEATURE_COMINTEROP
-    // These need to be included *after* threads.h so that they can properly use LeaveRuntimeHolder
     #include "windowsruntime.h"
     #include "windowsstring.h"
 #endif
@@ -380,7 +375,6 @@ namespace Loader
 #include "interoputil.h"
 #include "wrappers.h"
 #include "dynamicmethod.h"
-#include "mixedmode.hpp"
 
 #include "gcstress.h"
 
@@ -392,9 +386,6 @@ inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CAN_TAKE_LOCK;
 
-    if (CLRTaskHosted()) {
-        Thread::BeginThreadAffinity();
-    }
     UnsafeEnterCriticalSection(lpCriticalSection);
     INCTHREADLOCKCOUNT();
 }
@@ -406,9 +397,6 @@ inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 
     UnsafeLeaveCriticalSection(lpCriticalSection);
     DECTHREADLOCKCOUNT();
-    if (CLRTaskHosted()) {
-        Thread::EndThreadAffinity();
-    }
 }
 
 inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
@@ -476,42 +464,18 @@ extern DummyGlobalContract ___contract;
 #include "object.inl"
 #include "clsload.inl"
 #include "domainfile.inl"
-#include "handletable.inl"
 #include "method.inl"
 #include "stackprobe.inl"
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"
-#include "mscorcfg.h"
 #ifdef FEATURE_COMINTEROP
 #include "WinRTRedirector.h"
 #include "winrtredirector.inl"
 #endif // FEATURE_COMINTEROP
 
-inline HRESULT CreateConfigStreamHelper(LPCWSTR filename, IStream** pOutStream)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    HRESULT hr =S_OK;
-
-    EX_TRY
-    {
-        hr = CreateConfigStream( filename, pOutStream);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
-
 #if defined(COMMON_TURNED_FPO_ON)
-#pragma optimize("", on)		// Go back to command line default optimizations
+#pragma optimize("", on)        // Go back to command line default optimizations
 #undef COMMON_TURNED_FPO_ON
 #undef FPO_ON
 #endif
@@ -520,8 +484,6 @@ extern INT64 g_PauseTime;          // Total duration of all pauses in the runtim
 extern Volatile<BOOL> g_IsPaused;   // True if the runtime is Paused for FAS
 extern CLREventStatic g_ClrResumeEvent;  // Event fired when the runtime is resumed after a Pause for FAS
 INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration);
-
-#endif // CLR_STANDALONE_BINDER
 
 #endif // !_common_h_
 

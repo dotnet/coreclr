@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapWriter.cpp
 //
@@ -56,7 +55,13 @@ void ZapWriter::Initialize()
     m_FileAlignment = 0x200;
 }
 
+#if defined(FEATURE_PAL) && defined(BIT64)
+#define SECTION_ALIGNMENT   m_FileAlignment
+#define PAL_MAX_PAGE_SIZE   0x10000
+#else
 #define SECTION_ALIGNMENT   0x1000
+#define PAL_MAX_PAGE_SIZE   0
+#endif
 
 void ZapWriter::Save(IStream * pStream)
 {
@@ -120,7 +125,7 @@ void ZapWriter::ComputeRVAs()
 
         pPhysicalSection->m_dwFilePos = dwFilePos;
 
-        dwPos = AlignUp(dwPos, SECTION_ALIGNMENT);
+        dwPos = AlignUp(dwPos, SECTION_ALIGNMENT) + PAL_MAX_PAGE_SIZE;
         pPhysicalSection->SetRVA(dwPos);
 
         DWORD dwEndOfRawData = dwPos;
@@ -194,7 +199,7 @@ void ZapWriter::SaveContent()
         WritePad(dwAlignedFilePos - dwFilePos);
         dwFilePos = dwAlignedFilePos;
 
-        dwPos = AlignUp(dwPos, SECTION_ALIGNMENT);
+        dwPos = AlignUp(dwPos, SECTION_ALIGNMENT) + PAL_MAX_PAGE_SIZE;
 
         if (m_fWritingRelocs)
         {
@@ -384,12 +389,15 @@ void ZapWriter::WritePad(DWORD dwSize, BYTE fill)
     if (dwSize == 0)
         return;
 
-    memset(m_pBuffer, fill, max(WRITE_BUFFER_SIZE, dwSize));
+    memset(m_pBuffer, fill, min(WRITE_BUFFER_SIZE, dwSize));
 
     while (dwSize >= WRITE_BUFFER_SIZE)
     {
-        cbAvailable = max(WRITE_BUFFER_SIZE, dwSize);
-        IfFailThrow(m_pStream->Write(m_pBuffer, cbAvailable, NULL));
+        ULONG cbWritten;
+        cbAvailable = min(WRITE_BUFFER_SIZE, dwSize);
+        IfFailThrow(m_pStream->Write(m_pBuffer, cbAvailable, &cbWritten));
+        _ASSERTE(cbWritten == cbAvailable);
+
         dwSize -= cbAvailable;
     }
 
@@ -581,7 +589,9 @@ void ZapWriter::SaveSections()
         header.VirtualAddress = VAL32(pPhysicalSection->GetRVA());
 
         header.SizeOfRawData = VAL32(AlignUp(pPhysicalSection->m_dwSizeOfRawData, m_FileAlignment));
-        header.PointerToRawData = VAL32(pPhysicalSection->m_dwFilePos);
+
+        if (header.SizeOfRawData != 0)
+            header.PointerToRawData = VAL32(pPhysicalSection->m_dwFilePos);
 
         header.Characteristics = VAL32(pPhysicalSection->m_dwCharacteristics);
 
@@ -628,7 +638,7 @@ ZapBlob * ZapBlob::NewBlob(ZapWriter * pWriter, PVOID pData, SIZE_T cbSize)
     ZapBlob * pZapBlob = new (pMemory) ZapBlob(cbSize);
     
     if (pData != NULL)
-        memcpy(pZapBlob + 1, pData, cbSize);
+        memcpy((void*)(pZapBlob + 1), pData, cbSize);
 
     return pZapBlob;
 }
@@ -659,7 +669,7 @@ public:
         ZapAlignedBlobConst<alignment> * pZapBlob = new (pMemory) ZapAlignedBlobConst<alignment>(cbSize);
 
         if (pData != NULL)
-            memcpy(pZapBlob + 1, pData, cbSize);
+            memcpy((void *)(pZapBlob + 1), pData, cbSize);
 
         return pZapBlob;
     }

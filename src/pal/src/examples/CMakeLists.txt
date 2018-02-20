@@ -4,15 +4,15 @@ project(palexmpl)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  example1.c
+  example1.cpp
 )
 
 add_executable(palexmpl
   ${SOURCES}
 )
 
-add_dependencies(palexmpl CoreClrPal)
+add_dependencies(palexmpl coreclrpal)
 
 target_link_libraries(palexmpl
-  CoreClrPal
+  coreclrpal
 )

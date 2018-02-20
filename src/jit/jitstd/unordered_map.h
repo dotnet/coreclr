@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -148,7 +147,7 @@ unordered_map<Key, Value, Hash, Pred, Alloc>& unordered_map<Key, Value, Hash, Pr
 template<typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
 Value& unordered_map<Key, Value, Hash, Pred, Alloc>::operator[](const Key& key)
 {
-    iterator<Key, Value> iter = base_type::find(key, this->key_eq());
+    typename unordered_map<Key, Value, Hash, Pred, Alloc>::iterator iter = base_type::find(key, this->key_eq());
     if (iter == this->end())
     {
         iter = base_type::insert(jitstd::pair<const Key, mapped_type>(key, mapped_type())).first;
@@ -159,7 +158,7 @@ Value& unordered_map<Key, Value, Hash, Pred, Alloc>::operator[](const Key& key)
 template<typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
 Value& unordered_map<Key, Value, Hash, Pred, Alloc>::operator[](key_type&& key)
 {
-    iterator<Key, Value> iter = base_type::find(key, this->key_eq());
+    typename unordered_map<Key, Value, Hash, Pred, Alloc>::iterator iter = base_type::find(key, this->key_eq());
     if (iter == this->end())
     {
         iter = base_type::insert(jitstd::pair<const Key, mapped_type>(key, mapped_type())).first;

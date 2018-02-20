@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEImageLayout.h
 // 
@@ -34,9 +33,6 @@ class PEImageLayout : public PEDecoder
 {
     VPTR_BASE_CONCRETE_VTABLE_CLASS(PEImageLayout)
     friend class PEModule;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    friend class CCLRDebugManager;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 public:
     // ------------------------------------------------------------
     // Public constants
@@ -71,9 +67,6 @@ public:
     void AddRef();
     ULONG Release();
     const SString& GetPath();
-#ifdef MDIL
-    BOOL GetILSizeFromMDILCLRCtlData(DWORD* pdwActualILSize);
-#endif // MDIL
 
 #ifdef FEATURE_PREJIT
     void ApplyBaseRelocations();
@@ -180,20 +173,6 @@ public:
 
 };
 
-#ifdef FEATURE_FUSION
-class StreamImageLayout: public PEImageLayout
-{
-    VPTR_VTABLE_CLASS(StreamImageLayout,PEImageLayout)
-    VPTR_UNIQUE(0x71)
-protected:
-    HandleHolder m_FileMap;
-    CLRMapViewHolder m_FileView;
-public:
-#ifndef DACCESS_COMPILE    
-    StreamImageLayout(IStream* pIStream,PEImage* pOwner);   
-#endif
-};
-#endif // FEATURE_FUSION
 
 
 #endif  // PEIMAGELAYOUT_H_

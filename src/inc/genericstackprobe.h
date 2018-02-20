@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -175,7 +174,7 @@ extern void (*g_fpHandleSoftStackOverflow)(BOOL fSkipDebugger);
 class SOIntolerantTransitionHandler
 {
 private:
-    bool   m_exceptionOccured;
+    bool   m_exceptionOccurred;
     void * m_pPreviousHandler;
     
 public:
@@ -200,12 +199,12 @@ public:
 
     void SetNoException()
     {
-        m_exceptionOccured = false;
+        m_exceptionOccurred = false;
     }
 
     bool DidExceptionOccur()
     {
-        return m_exceptionOccured;
+        return m_exceptionOccurred;
     }
 };
 
@@ -349,7 +348,7 @@ public:
     unsigned int    m_depth;                // How deep is this guard in the list of guards for this thread?
     BOOL            m_fProtectedStackPage;  // TRUE if we protected a stack page with PAGE_NOACCESS.
     BOOL            m_fEHInProgress;        // Is an EH in progress?  This is cleared on a catch.
-    BOOL            m_exceptionOccured;     // Did an exception occur through this probe?
+    BOOL            m_exceptionOccurred;     // Did an exception occur through this probe?
 
 protected:
     BaseStackGuardGeneric()
@@ -365,7 +364,7 @@ public:
         m_eInitialized(cPartialInit), m_fDisabled(FALSE),
         m_isBoundaryGuard(FALSE),
         m_fEHInProgress(FALSE),     
-        m_exceptionOccured(FALSE)
+        m_exceptionOccurred(FALSE)
     { 
         STATIC_CONTRACT_LEAF;
     }
@@ -407,12 +406,12 @@ public:
 
     void SetNoException()
     {
-        m_exceptionOccured = FALSE;
+        m_exceptionOccurred = FALSE;
     }
 
     BOOL DidExceptionOccur()
     {
-        return m_exceptionOccured;
+        return m_exceptionOccurred;
     }
 
     BOOL Enabled()

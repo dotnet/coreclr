@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: RsMain.cpp
 // 
@@ -41,6 +40,8 @@
 RSDebuggingInfo g_RSDebuggingInfo_OutOfProc = {0 }; // set to NULL
 RSDebuggingInfo * g_pRSDebuggingInfo = &g_RSDebuggingInfo_OutOfProc;
 
+// The following instances are used for invoking overloaded new/delete
+forDbiWorker forDbi;
 
 #ifdef _DEBUG
 // For logs, we can print the string name for the debug codes.
@@ -59,7 +60,7 @@ const char * GetDebugCodeName(DWORD dwCode)
         "(5) EXIT_PROCESS_DEBUG_EVENT",
         "(6) LOAD_DLL_DEBUG_EVENT",
         "(7) UNLOAD_DLL_DEBUG_EVENT",
-        "(8) OUTPUT_DEBUG_STRING_EVENT"
+        "(8) OUTPUT_DEBUG_STRING_EVENT",
         "(9) RIP_EVENT",// <-- only on Win9X
     };
 
@@ -486,7 +487,11 @@ void CordbCommonBase::InitializeCommon()
             unsigned level = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_LogLevel, LL_INFO1000);
             unsigned bytesPerThread = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_StressLogSize, STRESSLOG_CHUNK_SIZE * 2);
             unsigned totalBytes = REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_TotalStressLogSize, STRESSLOG_CHUNK_SIZE * 1024);
+#ifndef FEATURE_PAL
             StressLog::Initialize(facilities, level, bytesPerThread, totalBytes, GetModuleInst());
+#else
+            StressLog::Initialize(facilities, level, bytesPerThread, totalBytes, NULL);
+#endif
         }
     }
 
@@ -508,7 +513,6 @@ void CordbCommonBase::InitializeCommon()
 // NT, so we won't treat that as a critical failure. 
 // This also will let us call OpenProcess() on anything, regardless of DACL. This allows an
 // Admin debugger to attach to a debuggee in the guest account.
-// This code was taken directly from code in the Win32 debugger, given to us by Matt Hendel.
 // Ideally, the debugger would set this (and we wouldn't mess with privileges at all). However, we've been
 // setting this since V1.0 and removing it may be a breaking change.
 void CordbCommonBase::AddDebugPrivilege()
@@ -579,9 +583,9 @@ namespace
     public:
         DefaultManagedCallback2(ICorDebug* pDebug);
         virtual ~DefaultManagedCallback2() { }
-        virtual HRESULT __stdcall QueryInterface(REFIID iid, void** pInterface);
-        virtual ULONG __stdcall AddRef();
-        virtual ULONG __stdcall Release();
+        virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** pInterface);
+        virtual ULONG STDMETHODCALLTYPE AddRef();
+        virtual ULONG STDMETHODCALLTYPE Release();
         COM_METHOD FunctionRemapOpportunity(ICorDebugAppDomain* pAppDomain,
                                                  ICorDebugThread* pThread,
                                                  ICorDebugFunction* pOldFunction,
@@ -783,9 +787,9 @@ namespace
     public:
         DefaultManagedCallback3(ICorDebug* pDebug);
         virtual ~DefaultManagedCallback3() { }
-        virtual HRESULT __stdcall QueryInterface(REFIID iid, void** pInterface);
-        virtual ULONG __stdcall AddRef();
-        virtual ULONG __stdcall Release();
+        virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** pInterface);
+        virtual ULONG STDMETHODCALLTYPE AddRef();
+        virtual ULONG STDMETHODCALLTYPE Release();
         COM_METHOD CustomNotification(ICorDebugThread * pThread, ICorDebugAppDomain * pAppDomain);
     private:
         // not implemented
@@ -1304,7 +1308,6 @@ HRESULT Cordb::WaitForIPCEventFromProcess(CordbProcess* process,
                                                        event);
 }
 
-#ifdef FEATURE_CORECLR
 HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 {
     if (m_initialized)
@@ -1328,7 +1331,6 @@ HRESULT Cordb::SetTargetCLR(HMODULE hmodTargetCLR)
 
     return S_OK;
 }
-#endif // FEATURE_CORECLR
 
 //-----------------------------------------------------------
 // ICorDebug
@@ -1407,7 +1409,7 @@ HRESULT Cordb::SetUnmanagedHandler(ICorDebugUnmanagedCallback *pCallback)
 // It is currently supported on Mac CoreCLR, but that may change.
 bool Cordb::IsCreateProcessSupported()
 {
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_DBGIPC_TRANSPORT_DI)
+#if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
     return false;
 #else 
     return true;
@@ -1421,14 +1423,14 @@ bool Cordb::IsInteropDebuggingSupported()
     // ICorDebug::SetUnmanagedHandler for details.
 #ifdef FEATURE_INTEROP_DEBUGGING
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_CORESYSTEM)
     // Interop debugging is only supported internally on CoreCLR.
     // Check if the special reg key is set.  If not, then we don't allow interop debugging.
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgEnableMixedModeDebugging) == 0)
     {
         return false;
     }
-#endif // FEATURE_CORECLR
+#endif // FEATURE_CORESYSTEM
 
     return true;
 #else

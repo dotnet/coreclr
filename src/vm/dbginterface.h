@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // COM+99 Debug Interface Header
 //
@@ -28,7 +27,7 @@ typedef void (*FAVORCALLBACK)(void *);
 
 class DebugInterface
 {
-    VPTR_BASE_VTABLE_CLASS(DebugInterface);
+    VPTR_BASE_VTABLE_CLASS_AND_CTOR(DebugInterface);
 
 public:
 
@@ -280,13 +279,14 @@ public:
                                                                             DWORD nativeOffset,
                                                                             DWORD *ilOffset) = 0;
 
-    virtual HRESULT GetILToNativeMapping(MethodDesc *pMD,
+    virtual HRESULT GetILToNativeMapping(PCODE pNativeCodeStartAddress,
                                          ULONG32 cMap,
                                          ULONG32 *pcMap,
                                          COR_DEBUG_IL_TO_NATIVE_MAP map[]) = 0;
 
     virtual HRESULT GetILToNativeMappingIntoArrays(
-        MethodDesc * pMD, 
+        MethodDesc * pMethodDesc,
+        PCODE pCode, 
         USHORT cMapMax, 
         USHORT * pcMap,
         UINT ** prguiILOffset, 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: instmethhash.cpp
 //
@@ -87,8 +86,8 @@ PTR_LoaderAllocator InstMethodHashTable::GetLoaderAllocator()
     }
     else
     {
-        _ASSERTE(m_pModule != NULL);
-        return m_pModule->GetLoaderAllocator();
+        _ASSERTE(!m_pModule.IsNull());
+        return GetModule()->GetLoaderAllocator();
     }
 }
 
@@ -189,7 +188,7 @@ MethodDesc* InstMethodHashTable::FindMethodDesc(TypeHandle declaringType,
         RelativeFixupPointer<PTR_MethodTable> * ppMT = pMD->GetMethodTablePtr();
         TADDR pMT = ppMT->GetValueMaybeTagged((TADDR)ppMT);
 
-        if (!ZapSig::CompareTaggedPointerToTypeHandle(m_pModule, pMT, declaringType))
+        if (!ZapSig::CompareTaggedPointerToTypeHandle(GetModule(), pMT, declaringType))
         {
             continue;  // Next iteration of the for loop
         }
@@ -209,7 +208,7 @@ MethodDesc* InstMethodHashTable::FindMethodDesc(TypeHandle declaringType,
                 // asserts on encoded fixups.
                 TADDR candidateArg = ((FixupPointer<TADDR> *)candidateInst.GetRawArgs())[i].GetValue();
                     
-                if (!ZapSig::CompareTaggedPointerToTypeHandle(m_pModule, candidateArg, inst[i]))
+                if (!ZapSig::CompareTaggedPointerToTypeHandle(GetModule(), candidateArg, inst[i]))
                 {
                     match = false;
                     break;

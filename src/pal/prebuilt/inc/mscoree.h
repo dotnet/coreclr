@@ -1,8 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
-
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /* this ALWAYS GENERATED file contains the definitions for the interfaces */
@@ -114,8 +112,13 @@ typedef interface ICLRRuntimeHost ICLRRuntimeHost;
 #define __ICLRRuntimeHost2_FWD_DEFINED__
 typedef interface ICLRRuntimeHost2 ICLRRuntimeHost2;
 
-#endif 	/* __ICLRRuntimeHost2_FWD_DEFINED__ */
+#endif 	/* __ICLRRuntimeHost4_FWD_DEFINED__ */
 
+#ifndef __ICLRRuntimeHost4_FWD_DEFINED__
+#define __ICLRRuntimeHost4_FWD_DEFINED__
+typedef interface ICLRRuntimeHost4 ICLRRuntimeHost4;
+
+#endif  /* __ICLRRuntimeHost4_FWD_DEFINED__ */
 
 #ifndef __ICLRExecutionManager_FWD_DEFINED__
 #define __ICLRExecutionManager_FWD_DEFINED__
@@ -217,7 +220,6 @@ typedef interface ICLRAppDomainResourceMonitor ICLRAppDomainResourceMonitor;
 /* header files for imported files */
 #include "unknwn.h"
 #include "gchost.h"
-#include "ivalidator.h"
 
 #ifdef __cplusplus
 extern "C"{
@@ -236,7 +238,7 @@ struct IActivationFactory;
 
 #define	CLR_MINOR_VERSION	( 0 )
 
-#define	CLR_BUILD_VERSION	( 22220 )
+#define	CLR_BUILD_VERSION	( 23203 )
 
 #define	CLR_ASSEMBLY_MAJOR_VERSION	( 4 )
 
@@ -256,6 +258,7 @@ EXTERN_GUID(IID_ICLRErrorReportingManager, 0x980d2f1a, 0xbf79, 0x4c08, 0x81, 0x2
 EXTERN_GUID(IID_ICLRErrorReportingManager2, 0xc68f63b1, 0x4d8b, 0x4e0b, 0x95, 0x64, 0x9d, 0x2e, 0xfe, 0x2f, 0xa1, 0x8c);
 EXTERN_GUID(IID_ICLRRuntimeHost, 0x90F1A06C, 0x7712, 0x4762, 0x86, 0xB5, 0x7A, 0x5E, 0xBA, 0x6B, 0xDB, 0x02);
 EXTERN_GUID(IID_ICLRRuntimeHost2, 0x712AB73F, 0x2C22, 0x4807, 0xAD, 0x7E, 0xF5, 0x01, 0xD7, 0xb7, 0x2C, 0x2D);
+EXTERN_GUID(IID_ICLRRuntimeHost4, 0x64F6D366, 0xD7C2, 0x4F1F, 0xB4, 0xB2, 0xE8, 0x16, 0x0C, 0xAC, 0x43, 0xAF);
 EXTERN_GUID(IID_ICLRExecutionManager, 0x1000A3E7, 0xB420, 0x4620, 0xAE, 0x30, 0xFB, 0x19, 0xB5, 0x87, 0xAD, 0x1D);
 EXTERN_GUID(IID_ITypeName, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x22);
 EXTERN_GUID(IID_ITypeNameBuilder, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x23);
@@ -265,7 +268,7 @@ DEPRECATED_CLR_STDAPI GetCORVersion(_Out_writes_to_(cchBuffer, *dwLength) LPWSTR
 DEPRECATED_CLR_STDAPI GetFileVersion(LPCWSTR szFilename, _Out_writes_to_opt_(cchBuffer, *dwLength) LPWSTR szBuffer, DWORD cchBuffer, DWORD* dwLength);
 DEPRECATED_CLR_STDAPI GetCORRequiredVersion(_Out_writes_to_(cchBuffer, *dwLength) LPWSTR pbuffer, DWORD cchBuffer, DWORD* dwLength);
 DEPRECATED_CLR_STDAPI GetRequestedRuntimeInfo(LPCWSTR pExe, LPCWSTR pwszVersion, LPCWSTR pConfigurationFile, DWORD startupFlags, DWORD runtimeInfoFlags, _Out_writes_opt_(dwDirectory) LPWSTR pDirectory, DWORD dwDirectory, _Out_opt_ DWORD *dwDirectoryLength, _Out_writes_opt_(cchBuffer) LPWSTR pVersion, DWORD cchBuffer, _Out_opt_ DWORD* dwlength);
-DEPRECATED_CLR_STDAPI GetRequestedRuntimeVersion(_In_ LPWSTR pExe, _Out_writes_to_(cchBuffer, *pdwLength) LPWSTR pVersion, DWORD cchBuffer, _Out_ DWORD* dwLength);
+DEPRECATED_CLR_STDAPI GetRequestedRuntimeVersion(_In_ LPWSTR pExe, _Out_writes_to_(cchBuffer, *dwLength) LPWSTR pVersion, DWORD cchBuffer, _Out_ DWORD* dwLength);
 DEPRECATED_CLR_STDAPI CorBindToRuntimeHost(LPCWSTR pwszVersion, LPCWSTR pwszBuildFlavor, LPCWSTR pwszHostConfigFile, VOID* pReserved, DWORD startupFlags, REFCLSID rclsid, REFIID riid, LPVOID FAR *ppv);
 DEPRECATED_CLR_STDAPI CorBindToRuntimeEx(LPCWSTR pwszVersion, LPCWSTR pwszBuildFlavor, DWORD startupFlags, REFCLSID rclsid, REFIID riid, LPVOID FAR *ppv);
 DEPRECATED_CLR_STDAPI CorBindToRuntimeByCfg(IStream* pCfgStream, DWORD reserved, DWORD startupFlags, REFCLSID rclsid,REFIID riid, LPVOID FAR* ppv);
@@ -279,10 +282,6 @@ DEPRECATED_CLR_STDAPI CallFunctionShim(LPCWSTR szDllName, LPCSTR szFunctionName,
 DEPRECATED_CLR_STDAPI GetRealProcAddress(LPCSTR pwszProcName, VOID** ppv);
 DECLARE_DEPRECATED void STDMETHODCALLTYPE CorExitProcess(int exitCode);
 DEPRECATED_CLR_STDAPI LoadStringRC(UINT iResouceID, _Out_writes_z_(iMax) LPWSTR szBuffer, int iMax, int bQuiet);
-typedef HRESULT (__stdcall *FLockClrVersionCallback) ();
-DEPRECATED_CLR_STDAPI LockClrVersion(FLockClrVersionCallback hostCallback,FLockClrVersionCallback *pBeginHostSetup,FLockClrVersionCallback *pEndHostSetup);
-DEPRECATED_CLR_STDAPI CreateDebuggingInterfaceFromVersion(int iDebuggerVersion, LPCWSTR szDebuggeeVersion, IUnknown ** ppCordb);
-DEPRECATED_CLR_STDAPI GetVersionFromProcess(HANDLE hProcess, _Out_writes_to_(cchBuffer, *pdwLength) LPWSTR pVersion, DWORD cchBuffer, _Out_ DWORD* dwLength);
 typedef HRESULT  (STDAPICALLTYPE *FnGetCLRRuntimeHost)(REFIID riid, IUnknown **pUnk);
 typedef /* [public] */ 
 enum __MIDL___MIDL_itf_mscoree_0000_0000_0001
@@ -317,7 +316,7 @@ enum __MIDL___MIDL_itf_mscoree_0000_0000_0002
         STARTUP_ARM	= 0x400000,
         STARTUP_SINGLE_APPDOMAIN	= 0x800000,
         STARTUP_APPX_APP_MODEL	= 0x1000000,
-        STARTUP_DISABLE_RANDOMIZED_STRING_HASHING	= 0x2000000
+        STARTUP_DISABLE_RANDOMIZED_STRING_HASHING	= 0x2000000 // not supported
     } 	STARTUP_FLAGS;
 
 typedef /* [public] */ 
@@ -351,7 +350,8 @@ enum __MIDL___MIDL_itf_mscoree_0000_0000_0005
         APPDOMAIN_ENABLE_PINVOKE_AND_CLASSIC_COMINTEROP	= 0x10,
         APPDOMAIN_SET_TEST_KEY	= 0x20,
         APPDOMAIN_ENABLE_PLATFORM_SPECIFIC_APPS	= 0x40,
-        APPDOMAIN_ENABLE_ASSEMBLY_LOADFILE	= 0x80
+        APPDOMAIN_ENABLE_ASSEMBLY_LOADFILE	= 0x80,
+        APPDOMAIN_DISABLE_TRANSPARENCY_ENFORCEMENT	= 0x100
     } 	APPDOMAIN_SECURITY_FLAGS;
 
 STDAPI GetRequestedRuntimeVersionForCLSID(REFCLSID rclsid, _Out_writes_opt_(cchBuffer) LPWSTR pVersion, DWORD cchBuffer, _Out_opt_ DWORD* dwLength, CLSID_RESOLUTION_FLAGS dwResolutionFlags);
@@ -1824,6 +1824,14 @@ EXTERN_C const IID IID_ICLRRuntimeHost2;
         
     };
     
+    MIDL_INTERFACE("64F6D366-D7C2-4F1F-B4B2-E8160CAC43AF")
+    ICLRRuntimeHost4 : public ICLRRuntimeHost2
+    {
+        virtual HRESULT STDMETHODCALLTYPE UnloadAppDomain2(
+            /* [in] */ DWORD dwAppDomainId,
+            /* [in] */ BOOL fWaitUntilDone,
+            /* [out] */ int *pLatchedExitCode) = 0;
+    };
     
 #else 	/* C style interface */
 
@@ -2236,6 +2244,7 @@ extern RPC_IF_HANDLE __MIDL_itf_mscoree_0000_0013_v0_0_s_ifspec;
 /* library mscoree */
 /* [helpstring][version][uuid] */ 
 
+#define CCW_PTR int *
 
 EXTERN_C const IID LIBID_mscoree;
 
@@ -2680,7 +2689,7 @@ EXTERN_C const IID IID_IManagedObject;
         virtual HRESULT STDMETHODCALLTYPE GetObjectIdentity( 
             /* [out] */ BSTR *pBSTRGUID,
             /* [out] */ int *AppDomainID,
-            /* [out] */ __int64 *pCCW) = 0;
+            /* [out] */ int *pCCW) = 0;
         
     };
     
@@ -2711,7 +2720,7 @@ EXTERN_C const IID IID_IManagedObject;
             IManagedObject * This,
             /* [out] */ BSTR *pBSTRGUID,
             /* [out] */ int *AppDomainID,
-            /* [out] */ __int64 *pCCW);
+            /* [out] */ int *pCCW);
         
         END_INTERFACE
     } IManagedObjectVtbl;

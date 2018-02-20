@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // DomainFile.h
 // 
@@ -25,9 +24,6 @@ class DomainModule;
 class Assembly;
 class Module;
 class DynamicMethodTable;
-struct AssemblyLoadSecurity;
-
-typedef VPTR(class IAssemblySecurityDescriptor) PTR_IAssemblySecurityDescriptor;
 
 enum FileLoadLevel
 {
@@ -144,9 +140,6 @@ class DomainFile
     }
 #endif
 
-#ifdef FEATURE_MIXEDMODE
-    LPVOID GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-#endif
 
     void ReleaseFiles() DAC_EMPTY();
 
@@ -254,7 +247,7 @@ class DomainFile
     // Throws if a load error has occurred
     void ThrowIfError(FileLoadLevel targetLevel) DAC_EMPTY();
 
-    // Checks that a load error has not occured before the given level
+    // Checks that a load error has not occurred before the given level
     CHECK CheckNoError(FileLoadLevel targetLevel) DAC_EMPTY_RET(CHECK::OK());
 
     // IsNotified means that the profiler API notification has been delivered
@@ -522,49 +515,14 @@ public:
         return PTR_PEAssembly(m_pFile);
     }
 
-#ifdef FEATURE_FUSION
-   IAssemblyBindingClosure* GetAssemblyBindingClosure(WALK_LEVEL level);
-   BOOL IsClosedInGAC();
-   BOOL MayHaveUnknownDependencies();
-#endif
-
-    // Returns security information for the assembly based on the codebase
-    void GetSecurityIdentity(SString &codebase, SecZone *pdwZone, DWORD dwFlags, BYTE *pbUniqueID, DWORD *pcbUniqueID);
-
-    IAssemblySecurityDescriptor* GetSecurityDescriptor()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return static_cast<IAssemblySecurityDescriptor*>(m_pSecurityDescriptor);
-    }
 #ifdef FEATURE_LOADER_OPTIMIZATION
     
-#ifdef FEATURE_FUSION
-private:
-    enum CMDI_Result
-    {
-        CMDI_End,
-        CMDI_AssemblyResolveSucceeded,
-        CMDI_AssemblyResolveFailed
-    };
-
-    CMDI_Result CheckMissingDependencyInner(IAssemblyBindingClosure* pClosure, DWORD idx);
-
-
-#endif
 public:
     CMD_State CheckMissingDependencies();
     BOOL MissingDependenciesCheckDone();
 #endif // FEATURE_LOADER_OPTIMIZATION
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    DomainFile *FindModule(PEFile *pFile, BOOL includeLoading = FALSE);
-    DomainModule *FindModule(PEModule *pFile, BOOL includeLoading = FALSE)
-    {
-        WRAPPER_NO_CONTRACT;
-        return (DomainModule *) FindModule((PEFile *) pFile, includeLoading);
-    }
-#endif //  FEATURE_MULTIMODULE_ASSEMBLIES    
     void ReleaseFiles();
 #endif // DACCESS_COMPILE
 
@@ -695,9 +653,6 @@ public:
             return pModule->GetModule();
     }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    void AddModule(DomainModule *pModule);
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
     // ------------------------------------------------------------
     // Resource access
@@ -709,13 +664,6 @@ public:
                      StackCrawlMark *pStackMark, BOOL fSkipSecurityCheck,
                      BOOL fSkipRaiseResolveEvent);
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    BOOL GetModuleResource(mdFile mdResFile, LPCSTR szResName,
-                           DWORD *cbResource, PBYTE *pbInMemoryResource,
-                           LPCSTR *szFileName, DWORD *dwLocation,
-                           BOOL fIsPublic, StackCrawlMark *pStackMark,
-                           BOOL fSkipSecurityCheck);
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 #ifdef FEATURE_PREJIT
     // ------------------------------------------------------------
     // Prejitting API
@@ -780,7 +728,7 @@ public:
 public:
     ~DomainAssembly();
 private:
-    DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSecurity *pLoadSecurity, LoaderAllocator *pLoaderAllocator);
+    DomainAssembly(AppDomain *pDomain, PEFile *pFile, LoaderAllocator *pLoaderAllocator);
 #endif
 
     // ------------------------------------------------------------
@@ -811,15 +759,9 @@ private:
     ULONG HashIdentity();
 
  private:
-#ifdef FEATURE_CAS_POLICY
-    // Pulls in URLMON's security manager. It is used to translate a codebase
-    // into a zone and site
-    void InitializeSecurityManager();
-#endif // FEATURE_CAS_POLICY
 
     BOOL ShouldLoadDomainNeutral();
     BOOL ShouldLoadDomainNeutralHelper();
-    BOOL ShouldSkipPolicyResolution();
 
     // ------------------------------------------------------------
     // Instance data
@@ -827,15 +769,10 @@ private:
 
   private:
     LOADERHANDLE                            m_hExposedAssemblyObject;
-    PTR_IAssemblySecurityDescriptor         m_pSecurityDescriptor;
     PTR_Assembly                            m_pAssembly;
     DebuggerAssemblyControlFlags            m_debuggerFlags;
-#ifdef FEATURE_FUSION	
-    ReleaseHolder<IAssemblyBindingClosure>  m_pAssemblyBindingClosure;
-#endif
     CMD_State                               m_MissingDependenciesCheckStatus;
     ArrayList                               m_Modules;
-    BOOL                                    m_fSkipPolicyResolution;
     BOOL                                    m_fDebuggerUnloadStarted;
     BOOL                                    m_fCollectible;
     Volatile<bool>                          m_fHostAssemblyPublished;
@@ -853,95 +790,4 @@ typedef DomainAssembly::ModuleIterator DomainModuleIterator;
 // --------------------------------------------------------------------------------
 // DomainModule is a subclass of DomainFile which specifically represents a module.
 // --------------------------------------------------------------------------------
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-
-class DomainModule : public DomainFile
-{
-    VPTR_VTABLE_CLASS(DomainModule, DomainFile);
-
-  private:
-    PTR_DomainAssembly m_pDomainAssembly;
-
-    void UpdatePEFile(PTR_PEFile pFile);
-
-  public:
-
-    // ------------------------------------------------------------
-    // Public API
-    // ------------------------------------------------------------
-
-    DomainAssembly *GetDomainAssembly()
-    {
-        LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC;
-        return m_pDomainAssembly;
-    }
-
-    Module *GetModule()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_pModule;
-    }
-
-    LPCSTR GetName()
-    {
-        WRAPPER_NO_CONTRACT;
-        return GetFile()->GetSimpleName();
-    }
-
-    mdFile GetToken()
-    {
-        WRAPPER_NO_CONTRACT;
-        return GetFile()->GetToken();
-    }
-
-    PEModule *GetFile()
-    {
-        WRAPPER_NO_CONTRACT;
-        return PTR_PEModule(m_pFile);
-    }
-
-    BOOL IsAssembly()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return FALSE;
-    }
-
-    void SetModule(Module *pModule);
-
-#ifdef DACCESS_COMPILE
-    virtual void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
-#endif
-
-    // ------------------------------------------------------------
-    // Loader API
-    // ------------------------------------------------------------
-
-    friend class COMModule;
-
-#ifndef DACCESS_COMPILE
-    DomainModule(AppDomain *pDomain, DomainAssembly *pAssembly, PEFile *pFile);
-    ~DomainModule();
-#endif
-
-    // ------------------------------------------------------------
-    // Internal routines
-    // ------------------------------------------------------------
-
-#ifndef DACCESS_COMPILE
-    void Begin();
-    void Allocate();
-    void LoadSharers();
-    void DeliverSyncEvents();
-    void DeliverAsyncEvents();    
-#endif
-
-#ifdef FEATURE_PREJIT
-#ifndef DACCESS_COMPILE
-    void FindNativeImage();
-#endif
-#endif // FEATURE_PREJIT
-};
-#endif //  FEATURE_MULTIMODULE_ASSEMBLIES
 #endif  // _DOMAINFILE_H_

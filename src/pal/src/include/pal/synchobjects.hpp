@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -23,19 +22,15 @@ Abstract:
 
 #include "corunix.hpp"
 #include "threadinfo.hpp"
+#include "mutex.hpp"
 #include "shm.hpp"
 #include "list.h"
 
 #include <pthread.h>
 
 #define SharedID SHMPTR
-#define SharedPoolId ULONG_PTR
-#define DefaultSharedPool ((ULONG_PTR)0)
-#define NULLSharedID ((SHMPTR)NULL)
 #define SharedIDToPointer(shID) SHMPTR_TO_TYPED_PTR(PVOID, shID)
 #define SharedIDToTypePointer(TYPE,shID) SHMPTR_TO_TYPED_PTR(TYPE, shID)
-#define RawSharedObjectAlloc(szSize, shPoolId) SHMalloc(szSize)
-#define RawSharedObjectFree(shID) SHMfree(shID)
     
 namespace CorUnix
 {   
@@ -45,8 +40,16 @@ namespace CorUnix
         CONST HANDLE *lpHandles,
         BOOL bWaitAll,
         DWORD dwMilliseconds,
+        BOOL bAlertable,
+        BOOL bPrioritize = FALSE);
+
+    DWORD InternalSignalObjectAndWait(
+        CPalThread *thread,
+        HANDLE hObjectToSignal,
+        HANDLE hObjectToWaitOn,
+        DWORD dwMilliseconds,
         BOOL bAlertable);
-    
+
     PAL_ERROR InternalSleepEx(
         CPalThread * pthrCurrent,
         DWORD dwMilliseconds,
@@ -86,26 +89,15 @@ namespace CorUnix
 
     typedef struct _ThreadNativeWaitData 
     {
-#if !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
         pthread_mutex_t     mutex;
-        pthread_cond_t      cond;  
+        pthread_cond_t      cond;
         int                 iPred;
-#else // SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-        int                 iPipeRd;
-        int                 iPipeWr;
-#endif // SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-
         DWORD               dwObjectIndex;
         ThreadWakeupReason  twrWakeupReason;
         bool                fInitialized;
 
-        _ThreadNativeWaitData() : 
-#if !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
+        _ThreadNativeWaitData() :
             iPred(0), 
-#else // SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-            iPipeRd(-1),
-            iPipeWr(-1),
-#endif // SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
             dwObjectIndex(0), 
             twrWakeupReason(WaitSucceeded), 
             fInitialized(false)
@@ -120,20 +112,23 @@ namespace CorUnix
         friend class CPalSynchronizationManager;
         friend class CSynchWaitController;
 
-        THREAD_STATE          m_tsThreadState; 
-        SharedID              m_shridWaitAwakened;
-        Volatile<LONG>        m_lLocalSynchLockCount;
-        Volatile<LONG>        m_lSharedSynchLockCount;
-        LIST_ENTRY            m_leOwnedObjsList;
+        THREAD_STATE           m_tsThreadState; 
+        SharedID               m_shridWaitAwakened;
+        Volatile<LONG>         m_lLocalSynchLockCount;
+        Volatile<LONG>         m_lSharedSynchLockCount;
+        LIST_ENTRY             m_leOwnedObjsList;
 
-        ThreadNativeWaitData  m_tnwdNativeData;
-        ThreadWaitInfo        m_twiWaitInfo;
+        CRITICAL_SECTION       m_ownedNamedMutexListLock;
+        NamedMutexProcessData *m_ownedNamedMutexListHead;
+
+        ThreadNativeWaitData   m_tnwdNativeData;
+        ThreadWaitInfo         m_twiWaitInfo;
 
 #ifdef SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
-        static const int      PendingSignalingsArraySize = 10;
-        LONG                  m_lPendingSignalingCount;
-        CPalThread *          m_rgpthrPendingSignalings[PendingSignalingsArraySize];
-        LIST_ENTRY            m_lePendingSignalingsOverflowList;
+        static const int       PendingSignalingsArraySize = 10;
+        LONG                   m_lPendingSignalingCount;
+        CPalThread *           m_rgpthrPendingSignalings[PendingSignalingsArraySize];
+        LIST_ENTRY             m_lePendingSignalingsOverflowList;
 #endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
 
     public:
@@ -167,9 +162,9 @@ namespace CorUnix
             return &m_tnwdNativeData;
         }
 
-#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-        PAL_ERROR RunDeferredThreadConditionSignalings(CPalThread * pthrCurrent);
-#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
+#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
+        PAL_ERROR RunDeferredThreadConditionSignalings();
+#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
     
         // NOTE: the following methods provide non-synchronized access to 
         //       the list of owned objects for this thread. Any thread 
@@ -178,6 +173,11 @@ namespace CorUnix
         void AddObjectToOwnedList(POwnedObjectsListNode pooln);
         void RemoveObjectFromOwnedList(POwnedObjectsListNode pooln);
         POwnedObjectsListNode RemoveFirstObjectFromOwnedList(void);
+
+        void AddOwnedNamedMutex(NamedMutexProcessData *processData);
+        void RemoveOwnedNamedMutex(NamedMutexProcessData *processData);
+        NamedMutexProcessData *RemoveFirstOwnedNamedMutex();
+        bool OwnsNamedMutex(NamedMutexProcessData *processData);
 
         // The following methods provide access to the native wait lock for 
         // those implementations that need a lock to protect the support for 
@@ -205,8 +205,7 @@ namespace CorUnix
     class CPalSynchMgrController
     {
     public:
-        static IPalSynchronizationManager * CreatePalSynchronizationManager(
-            CPalThread * pthrCurrent);
+        static IPalSynchronizationManager * CreatePalSynchronizationManager();
 
         static PAL_ERROR StartWorker(CPalThread * pthrCurrent);
 

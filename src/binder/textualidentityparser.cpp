@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // TextualIdentityParser.cpp
@@ -66,7 +65,7 @@ namespace BINDER_SPACE
         const int iPublicKeyMaxLength = 2048;
 
         const int iVersionMax = 65535;
-        const int iRequiredVersionParts = 4;
+        const int iVersionParts = 4;
 
         inline void UnicodeHexToBin(LPCWSTR pSrc, UINT cSrc, LPBYTE pDest)
         {
@@ -189,19 +188,6 @@ namespace BINDER_SPACE
             return NULL;
         }
 
-        BOOL ValidateAndConvertContentType(
-                SString &             ssContentType, 
-                AssemblyContentType * pkContentType)
-        {
-            if (EqualsCaseInsensitive(ssContentType, W("WindowsRuntime")))
-            {
-                *pkContentType = AssemblyContentType_WindowsRuntime;
-                return TRUE;
-            }
-            
-            return FALSE;
-        }
-        
         LPCWSTR ContentTypeToString(AssemblyContentType kContentType)
         {
             _ASSERTE(kContentType != AssemblyContentType_Default);
@@ -302,10 +288,10 @@ namespace BINDER_SPACE
             {
                 tmpString.Clear();
                 tmpString.Printf(W("%d.%d.%d.%d"),
-                                 pAssemblyIdentity->m_version.GetMajor(),
-                                 pAssemblyIdentity->m_version.GetMinor(),
-                                 pAssemblyIdentity->m_version.GetBuild(),
-                                 pAssemblyIdentity->m_version.GetRevision());
+                                 (DWORD)(USHORT)pAssemblyIdentity->m_version.GetMajor(),
+                                 (DWORD)(USHORT)pAssemblyIdentity->m_version.GetMinor(),
+                                 (DWORD)(USHORT)pAssemblyIdentity->m_version.GetBuild(),
+                                 (DWORD)(USHORT)pAssemblyIdentity->m_version.GetRevision());
 
                 textualIdentity.Append(W(", Version="));
                 textualIdentity.Append(tmpString);
@@ -392,8 +378,10 @@ namespace BINDER_SPACE
     {
         BOOL fIsValid = FALSE;
         DWORD dwFoundNumbers = 0;
-        DWORD dwCurrentNumber = 0;
-        DWORD dwNumbers[iRequiredVersionParts];
+        bool foundUnspecifiedComponent = false;
+        const DWORD UnspecifiedNumber = (DWORD)-1;
+        DWORD dwCurrentNumber = UnspecifiedNumber;
+        DWORD dwNumbers[iVersionParts] = {UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber, UnspecifiedNumber};
 
         BINDER_LOG_ENTER(W("TextualIdentityParser::ParseVersion"));
 
@@ -405,17 +393,46 @@ namespace BINDER_SPACE
             {
                 WCHAR wcCurrentChar = cursor[0];
 
-                if (dwFoundNumbers >= static_cast<DWORD>(iRequiredVersionParts))
+                if (dwFoundNumbers >= static_cast<DWORD>(iVersionParts))
                 {
                     goto Exit;
                 }
-                else if (wcCurrentChar == W('.') || wcCurrentChar == 0x00)
+                else if (wcCurrentChar == W('.') || wcCurrentChar == W('\0'))
                 {
-                    dwNumbers[dwFoundNumbers++] = dwCurrentNumber;
-                    dwCurrentNumber = 0;
+                    if (dwCurrentNumber == UnspecifiedNumber)
+                    {
+                        // Difference from .NET Framework, compat with Version(string) constructor: A missing version component
+                        // is considered invalid.
+                        //
+                        // Examples:
+                        //   "MyAssembly, Version=."
+                        //   "MyAssembly, Version=1."
+                        //   "MyAssembly, Version=.1"
+                        //   "MyAssembly, Version=1..1"
+                        goto Exit;
+                    }
+
+                    // Compat with .NET Framework: A value of iVersionMax is considered unspecified. Once an unspecified
+                    // component is found, validate the remaining components but consider them as unspecified as well.
+                    if (dwCurrentNumber == iVersionMax)
+                    {
+                        foundUnspecifiedComponent = true;
+                        dwCurrentNumber = UnspecifiedNumber;
+                    }
+                    else if (!foundUnspecifiedComponent)
+                    {
+                        dwNumbers[dwFoundNumbers] = dwCurrentNumber;
+                        dwCurrentNumber = UnspecifiedNumber;
+                    }
+
+                    dwFoundNumbers++;
                 }
                 else if ((wcCurrentChar >= W('0')) && (wcCurrentChar <= W('9')))
                 {
+                    if (dwCurrentNumber == UnspecifiedNumber)
+                    {
+                        dwCurrentNumber = 0;
+                    }
                     dwCurrentNumber = (dwCurrentNumber * 10) + (wcCurrentChar - W('0'));
                     
                     if (dwCurrentNumber > static_cast<DWORD>(iVersionMax))
@@ -431,12 +448,21 @@ namespace BINDER_SPACE
                 cursor++;
             }
 
-            if (dwFoundNumbers == static_cast<DWORD>(iRequiredVersionParts))
+            // Difference from .NET Framework: If the major or minor version are unspecified, the version is considered invalid.
+            //
+            // Examples:
+            //   "MyAssembly, Version="
+            //   "MyAssembly, Version=1"
+            //   "MyAssembly, Version=65535.1"
+            //   "MyAssembly, Version=1.65535"
+            if (dwFoundNumbers < 2 || dwNumbers[0] == UnspecifiedNumber || dwNumbers[1] == UnspecifiedNumber)
             {
-                pAssemblyVersion->SetFeatureVersion(dwNumbers[0], dwNumbers[1]);
-                pAssemblyVersion->SetServiceVersion(dwNumbers[2], dwNumbers[3]);
-                fIsValid = TRUE;
+                goto Exit;
             }
+
+            pAssemblyVersion->SetFeatureVersion(dwNumbers[0], dwNumbers[1]);
+            pAssemblyVersion->SetServiceVersion(dwNumbers[2], dwNumbers[3]);
+            fIsValid = TRUE;
         }
 
     Exit:

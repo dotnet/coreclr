@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -44,7 +43,7 @@ void DontCallDirectlyForceStackOverflow()
     sp = (UINT_PTR *)&sp;
     while (TRUE)
     {
-        sp -= (OS_PAGE_SIZE / sizeof(UINT_PTR));
+        sp -= (GetOsPageSize() / sizeof(UINT_PTR));
         *sp = NULL;
     }
 
@@ -72,7 +71,7 @@ void HandleStackOverflowAfterCatch()
 
 NOINLINE void SOIntolerantTransitionHandler::CtorImpl()
 {
-    m_exceptionOccured = true;
+    m_exceptionOccurred = true;
     m_pPreviousHandler = ClrFlsGetValue(TlsIdx_SOIntolerantTransitionHandler);
     g_fpSetSOIntolerantTransitionMarker();
 }
@@ -84,7 +83,7 @@ NOINLINE void SOIntolerantTransitionHandler::DtorImpl()
     // limit.   Checking for the guard page being present is too much overhead during
     // exception handling (if you can believe that) and impacts perf.
 
-    if (m_exceptionOccured)
+    if (m_exceptionOccurred)
     {
         g_fpCheckForSOInSOIntolerantCode();
     }
@@ -313,11 +312,11 @@ void BaseStackMarker::SetMarker(float numPages)
     // won't be the exact SP; however it will be close enough.
     LPVOID pStack = &numPages;
 
-    UINT_PTR *pMarker = (UINT_PTR*)pStack  - (int)(OS_PAGE_SIZE / sizeof(UINT_PTR) * m_numPages);
+    UINT_PTR *pMarker = (UINT_PTR*)pStack  - (int)(GetOsPageSize() / sizeof(UINT_PTR) * m_numPages);
     
     // We might not have committed our stack yet, so allocate the number of pages
     // we need so that they will be commited and we won't AV when we try to set the mark.
-    _alloca( (int)(OS_PAGE_SIZE * m_numPages) );
+    _alloca( (int)(GetOsPageSize() * m_numPages) );
     m_pMarker = pMarker;
     *m_pMarker = STACK_COOKIE_VALUE;
 

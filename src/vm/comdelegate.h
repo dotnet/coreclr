@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: COMDelegate.h
 // 
@@ -72,13 +71,15 @@ public:
     static PCODE GetSecureInvoke(MethodDesc* pMD);
     // determines where the delegate needs to be wrapped for non-security reason
     static BOOL NeedsWrapperDelegate(MethodDesc* pTargetMD);
-    // determines whether the delegate needs to be wrapped
-    static BOOL NeedsSecureDelegate(MethodDesc* pCreatorMethod, AppDomain *pCreatorDomain, MethodDesc* pTargetMD);
     // on entry delegate points to the delegate to wrap
     static DELEGATEREF CreateSecureDelegate(DELEGATEREF delegate, MethodDesc* pCreatorMethod, MethodDesc* pTargetMD);
 
     // Marshals a delegate to a unmanaged callback.
     static LPVOID ConvertToCallback(OBJECTREF pDelegate);
+    
+    // Marshals a managed method to an unmanaged callback , provided the method is static and uses only 
+    // blittable parameter types.
+    static PCODE ConvertToCallback(MethodDesc* pMD);
 
     // Marshals an unmanaged callback to Delegate
     static OBJECTREF ConvertToDelegate(LPVOID pCallback, MethodTable* pMT);
@@ -119,23 +120,12 @@ public:
     static Stub *GenerateStubForHost(MethodDesc *pInvokeMD, MethodDesc *pStubMD, LPVOID pNativeTarget, Stub *pInnerStub);
 #endif // _TARGET_X86_
 
-#ifdef FEATURE_COMINTEROP
-    static void DoUnmanagedCodeAccessCheck(MethodDesc* pMeth);
-#endif // FEATURE_COMINTEROP
-
     static MethodDesc * __fastcall GetMethodDesc(OBJECTREF obj);
     static OBJECTREF GetTargetObject(OBJECTREF obj);
 
     static BOOL IsTrueMulticastDelegate(OBJECTREF delegate);
 
-#ifdef FEATURE_CORECLR    
-    static BOOL IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD);
-#endif
-
 private:
-#ifdef FEATURE_CORECLR    
-    static BOOL IsFullTrustDelegate(DELEGATEREF pDelegate);
-#endif
     static Stub* SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMeth);
 
 public:
@@ -153,7 +143,6 @@ public:
     //@GENERICSVER: new (suitable for generics)
     // Method to do static validation of delegate .ctor
     static BOOL ValidateCtor(TypeHandle objHnd, TypeHandle ftnParentHnd, MethodDesc *pFtn, TypeHandle dlgtHnd, BOOL *pfIsOpenDelegate);
-    static BOOL ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pdlgMT); // enforce the transparency rules
 
 private:
     static BOOL ValidateBeginInvoke(DelegateEEClass* pClass);   // make certain the BeginInvoke method is consistant with the Invoke Method
@@ -181,8 +170,8 @@ enum DelegateBindingFlags
     DBF_RelaxedSignature    =   0x00000080, // Allow relaxed signature matching (co/contra variance)
 };
 
-void DistributeEventReliably(OBJECTREF *pDelegate,
-                             OBJECTREF *pDomain);
+void DistributeEvent(OBJECTREF *pDelegate,
+                     OBJECTREF *pDomain);
 
 void DistributeUnhandledExceptionReliably(OBJECTREF *pDelegate,
                                           OBJECTREF *pDomain,
@@ -207,10 +196,14 @@ void DistributeUnhandledExceptionReliably(OBJECTREF *pDelegate,
 //     signature.
 struct ShuffleEntry
 {
+    // Offset masks and special value
     enum {
-        REGMASK  = 0x8000,
-        OFSMASK  = 0x7fff,
-        SENTINEL = 0xffff,
+        REGMASK      = 0x8000, // Register offset bit
+        FPREGMASK    = 0x4000, // Floating point register bit
+        FPSINGLEMASK = 0x2000, // Single precising floating point register
+        OFSMASK      = 0x7fff, // Mask to get stack offset
+        OFSREGMASK   = 0x1fff, // Mask to get register index
+        SENTINEL     = 0xffff, // Indicates end of shuffle array
     };
 
 #if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
@@ -220,24 +213,16 @@ struct ShuffleEntry
     };
 #else
 
-    // Special values:
-    //  -1       - indicates end of shuffle array: stacksizedelta
-    //             == difference in stack size between virtual and static sigs.
-    //  high bit - indicates a register argument: mask it off and
-    //             the result is an offset into ArgumentRegisters.
-
     UINT16    srcofs;
 
     union {
         UINT16    dstofs;           //if srcofs != SENTINEL
-        UINT16    stacksizedelta;   //if dstofs == SENTINEL
+        UINT16    stacksizedelta;   //if dstofs == SENTINEL, difference in stack size between virtual and static sigs
     };
 #endif // _TARGET_AMD64_
 };
 
 
 #include <poppack.h>
-
-void __stdcall DoDelegateInvokeForHostCheck(Object* pDelegate);
 
 #endif  // _COMDELEGATE_H_

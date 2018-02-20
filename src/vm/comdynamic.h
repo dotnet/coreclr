@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 ////////////////////////////////////////////////////////////////////////////////
 // COMDynamic.h
 //  This module defines the native methods that are used for Dynamic IL generation  
@@ -91,16 +90,6 @@ public:
     static
     void QCALLTYPE SavePEFile(QCall::ModuleHandle pModule, LPCWSTR wszPeName, UINT32 entryPoint, UINT32 fileKind, BOOL isManifestFile);
 
-#ifndef FEATURE_CORECLR
-    static 
-    void QCALLTYPE DefineNativeResourceFile(QCall::ModuleHandle pModule, LPCWSTR pwzFileName, INT32 portableExecutableKind, INT32 imageFileMachine);
-
-    static 
-    void QCALLTYPE DefineNativeResourceBytes(QCall::ModuleHandle pModule, LPCBYTE pbResource, INT32 cbResource, INT32 portableExecutableKind, INT32 imageFileMachine);
-
-    static
-    void QCALLTYPE AddResource(QCall::ModuleHandle pModule, LPCWSTR pName, LPCBYTE pResBytes, INT32 resByteCount, UINT32 uFileTk, UINT32 iAttribute, INT32 portableExecutableKind, INT32 imageFileMachine);
-#endif // !FEATURE_CORECLR
 
     // not an ecall!
     static HRESULT EmitDebugInfoBegin(
@@ -161,11 +150,6 @@ public:
     static
     INT32 QCALLTYPE SetParamInfo(QCall::ModuleHandle pModule, UINT32 tkMethod, UINT32 iSequence, UINT32 iAttributes, LPCWSTR wszParamName);
 
-#ifndef FEATURE_CORECLR
-    // functions to set FieldMarshal
-    static
-    void QCALLTYPE SetFieldMarshal(QCall::ModuleHandle pModule, UINT32 tk, LPCBYTE pMarshal, INT32 cbMarshal);
-#endif
     // functions to set default value
     static
     void QCALLTYPE SetConstantValue(QCall::ModuleHandle pModule, UINT32 tk, DWORD valueType, LPVOID pValue);
@@ -192,7 +176,7 @@ public:
     STDMETHODIMP_(ULONG) Release();
     STDMETHODIMP Map(mdToken tkImp, mdToken tkEmit);
     CSymMapToken(ISymUnmanagedWriter *pWriter, IMapToken *pMapToken);
-    ~CSymMapToken();
+    virtual ~CSymMapToken();
 private:
     LONG        m_cRef;
     ISymUnmanagedWriter *m_pWriter;

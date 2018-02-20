@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -685,11 +684,6 @@ INDEBUG(void AddHostCallsStaticMarker();)
     {                                                                                       \
         ULONGLONG __entryTime = 0;                                                          \
         __int64 __entryTimeStamp = 0;                                                       \
-        if (CLRTaskHosted())                                                                \
-        {                                                                                   \
-            __entryTimeStamp = getTimeStamp();                                              \
-            __entryTime = CLRGetTickCount64();                                              \
-        }                                                                                   \
         _ASSERTE(CanThisThreadCallIntoHost());                                              \
         _ASSERTE((pThread == NULL) ||                                                       \
                 (pThread->GetClrDebugState() == NULL) ||                                    \
@@ -707,17 +701,6 @@ INDEBUG(void AddHostCallsStaticMarker();)
 #define END_SO_TOLERANT_CODE_CALLING_HOST                                                   \
             DEBUG_ASSURE_NO_RETURN_END(STACK_PROBE)                                         \
             boundary_guard_XXX.SetNoExceptionNoPop();                                       \
-        }                                                                                   \
-        if (CLRTaskHosted())                                                                \
-        {                                                                                   \
-            ULONGLONG __endTime = CLRGetTickCount64();                                      \
-            ULONGLONG __elapse = __endTime - __entryTime;                                   \
-            if (__elapse > 20000 && __entryTimeStamp)                                       \
-            {                                                                               \
-                STRESS_LOG4(LF_EH, LL_INFO10,                                               \
-                            "CALLING HOST takes %d ms: line %d in %s(%s)\n",                \
-                            (int)__elapse, __LINE__, __FUNCTION__, __FILE__);               \
-            }                                                                               \
         }                                                                                   \
     }
 

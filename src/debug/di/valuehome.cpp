@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: ValueHome.cpp
 // 
@@ -482,18 +481,36 @@ void FloatRegValueHome::SetEnregisteredValue(MemoryRange newValue,
     // restore our original state.
     DT_FLOATING_SAVE_AREA currentFPUState;
 
+    #ifdef _MSC_VER
     __asm fnsave currentFPUState // save the current FPU state.
+    #else
+    __asm__ __volatile__
+    (
+        "  fnsave %0\n" \
+        : "=m"(currentFPUState)
+    );
+    #endif
 
     // Copy the state out of the context.
     DT_FLOATING_SAVE_AREA floatarea = pContext->FloatSave;
     floatarea.StatusWord &= 0xFF00; // remove any error codes.
     floatarea.ControlWord |= 0x3F; // mask all exceptions.
 
+    #ifdef _MSC_VER
     __asm
     {
         fninit
         frstor floatarea          ;; reload the threads FPU state.
     }
+    #else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(floatarea)
+    );
+    #endif
 
     double td; // temp double
     double popArea[DebuggerIPCE_FloatCount];
@@ -520,17 +537,35 @@ void FloatRegValueHome::SetEnregisteredValue(MemoryRange newValue,
     }
 
     // Save out the modified float area.
+    #ifdef _MSC_VER
     __asm fnsave floatarea
+    #else
+    __asm__ __volatile__
+    (
+        "  fnsave %0\n" \
+        : "=m"(floatarea)
+    );
+    #endif
 
     // Put it into the context.
     pContext->FloatSave= floatarea;
 
     // Restore our FPU state
+    #ifdef _MSC_VER
     __asm
     {
         fninit
         frstor currentFPUState    ;; restore our saved FPU state.
     }
+    #else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(currentFPUState)
+    );
+    #endif
     #endif // DBG_TARGET_X86
 
     // update the thread's floating point stack

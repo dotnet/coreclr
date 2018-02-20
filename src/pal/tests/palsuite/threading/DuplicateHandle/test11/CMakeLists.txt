@@ -3,34 +3,30 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(TESTSOURCES
-  test11.c
+  test11.cpp
 )
 
 add_executable(paltest_duplicatehandle_test11
   ${TESTSOURCES}
 )
 
-add_dependencies(paltest_duplicatehandle_test11 CoreClrPal)
+add_dependencies(paltest_duplicatehandle_test11 coreclrpal)
 
 target_link_libraries(paltest_duplicatehandle_test11
-  pthread
-  m
-  CoreClrPal
+  ${COMMON_TEST_LIBRARIES}
 )
 
 
 set(HELPERSOURCES
-  childprocess.c
+  childprocess.cpp
 )
 
 add_executable(paltest_duplicatehandle_test11_child
   ${HELPERSOURCES}
 )
 
-add_dependencies(paltest_duplicatehandle_test11_child CoreClrPal)
+add_dependencies(paltest_duplicatehandle_test11_child coreclrpal)
 
 target_link_libraries(paltest_duplicatehandle_test11_child
-  pthread
-  m
-  CoreClrPal
+  ${COMMON_TEST_LIBRARIES}
 )

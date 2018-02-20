@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*============================================================
@@ -480,16 +479,6 @@ STRINGREF AllocateStringObject(EEStringData *pStringData)
         LPWSTR strDest = strObj->GetBuffer();
         memcpyNoGCRefs(strDest, pStringData->GetStringBuffer(), cCount*sizeof(WCHAR));
         strDest[cCount] = 0;
-
-        // IsOnlyLowChars actually incidicates if we can sort the string in a fast way.
-        // Take a look RegMeta::DefineUserString to see how we set the flag.
-        // The flag is persisited to assembly containing the string literals.
-        // We restore the flag when we load strings from assembly (MDInternalRO::GetUserString.) 
-        //
-        if (pStringData->GetIsOnlyLowChars()) 
-        {
-            strObj->SetHighCharState(STRING_STATE_FAST_OPS);
-        }
     }
     GCPROTECT_END();
 

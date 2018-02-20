@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Type-safe helper wrapper to get an EXCEPTION_RECORD slot as a CORDB_ADDRESS
 // 
@@ -71,6 +70,9 @@ CORDB_ADDRESS IsEventDebuggerNotification(
         return NULL;
     }
 
+    // TODO: We don't do this check in case of non-windows debugging now, because we don't support
+    // multi-instance debugging.
+#if !defined(FEATURE_DBGIPC_TRANSPORT_VM) && !defined(FEATURE_DBGIPC_TRANSPORT_DI)
     // If base-address doesn't match, then it's likely an event from another version of the CLR
     // in the target.
     // We need to be careful here.  CORDB_ADDRESS is a ULONG64, whereas ExceptionInformation[1] 
@@ -80,6 +82,7 @@ CORDB_ADDRESS IsEventDebuggerNotification(
     {
         return NULL;        
     }
+#endif
 
     // It passes all the format checks. So now get the payload.
     CORDB_ADDRESS ptrRemoteManagedEvent = GetExceptionInfoAsAddress(pRecord, 2);

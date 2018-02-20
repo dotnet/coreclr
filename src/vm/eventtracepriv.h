@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtracepriv.h
 // 
@@ -24,7 +23,10 @@
 #define _countof(_array) (sizeof(_array)/sizeof(_array[0]))
 #endif
 
-const UINT cbMaxEtwEvent = 64 * 1024;
+// ETW has a limitation of 64K for TOTAL event Size, however there is overhead associated with 
+// the event headers.   It is unclear exactly how much that is, but 1K should be sufficiently
+// far away to avoid problems without sacrificing the perf of bulk processing.  
+const UINT cbMaxEtwEvent = 63 * 1024;
 
 //---------------------------------------------------------------------------------------
 // C++ copies of ETW structures
@@ -252,6 +254,11 @@ class BulkTypeEventLogger
 {
 private:
 
+#ifdef FEATURE_PAL
+    // The maximum event size, and the size of the buffer that we allocate to hold the event contents.
+    static const size_t kSizeOfEventBuffer = 65536;
+#endif
+
     // Estimate of how many bytes we can squeeze in the event data for the value struct
     // array.  (Intentionally overestimate the size of the non-array parts to keep it safe.)
     static const int kMaxBytesTypeValues = (cbMaxEtwEvent - 0x30);
@@ -292,6 +299,10 @@ private:
     // List of types we've batched.
     BulkTypeValue m_rgBulkTypeValues[kMaxCountTypeValues];
 
+#ifdef FEATURE_PAL
+    BYTE *m_pBulkTypeEventBuffer;
+#endif
+
 #ifdef FEATURE_REDHAWK
     int LogSingleType(EEType * pEEType);
 #else
@@ -302,9 +313,38 @@ public:
     BulkTypeEventLogger() :
         m_nBulkTypeValueCount(0),
         m_nBulkTypeValueByteCount(0)
+#ifdef FEATURE_PAL
+        , m_pBulkTypeEventBuffer(NULL)
+#endif
     {
-        LIMITED_METHOD_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+#ifdef FEATURE_PAL
+        m_pBulkTypeEventBuffer = new (nothrow) BYTE[kSizeOfEventBuffer];
+#endif
     }
+
+#ifdef FEATURE_PAL
+    ~BulkTypeEventLogger()
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        delete[] m_pBulkTypeEventBuffer;
+        m_pBulkTypeEventBuffer = NULL;
+    }
+#endif
 
     void LogTypeAndParameters(ULONGLONG thAsAddr, ETW::TypeSystemLog::TypeLogBehavior typeLogBehavior);
     void FireBulkTypeEvent();
@@ -342,7 +382,7 @@ private:
     void FlushCcw();
 
     // Callback used during handle table enumeration.
-    static void HandleWalkCallback(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM param1, LPARAM param2);
+    static void HandleWalkCallback(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
 
     // Used during CCW enumeration to keep track of all object handles which point to a CCW.
     void AddCcwHandle(Object **handle);
@@ -408,3 +448,4 @@ private:
 
 
 #endif // __EVENTTRACEPRIV_H__
+

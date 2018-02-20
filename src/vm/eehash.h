@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -39,10 +38,7 @@ class AllocMemTracker;
 class ClassLoader;
 struct LockOwner;
 class NameHandle;
-struct PsetCacheKey;
 class SigTypeContext;
-
-typedef PsetCacheKey* PPsetCacheKey;
 
 // The "blob" you get to store in the hash table
 
@@ -482,20 +478,6 @@ public:
 
 typedef EEHashTable<EEStringData *, EEUnicodeStringLiteralHashTableHelper, TRUE> EEUnicodeStringLiteralHashTable;
 
-// Permission set hash table.
-
-class EEPsetHashTableHelper
-{
-public:
-    static EEHashEntry_t * AllocateEntry(PsetCacheKey *pKey, BOOL bDeepCopy, AllocationHeap Heap);
-    static void            DeleteEntry(EEHashEntry_t *pEntry, AllocationHeap Heap);
-    static BOOL            CompareKeys(EEHashEntry_t *pEntry, PsetCacheKey *pKey);
-    static DWORD           Hash(PsetCacheKey *pKey);
-    static PsetCacheKey *GetKey(EEHashEntry_t *pEntry);
-};
-
-typedef EEHashTable<PsetCacheKey *, EEPsetHashTableHelper, FALSE> EEPsetHashTable;
-
 
 // Generic pointer hash table helper.
 
@@ -562,10 +544,8 @@ public:
     }
 };
 
-#ifndef BINDER
 typedef EEHashTable<PTR_VOID, EEPtrHashTableHelper<PTR_VOID>, FALSE> EEPtrHashTable;
 typedef DPTR(EEPtrHashTable) PTR_EEPtrHashTable;
-#endif // !BINDER
 
 // Define a hash of generic instantiations (represented by a SigTypeContext).
 class EEInstantiationHashTableHelper

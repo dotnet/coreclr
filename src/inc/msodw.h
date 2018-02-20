@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #pragma once
 
 /****************************************************************************
@@ -188,7 +187,7 @@
 
 // shared reg values between DW and DW COM EXE
 #define DEFAULT_SUBPATH L"Microsoft\\PCHealth\\ErrorReporting\\DW"
-#define QUEUE_REG_SUBPATH  L"Software\\"DEFAULT_SUBPATH
+#define QUEUE_REG_SUBPATH  L"Software\\" DEFAULT_SUBPATH
 #define QUEUE_REG_OKTOREPORT_VALUE L"OkToReportFromTheseQueues"
 #define WATSON_INSTALLED_REG_SUBPATH QUEUE_REG_SUBPATH L"\\Installed"
 #define WATSON_INSTALLED_REG_SUBPATH_IA64 L"Software\\Wow6432Node\\"DEFAULT_SUBPATH L"\\Installed"

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -172,10 +171,6 @@ class NgenHashTable
     // Nidump knows how to walk this data structure.
     friend class NativeImageDumper;
 #endif
-#ifdef BINDER
-    template<class HashEntry, class HashTableType> friend class NGenHashTableBuilder;
-    friend class MdilModule;
-#endif
 
 protected:
     // This opaque structure provides enumeration context when walking the set of entries which share a common
@@ -208,7 +203,7 @@ protected:
     private:
         friend class NgenHashTable<NGEN_HASH_ARGS>;
 
-        NgenHashTable<NGEN_HASH_ARGS> *m_pTable;        // Pointer back to the table being enumerated.
+        DPTR(NgenHashTable<NGEN_HASH_ARGS>) m_pTable;   // Pointer back to the table being enumerated.
         TADDR                   m_pEntry;               // The entry the caller is currently looking at (or
                                                         // NULL to begin with). This is a VolatileEntry* or
                                                         // PersistedEntry* (depending on m_eType below) and
@@ -308,8 +303,13 @@ protected:
     void BaseEnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif // DACCESS_COMPILE
 
+    PTR_Module GetModule()
+    {
+        return ReadPointerMaybeNull(this, &NgenHashTable<NGEN_HASH_ARGS>::m_pModule);
+    }
+
     // Owning module set at hash creation time (possibly NULL if this hash instance is not to be ngen'd).
-    PTR_Module          m_pModule;
+    RelativePointer<PTR_Module> m_pModule;
 
 private:
     // Internal implementation details. Nothing of interest to sub-classers for here on.
@@ -336,10 +336,6 @@ private:
     {
 #ifdef DACCESS_COMPILE
         friend class NativeImageDumper;
-#endif
-#ifdef BINDER
-        template<class HashEntry, class HashTableType> friend class NGenHashTableBuilder;
-        friend class MdilModule;
 #endif
 
     public:
@@ -394,13 +390,13 @@ private:
     // because this logic is replicated for Hot and Cold entries so we can factor some common code.
     struct PersistedEntries
     {
-        APTR_PersistedEntry     m_pEntries;     // Pointer to a contiguous block of PersistedEntry structures
-                                                // (NULL if zero entries)
-        PTR_PersistedBucketList m_pBuckets;     // Pointer to abstracted bucket list mapping above entries
-                                                // into a hash (NULL if zero buckets, which is iff zero
-                                                // entries)
-        DWORD                   m_cEntries;     // Count of entries in the above block
-        DWORD                   m_cBuckets;     // Count of buckets in the above bucket list
+        RelativePointer<APTR_PersistedEntry>     m_pEntries;  // Pointer to a contiguous block of PersistedEntry structures
+                                                              // (NULL if zero entries)
+        RelativePointer<PTR_PersistedBucketList> m_pBuckets;  // Pointer to abstracted bucket list mapping above entries
+                                                              // into a hash (NULL if zero buckets, which is iff zero
+                                                              // entries)
+        DWORD                   m_cEntries;  // Count of entries in the above block
+        DWORD                   m_cBuckets;  // Count of buckets in the above bucket list
     };
 #endif // FEATURE_PREJIT
 
@@ -448,13 +444,98 @@ private:
     DWORD NextLargestPrime(DWORD dwNumber);
 #endif // !DACCESS_COMPILE
 
+    DPTR(PTR_VolatileEntry) GetWarmBuckets()
+    {
+        SUPPORTS_DAC;
+
+        return ReadPointer(this, &NgenHashTable<NGEN_HASH_ARGS>::m_pWarmBuckets);
+    }
+
+#ifdef FEATURE_PREJIT
+    APTR_PersistedEntry GetPersistedHotEntries()
+    {
+        SUPPORTS_DAC;
+
+        return ReadPointerMaybeNull(this,
+                                    &NgenHashTable<NGEN_HASH_ARGS>::m_sHotEntries,
+                                    &decltype(NgenHashTable<NGEN_HASH_ARGS>::m_sHotEntries)::m_pEntries);
+    }
+
+    PTR_PersistedBucketList GetPersistedHotBuckets()
+    {
+        SUPPORTS_DAC;
+
+        return ReadPointerMaybeNull(this,
+                                    &NgenHashTable<NGEN_HASH_ARGS>::m_sHotEntries,
+                                    &decltype(NgenHashTable<NGEN_HASH_ARGS>::m_sHotEntries)::m_pBuckets);
+    }
+
+    APTR_PersistedEntry GetPersistedColdEntries()
+    {
+        SUPPORTS_DAC;
+
+        return ReadPointerMaybeNull(this,
+                                    &NgenHashTable<NGEN_HASH_ARGS>::m_sColdEntries,
+                                    &decltype(NgenHashTable<NGEN_HASH_ARGS>::m_sColdEntries)::m_pEntries);
+    }
+
+    PTR_PersistedBucketList GetPersistedColdBuckets()
+    {
+        SUPPORTS_DAC;
+
+        return ReadPointerMaybeNull(this,
+                                    &NgenHashTable<NGEN_HASH_ARGS>::m_sColdEntries,
+                                    &decltype(NgenHashTable<NGEN_HASH_ARGS>::m_sColdEntries)::m_pBuckets);
+    }
+
+#ifdef DACCESS_COMPILE
+    APTR_PersistedEntry GetPersistedEntries(DPTR(PersistedEntries) pEntries)
+    {
+        SUPPORTS_DAC;
+
+        TADDR hotEntriesAddr = dac_cast<TADDR>(this) + offsetof(NgenHashTable<NGEN_HASH_ARGS>, m_sHotEntries);
+        TADDR coldEntriesAddr = dac_cast<TADDR>(this) + offsetof(NgenHashTable<NGEN_HASH_ARGS>, m_sColdEntries);
+
+        if (hotEntriesAddr == dac_cast<TADDR>(pEntries))
+        {
+            return GetPersistedHotEntries();
+        }
+        else
+        {
+            _ASSERTE(hotEntriesAddr == dac_cast<TADDR>(pEntries));
+
+            return GetPersistedColdEntries();
+        }
+    }
+
+    PTR_PersistedBucketList GetPersistedBuckets(DPTR(PersistedEntries) pEntries)
+    {
+        SUPPORTS_DAC;
+
+        TADDR hotEntriesAddr = dac_cast<TADDR>(this) + offsetof(NgenHashTable<NGEN_HASH_ARGS>, m_sHotEntries);
+        TADDR coldEntriesAddr = dac_cast<TADDR>(this) + offsetof(NgenHashTable<NGEN_HASH_ARGS>, m_sColdEntries);
+
+        if (hotEntriesAddr == dac_cast<TADDR>(pEntries))
+        {
+            return GetPersistedHotBuckets();
+        }
+        else
+        {
+            _ASSERTE(hotEntriesAddr == dac_cast<TADDR>(pEntries));
+
+            return GetPersistedColdBuckets();
+        }
+    }
+#endif // DACCESS_COMPILE
+#endif // FEATURE_PREJIT
+
     // Loader heap provided at construction time. May be NULL (in which case m_pModule must *not* be NULL).
     LoaderHeap             *m_pHeap;
 
     // Fields related to the runtime (volatile or warm) part of the hash.
-    DPTR(PTR_VolatileEntry) m_pWarmBuckets;     // Pointer to a simple bucket list (array of VolatileEntry pointers)
-    DWORD                   m_cWarmBuckets;     // Count of buckets in the above array (always non-zero)
-    DWORD                   m_cWarmEntries;     // Count of elements in the warm section of the hash
+    RelativePointer<DPTR(PTR_VolatileEntry)> m_pWarmBuckets;  // Pointer to a simple bucket list (array of VolatileEntry pointers)
+    DWORD                                    m_cWarmBuckets;  // Count of buckets in the above array (always non-zero)
+    DWORD                                    m_cWarmEntries;  // Count of elements in the warm section of the hash
 
 #ifdef FEATURE_PREJIT
     PersistedEntries        m_sHotEntries;      // Hot persisted hash entries (if any)
@@ -484,6 +565,13 @@ public:
     // Call this during the ngen Fixup phase to adjust the relative pointer to account for ngen image layout.
     void Fixup(DataImage *pImage, NgenHashTable<NGEN_HASH_ARGS> *pTable);
 #endif // FEATURE_PREJIT
+
+    NgenHashEntryRef<NGEN_HASH_ARGS>& operator = (const NgenHashEntryRef<NGEN_HASH_ARGS> &src)
+    {
+        src.m_rpEntryRef.BitwiseCopyTo(m_rpEntryRef);
+
+        return *this;
+    }
 #endif // !DACCESS_COMPILE
 
 private:

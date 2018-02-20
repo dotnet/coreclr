@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,41 +12,25 @@
 **
 ** 
 ===========================================================*/
-namespace System.Resources {
-    using System;
-    using System.Collections;
-    using System.IO;
-    using System.Globalization;
-    using System.Security.Permissions;
-    using System.Runtime.InteropServices;
-    using System.Reflection;
-    using System.Runtime.Serialization;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
 
+using System.Collections;
+using System.IO;
+using System.Reflection;
+
+namespace System.Resources
+{
     // A ResourceSet stores all the resources defined in one particular CultureInfo.
     // 
     // The method used to load resources is straightforward - this class
     // enumerates over an IResourceReader, loading every name and value, and 
     // stores them in a hash table.  Custom IResourceReaders can be used.
-    // 
-    [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    //
     public class ResourceSet : IDisposable, IEnumerable
     {
-        [NonSerialized] protected IResourceReader Reader;
-#if FEATURE_CORECLR
+        protected IResourceReader Reader;
         internal Hashtable Table;
-#else
-        protected Hashtable Table;
-#endif
 
         private Hashtable _caseInsensitiveTable;  // For case-insensitive lookups.
-
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-        [OptionalField]
-        private Assembly _assembly;  // For LooselyLinkedResourceReferences
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
 
         protected ResourceSet()
         {
@@ -64,9 +49,6 @@ namespace System.Resources {
         // implementation.  Use this constructor to open & read from a file 
         // on disk.
         // 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public ResourceSet(String fileName)
         {
             Reader = new ResourceReader(fileName);
@@ -74,21 +56,10 @@ namespace System.Resources {
             ReadResources();
         }
 
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-        public ResourceSet(String fileName, Assembly assembly)
-        {
-            Reader = new ResourceReader(fileName);
-            CommonInit();
-            _assembly = assembly;
-            ReadResources();
-        }
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-    
         // Creates a ResourceSet using the system default ResourceReader
         // implementation.  Use this constructor to read from an open stream 
         // of data.
         // 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public ResourceSet(Stream stream)
         {
             Reader = new ResourceReader(stream);
@@ -96,40 +67,15 @@ namespace System.Resources {
             ReadResources();
         }
 
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-        [System.Security.SecurityCritical]  // auto_generated_required
-        public ResourceSet(Stream stream, Assembly assembly)
-        {
-            Reader = new ResourceReader(stream);
-            CommonInit();
-            _assembly = assembly;
-            ReadResources();
-        }
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-
         public ResourceSet(IResourceReader reader)
         {
             if (reader == null)
-                throw new ArgumentNullException("reader");
-            Contract.EndContractBlock();
+                throw new ArgumentNullException(nameof(reader));
             Reader = reader;
             CommonInit();
             ReadResources();
         }
 
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-        public ResourceSet(IResourceReader reader, Assembly assembly)
-        {
-            if (reader == null)
-                throw new ArgumentNullException("reader");
-            Contract.EndContractBlock();
-            Reader = reader;
-            CommonInit();
-            _assembly = assembly;
-            ReadResources();
-        }
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-    
         private void CommonInit()
         {
             Table = new Hashtable();
@@ -143,10 +89,11 @@ namespace System.Resources {
         {
             Dispose(true);
         }
-        
+
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) {
+            if (disposing)
+            {
                 // Close the Reader in a thread-safe way.
                 IResourceReader copyOfReader = Reader;
                 Reader = null;
@@ -163,16 +110,6 @@ namespace System.Resources {
             Dispose(true);
         }
 
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-        // Optional - used for resolving assembly manifest resource references.
-        // This can safely be null.
-        [ComVisible(false)]
-        public Assembly Assembly {
-            get { return _assembly; }
-            /*protected*/ set { _assembly = value; }
-        }
-#endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-
         // Returns the preferred IResourceReader class for this kind of ResourceSet.
         // Subclasses of ResourceSet using their own Readers &; should override
         // GetDefaultReader and GetDefaultWriter.
@@ -180,24 +117,21 @@ namespace System.Resources {
         {
             return typeof(ResourceReader);
         }
-    
-#if !FEATURE_CORECLR
+
         // Returns the preferred IResourceWriter class for this kind of ResourceSet.
         // Subclasses of ResourceSet using their own Readers &; should override
         // GetDefaultReader and GetDefaultWriter.
         public virtual Type GetDefaultWriter()
         {
-            return typeof(ResourceWriter);
+            Assembly resourceWriterAssembly = Assembly.Load("System.Resources.Writer, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+            return resourceWriterAssembly.GetType("System.Resources.ResourceWriter", true);
         }
-#endif // !FEATURE_CORECLR
 
-        [ComVisible(false)]
         public virtual IDictionaryEnumerator GetEnumerator()
         {
             return GetEnumeratorHelper();
         }
 
-        /// <internalonly/>
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumeratorHelper();
@@ -207,7 +141,7 @@ namespace System.Resources {
         {
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
             return copyOfTable.GetEnumerator();
         }
 
@@ -216,11 +150,13 @@ namespace System.Resources {
         public virtual String GetString(String name)
         {
             Object obj = GetObjectInternal(name);
-            try {
+            try
+            {
                 return (String)obj;
             }
-            catch (InvalidCastException) {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+            catch (InvalidCastException)
+            {
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
         }
 
@@ -231,28 +167,33 @@ namespace System.Resources {
 
             // Case-sensitive lookup
             obj = GetObjectInternal(name);
-            try {
+            try
+            {
                 s = (String)obj;
             }
-            catch (InvalidCastException) {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+            catch (InvalidCastException)
+            {
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
 
             // case-sensitive lookup succeeded
-            if (s != null || !ignoreCase) {
+            if (s != null || !ignoreCase)
+            {
                 return s;
-                }
+            }
 
             // Try doing a case-insensitive lookup
             obj = GetCaseInsensitiveObjectInternal(name);
-            try {
+            try
+            {
                 return (String)obj;
             }
-            catch (InvalidCastException) {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+            catch (InvalidCastException)
+            {
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
         }
-        
+
         // Look up an object value for a resource given its name.
         // 
         public virtual Object GetObject(String name)
@@ -263,24 +204,19 @@ namespace System.Resources {
         public virtual Object GetObject(String name, bool ignoreCase)
         {
             Object obj = GetObjectInternal(name);
-            
+
             if (obj != null || !ignoreCase)
                 return obj;
 
             return GetCaseInsensitiveObjectInternal(name);
         }
-    
+
         protected virtual void ReadResources()
         {
             IDictionaryEnumerator en = Reader.GetEnumerator();
-            while (en.MoveNext()) {
+            while (en.MoveNext())
+            {
                 Object value = en.Value;
-#if LOOSELY_LINKED_RESOURCE_REFERENCE
-                if (Assembly != null && value is LooselyLinkedResourceReference) {
-                    LooselyLinkedResourceReference assRef = (LooselyLinkedResourceReference) value;
-                    value = assRef.Resolve(Assembly);
-                }
-#endif //LOOSELYLINKEDRESOURCEREFERENCE
                 Table.Add(en.Key, value);
             }
             // While technically possible to close the Reader here, don't close it
@@ -290,13 +226,12 @@ namespace System.Resources {
         private Object GetObjectInternal(String name)
         {
             if (name == null)
-                throw new ArgumentNullException("name");
-            Contract.EndContractBlock();
+                throw new ArgumentNullException(nameof(name));
 
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             return copyOfTable[name];
         }
@@ -306,16 +241,12 @@ namespace System.Resources {
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             Hashtable caseTable = _caseInsensitiveTable;  // Avoid a race condition with Close
             if (caseTable == null)
             {
                 caseTable = new Hashtable(StringComparer.OrdinalIgnoreCase);
-#if _DEBUG
-                //Console.WriteLine("ResourceSet::GetObject loading up case-insensitive data");
-                BCLDebug.Perf(false, "Using case-insensitive lookups is bad perf-wise.  Consider capitalizing "+name+" correctly in your source");
-#endif
 
                 IDictionaryEnumerator en = copyOfTable.GetEnumerator();
                 while (en.MoveNext())

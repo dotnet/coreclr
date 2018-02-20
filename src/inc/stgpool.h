@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // StgPool.h
 //
@@ -311,12 +310,11 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-// @todo: Triton workaround: FEATURE_METADATA_STANDALNE_WINRT_RO is supposed to disable FEATURE_PREJIT - remove this #ifdef once we figure out how to get that working in the CoreClr build. 
-#if !(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
         m_HotHeap = hotHeap;
 #else
         _ASSERTE(!"InitHotData(): Not supposed to exist in RoMetaData.dll");
-#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES))
     }
 #endif //FEATURE_PREJIT
 
@@ -333,7 +331,7 @@ protected:
 //  helper for extension segments.
 //*****************************************************************************
     __checkReturn 
-    FORCEINLINE HRESULT GetDataReadOnly(UINT32 nOffset, __in MetaData::DataBlob *pData)
+    FORCEINLINE HRESULT GetDataReadOnly(UINT32 nOffset, __inout MetaData::DataBlob *pData)
     {
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(IsReadOnly());
@@ -346,8 +344,7 @@ protected:
             return CLDB_E_INDEX_NOTFOUND;
         }
 
-// @todo: Triton workaround: FEATURE_METADATA_STANDALNE_WINRT_RO is supposed to disable FEATURE_PREJIT - remove this #if once we figure out how to get that working in the CoreClr build. 
-#if !(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
 #ifdef FEATURE_PREJIT
         // try hot data first
         if (!m_HotHeap.IsEmpty())
@@ -360,7 +357,7 @@ protected:
             _ASSERTE(hr == S_FALSE);
         }
 #endif //FEATURE_PREJIT
-#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES))
 
         
         pData->Init(m_pSegData + nOffset, m_cbSegSize - nOffset);
@@ -375,18 +372,17 @@ protected:
 //  helper for extension segments.
 //*****************************************************************************
     __checkReturn 
-    virtual HRESULT GetData(UINT32 nOffset, __in MetaData::DataBlob *pData)
+    virtual HRESULT GetData(UINT32 nOffset, __inout MetaData::DataBlob *pData)
     {
         WRAPPER_NO_CONTRACT;
         return GetDataReadOnly(nOffset, pData);
     } // StgPoolReadOnly::GetData
     
 private:
-// @todo: Triton workaround: FEATURE_METADATA_STANDALNE_WINRT_RO is supposed to disable FEATURE_PREJIT - remove this #if once we figure out how to get that working in the CoreClr build. 
-#if !(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
     // hot pool data
     MetaData::HotHeap m_HotHeap;
-#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(FEATURE_METADATA_STANDALNE_WINRT_RO))
+#endif //!(defined(FEATURE_UTILCODE_NO_DEPENDENCIES))
     
 };  // class StgPoolReadOnly
 
@@ -1094,6 +1090,10 @@ private:
 class StgBlobPool : public StgPool
 {
     friend class VerifyLayoutsMD;
+
+    using StgPool::InitNew;
+    using StgPool::InitOnMem;
+    
 public:
     StgBlobPool(ULONG ulGrowInc=DFT_BLOB_HEAP_SIZE) :
         StgPool(ulGrowInc),
@@ -1246,6 +1246,8 @@ public:
         m_cRef(1),
         m_dataCopy(NULL)
     { LIMITED_METHOD_CONTRACT; }
+
+    virtual ~CInMemoryStream() {}
 
     void InitNew(
         void        *pMem,
@@ -1405,7 +1407,7 @@ public:
     CGrowableStream(float multiplicativeGrowthRate = 2.0, DWORD additiveGrowthRate = 4096);
 
 #ifndef DACCESS_COMPILE  
-    ~CGrowableStream();
+    virtual ~CGrowableStream();
 #endif
 
     // Expose the total raw buffer.

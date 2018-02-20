@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -15,17 +14,6 @@
 #ifndef _SHIMLOAD_H
 #define _SHIMLOAD_H
 
-#ifndef FEATURE_CORECLR
-#include <delayimp.h>
-
-extern FARPROC __stdcall ShimDelayLoadHook(unsigned        dliNotify,          // What event has occured, dli* flag.
-                                           DelayLoadInfo   *pdli);             // Description of the event.
-
-//and one for safe mode
-extern FARPROC __stdcall ShimSafeModeDelayLoadHook(unsigned        dliNotify,          // What event has occured, dli* flag.
-                                           DelayLoadInfo   *pdli);             // Description of the event.
-
-#endif
 
 //*****************************************************************************
 // Sets/Gets the directory based on the location of the module. This routine

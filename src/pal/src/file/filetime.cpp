@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -43,11 +42,11 @@ if it exists, and are defined as 0 otherwise.
 
 --
 
-Also note that there is no analog to "creation time" on Unix systems.
+Also note that there is no analog to "creation time" on Linux systems.
 Instead, we use the inode change time, which is set to the current time
 whenever mtime changes or when chmod, chown, etc. syscalls modify the
-file status.
-
+file status; or mtime if older. Ideally we would use birthtime when
+available.
 
 
 --*/
@@ -82,8 +81,8 @@ SET_DEFAULT_DEBUG_CHANNEL(FILE);
    Both epochs are Gregorian. 1970 - 1601 = 369. Assuming a leap
    year every four years, 369 / 4 = 92. However, 1700, 1800, and 1900
    were NOT leap years, so 89 leap years, 280 non-leap years.
-   89 * 366 + 280 * 365 = 134744 days between epochs. Of course
-   60 * 60 * 24 = 86400 seconds per day, so 134744 * 86400 =
+   89 * 366 + 280 * 365 = 134774 days between epochs. Of course
+   60 * 60 * 24 = 86400 seconds per day, so 134774 * 86400 =
    11644473600 = SECS_BETWEEN_1601_AND_1970_EPOCHS.
    
    To 2001:
@@ -103,14 +102,6 @@ static const __int64 SECS_TO_100NS = 10000000; /* 10^7 */
 #ifdef __APPLE__
 static const __int64 SECS_BETWEEN_1601_AND_2001_EPOCHS = 12622780800LL;
 #endif // __APPLE__
-
-/* to be used as args to FILEAdjustFileTimeForTimezone */
-#define ADJUST_FROM_UTC -1
-#define ADJUST_TO_UTC    1
-
-static FILETIME FILEAdjustFileTimeForTimezone( const FILETIME *Orig,
-                                               int Direction );
-
 
 /*++
 Function:
@@ -157,396 +148,6 @@ CompareFileTime(
 }
 
 
-
-/*++
-Function:
-  SetFileTime
-
-Notes: This function will drop one digit (radix 10) of precision from
-the supplied times, since Unix can set to the microsecond (at most, i.e.
-if the futimes() function is available).
-
-As noted in the file header, there is no analog to "creation time" on Unix
-systems, so the lpCreationTime argument to this function will always be
-ignored, and the inode change time will be set to the current time.
---*/
-BOOL
-PALAPI
-SetFileTime(
-        IN HANDLE hFile,
-        IN CONST FILETIME *lpCreationTime,
-        IN CONST FILETIME *lpLastAccessTime,
-        IN CONST FILETIME *lpLastWriteTime)
-{
-    CPalThread *pThread;
-    PAL_ERROR palError = NO_ERROR;
-    const UINT64 MAX_FILETIMEVALUE = 0x8000000000000000LL;
-
-    PERF_ENTRY(SetFileTime);
-    ENTRY("SetFileTime(hFile=%p, lpCreationTime=%p, lpLastAccessTime=%p, "
-          "lpLastWriteTime=%p)\n", hFile, lpCreationTime, lpLastAccessTime, 
-          lpLastWriteTime);
-
-    pThread = InternalGetCurrentThread();
-
-    /* validate filetime values */
-    if ( (lpCreationTime && (((UINT64)lpCreationTime->dwHighDateTime   << 32) + 
-          lpCreationTime->dwLowDateTime   >= MAX_FILETIMEVALUE)) ||        
-         (lpLastAccessTime && (((UINT64)lpLastAccessTime->dwHighDateTime << 32) + 
-          lpLastAccessTime->dwLowDateTime >= MAX_FILETIMEVALUE)) ||
-         (lpLastWriteTime && (((UINT64)lpLastWriteTime->dwHighDateTime  << 32) + 
-          lpLastWriteTime->dwLowDateTime  >= MAX_FILETIMEVALUE)))
-    {
-        pThread->SetLastError(ERROR_INVALID_HANDLE);
-        return FALSE;
-    }
-
-    palError = InternalSetFileTime(
-        pThread,
-        hFile,
-        lpCreationTime,
-        lpLastAccessTime,
-        lpLastWriteTime
-        );
-
-    if (NO_ERROR != palError)
-    {
-        pThread->SetLastError(palError);
-    }
-
-    LOGEXIT("SetFileTime returns BOOL %s\n", NO_ERROR == palError ? "TRUE":"FALSE");
-    PERF_EXIT(SetFileTime);
-    return NO_ERROR == palError;
-}
-
-PAL_ERROR
-CorUnix::InternalSetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        IN CONST FILETIME *lpCreationTime,
-        IN CONST FILETIME *lpLastAccessTime,
-        IN CONST FILETIME *lpLastWriteTime)
-{
-    PAL_ERROR palError = NO_ERROR;
-    IPalObject *pFileObject = NULL;
-    CFileProcessLocalData *pLocalData = NULL;
-    IDataLock *pLocalDataLock = NULL;
-    struct timeval Times[2];
-    int fd;
-    long nsec;
-    struct stat stat_buf;
-
-    if (INVALID_HANDLE_VALUE == hFile)
-    {
-        ERROR( "Invalid file handle\n" );
-        palError = ERROR_INVALID_HANDLE;
-        goto InternalSetFileTimeExit;
-    }
-
-    palError = g_pObjectManager->ReferenceObjectByHandle(
-        pThread,
-        hFile,
-        &aotFile,
-        GENERIC_READ,
-        &pFileObject
-        );
-
-    if (NO_ERROR != palError)
-    {
-        goto InternalSetFileTimeExit;
-    }
-
-    palError = pFileObject->GetProcessLocalData(
-        pThread,
-        ReadLock, 
-        &pLocalDataLock,
-        reinterpret_cast<void**>(&pLocalData)
-        );
-
-    if (NO_ERROR != palError)
-    {
-        goto InternalSetFileTimeExit;
-    }
-    
-    if (lpCreationTime)
-    {
-        palError = ERROR_NOT_SUPPORTED;
-        goto InternalSetFileTimeExit;
-    }
-
-    if( !lpLastAccessTime && !lpLastWriteTime )
-    { 
-	// if both pointers are NULL, the function simply returns.
-        goto InternalSetFileTimeExit;
-    }
-    else if( !lpLastAccessTime || !lpLastWriteTime )
-    {
-	// if either pointer is NULL, fstat will need to be called.
-	fd = pLocalData->unix_fd;
-	if ( fd == -1 )
-        {
-          TRACE("pLocalData = [%p], fd = %d\n", pLocalData, fd);
-          palError = ERROR_INVALID_HANDLE;
-          goto InternalSetFileTimeExit;
-        } 
-
-	if ( fstat(fd, &stat_buf) != 0 )
-    	{
-          TRACE("fstat failed on file descriptor %d\n", fd);
-          palError = FILEGetLastErrorFromErrno();
-          goto InternalSetFileTimeExit;
-        }
-    }
-
-    if (lpLastAccessTime)
-    {
-        Times[0].tv_sec = FILEFileTimeToUnixTime( *lpLastAccessTime, &nsec );
-        Times[0].tv_usec = nsec / 1000; /* convert to microseconds */
-    }
-    else
-    {
-	    Times[0].tv_sec = stat_buf.st_atime;
-	    Times[0].tv_usec = ST_ATIME_NSEC(&stat_buf) / 1000;
-    }
-
-    if (lpLastWriteTime)
-    {
-        Times[1].tv_sec = FILEFileTimeToUnixTime( *lpLastWriteTime, &nsec );
-        Times[1].tv_usec = nsec / 1000; /* convert to microseconds */
-    }
-    else
-    {
-        Times[1].tv_sec = stat_buf.st_mtime;
-        Times[1].tv_usec = ST_MTIME_NSEC(&stat_buf) / 1000;
-    }
-
-    TRACE("Setting atime = [%ld.%ld], mtime = [%ld.%ld]\n",
-          Times[0].tv_sec, Times[0].tv_usec,
-          Times[1].tv_sec, Times[1].tv_usec);
-
-#if HAVE_FUTIMES
-    if ( futimes(pLocalData->unix_fd, Times) != 0 )
-#elif HAVE_UTIMES
-    if ( utimes(pLocalData->unix_filename, Times) != 0 )
-#else
-  #error Operating system not supported
-#endif
-    {
-        palError = FILEGetLastErrorFromErrno();
-    }
-
-InternalSetFileTimeExit:
-    if (NULL != pLocalDataLock)
-    {
-        pLocalDataLock->ReleaseLock(pThread, FALSE);
-    }
-
-    if (NULL != pFileObject)
-    {
-        pFileObject->ReleaseReference(pThread);
-    }
-
-    return palError;
-}
-
-
-/*++
-Function:
-  GetFileTime
-
-Notes: As noted at the top of this file, there is no analog to "creation
-time" on Unix systems, so the inode change time is used instead. Also, Win32
-LastAccessTime is updated after a write operation, but it is not on Unix.
-To be consistent with Win32, this function returns the greater of mtime and
-atime for LastAccessTime.
---*/
-BOOL
-PALAPI
-GetFileTime(
-        IN HANDLE hFile,
-        OUT LPFILETIME lpCreationTime,
-        OUT LPFILETIME lpLastAccessTime,
-        OUT LPFILETIME lpLastWriteTime)
-{
-    CPalThread *pThread;
-    PAL_ERROR palError = NO_ERROR;
-
-    PERF_ENTRY(GetFileTime);
-    ENTRY("GetFileTime(hFile=%p, lpCreationTime=%p, lpLastAccessTime=%p, "
-          "lpLastWriteTime=%p)\n",
-          hFile, lpCreationTime, lpLastAccessTime, lpLastWriteTime);
-
-    pThread = InternalGetCurrentThread();
-
-    palError = InternalGetFileTime(
-        pThread,
-        hFile,
-        lpCreationTime,
-        lpLastAccessTime,
-        lpLastWriteTime
-        );
-
-    if (NO_ERROR != palError)
-    {
-        pThread->SetLastError(palError);
-    }
-
-    LOGEXIT("GetFileTime returns BOOL %s\n", NO_ERROR == palError ? "TRUE":"FALSE");
-    PERF_EXIT(GetFileTime);
-    return NO_ERROR == palError;
-}
-
-PAL_ERROR
-CorUnix::InternalGetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        OUT LPFILETIME lpCreationTime,
-        OUT LPFILETIME lpLastAccessTime,
-        OUT LPFILETIME lpLastWriteTime)
-{
-    PAL_ERROR palError = NO_ERROR;
-    IPalObject *pFileObject = NULL;
-    CFileProcessLocalData *pLocalData = NULL;
-    IDataLock *pLocalDataLock = NULL;
-    int   Fd = -1;
-
-    struct stat StatData;
-
-    if (INVALID_HANDLE_VALUE == hFile)
-    {
-        ERROR( "Invalid file handle\n" );
-        palError = ERROR_INVALID_HANDLE;
-        goto InternalGetFileTimeExit;
-    }
-
-    palError = g_pObjectManager->ReferenceObjectByHandle(
-        pThread,
-        hFile,
-        &aotFile,
-        GENERIC_READ,
-        &pFileObject
-        );
-
-    if (NO_ERROR != palError)
-    {
-        goto InternalGetFileTimeExit;
-    }
-
-    palError = pFileObject->GetProcessLocalData(
-        pThread,
-        ReadLock, 
-        &pLocalDataLock,
-        reinterpret_cast<void**>(&pLocalData)
-        );
-
-    if (NO_ERROR != palError)
-    {
-        goto InternalGetFileTimeExit;
-    }
-
-    Fd = pLocalData->unix_fd;
-
-    if ( Fd == -1 )
-    {
-        TRACE("pLocalData = [%p], Fd = %d\n", pLocalData, Fd);
-        palError = ERROR_INVALID_HANDLE;
-        goto InternalGetFileTimeExit;
-    }
-
-    if ( fstat(Fd, &StatData) != 0 )
-    {
-        TRACE("fstat failed on file descriptor %d\n", Fd);
-        palError = FILEGetLastErrorFromErrno();
-        goto InternalGetFileTimeExit;
-    }
-
-    if ( lpCreationTime )
-    {
-        *lpCreationTime = FILEUnixTimeToFileTime(StatData.st_ctime,
-                                                 ST_CTIME_NSEC(&StatData));
-    }
-    if ( lpLastWriteTime )
-    {
-        *lpLastWriteTime = FILEUnixTimeToFileTime(StatData.st_mtime,
-                                                  ST_MTIME_NSEC(&StatData));
-    }
-    if ( lpLastAccessTime )
-    {
-        *lpLastAccessTime = FILEUnixTimeToFileTime(StatData.st_atime,
-                                                   ST_ATIME_NSEC(&StatData));
-        /* if Unix mtime is greater than atime, return mtime as the last
-           access time */
-        if ( lpLastWriteTime &&
-             CompareFileTime(lpLastAccessTime, lpLastWriteTime) < 0 )
-        {
-            *lpLastAccessTime = *lpLastWriteTime;
-        }
-    }
-
-InternalGetFileTimeExit:
-    if (NULL != pLocalDataLock)
-    {
-        pLocalDataLock->ReleaseLock(pThread, FALSE);
-    }
-
-    if (NULL != pFileObject)
-    {
-        pFileObject->ReleaseReference(pThread);
-    }
-
-    return palError;
-}
-
-
-
-/*++
-Function:
-  FileTimeToLocalTime
-
-See MSDN doc.
---*/
-BOOL
-PALAPI
-FileTimeToLocalFileTime(
-            IN CONST FILETIME *lpFileTime,
-            OUT LPFILETIME lpLocalFileTime)
-{
-    PERF_ENTRY(FileTimeToLocalFileTime);
-    ENTRY("FileTimeToLocalFileTime(lpFileTime=%p, lpLocalFileTime=%p)\n", 
-          lpFileTime, lpLocalFileTime);
-
-    *lpLocalFileTime = FILEAdjustFileTimeForTimezone(lpFileTime, 
-                                                     ADJUST_FROM_UTC);
-    LOGEXIT("FileTimeToLocalFileTime returns BOOL TRUE\n");
-    PERF_EXIT(FileTimeToLocalFileTime);
-    return TRUE;
-}
-
-
-/*++
-Function:
-  LocalTimeToFileTime
-
---*/
-BOOL
-PALAPI
-LocalFileTimeToFileTime(
-            IN CONST FILETIME *lpLocalFileTime,
-            OUT LPFILETIME lpFileTime)
-{
-    PERF_ENTRY(LocalFileTimeToFileTime);
-    ENTRY("LocalFileTimeToFileTime(lpLocalFileTime=%p, lpFileTime=%p)\n", 
-          lpLocalFileTime, lpFileTime);
-
-    *lpFileTime = FILEAdjustFileTimeForTimezone(lpLocalFileTime, 
-                                                ADJUST_TO_UTC);
-    LOGEXIT("LocalFileTimeToFileTime returns BOOL TRUE\n");
-    PERF_EXIT(LocalFileTimeToFileTime);
-    return TRUE;
-}
-
-
-
 /*++
 Function:
   GetSystemTimeAsFileTime
@@ -558,23 +159,29 @@ PALAPI
 GetSystemTimeAsFileTime(
             OUT LPFILETIME lpSystemTimeAsFileTime)
 {
-    struct timeval Time;
-
     PERF_ENTRY(GetSystemTimeAsFileTime);
     ENTRY("GetSystemTimeAsFileTime(lpSystemTimeAsFileTime=%p)\n", 
           lpSystemTimeAsFileTime);
 
-    if ( gettimeofday( &Time, NULL ) != 0 )
+#if HAVE_WORKING_CLOCK_GETTIME
+    struct timespec Time;
+    if (clock_gettime(CLOCK_REALTIME, &Time) == 0)
     {
-        ASSERT("gettimeofday() failed");
-        /* no way to indicate failure, so set time to zero */
-        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( 0, 0 );
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec, Time.tv_nsec );
     }
-    else
+#else
+    struct timeval Time;
+    if (gettimeofday(&Time, NULL) == 0)
     {
         /* use (tv_usec * 1000) because 2nd arg is in nanoseconds */
-        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec,
-                                                          Time.tv_usec * 1000 );
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( Time.tv_sec, Time.tv_usec * 1000);
+    }
+#endif
+    else
+    {
+        /* no way to indicate failure, so set time to zero */
+        ASSERT("clock_gettime or gettimeofday failed");
+        *lpSystemTimeAsFileTime = FILEUnixTimeToFileTime( 0, 0 );
     }
 
     LOGEXIT("GetSystemTimeAsFileTime returns.\n");
@@ -689,192 +296,6 @@ time_t FILEFileTimeToUnixTime( FILETIME FileTime, long *nsec )
 }
 
 
-/*++
-Function:
-  FILEAdjustFileTimeForTimezone
-
-Given a FILETIME, adjust it for the local time zone.
-Direction is ADJUST_FROM_UTC to go from UTC to localtime, and
-ADJUST_TO_UTC to go from localtime to UTC.
-
-The offset from UTC can be determined in one of two ways. On *BSD,
-struct tm contains a tm_gmtoff field which is a signed integer indicating
-the difference, in seconds, between local time and UTC at the supplied
-time. eg. in EST, tm_gmtoff is -18000. This value _will_ account for 
-Daylight Savings Time, however that is of no concern since the time and
-date in question is 1 January.
-
-On SysV systems, there exists an external variable named timezone, which
-is similar to the tm_gmtoff field, but stores the seconds west of UTC.
-Thus for EST, timezone == 18000. This variable does not account for DST.
---*/
-static FILETIME FILEAdjustFileTimeForTimezone( const FILETIME *Orig,
-                                               int Direction )
-{
-    __int64 FullTime;
-    __int64 Offset;
-
-    FILETIME Ret;
-
-    struct tm *tmTimePtr;
-#if HAVE_LOCALTIME_R
-    struct tm tmTime;
-#endif  /* HAVE_LOCALTIME_R */
-    time_t timeNow;
-
-    /* Use the current time and date to calculate UTC offset */
-    timeNow = time(NULL);
-#if HAVE_LOCALTIME_R
-    tmTimePtr = &tmTime;
-    localtime_r( &timeNow, tmTimePtr );
-#else   /* HAVE_LOCALTIME_R */
-    tmTimePtr = localtime( &timeNow );
-#endif  /* HAVE_LOCALTIME_R */
-
-#if HAVE_TM_GMTOFF
-    Offset = -tmTimePtr->tm_gmtoff;
-#elif HAVE_TIMEZONE_VAR
-    // Adjust timezone for DST to get the appropriate offset.
-    Offset = timezone - (tmTimePtr->tm_isdst ? 3600 : 0);
-#else   // !(HAVE_TM_GMTOFF || HAVE_TIMEZONE_VAR)
-
-#error Unable to determine timezone information
-    Offset = 0; // Quiet the warning about Offset being used unitialized
-#endif
-
-    TRACE("Calculated UTC offset to be %I64d seconds\n", Offset);
-
-    FullTime = (((__int64)Orig->dwHighDateTime) << 32) + 
-        Orig->dwLowDateTime;
-
-    FullTime += Offset * SECS_TO_100NS * Direction;
-
-    Ret.dwLowDateTime = (DWORD)(FullTime);
-    Ret.dwHighDateTime = (DWORD)(FullTime >> 32);
-
-    return Ret;
-}
-
-
-/*++
-Function:
-  DosDateTimeToFileTime
-
-See MSDN doc.
---*/
-BOOL PALAPI DosDateTimeToFileTime(
-                                 IN WORD wFatDate,
-                                 IN WORD wFatTime,
-                                 OUT LPFILETIME lpFileTime
-                                  )
-{
-
-    BOOL bRet = FALSE;
-    struct tm  tmTime = { 0 };
-    time_t    tmUnix;
-
-    PERF_ENTRY(DosDateTimeToFileTime);
-    ENTRY("DosDateTimeToFileTime(wFatdate=%#hx,wFatTime=%#hx,lpFileTime=%p)\n",
-          wFatDate,wFatTime,lpFileTime);
-    /*Breakdown wFatDate & wfatTime to fill the tm structure */
-    /*wFatDate contains the Date data & wFatTime time data*/
-    /*wFatDate 0-4 bits-Day of month(0-31)*/
-    /*5-8 Month(1=Jan,2=Feb)*/
-    /*9-15 Year offset from 1980*/
-    /*wFtime 0-4 Second divided by 2*/
-    /*5-10 Minute(0-59)*/
-    /*11-15 Hour 0-23 on a 24 hour clock*/
-
-    tmTime.tm_mday = (wFatDate & 0x1F);
-    if ( tmTime.tm_mday < 1 || tmTime.tm_mday > 31 )
-    {
-        ERROR( "Incorrect day format was passed in.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-    
-    /*tm_mon is the no. of months from january*/
-    tmTime.tm_mon = ((wFatDate >> 5) & 0x0F)-1;
-    if ( tmTime.tm_mon < 0 || tmTime.tm_mon > 11 )
-    {
-        ERROR( "Incorrect month format was passed in.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-
-    /*tm_year is the no. of years from 1900*/
-    tmTime.tm_year = ((wFatDate >> 9) & 0x7F) + 80;
-    if ( tmTime.tm_year < 0 || tmTime.tm_year > 207 )
-    {
-        ERROR( "Incorrect year format was passed in. %d\n", tmTime.tm_year );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-
-    tmTime.tm_sec = ( (wFatTime & 0x1F)*2 );
-    if ( tmTime.tm_sec < 0 || tmTime.tm_sec > 59 )
-    {
-        ERROR( "Incorrect sec format was passed in.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-    
-    tmTime.tm_min = ((wFatTime >> 5) & 0x3F);
-    if ( tmTime.tm_min < 0 || tmTime.tm_min > 59 )
-    {
-        ERROR( "Incorrect minute format was passed in.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-
-    tmTime.tm_hour = ((wFatTime >> 11) & 0x1F);
-    if ( tmTime.tm_hour < 0 || tmTime.tm_hour > 23 )
-    {
-        ERROR( "Incorrect hour format was passed in.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-    
-    // Get the time in seconds
-#if HAVE_TIMEGM
-    tmUnix = timegm(&tmTime);
-#elif HAVE_TIMEZONE_VAR
-    // Have the system try to determine if DST is being observed.
-    tmTime.tm_isdst = -1;
-    
-    tmUnix = mktime(&tmTime);
-    // mktime() doesn't take the time zone into account. Adjust it
-    // by the time zone, but also consider DST to get the appropriate
-    // offset.
-    if (tmUnix > timezone - (tmTime.tm_isdst ? 3600 : 0))
-    {
-        tmUnix -= timezone - (tmTime.tm_isdst ? 3600 : 0);
-    }
-    else
-    {
-        ERROR( "Received a time before the epoch.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-        goto done;
-    }
-#else
-#error Unable to calculate time offsets on this platform
-    tmUnix = 0; // Avoid a compiler warning about tmUnix being uninitialized
-#endif
-    
-    /*check if the output buffer is valid*/
-    if( lpFileTime )
-    {
-        *lpFileTime = FILEUnixTimeToFileTime( tmUnix, 0 );
-        bRet = TRUE;
-    }
-
-done:
-    LOGEXIT("DosDateTimeToFileTime returns BOOl  %d \n",bRet);
-    PERF_EXIT(DosDateTimeToFileTime);
-    return bRet;
-
-}
-
 
 /**
 Function 
@@ -943,86 +364,5 @@ BOOL PALAPI FileTimeToSystemTime( CONST FILETIME * lpFileTime,
         SetLastError(ERROR_INVALID_PARAMETER);
         return FALSE;
     }
-}
-
-
-    
-/**
-Function:
-    FileTimeToDosDateTime
-    
-    Notes due to the difference between how BSD and Windows
-    calculates time, this function can only repersent dates between
-    1980 and 2037. 2037 is the upperlimit for the BSD time functions( 1900 - 
-    2037 range ).
-    
-See msdn for more details.
---*/
-BOOL
-PALAPI
-FileTimeToDosDateTime(
-            IN CONST FILETIME *lpFileTime,
-            OUT LPWORD lpFatDate,
-            OUT LPWORD lpFatTime )
-{
-    BOOL bRetVal = FALSE;
-
-    PERF_ENTRY(FileTimeToDosDateTime);
-    ENTRY( "FileTimeToDosDateTime( lpFileTime=%p, lpFatDate=%p, lpFatTime=%p )\n",
-           lpFileTime, lpFatDate, lpFatTime );
-
-    /* Sanity checks. */
-    if ( !lpFileTime || !lpFatDate || !lpFatTime )
-    {
-        ERROR( "Incorrect parameters.\n" );
-        SetLastError( ERROR_INVALID_PARAMETER );
-    }
-    else
-    {
-        /* Do conversion. */
-        SYSTEMTIME SysTime;
-        if ( FileTimeToSystemTime( lpFileTime, &SysTime ) )
-        {
-            if ( SysTime.wYear >= 1980 && SysTime.wYear <= 2037 )
-            {
-                *lpFatDate = 0;
-                *lpFatTime = 0;
-
-                *lpFatDate |= ( SysTime.wDay & 0x1F );
-                *lpFatDate |= ( ( SysTime.wMonth & 0xF ) << 5 );
-                *lpFatDate |= ( ( ( SysTime.wYear - 1980 ) & 0x7F ) << 9 );
-
-                if ( SysTime.wSecond % 2 == 0 )
-                {
-                    *lpFatTime |= ( ( SysTime.wSecond / 2 )  & 0x1F );
-                }
-                else
-                {
-                    *lpFatTime |= ( ( SysTime.wSecond / 2 + 1 )  & 0x1F );
-                }
-
-                *lpFatTime |= ( ( SysTime.wMinute & 0x3F ) << 5 );
-                *lpFatTime |= ( ( SysTime.wHour & 0x1F ) << 11 );
-                
-                bRetVal = TRUE;
-            }
-            else
-            {
-                ERROR( "The function can only repersent dates between 1/1/1980"
-                       " and 12/31/2037\n" );
-                SetLastError( ERROR_INVALID_PARAMETER );
-            }
-        }
-        else
-        {
-            ERROR( "Unable to convert file time to system time.\n" );
-            SetLastError( ERROR_INVALID_PARAMETER );
-            bRetVal = FALSE;
-        }
-    }
-
-    LOGEXIT( "returning BOOL %d\n", bRetVal );
-    PERF_EXIT(FileTimeToDosDateTime);
-    return bRetVal;
 }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: methodimpl.h
 //
@@ -24,12 +23,9 @@ class MethodImpl
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
-#ifdef BINDER
-    friend class MdilModule;    // this allows it to get the offset of pdwSlots and pImplementedMD
-#endif
 
-    PTR_DWORD            pdwSlots;       // Maintains the slots in sorted order, the first entry is the size
-    DPTR(PTR_MethodDesc) pImplementedMD;
+    RelativePointer<PTR_DWORD>            pdwSlots;       // Maintains the slots in sorted order, the first entry is the size
+    RelativePointer<DPTR( RelativePointer<PTR_MethodDesc> )> pImplementedMD;
 
 public:
 
@@ -51,20 +47,21 @@ public:
         inline WORD GetSlot()
             { WRAPPER_NO_CONTRACT; CONSISTENCY_CHECK(IsValid()); _ASSERTE(FitsIn<WORD>(m_pImpl->GetSlots()[m_iCur])); return static_cast<WORD>(m_pImpl->GetSlots()[m_iCur]); }
         inline MethodDesc *GetMethodDesc()
-            { WRAPPER_NO_CONTRACT; return m_pImpl->FindMethodDesc(GetSlot(), (PTR_MethodDesc) m_pMD); }
+            { WRAPPER_NO_CONTRACT; return m_pImpl->GetMethodDesc(m_iCur, (PTR_MethodDesc) m_pMD); }
     };
-
-    ///////////////////////////////////////////////////////////////////////////////////////
-    inline MethodDesc** GetImplementedMDs()
-    {
-        CONTRACTL {
-            NOTHROW;
-            GC_NOTRIGGER;
-            PRECONDITION(CheckPointer(this));
-        } CONTRACTL_END;
-        return pImplementedMD;
-    }
 #endif // !DACCESS_COMPILE
+
+    inline DPTR(RelativePointer<PTR_MethodDesc>) GetImpMDs()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<DPTR(RelativePointer<PTR_MethodDesc>)>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(MethodImpl, this, pImplementedMD));
+    }
+
+    inline DPTR(RelativePointer<PTR_MethodDesc>) GetImpMDsNonNull()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<DPTR(RelativePointer<PTR_MethodDesc>)>::GetValueAtPtr(PTR_HOST_MEMBER_TADDR(MethodImpl, this, pImplementedMD));
+    }
 
     ///////////////////////////////////////////////////////////////////////////////////////
     inline DWORD GetSize()
@@ -75,10 +72,10 @@ public:
             PRECONDITION(CheckPointer(this));
         } CONTRACTL_END;
 
-        if(pdwSlots == NULL)
+        if(pdwSlots.IsNull())
             return 0;
         else
-            return *pdwSlots;
+            return *GetSlotsRawNonNull();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -91,10 +88,22 @@ public:
             SUPPORTS_DAC;
         } CONTRACTL_END;
 
-        if(pdwSlots == NULL)
+        if(pdwSlots.IsNull())
             return NULL;
         else
-            return pdwSlots + 1;
+            return GetSlotsRawNonNull() + 1;
+    }
+
+    inline PTR_DWORD GetSlotsRaw()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<PTR_DWORD>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(MethodImpl, this, pdwSlots));
+    }
+
+    inline PTR_DWORD GetSlotsRawNonNull()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<PTR_DWORD>::GetValueAtPtr(PTR_HOST_MEMBER_TADDR(MethodImpl, this, pdwSlots));
     }
 
 #ifndef DACCESS_COMPILE 
@@ -103,7 +112,7 @@ public:
     void SetSize(LoaderHeap *pHeap, AllocMemTracker *pamTracker, DWORD size);
 
     ///////////////////////////////////////////////////////////////////////////////////////
-    void SetData(DWORD* slots, MethodDesc** md);
+    void SetData(DWORD* slots, RelativePointer<MethodDesc*> * md);
 
 #endif // !DACCESS_COMPILE
 
@@ -119,6 +128,9 @@ public:
 
     // Returns the method desc for the replaced slot;
     PTR_MethodDesc FindMethodDesc(DWORD slot, PTR_MethodDesc defaultReturn);
+
+    // Returns the method desc for the slot index;
+    PTR_MethodDesc GetMethodDesc(DWORD slotIndex, PTR_MethodDesc defaultReturn);
 
 private:
     static const DWORD INVALID_INDEX = (DWORD)(-1);

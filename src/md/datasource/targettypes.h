@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // TargetTypes.h
 // 
@@ -64,7 +63,11 @@ public:
 private:
     // don't copy this type - avoids needing to deep copy m_pColDefs
     Target_CMiniTableDef(const Target_CMiniTableDef & rhs) { _ASSERTE(!"Don't copy"); }
-    Target_CMiniTableDef & operator=(const Target_CMiniTableDef &) { _ASSERTE(!"Don't copy"); }
+    Target_CMiniTableDef & operator=(const Target_CMiniTableDef &) 
+    { 
+        _ASSERTE(!"Don't copy"); 
+        return *this;
+    }
 };
 
 class Target_CMiniMdBase : public TargetObject

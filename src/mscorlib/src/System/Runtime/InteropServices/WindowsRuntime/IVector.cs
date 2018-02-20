@@ -1,15 +1,16 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
 
 // Windows.Foundation.Collections.IVector`1 and IVectorView`1 cannot be referenced from managed
 // code because they're hidden by the metadata adapter. We redeclare the interfaces manually
 // to be able to talk to native WinRT objects.
+
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [ComImport]
@@ -17,13 +18,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [WindowsRuntimeImport]
     internal interface IVector<T> : IIterable<T>
     {
-        [Pure]
         T GetAt(uint index);
-        [Pure]
         uint Size { get; }
-        [Pure]
         IReadOnlyList<T> GetView();  // Really an IVectorView<T>.
-        [Pure]
         bool IndexOf(T value, out uint index);
         void SetAt(uint index, T value);
         void InsertAt(uint index, T value);
@@ -31,7 +28,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void Append(T value);
         void RemoveAtEnd();
         void Clear();
-        [Pure]
         uint GetMany(uint startIndex, [Out] T[] items);
         void ReplaceAll(T[] items);
     }
@@ -42,13 +38,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [WindowsRuntimeImport]
     internal interface IVector_Raw<T> : IIterable<T>
     {
-        [Pure]
         T GetAt(uint index);
-        [Pure]
         uint Size { get; }
-        [Pure]
         IVectorView<T> GetView();
-        [Pure]
         bool IndexOf(T value, out uint index);
         void SetAt(uint index, T value);
         void InsertAt(uint index, T value);
@@ -56,9 +48,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         void Append(T value);
         void RemoveAtEnd();
         void Clear();
-        [Pure]
-        uint GetMany(uint startIndex, [Out] T[] items);
-        void ReplaceAll(T[] items);
     }
 
     [ComImport]
@@ -66,13 +55,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [WindowsRuntimeImport]
     internal interface IVectorView<T> : IIterable<T>
     {
-        [Pure]
         T GetAt(uint index);
-        [Pure]
         uint Size { get; }
-        [Pure]
         bool IndexOf(T value, out uint index);
-        [Pure]
         uint GetMany(uint startIndex, [Out] T[] items);
     }
 
@@ -81,13 +66,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [WindowsRuntimeImport]
     internal interface IBindableVector : IBindableIterable
     {
-        [Pure]
         object GetAt(uint index);
-        [Pure]
         uint Size { get; }
-        [Pure]
         IBindableVectorView GetView();
-        [Pure]
         bool IndexOf(object value, out uint index);
         void SetAt(uint index, object value);
         void InsertAt(uint index, object value);
@@ -102,11 +83,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [WindowsRuntimeImport]
     internal interface IBindableVectorView : IBindableIterable
     {
-        [Pure]
         object GetAt(uint index);
-        [Pure]
         uint Size { get; }
-        [Pure]
         bool IndexOf(object value, out uint index);
     }
 }

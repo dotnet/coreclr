@@ -8,16 +8,12 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{65972FF1-AE77-4CB3-B31D-9CA483DD9E2E}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <ReferencePath>$(ProgramFiles)\Common Files\microsoft shared\VSTT\11.0\UITestExtensionPackages</ReferencePath>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <RestorePackages>true</RestorePackages>
-    <NuGetPackageImportStamp>7a9bfb7d</NuGetPackageImportStamp>
-    <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
-    <!--This test is to be run manually for now -->
+    <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
+    <CLRTestPriority>1</CLRTestPriority>
+    <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -31,16 +27,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DetourHelpers.cs" />
-    <Compile Include="key_v1.cs" />
     <Compile Include="LoaderClass.cs" />
     <Compile Include="ReliabilityConfiguration.cs" />
     <Compile Include="ReliabilityFramework.cs" />
     <Compile Include="ReliabilityTest.cs" />
     <Compile Include="ReliabilityTestSet.cs" />
     <Compile Include="RFLogging.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
@@ -50,13 +42,12 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <StressTests Include="..\Tests\*.csproj" />
+  </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  
   <Target Name="AfterBuild">
-    <MSBuild Projects="..\Tests\GC_Stress_tests_collection.csproj" />
-    <MakeDir Directories="$(OutDir)\Tests" />
-    <ItemGroup>
-      <TestExesToCopy Include="$(OutDir)..\Tests\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(TestExesToCopy)" DestinationFolder="$(OutDir)\Tests" />
+    <MSBuild Projects="@(StressTests)" Properties="OutputPath=$(OutDir)\Tests;BuildingForReliabilityFramework=true" />
   </Target>
 </Project>

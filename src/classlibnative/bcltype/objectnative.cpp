@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ObjectNative.cpp
 //
@@ -19,13 +18,7 @@
 #include "field.h"
 #include "object.h"
 #include "comsynchronizable.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
-#ifdef FEATURE_REMOTING
-#include "objectclone.h"
-#endif
 #include "mdaassistants.h"
 
 
@@ -183,7 +176,7 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
     if (pThisMT != pCompareRef->GetMethodTable())
         FC_RETURN_BOOL(FALSE);
 
-    // Compare the contents (size - vtable - sink block index).
+    // Compare the contents (size - vtable - sync block index).
     DWORD dwBaseSize = pThisRef->GetMethodTable()->GetBaseSize();
     if(pThisRef->GetMethodTable() == g_pStringClass)
         dwBaseSize -= sizeof(WCHAR);
@@ -205,19 +198,8 @@ NOINLINE static Object* GetClassHelper(OBJECTREF objRef)
     TypeHandle typeHandle = objRef->GetTypeHandle();
     OBJECTREF refType = NULL;
 
-    // Arrays go down this slow path, at least don't do the full HelperMethodFrame setup
-    // if we are fetching the cached entry.  
-    refType = typeHandle.GetManagedClassObjectFast();
-    if (refType != NULL)
-        return OBJECTREFToObject(refType);
-
     HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, refType);
 
-#ifdef FEATURE_REMOTING
-    if (objRef->IsTransparentProxy())
-        refType = CRemotingServices::GetClass(objRef);
-    else 
-#endif
         refType = typeHandle.GetManagedClassObject();
 
     HELPER_METHOD_FRAME_END();

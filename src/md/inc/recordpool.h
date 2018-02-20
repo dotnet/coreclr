@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // RecordPool.h -- header file for record heaps.
 // 
@@ -25,6 +24,10 @@
 class RecordPool : public StgPool
 {
     friend class VerifyLayoutsMD;
+
+    using StgPool::InitNew;
+    using StgPool::InitOnMem;
+
 public:
     RecordPool() :
         StgPool(1024, 1)

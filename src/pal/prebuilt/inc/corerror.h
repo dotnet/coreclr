@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef __COMMON_LANGUAGE_RUNTIME_HRESULTS__
 #define __COMMON_LANGUAGE_RUNTIME_HRESULTS__
@@ -633,6 +632,7 @@
 #define CORPROF_E_FUNCTION_IS_COLLECTIBLE EMAKEHR(0x137e)
 #define CORPROF_E_REJIT_REQUIRES_DISABLE_NGEN EMAKEHR(0x137f)
 #define CORPROF_E_CALLBACK6_REQUIRED EMAKEHR(0x1380)
+#define CORPROF_E_CALLBACK7_REQUIRED EMAKEHR(0x1382)
 #define SECURITY_E_XML_TO_ASN_ENCODING EMAKEHR(0x1400)
 #define SECURITY_E_INCOMPATIBLE_SHARE EMAKEHR(0x1401)
 #define SECURITY_E_UNVERIFIABLE EMAKEHR(0x1402)
@@ -758,7 +758,6 @@
 #define COR_E_PLATFORMNOTSUPPORTED EMAKEHR(0x1539)
 #define COR_E_INVALIDPROGRAM EMAKEHR(0x153a)
 #define COR_E_OPERATIONCANCELED EMAKEHR(0x153b)
-#define COR_E_UNSUPPORTEDMDIL EMAKEHR(0x153c)
 #define COR_E_INSUFFICIENTMEMORY EMAKEHR(0x153d)
 #define COR_E_RUNTIMEWRAPPED EMAKEHR(0x153e)
 #define COR_E_DEVICESNOTSUPPORTED EMAKEHR(0x1540)

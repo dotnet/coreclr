@@ -1,13 +1,14 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // This describes information about the COM+ primitive types
 
+#define NO_SIZE ((BYTE)-1)
+
 // TYPEINFO(type (CorElementType),  namespace, class,          size,           gcType,         isArray,isPrim, isFloat,isModifier,isGenVariable)
 
-TYPEINFO(ELEMENT_TYPE_END,          NULL, NULL,                ~0,             TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x00
+TYPEINFO(ELEMENT_TYPE_END,          NULL, NULL,                NO_SIZE,        TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x00
 TYPEINFO(ELEMENT_TYPE_VOID,         "System", "Void",          0,              TYPE_GC_NONE,   false,  true,   false,  false,  false) // 0x01
 TYPEINFO(ELEMENT_TYPE_BOOLEAN,      "System", "Boolean",       1,              TYPE_GC_NONE,   false,  true,   false,  false,  false) // 0x02
 TYPEINFO(ELEMENT_TYPE_CHAR,         "System", "Char",          2,              TYPE_GC_NONE,   false,  true,   false,  false,  false) // 0x03
@@ -26,18 +27,18 @@ TYPEINFO(ELEMENT_TYPE_R8,           "System", "Double",        8,              T
 TYPEINFO(ELEMENT_TYPE_STRING,       "System", "String",        sizeof(void*),  TYPE_GC_REF,    false,  false,  false,  false,  false) // 0x0e
 TYPEINFO(ELEMENT_TYPE_PTR,          NULL, NULL,                sizeof(void*),  TYPE_GC_NONE,   false,  false,  false,  true,   false) // 0x0f
 TYPEINFO(ELEMENT_TYPE_BYREF,        NULL, NULL,                sizeof(void*),  TYPE_GC_BYREF,  false,  false,  false,  true,   false) // 0x10
-TYPEINFO(ELEMENT_TYPE_VALUETYPE,    NULL, NULL,                ~0,             TYPE_GC_OTHER,  false,  false,  false,  false,  false) // 0x11
+TYPEINFO(ELEMENT_TYPE_VALUETYPE,    NULL, NULL,                NO_SIZE,        TYPE_GC_OTHER,  false,  false,  false,  false,  false) // 0x11
 TYPEINFO(ELEMENT_TYPE_CLASS,        NULL, NULL,                sizeof(void*),  TYPE_GC_REF,    false,  false,  false,  false,  false) // 0x12
 TYPEINFO(ELEMENT_TYPE_VAR,          NULL, NULL,                sizeof(void*),  TYPE_GC_OTHER,  false,  false,  false,  false,  true)  // 0x13
 TYPEINFO(ELEMENT_TYPE_ARRAY,        NULL, NULL,                sizeof(void*),  TYPE_GC_REF,    true,   false,  false,  true,   false) // 0x14
 
 TYPEINFO(ELEMENT_TYPE_GENERICINST,  NULL, NULL,                sizeof(void*),  TYPE_GC_OTHER,  false,  false,  false,  false,  false) // 0x15
 TYPEINFO(ELEMENT_TYPE_TYPEDBYREF,   "System", "TypedReference",2*sizeof(void*),TYPE_GC_BYREF,  false,  false,  false,  false,  false) // 0x16
-TYPEINFO(ELEMENT_TYPE_VALUEARRAY_UNSUPPORTED, NULL,NULL,       ~0,             TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x17 (unsupported, not in the ECMA spec)
+TYPEINFO(ELEMENT_TYPE_VALUEARRAY_UNSUPPORTED, NULL,NULL,       NO_SIZE,        TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x17 (unsupported, not in the ECMA spec)
 
 TYPEINFO(ELEMENT_TYPE_I,            "System", "IntPtr",        sizeof(void*),  TYPE_GC_NONE,   false,  true,   false,  false,  false) // 0x18
 TYPEINFO(ELEMENT_TYPE_U,            "System", "UIntPtr",       sizeof(void*),  TYPE_GC_NONE,   false,  true,   false,  false,  false) // 0x19
-TYPEINFO(ELEMENT_TYPE_R_UNSUPPORTED,NULL, NULL,                ~0,             TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x1a (unsupported, not in the ECMA spec)
+TYPEINFO(ELEMENT_TYPE_R_UNSUPPORTED,NULL, NULL,                NO_SIZE,        TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x1a (unsupported, not in the ECMA spec)
 
 TYPEINFO(ELEMENT_TYPE_FNPTR,        NULL, NULL,                sizeof(void*),  TYPE_GC_NONE,   false,  false,  false,  false,  false) // 0x1b
 TYPEINFO(ELEMENT_TYPE_OBJECT,       "System", "Object",        sizeof(void*),  TYPE_GC_REF,    false,  false,  false,  false,  false) // 0x1c

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -45,7 +44,6 @@ Revision History:
 #define E_NOINTERFACE                    _HRESULT_TYPEDEF_(0x80004002L)
 #define E_UNEXPECTED                     _HRESULT_TYPEDEF_(0x8000FFFFL)
 #define E_OUTOFMEMORY                    _HRESULT_TYPEDEF_(0x8007000EL)
-#define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define E_POINTER                        _HRESULT_TYPEDEF_(0x80004003L)
 #define E_HANDLE                         _HRESULT_TYPEDEF_(0x80070006L)
@@ -139,6 +137,7 @@ typedef enum tagEFaultRepRetVal
 
 #include "pal.h"
 
+#ifndef PAL_STDCPP_COMPAT
 #ifdef __cplusplus
 #ifndef __PLACEMENT_NEW_INLINE
 #define __PLACEMENT_NEW_INLINE
@@ -147,7 +146,8 @@ inline void *__cdecl operator new(size_t, void *_P)
     return (_P);
 }
 #endif // __PLACEMENT_NEW_INLINE
-#endif
+#endif // __cplusplus
+#endif // !PAL_STDCPP_COMPAT
 
 #include <pal_assert.h>
 
@@ -205,9 +205,10 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 #endif // DEBUG
 
-#define NTAPI       __stdcall
-#define WINAPI      __stdcall
-#define CALLBACK    __stdcall
+#define NTAPI       __cdecl
+#define WINAPI      __cdecl
+#define CALLBACK    __cdecl
+#define NTSYSAPI
 
 #define _WINNT_
 
@@ -222,15 +223,11 @@ inline void *__cdecl operator new(size_t, void *_P)
 // PAL_safe_offsetof is a version of offsetof that protects against an
 // overridden operator&
 
-#if defined(__GNUC__) && (__GNUC__ == 3 && __GNUC_MINOR__ >= 5 || __GNUC__ > 3)
 #define FIELD_OFFSET(type, field) __builtin_offsetof(type, field)
+#ifndef offsetof
 #define offsetof(type, field) __builtin_offsetof(type, field)
-#define PAL_safe_offsetof(type, field) __builtin_offsetof(type, field)
-#else
-#define FIELD_OFFSET(type, field) (((LONG)(LONG_PTR)&(((type *)64)->field)) - 64)
-#define offsetof(s,m)          ((size_t)((ptrdiff_t)&(((s *)64)->m)) - 64)
-#define PAL_safe_offsetof(s,m) ((size_t)((ptrdiff_t)&(char&)(((s *)64)->m))-64)
 #endif
+#define PAL_safe_offsetof(type, field) __builtin_offsetof(type, field)
 
 #define CONTAINING_RECORD(address, type, field) \
     ((type *)((LONG_PTR)(address) - FIELD_OFFSET(type, field)))
@@ -238,7 +235,7 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define ARGUMENT_PRESENT(ArgumentPointer)    (\
     (CHAR *)(ArgumentPointer) != (CHAR *)(NULL) )
 
-#if defined(_WIN64) || defined(_M_ALPHA)
+#if defined(_WIN64)
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONGLONG)
 #else
 #define MAX_NATURAL_ALIGNMENT sizeof(ULONG)
@@ -252,10 +249,10 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 #define interface struct
 
-#define STDMETHODCALLTYPE    __stdcall
+#define STDMETHODCALLTYPE    __cdecl
 #define STDMETHODVCALLTYPE   __cdecl
 
-#define STDAPICALLTYPE       __stdcall
+#define STDAPICALLTYPE       __cdecl
 #define STDAPIVCALLTYPE      __cdecl
 
 #define STDMETHODIMP         HRESULT STDMETHODCALLTYPE
@@ -280,7 +277,10 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define THIS_
 #define THIS                void
 
-#if _MSC_VER
+#ifndef _DECLSPEC_DEFINED_
+#define _DECLSPEC_DEFINED_
+
+#if  defined(_MSC_VER)
 #define DECLSPEC_NOVTABLE   __declspec(novtable)
 #define DECLSPEC_IMPORT     __declspec(dllimport)
 #define DECLSPEC_SELECTANY  __declspec(selectany)
@@ -293,6 +293,8 @@ inline void *__cdecl operator new(size_t, void *_P)
 #define DECLSPEC_IMPORT
 #define DECLSPEC_SELECTANY
 #endif
+
+#endif // !_DECLSPEC_DEFINED_
 
 #define DECLARE_INTERFACE(iface)    interface DECLSPEC_NOVTABLE iface
 #define DECLARE_INTERFACE_(iface, baseiface)    interface DECLSPEC_NOVTABLE iface : public baseiface
@@ -310,12 +312,15 @@ typedef const GUID FAR *LPCGUID;
 
 #ifdef __cplusplus
 extern "C++" {
+#if !defined _SYS_GUID_OPERATOR_EQ_ && !defined _NO_SYS_GUID_OPERATOR_EQ_
+#define _SYS_GUID_OPERATOR_EQ_
 inline int IsEqualGUID(REFGUID rguid1, REFGUID rguid2)
     { return !memcmp(&rguid1, &rguid2, sizeof(GUID)); }
 inline int operator==(REFGUID guidOne, REFGUID guidOther)
     { return IsEqualGUID(guidOne,guidOther); }
 inline int operator!=(REFGUID guidOne, REFGUID guidOther)
     { return !IsEqualGUID(guidOne,guidOther); }
+#endif
 };
 #endif // __cplusplus
 
@@ -342,6 +347,7 @@ typedef GUID CLSID;
 #endif
 #define CLSID_NULL GUID_NULL
 #define IsEqualCLSID(rclsid1, rclsid2) IsEqualGUID(rclsid1, rclsid2)
+typedef CLSID *LPCLSID;
 
 typedef UINT_PTR WPARAM;
 typedef LONG_PTR LRESULT;
@@ -358,7 +364,11 @@ typedef union _ULARGE_INTEGER {
         DWORD LowPart;
         DWORD HighPart;
 #endif
-    } u;
+    } 
+#ifndef PAL_STDCPP_COMPAT
+    u
+#endif // PAL_STDCPP_COMPAT
+     ;
     ULONGLONG QuadPart;
 } ULARGE_INTEGER, *PULARGE_INTEGER;
 
@@ -418,6 +428,7 @@ typedef union _ULARGE_INTEGER {
 /******************* OLE, BSTR, VARIANT *************************/
 
 STDAPI_(LPVOID) CoTaskMemAlloc(SIZE_T cb);
+STDAPI_(LPVOID) CoTaskMemRealloc(LPVOID pv, SIZE_T cb);
 STDAPI_(void) CoTaskMemFree(LPVOID pv);
 
 typedef SHORT VARIANT_BOOL;
@@ -543,6 +554,8 @@ enum VARENUM {
     VT_LPSTR    = 30,
     VT_LPWSTR   = 31,
     VT_RECORD   = 36,
+    VT_INT_PTR	= 37,
+    VT_UINT_PTR	= 38,  
 
     VT_FILETIME        = 64,
     VT_BLOB            = 65,
@@ -561,6 +574,7 @@ enum VARENUM {
 };
 
 typedef struct tagVARIANT VARIANT, *LPVARIANT;
+typedef struct tagSAFEARRAY SAFEARRAY;
 
 struct tagVARIANT
     {
@@ -593,6 +607,8 @@ struct tagVARIANT
                 DATE date;
                 BSTR bstrVal;
                 interface IUnknown *punkVal;
+                interface IDispatch *pdispVal;
+                SAFEARRAY *parray;
                 BYTE *pbVal;
                 SHORT *piVal;
                 LONG *plVal;
@@ -665,6 +681,7 @@ STDAPI_(HRESULT) VariantClear(VARIANT * pvarg);
 #define V_INTREF(X)      V_UNION(X, pintVal)
 #define V_UINT(X)        V_UNION(X, uintVal)
 #define V_UINTREF(X)     V_UNION(X, puintVal)
+#define V_ARRAY(X)       V_UNION(X, parray)
 
 #ifdef _WIN64
 #define V_INT_PTR(X)        V_UNION(X, llVal)
@@ -687,6 +704,7 @@ STDAPI_(HRESULT) VariantClear(VARIANT * pvarg);
 #define V_UNKNOWN(X)     V_UNION(X, punkVal)
 #define V_UNKNOWNREF(X)  V_UNION(X, ppunkVal)
 #define V_VARIANTREF(X)  V_UNION(X, pvarVal)
+#define V_DISPATCH(X)    V_UNION(X, pdispVal)
 #define V_ERROR(X)       V_UNION(X, scode)
 #define V_ERRORREF(X)    V_UNION(X, pscode)
 #define V_BOOL(X)        V_UNION(X, boolVal)
@@ -721,8 +739,6 @@ STDAPI CreateStreamOnHGlobal(PVOID hGlobal, BOOL fDeleteOnRelease, interface ISt
 
 STDAPI IIDFromString(LPOLESTR lpsz, IID* lpiid);
 STDAPI_(int) StringFromGUID2(REFGUID rguid, LPOLESTR lpsz, int cchMax); 
-
-STDAPI CoCreateGuid(OUT GUID * pguid);
 
 /******************* CRYPT **************************************/
 
@@ -809,13 +825,12 @@ enum tagMIMECONTF {
 /******************* shlwapi ************************************/
 
 // note: diff in NULL handing and calling convetion
-#define StrCpyW                 wcscpy
-#define StrCpyNW                lstrcpynW // note: can't be wcsncpy!
-#define StrCatW                 wcscat
-#define StrChrW                 (WCHAR*)wcschr
-#define StrCmpW                 wcscmp
+#define StrCpyW                 PAL_wcscpy
+#define StrCatW                 PAL_wcscat
+#define StrChrW                 (WCHAR*)PAL_wcschr
+#define StrCmpW                 PAL_wcscmp
 #define StrCmpIW                _wcsicmp
-#define StrCmpNW                wcsncmp
+#define StrCmpNW                PAL_wcsncmp
 #define StrCmpNIW               _wcsnicmp
 
 STDAPI_(LPWSTR) StrNCatW(LPWSTR lpFront, LPCWSTR lpBack, int cchMax);
@@ -824,14 +839,11 @@ STDAPI_(LPWSTR) StrStrIW(LPCWSTR lpFirst, LPCWSTR lpSrch);
 STDAPI_(LPWSTR) StrRChrW(LPCWSTR lpStart, LPCWSTR lpEnd, WCHAR wMatch);
 STDAPI_(LPWSTR) StrCatBuffW(LPWSTR pszDest, LPCWSTR pszSrc, int cchDestBuffSize);
 
-#define lstrcmpW                wcscmp
+#define lstrcmpW                PAL_wcscmp
 #define lstrcmpiW               _wcsicmp
-#define wnsprintfW              _snwprintf // note: not 100% compatible (wsprintf should be subset of sprintf...)
-#define wvnsprintfW             _vsnwprintf // note: not 100% compatible (wsprintf should be subset of sprintf...)
 
 #ifdef UNICODE
 #define StrCpy                  StrCpyW
-#define StrCpyN                 StrCpyNW
 #define StrCat                  StrCatW
 #define StrNCat                 StrNCatW
 #define StrChr                  StrChrW
@@ -847,7 +859,6 @@ STDAPI_(LPWSTR) StrCatBuffW(LPWSTR pszDest, LPCWSTR pszSrc, int cchDestBuffSize)
 
 #define lstrcmp                 lstrcmpW
 #define lstrcmpi                lstrcmpiW
-#define wnsprintf               wnsprintfW
 #endif
 
 
@@ -874,12 +885,7 @@ Remember to fix the errcode defintion in safecrt.h.
 */
 
 #define _wcslwr_s _wcslwr_unsafe
-#define _snwprintf_s _snwprintf_unsafe
-#define _vsnwprintf_s _vsnwprintf_unsafe
-#define _snprintf_s _snprintf_unsafe
-#define _vsnprintf_s _vsnprintf_unsafe
-#define swscanf_s _swscanf_unsafe
-#define sscanf_s _sscanf_unsafe
+#define swscanf_s swscanf
 
 #define _wfopen_s _wfopen_unsafe
 #define fopen_s _fopen_unsafe
@@ -887,24 +893,18 @@ Remember to fix the errcode defintion in safecrt.h.
 #define _strlwr_s _strlwr_unsafe
 
 #define _vscprintf _vscprintf_unsafe
-#define _vscwprintf _vscwprintf_unsafe
-
-#define sprintf_s _snprintf
-#define swprintf_s _snwprintf
-#define vsprintf_s _vsnprintf
-#define vswprintf_s _vsnwprintf
 
 extern "C++" {
 
 #include <safemath.h>
 
-inline errno_t __cdecl _wcslwr_unsafe(wchar_t *str, size_t sz)
+inline errno_t __cdecl _wcslwr_unsafe(WCHAR *str, size_t sz)
 {
     size_t fullSize;
-    if(!ClrSafeInt<size_t>::multiply(sz, sizeof(wchar_t), fullSize))
+    if(!ClrSafeInt<size_t>::multiply(sz, sizeof(WCHAR), fullSize))
         return 1;
-    wchar_t *copy = (wchar_t *)malloc(fullSize);
-    if(copy == NULL)
+    WCHAR *copy = (WCHAR *)malloc(fullSize);
+    if(copy == nullptr)
         return 1;
 
     errno_t retCode = wcscpy_s(copy, sz, str);
@@ -922,7 +922,7 @@ inline errno_t __cdecl _wcslwr_unsafe(wchar_t *str, size_t sz)
 inline errno_t __cdecl _strlwr_unsafe(char *str, size_t sz)
 {
     char *copy = (char *)malloc(sz);
-    if(copy == NULL)
+    if(copy == nullptr)
         return 1;
 
     errno_t retCode = strcpy_s(copy, sz, str);
@@ -945,11 +945,14 @@ inline int __cdecl _vscprintf_unsafe(const char *_Format, va_list _ArgList)
     for (;;)
     {
         char *buf = (char *)malloc(guess * sizeof(char));
-        if(buf == NULL)
+        if(buf == nullptr)
             return 0;
 
-        int ret = _vsnprintf(buf, guess, _Format, _ArgList);
+        va_list argListCopy;
+        va_copy(argListCopy, _ArgList);
+        int ret = _vsnprintf_s(buf, guess, _TRUNCATE, _Format, argListCopy);
         free(buf);
+        va_end(argListCopy);
 
         if ((ret != -1) && (ret < guess))
             return ret;
@@ -958,142 +961,9 @@ inline int __cdecl _vscprintf_unsafe(const char *_Format, va_list _ArgList)
     }
 }
 
-inline int __cdecl _vscwprintf_unsafe(const wchar_t *_Format, va_list _ArgList)
+inline errno_t __cdecl _wfopen_unsafe(PAL_FILE * *ff, const WCHAR *fileName, const WCHAR *mode)
 {
-    int guess = 10;
-
-    for (;;)
-    {
-        wchar_t *buf = (wchar_t *)malloc(guess * sizeof(wchar_t));
-        if(buf == NULL)
-            return 0;
-
-        int ret = _vsnwprintf(buf, guess, _Format, _ArgList);
-        free(buf);
-
-        if ((ret != -1) && (ret < guess))
-            return ret;
-
-        guess *= 2;
-    }
-}
-
-inline int __cdecl _vsnwprintf_unsafe(wchar_t *_Dst, size_t _SizeInWords, size_t _Count, const wchar_t *_Format, va_list _ArgList)
-{
-    if (_Count == _TRUNCATE) _Count = _SizeInWords - 1;
-    int ret = _vsnwprintf(_Dst, _Count, _Format, _ArgList);
-    _Dst[_SizeInWords - 1] = L'\0';
-    if (ret < 0 && errno == 0)
-    {
-        errno = ERANGE;
-    }
-    return ret;
-}
-
-inline int __cdecl _snwprintf_unsafe(wchar_t *_Dst, size_t _SizeInWords, size_t _Count, const wchar_t *_Format, ...)
-{
-    int ret;
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-    ret = _vsnwprintf_unsafe(_Dst, _SizeInWords, _Count, _Format, _ArgList);
-    va_end(_ArgList);
-    return ret;
-}
-
-inline int __cdecl _vsnprintf_unsafe(char *_Dst, size_t _SizeInWords, size_t _Count, const char *_Format, va_list _ArgList)
-{
-    if (_Count == _TRUNCATE) _Count = _SizeInWords - 1;
-    int ret = _vsnprintf(_Dst, _Count, _Format, _ArgList);
-    _Dst[_SizeInWords - 1] = L'\0';
-    if (ret < 0 && errno == 0)
-    {
-        errno = ERANGE;
-    }
-    return ret;
-}
-
-inline int __cdecl _snprintf_unsafe(char *_Dst, size_t _SizeInWords, size_t _Count, const char *_Format, ...)
-{
-    int ret;
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-    ret = _vsnprintf_unsafe(_Dst, _SizeInWords, _Count, _Format, _ArgList);
-    va_end(_ArgList);
-    return ret;
-}
-
-inline int __cdecl _swscanf_unsafe(const wchar_t *_Dst, const wchar_t *_Format,...)
-{
-    int ret;
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-    wchar_t *tempFormat;
-
-    tempFormat = (wchar_t*) _Format;
-    
-    while (*tempFormat != L'\0') {
-
-        if (*tempFormat == L'%') {
-            
-            //
-            // If scanf takes parameters other than numbers, return error.
-            //
-            
-            if (! ((*(tempFormat+1)==L'x') || (*(tempFormat+1)==L'd') ||
-                   (*(tempFormat+1)==L'X') || (*(tempFormat+1)==L'D')) ) {
-                
-                _ASSERTE(FALSE);
-                return -1;    
-                
-            } 
-        }
-           
-        tempFormat++;
-       }
-
-    ret = swscanf(_Dst, _Format, _ArgList);
-    va_end(_ArgList);
-    return ret;
-}
-
-inline int __cdecl _sscanf_unsafe(const char *_Dst, const char *_Format,...)
-{
-    int ret;
-    char *tempFormat;
-
-    va_list _ArgList;
-    va_start(_ArgList, _Format);
-
-    tempFormat = (char*) _Format;
-
-    while (*tempFormat != '\0') {
-        
-        if (*tempFormat == '%') {
-            
-            //
-            // If scanf takes parameters other than numbers, return error.
-            //
-            
-            if (! ((*(tempFormat+1)=='x') || (*(tempFormat+1)=='d') ||
-                   (*(tempFormat+1)=='X') || (*(tempFormat+1)=='D')) ) {
-
-                _ASSERTE(FALSE);
-                return -1;    
-
-            } 
-        }
-        
-        tempFormat++;
-    }
-
-
-    ret = sscanf(_Dst, _Format, _ArgList);
-    va_end(_ArgList);
-}
-
-inline errno_t __cdecl _wfopen_unsafe(FILE * *ff, const wchar_t *fileName, const wchar_t *mode)
-{
-    FILE *result = _wfopen(fileName, mode);
+    PAL_FILE *result = _wfopen(fileName, mode);
     if(result == 0) {
         return 1;
     } else {
@@ -1102,9 +972,9 @@ inline errno_t __cdecl _wfopen_unsafe(FILE * *ff, const wchar_t *fileName, const
     }
 }
 
-inline errno_t __cdecl _fopen_unsafe(FILE * *ff, const char *fileName, const char *mode)
+inline errno_t __cdecl _fopen_unsafe(PAL_FILE * *ff, const char *fileName, const char *mode)
 {
-  FILE *result = fopen(fileName, mode);
+  PAL_FILE *result = PAL_fopen(fileName, mode);
   if(result == 0) {
     return 1;
   } else {
@@ -1113,108 +983,13 @@ inline errno_t __cdecl _fopen_unsafe(FILE * *ff, const char *fileName, const cha
   }
 }
 
-/* _itow_s */
-_SAFECRT__EXTERN_C
-errno_t __cdecl _itow_s(int _Value, wchar_t *_Dst, size_t _SizeInWords, int _Radix);
-
-#if defined(__cplusplus) && _SAFECRT_USE_CPP_OVERLOADS
-template <size_t _SizeInWords>
-inline
-errno_t __cdecl _itow_s(int _Value, wchar_t (&_Dst)[_SizeInWords], int _Radix)
-{
-    return _itow_s(_Value, _Dst, _SizeInWords, _Radix);
-}
-#endif
-
-#if _SAFECRT_USE_INLINES
-
-__inline
-errno_t __cdecl _itow_s(int _Value, wchar_t *_Dst, size_t _SizeInWords, int _Radix)
-{
-    /* validation section */
-    _SAFECRT__VALIDATE_STRING(_Dst, _SizeInWords);
-
-    /* TODO: do not write past buffer size */
-    _itow(_Value, _Dst, _Radix);
-    return 0;
-}
-
-#endif
-
-/* _i64tow_s */
-_SAFECRT__EXTERN_C
-errno_t __cdecl _i64tow_s(__int64 _Value, wchar_t *_Dst, size_t _SizeInWords, int _Radix);
-
-#if defined(__cplusplus) && _SAFECRT_USE_CPP_OVERLOADS
-template <size_t _SizeInWords>
-inline
-errno_t __cdecl _i64tow_s(__int64 _Value, wchar_t (&_Dst)[_SizeInWords], int _Radix)
-{
-    return _i64tow_s(_Value, _Dst, _SizeInWords, _Radix);
-}
-#endif
-
-#if _SAFECRT_USE_INLINES
-
-__inline
-errno_t __cdecl _i64tow_s(__int64 _Value, wchar_t *_Dst, size_t _SizeInWords, int _Radix)
-{
-    /* validation section */
-    _SAFECRT__VALIDATE_STRING(_Dst, _SizeInWords);
-
-    /* TODO: do not write past buffer size */
-    _i64tow(_Value, _Dst, _Radix);
-    return 0;
-}
-
-#endif
-
-/* getenv_s */
-/*
- * _ReturnValue indicates if the variable has been found and size needed
- */
-_SAFECRT__EXTERN_C
-errno_t __cdecl getenv_s(size_t *_ReturnValue, char *_Dst, size_t _SizeInWords, const char *_Name);
-
-#if defined(__cplusplus) && _SAFECRT_USE_CPP_OVERLOADS
-template <size_t _SizeInWords>
-inline
-errno_t __cdecl getenv_s(size_t *_ReturnValue, char *_Dst, size_t _SizeInWords, const char *_Name)
-{
-    return getenv_s(_ReturnValue, _Dst, _SizeInWords, _Name);
-}
-#endif
-
-#if _SAFECRT_USE_INLINES
-
-__inline
-errno_t __cdecl getenv_s(size_t *_ReturnValue, char *_Dst, size_t _SizeInWords, const char *_Name)
-{
-    char *szFound;
-
-    /* validation section */
-    _SAFECRT__VALIDATE_STRING(_Dst, _SizeInWords);
-
-    szFound = getenv(_Name);
-    if (szFound == NULL)
-    {
-        *_ReturnValue = 0;
-        return 0;
-    }
-    *_ReturnValue = strlen(szFound) + 1;
-    return strcpy_s(_Dst, _SizeInWords, szFound);
-}
-
-#endif
- 
 }
 #endif /* __cplusplus */
 
 
 STDAPI_(BOOL) PathAppendW(LPWSTR pszPath, LPCWSTR pszMore);
 STDAPI_(int) PathCommonPrefixW(LPCWSTR pszFile1, LPCWSTR pszFile2, LPWSTR  pszPath);
-STDAPI_(LPWSTR) PathFindFileNameW(LPCWSTR pPath);
-STDAPI_(LPWSTR) PathFindExtensionW(LPCWSTR pszPath);
+PALIMPORT LPWSTR PALAPI PathFindFileNameW(LPCWSTR pPath);
 STDAPI_(int) PathGetDriveNumberW(LPCWSTR lpsz);
 STDAPI_(BOOL) PathIsRelativeW(LPCWSTR lpszPath);
 STDAPI_(BOOL) PathIsUNCW(LPCWSTR pszPath);
@@ -1290,6 +1065,7 @@ namespace std
     typedef decltype(nullptr) nullptr_t;
 }
 
+extern "C++"
 template< class T >
 typename std::remove_reference<T>::type&& move( T&& t );
 #endif // __cplusplus
@@ -1307,17 +1083,6 @@ typename std::remove_reference<T>::type&& move( T&& t );
 
 typedef DWORD OLE_COLOR;
 
-typedef union __m128i {
-    __int8              m128i_i8[16];
-    __int16             m128i_i16[8];
-    __int32             m128i_i32[4];    
-    __int64             m128i_i64[2];
-    unsigned __int8     m128i_u8[16];
-    unsigned __int16    m128i_u16[8];
-    unsigned __int32    m128i_u32[4];
-    unsigned __int64    m128i_u64[2];
-} __m128i;
-
 #define PF_COMPARE_EXCHANGE_DOUBLE          2
 
 typedef VOID (NTAPI * WAITORTIMERCALLBACKFUNC) (PVOID, BOOLEAN );
@@ -1327,12 +1092,14 @@ typedef HANDLE HWND;
 #define IS_TEXT_UNICODE_SIGNATURE             0x0008
 #define IS_TEXT_UNICODE_UNICODE_MASK          0x000F
 
+BOOL IsTextUnicode(CONST VOID* lpv, int iSize, LPINT lpiResult);
+
 typedef struct _LIST_ENTRY {
    struct _LIST_ENTRY *Flink;
    struct _LIST_ENTRY *Blink;
 } LIST_ENTRY, *PLIST_ENTRY;
 
-typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
+typedef VOID (NTAPI *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 
 // PORTABILITY_ASSERT and PORTABILITY_WARNING macros are meant to be used to
 // mark places in the code that needs attention for portability. The usual
@@ -1368,7 +1135,7 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 // The message in these two macros should not contain any keywords like TODO
 // or NYI. It should be just the brief description of the problem.
 
-#if defined(_TARGET_X86_)
+#ifdef PORTABILITY_CHECK
 // Finished ports - compile-time errors
 #define PORTABILITY_WARNING(message)    NEED_TO_PORT_THIS_ONE(NEED_TO_PORT_THIS_ONE)
 #define PORTABILITY_ASSERT(message)     NEED_TO_PORT_THIS_ONE(NEED_TO_PORT_THIS_ONE)
@@ -1378,9 +1145,9 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 #define PORTABILITY_ASSERT(message)     _ASSERTE(false && message)
 #endif
 
-#define UNREFERENCED_PARAMETER(P)          (P)
+#define UNREFERENCED_PARAMETER(P)          (void)(P)
 
-#ifdef _WIN64
+#ifdef BIT64
 #define VALPTR(x) VAL64(x)
 #define GET_UNALIGNED_PTR(x) GET_UNALIGNED_64(x)
 #define GET_UNALIGNED_VALPTR(x) GET_UNALIGNED_VAL64(x)
@@ -1400,13 +1167,13 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 
 #define _ReturnAddress() __builtin_return_address(0)
 
-#ifdef PLATFORM_UNIX
+#define DIRECTORY_SEPARATOR_CHAR_A '/'
 #define DIRECTORY_SEPARATOR_CHAR_W W('/')
+#define DIRECTORY_SEPARATOR_STR_A "/"
+#define DIRECTORY_SEPARATOR_STR_W W("/")
 #define PATH_SEPARATOR_CHAR_W W(':')
-#else // PLATFORM_UNIX
-#define DIRECTORY_SEPARATOR_CHAR_W W('\\')
-#define PATH_SEPARATOR_CHAR_W W(';')
-#endif // PLATFORM_UNIX
+#define PATH_SEPARATOR_STR_W W(":")
+#define VOLUME_SEPARATOR_CHAR_W W('/')
 
 #ifndef IMAGE_IMPORT_DESC_FIELD
 #define IMAGE_IMPORT_DESC_FIELD(img, f)     ((img).u.f)
@@ -1429,6 +1196,7 @@ typedef VOID (__stdcall *WAITORTIMERCALLBACK)(PVOID, BOOLEAN);
 #define PROCESSOR_ARCHITECTURE_AMD64            9
 #define PROCESSOR_ARCHITECTURE_IA32_ON_WIN64    10
 #define PROCESSOR_ARCHITECTURE_NEUTRAL          11
+#define PROCESSOR_ARCHITECTURE_ARM64            12
 
 #define PROCESSOR_ARCHITECTURE_UNKNOWN 0xFFFF
 
@@ -1659,7 +1427,45 @@ EXCEPTION_DISPOSITION
     PCONTEXT ContextRecord,
     PVOID DispatcherContext
     );
-    
+
+#if defined(_ARM_)
+
+typedef struct _DISPATCHER_CONTEXT {
+    DWORD ControlPc;
+    DWORD ImageBase;
+    PRUNTIME_FUNCTION FunctionEntry;
+    DWORD EstablisherFrame;
+    DWORD TargetPc;
+    PCONTEXT ContextRecord;
+    PEXCEPTION_ROUTINE LanguageHandler;
+    PVOID HandlerData;
+    PUNWIND_HISTORY_TABLE HistoryTable;
+    DWORD ScopeIndex;
+    BOOLEAN ControlPcIsUnwound;
+    PBYTE  NonVolatileRegisters;
+    DWORD Reserved;
+} DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+#elif defined(_ARM64_)
+
+typedef struct _DISPATCHER_CONTEXT {
+    ULONG64 ControlPc;
+    ULONG64 ImageBase;
+    PRUNTIME_FUNCTION FunctionEntry;
+    ULONG64 EstablisherFrame;
+    ULONG64 TargetPc;
+    PCONTEXT ContextRecord;
+    PEXCEPTION_ROUTINE LanguageHandler;
+    PVOID HandlerData;
+    PUNWIND_HISTORY_TABLE HistoryTable;
+    ULONG64 ScopeIndex;
+    BOOLEAN ControlPcIsUnwound;
+    PBYTE  NonVolatileRegisters;
+    ULONG64 Reserved;
+} DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+#elif defined(_AMD64_)
+
 typedef struct _DISPATCHER_CONTEXT {
     ULONG64 ControlPc;
     ULONG64 ImageBase;
@@ -1671,6 +1477,28 @@ typedef struct _DISPATCHER_CONTEXT {
     PVOID HandlerData;
     PUNWIND_HISTORY_TABLE HistoryTable;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+#elif defined(_X86_)
+
+typedef struct _DISPATCHER_CONTEXT {
+    DWORD ControlPc;
+    DWORD ImageBase;
+    PRUNTIME_FUNCTION FunctionEntry;
+    DWORD EstablisherFrame;
+    DWORD TargetIp;
+    PKNONVOLATILE_CONTEXT CurrentNonVolatileContextRecord;
+    PCONTEXT ContextRecord;
+    PEXCEPTION_ROUTINE LanguageHandler;
+    PVOID HandlerData;
+    PUNWIND_HISTORY_TABLE HistoryTable;
+    BOOLEAN ControlPcIsUnwound;
+} DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+#else
+
+#error Unknown architecture for defining DISPATCHER_CONTEXT.
+
+#endif
 
 // #endif // !defined(_TARGET_MAC64)
 
@@ -1704,8 +1532,6 @@ typedef LONG (WINAPI *PTOP_LEVEL_EXCEPTION_FILTER)(
     IN struct _EXCEPTION_POINTERS *ExceptionInfo
     );
 typedef PTOP_LEVEL_EXCEPTION_FILTER LPTOP_LEVEL_EXCEPTION_FILTER;
-
-BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers);
 
 /******************* ntdef ************************************/
 
@@ -1751,6 +1577,34 @@ EXTERN_C HRESULT PALAPI PAL_CoCreateInstance(REFCLSID   rclsid,
 // instead of spreading around of if'def FEATURE_PALs for PAL_CoCreateInstance.
 #define CoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv) PAL_CoCreateInstance(rclsid, riid, ppv)
 
+/************** verrsrc.h ************************************/
+
+/* ----- VS_VERSION.dwFileFlags ----- */
+#define VS_FF_DEBUG             0x00000001L
+#define VS_FF_PRERELEASE        0x00000002L
+#define VS_FF_PATCHED           0x00000004L
+#define VS_FF_PRIVATEBUILD      0x00000008L
+#define VS_FF_INFOINFERRED      0x00000010L
+#define VS_FF_SPECIALBUILD      0x00000020L
+
+/* ----- Types and structures ----- */
+typedef struct tagVS_FIXEDFILEINFO
+{
+    DWORD   dwSignature;            /* e.g. 0xfeef04bd */
+    DWORD   dwStrucVersion;         /* e.g. 0x00000042 = "0.42" */
+    DWORD   dwFileVersionMS;        /* e.g. 0x00030075 = "3.75" */
+    DWORD   dwFileVersionLS;        /* e.g. 0x00000031 = "0.31" */
+    DWORD   dwProductVersionMS;     /* e.g. 0x00030010 = "3.10" */
+    DWORD   dwProductVersionLS;     /* e.g. 0x00000031 = "0.31" */
+    DWORD   dwFileFlagsMask;        /* = 0x3F for version "0.42" */
+    DWORD   dwFileFlags;            /* e.g. VFF_DEBUG | VFF_PRERELEASE */
+    DWORD   dwFileOS;               /* e.g. VOS_DOS_WINDOWS16 */
+    DWORD   dwFileType;             /* e.g. VFT_DRIVER */
+    DWORD   dwFileSubtype;          /* e.g. VFT2_DRV_KEYBOARD */
+    DWORD   dwFileDateMS;           /* e.g. 0 */
+    DWORD   dwFileDateLS;           /* e.g. 0 */
+} VS_FIXEDFILEINFO;
+
 /************** Byte swapping & unaligned access ******************/
 
 #include <pal_endian.h>
@@ -1758,9 +1612,10 @@ EXTERN_C HRESULT PALAPI PAL_CoCreateInstance(REFCLSID   rclsid,
 /******************** external includes *************************/
 
 #include "ntimage.h"
-#include "ccombstr.h"
-#include "cstring.h"
-#include "sscli_version.h"
+#ifndef PAL_STDCPP_COMPAT
+#include "cpp/ccombstr.h"
+#include "cpp/cstring.h"
+#endif // !PAL_STDCPP_COMPAT
 
 #endif // RC_INVOKED
 

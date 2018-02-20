@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // debugshim.cpp
 // 
@@ -39,7 +38,7 @@
 // CLRDebuggingImpl implementation (ICLRDebugging)
 //*****************************************************************************
 
-typedef HRESULT (__stdcall  *OpenVirtualProcessImplFnPtr)(ULONG64 clrInstanceId, 
+typedef HRESULT (STDAPICALLTYPE  *OpenVirtualProcessImplFnPtr)(ULONG64 clrInstanceId, 
     IUnknown * pDataTarget,
     HMODULE hDacDll,
     CLR_DEBUGGING_VERSION * pMaxDebuggerSupportedVersion,
@@ -47,7 +46,7 @@ typedef HRESULT (__stdcall  *OpenVirtualProcessImplFnPtr)(ULONG64 clrInstanceId,
     IUnknown ** ppInstance,
     CLR_DEBUGGING_PROCESS_FLAGS * pdwFlags);
 
-typedef HRESULT (__stdcall  *OpenVirtualProcess2FnPtr)(ULONG64 clrInstanceId, 
+typedef HRESULT (STDAPICALLTYPE  *OpenVirtualProcess2FnPtr)(ULONG64 clrInstanceId, 
     IUnknown * pDataTarget,
     HMODULE hDacDll,
     REFIID riid,
@@ -84,10 +83,10 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
     HMODULE hDac = NULL;
     DWORD dbiTimestamp;
     DWORD dbiSizeOfImage;
-    WCHAR dbiName[MAX_PATH];
+    WCHAR dbiName[MAX_PATH_FNAME] = {0};
     DWORD dacTimestamp;
     DWORD dacSizeOfImage;
-    WCHAR dacName[MAX_PATH];
+    WCHAR dacName[MAX_PATH_FNAME] = {0};
     CLR_DEBUGGING_VERSION version;
     BOOL versionSupportedByCaller = FALSE;
     
@@ -126,11 +125,11 @@ STDMETHODIMP CLRDebuggingImpl::OpenVirtualProcess(
                             &dbiTimestamp,
                             &dbiSizeOfImage,
                             dbiName,
-                            MAX_PATH,
+                            MAX_PATH_FNAME,
                             &dacTimestamp,
                             &dacSizeOfImage,
                             dacName,
-                            MAX_PATH);
+                            MAX_PATH_FNAME);
         }
 
         // If we need to fetch either the process info or the flags info then we need to find
@@ -312,6 +311,7 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
                                      __out_z __inout_ecount(dwDacNameCharCount) WCHAR* pDacName,
                                      DWORD  dwDacNameCharCount)
 {
+#ifndef FEATURE_PAL
     WORD imageFileMachine = 0;
     DWORD resourceSectionRVA = 0;
     HRESULT hr = GetMachineAndResourceSectionRVA(pDataTarget, moduleBaseAddress, &imageFileMachine, &resourceSectionRVA);
@@ -363,19 +363,42 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
         // the initial state is that we haven't found a proper resource
         HRESULT hrGetResource = E_FAIL; 
      
-        // First check for the resource which has type = RC_DATA = 10, name = "CLRDEBUGINFO<host_os><host_arch>", language = 0
-        // So far we only support windows x86 and coresys x86 (we are building some other architectures, but they aren't tested and turned on yet it appears)
+        // First check for the resource which has type = RC_DATA = 10, name = "CLRDEBUGINFO<host_os><host_arch>", language = 0        
 #if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_X86_)
-        hrGetResource = GetResourceRvaFromResourceSectionRvaByName(pDataTarget, moduleBaseAddress, resourceSectionRVA, 10, W("CLRDEBUGINFOWINDOWSX86"), 0,
-                 &debugResourceRVA, &debugResourceSize);
-        useCrossPlatformNaming = SUCCEEDED(hrGetResource);
+        const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSX86");
 #endif
 
 #if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_X86_)
-        hrGetResource = GetResourceRvaFromResourceSectionRvaByName(pDataTarget, moduleBaseAddress, resourceSectionRVA, 10, W("CLRDEBUGINFOCORESYSX86"), 0,
-                 &debugResourceRVA, &debugResourceSize);
-        useCrossPlatformNaming = SUCCEEDED(hrGetResource);
+        const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSX86");
 #endif
+
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_AMD64_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSAMD64");
+#endif
+
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_AMD64_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSAMD64");
+#endif
+
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM64_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSARM64");
+#endif
+
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM64_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSARM64");
+#endif
+
+#if defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOWINDOWSARM");
+#endif
+
+#if !defined (HOST_IS_WINDOWS_OS) && defined(_HOST_ARM_)
+        const WCHAR * resourceName = W("CLRDEBUGINFOCORESYSARM");
+#endif        
+
+        hrGetResource = GetResourceRvaFromResourceSectionRvaByName(pDataTarget, moduleBaseAddress, resourceSectionRVA, 10, resourceName, 0,
+                 &debugResourceRVA, &debugResourceSize);
+        useCrossPlatformNaming = SUCCEEDED(hrGetResource);        
 
         
 #if defined(HOST_IS_WINDOWS_OS) && (defined(_HOST_X86_) || defined(_HOST_AMD64_) || defined(_HOST_ARM_))
@@ -459,6 +482,22 @@ HRESULT CLRDebuggingImpl::GetCLRInfo(ICorDebugDataTarget* pDataTarget,
     {
         return S_OK;
     }
+#else
+    swprintf_s(pDacName, dwDacNameCharCount, W("%s"), MAKEDLLNAME_W(CORECLR_DAC_MODULE_NAME_W));
+    swprintf_s(pDbiName, dwDbiNameCharCount, W("%s"), MAKEDLLNAME_W(MAIN_DBI_MODULE_NAME_W));
+
+    pVersion->wMajor = 0;
+    pVersion->wMinor = 0;
+    pVersion->wBuild = 0;
+    pVersion->wRevision = 0;
+
+    *pdwDbiTimeStamp = 0;
+    *pdwDbiSizeOfImage = 0;
+    *pdwDacTimeStamp = 0;
+    *pdwDacSizeOfImage = 0;
+
+    return S_OK;
+#endif // FEATURE_PAL
 }
 
 // Formats the long name for DAC
@@ -474,19 +513,19 @@ HRESULT CLRDebuggingImpl::FormatLongDacModuleName(__out_z __inout_ecount(cchBuff
 #endif
 
 #if defined(_HOST_X86_)
-    WCHAR* pHostArch = W("x86");
+    const WCHAR* pHostArch = W("x86");
 #elif defined(_HOST_AMD64_)
-    WCHAR* pHostArch = W("amd64");
+    const WCHAR* pHostArch = W("amd64");
 #elif defined(_HOST_ARM_)
-    WCHAR* pHostArch = W("arm");
+    const WCHAR* pHostArch = W("arm");
 #elif defined(_HOST_ARM64_)
-    WCHAR* pHostArch = W("arm64");
+    const WCHAR* pHostArch = W("arm64");
 #else
     _ASSERTE(!"Unknown host arch");
     return E_NOTIMPL;
 #endif
 
-    WCHAR* pDacBaseName = NULL;
+    const WCHAR* pDacBaseName = NULL;
     if(m_skuId == CLR_ID_V4_DESKTOP)
         pDacBaseName = CLR_DAC_MODULE_NAME_W;
     else if(m_skuId == CLR_ID_CORECLR || m_skuId == CLR_ID_PHONE_CLR || m_skuId == CLR_ID_ONECORE_CLR)
@@ -497,7 +536,7 @@ HRESULT CLRDebuggingImpl::FormatLongDacModuleName(__out_z __inout_ecount(cchBuff
         return E_UNEXPECTED;
     }
 
-    WCHAR* pTargetArch = NULL;
+    const WCHAR* pTargetArch = NULL;
     if(targetImageFileMachine == IMAGE_FILE_MACHINE_I386)
     {
         pTargetArch = W("x86");
@@ -520,7 +559,7 @@ HRESULT CLRDebuggingImpl::FormatLongDacModuleName(__out_z __inout_ecount(cchBuff
         return E_INVALIDARG;
     }
 
-    WCHAR* pBuildFlavor = W("");
+    const WCHAR* pBuildFlavor = W("");
     if(pVersion->dwFileFlags & VS_FF_DEBUG)
     {
         if(pVersion->dwFileFlags & VS_FF_SPECIALBUILD)

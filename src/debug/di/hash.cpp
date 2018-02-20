@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: hash.cpp
 // 
@@ -610,7 +609,7 @@ HRESULT CordbHashTableEnum::QueryInterface(REFIID id, void **pInterface)
 void CordbHashTableEnum::AssertValid()
 {
     // @todo - Our behavior is undefined when enumerating a collection that changes underneath us.
-    // We'd love to just call this situatation illegal, but clients could very reasonably taken a depedency
+    // We'd love to just call this situation illegal, but clients could have very reasonably taken a dependency
     // on it. Various APIs (eg, ICDStepper::Deactivate) may remove items from the hash.
     // So we need to figure out what the behavior is here, spec it, and then enforce that and enable the
     // strongest asserts possible there.

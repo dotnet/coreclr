@@ -1,16 +1,16 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************/
 #ifndef CompMemKindMacro
-#error  Define CompMemKindMacro before including this file.
+#error Define CompMemKindMacro before including this file.
 #endif
 
 // This list of macro invocations should be used to define the CompMemKind enumeration,
 // and the corresponding array of string names for these enum members.
 
+// clang-format off
 CompMemKindMacro(AssertionProp)
 CompMemKindMacro(ASTNode)
 CompMemKindMacro(InstDesc)
@@ -34,12 +34,12 @@ CompMemKindMacro(UnwindInfo)
 CompMemKindMacro(hashBv)
 CompMemKindMacro(bitset)
 CompMemKindMacro(FixedBitVect)
-CompMemKindMacro(AsIAllocator)
+CompMemKindMacro(Generic)
 CompMemKindMacro(IndirAssignMap)
 CompMemKindMacro(FieldSeqStore)
 CompMemKindMacro(ZeroOffsetFieldMap)
 CompMemKindMacro(ArrayInfoMap)
-CompMemKindMacro(HeapPhiArg)
+CompMemKindMacro(MemoryPhiArg)
 CompMemKindMacro(CSE)
 CompMemKindMacro(GC)
 CompMemKindMacro(CorSig)
@@ -51,5 +51,8 @@ CompMemKindMacro(Codegen)
 CompMemKindMacro(LoopOpt)
 CompMemKindMacro(LoopHoist)
 CompMemKindMacro(Unknown)
+CompMemKindMacro(RangeCheck)
+CompMemKindMacro(CopyProp)
+//clang-format on
 
 #undef CompMemKindMacro

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 
 // 
@@ -1433,7 +1432,19 @@ HRESULT CordbThread::FindFrame(ICorDebugFrame ** ppFrame, FramePointer fp)
     return E_FAIL;
 }
 
+
 #if !defined(DBG_TARGET_ARM) // @ARMTODO
+
+#if defined(CROSS_COMPILE) && defined(_TARGET_ARM64_)
+extern "C" double FPFillR8(void* pFillSlot)
+{
+    _ASSERTE(!"nyi for platform");
+    return 0;
+}
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) 
+extern "C" double FPFillR8(void* pFillSlot);
+#endif
+
 
 #if defined(_TARGET_X86_)
 
@@ -1460,7 +1471,15 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
 
     FLOATING_SAVE_AREA currentFPUState;
 
+#ifdef _MSC_VER
     __asm fnsave currentFPUState // save the current FPU state.
+#else
+    __asm__ __volatile__
+    (
+        "  fnsave %0\n" \
+        : "=m"(currentFPUState)
+    );
+#endif
 
     floatarea.StatusWord &= 0xFF00; // remove any error codes.
     floatarea.ControlWord |= 0x3F; // mask all exceptions.
@@ -1471,34 +1490,53 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
     // @dbgtodo Microsoft crossplat: the conversion from a series of bytes to a floating 
     // point value will need to be done with an explicit conversion routine to unpack
     // the IEEE format and compute the real number value represented. 
-    
+
+#ifdef _MSC_VER
     __asm
     {
         fninit
         frstor floatarea          ;; reload the threads FPU state.
     }
+#else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(floatarea)
+    );
+#endif
 
     unsigned int i;
 
     for (i = 0; i <= floatStackTop; i++)
     {
-        long double td;
+        double td = 0.0;
         __asm fstp td // copy out the double
         m_floatValues[i] = td;
     }
 
+#ifdef _MSC_VER
     __asm
     {
         fninit
         frstor currentFPUState    ;; restore our saved FPU state.
     }
+#else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(currentFPUState)
+    );
+#endif
 
     m_fFloatStateValid = true;
     m_floatStackTop = floatStackTop;
 } // CordbThread::Get32bitFPRegisters
 
-#elif defined(_TARGET_AMD64_)
-extern "C" double FPFillR8(void* pFillSlot);
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
 // CordbThread::Get64bitFPRegisters
 // Converts the values in the floating point register area of the context to real number values. See
@@ -1525,7 +1563,6 @@ void CordbThread::Get64bitFPRegisters(FPRegister64 * rgContextFPRegisters, int s
         m_floatValues[reg] = FPFillR8(&rgContextFPRegisters[reg - start]);
     }
 } // CordbThread::Get64bitFPRegisters
-
 
 #endif // _TARGET_X86_
 
@@ -1557,6 +1594,10 @@ void CordbThread::LoadFloatState()
 #elif defined(_TARGET_AMD64_)
     // we have no fixed-value registers, so we begin with the first one and initialize all 16
     Get64bitFPRegisters((FPRegister64*) &(tempContext.Xmm0), 0, 16);
+#elif defined(_TARGET_ARM64_)
+    Get64bitFPRegisters((FPRegister64*) &(tempContext.V), 0, 32);
+#else 
+    _ASSERTE(!"nyi for platform");
 #endif // !_TARGET_X86_
 
     m_fFloatStateValid = true;
@@ -2955,12 +2996,7 @@ HRESULT CordbUnmanagedThread::RestoreLeafSeh()
 //    return value == 0 (assumed default, *pRead = false
 REMOTE_PTR CordbUnmanagedThread::GetPreDefTlsSlot(SIZE_T slot, bool * pRead)
 {
-#ifdef FEATURE_IMPLICIT_TLS
     REMOTE_PTR pBlock = (REMOTE_PTR) GetEETlsDataBlock();
-#else
-    DebuggerIPCRuntimeOffsets *pRO = &(GetProcess()->m_runtimeOffsets);
-    REMOTE_PTR pBlock = (REMOTE_PTR) GetTlsSlot(pRO->m_TLSIndexOfPredefs);
-#endif
 
     REMOTE_PTR data = 0;
 
@@ -2994,164 +3030,6 @@ REMOTE_PTR CordbUnmanagedThread::GetPreDefTlsSlot(SIZE_T slot, bool * pRead)
     *pRead = false;
     return 0;
 }
-
-#ifndef FEATURE_IMPLICIT_TLS
-
-// Read the contents from a LS threads's TLS slot.
-DWORD_PTR CordbUnmanagedThread::GetTlsSlot(SIZE_T slot)
-{
-    DWORD_PTR ret = 0;
-
-    // Compute the address of the necessary TLS value.
-    if (FAILED(LoadTLSArrayPtr()))
-    {
-            return NULL;
-    }
-
-
-    void * pBase = NULL;
-    SIZE_T slotAdjusted = slot;
-
-    if (slot < TLS_MINIMUM_AVAILABLE)
-    {
-        pBase = m_pTLSArray;
-    }
-    else if (slot < TLS_MINIMUM_AVAILABLE + TLS_EXPANSION_SLOTS)
-    {
-        pBase = m_pTLSExtendedArray;
-        slotAdjusted -= TLS_MINIMUM_AVAILABLE;
-
-        // Expansion slot is lazily allocated. If we're trying to read from it, but hasn't been allocated,
-        // then the TLS slot is still the default value, which is 0 (NULL).
-        if (pBase == NULL)
-        {
-            return NULL;
-        }
-    }
-    else
-    {
-        // Slot is out of range. Shouldn't happen unless debuggee is corrupted.
-        _ASSERTE(!"Invalid TLS slot");
-        return NULL;
-    }
-
-    void *pEEThreadTLS = (BYTE*) pBase + (slotAdjusted * sizeof(void*));
-
-
-    // Read the thread's TLS value.
-    HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), &ret);    
-    if (FAILED(hr))
-    {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETV: failed to read TLS value: computed addr=0x%p index=%d, err=%x\n",
-             pEEThreadTLS, slot, hr));
-
-        return NULL;
-    }
-
-    LOG((LF_CORDB, LL_INFO1000000, "CUT::GEETV: EE Thread TLS value is 0x%p for thread 0x%x, slot 0x%x\n", ret, m_id, slot));
-
-    return ret;
-}
-
-// This does a WriteProcessMemory to write to the debuggee's TLS slot allotted to EEThread
-// 
-// Arguments:
-//   EETlsValue - the value to write to the remote TLS slot.
-//   
-// Notes:
-//   The TLS slot is m_TLSIndex. 
-//   
-//   This is very brittle because the OS can lazily allocates storage for TLS slots.
-//   In order to gaurantee the storage is available, it must have been written to by the debuggee.
-//   For managed threads, that's easy because the Thread* is already written to the slot.
-//   But for pure native threads where GetThread() == NULL, the storage may not yet be allocated.
-//   
-//   The saving grace is that the debuggee's hijack filters will force the TLS to be allocated before it
-//   sends a flare.
-//   
-//   Therefore, this function can only be called:
-//   1) on a managed thread
-//   2) on a native thread after that thread has been hijacked and sent a flare.
-//   
-//   This is brittle reasoning, but so is the rest of interop-debugging.
-//   
-HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
-{
-    FAIL_IF_NEUTERED(this);
-
-    // Compute the address of the necessary TLS value.
-    DebuggerIPCRuntimeOffsets *pRO = &(GetProcess()->m_runtimeOffsets);
-
-    // Compute the address of the necessary TLS value.
-    HRESULT hr = LoadTLSArrayPtr();
-    if (FAILED(hr))
-    {
-        return hr;
-    }
-
-    
-    DWORD slot = (DWORD) pRO->m_TLSIndex;
-
-    void * pBase = NULL;
-    SIZE_T slotAdjusted = slot;
-    if (slot < TLS_MINIMUM_AVAILABLE)
-    {
-        pBase = m_pTLSArray;
-    }
-    else if (slot < TLS_MINIMUM_AVAILABLE+TLS_EXPANSION_SLOTS)
-    {
-        pBase = m_pTLSExtendedArray;
-        slotAdjusted -= TLS_MINIMUM_AVAILABLE;
-
-        // Expansion slot is lazily allocated. If we're trying to read from it, but hasn't been allocated,
-        // then the TLS slot is still the default value, which is 0.
-        if (pBase == NULL)
-        {
-            // See reasoning in header for why this should succeed.
-            _ASSERTE(!"Can't set to expansion slots because they haven't been allocated");
-            return E_FAIL;
-        }
-    }
-    else
-    {
-        // Slot is out of range. Shouldn't happen unless debuggee is corrupted.
-        _ASSERTE(!"Invalid TLS slot");
-        return E_INVALIDARG;
-    }
-
-
-    void *pEEThreadTLS = (BYTE*) pBase + (slotAdjusted * sizeof(void*));
-
-
-    // Write the thread's TLS value.
-    hr = GetProcess()->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), &EETlsValue);
-
-    if (FAILED(hr))
-    {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::SEETV: failed to set TLS value: "
-             "computed addr=0x%p index=%d, err=%x\n",
-             pEEThreadTLS, pRO->m_TLSIndex, hr));
-
-        return hr;
-    }
-
-    LOG((LF_CORDB, LL_INFO1000000,
-        "CUT::SEETV: EE Thread TLS value is now 0x%p for thread 0x%x\n",
-        EETlsValue, m_id));
-
-    return S_OK;
-}
-#else // FEATURE_IMPLICIT_TLS
-
-#ifdef DBG_TARGET_X86
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x2c
-#elif defined(DBG_TARGET_AMD64)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
-#elif defined(DBG_TARGET_ARM)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x2c
-#elif defined(DBG_TARGET_ARM64)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
-#endif
 
 // sets the value of gCurrentThreadInfo.m_pThread
 HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
@@ -3234,7 +3112,7 @@ REMOTE_PTR CordbUnmanagedThread::GetClrModuleTlsDataAddress()
     DWORD slot = (DWORD)(GetProcess()->m_runtimeOffsets.m_TLSIndex);
 
     REMOTE_PTR clrModuleTlsDataAddr; 
-    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)tlsArrayAddr + slot * sizeof(void*)), &clrModuleTlsDataAddr);
+    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)tlsArrayAddr + (slot & 0xFFFF) * sizeof(void*)), &clrModuleTlsDataAddr);
     if (FAILED(hr))
     {
         return NULL;
@@ -3246,7 +3124,7 @@ REMOTE_PTR CordbUnmanagedThread::GetClrModuleTlsDataAddress()
         return NULL;
     }
 
-    return clrModuleTlsDataAddr;
+    return (BYTE*) clrModuleTlsDataAddr + ((slot & 0x7FFF0000) >> 16);
 }
 
 // gets the value of gCurrentThreadInfo.m_EETlsData
@@ -3271,8 +3149,6 @@ REMOTE_PTR CordbUnmanagedThread::GetEETlsDataBlock()
     return ret;
 }
 
-#endif // FEATURE_IMPLICIT_TLS
-
 /*
  * CacheEEDebuggerWord
  *
@@ -3296,11 +3172,7 @@ void CordbUnmanagedThread::CacheEEDebuggerWord()
 {
     LOG((LF_CORDB, LL_INFO1000, "CacheEEDW: Entered\n"));
 
-#ifdef FEATURE_IMPLICIT_TLS
     REMOTE_PTR value = (REMOTE_PTR)GetEEThreadValue();
-#else
-    REMOTE_PTR value = (REMOTE_PTR)GetTlsSlot(GetProcess()->m_runtimeOffsets.m_TLSIndex);
-#endif
 
     if ((((DWORD)value) & 0x1) == 1)
     {
@@ -4572,7 +4444,7 @@ void CordbUnmanagedThread::SaveRaiseExceptionEntryContext()
         LOG((LF_CORDB, LL_INFO1000, "CP::SREEC: failed to read exception information pointer.\n"));
         return;
     }
-#elif
+#else
     _ASSERTE(!"Implement this for your platform");
     return;
 #endif
@@ -5836,11 +5708,11 @@ CordbMiscFrame::CordbMiscFrame()
 // the real constructor which stores the funclet-related information in the CordbMiscFrame
 CordbMiscFrame::CordbMiscFrame(DebuggerIPCE_JITFuncData * pJITFuncData)
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     this->parentIP       = pJITFuncData->parentNativeOffset;
     this->fpParentOrSelf = pJITFuncData->fpParentOrSelf;
     this->fIsFilterFunclet = (pJITFuncData->fIsFilterFrame == TRUE);
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 /* ------------------------------------------------------------------------- *
@@ -6992,6 +6864,8 @@ HRESULT CordbNativeFrame::GetLocalRegisterValue(CorDebugRegister reg,
     if ((reg >= REGISTER_X86_FPSTACK_0) && (reg <= REGISTER_X86_FPSTACK_7))
 #elif defined(DBG_TARGET_AMD64)
     if ((reg >= REGISTER_AMD64_XMM0) && (reg <= REGISTER_AMD64_XMM15))
+#elif defined(DBG_TARGET_ARM64)
+    if ((reg >= REGISTER_ARM64_V0) && (reg <= REGISTER_ARM64_V31))
 #endif
     {
         return GetLocalFloatingPointValue(reg, pType, ppValue);
@@ -7240,6 +7114,11 @@ HRESULT CordbNativeFrame::GetLocalFloatingPointValue(DWORD index,
           (index <= REGISTER_AMD64_XMM15)))
         return E_INVALIDARG;
     index -= REGISTER_AMD64_XMM0;
+#elif defined(DBG_TARGET_ARM64)
+    if (!((index >= REGISTER_ARM64_V0) &&
+        (index <= REGISTER_ARM64_V31)))
+        return E_INVALIDARG;
+    index -= REGISTER_ARM64_V0;
 #else
     if (!((index >= REGISTER_X86_FPSTACK_0) &&
           (index <= REGISTER_X86_FPSTACK_7)))
@@ -8915,8 +8794,13 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
     bool found = false;
     ULONG32 currentOffset = m_nativeFrame->GetIPOffset();
     for (ULONG32 i = 0; i < count; ++i)
-        if (found = currentOffset == offsets[i])
+    {
+        if (currentOffset == offsets[i])
+        {
+            found = true;
             break;
+        }
+    }
 
     if (!found)
         return E_UNEXPECTED;
@@ -8942,20 +8826,25 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
 
 HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue **ppReturnValue)
 {
-#if defined(DBG_TARGET_ARM) || defined(DBG_TARGET_ARM64)
+#if defined(DBG_TARGET_ARM) 
     return E_NOTIMPL;
 #else
+
 
 #if defined(DBG_TARGET_X86)
     const CorDebugRegister floatRegister = REGISTER_X86_FPSTACK_0;
 #elif defined(DBG_TARGET_AMD64)
     const CorDebugRegister floatRegister = REGISTER_AMD64_XMM0;
+#elif  defined(DBG_TARGET_ARM64)
+    const CorDebugRegister floatRegister = REGISTER_ARM64_V0;
 #endif
     
 #if defined(DBG_TARGET_X86)
     const CorDebugRegister ptrRegister = REGISTER_X86_EAX;
 #elif defined(DBG_TARGET_AMD64)
     const CorDebugRegister ptrRegister = REGISTER_AMD64_RAX;
+#elif  defined(DBG_TARGET_ARM64)
+    const CorDebugRegister ptrRegister = REGISTER_ARM64_X0;
 #endif
 
     CorElementType corReturnType = pType->GetElementType();

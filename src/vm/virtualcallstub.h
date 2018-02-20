@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: VirtualCallStub.h
 //
@@ -9,13 +8,14 @@
 
 
 //
-
 // See code:VirtualCallStubManager for details
 //
 // ============================================================================
 
 #ifndef _VIRTUAL_CALL_STUB_H 
 #define _VIRTUAL_CALL_STUB_H
+
+#ifndef CROSSGEN_COMPILE
 
 #define CHAIN_LOOKUP
 
@@ -56,13 +56,6 @@ extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 #endif                               
                                            );
 
-#ifdef FEATURE_REMOTING
-// This is used by TransparentProxyWorkerStub to take a stub address (token), and
-// MethodTable and return the target. It will look in the cache first, and if not found
-// will call the resolver and then put the result into the cache.
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorkerQuick(TransparentProxyObject * orTP, size_t token);
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorker(TransitionBlock * pTransitionBlock, size_t token);
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////////
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
@@ -171,6 +164,9 @@ extern "C" void ResolveWorkerChainLookupAsmStub();    // for chaining of entries
 
 #ifdef _TARGET_X86_ 
 extern "C" void BackPatchWorkerAsmStub();             // backpatch a call site to point to a different stub
+#ifdef FEATURE_PAL
+extern "C" void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
+#endif // FEATURE_PAL
 #endif // _TARGET_X86_
 
 
@@ -321,14 +317,19 @@ public:
     /* know thine own stubs.  It is possible that when multiple
     virtualcallstub managers are built that these may need to become
     non-static, and the callers modified accordingly */
-    StubKind getStubKind(PCODE stubStartAddress)
+    StubKind getStubKind(PCODE stubStartAddress, BOOL usePredictStubKind = TRUE)
     {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
 
+        // This method can called with stubStartAddress==NULL, e.g. when handling null reference exceptions
+        // caused by IP=0. Early out for this case to avoid confusing handled access violations inside predictStubKind.
+        if (PCODEToPINSTR(stubStartAddress) == NULL)
+            return SK_UNKNOWN;
+
         // Rather than calling IsInRange(stubStartAddress) for each possible stub kind
         // we can peek at the assembly code and predict which kind of a stub we have
-        StubKind predictedKind = predictStubKind(stubStartAddress);
+        StubKind predictedKind = (usePredictStubKind) ? predictStubKind(stubStartAddress) : SK_UNKNOWN;
 
         if (predictedKind == SK_DISPATCH)
         {
@@ -494,11 +495,12 @@ private:
                                           size_t token,
                                           void *target);
 
-    //Given a dispatch token and a method table, determine the
+    //Given a dispatch token, an object and a method table, determine the
     //target address to go to.  The return value (BOOL) states whether this address
     //is cacheable or not.
     static BOOL Resolver(MethodTable   * pMT,
                          DispatchToken   token,
+                         OBJECTREF     * protectedObj,
                          PCODE         * ppTarget);
 
     // This can be used to find a target without needing the ability to throw
@@ -549,12 +551,16 @@ private:
 #endif                            
                                    );
 
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+    friend void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
+#endif
+
     //These are the entrypoints that the stubs actually end up calling via the
     // xxxAsmStub methods above
     static void STDCALL BackPatchWorkerStatic(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
 
 public:
-    PCODE ResolveWorker(StubCallSite* pCallSite, OBJECTREF pObj, DispatchToken token, StubKind stubKind);
+    PCODE ResolveWorker(StubCallSite* pCallSite, OBJECTREF *protectedObj, DispatchToken token, StubKind stubKind);
     void BackPatchWorker(StubCallSite* pCallSite);
 
     //Change the callsite to point to stub
@@ -726,7 +732,8 @@ private:
 public:
     // Given a stub address, find the VCSManager that owns it.
     static VirtualCallStubManager *FindStubManager(PCODE addr,
-                                                   StubKind* wbStubKind = NULL);
+                                                   StubKind* wbStubKind = NULL,
+                                                   BOOL usePredictStubKind = TRUE);
 
 #ifndef DACCESS_COMPILE
     // insert a linked list of indirection cells at the beginning of m_RecycledIndCellList
@@ -1614,5 +1621,6 @@ private:
     static FastTable* dead;             //linked list head of to be deleted (abandoned) buckets
 };
 
-#endif // !_VIRTUAL_CALL_STUB_H
+#endif // !CROSSGEN_COMPILE
 
+#endif // !_VIRTUAL_CALL_STUB_H

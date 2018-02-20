@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: ShimProcess.cpp
 // 
@@ -19,7 +18,9 @@
 #include <limits.h>
 #include "shimpriv.h"
 
+#if !defined(FEATURE_CORESYSTEM)
 #include <tlhelp32.h>
+#endif
 
 //---------------------------------------------------------------------------------------
 //
@@ -364,12 +365,12 @@ DWORD WINAPI CallStopGoThreadProc(LPVOID parameter)
     // Calling Stop + Continue will synchronize the process and force any queued events to be called.
     // Stop is synchronous and will block until debuggee is synchronized.
     hr = pProc->Stop(INFINITE);
-    SIMPLIFYING_ASSUMPTION(SUCCEEDED(hr));
+    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
 
     // Continue will resume the debuggee. If there are queued events (which we expect in this case)
     // then continue will drain the event queue instead of actually resuming the process.
     hr = pProc->Continue(FALSE);
-    SIMPLIFYING_ASSUMPTION(SUCCEEDED(hr));
+    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
 
     // This thread just needs to trigger an event dispatch. Now that it's done that, it can exit.
     return 0;
@@ -677,10 +678,8 @@ CorDebugRecordFormat GetHostExceptionRecordFormat()
 {
 #if defined(_WIN64)
     return FORMAT_WINDOWS_EXCEPTIONRECORD64;
-#elif defined(_WIN32)
-    return FORMAT_WINDOWS_EXCEPTIONRECORD32;
 #else
-    C_ASSERTE(!"CorDebugRecordFormat not implemented for this platform");
+    return FORMAT_WINDOWS_EXCEPTIONRECORD32;
 #endif
 }
 
@@ -737,6 +736,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
             if (!dwFirstChance && (pRecord->ExceptionCode == STATUS_BREAKPOINT) && !m_fIsInteropDebugging)
             {            
                 DWORD pid = (m_pLiveDataTarget == NULL) ? 0 : m_pLiveDataTarget->GetPid();
+
                 CONSISTENCY_CHECK_MSGF(false, 
                     ("Unhandled breakpoint exception in debuggee (pid=%d (0x%x)) on thread %d(0x%x)\n"
                     "This may mean there was an assert in the debuggee on that thread.\n"
@@ -833,7 +833,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
     EX_CATCH_HRESULT(hrIgnore);
     // Dont' expect errors here (but could probably return it up to become an
     // unrecoverable error if necessary). We still want to call Continue thought.
-    SIMPLIFYING_ASSUMPTION(SUCCEEDED(hrIgnore));
+    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hrIgnore);
 
     //
     // Continue the debuggee if needed.
@@ -873,7 +873,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
             {
                 ::Sleep(500);
                 hrIgnore = GetNativePipeline()->EnsureThreadsRunning();
-                SIMPLIFYING_ASSUMPTION(SUCCEEDED(hrIgnore));
+                SIMPLIFYING_ASSUMPTION_SUCCEEDED(hrIgnore);
             }
         }
     }    
@@ -1083,8 +1083,8 @@ HRESULT ShimProcess::QueueFakeThreadAttachEventsNoOrder()
 HRESULT ShimProcess::QueueFakeThreadAttachEventsNativeOrder() 
 { 
 #ifdef FEATURE_CORESYSTEM
-	_ASSERTE("NYI");
-	return E_FAIL;
+    _ASSERTE("NYI");
+    return E_FAIL;
 #else
     ICorDebugProcess * pProcess = GetProcess();
 
@@ -1731,22 +1731,24 @@ void ShimProcess::PreDispatchEvent(bool fRealCreateProcessEvent /*= false*/)
 
 }
 
-#if !defined(FEATURE_CORESYSTEM)
-
 // ----------------------------------------------------------------------------
 // ShimProcess::GetCLRInstanceBaseAddress
-// Finds the base address of mscorwks.dll 
+// Finds the base address of [core]clr.dll 
 // Arguments: none
-// Return value: returns the base address of mscorwks.dll if possible or NULL otherwise
+// Return value: returns the base address of [core]clr.dll if possible or NULL otherwise
 // 
 CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
 {
-    // get a "snapshot" of all modules in the target
+    CORDB_ADDRESS baseAddress = CORDB_ADDRESS(NULL);
     DWORD dwPid = m_pLiveDataTarget->GetPid();
+
+#if defined(FEATURE_CORESYSTEM)
+    // Debugger attaching to CoreCLR via CoreCLRCreateCordbObject should have already specified CLR module address.
+    // Code that help to find it now lives in dbgshim.
+#else
+    // get a "snapshot" of all modules in the target
     HandleHolder hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwPid);
     MODULEENTRY32 moduleEntry = { 0 };
-    CORDB_ADDRESS baseAddress = CORDB_ADDRESS(NULL);
-
 
     if (hSnapshot == INVALID_HANDLE_VALUE)
     {
@@ -1775,10 +1777,9 @@ CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
             } while (Module32Next(hSnapshot, &moduleEntry));
         }
     }
-
+#endif
     return baseAddress;
 } // ShimProcess::GetCLRInstanceBaseAddress
-#endif
 
 // ----------------------------------------------------------------------------
 // ShimProcess::FindLoadedCLR
@@ -1799,18 +1800,7 @@ CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
 //    
 HRESULT ShimProcess::FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId)
 {
-    //
-    // Look up the image base of mscorwks from shared memory.
-    // Note that we could instead use OS facilities to look at the real module list,
-    // such as CreateToolHelp32Snapshot, and LoadModuleFirst
-    //
-
-#if !defined(FEATURE_CORESYSTEM)
     *pClrInstanceId = GetCLRInstanceBaseAddress();
-#else
-    _ASSERTE(!"Attempting to get CLR base address on non-Windows platform");
-    return E_NOTIMPL;
-#endif
     
     if (*pClrInstanceId == 0)
     {
@@ -1820,48 +1810,6 @@ HRESULT ShimProcess::FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId)
     return S_OK;
 }
 
-//---------------------------------------------------------------------------------------
-//
-// If a debugger calls ICDRemote::CreateProcessEx() or ICDRemote::DebugActiveProcessEx(), 
-// then an ICDRemoteTarget should have been passed to us. We can query this port to find 
-// out the remote IP address (and possibly port) that the user wants to connect to.
-//
-// Arguments:
-//    pRemoteTarget - provided by the debugger for us to query the host name of the target machine
-//
-// Return Value:
-//    None.  Throws on errors.
-//
- 
-void ShimProcess::CheckForPortInfo(ICorDebugRemoteTarget * pRemoteTarget)
-{
-#if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-    if (pRemoteTarget != NULL)
-    {
-        DWORD dwIPAddress = ResolveHostName(pRemoteTarget);
-        m_machineInfo.Init(dwIPAddress, 0);
-    }
-#endif // FEATURE_DBGIPC_TRANSPORT_DI
-}
-
-//---------------------------------------------------------------------------------------
-//
-// Resolve the host name given by the ICorDebugRemote to an IP address.  Currently only IPv4 and fully
-// qualified domain name are supported.
-//
-// Arguments:
-//    pRemoteTarget - provides the host name
-//
-// Return Value:
-//    Returns the IPv4 address of the target machine.
-//    Throws on errors.
-//
-
-DWORD ShimProcess::ResolveHostName(ICorDebugRemoteTarget * pRemoteTarget)
-{
-    DWORD dwIPAddress = 0;
-    return dwIPAddress;
-}
 
 //---------------------------------------------------------------------------------------
 //
@@ -1874,43 +1822,38 @@ DWORD ShimProcess::ResolveHostName(ICorDebugRemoteTarget * pRemoteTarget)
 
 HMODULE ShimProcess::GetDacModule()
 {
-    WCHAR wszAccessDllPath[MAX_PATH];
     HModuleHolder hDacDll;
+    PathString wszAccessDllPath;
 
+#ifdef FEATURE_PAL
+    if (!PAL_GetPALDirectoryWrapper(wszAccessDllPath))
+    {
+        ThrowLastError();
+    }
+    PCWSTR eeFlavor = MAKEDLLNAME_W(W("mscordaccore"));
+#else
     //
     // Load the access DLL from the same directory as the the current CLR Debugging Services DLL.
     //
 
-    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath, NumItems(wszAccessDllPath)))
+    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath))
     {
         ThrowLastError();
     }
 
-    PWSTR pPathTail = wcsrchr(wszAccessDllPath, '\\');
-    if (!pPathTail)
+	if (!SUCCEEDED(CopySystemDirectory(wszAccessDllPath, wszAccessDllPath)))
     {
         ThrowHR(E_INVALIDARG);
     }
-    pPathTail++;
 
     // Dac Dll is named:
     //   mscordaccore.dll  <-- coreclr
     //   mscordacwks.dll   <-- desktop
     PCWSTR eeFlavor = 
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
-        W("core");    
-#else
-        W("wks");    
-#endif
-
-    if (_snwprintf_s(pPathTail, 
-                     _countof(wszAccessDllPath) + (wszAccessDllPath - pPathTail),
-                     NumItems(wszAccessDllPath) - (pPathTail - wszAccessDllPath),
-                     MAKEDLLNAME_W(W("mscordac%s")), 
-                     eeFlavor) <= 0)
-    {
-        ThrowHR(E_INVALIDARG);
-    }
+        W("mscordaccore.dll");
+    
+#endif // FEATURE_PAL
+    wszAccessDllPath.Append(eeFlavor);
 
     hDacDll.Assign(WszLoadLibrary(wszAccessDllPath));
     if (!hDacDll)

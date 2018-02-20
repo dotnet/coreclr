@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DebugMacros.h
 //
@@ -28,7 +27,7 @@ class SString;
 bool GetStackTraceAtContext(SString & s, struct _CONTEXT * pContext);
 
 void _cdecl DbgWriteEx(LPCTSTR szFmt, ...);
-int _DbgBreakCheck(LPCSTR szFile, int iLine, LPCSTR szExpr, BOOL fConstrained = FALSE);
+bool _DbgBreakCheck(LPCSTR szFile, int iLine, LPCSTR szExpr, BOOL fConstrained = FALSE);
 
 extern VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr);
 
@@ -68,7 +67,7 @@ extern int _DbgBreakCount;
 
 #define _ASSERTE(expr) ((void)0)
 #define _ASSERTE_MSG(expr, msg) ((void)0)
-#define VERIFY(stmt) (stmt)
+#define VERIFY(stmt) (void)(stmt)
 
 void __FreeBuildDebugBreak();
 void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, const char *szExpr);
@@ -76,9 +75,7 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
 #define FreeBuildDebugBreak() __FreeBuildDebugBreak()
 
 // At this point, EEPOLICY_HANDLE_FATAL_ERROR may or may not be defined. It will be defined
-// if we are building the VM folder, but outside VM, its not necessarily defined. Currently,
-// this is applicable to the usage of RetailAssertIfExpectedClean that is used from outside
-// the VM folder and uses _ASSERTE_ALL_BUILDS macro as well.
+// if we are building the VM folder, but outside VM, its not necessarily defined.
 //
 // Thus, if EEPOLICY_HANDLE_FATAL_ERROR is not defined, we will call into __FreeBuildAssertFail,
 // but if it is defined, we will use it.
@@ -241,13 +238,13 @@ namespace clr
         template < typename T >
         void PoisonMem(T &val)
         {
-            ZeroMemory(&val, sizeof(T));
+            ZeroMemory((void*)&val, sizeof(T));
         }
 
         template < typename T >
         void PoisonMem(T* ptr, size_t len)
         {
-            ZeroMemory(ptr, sizeof(T) * len);
+            ZeroMemory((void*)ptr, sizeof(T)* len);
         }
     }
 }

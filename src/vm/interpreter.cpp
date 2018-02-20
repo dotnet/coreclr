@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 #include "common.h"
@@ -15,7 +14,7 @@
 #include "openum.h"
 #include "fcall.h"
 #include "frames.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include <float.h>
 #include "jitinterface.h"
 #include "safemath.h"
@@ -24,9 +23,6 @@
 #include "runtimehandles.h"
 #include "vars.hpp"
 #include "cycletimer.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 inline CORINFO_CALLINFO_FLAGS combine(CORINFO_CALLINFO_FLAGS flag1, CORINFO_CALLINFO_FLAGS flag2)
 {
@@ -45,19 +41,18 @@ InterpreterMethodInfo::InterpreterMethodInfo(CEEInfo* comp, CORINFO_METHOD_INFO*
       m_ILCode(methInfo->ILCode),
       m_ILCodeEnd(methInfo->ILCode + methInfo->ILCodeSize),
       m_maxStack(methInfo->maxStack),
-      m_numArgs(methInfo->args.numArgs),
-      m_flags(0),
-      m_argDescs(NULL),
-      m_numLocals(methInfo->locals.numArgs),
-      m_returnType(methInfo->args.retType),
-      m_invocations(0),
-      m_jittedCode(0),
 #if INTERP_PROFILE
       m_totIlInstructionsExeced(0),
       m_maxIlInstructionsExeced(0),
 #endif
       m_ehClauseCount(methInfo->EHcount),
       m_varArgHandleArgNum(NO_VA_ARGNUM),
+      m_numArgs(methInfo->args.numArgs),
+      m_numLocals(methInfo->locals.numArgs),
+      m_flags(0),
+      m_argDescs(NULL),
+      m_returnType(methInfo->args.retType),
+      m_invocations(0),
       m_methodCache(NULL)
 { 
     // Overflow sanity check. (Can ILCodeSize ever be zero?)
@@ -431,7 +426,7 @@ InterpreterMethodInfo::~InterpreterMethodInfo()
 {
     if (m_methodCache != NULL)
     {
-        delete m_methodCache;
+        delete reinterpret_cast<ILOffsetToItemCache*>(m_methodCache);
     }
 }
 
@@ -534,7 +529,7 @@ void Interpreter::ArgState::AddArg(unsigned canonIndex, short numSlots, bool noR
         argOffsets[canonIndex] = offset.Value();
 #if defined(_ARM_) || defined(_ARM64_)
         callerArgStackSlots += numSlots;
-#endif;
+#endif
     }
 #endif // !_AMD64_
 }
@@ -802,12 +797,6 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
     // So the structure of the code will look like this (in the non-ILstub case):
     // 
 #if defined(_X86_) || defined(_AMD64_)
-    // First do "short-circuiting" if the method has JITted code, and we couldn't find/update the call site:
-    //   eax = &interpMethInfo
-    //   eax = [eax + offsetof(m_jittedCode)]
-    //   if (eax == zero) goto doInterpret:
-    //   /*else*/ jmp [eax]
-    // doInterpret:
     // push ebp
     // mov ebp, esp
     // [if there are register arguments in ecx or edx, push them]
@@ -820,41 +809,6 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #elif defined (_ARM_)
     // TODO.
 #endif
-
-    // The IL stub case is hard.  The portion of the interpreter stub that short-circuits
-    // to JITted code requires an extra "scratch" volatile register, not an argument register;
-    // in the IL stub case, it too is using such a register, as an extra argument, to hold the stub context.  
-    // On x86 and ARM, there is only one such extra volatile register, and we've got a conundrum.
-    // The cases where this short-circuiting is important is when the address of an interpreter stub
-    // becomes "embedded" in other code.  The examples I know of are VSD stubs and delegates.
-    // The first of these is not a problem for IL stubs -- methods invoked via p/Invoke (the ones that
-    // [I think!] use IL stubs) are static, and cannot be invoked via VSD stubs.  Delegates, on the other
-    // remain a problem [I believe].
-    // For the short term, we'll ignore this issue, and never do short-circuiting for IL stubs.
-    // So interpreter stubs embedded in delegates will continue to interpret the IL stub, even after
-    // the stub has been JITted.
-    // The long-term intention is that when we JIT a method with an interpreter stub, we keep a mapping
-    // from interpreter stub address to corresponding native code address.  If this mapping is non-empty,
-    // at GC time we would visit the locations in which interpreter stub addresses might be located, like
-    // VSD stubs and delegate objects, and update them to point to new addresses.  This would be a necessary
-    // part of any scheme to GC interpreter stubs, and InterpreterMethodInfos.
-
-    // If we *really* wanted to make short-circuiting work for the IL stub case, we would have to
-    // (in the x86 case, which should be sufficiently illustrative):
-    //    push eax
-    //    <get the address of JITted code, if any, into eax>
-    //    if there is JITted code in eax, we'd have to
-    //        push 2 non-volatile registers, say esi and edi.
-    //        copy the JITted code address from eax into esi.
-    //        copy the method arguments (without the return address) down the stack, using edi
-    //           as a scratch register.
-    //        restore the original stub context value into eax from the stack
-    //        call (not jmp) to the JITted code address in esi
-    //        pop esi and edi from the stack.
-    //        now the stack has original args, followed by original return address.  Do a "ret"
-    //          that returns to the return address, and also pops the original args from the stack.
-    // If we did this, we'd have to give this portion of the stub proper unwind info.
-    // Also, we'd have to adjust the rest of the stub to pop eax from the stack.
 
     // TODO: much of the interpreter stub code should be is shareable.  In the non-IL stub case,
     // at least, we could have a small per-method stub that puts the address of the method-specific
@@ -872,24 +826,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
     {
         sl.Init();
 #if defined(_X86_) || defined(_AMD64_)
-        // First we do "short-circuiting" if the method has JITted code.
-#if INTERP_ILSTUBS
-        if (!pMD->IsILStub()) // As discussed above, we don't do short-circuiting for IL stubs.
-#endif
-        {
-            // First read the m_jittedCode field.
-            sl.X86EmitRegLoad(kEAX, UINT_PTR(interpMethInfo));
-            sl.X86EmitOffsetModRM(0x8b, kEAX, kEAX, offsetof(InterpreterMethodInfo, m_jittedCode));
-            // If it is still zero, then go on to do the interpretation.
-            sl.X86EmitCmpRegImm32(kEAX, 0);
-            CodeLabel* doInterpret = sl.NewCodeLabel();
-            sl.X86EmitCondJump(doInterpret, X86CondCode::kJE);
-            // Otherwise...
-            sl.X86EmitJumpReg(kEAX);  // tail call to JITted code.
-            sl.EmitLabel(doInterpret);
-        }
 #if defined(_X86_)
-        // Start regular interpretation
         sl.X86EmitPushReg(kEBP);
         sl.X86EmitMovRegReg(kEBP, static_cast<X86Reg>(kESP_Unsafe));
 #endif
@@ -899,42 +836,10 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         ThumbReg r11 = ThumbReg(11);
         ThumbReg r12 = ThumbReg(12);
 
-#if INTERP_ILSTUBS
-        if (!pMD->IsILStub()) // As discussed above, we don't do short-circuiting for IL stubs.
-#endif
-        {
-            // But we also have to use r4, because ThumbEmitCondRegJump below requires a low register.
-            sl.ThumbEmitMovConstant(r12, UINT_PTR(interpMethInfo));
-            sl.ThumbEmitLoadRegIndirect(r12, r12, offsetof(InterpreterMethodInfo, m_jittedCode));
-            sl.ThumbEmitCmpImm(r12, 0); // Set condition codes.
-            // If r12 is zero, then go on to do the interpretation.
-            CodeLabel* doInterpret = sl.NewCodeLabel();
-            sl.ThumbEmitCondFlagJump(doInterpret, thumbCondEq.cond);
-            sl.ThumbEmitJumpRegister(r12);  // If non-zero, tail call to JITted code.
-            sl.EmitLabel(doInterpret); 
-        }
-
-        // Start regular interpretation
-
 #elif defined(_ARM64_)
         // x8 through x15 are scratch registers on ARM64. 
         IntReg x8 = IntReg(8);
         IntReg x9 = IntReg(9);
-
-#if INTERP_ILSTUBS
-        if (!pMD->IsILStub()) // As discussed above, we don't do short-circuiting for IL stubs.
-#endif
-        {
-            sl.EmitMovConstant(x8, UINT64(interpMethInfo));
-            sl.EmitLoadStoreRegImm(StubLinkerCPU::eLOAD, x9, x8, offsetof(InterpreterMethodInfo, m_jittedCode));
-            sl.EmitCmpImm(x9, 0);
-            CodeLabel* doInterpret = sl.NewCodeLabel();
-            sl.EmitCondFlagJump(doInterpret, CondEq.cond);
-            sl.EmitJumpRegister(x9);
-            sl.EmitLabel(doInterpret);
-        }
-
-        // Start regular interpretation
 #else
 #error unsupported platform
 #endif
@@ -1063,7 +968,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         // for instance a VT with two float fields will have the same size as a VT with 1 double field. (ARM64TODO: Verify it)
         // It works on ARM because the overlapping layout of the floating point registers
         // but it won't work on ARM64.
-        cHFAVars = (comp->getHFAType(info->args.retTypeClass) == ELEMENT_TYPE_R4) ? HFARetTypeSize/sizeof(float) : HFARetTypeSize/sizeof(double);
+        cHFAVars = (comp->getHFAType(info->args.retTypeClass) == CORINFO_TYPE_FLOAT) ? HFARetTypeSize/sizeof(float) : HFARetTypeSize/sizeof(double);
 #endif
     }
 
@@ -1434,8 +1339,8 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         sl.X86EmitPopReg(kEBP);
         sl.X86EmitReturn(static_cast<WORD>(argState.callerArgStackSlots * sizeof(void*)));
 #elif defined(_AMD64_)
-        // EDX has "ilArgs" i.e., just the point where registers have been homed.
-        sl.X86EmitIndexLeaRSP(kEDX, static_cast<X86Reg>(kESP_Unsafe), 8);
+        // Pass "ilArgs", i.e. just the point where registers have been homed, as 2nd arg
+        sl.X86EmitIndexLeaRSP(ARGUMENT_kREG2, static_cast<X86Reg>(kESP_Unsafe), 8);
 
         // Allocate space for homing callee's (InterpretMethod's) arguments.
         // Calling convention requires a default allocation space of 4,
@@ -1453,10 +1358,10 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #endif
         {
             // For a non-ILStub method, push NULL as the StubContext argument.
-            sl.X86EmitZeroOutReg(kRCX);
-            sl.X86EmitMovRegReg(kR8, kRCX);
+            sl.X86EmitZeroOutReg(ARGUMENT_kREG1);
+            sl.X86EmitMovRegReg(kR8, ARGUMENT_kREG1);
         }
-        sl.X86EmitRegLoad(kRCX, reinterpret_cast<UINT_PTR>(interpMethInfo));
+        sl.X86EmitRegLoad(ARGUMENT_kREG1, reinterpret_cast<UINT_PTR>(interpMethInfo));
         sl.X86EmitCall(sl.NewExternalCodeLabel(interpretMethodFunc), 0);
         sl.X86EmitAddEsp(interpMethodArgSize);
         sl.X86EmitReturn(0);
@@ -1579,7 +1484,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #else
 #error unsupported platform
 #endif
-        stub = sl.Link();
+        stub = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap());
 
         *nativeSizeOfCode = static_cast<ULONG>(stub->GetNumCodeBytes());
         // TODO: manage reference count of interpreter stubs.  Look for examples...
@@ -1731,19 +1636,19 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
 
         if (InterpretationStubToMethodInfo(stub) == md)
         {
-#ifdef _DEBUG
+#if INTERP_TRACING
             if (s_TraceInterpreterJITTransitionFlag.val(CLRConfig::INTERNAL_TraceInterpreterJITTransition))
             {
                 fprintf(GetLogFile(), "JITting method %s:%s.\n", md->m_pszDebugClassName, md->m_pszDebugMethodName);
             }
-#endif // _DEBUG
-            DWORD dwFlags = CORJIT_FLG_MAKEFINALCODE;
+#endif // INTERP_TRACING
+            CORJIT_FLAGS jitFlags(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
             NewHolder<COR_ILMETHOD_DECODER> pDecoder(NULL);
             // Dynamic methods (e.g., IL stubs) do not have an IL decoder but may
             // require additional flags.  Ordinary methods require the opposite.
             if (md->IsDynamicMethod())
             {
-                dwFlags |= md->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
+                jitFlags.Add(md->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags());
             }
             else
             {
@@ -1752,8 +1657,16 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
                                                     md->GetMDImport(),
                                                     &status);
             }
-            PCODE res = md->MakeJitWorker(pDecoder, dwFlags, 0);
-            interpMethInfo->m_jittedCode = res;
+            // This used to be a synchronous jit and could be made so again if desired,
+            // but using ASP.Net MusicStore as an example scenario the performance is
+            // better doing the JIT asynchronously. Given the not-on-by-default nature of the
+            // interpreter I didn't wring my hands too much trying to determine the ideal
+            // policy.
+#ifdef FEATURE_TIERED_COMPILATION
+            GetAppDomain()->GetTieredCompilationManager()->AsyncPromoteMethodToTier1(md);
+#else
+#error FEATURE_INTERPRETER depends on FEATURE_TIERED_COMPILATION now
+#endif
         }
     }
 }
@@ -1816,14 +1729,6 @@ enum OPCODE_2BYTE {
 #undef OPDEF
 };
 
-#ifdef _DEBUG
-static const char* getMethodName(CEEInfo* info, CORINFO_METHOD_HANDLE meth, const char** pClsName)
-{
-    GCX_PREEMP();
-    return info->getMethodName(meth, pClsName);
-}
-#endif // _DEBUG
-
 // Optimize the interpreter loop for speed.
 #ifdef _MSC_VER
 #pragma optimize("t", on)
@@ -1851,7 +1756,7 @@ static void MonitorEnter(Object* obj, BYTE* pbLockTaken)
         GET_THREAD()->PulseGCMode();
     }
     objRef->EnterObjMonitor();
-    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->m_Recursion == 1 && pThread->m_dwLockCount == lockCount + 1) ||
+    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->GetRecursionLevel() == 1 && pThread->m_dwLockCount == lockCount + 1) ||
               pThread->m_dwLockCount == lockCount);
     if (pbLockTaken != 0) *pbLockTaken = 1;
 
@@ -2247,28 +2152,28 @@ EvalLoop:
             break;
 
         case CEE_JMP:
-            *pJmpCallToken = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            *pJmpCallToken = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             *pDoJmpCall = true;
             goto ExitEvalLoop;
 
         case CEE_CALL:
             DoCall(/*virtualCall*/false);
-#ifdef _DEBUG
+#if INTERP_TRACING
             if (s_TraceInterpreterILFlag.val(CLRConfig::INTERNAL_TraceInterpreterIL))
             {
                 fprintf(GetLogFile(), "  Returning to method %s, stub num %d.\n", methName, m_methInfo->m_stubNum);
             }
-#endif // _DEBUG
+#endif // INTERP_TRACING
             continue;
 
         case CEE_CALLVIRT:
             DoCall(/*virtualCall*/true);
-#ifdef _DEBUG
+#if INTERP_TRACING
             if (s_TraceInterpreterILFlag.val(CLRConfig::INTERNAL_TraceInterpreterIL))
             {
                 fprintf(GetLogFile(), "  Returning to method %s, stub num %d.\n", methName, m_methInfo->m_stubNum);
             }
-#endif // _DEBUG
+#endif // INTERP_TRACING
             continue;
 
             // HARD
@@ -2637,8 +2542,10 @@ EvalLoop:
             {
                 assert(m_curStackHt > 0);
                 m_curStackHt--;
-#ifdef _DEBUG
+#if defined(_DEBUG) || defined(_AMD64_)
                 CorInfoType cit = OpStackTypeGet(m_curStackHt).ToCorInfoType();
+#endif // _DEBUG || _AMD64_
+#ifdef _DEBUG
                 assert(cit == CORINFO_TYPE_INT || cit == CORINFO_TYPE_UINT || cit == CORINFO_TYPE_NATIVEINT);
 #endif // _DEBUG
 #if defined(_AMD64_)
@@ -2797,12 +2704,12 @@ EvalLoop:
             continue;
         case CEE_NEWOBJ:
             NewObj();
-#ifdef _DEBUG
+#if INTERP_TRACING
             if (s_TraceInterpreterILFlag.val(CLRConfig::INTERNAL_TraceInterpreterIL))
             {
                 fprintf(GetLogFile(), "  Returning to method %s, stub num %d.\n", methName, m_methInfo->m_stubNum);
             }
-#endif // _DEBUG
+#endif // INTERP_TRACING
             continue;
         case CEE_CASTCLASS:
             CastClass();
@@ -4327,13 +4234,13 @@ void Interpreter::StInd()
     *ptr = val;
     m_curStackHt -= 2;
 
-#ifdef _DEBUG
+#if INTERP_TRACING
     if (s_TraceInterpreterILFlag.val(CLRConfig::INTERNAL_TraceInterpreterIL) &&
         IsInLocalArea(ptr))
     {
         PrintLocals();
     }
-#endif // _DEBUG
+#endif // INTERP_TRACING
 }
 
 void Interpreter::StInd_Ref()
@@ -4349,13 +4256,13 @@ void Interpreter::StInd_Ref()
     SetObjectReferenceUnchecked(ptr, val);
     m_curStackHt -= 2;
 
-#ifdef _DEBUG
+#if INTERP_TRACING
     if (s_TraceInterpreterILFlag.val(CLRConfig::INTERNAL_TraceInterpreterIL) &&
         IsInLocalArea(ptr))
     {
         PrintLocals();
     }
-#endif // _DEBUG
+#endif // INTERP_TRACING
 }
 
 
@@ -4825,10 +4732,6 @@ void Interpreter::BinaryArithOvfOp()
         }
         break;
 
-    case CORINFO_TYPE_SHIFTED_CLASS:
-        VerificationError("Can't do binary arithmetic overflow operation on object references.");
-        break;
-
     default:
         _ASSERTE_MSG(false, "Non-stack-normal type on stack.");
     }
@@ -5099,7 +5002,7 @@ void Interpreter::ShiftOpWork(unsigned op1idx, CorInfoType cit2)
             res = (static_cast<UT>(val)) >> shiftAmt;
         }
     } 
-    else if (cit2 = CORINFO_TYPE_NATIVEINT)
+    else if (cit2 == CORINFO_TYPE_NATIVEINT)
     {
         NativeInt shiftAmt = OpStackGet<NativeInt>(op2idx);
         if (op == CEE_SHL)
@@ -5932,7 +5835,7 @@ void Interpreter::NewObj()
         {
             void* dest = LargeStructOperandStackPush(sz);
             memcpy(dest, tempDest, sz);
-            delete[] tempDest;
+            delete[] reinterpret_cast<BYTE*>(tempDest);
             OpStackSet<void*>(m_curStackHt, dest);
         }
         else
@@ -6005,20 +5908,6 @@ void Interpreter::NewObj()
             MethodTable * pNewObjMT = GetMethodTableFromClsHnd(methTok.hClass);
             switch (newHelper)
             {
-#ifdef FEATURE_REMOTING
-            case CORINFO_HELP_NEW_CROSSCONTEXT:
-                {
-                    if (CRemotingServices::RequiresManagedActivation(pNewObjMT) && !pNewObjMT->IsComObjectType())
-                    {
-                        thisArgObj = CRemotingServices::CreateProxyOrObject(pNewObjMT);
-                    }
-                    else
-                    {
-                        thisArgObj = AllocateObject(pNewObjMT);
-                    }
-                }
-                break;
-#endif // FEATURE_REMOTING
             case CORINFO_HELP_NEWFAST:
             default:
                 thisArgObj = AllocateObject(pNewObjMT);
@@ -6097,13 +5986,12 @@ void Interpreter::NewArr()
         }
 #endif
 
-        TypeHandle typeHnd(elemClsHnd);
-        ArrayTypeDesc* pArrayClassRef = typeHnd.AsArray();
+        MethodTable *pArrayMT = (MethodTable *) elemClsHnd;
 
-        pArrayClassRef->GetMethodTable()->CheckRunClassInitThrowing();
+        pArrayMT->CheckRunClassInitThrowing();
 
         INT32 size32 = (INT32)sz;
-        Object* newarray = OBJECTREFToObject(AllocateArrayEx(typeHnd, &size32, 1));
+        Object* newarray = OBJECTREFToObject(AllocateArrayEx(pArrayMT, &size32, 1));
 
         GCX_FORBID();
         OpStackTypeSet(stkInd, InterpreterType(CORINFO_TYPE_CLASS));
@@ -6172,10 +6060,9 @@ void Interpreter::CastClass()
     Object * pObj = OpStackGet<Object*>(idx);
     if (pObj != NULL)
     {
-        if (!ObjIsInstanceOf(pObj, TypeHandle(cls)))
+        if (!ObjIsInstanceOf(pObj, TypeHandle(cls), TRUE))
         {
-            OBJECTREF oref = ObjectToOBJECTREF(OpStackGet<Object*>(idx));
-            COMPlusThrowInvalidCastException(&oref, TypeHandle(cls));
+            UNREACHABLE(); //ObjIsInstanceOf will throw if cast can't be done
         }
     }
 
@@ -7300,7 +7187,7 @@ void Interpreter::LdFld(FieldDesc* fldIn)
         }
         if (fld == NULL)
         {
-            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             fld = FindField(tok  InterpTracingArg(RTK_LdFld));
             assert(fld != NULL);
 
@@ -7343,12 +7230,6 @@ void Interpreter::LdFld(FieldDesc* fldIn)
     {
         OBJECTREF obj = OBJECTREF(OpStackGet<Object*>(stackInd));
         ThrowOnInvalidPointer(OBJECTREFToObject(obj));
-#ifdef FEATURE_REMOTING
-        if (obj->IsTransparentProxy())
-        {
-            NYI_INTERP("Thunking objects not supported");
-        }
-#endif
         if (valCit == CORINFO_TYPE_VALUECLASS)
         {
             void* srcPtr = fld->GetInstanceAddress(obj);
@@ -7521,7 +7402,7 @@ void Interpreter::LdFldA()
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
 #if INTERP_TRACING
     InterlockedIncrement(&s_tokenResolutionOpportunities[RTK_LdFldA]);
@@ -7585,7 +7466,7 @@ void Interpreter::StFld()
         if (s_InterpreterUseCaching) fld = GetCachedInstanceField(ilOffset);
         if (fld == NULL)
         {
-            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             GCX_PREEMP();
             fld = FindField(tok  InterpTracingArg(RTK_StFld));
             assert(fld != NULL);
@@ -7737,7 +7618,7 @@ bool Interpreter::StaticFldAddrWork(CORINFO_ACCESS_FLAGS accessFlgs, /*out (byre
     bool isCacheable = true;
     *pManagedMem = true;  // Default result.
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
     m_ILCodePtr += 5;  // Above is last use of m_ILCodePtr in this method, so update now.
 
     FieldDesc* fld;
@@ -8580,10 +8461,6 @@ void Interpreter::Box()
         }
 
         MethodTable* pMT = th.AsMethodTable();
-        if (pMT->ContainsStackPtr()) // TODO: the call to MethodTable::Box() below also calls ContainsStackPtr(), and throws kInvalidOperationException if it returns true. Should we not call it here?
-        {
-            COMPlusThrow(kInvalidProgramException);
-        }
 
         {
             Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -8625,9 +8502,7 @@ void Interpreter::BoxStructRefAt(unsigned ind, CORINFO_CLASS_HANDLE valCls)
     if (th.IsTypeDesc())
         COMPlusThrow(kInvalidOperationException,W("InvalidOperation_TypeCannotBeBoxed"));
 
-    MethodTable * pMT = th.AsMethodTable();
-    if (pMT->ContainsStackPtr())
-        COMPlusThrow(kInvalidProgramException);
+    MethodTable* pMT = th.AsMethodTable();
 
     {
         Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -8822,8 +8697,10 @@ void Interpreter::UnboxAny()
     if ((boxTypeAttribs & CORINFO_FLG_VALUECLASS) == 0)
     {
         Object* obj = OpStackGet<Object*>(tos);
-        if (obj != NULL && !ObjIsInstanceOf(obj, TypeHandle(boxTypeClsHnd)))
-            COMPlusThrowInvalidCastException(&ObjectToOBJECTREF(obj), TypeHandle(boxTypeClsHnd));
+        if (obj != NULL && !ObjIsInstanceOf(obj, TypeHandle(boxTypeClsHnd), TRUE))
+        {
+            UNREACHABLE(); //ObjIsInstanceOf will throw if cast can't be done
+        }
     }
     else
     {
@@ -9030,7 +8907,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #if INTERP_TRACING
     InterlockedIncrement(&s_totalInterpCalls);
 #endif // INTERP_TRACING
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
     // It's possible for an IL method to push a capital-F Frame.  If so, we pop it and save it;
     // we'll push it back on after our GCPROTECT frame is popped.
@@ -9598,6 +9475,9 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 
     // This is the argument slot that will be used to hold the return value.
     ARG_SLOT retVal = 0;
+#if !defined(_ARM_) && !defined(UNIX_AMD64_ABI)
+    _ASSERTE (NUMBER_RETURNVALUE_SLOTS == 1);
+#endif
 
     // If the return type is a structure, then these will be initialized.
     CORINFO_CLASS_HANDLE retTypeClsHnd = NULL;
@@ -9608,7 +9488,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
     // (I could probably optimize this pop all the arguments first, then allocate space for the return value
     // on the large structure operand stack, and pass a pointer directly to that space, avoiding the extra
     // copy we have below.  But this seemed more expedient, and this should be a pretty rare case.)
-    byte* pLargeStructRetVal = NULL;
+    BYTE* pLargeStructRetVal = NULL;
 
     // If there's a "GetFlag<Flag_hasRetBuffArg>()" struct return value, it will be stored in this variable if it fits,
     // otherwise, we'll dynamically allocate memory for it.
@@ -9659,7 +9539,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #ifdef ENREGISTERED_RETURNTYPE_MAXSIZE
                 retBuffSize = max(retTypeSz, ENREGISTERED_RETURNTYPE_MAXSIZE);
 #endif // ENREGISTERED_RETURNTYPE_MAXSIZE
-                pLargeStructRetVal = (byte*)_alloca(retBuffSize);
+                pLargeStructRetVal = (BYTE*)_alloca(retBuffSize);
                 // Clear this in case a GC happens.
                 for (unsigned i = 0; i < retTypeSz; i++) pLargeStructRetVal[i] = 0;
                 // Register this as location needing GC.
@@ -9873,7 +9753,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #if INTERP_ILCYCLE_PROFILE
             bool b = CycleTimer::GetThreadCyclesS(&startCycles); assert(b);
 #endif // INTERP_ILCYCLE_PROFILE
-            retVal = mdcs.CallTargetWorker(args);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
 
             if (pCscd != NULL)
             {
@@ -9905,7 +9785,6 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
         GCX_FORBID();
 
         // Some managed methods, believe it or not, can push capital-F Frames on the Frame chain.
-        // The example I've found involves SecurityContextFrame.Push/Pop.
         // If this happens, executing the EX_CATCH below will pop it, which is bad.
         // So detect that case, pop the explicitly-pushed frame, and push it again after the EX_CATCH.
         // (Asserting that there is only 1 such frame!)
@@ -10086,7 +9965,7 @@ void Interpreter::CallI()
     InterlockedIncrement(&s_totalInterpCalls);
 #endif // INTERP_TRACING
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
     CORINFO_SIG_INFO sigInfo;
 
@@ -10182,7 +10061,7 @@ void Interpreter::CallI()
     // (I could probably optimize this pop all the arguments first, then allocate space for the return value
     // on the large structure operand stack, and pass a pointer directly to that space, avoiding the extra
     // copy we have below.  But this seemed more expedient, and this should be a pretty rare case.)
-    byte* pLargeStructRetVal = NULL;
+    BYTE* pLargeStructRetVal = NULL;
 
     // If there's a "GetFlag<Flag_hasRetBuffArg>()" struct return value, it will be stored in this variable if it fits,
     // otherwise, we'll dynamically allocate memory for it.
@@ -10218,7 +10097,7 @@ void Interpreter::CallI()
 #ifdef ENREGISTERED_RETURNTYPE_MAXSIZE
                 retBuffSize = max(retTypeSz, ENREGISTERED_RETURNTYPE_MAXSIZE);
 #endif // ENREGISTERED_RETURNTYPE_MAXSIZE
-                pLargeStructRetVal = (byte*)_alloca(retBuffSize);
+                pLargeStructRetVal = (BYTE*)_alloca(retBuffSize);
 
                 // Clear this in case a GC happens.
                 for (unsigned i = 0; i < retTypeSz; i++)
@@ -10331,19 +10210,27 @@ void Interpreter::CallI()
             MethodDesc* pMD;
             if (mSig.HasThis())
             {
-                pMD = g_pObjectCtorMD;
+                pMD = g_pObjectFinalizerMD;
             }
             else
             {
-                pMD = g_pPrepareConstrainedRegionsMethod;  // A random static method.
+                pMD = g_pExecuteBackoutCodeHelperMethod;  // A random static method.
             }
             MethodDescCallSite mdcs(pMD, &mSig, ftnPtr);
+#if 0
             // If the current method being interpreted is an IL stub, we're calling native code, so
             // change the GC mode.  (We'll only do this at the call if the calling convention turns out
             // to be a managed calling convention.)
             MethodDesc* pStubContextMD = reinterpret_cast<MethodDesc*>(m_stubContext);
             bool transitionToPreemptive = (pStubContextMD != NULL && !pStubContextMD->IsIL());
-            retVal = mdcs.CallTargetWorker(args, transitionToPreemptive);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal), transitionToPreemptive);
+#else
+            // TODO The code above triggers assertion at threads.cpp:6861:
+            //     _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
+            // The workaround will likely break more things than what it is fixing:
+            // just do not make transition to preemptive GC for now.
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
+#endif
         }
         // retVal is now vulnerable.
         GCX_FORBID();
@@ -10849,7 +10736,7 @@ Interpreter::AddrToMDMap* Interpreter::GetAddrToMdMap()
 
     if (s_addrToMDMap == NULL)
     {
-        s_addrToMDMap = new AddrToMDMap(/* use default allocator */ NULL);
+        s_addrToMDMap = new AddrToMDMap();
     }
     return s_addrToMDMap;
 }
@@ -10871,7 +10758,7 @@ void Interpreter::RecordInterpreterStubForMethodDesc(CORINFO_METHOD_HANDLE md, v
     CORINFO_METHOD_HANDLE dummy;
     assert(!map->Lookup(addr, &dummy));
 #endif // DEBUG
-    map->Set(addr, md);
+    map->AddOrReplace(KeyValuePair<void*,CORINFO_METHOD_HANDLE>(addr, md));
 }
 
 MethodDesc* Interpreter::InterpretationStubToMethodInfo(PCODE addr)
@@ -10911,7 +10798,7 @@ Interpreter::MethodHandleToInterpMethInfoPtrMap* Interpreter::GetMethodHandleToI
 
     if (s_methodHandleToInterpMethInfoPtrMap == NULL)
     {
-        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap(/* use default allocator */ NULL);
+        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap();
     }
     return s_methodHandleToInterpMethInfoPtrMap;
 }
@@ -10947,8 +10834,8 @@ InterpreterMethodInfo* Interpreter::RecordInterpreterMethodInfoForMethodHandle(C
     mi.m_thread = GetThread();
 #endif
 
-    bool b = map->Set(md, mi);
-    _ASSERTE_MSG(!b, "Multiple InterpMethInfos for method desc.");
+    _ASSERTE_MSG(map->LookupPtr(md) == NULL, "Multiple InterpMethInfos for method desc.");
+    map->Add(md, mi);
     return methInfo;
 }
 
@@ -11828,7 +11715,7 @@ void Interpreter::PrintValue(InterpreterType it, BYTE* valAddr)
                 {
                     fprintf(GetLogFile(), " ");
                 }
-                fprintf(GetLogFile(), "0x%p", valAddr[i]);
+                fprintf(GetLogFile(), "0x%02x", valAddr[i]);
             }
             fprintf(GetLogFile(), "]");
         }
@@ -11925,7 +11812,7 @@ void Interpreter::PrintPostMortemData()
 
     // Otherwise...
 
-#ifdef _DEBUG
+#if INTERP_TRACING
     // Let's print two things: the number of methods that are 0-10, or more, and
     // For each 10% of methods, cumulative % of invocations they represent.  By 1% for last 10%.
 

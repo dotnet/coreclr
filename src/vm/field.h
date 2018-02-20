@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // COM+ Data Field Abstraction
@@ -11,12 +10,7 @@
 #ifndef _FIELD_H_
 #define _FIELD_H_
 
-#ifndef BINDER
-#include "objecthandle.h"
 #include "excep.h"
-#else // BINDER
-#include "methodtable.h"
-#endif // BINDER
 
 // Temporary values stored in FieldDesc m_dwOffset during loading
 // The high 5 bits must be zero (because in field.h we steal them for other uses), so we must choose values > 0
@@ -41,15 +35,14 @@
 class FieldDesc
 {
     friend class MethodTableBuilder;
-#ifdef BINDER
-    friend class MdilModule;
-#endif // BINDER
 #ifdef DACCESS_COMPILE
     friend class NativeImageDumper;
 #endif
 
   protected:
     RelativePointer<PTR_MethodTable> m_pMTOfEnclosingClass;  // This is used to hold the log2 of the field size temporarily during class loading.  Yuck.
+
+    // See also: FieldDesc::InitializeFrom method
 
 #if defined(DACCESS_COMPILE)
     union { //create a union so I can get the correct offset for ClrDump.
@@ -63,9 +56,6 @@ class FieldDesc
         // 8 bits...
         unsigned m_isStatic         : 1;
         unsigned m_isThreadLocal    : 1;
-#ifdef FEATURE_REMOTING
-        unsigned m_isContextLocal   : 1;
-#endif
         unsigned m_isRVA            : 1;
         unsigned m_prot             : 3;
         // Does this field's mb require all 24 bits
@@ -96,19 +86,32 @@ class FieldDesc
     LPUTF8 m_debugName;
 #endif
 
-    // Allocated by special heap means, don't construct me
-    FieldDesc() {};
-
 public:
-#ifdef BINDER
-    // We will need these to implement pseudoinstructions COPY_STRUCT,
-    // PUSH_STRUCT (versionable struct support).
-    // They are implemented via a side hash table in MdilModule
-    DWORD GetFieldValueTypeToken();
-    void SetFieldValueTypeToken(DWORD valueTypeToken);
-    MethodTable *GetFieldFullType();
-    void SetFieldFullType(MethodTable *mt);
-#endif
+    // Allocated by special heap means, don't construct me
+    FieldDesc() =delete;
+
+#ifndef DACCESS_COMPILE
+    void InitializeFrom(const FieldDesc& sourceField, MethodTable *pMT)
+    {
+        m_pMTOfEnclosingClass.SetValue(pMT);
+
+        m_mb = sourceField.m_mb;
+        m_isStatic = sourceField.m_isStatic;
+        m_isThreadLocal = sourceField.m_isThreadLocal;
+        m_isRVA = sourceField.m_isRVA;
+        m_prot = sourceField.m_prot;
+        m_requiresFullMbValue = sourceField.m_requiresFullMbValue;
+
+        m_dwOffset = sourceField.m_dwOffset;
+        m_type = sourceField.m_type;
+
+#ifdef _DEBUG
+        m_isDangerousAppDomainAgileField = sourceField.m_isDangerousAppDomainAgileField;
+
+        m_debugName = sourceField.m_debugName;
+#endif // _DEBUG
+    }
+#endif // !DACCESS_COMPILE
 
 #ifdef _DEBUG
     inline LPUTF8 GetDebugName()
@@ -187,19 +190,6 @@ public:
         // code:MethodTableBuilder.InitializeFieldDescs#FieldDescTypeMorph
         return (CorElementType) m_type;
     }
-#ifdef BINDER
-    void SetFieldType(CorElementType type)
-    {
-
-        LIMITED_METHOD_CONTRACT;
-        SUPPORTS_DAC;
-
-        // Set in code:FieldDesc.Init which in turn is called from
-        // code:MethodTableBuilder.InitializeFieldDescs#InitCall which in turn calls
-        // code:MethodTableBuilder.InitializeFieldDescs#FieldDescTypeMorph
-        m_type = type;
-    }
-#endif
 
     DWORD GetFieldProtection()
     {
@@ -223,7 +213,6 @@ public:
     DWORD GetOffset()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-
         g_IBCLogger.LogFieldDescsAccess(this);
         return GetOffset_NoLogging();
     }
@@ -266,7 +255,6 @@ public:
 
         DWORD   rva;
 
-#ifndef BINDER
         // <NICE>I'm discarding a potential error here.  According to the code in MDInternalRO.cpp,
         // we won't get an error if we initially found the RVA.  So I'm going to just
         // assert it never happens.
@@ -275,10 +263,6 @@ public:
         HRESULT hr;
         hr = GetMDImport()->GetFieldRVA(GetMemberDef(), &rva); 
         _ASSERTE(SUCCEEDED(hr));
-#else // BINDER
-        BOOL fSucceeded = GetRVAOffsetForFieldDesc(this, &rva);
-        assert(fSucceeded);
-#endif // BINDER
         return rva;
     }
 
@@ -312,18 +296,7 @@ public:
         m_dwOffset = (dwOffset > FIELD_OFFSET_LAST_REAL_OFFSET)
                       ? FIELD_OFFSET_BIG_RVA
                       : dwOffset;
-#ifdef BINDER
-        StoreRVAOffsetForFieldDesc(this, dwOffset);
-#endif
     }
-    
-#ifndef BINDER
-    BOOL IsILOnlyRVAField()
-    {
-        WRAPPER_NO_CONTRACT;
-        return (IsRVA() && GetModule()->GetFile()->IsILOnly());
-    }
-#endif // !BINDER
 
     DWORD   IsStatic() const
     {
@@ -337,13 +310,10 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         return m_isStatic && (m_isRVA || m_isThreadLocal
-#ifdef FEATURE_REMOTING
-            || m_isContextLocal
-#endif
             );
     }
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
     BOOL   IsDangerousAppDomainAgileField()
     {
         LIMITED_METHOD_CONTRACT;
@@ -377,11 +347,7 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-#ifdef FEATURE_REMOTING     
-        return m_isContextLocal;
-#else
         return FALSE;
-#endif
     }
 
     // Indicate that this field was added by EnC
@@ -485,11 +451,7 @@ public:
     BOOL IsSharedByGenericInstantiations()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-#ifndef BINDER
         return (!IsStatic()) && GetApproxEnclosingMethodTable()->IsSharedByGenericInstantiations();
-#else // BINDER
-        return FALSE;
-#endif // BINDER
     }
 
     BOOL IsFieldOfValueType()
@@ -503,9 +465,6 @@ public:
         WRAPPER_NO_CONTRACT;
         return GetApproxEnclosingMethodTable()->GetNumGenericArgs();
     }
-
-
-#ifndef BINDER
 
    PTR_BYTE GetBaseInDomainLocalModule(DomainLocalModule * pLocalModule)
     {
@@ -668,11 +627,6 @@ public:
 
         _ASSERTE(IsStatic());
 
-#ifdef FEATURE_REMOTING     
-        if (IsContextStatic()) 
-            return Context::GetStaticFieldAddress(this);
-        else 
-#endif            
         if (IsThreadStatic()) 
         {
             return Thread::GetStaticFieldAddress(this);
@@ -698,25 +652,7 @@ public:
         GetEnclosingMethodTable()->CheckRunClassInitThrowing();
     }
 #endif //DACCESS_COMPILE
-#endif // !BINDER
 
-#ifdef BINDER
-    MdilModule *GetModule()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return GetApproxEnclosingMethodTable()->GetModule();
-    }
-
-    MdilModule *GetLoaderModule()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        // Field Desc's are currently always saved into the same module as their 
-        // corresponding method table.
-        return GetApproxEnclosingMethodTable()->GetLoaderModule();
-    }
-#else //!BINDER
     Module *GetModule()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -915,7 +851,6 @@ public:
         WRAPPER_NO_CONTRACT;
         return GetFieldTypeHandleThrowing(CLASS_LOAD_APPROXPARENTS, TRUE);
     }
-#endif // !BINDER
 
     // Given a type handle of an object and a method that comes from some 
     // superclass of the class of that object, find the instantiation of 
@@ -947,58 +882,6 @@ public:
     REFLECTFIELDREF GetStubFieldInfo();
 #endif
 };
-
-#ifdef BINDER
-inline VOID FieldDesc::Init(mdFieldDef mb, CorElementType FieldType, DWORD dwMemberAttrs, BOOL fIsStatic, BOOL fIsRVA, BOOL fIsThreadLocal, BOOL fIsContextLocal, LPCSTR pszFieldName)
-{ 
-
-    LIMITED_METHOD_CONTRACT;
-    
-    // We allow only a subset of field types here - all objects must be set to TYPE_CLASS
-    // By-value classes are ELEMENT_TYPE_VALUETYPE
-    _ASSERTE(
-        FieldType == ELEMENT_TYPE_I1 ||
-        FieldType == ELEMENT_TYPE_BOOLEAN ||
-        FieldType == ELEMENT_TYPE_U1 ||
-        FieldType == ELEMENT_TYPE_I2 ||
-        FieldType == ELEMENT_TYPE_U2 ||
-        FieldType == ELEMENT_TYPE_CHAR ||
-        FieldType == ELEMENT_TYPE_I4 ||
-        FieldType == ELEMENT_TYPE_U4 ||
-        FieldType == ELEMENT_TYPE_I8 ||
-        FieldType == ELEMENT_TYPE_I  ||
-        FieldType == ELEMENT_TYPE_U  ||
-        FieldType == ELEMENT_TYPE_U8 ||
-        FieldType == ELEMENT_TYPE_R4 ||
-        FieldType == ELEMENT_TYPE_R8 ||
-        FieldType == ELEMENT_TYPE_CLASS ||
-        FieldType == ELEMENT_TYPE_VALUETYPE ||
-        FieldType == ELEMENT_TYPE_PTR ||
-        FieldType == ELEMENT_TYPE_FNPTR
-        );
-    _ASSERTE(fIsStatic || (!fIsRVA && !fIsThreadLocal && !fIsContextLocal));
-    _ASSERTE(fIsRVA + fIsThreadLocal + fIsContextLocal <= 1);
-    
-    m_mb = RidFromToken(mb);
-    m_type = FieldType;
-    m_prot = fdFieldAccessMask & dwMemberAttrs;
-    m_isStatic = fIsStatic != 0;
-    m_isRVA = fIsRVA != 0;
-    m_isThreadLocal = fIsThreadLocal != 0;
-#ifdef FEATURE_REMOTING
-    m_isContextLocal = fIsContextLocal != 0;
-#endif
-
-#ifdef _DEBUG
-    m_isDangerousAppDomainAgileField = 0;
-    m_debugName = (LPUTF8)pszFieldName;
-#endif
-    _ASSERTE(GetMemberDef() == mb);                 // no truncation
-    _ASSERTE(GetFieldType() == FieldType);
-    _ASSERTE(GetFieldProtection() == (fdFieldAccessMask & dwMemberAttrs));
-    _ASSERTE((BOOL) IsStatic() == (fIsStatic != 0));
-}
-#endif // BINDER
 
 #endif // _FIELD_H_
 
