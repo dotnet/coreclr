@@ -48,7 +48,8 @@ namespace DefaultNamespace {
             iTable = 500;
 
             //Seed for generate random iKey
-            iSeed = (int)DateTime.Now.Ticks; 
+            //iiSeed = (int)DateTime.Now.Ticks; 
+            iSeed = -2117355236;
 
             switch( Args.Length )
             {
