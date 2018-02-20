@@ -46,8 +46,9 @@ namespace System.Runtime.InteropServices
         public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> readOnlyMemory, out TOwner ownedMemory)
             where TOwner : OwnedMemory<T>
         {
-            ownedMemory = readOnlyMemory.GetObjectStartLength(out int index, out int length) as TOwner;
-            return !ReferenceEquals(ownedMemory, null);
+            TOwner owner; // Use register for null comparision rahter than byref
+            ownedMemory = owner = readOnlyMemory.GetObjectStartLength(out int index, out int length) as TOwner;
+            return !ReferenceEquals(owner, null);
         }
 
         /// <summary>
@@ -57,8 +58,9 @@ namespace System.Runtime.InteropServices
         public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> readOnlyMemory, out TOwner ownedMemory, out int index, out int length)
            where TOwner : OwnedMemory<T>
         {
-            ownedMemory = readOnlyMemory.GetObjectStartLength(out index, out length) as TOwner;
-            return !ReferenceEquals(ownedMemory, null);
+            TOwner owner; // Use register for null comparision rahter than byref
+            ownedMemory = owner = readOnlyMemory.GetObjectStartLength(out index, out length) as TOwner;
+            return !ReferenceEquals(owner, null);
         }
 
         /// <summary>
