@@ -3762,8 +3762,6 @@ PAL_BindResources(IN LPCSTR lpDomain);
 
 #define EXCEPTION_IS_SIGNAL 0x100
 
-#define EXCEPTION_ON_STACK 0x400
-
 #define EXCEPTION_MAXIMUM_PARAMETERS 15
 
 // Index in the ExceptionInformation array where we will keep the reference
@@ -5665,6 +5663,11 @@ PAL_FreeExceptionRecords(
   IN EXCEPTION_RECORD *exceptionRecord, 
   IN CONTEXT *contextRecord);
 
+VOID
+AllocateExceptionRecords(
+    EXCEPTION_RECORD** exceptionRecord,
+    CONTEXT** contextRecord);
+
 #define EXCEPTION_CONTINUE_SEARCH   0
 #define EXCEPTION_EXECUTE_HANDLER   1
 #define EXCEPTION_CONTINUE_EXECUTION -1
@@ -5679,14 +5682,14 @@ private:
         ExceptionPointers.ExceptionRecord = ex.ExceptionPointers.ExceptionRecord;
         ExceptionPointers.ContextRecord = ex.ExceptionPointers.ContextRecord;
         TargetFrameSp = ex.TargetFrameSp;
+        RecordsOnStack = ex.RecordsOnStack;
 
         ex.Clear();
     }
 
     void FreeRecords()
     {
-        if (ExceptionPointers.ExceptionRecord != NULL &&
-            ! (ExceptionPointers.ExceptionRecord->ExceptionFlags | EXCEPTION_ON_STACK) )
+        if (ExceptionPointers.ExceptionRecord != NULL && !RecordsOnStack )
         {
             PAL_FreeExceptionRecords(ExceptionPointers.ExceptionRecord, ExceptionPointers.ContextRecord);
             ExceptionPointers.ExceptionRecord = NULL;
@@ -5698,12 +5701,14 @@ public:
     EXCEPTION_POINTERS ExceptionPointers;
     // Target frame stack pointer set before the 2nd pass.
     SIZE_T TargetFrameSp;
+    bool RecordsOnStack;
 
-    PAL_SEHException(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContextRecord)
+    PAL_SEHException(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContextRecord, bool onStack = false)
     {
         ExceptionPointers.ExceptionRecord = pExceptionRecord;
         ExceptionPointers.ContextRecord = pContextRecord;
         TargetFrameSp = NoTargetFrameSp;
+        RecordsOnStack = onStack;
     }
 
     PAL_SEHException()
@@ -5739,6 +5744,26 @@ public:
         ExceptionPointers.ExceptionRecord = NULL;
         ExceptionPointers.ContextRecord = NULL;
         TargetFrameSp = NoTargetFrameSp;
+        RecordsOnStack = false;
+    }
+
+    void EnsureExceptionRecordsOnHeap()
+    {
+        if( !RecordsOnStack || ExceptionPointers.ExceptionRecord == NULL)
+        {
+            return;
+        }
+
+        CONTEXT* contextRecordCopy;
+        EXCEPTION_RECORD* exceptionRecordCopy;
+        AllocateExceptionRecords(&exceptionRecordCopy, &contextRecordCopy);
+
+        *exceptionRecordCopy = *ExceptionPointers.ExceptionRecord;
+        ExceptionPointers.ExceptionRecord = exceptionRecordCopy;
+        *contextRecordCopy = *ExceptionPointers.ContextRecord;
+        ExceptionPointers.ContextRecord = contextRecordCopy;
+
+        RecordsOnStack = false;
     }
 
     CONTEXT* GetContextRecord()

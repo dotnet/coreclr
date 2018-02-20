@@ -202,23 +202,6 @@ void ThrowExceptionHelper(PAL_SEHException* ex)
     throw std::move(*ex);
 }
 
-static PAL_SEHException copyPAL_SEHException(PAL_SEHException* src)
-{
-    CONTEXT* contextRecord = src->GetContextRecord();
-    EXCEPTION_RECORD* exceptionRecord = src->GetExceptionRecord();
-
-    CONTEXT* contextRecordCopy;
-    EXCEPTION_RECORD* exceptionRecordCopy;
-    AllocateExceptionRecords(&exceptionRecordCopy, &contextRecordCopy);
-
-    *exceptionRecordCopy = *exceptionRecord;
-    exceptionRecordCopy->ExceptionFlags &= ~EXCEPTION_ON_STACK;
-    *contextRecordCopy = *contextRecord;
-    return PAL_SEHException(exceptionRecordCopy, contextRecordCopy);
-} 
-
-
-
 /*++
 Function:
     SEHProcessException
@@ -266,10 +249,8 @@ SEHProcessException(PAL_SEHException* exception)
                         PROCAbort();
                     }
                 }
-                
-                if(exceptionRecord->ExceptionFlags | EXCEPTION_ON_STACK)
-                    *exception = copyPAL_SEHException(exception);
 
+                exception->EnsureExceptionRecordsOnHeap();
                 if (g_hardwareExceptionHandler(exception))
                 {
                     // The exception happened in managed code and the execution should continue.
@@ -282,9 +263,7 @@ SEHProcessException(PAL_SEHException* exception)
 
         if (CatchHardwareExceptionHolder::IsEnabled())
         {
-            if(exceptionRecord->ExceptionFlags | EXCEPTION_ON_STACK)
-                *exception = copyPAL_SEHException(exception);
-
+            exception->EnsureExceptionRecordsOnHeap();
             PAL_ThrowExceptionFromContext(exception->GetContextRecord(), exception);
         }
     }

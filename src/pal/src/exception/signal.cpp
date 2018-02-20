@@ -833,10 +833,8 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     ucontext = (native_context_t *)sigcontext;
     g_common_signal_handler_context_locvar_offset = (int)((char*)&signalContextRecord - (char*)__builtin_frame_address(0));
 
-    //AllocateExceptionRecords(&exceptionRecord, &contextRecord);
-
     exceptionRecord.ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
-    exceptionRecord.ExceptionFlags = EXCEPTION_IS_SIGNAL | EXCEPTION_ON_STACK;
+    exceptionRecord.ExceptionFlags = EXCEPTION_IS_SIGNAL;
     exceptionRecord.ExceptionRecord = NULL;
     exceptionRecord.ExceptionAddress = GetNativeContextPC(ucontext);
     exceptionRecord.NumberParameters = numParams;
@@ -878,7 +876,7 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     memcpy_s(&signalContextRecord, sizeof(CONTEXT), &contextRecord, sizeof(CONTEXT));
 
     // The exception object takes ownership of the exceptionRecord and contextRecord
-    PAL_SEHException exception(&exceptionRecord, &contextRecord);
+    PAL_SEHException exception(&exceptionRecord, &contextRecord, true);
 
     if (SEHProcessException(&exception))
     {
