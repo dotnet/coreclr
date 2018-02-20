@@ -182,7 +182,7 @@ namespace System
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static ArgumentException GetStringComparisonException_NotSupported()
         {
-            throw new ArgumentException(SR.NotSupported_StringComparison, "comparisonType");
+            return new ArgumentException(SR.NotSupported_StringComparison, "comparisonType");
         }
     }
 }
