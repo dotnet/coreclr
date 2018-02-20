@@ -5663,11 +5663,6 @@ PAL_FreeExceptionRecords(
   IN EXCEPTION_RECORD *exceptionRecord, 
   IN CONTEXT *contextRecord);
 
-VOID
-AllocateExceptionRecords(
-    EXCEPTION_RECORD** exceptionRecord,
-    CONTEXT** contextRecord);
-
 #define EXCEPTION_CONTINUE_SEARCH   0
 #define EXCEPTION_EXECUTE_HANDLER   1
 #define EXCEPTION_CONTINUE_EXECUTION -1
@@ -5744,25 +5739,6 @@ public:
         ExceptionPointers.ExceptionRecord = NULL;
         ExceptionPointers.ContextRecord = NULL;
         TargetFrameSp = NoTargetFrameSp;
-        RecordsOnStack = false;
-    }
-
-    void EnsureExceptionRecordsOnHeap()
-    {
-        if( !RecordsOnStack || ExceptionPointers.ExceptionRecord == NULL)
-        {
-            return;
-        }
-
-        CONTEXT* contextRecordCopy;
-        EXCEPTION_RECORD* exceptionRecordCopy;
-        AllocateExceptionRecords(&exceptionRecordCopy, &contextRecordCopy);
-
-        *exceptionRecordCopy = *ExceptionPointers.ExceptionRecord;
-        ExceptionPointers.ExceptionRecord = exceptionRecordCopy;
-        *contextRecordCopy = *ExceptionPointers.ContextRecord;
-        ExceptionPointers.ContextRecord = contextRecordCopy;
-
         RecordsOnStack = false;
     }
 
