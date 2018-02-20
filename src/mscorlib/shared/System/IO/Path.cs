@@ -424,7 +424,7 @@ namespace System.IO
             if (IsPathRooted(second))
                 return CombineNoChecks(second, third);
 
-            return CombineNoChecksInternal(first, second, third);            
+            return CombineNoChecksInternal(first, second, third);
         }
 
         private static string CombineNoChecks(string first, string second, string third)
@@ -471,9 +471,9 @@ namespace System.IO
                 return CombineNoChecks(second, third, fourth);
             if (string.IsNullOrEmpty(second))
                 return CombineNoChecks(first, third, fourth);
-			if (string.IsNullOrEmpty(third))
+            if (string.IsNullOrEmpty(third))
                 return CombineNoChecks(first, second, fourth);
-			if (string.IsNullOrEmpty(fourth))
+            if (string.IsNullOrEmpty(fourth))
                 return CombineNoChecks(first, second, third);
 
             if (IsPathRooted(fourth.AsReadOnlySpan()))
