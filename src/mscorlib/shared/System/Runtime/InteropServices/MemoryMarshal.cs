@@ -40,6 +40,28 @@ namespace System.Runtime.InteropServices
         }
 
         /// <summary>
+        /// Get a <see cref="OwnedMemory{T}"/> from the underlying memory.
+        /// If unable to get the <typeparamref name="TOwner"/>, return false with a default <typeparamref name="TOwner"/>.
+        /// </summary>
+        public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> readOnlyMemory, out TOwner ownedMemory)
+            where TOwner : OwnedMemory<T>
+        {
+            ownedMemory = readOnlyMemory.GetObjectStartLength(out int index, out int length) as TOwner;
+            return !ReferenceEquals(ownedMemory, null);
+        }
+
+        /// <summary>
+        /// Get a <see cref="OwnedMemory{T}"/> and <param name="index">, <param name="length"> on the <see cref="OwnedMemory{T}"/> from the underlying memory.
+        /// If unable to get the <typeparamref name="TOwner"/>, return false with a default <typeparamref name="TOwner"/>.
+        /// </summary>
+        public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> readOnlyMemory, out TOwner ownedMemory, out int index, out int length)
+           where TOwner : OwnedMemory<T>
+        {
+            ownedMemory = readOnlyMemory.GetObjectStartLength(out index, out length) as TOwner;
+            return !ReferenceEquals(ownedMemory, null);
+        }
+
+        /// <summary>
         /// Creates an <see cref="IEnumerable{T}"/> view of the given <paramref name="memory" /> to allow
         /// the <paramref name="memory" /> to be used in existing APIs that take an <see cref="IEnumerable{T}"/>.
         /// </summary>
