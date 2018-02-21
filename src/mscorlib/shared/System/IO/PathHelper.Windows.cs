@@ -42,10 +42,7 @@ namespace System.IO
                         // If we have the exact same string we were passed in, don't bother to allocate another string from the StringBuffer.
                         return path;
                     }
-                    else
-                    {
-                        return fullPath.ToString();
-                    }
+                    return fullPath.ToString();
                 }
             }
             finally
@@ -122,7 +119,7 @@ namespace System.IO
             // We guarantee we'll expand short names for paths that only partially exist. As such, we need to find the part of the path that actually does exist. To
             // avoid allocating like crazy we'll create only one input array and modify the contents with embedded nulls.
 
-            Debug.Assert(!PathInternal.IsPartiallyQualified(outputBuffer), "should have resolved by now");
+            Debug.Assert(!PathInternal.IsPartiallyQualified((ReadOnlySpan<char>)outputBuffer), "should have resolved by now");
 
             // We'll have one of a few cases by now (the normalized path will have already:
             //
@@ -134,8 +131,8 @@ namespace System.IO
             //
             // Note that we will never get \??\ here as GetFullPathName() does not recognize \??\ and will return it as C:\??\ (or whatever the current drive is).
 
-            int rootLength = PathInternal.GetRootLength(outputBuffer);
-            bool isDevice = PathInternal.IsDevice(outputBuffer);
+            int rootLength = PathInternal.GetRootLength((ReadOnlySpan<char>)outputBuffer);
+            bool isDevice = PathInternal.IsDevice((ReadOnlySpan<char>)outputBuffer);
 
             StringBuffer inputBuffer = new StringBuffer(0);
             try
@@ -158,7 +155,7 @@ namespace System.IO
                 }
                 else
                 {
-                    isDosUnc = !PathInternal.IsDevice(outputBuffer) && outputBuffer.Length > 1 && outputBuffer[0] == '\\' && outputBuffer[1] == '\\';
+                    isDosUnc = !PathInternal.IsDevice((ReadOnlySpan<char>)outputBuffer) && outputBuffer.Length > 1 && outputBuffer[0] == '\\' && outputBuffer[1] == '\\';
                     rootDifference = GetInputBuffer(ref outputBuffer, isDosUnc, ref inputBuffer);
                 }
 
