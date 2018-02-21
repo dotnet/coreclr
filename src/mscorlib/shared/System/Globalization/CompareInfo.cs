@@ -910,6 +910,18 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
+        internal unsafe virtual int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(!_invariantMode);
+            return IndexOfOrdinalCore(source, value, ignoreCase);
+        }
+
+        internal unsafe virtual int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+            return IndexOfCore(source, value, options, matchLengthPtr);
+        }
+
         // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
         // and the caller is passing a valid matchLengthPtr pointer.
         internal unsafe int IndexOf(string source, string value, int startIndex, int count, CompareOptions options, int* matchLengthPtr)

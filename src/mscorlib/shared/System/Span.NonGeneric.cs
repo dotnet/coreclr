@@ -23,6 +23,180 @@ namespace System
     /// </summary>
     public static class Span
     {
+
+        public static bool Contains(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
+        {
+            return (IndexOf(span, value, comparisonType, out _) >= 0);
+        }
+
+        public static bool Equals(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
+        {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
+            switch (comparisonType)
+            {
+                case StringComparison.CurrentCulture:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.None) == 0);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.InvariantCulture:
+                    return (CompareInfo.Invariant.Compare(span, value, CompareOptions.None) == 0);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return (CompareInfo.Invariant.Compare(span, value, CompareOptions.IgnoreCase) == 0);
+
+                case StringComparison.Ordinal:
+                    if (span.Length != value.Length)
+                        return false;
+                    if (value.Length == 0)
+                        return true;
+                    return OrdinalHelper(span, value, value.Length);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    if (span.Length != value.Length)
+                        return false;
+                    if (value.Length == 0)
+                        return true;
+                    return (CompareInfo.CompareOrdinalIgnoreCase(span, value) == 0);
+
+                default:
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+            }
+        }
+
+        public static int CompareTo(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
+        {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
+            switch (comparisonType)
+            {
+                case StringComparison.CurrentCulture:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.None);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.IgnoreCase);
+
+                case StringComparison.InvariantCulture:
+                    return CompareInfo.Invariant.Compare(span, value, CompareOptions.None);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return CompareInfo.Invariant.Compare(span, value, CompareOptions.IgnoreCase);
+
+                case StringComparison.Ordinal:
+                    if (span.Length == 0 || value.Length == 0)
+                        return span.Length - value.Length;
+                    return CompareOrdinalHelper(span, value);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    return CompareInfo.CompareOrdinalIgnoreCase(span, value);
+
+                default:
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+            }
+        }
+
+        public static unsafe int IndexOf(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType, out int matchedLength)
+        {
+            if (value.Length == 0)
+            {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
+                matchedLength = 0;
+                return 0;
+            }
+
+            if (span.Length == 0)
+            {
+                StringSpanHelpers.CheckStringComparison(comparisonType);
+                matchedLength = 0;
+                return -1;
+            }
+
+            int defaultMatchLength = value.Length;
+
+            switch (comparisonType)
+            {
+                case StringComparison.CurrentCulture:
+                    int index = IndexOfCultureHelper(span, value, &defaultMatchLength);
+                    matchedLength = defaultMatchLength;
+                    return index;
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    index = IndexOfCultureIgnoreCaseHelper(span, value, &defaultMatchLength);
+                    matchedLength = defaultMatchLength;
+                    return index;
+
+                case StringComparison.InvariantCulture:
+                    index = IndexOfCultureHelper(span, value, &defaultMatchLength, invariantCulture: true);
+                    matchedLength = defaultMatchLength;
+                    return index;
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    index = IndexOfCultureIgnoreCaseHelper(span, value, &defaultMatchLength, invariantCulture: true);
+                    matchedLength = defaultMatchLength;
+                    return index;
+
+                case StringComparison.Ordinal:
+                    matchedLength = defaultMatchLength;
+                    return IndexOfOrdinalHelper(span, value, false);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    matchedLength = defaultMatchLength;
+                    return IndexOfOrdinalHelper(span, value, true);
+
+                default:
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+            }
+        }
+
+        internal static unsafe int IndexOfCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, int* matchLengthPtr, bool invariantCulture = false)
+        {
+            Debug.Assert(span.Length != 0);
+            Debug.Assert(value.Length != 0);
+            Debug.Assert(matchLengthPtr != null);
+
+            if (GlobalizationMode.Invariant)
+            {
+                *matchLengthPtr = value.Length;
+                return CompareInfo.InvariantIndexOf(span, value, false);
+            }
+
+            return invariantCulture ?
+                CompareInfo.Invariant.IndexOf(span, value, CompareOptions.None, matchLengthPtr) :
+                CultureInfo.CurrentCulture.CompareInfo.IndexOf(span, value, CompareOptions.None, matchLengthPtr);
+        }
+
+        internal static unsafe int IndexOfCultureIgnoreCaseHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, int* matchLengthPtr, bool invariantCulture = false)
+        {
+            Debug.Assert(span.Length != 0);
+            Debug.Assert(value.Length != 0);
+            Debug.Assert(matchLengthPtr != null);
+
+            if (GlobalizationMode.Invariant)
+            {
+                *matchLengthPtr = value.Length;
+                return CompareInfo.InvariantIndexOf(span, value, true);
+            }
+
+            return invariantCulture ?
+                CompareInfo.Invariant.IndexOf(span, value, CompareOptions.IgnoreCase, matchLengthPtr) :
+                CultureInfo.CurrentCulture.CompareInfo.IndexOf(span, value, CompareOptions.IgnoreCase, matchLengthPtr);
+        }
+
+        internal static int IndexOfOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(span.Length != 0);
+            Debug.Assert(value.Length != 0);
+
+            if (GlobalizationMode.Invariant)
+            {
+                return CompareInfo.InvariantIndexOf(span, value, ignoreCase);
+            }
+
+            return CompareInfo.Invariant.IndexOfOrdinal(span, value, ignoreCase);
+        }
+
         /// <summary>
         /// Copies the characters from the source span into the destination, converting each character to lowercase.
         /// </summary>
@@ -246,6 +420,128 @@ namespace System
                 // and that the terminating zero is not included in the length. For even string sizes
                 // this compare can include the zero terminator. Bitwise OR avoids a branch.
                 return length == 0 | *a == *b;
+            }
+        }
+
+        private static unsafe int CompareOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            Debug.Assert(value.Length != 0);
+            Debug.Assert(span.Length != 0);
+            int length = Math.Min(span.Length, value.Length);
+
+            fixed (char* ap = &MemoryMarshal.GetReference(span))
+            fixed (char* bp = &MemoryMarshal.GetReference(value))
+            {
+                char* a = ap;
+                char* b = bp;
+
+                if (*a != *b)
+                    goto DiffOffsetStart;
+
+                if (length >= 2)
+                {
+                    if (*(a + 1) != *(b + 1))
+                        goto DiffOffset1;
+
+                    // Since we know that the first two chars are the same,
+                    // we can increment by 2 here and skip 4 bytes.
+                    // This leaves us 8-byte aligned, which results
+                    // on better perf for 64-bit platforms.
+                    length -= 2;
+                    a += 2;
+                    b += 2;
+                }
+
+                // unroll the loop
+#if BIT64
+                while (length >= 12)
+                {
+                    if (*(long*)a != *(long*)b)
+                        goto DiffOffset0;
+                    if (*(long*)(a + 4) != *(long*)(b + 4))
+                        goto DiffOffset4;
+                    if (*(long*)(a + 8) != *(long*)(b + 8))
+                        goto DiffOffset8;
+                    length -= 12;
+                    a += 12;
+                    b += 12;
+                }
+#else // BIT64
+                while (length >= 10)
+                {
+                    if (*(int*)a != *(int*)b) goto DiffOffset0;
+                    if (*(int*)(a + 2) != *(int*)(b + 2)) goto DiffOffset2;
+                    if (*(int*)(a + 4) != *(int*)(b + 4)) goto DiffOffset4;
+                    if (*(int*)(a + 6) != *(int*)(b + 6)) goto DiffOffset6;
+                    if (*(int*)(a + 8) != *(int*)(b + 8)) goto DiffOffset8;
+                    length -= 10; a += 10; b += 10; 
+                }
+#endif // BIT64
+
+                // Fallback loop:
+                // go back to slower code path and do comparison on 4 bytes at a time.
+                // This depends on the fact that the String objects are
+                // always zero terminated and that the terminating zero is not included
+                // in the length. For odd string sizes, the last compare will include
+                // the zero terminator.
+                while (length > 0)
+                {
+                    if (*(int*)a != *(int*)b)
+                        goto DiffNextInt;
+                    length -= 2;
+                    a += 2;
+                    b += 2;
+                }
+
+                // At this point, we have compared all the characters in at least one string.
+                // The longer string will be larger.
+                return span.Length - value.Length;
+
+#if BIT64
+DiffOffset8:
+                a += 4;
+                b += 4;
+DiffOffset4:
+                a += 4;
+                b += 4;
+#else // BIT64
+                // Use jumps instead of falling through, since
+                // otherwise going to DiffOffset8 will involve
+                // 8 add instructions before getting to DiffNextInt
+                DiffOffset8: a += 8; b += 8; goto DiffOffset0;
+                DiffOffset6: a += 6; b += 6; goto DiffOffset0;
+                DiffOffset4: a += 2; b += 2;
+                DiffOffset2: a += 2; b += 2;
+#endif // BIT64
+
+DiffOffset0:
+
+// If we reached here, we already see a difference in the unrolled loop above
+#if BIT64
+                if (*(int*)a == *(int*)b)
+                {
+                    a += 2;
+                    b += 2;
+                }
+#endif // BIT64
+
+DiffNextInt:
+                if (*a != *b)
+                    return *a - *b;
+
+                if (length == 1)
+                {
+                    if (span.Length == value.Length)
+                        return *a - *b;
+                    return span.Length - value.Length;
+                }
+DiffOffset1:
+                Debug.Assert(*(a + 1) != *(b + 1), "This char must be different if we reach here!");
+                return *(a + 1) - *(b + 1);
+
+DiffOffsetStart:
+                Debug.Assert(*a != *b, "This char must be different if we reach here!");
+                return *a - *b;
             }
         }
 
