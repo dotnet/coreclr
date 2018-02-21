@@ -135,6 +135,9 @@ def main(args):
         log('ERROR: this script must be run as an admin because perf jobs use ETW')
         return 4
 
+    log("NOTICE: This script is a simulation of what CI runs, but it is never actually invoked by CI. The real logic for CI currently resides in perf.groovy. " +
+    "This script is only provided in hopes it might be useful to repro CI issues outside of CI")
+    log("")
     
     log('== ARGUMENTS ==')
     log('job:                       %s' % args.job)
