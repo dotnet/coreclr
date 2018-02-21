@@ -60,11 +60,11 @@ namespace JitBench
             Array.Sort(dataArr);
             if (dataArr.Length % 2 == 1)
             {
-                return Median(dataArr.TakeLast(dataArr.Length / 2 + 1));
+                return Median(dataArr.Skip(dataArr.Length / 2 ));
             }
             else
             {
-                return Median(dataArr.TakeLast(dataArr.Length / 2));
+                return Median(dataArr.Skip(dataArr.Length / 2));
             }
         }
     }
