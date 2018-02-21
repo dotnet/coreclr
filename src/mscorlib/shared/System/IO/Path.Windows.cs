@@ -27,34 +27,31 @@ namespace System.IO
             (char)31
         };
 
-        // Expands the given path to a fully qualified path. 
+        // Expands the given path to a fully qualified path.
         public static string GetFullPath(string path)
         {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
 
-            // Embedded null characters are the only invalid character case we want to check up front.
+            // If the path would normalize to string empty, we'll consider it empty
+            if (PathInternal.IsEffectivelyEmpty(path))
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+
+            // Embedded null characters are the only invalid character case we trully care about.
             // This is because the nulls will signal the end of the string to Win32 and therefore have
-            // unpredictable results. Other invalid characters we give a chance to be normalized out.
+            // unpredictable results.
             if (path.IndexOf('\0') != -1)
                 throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
 
             if (PathInternal.IsExtended(path))
             {
-                // We can't really know what is valid for all cases of extended paths.
-                //
-                //  - object names can include other characters as well (':', '/', etc.)
-                //  - even file objects have different rules (pipe names can contain most characters)
-                //
-                // As such we will do no further analysis of extended paths to avoid blocking known and unknown
-                // scenarios as well as minimizing compat breaks should we block now and need to unblock later.
+                // \\?\ paths are considered normalized by definition. Windows doesn't normalize \\?\
+                // paths and neither should we. Even if we wanted to GetFullPathName does not work
+                // properly with device paths. If one wants to pass a \\?\ path through normalization
+                // one can chop off the prefix, pass it to GetFullPath and add it again.
                 return path;
             }
 
-            // Technically this doesn't matter but we used to throw for this case
-            if (PathInternal.IsEffectivelyEmpty(path))
-                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
-            
             return PathHelper.Normalize(path);
         }
 

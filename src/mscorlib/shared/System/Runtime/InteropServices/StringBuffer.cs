@@ -297,5 +297,8 @@ namespace System.Runtime.InteropServices
             _buffer = null;
             _length = 0;
         }
+
+        public static implicit operator ReadOnlySpan<char>(StringBuffer stringBuffer)
+            => new ReadOnlySpan<char>(stringBuffer.UnderlyingArray, 0, stringBuffer.Length);
     }
 }
