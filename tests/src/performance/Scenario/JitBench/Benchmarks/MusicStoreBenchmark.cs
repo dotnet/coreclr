@@ -82,6 +82,7 @@ namespace JitBench
                 .WithEnvironmentVariable("JITBENCH_ASPNET_VERSION", "2.0")
                 .WithEnvironmentVariable("JITBENCH_TARGET_FRAMEWORK_MONIKER", tfm)
                 .WithEnvironmentVariable("JITBENCH_TARGET_FRAMEWORK_VERSION", dotNetInstall.FrameworkVersion)
+                .WithEnvironmentVariable("UseSharedCompilation", "false")
                 .WithLog(output)
                 .Run();
             return publishDir;

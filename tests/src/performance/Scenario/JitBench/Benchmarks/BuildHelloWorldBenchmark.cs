@@ -27,6 +27,12 @@ namespace JitBench
             ExePath = "build";
             WorkingDirPath = helloWorldProjectDir;
 
+            // This disables using the shared build server. I was told using it interferes with the ability to delete folders after the
+            // test is complete though I haven't encountered that particular issue myself. I imagine this meaningfully changes the
+            // performance of this benchmark, so if we ever want to do real perf testing on the shared scenario we have to resolve this
+            // issue another way.
+            EnvironmentVariables["UseSharedCompilation"] = "false";
+
             if(!useExistingSetup)
             {
                 FileTasks.DeleteDirectory(helloWorldProjectDir, output);

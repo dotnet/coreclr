@@ -255,10 +255,11 @@ namespace JitBench
                 {
                     var runResult = BenchmarkRunResults.Where(r => r.Benchmark == row.Benchmark && r.Configuration == config).Single();
                     var measurements = runResult.IterationResults.Skip(1).Select(r => r.Measurements.Where(kv => kv.Key.Equals(row.Metric)).Single()).Select(kv => kv.Value);
-                    double average = measurements.Average();
-                    double margin95 = measurements.MarginOfError95();
-                    int digits = Math.Min(Math.Max(0, (int)Math.Ceiling(-Math.Log10(margin95) + 1)), 15);
-                    return $"{Math.Round(average, digits)}+-{Math.Round(margin95, digits)}";
+                    double median = measurements.Median();
+                    double q1 = measurements.Quartile1();
+                    double q3 = measurements.Quartile3();
+                    int digits = Math.Min(Math.Max(0, (int)Math.Ceiling(-Math.Log10(q3-q1) + 1)), 15);
+                    return $"{Math.Round(median, digits)} ({Math.Round(q1, digits)}-{Math.Round(q3, digits)})";
                 };
                 columns.Add(column);
             }

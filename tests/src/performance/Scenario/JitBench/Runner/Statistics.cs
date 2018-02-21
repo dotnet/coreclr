@@ -24,5 +24,48 @@ namespace JitBench
         {
             return StandardError(data) * 1.96;
         }
+
+        public static double Median(this IEnumerable<double> data)
+        {
+            double[] dataArr = data.ToArray();
+            Array.Sort(dataArr);
+            if(dataArr.Length % 2 == 1)
+            {
+                return dataArr[dataArr.Length / 2];
+            }
+            else
+            {
+                int midpoint = dataArr.Length / 2;
+                return (dataArr[midpoint-1] + dataArr[midpoint]) / 2;
+            }
+        }
+
+        public static double Quartile1(this IEnumerable<double> data)
+        {
+            double[] dataArr = data.ToArray();
+            Array.Sort(dataArr);
+            if (dataArr.Length % 2 == 1)
+            {
+                return Median(dataArr.Take(dataArr.Length / 2 + 1));
+            }
+            else
+            {
+                return Median(dataArr.Take(dataArr.Length / 2));
+            }
+        }
+
+        public static double Quartile3(this IEnumerable<double> data)
+        {
+            double[] dataArr = data.ToArray();
+            Array.Sort(dataArr);
+            if (dataArr.Length % 2 == 1)
+            {
+                return Median(dataArr.TakeLast(dataArr.Length / 2 + 1));
+            }
+            else
+            {
+                return Median(dataArr.TakeLast(dataArr.Length / 2));
+            }
+        }
     }
 }
