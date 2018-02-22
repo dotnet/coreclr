@@ -25,43 +25,21 @@ namespace System.IO
         /// <returns>Normalized path</returns>
         internal static string Normalize(string path)
         {
-            if (path.Length < PathInternal.MaxShortPath)
-            {
-                Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-                return Normalize(path, new ValueStringBuilder(initialBuffer));
-            }
-            else
-            {
-                return Normalize(path, new ValueStringBuilder());
-            }
-        }
+            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
 
-        private static string Normalize(string path, ValueStringBuilder builder)
-        {
             // Get the full path
-            try
-            {
-                GetFullPathName(path, ref builder);
+            GetFullPathName(path, ref builder);
 
-                if (builder.AsSpan().Contains('~'))
-                {
-                    return TryExpandShortFileName(ref builder, originalPath: path);
-                }
-                else
-                {
-                    if (builder.AsSpan().Equals(path.AsReadOnlySpan()))
-                    {
-                        // If we have the exact same string we were passed in, don't bother to allocate another string from the StringBuffer.
-                        return path;
-                    }
-                    return builder.ToString();
-                }
-            }
-            finally
-            {
-                // Clear the buffer
-                builder.Dispose();
-            }
+            // If we have the exact same string we were passed in, don't allocate another string.
+            // TryExpandShortName does this input identity check.
+            string result = builder.AsSpan().Contains('~')
+                ? TryExpandShortFileName(ref builder, originalPath: path)
+                : builder.AsSpan().Equals(path.AsReadOnlySpan()) ? path : builder.ToString();
+
+            // Clear the buffer
+            builder.Dispose();
+            return result;
         }
 
         private static void GetFullPathName(string path, ref ValueStringBuilder builder)
@@ -69,11 +47,9 @@ namespace System.IO
             // If the string starts with an extended prefix we would need to remove it from the path before we call GetFullPathName as
             // it doesn't root extended paths correctly. We don't currently resolve extended paths, so we'll just assert here.
             Debug.Assert(PathInternal.IsPartiallyQualified(path) || !PathInternal.IsExtended(path));
-            builder.EnsureCapacity(path.Length);
-            builder.Append('\0');
 
             uint result = 0;
-            while ((result = Interop.Kernel32.GetFullPathNameW(path, (uint)builder.Capacity, ref builder[0], IntPtr.Zero)) > builder.Capacity)
+            while ((result = Interop.Kernel32.GetFullPathNameW(path, (uint)builder.Capacity, ref builder.GetPinnableReference(), IntPtr.Zero)) > builder.Capacity)
             {
                 // Reported size is greater than the buffer size. Increase the capacity.
                 builder.EnsureCapacity(checked((int)result));
@@ -88,7 +64,7 @@ namespace System.IO
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, path);
             }
 
-            builder.Length = checked((int)result);
+            builder.Length = (int)result;
         }
 
         private static int PrependDevicePathChars(ref ValueStringBuilder content, bool isDosUnc, ref ValueStringBuilder buffer)
@@ -108,7 +84,7 @@ namespace System.IO
                 buffer.Append(PathInternal.UncExtendedPathPrefix);
 
                 // Copy Server\Share\... over to the buffer
-                buffer.Append(buffer.AsSpan().Slice(PathInternal.UncPrefixLength));
+                buffer.Append(content.AsSpan().Slice(PathInternal.UncPrefixLength));
 
                 // Return the prefix difference
                 return PathInternal.UncExtendedPrefixLength - PathInternal.UncPrefixLength;
@@ -178,7 +154,7 @@ namespace System.IO
 
                 while (!success)
                 {
-                    uint result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder[0], ref outputBuilder[0], (uint)outputBuilder.Capacity);
+                    uint result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder.GetPinnableReference(), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
 
                     // Replace any temporary null we added
                     if (inputBuilder[foundIndex] == '\0') inputBuilder[foundIndex] = '\\';

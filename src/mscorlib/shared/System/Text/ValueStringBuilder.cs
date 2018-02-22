@@ -5,6 +5,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Text
 {
@@ -38,6 +39,8 @@ namespace System.Text
             if (capacity > _chars.Length)
                 Grow(capacity - _chars.Length);
         }
+
+        public ref char GetPinnableReference() => ref MemoryMarshal.GetReference(_chars);
 
         public ref char this[int index]
         {
@@ -194,7 +197,7 @@ namespace System.Text
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void Grow(int requiredAdditionalCapacity)
         {
-            Debug.Assert(requiredAdditionalCapacity > _chars.Length - _pos);
+            Debug.Assert(requiredAdditionalCapacity > 0);
 
             char[] poolArray = ArrayPool<char>.Shared.Rent(Math.Max(_pos + requiredAdditionalCapacity, _chars.Length * 2));
 
