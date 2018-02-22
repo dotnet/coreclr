@@ -52,7 +52,7 @@ LPVOID QCALLTYPE NativeLibrary::GetProcAddress(HMODULE hModule, LPCSTR lpProcNam
 
     BEGIN_QCALL;
 
-    procAddress = static_cast<LPVOID>(::GetProcAddress(hModule, lpProcName));
+    procAddress = reinterpret_cast<LPVOID>(::GetProcAddress(hModule, lpProcName));
 
     END_QCALL;
 

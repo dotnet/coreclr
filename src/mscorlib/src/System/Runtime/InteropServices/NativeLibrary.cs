@@ -145,7 +145,8 @@ namespace System.Runtime.InteropServices
         /// Attempts to locate a named function in the module's export table and return a managed delegate to that function.
         /// </summary>
         /// <typeparam name="TDelegate">The delegate type that will be created. This type must subclass <see cref="MulticastDelegate"/>.
-        /// This type <em>should</em> be (but is not required to be) annotated with <see cref="UnmanagedFunctionPointerAttribute"/>.</typeparam>
+        /// This type <em>should</em> be (but is not required to be) annotated with <see cref="UnmanagedFunctionPointerAttribute"/>.
+        /// Generic delegate types (e.g., <see cref="Func{T, TResult}"/>) are not supported.</typeparam>
         /// <param name="name">The name of the function to look up.</param>
         /// <param name="exactSpelling"><see langword="false"/> (default) if the runtime should automatically perform name decoration when
         /// locating the exported function; <see langword="true"/> if the runtime should use the provided name as-is with no additional

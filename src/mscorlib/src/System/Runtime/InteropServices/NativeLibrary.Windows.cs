@@ -10,7 +10,7 @@ namespace System.Runtime.InteropServices
         // The allowed mask values for the DllImportSearchPath.
         // The high three bytes are passed as-is to the OS (which will check them for validity),
         // and the low byte is allowed to contain AssemblyDirectory or LegacyBehavior.
-        private const uint AllowedDllImportSearchPathsMask = ~0xFFU | (uint)DllImportSearchPath.AssemblyDirectory;
+        private const uint AllowedDllImportSearchPathsMask = ~0xFFU | (uint)(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.LegacyBehavior);
 
         // [DllImport] (NDirectMethodDesc::FindEntryPoint) allows lookup by ordinal on Windows.
         private const bool AllowLocatingFunctionsByOrdinal = true;

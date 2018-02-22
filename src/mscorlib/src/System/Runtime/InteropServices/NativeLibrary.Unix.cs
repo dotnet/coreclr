@@ -9,7 +9,7 @@ namespace System.Runtime.InteropServices
     {
         // The allowed mask values for the DllImportSearchPath.
         // Non-Windows sytems only allow AssemblyDirectory and LegacyBehavior.
-        private const uint AllowedDllImportSearchPathsMask = (uint)DllImportSearchPath.AssemblyDirectory;
+        private const uint AllowedDllImportSearchPathsMask = (uint)(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.LegacyBehavior);
 
         // [DllImport] (NDirectMethodDesc::FindEntryPoint) doesn't allow lookup by ordinal on non-Windows.
         private const bool AllowLocatingFunctionsByOrdinal = false;
