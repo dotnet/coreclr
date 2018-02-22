@@ -363,21 +363,7 @@ namespace System
         /// <summary>
         /// Helper method for MemoryExtensions.AsMemory(T[] array, int start).
         /// </summary>
-        public static Memory<T> AsMemory<T>(T[] array, int start)
-        {
-            if (array == null)
-            {
-                if (start != 0)
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
-                return default;
-            }
-            if (default(T) == null && array.GetType() != typeof(T[]))
-                ThrowHelper.ThrowArrayTypeMismatchException();
-            if ((uint)start > (uint)array.Length)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
-            return Memory<T>.DangerousCreate(array, start, array.Length - start);
-        }
+        public static Memory<T> AsMemory<T>(T[] array, int start) => new Memory<T>(array, start);
 
         /// <summary>Creates a new <see cref="ReadOnlyMemory{char}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>

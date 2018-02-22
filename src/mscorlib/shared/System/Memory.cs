@@ -58,6 +58,26 @@ namespace System
             _length = array.Length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Memory(T[] array, int start)
+        {
+            if (array == null)
+            {
+                if (start != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                this = default;
+                return; // returns default
+            }
+            if (default(T) == null && array.GetType() != typeof(T[]))
+                ThrowHelper.ThrowArrayTypeMismatchException();
+            if ((uint)start > (uint)array.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            _object = array;
+            _index = start;
+            _length = array.Length - start;
+        }
+
         /// <summary>
         /// Creates a new memory over the portion of the target array beginning
         /// at 'start' index and ending at 'end' index (exclusive).
@@ -99,11 +119,6 @@ namespace System
             _index = index | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with RemoveOwnedFlagBitMask
             _length = length;
         }
-
-        // Gives Span.NonGeneric access to raw constructor. We don't want to expose the raw constructor itself as there are already multiple public constructors
-        // with the (X, int, int) signature. Exposing this overload would effectively shut down compile-time type-checking on those constructors.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Memory<T> DangerousCreate(object obj, int index, int length) => new Memory<T>(obj, index, length);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Memory(object obj, int index, int length)
