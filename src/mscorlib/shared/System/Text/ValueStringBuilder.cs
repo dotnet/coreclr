@@ -21,7 +21,23 @@ namespace System.Text
             _pos = 0;
         }
 
-        public int Length => _pos;
+        public int Length
+        {
+            get => _pos;
+            set
+            {
+                EnsureCapacity(value);
+                _pos = value;
+            }
+        }
+
+        public int Capacity => _chars.Length;
+
+        public void EnsureCapacity(int capacity)
+        {
+            if (capacity > _chars.Length)
+                Grow(capacity - _chars.Length);
+        }
 
         public ref char this[int index]
         {
@@ -38,6 +54,8 @@ namespace System.Text
             Dispose();
             return s;
         }
+
+        public ReadOnlySpan<char> AsSpan() => _chars.Slice(0, _pos);
 
         public bool TryCopyTo(Span<char> destination, out int charsWritten)
         {
@@ -139,6 +157,18 @@ namespace System.Text
                 dst[i] = *value++;
             }
             _pos += length;
+        }
+
+        public unsafe void Append(ReadOnlySpan<char> value)
+        {
+            int pos = _pos;
+            if (pos > _chars.Length - value.Length)
+            {
+                Grow(value.Length);
+            }
+
+            value.CopyTo(_chars.Slice(_pos, value.Length));
+            _pos += value.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
