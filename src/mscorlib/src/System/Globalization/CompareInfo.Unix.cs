@@ -116,7 +116,8 @@ namespace System.Globalization
 
                 for (valueIndex = 0, sourceIndex = i;
                      valueIndex < value.Length && source[sourceIndex] == value[valueIndex];
-                     valueIndex++, sourceIndex++) ;
+                     valueIndex++, sourceIndex++)
+                    ;
 
                 if (valueIndex == value.Length)
                 {
@@ -300,6 +301,17 @@ namespace System.Globalization
                 char* a = ap;
                 char* b = bp;
                 int endIndex = source.Length - target.Length;
+
+                if (endIndex < 0)
+                    goto InteropCall;
+
+                for (int j = 0; j < target.Length; j++)
+                {
+                    char targetChar = *(b + j);
+                    if (targetChar >= 0x80 || s_highCharTable[targetChar])
+                        goto InteropCall;
+                }
+
                 int i = 0;
                 for (; i <= endIndex; i++)
                 {
@@ -318,10 +330,15 @@ namespace System.Globalization
                         }
 
                         // uppercase both chars - notice that we need just one compare per char
-                        if ((uint)(valueChar - 'a') <= (uint)('z' - 'a')) valueChar -= 0x20;
-                        if ((uint)(targetChar - 'a') <= (uint)('z' - 'a')) targetChar -= 0x20;
+                        if ((uint)(valueChar - 'a') <= ('z' - 'a'))
+                            valueChar = (char)(valueChar - 0x20);
+                        if ((uint)(targetChar - 'a') <= ('z' - 'a'))
+                            targetChar = (char)(targetChar - 0x20);
 
-                        if (valueChar != targetChar || valueChar >= 0x80 || s_highCharTable[valueChar]) break;
+                        if (valueChar >= 0x80 || s_highCharTable[valueChar])
+                            goto InteropCall;
+                        else if (valueChar != targetChar)
+                            break;
                         sourceIndex++;
                     }
 
@@ -332,8 +349,10 @@ namespace System.Globalization
                         return i;
                     }
                 }
-                if (i > endIndex) return -1;
-                return Interop.Globalization.IndexOf(_sortHandle, b, length, a, length, options, matchLengthPtr);
+                if (i > endIndex)
+                    return -1;
+            InteropCall:
+                return Interop.Globalization.IndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
             }
         }
 
@@ -351,6 +370,17 @@ namespace System.Globalization
                 char* a = ap;
                 char* b = bp;
                 int endIndex = source.Length - target.Length;
+
+                if (endIndex < 0)
+                    goto InteropCall;
+
+                for (int j = 0; j < target.Length; j++)
+                {
+                    char targetChar = *(b + j);
+                    if (targetChar >= 0x80 || s_highCharTable[targetChar])
+                        goto InteropCall;
+                }
+
                 int i = 0;
                 for (; i <= endIndex; i++)
                 {
@@ -361,7 +391,10 @@ namespace System.Globalization
                     {
                         char valueChar = *(a + sourceIndex);
                         char targetChar = *(b + targetIndex);
-                        if (valueChar != targetChar || valueChar >= 0x80 || s_highCharTable[valueChar]) break;
+                        if (valueChar >= 0x80 || s_highCharTable[valueChar])
+                            goto InteropCall;
+                        else if (valueChar != targetChar)
+                            break;
                         sourceIndex++;
                     }
 
@@ -372,8 +405,10 @@ namespace System.Globalization
                         return i;
                     }
                 }
-                if (i > endIndex) return -1;
-                return Interop.Globalization.IndexOf(_sortHandle, b, length, a, length, options, matchLengthPtr);
+                if (i > endIndex)
+                    return -1;
+            InteropCall:
+                return Interop.Globalization.IndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
             }
         }
 
