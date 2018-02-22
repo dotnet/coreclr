@@ -83,7 +83,7 @@ INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD, CLR_BOOL fForStdC
 
     cbParamBytes = pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize();
 
-#ifdef _X86_
+#ifdef _TARGET_X86_
     if (fForStdCallDelegate)
     {
         // Compute the kStdCallWithRetBuf flag which is needed at link time for entry point mangling.
@@ -105,7 +105,7 @@ INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD, CLR_BOOL fForStdC
         // The size of 'this' is not included in native stack arg size.
         cbParamBytes += sizeof(LPVOID);
     }
-#endif // _X86_
+#endif // _TARGET_X86_
 
     END_QCALL;
 
