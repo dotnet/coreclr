@@ -329,7 +329,6 @@ namespace System.Globalization
             Debug.Assert(source.Length != 0);
             Debug.Assert(target.Length != 0);
             Debug.Assert((options == CompareOptions.None || options == CompareOptions.IgnoreCase));
-            Debug.Assert(matchLengthPtr != null);
 
             int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source, target, matchLengthPtr);
             return retValue;

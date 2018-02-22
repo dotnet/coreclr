@@ -258,13 +258,12 @@ namespace System.Globalization
             }
         }
 
+        // For now, this method is only called from Span APIs with either options == CompareOptions.None or CompareOptions.IgnoreCase
         internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(source.Length != 0);
             Debug.Assert(target.Length != 0);
-            Debug.Assert((options == CompareOptions.None || options == CompareOptions.IgnoreCase));
-            Debug.Assert(matchLengthPtr != null);
 
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
             {
@@ -294,7 +293,6 @@ namespace System.Globalization
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!target.IsEmpty);
             Debug.Assert(_isAsciiEqualityOrdinal);
-            Debug.Assert(matchLengthPtr != null);
 
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(target))
@@ -329,7 +327,8 @@ namespace System.Globalization
 
                     if (targetIndex == target.Length)
                     {
-                        *matchLengthPtr = target.Length;
+                        if (matchLengthPtr != null)
+                            *matchLengthPtr = target.Length;
                         return i;
                     }
                 }
@@ -345,7 +344,6 @@ namespace System.Globalization
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!target.IsEmpty);
             Debug.Assert(_isAsciiEqualityOrdinal);
-            Debug.Assert(matchLengthPtr != null);
 
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(target))
@@ -369,7 +367,8 @@ namespace System.Globalization
 
                     if (targetIndex == target.Length)
                     {
-                        *matchLengthPtr = target.Length;
+                        if (matchLengthPtr != null)
+                            *matchLengthPtr = target.Length;
                         return i;
                     }
                 }
