@@ -6702,16 +6702,22 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
                 }
                 else
                 {
-#if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
-                    // In R2R mode the field offset may be changed when the code is loaded.
-                    // So we can't rely on a zero offset here to suppress the null check.
+                    // In R2R mode the field offset for some fields may change when the code
+                    // is loaded. So we can't rely on a zero offset here to suppress the null check.
                     //
                     // See GitHub issue #16454.
-                    addExplicitNullCheck =
-                        (mac->m_kind == MACK_Addr) && ((mac->m_totalOffset + fldOffset > 0) || opts.IsReadyToRun());
+                    bool fieldHasChangeableOffset = false;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+                    fieldHasChangeableOffset = (tree->gtField.gtFieldLookup.addr != nullptr);
+#endif
+
+#if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
+                    addExplicitNullCheck = (mac->m_kind == MACK_Addr) &&
+                                           ((mac->m_totalOffset + fldOffset > 0) || fieldHasChangeableOffset);
 #else
                     addExplicitNullCheck = (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr &&
-                                            (mac->m_totalOffset + fldOffset > 0));
+                                            ((mac->m_totalOffset + fldOffset > 0) || fieldHasChangeableOffset));
 #endif
                 }
             }
