@@ -173,7 +173,7 @@ namespace System.Runtime.InteropServices
                     message: SR.Arg_MustBeDelegate);
             }
 
-            RuntimeMethodHandleInternal invokeMethodHandle = new RuntimeMethodHandleInternal(StubHelpers.StubHelpers.GetDelegateInvokeMethodFromDelegateType(delegateType));
+            RuntimeMethodHandleInternal invokeMethodHandle = new RuntimeMethodHandleInternal(System.StubHelpers.StubHelpers.GetDelegateInvokeMethodFromDelegateType(delegateType));
             RuntimeMethodInfo invokeMethodInfo = (RuntimeMethodInfo)RuntimeType.GetMethodBase(delegateType, invokeMethodHandle);
 
             // Generic types are disallowed

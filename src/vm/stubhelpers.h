@@ -81,7 +81,6 @@ public:
     static ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgs* QCALLTYPE EventArgsMarshaler__CreateNativePCEventArgsInstance(HSTRING name);
 
     static FCDECL1(MethodDesc *,    GetDelegateInvokeMethod, DelegateObject *pThisUNSAFE);
-    static FCDECL1(MethodDesc *,    GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject *refTypeUNSAFE);
     static FCDECL2(IInspectable *,  GetWinRTFactoryReturnValue, Object *pThisUNSAFE, PCODE pCtorEntry);
     static FCDECL2(IInspectable *,  GetOuterInspectable, Object *pThisUNSAFE, MethodDesc *pCtorMD);
 #ifdef MDA_SUPPORTED
@@ -95,6 +94,7 @@ public:
     static FCDECL1(void,            InitDeclaringType,      NDirectMethodDesc* pMND);
     static FCDECL1(void*,           GetNDirectTarget,       NDirectMethodDesc* pNMD);
     static FCDECL2(void*,           GetDelegateTarget,      DelegateObject *pThisUNSAFE, UINT_PTR *ppStubArg);
+    static FCDECL1(MethodDesc *,    GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject *refTypeUNSAFE);
 
 
     static FCDECL2(void,            ThrowInteropParamException, UINT resID, UINT paramIdx);

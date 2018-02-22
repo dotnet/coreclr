@@ -1562,6 +1562,9 @@ namespace System.StubHelpers
         static internal extern IntPtr GetDelegateTarget(Delegate pThis, ref IntPtr pStubArg);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        static internal extern IntPtr GetDelegateInvokeMethodFromDelegateType(RuntimeType pDelegateClass);
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern void ClearLastError();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1694,9 +1697,6 @@ namespace System.StubHelpers
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern IntPtr GetDelegateInvokeMethod(Delegate pThis);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetDelegateInvokeMethodFromDelegateType(RuntimeType pDelegateClass);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static internal extern object GetWinRTFactoryObject(IntPtr pCPCMD);
