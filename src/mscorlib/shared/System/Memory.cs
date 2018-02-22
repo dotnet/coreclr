@@ -100,6 +100,11 @@ namespace System
             _length = length;
         }
 
+        // Gives Span.NonGeneric access to raw constructor. We don't want to expose the raw constructor itself as there are already multiple public constructors
+        // with the (X, int, int) signature. Exposing this overload would effectively shut down compile-time type-checking on those constructors.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static Memory<T> DangerousCreate(object obj, int index, int length) => new Memory<T>(obj, index, length);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Memory(object obj, int index, int length)
         {
