@@ -2222,13 +2222,13 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         TADDR base = dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable);
-        return pMT->m_pParentMethodTable.IsTaggedIndirect(base, pMT->GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+        return pMT->m_pParentMethodTable.IsTaggedIndirect(base, pMT->GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET) != 0;
     }
 
     bool GetFlagHasIndirectParent()
     {
 #ifdef FEATURE_PREJIT
-        return GetFlag(enum_flag_HasIndirectParent);
+        return GetFlag(enum_flag_HasIndirectParent) != 0;
 #else
         return FALSE;
 #endif
