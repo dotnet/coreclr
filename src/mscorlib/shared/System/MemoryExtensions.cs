@@ -752,9 +752,9 @@ namespace System
         public static ReadOnlyMemory<T> AsReadOnlyMemory<T>(this Memory<T> memory) => memory;
 
         /// <summary>
-        /// Helper method for MemoryExtensions.AsMemory(T[] array, int start).
+        /// 
         /// </summary>
-        public static Memory<T> AsMemory<T>(T[] array, int start) => new Memory<T>(array, start);
+        public static Memory<T> AsMemory<T>(this T[] array, int start) => new Memory<T>(array, start);
 
         /// <summary>
         /// Copies the contents of the array into the span. If the source

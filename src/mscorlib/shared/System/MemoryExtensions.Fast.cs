@@ -377,9 +377,9 @@ namespace System
         }
 
         /// <summary>
-        /// Helper method for MemoryExtensions.AsSpan(T[] array, int start).
+        /// 
         /// </summary>
-        public static Span<T> AsSpan<T>(T[] array, int start)
+        public static Span<T> AsSpan<T>(this T[] array, int start)
         {
             if (array == null)
             {
