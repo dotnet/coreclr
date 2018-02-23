@@ -72,7 +72,7 @@ namespace System.Diagnostics.Contracts
 
             if (displayMessage == null) return;
 
-            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(failureKind, String.Empty, userMessage, conditionText, innerException);
+            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(failureKind, displayMessage, userMessage, conditionText, innerException);
         }
 
         /// <summary>
@@ -369,17 +369,6 @@ namespace System.Runtime.CompilerServices
             // error message.  Let's leverage Silverlight's default error message there.
             */
             String failureMessage = "";
-            /*
-            if (!String.IsNullOrEmpty(conditionText))
-            {
-                resourceName += "_Cnd";
-                failureMessage = SR.Format(SR.GetResourceString(resourceName), conditionText);
-            }
-            else
-            {
-                failureMessage = SR.GetResourceString(resourceName);
-            }
-            */
 
             // Now add in the user message, if present.
             if (!String.IsNullOrEmpty(userMessage))
