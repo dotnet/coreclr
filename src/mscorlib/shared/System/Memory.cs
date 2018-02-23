@@ -317,7 +317,8 @@ namespace System
         {
             if (_length == 0)
             {
-                return ArraySegment<T>.Empty;
+                arraySegment = ArraySegment<T>.Empty;
+                return true;
             }
 
             if (_index < 0)
