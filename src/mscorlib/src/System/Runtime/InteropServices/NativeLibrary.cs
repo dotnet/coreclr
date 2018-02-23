@@ -259,27 +259,31 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(name));
             }
 
-            RuntimeAssembly callerAsRuntimeAssembly = caller as RuntimeAssembly;
-            if (caller != null && callerAsRuntimeAssembly == null)
+            RuntimeAssembly callerAsRuntimeAssembly = null;
+            if (caller != null)
             {
-                throw new ArgumentException(
-                    paramName: nameof(caller),
-                    message: SR.Argument_MustBeRuntimeAssembly);
-            }
-            
-            // Assembly-level default search paths win out over legacy behavior.
-            // This is a slight change in behavior from [DllImport], where search paths specified at
-            // the method level override search paths specified at the assembly level. But since our
-            // paths parameter isn't nullable, we need to resolve the ambiguity *somehow*, and this
-            // seems like the way that'll be least surprising to consumers.
+                callerAsRuntimeAssembly = caller as RuntimeAssembly;
 
-            if (paths == DllImportSearchPath.LegacyBehavior)
-            {
-                Debug.Assert(caller != null); // should've already been checked
-                var attr = caller.GetCustomAttribute<DefaultDllImportSearchPathsAttribute>();
-                if (attr != null)
+                if (callerAsRuntimeAssembly != null)
                 {
-                    paths = attr.Paths;
+                    throw new ArgumentException(
+                        paramName: nameof(caller),
+                        message: SR.Argument_MustBeRuntimeAssembly);
+                }
+
+                // Assembly-level default search paths win out over legacy behavior.
+                // This is a slight change in behavior from [DllImport], where search paths specified at
+                // the method level override search paths specified at the assembly level. But since our
+                // paths parameter isn't nullable, we need to resolve the ambiguity *somehow*, and this
+                // seems like the way that'll be least surprising to consumers.
+
+                if (paths == DllImportSearchPath.LegacyBehavior)
+                {
+                    var attr = caller.GetCustomAttribute<DefaultDllImportSearchPathsAttribute>();
+                    if (attr != null)
+                    {
+                        paths = attr.Paths;
+                    }
                 }
             }
 
