@@ -315,6 +315,11 @@ namespace System
         /// </summary>
         public bool TryGetArray(out ArraySegment<T> arraySegment)
         {
+            if (_length == 0)
+            {
+                return ArraySegment<T>.Empty;
+            }
+
             if (_index < 0)
             {
                 if (((OwnedMemory<T>)_object).TryGetArray(out var segment))
