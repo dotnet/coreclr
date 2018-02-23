@@ -1136,19 +1136,19 @@ namespace System
                 int count = replacementIdx - thisIdx;
                 if (count != 0)
                 {
-                    this.AsReadOnlySpan().Slice(thisIdx, count).CopyTo(dstSpan.Slice(dstIdx));
+                    this.AsSpan().Slice(thisIdx, count).CopyTo(dstSpan.Slice(dstIdx));
                     dstIdx += count;
                 }
                 thisIdx = replacementIdx + oldValueLength;
 
                 // Copy over newValue to replace the oldValue.
-                newValue.AsReadOnlySpan().CopyTo(dstSpan.Slice(dstIdx));
+                newValue.AsSpan().CopyTo(dstSpan.Slice(dstIdx));
                 dstIdx += newValue.Length;
             }
 
             // Copy over the final non-matching portion at the end of the string.
             Debug.Assert(this.Length - thisIdx == dstSpan.Length - dstIdx);
-            this.AsReadOnlySpan().Slice(thisIdx).CopyTo(dstSpan.Slice(dstIdx));
+            this.AsSpan().Slice(thisIdx).CopyTo(dstSpan.Slice(dstIdx));
 
             return dst;
         }

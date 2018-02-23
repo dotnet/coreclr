@@ -635,7 +635,7 @@ namespace System.Globalization
         /// <summary>Common private Parse method called by both Parse and TryParse.</summary>
         private static bool TryParseTimeSpan(ReadOnlySpan<char> input, TimeSpanStandardStyles style, IFormatProvider formatProvider, ref TimeSpanResult result)
         {
-            input = input.Trim();
+            input = StringSpanHelpers.Trim(input);
             if (input.IsEmpty)
             {
                 return result.SetFailure(ParseFailureKind.Format, nameof(SR.Format_BadTimeSpan));

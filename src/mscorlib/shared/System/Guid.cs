@@ -418,7 +418,7 @@ namespace System
 
         private static bool TryParseGuid(ReadOnlySpan<char> guidString, GuidStyles flags, ref GuidResult result)
         {
-            guidString = guidString.Trim(); // Remove whitespace from beginning and end
+            guidString = StringSpanHelpers.Trim(guidString); // Remove whitespace from beginning and end
 
             if (guidString.Length == 0)
             {
