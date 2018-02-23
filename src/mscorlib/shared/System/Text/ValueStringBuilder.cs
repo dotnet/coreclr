@@ -27,7 +27,7 @@ namespace System.Text
             get => _pos;
             set
             {
-                EnsureCapacity(value);
+                Debug.Assert(value <= _chars.Length);
                 _pos = value;
             }
         }
@@ -170,7 +170,7 @@ namespace System.Text
                 Grow(value.Length);
             }
 
-            value.CopyTo(_chars.Slice(_pos, value.Length));
+            value.CopyTo(_chars.Slice(_pos));
             _pos += value.Length;
         }
 

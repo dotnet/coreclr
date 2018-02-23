@@ -118,6 +118,7 @@ namespace System.IO
             int rootLength = PathInternal.GetRootLength(outputBuilder.AsSpan());
             bool isDevice = PathInternal.IsDevice(outputBuilder.AsSpan());
 
+            // As this is a corner case we're not going to add a stackalloc here to keep the stack pressure down.
             ValueStringBuilder inputBuilder = new ValueStringBuilder();
             try
             {
@@ -188,7 +189,7 @@ namespace System.IO
                     {
                         // Not enough space. The result count for this API does not include the null terminator.
                         outputBuilder.EnsureCapacity(checked((int)result));
-                        result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder[0], ref outputBuilder[0], (uint)outputBuilder.Capacity);
+                        result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder.GetPinnableReference(), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
                     }
                     else
                     {
