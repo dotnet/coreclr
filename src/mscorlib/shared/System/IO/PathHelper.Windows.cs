@@ -204,18 +204,18 @@ namespace System.IO
             }
 
             // If we were able to expand the path, use it, otherwise use the original full path result
-            outputBuilder = success ? ref outputBuilder : ref inputBuilder;
+            ValueStringBuilder builderToUse = success ? outputBuilder : inputBuilder;
 
             // Switch back from \\?\ to \\.\ if necessary
             if (wasDotDevice)
-                outputBuilder[2] = '.';
+                builderToUse[2] = '.';
 
             // Change from \\?\UNC\ to \\?\UN\\ if needed
             if (isDosUnc)
-                outputBuilder[PathInternal.UncExtendedPrefixLength - PathInternal.UncPrefixLength] = '\\';
+                builderToUse[PathInternal.UncExtendedPrefixLength - PathInternal.UncPrefixLength] = '\\';
 
             // Strip out any added characters at the front of the string
-            ReadOnlySpan<char> output = outputBuilder.AsSpan().Slice(rootDifference);
+            ReadOnlySpan<char> output = builderToUse.AsSpan().Slice(rootDifference);
 
             string returnValue = output.Equals(originalPath.AsReadOnlySpan())
                 ? originalPath : new string(output);
