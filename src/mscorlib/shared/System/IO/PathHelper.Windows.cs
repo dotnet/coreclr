@@ -204,7 +204,7 @@ namespace System.IO
             }
 
             // If we were able to expand the path, use it, otherwise use the original full path result
-            ValueStringBuilder builderToUse = success ? outputBuilder : inputBuilder;
+            ref ValueStringBuilder builderToUse = ref (success ? ref outputBuilder : ref inputBuilder);
 
             // Switch back from \\?\ to \\.\ if necessary
             if (wasDotDevice)
