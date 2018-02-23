@@ -2094,6 +2094,7 @@ PAL_GetTransportPipeName(
     IN DWORD id,
     IN const char *suffix)
 {
+    *name = '\0';
     DWORD dwRetVal = 0;
     UINT64 disambiguationKey = 0;
     char formatBuffer[MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH];
