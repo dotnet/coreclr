@@ -62,10 +62,9 @@ namespace System.Runtime.InteropServices
                 }
                 else
                 {
-                    // TODO: Cleaner exception message
                     throw new ArgumentException(
                         paramName: nameof(name),
-                        message: "Couldn't parse ordinal value from input string.");
+                        message: SR.NativeLibrary_InvalidOrdinal);
                 }
             }
 
@@ -293,10 +292,9 @@ namespace System.Runtime.InteropServices
 
             if (((uint)paths & ~AllowedDllImportSearchPathsMask) != 0)
             {
-                // TODO: Turn error message into a resource string.
                 throw new ArgumentException(
                     paramName: nameof(paths),
-                    message: "Invalid flags were provided.");
+                    message: SR.NativeLibrary_FlagsInvalidForPlatform);
             }
 
             // "Should search assembly directory?" gets special treatment by the CLR,
@@ -307,10 +305,9 @@ namespace System.Runtime.InteropServices
 
             if (caller == null && searchAssemblyDirectory)
             {
-                // TODO: Turn error message into a resource string.
                 throw new ArgumentException(
                     paramName: nameof(paths),
-                    message: "Cannot specify AssemblyDirectory if no calling assembly given.");
+                    message: SR.NativeLibrary_CallerNotSpecified);
             }
 
             // End parameter validation
