@@ -19,9 +19,6 @@ namespace System.Runtime.InteropServices
         private const uint GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS = 0x00000004;
         private const uint GET_MODULE_HANDLE_EX_FLAG_PIN = 0x00000001;
 
-        // On Windows, the CLR's HINSTANCE is the underlying OS handle.
-        private IntPtr OperatingSystemHandle => _hInstance;
-
         private static bool IsValidModuleHandle(IntPtr hModule)
         {
             // This method has two purposes: (a) it ensures that the provided module handle is indeed valid,

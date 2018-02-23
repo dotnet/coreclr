@@ -33,15 +33,6 @@ namespace System.Runtime.InteropServices
             _hInstance = hModule;
         }
 
-        /// <summary>
-        /// The raw OS-provided handle for this module.
-        /// </summary>
-        /// <remarks>
-        /// The caller can query this handle for information about the loaded module
-        /// but should not attempt to free or otherwise manipulate this handle.
-        /// </remarks>
-        public IntPtr Handle => OperatingSystemHandle;
-
         // This is a managed equivalent to NDirectMethodDesc::FindEntryPoint.
         private TDelegate CreateDelegateCore<TDelegate>(string name, bool exactSpelling, RuntimeMethodInfo delegateInvokeMethod) where TDelegate : class
         {
