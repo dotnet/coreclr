@@ -733,7 +733,7 @@ namespace System
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
-                ReadOnlySpan<char> sTrim = StringSpanHelpers.Trim(value);
+                ReadOnlySpan<char> sTrim = value.Trim();
                 if (StringSpanHelpers.Equals(sTrim, numfmt.PositiveInfinitySymbol))
                 {
                     return double.PositiveInfinity;
@@ -767,7 +767,7 @@ namespace System
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
-                ReadOnlySpan<char> sTrim = StringSpanHelpers.Trim(value);
+                ReadOnlySpan<char> sTrim = value.Trim();
                 if (StringSpanHelpers.Equals(sTrim, numfmt.PositiveInfinitySymbol))
                 {
                     return float.PositiveInfinity;

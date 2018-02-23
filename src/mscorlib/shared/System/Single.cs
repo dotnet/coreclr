@@ -330,7 +330,7 @@ namespace System
             bool success = Number.TryParseSingle(s, style, info, out result);
             if (!success)
             {
-                ReadOnlySpan<char> sTrim = StringSpanHelpers.Trim(s);
+                ReadOnlySpan<char> sTrim = s.Trim();
                 if (StringSpanHelpers.Equals(sTrim, info.PositiveInfinitySymbol))
                 {
                     result = PositiveInfinity;
