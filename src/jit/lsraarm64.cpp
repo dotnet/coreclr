@@ -957,6 +957,12 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
     switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
     {
+        case HWIntrinsicInfo::Sha1HashOp:
+        case HWIntrinsicInfo::Sha1RotateOp:
+            info->setInternalCandidates(this, RBM_ALLFLOAT);
+            info->internalFloatCount = 1;
+            break;
+
         case HWIntrinsicInfo::SimdExtractOp:
         case HWIntrinsicInfo::SimdInsertOp:
             if (!op2->isContained())
