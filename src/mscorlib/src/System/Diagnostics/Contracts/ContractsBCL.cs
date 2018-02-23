@@ -72,7 +72,7 @@ namespace System.Diagnostics.Contracts
 
             if (displayMessage == null) return;
 
-            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(failureKind, displayMessage, userMessage, conditionText, innerException);
+            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(failureKind, String.Empty, userMessage, conditionText, innerException);
         }
 
         /// <summary>
@@ -359,6 +359,7 @@ namespace System.Runtime.CompilerServices
 
         private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText)
         {
+            /*
             String resourceName = GetResourceNameForFailure(failureKind);
             // Well-formatted English messages will take one of four forms.  A sentence ending in
             // either a period or a colon, the condition string, then the message tacked 
@@ -366,7 +367,9 @@ namespace System.Runtime.CompilerServices
             // Note that both the conditionText and userMessage may be null.  Also, 
             // on Silverlight we may not be able to look up a friendly string for the
             // error message.  Let's leverage Silverlight's default error message there.
-            String failureMessage;
+            */
+            String failureMessage = "";
+            /*
             if (!String.IsNullOrEmpty(conditionText))
             {
                 resourceName += "_Cnd";
@@ -376,6 +379,7 @@ namespace System.Runtime.CompilerServices
             {
                 failureMessage = SR.GetResourceString(resourceName);
             }
+            */
 
             // Now add in the user message, if present.
             if (!String.IsNullOrEmpty(userMessage))
