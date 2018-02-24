@@ -224,7 +224,7 @@ namespace System
         //of that double.
         //
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // 64-bit constants make the IL unusually large that makes the inliner to reject the method
-        public unsafe override int GetHashCode()
+        public override int GetHashCode()
         {
             var bits = Unsafe.As<double, long>(ref m_value);
 

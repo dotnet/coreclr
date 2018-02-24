@@ -215,7 +215,7 @@ namespace System
             return IsNaN(obj) && IsNaN(m_value);
         }
 
-        public unsafe override int GetHashCode()
+        public override int GetHashCode()
         {
             var bits = Unsafe.As<float, int>(ref m_value);
 
