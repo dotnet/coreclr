@@ -229,6 +229,15 @@ namespace System
                 // Ensure that 0 and -0 have the same hash code
                 return 0;
             }
+
+#pragma warning disable 1718
+            if (d != d)
+#pragma warning restore
+            {
+                // Ensure that all NaNs have the same hash code
+                d = double.NaN;
+            }
+
             long value = *(long*)(&d);
             return unchecked((int)value) ^ ((int)(value >> 32));
         }

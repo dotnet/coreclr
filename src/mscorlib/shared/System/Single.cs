@@ -221,6 +221,15 @@ namespace System
                 // Ensure that 0 and -0 have the same hash code
                 return 0;
             }
+
+#pragma warning disable 1718
+            if (f != f)
+#pragma warning restore
+            {
+                // Ensure that all NaNs have the same hash code
+                f = float.NaN;
+            }
+
             int v = *(int*)(&f);
             return v;
         }
