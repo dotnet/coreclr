@@ -248,9 +248,6 @@ namespace System.Reflection.Emit
             int i;
             SignatureHelper sig;
 
-            // The opcode passed in must be the calli instruction.
-            Debug.Assert(opcode.Equals(OpCodes.Calli),
-                            "Unexpected opcode passed to EmitCalli.");
             if (parameterTypes != null)
                 cParams = parameterTypes.Length;
 
@@ -270,7 +267,7 @@ namespace System.Reflection.Emit
 
             // Pop the native function pointer.
             stackchange--;
-            UpdateStackSize(opcode, stackchange);
+            UpdateStackSize(OpCodes.Calli, stackchange);
 
             EnsureCapacity(7);
             Emit(OpCodes.Calli);
