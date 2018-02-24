@@ -241,6 +241,44 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
+        public override void EmitCalli(OpCode opcode, CallingConvention unmanagedCallConv, Type returnType, Type[] parameterTypes)
+        {
+            int stackchange = 0;
+            int cParams = 0;
+            int i;
+            SignatureHelper sig;
+
+            // The opcode passed in must be the calli instruction.
+            Debug.Assert(opcode.Equals(OpCodes.Calli),
+                            "Unexpected opcode passed to EmitCalli.");
+            if (parameterTypes != null)
+                cParams = parameterTypes.Length;
+
+            sig = SignatureHelper.GetMethodSigHelper(unmanagedCallConv, returnType);
+
+            if (parameterTypes != null)
+                for (i = 0; i < cParams; i++)
+                    sig.AddArgument(parameterTypes[i]);
+
+            // If there is a non-void return type, push one. 
+            if (returnType != typeof(void))
+                stackchange++;
+
+            // Pop off arguments if any.
+            if (parameterTypes != null)
+                stackchange -= cParams;
+
+            // Pop the native function pointer.
+            stackchange--;
+            UpdateStackSize(opcode, stackchange);
+
+            EnsureCapacity(7);
+            Emit(OpCodes.Calli);
+
+            int token = GetTokenForSig(sig.GetSignature(true));
+            PutInteger4(token);
+        }
+
         public override void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
             if (methodInfo == null)
@@ -305,7 +343,7 @@ namespace System.Reflection.Emit
                 UpdateStackSize(opcode, stackchange);
             }
 
-            int token = GetTokenForSig(signature.GetSignature(true)); ;
+            int token = GetTokenForSig(signature.GetSignature(true));
             PutInteger4(token);
         }
 
