@@ -315,16 +315,6 @@ namespace System
         /// </summary>
         public bool TryGetArray(out ArraySegment<T> arraySegment)
         {
-            if (_length == 0)
-            {
-#if FEATURE_PORTABLE_SPAN
-                arraySegment = new ArraySegment<T>(SpanHelpers.PerTypeValues<T>.EmptyArray);
-#else
-                arraySegment = ArraySegment<T>.Empty;
-#endif // FEATURE_PORTABLE_SPAN
-                return true;
-            }
-
             if (_index < 0)
             {
                 if (((OwnedMemory<T>)_object).TryGetArray(out var segment))
@@ -336,6 +326,15 @@ namespace System
             else if (_object is T[] arr)
             {
                 arraySegment = new ArraySegment<T>(arr, _index, _length);
+                return true;
+            }
+            else if (_length == 0)
+            {
+#if FEATURE_PORTABLE_SPAN
+                arraySegment = new ArraySegment<T>(SpanHelpers.PerTypeValues<T>.EmptyArray);
+#else
+                arraySegment = ArraySegment<T>.Empty;
+#endif // FEATURE_PORTABLE_SPAN
                 return true;
             }
 
