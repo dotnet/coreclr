@@ -1514,7 +1514,7 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    *dst = ref;
+    VolatileStore(dst, ref);
 
 #ifdef WRITE_BARRIER_CHECK
     updateGCShadow((Object **)dst, (Object *)ref);     // support debugging write barrier, updateGCShadow only cares that these are pointers
