@@ -328,7 +328,8 @@ namespace System
                 arraySegment = new ArraySegment<T>(arr, _index, _length);
                 return true;
             }
-            else if (_length == 0)
+
+            if (_length == 0)
             {
 #if FEATURE_PORTABLE_SPAN
                 arraySegment = new ArraySegment<T>(SpanHelpers.PerTypeValues<T>.EmptyArray);
