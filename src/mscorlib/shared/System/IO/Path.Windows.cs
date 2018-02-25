@@ -80,7 +80,7 @@ namespace System.IO
                 // Path is current drive rooted i.e. starts with \:
                 // "\Foo" and "C:\Bar" => "C:\Foo"
                 // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
-                combinedPath = CombineNoChecks(GetPathRoot(basePath), path.AsSpan().Slice(1));
+                combinedPath = CombineInternal(GetPathRoot(basePath), path.AsSpan().Slice(1));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
@@ -92,7 +92,7 @@ namespace System.IO
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
                     // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                    combinedPath = CombineNoChecks(basePath, path.AsSpan().Slice(2));
+                    combinedPath = CombineInternal(basePath, path.AsSpan().Slice(2));
                 }
                 else
                 {
@@ -107,7 +107,7 @@ namespace System.IO
                 // "Simple" relative path
                 // "Foo" and "C:\Bar" => "C:\Bar\Foo"
                 // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                combinedPath = CombineNoChecks(basePath, path);
+                combinedPath = CombineInternal(basePath, path);
             }
 
             // Device paths are normalized by definition, so passing something of this format
