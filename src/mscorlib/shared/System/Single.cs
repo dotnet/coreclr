@@ -219,10 +219,10 @@ namespace System
         {
             var bits = Unsafe.As<float, int>(ref m_value);
 
-            if (((bits - 1) & 0x7FFFFFFF) >= 0x7FF00000)
+            if (((bits - 1) & 0x7FFFFFFF) >= 0x7F800000)
             {
                 // Ensure that all NaNs and both zeros have the same hash code
-                bits &= 0x7FF00000;
+                bits &= 0x7F800000;
             }
 
             return bits;
