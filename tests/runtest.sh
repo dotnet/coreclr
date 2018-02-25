@@ -113,6 +113,10 @@ case $OSName in
         libExtension="so"
         ;;
 
+    FreeBSD)
+        libExtension="so"
+        ;;
+
     NetBSD)
         libExtension="so"
         ;;
@@ -738,7 +742,9 @@ function run_test {
 }
 
 # Variables for running tests in the background
-if [ `uname` = "NetBSD" ]; then
+if [ `uname` = "FreeBSD" ]; then
+    NumProc=$(getconf NPROCESSORS_ONLN)
+elif [ `uname` = "NetBSD" ]; then
     NumProc=$(getconf NPROCESSORS_ONLN)
 elif [ `uname` = "Darwin" ]; then
     NumProc=$(getconf _NPROCESSORS_ONLN)
