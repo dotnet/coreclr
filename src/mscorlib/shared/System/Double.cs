@@ -228,6 +228,7 @@ namespace System
         {
             var bits = Unsafe.As<double, long>(ref m_value);
 
+            // Optimized check for IsNan() || IsZero()
             if (((bits - 1) & 0x7FFFFFFFFFFFFFFF) >= 0x7FF0000000000000)
             {
                 // Ensure that all NaNs and both zeros have the same hash code
