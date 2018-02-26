@@ -5779,8 +5779,12 @@ HRESULT PrintSpecialThreads()
             continue;
         }
 
-        TADDR moduleTlsDataAddr = 0;
+        if (tlsArrayAddr == NULL)
+        {
+            continue;
+        }
 
+        TADDR moduleTlsDataAddr = 0;
         if (!SafeReadMemory (tlsArrayAddr + sizeof (void*) * (dwCLRTLSDataIndex & 0xFFFF), &moduleTlsDataAddr, sizeof (void**), NULL))
         {
             PrintLn("Failed to get Tls expansion slots for thread ", ThreadID(SysId));        
