@@ -84,7 +84,7 @@ public class Test
         }
         else
         {
-            bytesDiff = 12;
+            bytesDiff = 16;
         }
 
         for (int i = 0; i < 10000; ++i)
