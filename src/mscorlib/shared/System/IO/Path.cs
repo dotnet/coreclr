@@ -390,6 +390,8 @@ namespace System.IO
         {
             if (path1.Length == 0)
                 return path2.Length == 0 ? string.Empty : new string(path2);
+            if (path2.Length == 0)
+                return new string(path1);
 
             return JoinInternal(path1, path2);
         }
@@ -411,31 +413,23 @@ namespace System.IO
         public static bool TryJoin(Span<char> destination, out int charsWritten, ReadOnlySpan<char> path1, ReadOnlySpan<char> path2)
         {
             charsWritten = 0;
-            if (path1.Length == 0)
+            if (path1.Length == 0 && path2.Length == 0)
+                return true;
+
+            if (path1.Length == 0 || path2.Length == 0)
             {
-                if (destination.Length < path2.Length)
+                ref ReadOnlySpan<char> pathToUse = ref path1.Length == 0 ? ref path2 : ref path1;
+                if (destination.Length < pathToUse.Length)
                 {
                     return false;
                 }
 
-                path2.CopyTo(destination);
-                charsWritten = path2.Length;
+                pathToUse.CopyTo(destination);
+                charsWritten = pathToUse.Length;
                 return true;
             }
 
-            if (path2.Length == 0)
-            {
-                if (destination.Length < path1.Length)
-                {
-                    return false;
-                }
-
-                path1.CopyTo(destination);
-                charsWritten = path1.Length;
-                return true;
-            }
-
-            bool needsSeparator = !(PathInternal.EndsInDirectorySeparator(path1) || PathInternal.EndsInDirectorySeparator(path2));
+            bool needsSeparator = !(PathInternal.EndsInDirectorySeparator(path1) || PathInternal.StartsWithDirectorySeparator(path2));
             int charsNeeded = path1.Length + path2.Length + (needsSeparator ? 1 : 0);
             if (destination.Length < charsNeeded)
                 return false;
