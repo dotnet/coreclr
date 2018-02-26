@@ -1107,7 +1107,7 @@ namespace System
 
             // String allocation and copying is in separate method to make this method faster for the case where
             // nothing needs replacing.
-            string dst = ReplaceHelper(oldValue.Length, newValue, replacementIndices.AsReadOnlySpan());
+            string dst = ReplaceHelper(oldValue.Length, newValue, replacementIndices.AsSpan());
 
             replacementIndices.Dispose();
 
@@ -1228,7 +1228,7 @@ namespace System
             var sepListBuilder = new ValueListBuilder<int>(initialSpan);
 
             MakeSeparatorList(separators, ref sepListBuilder);
-            ReadOnlySpan<int> sepList = sepListBuilder.AsReadOnlySpan();
+            ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
 
             // Handle the special case of no replaces.
             if (sepList.Length == 0)
@@ -1309,8 +1309,8 @@ namespace System
             var lengthListBuilder = new ValueListBuilder<int>(lengthListInitialSpan);
 
             MakeSeparatorList(separators, ref sepListBuilder, ref lengthListBuilder);
-            ReadOnlySpan<int> sepList = sepListBuilder.AsReadOnlySpan();
-            ReadOnlySpan<int> lengthList = lengthListBuilder.AsReadOnlySpan();
+            ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
+            ReadOnlySpan<int> lengthList = lengthListBuilder.AsSpan();
             
             // Handle the special case of no replaces.
             if (sepList.Length == 0)
@@ -1334,7 +1334,7 @@ namespace System
             var sepListBuilder = new ValueListBuilder<int>(sepListInitialSpan);
 
             MakeSeparatorList(separator, ref sepListBuilder);
-            ReadOnlySpan<int> sepList = sepListBuilder.AsReadOnlySpan();
+            ReadOnlySpan<int> sepList = sepListBuilder.AsSpan();
             if (sepList.Length == 0)
             {
                 // there are no separators so sepListBuilder did not rent an array from pool and there is no need to dispose it
