@@ -1821,9 +1821,7 @@ void Compiler::fgComputeReachabilitySets()
     fgReachabilitySetsValid = false;
 #endif // DEBUG
 
-    BasicBlock* block;
-
-    for (block = fgFirstBB; block != nullptr; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
         // Initialize the per-block bbReach sets. It creates a new empty set,
         // because the block epoch could change since the previous initialization
@@ -1834,20 +1832,16 @@ void Compiler::fgComputeReachabilitySets()
         BlockSetOps::AddElemD(this, block->bbReach, block->bbNum);
     }
 
-    /* Find the reachable blocks */
-    // Also, set BBF_GC_SAFE_POINT.
-
-    bool     change;
+    // Find the reachable blocks.
+    bool     reachableBlocksChanged;
     BlockSet newReach(BlockSetOps::MakeEmpty(this));
     do
     {
-        change = false;
+        reachableBlocksChanged = false;
 
-        for (block = fgFirstBB; block != nullptr; block = block->bbNext)
+        for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
             BlockSetOps::Assign(this, newReach, block->bbReach);
-
-            bool predGcSafe = (block->bbPreds != nullptr); // Do all of our predecessor blocks have a GC safe bit?
 
             for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
             {
@@ -1855,25 +1849,15 @@ void Compiler::fgComputeReachabilitySets()
 
                 /* Union the predecessor's reachability set into newReach */
                 BlockSetOps::UnionD(this, newReach, predBlock->bbReach);
-
-                if (!(predBlock->bbFlags & BBF_GC_SAFE_POINT))
-                {
-                    predGcSafe = false;
-                }
-            }
-
-            if (predGcSafe)
-            {
-                block->bbFlags |= BBF_GC_SAFE_POINT;
             }
 
             if (!BlockSetOps::Equal(this, newReach, block->bbReach))
             {
                 BlockSetOps::Assign(this, block->bbReach, newReach);
-                change = true;
+                reachableBlocksChanged = true;
             }
         }
-    } while (change);
+    } while (reachableBlocksChanged);
 
 #ifdef DEBUG
     if (verbose)
@@ -1884,6 +1868,48 @@ void Compiler::fgComputeReachabilitySets()
 
     fgReachabilitySetsValid = true;
 #endif // DEBUG
+
+    fgSetBlockHasGCSafepoint();
+}
+
+//------------------------------------------------------------------------
+// fgSetBlockHasGCSafepoint: Set BBF_GC_SAFE_POINT on a block when all its predecessors have BBF_GC_SAFE_POINT.
+//
+void Compiler::fgSetBlockHasGCSafepoint()
+{
+    bool gcFlagsChanged;
+    do
+    {
+        gcFlagsChanged = false;
+
+        for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+        {
+            if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
+            {
+                continue;
+            }
+
+            bool predGcSafe =
+                (block->bbPreds != nullptr); // Do predecessors blocks exist and all of them have a GC safe bit?
+
+            for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+            {
+                BasicBlock* predBlock = pred->flBlock;
+
+                if ((predBlock->bbFlags & BBF_GC_SAFE_POINT) == 0)
+                {
+                    predGcSafe = false;
+                    break;
+                }
+            }
+
+            if (predGcSafe)
+            {
+                block->bbFlags |= BBF_GC_SAFE_POINT;
+                gcFlagsChanged = true;
+            }
+        }
+    } while (gcFlagsChanged);
 }
 
 /*****************************************************************************
@@ -3723,7 +3749,7 @@ void Compiler::fgCreateGCPolls()
             // Because of block compaction, it's possible to end up with a block that is both poll and safe.
             // Clean those up now.
 
-            if (block->bbFlags & BBF_GC_SAFE_POINT)
+            if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
             {
 #ifdef DEBUG
                 if (verbose)

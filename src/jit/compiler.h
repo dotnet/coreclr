@@ -4307,6 +4307,8 @@ protected:
 
     void fgComputeReachabilitySets(); // Compute bbReach sets. (Also sets BBF_GC_SAFE_POINT flag on blocks.)
 
+    void fgSetBlockHasGCSafepoint(); // Sets BBF_GC_SAFE_POINT flag on blocks.
+
     void fgComputeEnterBlocksSet(); // Compute the set of entry blocks, 'fgEnterBlks'.
 
     bool fgRemoveUnreachableBlocks(); // Remove blocks determined to be unreachable by the bbReach sets.
