@@ -233,6 +233,10 @@ namespace System.IO
                 if (pathLength >= volumeSeparatorLength + 1 && IsDirectorySeparator(path[volumeSeparatorLength]))
                     i++;
             }
+            else if (deviceSyntax && path[volumeSeparatorLength - 1] != VolumeSeparatorChar)
+            {
+                return 4;
+            }
             return i;
         }
 
