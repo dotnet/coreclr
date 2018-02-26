@@ -13911,7 +13911,7 @@ void GenericHijackFuncHelper()
     // Get the continue type. Non-zero means that the exception was not cleared by the Right Side and therefore has
     // not been handled. Zero means that the exception has been cleared. (Presumably, the debugger altered the
     // thread's context before clearing the exception, so continuing will give a different result.)
-	DWORD continueType = 0;
+    DWORD continueType = 0;
 
     void* threadDebuggerWord = g_pEEInterface->GetThreadDebuggerWord();
 
