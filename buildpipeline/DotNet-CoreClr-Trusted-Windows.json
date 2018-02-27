@@ -12,7 +12,7 @@
         "definitionType": "task"
       },
       "inputs": {
-        "signType": "$(SignType)",
+        "signType": "$(PB_SignType)",
         "zipSources": "false",
         "version": "",
         "feedSource": "https://devdiv.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json"
@@ -106,7 +106,7 @@
         "solution": "src\\sign.builds",
         "platform": "",
         "configuration": "",
-        "msbuildArguments": "/p:SignType=$(SignType) /p:BuildType=$(PB_BuildType) /p:BuildArch=$(Architecture)",
+        "msbuildArguments": "/p:SignType=$(PB_SignType) /p:BuildType=$(PB_BuildType) /p:BuildArch=$(Architecture)",
         "clean": "false",
         "maximumCpuCount": "false",
         "restoreNugetPackages": "false",
@@ -278,7 +278,7 @@
     "Label": {
       "value": "$(Build.BuildNumber)"
     },
-    "SignType": {
+    "PB_SignType": {
       "value": "test",
       "allowOverride": true
     },
