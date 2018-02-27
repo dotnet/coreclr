@@ -99,7 +99,7 @@ namespace System.IO
                     // No matching root, root to specified drive
                     // "D:Foo" and "C:\Bar" => "D:Foo"
                     // "D:Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
-                    combinedPath = PathInternal.IsDevice(basePath) ? CombineNoChecksInternal(basePath.AsSpan().Slice(0, 4), path.AsSpan().Slice(0, 2), "\\", path.AsSpan().Slice(2)) : path.Insert(2, "\\");
+                    combinedPath = PathInternal.IsDevice(basePath) ? CombineNoChecksInternal(basePath.AsSpan().Slice(0, 4), path.AsSpan().Slice(0, 2), @"\", path.AsSpan().Slice(2)) : path.Insert(2, "\\");
                 }
             }
             else
