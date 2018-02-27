@@ -928,6 +928,7 @@ namespace Span
         #endregion
 
         #region TestSpanAsBytes<T>
+#if false
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(100)]
         public static void TestSpanAsBytesByte(int length)
@@ -967,6 +968,7 @@ namespace Span
                 if (untrue) { sink.Data = byteSpan[0]; span = new Span<T>(); }
             }
         }
+#endif
         #endregion
 
         #region TestSpanCast<T>
