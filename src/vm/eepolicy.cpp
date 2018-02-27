@@ -1200,20 +1200,18 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
         {
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
-        }
-
-        if (errorSource == NULL) // Log inner exception details
-        {
             EXCEPTIONREF refException = (EXCEPTIONREF)(pThread->LastThrownObject());
-            PrintToStdErrA("\n");
-            PrintToStdErrA("Inner exception details:");
-            PrintToStdErrA("\n");
+
             if (refException != NULL) {
                 StackSString msg;
                 GetExceptionMessage(refException, msg);
                 StackScratchBuffer buf;
-                const CHAR * str = msg.GetANSI(buf);
-                PrintToStdErrA(str);
+                const CHAR * innerExceptionMsg = msg.GetANSI(buf);
+
+                PrintToStdErrA("\n");
+                PrintToStdErrA("Inner exception details:");
+                PrintToStdErrA("\n");
+                PrintToStdErrA(innerExceptionMsg);
                 PrintToStdErrA("\n");
             }
         }
