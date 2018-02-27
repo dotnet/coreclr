@@ -64,7 +64,7 @@ namespace System
 
             if (GlobalizationMode.Invariant)
             {
-                return StartsWithOrdinalHelper(span, value);
+                return span.StartsWith(value);
             }
             if (span.Length == 0)
             {
@@ -99,86 +99,13 @@ namespace System
             return CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0;
         }
 
-        public static bool StartsWithOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
-        {
-            Debug.Assert(value.Length != 0);
-
-            if (span.Length < value.Length)
-            {
-                return false;
-            }
-            return OrdinalHelper(span, value, value.Length);
-        }
-
-        public static unsafe bool OrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, int length)
-        {
-            Debug.Assert(length != 0);
-            Debug.Assert(span.Length >= length);
-
-            fixed (char* ap = &MemoryMarshal.GetReference(span))
-            fixed (char* bp = &MemoryMarshal.GetReference(value))
-            {
-                char* a = ap;
-                char* b = bp;
-
-#if BIT64
-                // Single int read aligns pointers for the following long reads
-                if (length >= 2)
-                {
-                    if (*(int*)a != *(int*)b)
-                        return false;
-                    length -= 2;
-                    a += 2;
-                    b += 2;
-                }
-
-                while (length >= 12)
-                {
-                    if (*(long*)a != *(long*)b)
-                        return false;
-                    if (*(long*)(a + 4) != *(long*)(b + 4))
-                        return false;
-                    if (*(long*)(a + 8) != *(long*)(b + 8))
-                        return false;
-                    length -= 12;
-                    a += 12;
-                    b += 12;
-                }
-#else
-                while (length >= 10)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    if (*(int*)(a+2) != *(int*)(b+2)) return false;
-                    if (*(int*)(a+4) != *(int*)(b+4)) return false;
-                    if (*(int*)(a+6) != *(int*)(b+6)) return false;
-                    if (*(int*)(a+8) != *(int*)(b+8)) return false;
-                    length -= 10; a += 10; b += 10;
-                }
-#endif
-
-                while (length >= 2)
-                {
-                    if (*(int*)a != *(int*)b)
-                        return false;
-                    length -= 2;
-                    a += 2;
-                    b += 2;
-                }
-
-                // PERF: This depends on the fact that the String objects are always zero terminated 
-                // and that the terminating zero is not included in the length. For even string sizes
-                // this compare can include the zero terminator. Bitwise OR avoids a branch.
-                return length == 0 | *a == *b;
-            }
-        }
-
         public static bool EndsWithCultureHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value, CompareInfo compareInfo)
         {
             Debug.Assert(value.Length != 0);
 
             if (GlobalizationMode.Invariant)
             {
-                return EndsWithOrdinalHelper(span, value);
+                return span.EndsWith(value);
             }
             if (span.Length == 0)
             {
@@ -211,17 +138,6 @@ namespace System
                 return false;
             }
             return (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(span.Length - value.Length), value) == 0);
-        }
-
-        public static bool EndsWithOrdinalHelper(ReadOnlySpan<char> span, ReadOnlySpan<char> value)
-        {
-            Debug.Assert(value.Length != 0);
-
-            if (span.Length < value.Length)
-            {
-                return false;
-            }
-            return OrdinalHelper(span.Slice(span.Length - value.Length), value, value.Length);
         }
 
         public static unsafe void ClearWithoutReferences(ref byte b, nuint byteLength)

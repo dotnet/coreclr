@@ -57,7 +57,7 @@ namespace System
                         return false;
                     if (value.Length == 0)  // span.Length == value.Length == 0
                         return true;
-                    return SpanHelpers.OrdinalHelper(span, value, value.Length);
+                    return span.SequenceEqual(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
 
                 case StringComparison.OrdinalIgnoreCase:
                     if (span.Length != value.Length)
@@ -281,7 +281,7 @@ namespace System
                     return SpanHelpers.EndsWithCultureIgnoreCaseHelper(span, value, CompareInfo.Invariant);
 
                 case StringComparison.Ordinal:
-                    return SpanHelpers.EndsWithOrdinalHelper(span, value);
+                    return span.EndsWith(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
 
                 case StringComparison.OrdinalIgnoreCase:
                     return SpanHelpers.EndsWithOrdinalIgnoreCaseHelper(span, value);
@@ -320,7 +320,7 @@ namespace System
                     return SpanHelpers.StartsWithCultureIgnoreCaseHelper(span, value, CompareInfo.Invariant);
 
                 case StringComparison.Ordinal:
-                    return SpanHelpers.StartsWithOrdinalHelper(span, value);
+                    return span.StartsWith(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
 
                 case StringComparison.OrdinalIgnoreCase:
                     return SpanHelpers.StartsWithOrdinalIgnoreCaseHelper(span, value);
