@@ -377,7 +377,7 @@ namespace System
         }
 
         /// <summary>
-        /// 
+        /// Creates a new span over the portion of the target array.
         /// </summary>
         public static Span<T> AsSpan<T>(this T[] array, int start)
         {
