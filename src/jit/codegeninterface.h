@@ -225,10 +225,21 @@ public:
     {
         return m_cgFramePointerRequired;
     }
+
     void setFramePointerRequired(bool value)
     {
         m_cgFramePointerRequired = value;
     }
+
+    //------------------------------------------------------------------------
+    // resetWritePhaseForFramePointerRequired: Return m_cgFramePointerRequired into the write phase.
+    // It is used only before the first phase, that locks this value, currently it is LSRA.
+    // Use it if you want to skip checks that set this value to true if the value is already true.
+    void resetWritePhaseForFramePointerRequired()
+    {
+        m_cgFramePointerRequired.ResetWritePhase();
+    }
+
     void setFramePointerRequiredEH(bool value);
 
     void setFramePointerRequiredGCInfo(bool value)
@@ -408,8 +419,23 @@ public:
         m_cgInterruptible = value;
     }
 
+#ifdef _TARGET_ARMARCH_
+    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
+    bool getHasTailCalls()
+    {
+        return m_cgHasTailCalls;
+    }
+    void setHasTailCalls(bool value)
+    {
+        m_cgHasTailCalls = value;
+    }
+#endif // _TARGET_ARMARCH_
+
 private:
     bool m_cgInterruptible;
+#ifdef _TARGET_ARMARCH_
+    bool m_cgHasTailCalls;
+#endif // _TARGET_ARMARCH_
 
     //  The following will be set to true if we've determined that we need to
     //  generate a full-blown pointer register map for the current method.

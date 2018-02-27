@@ -449,6 +449,9 @@ void LinearScan::BuildNode(GenTree* tree)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             // Consumes arrLen & index - has no result
             info->srcCount = 2;
             assert(info->dstCount == 0);
@@ -607,7 +610,7 @@ void LinearScan::BuildNode(GenTree* tree)
 
             // Is this a non-commutative operator, or is op2 a contained memory op?
             // In either case, we need to make op2 remain live until the op is complete, by marking
-            // the source(s) associated with op2 as "delayFree".
+            // the source(s) associated with op2 as "delayFree" if this node defines a register.
             // Note that if op2 of a binary RMW operator is a memory op, even if the operator
             // is commutative, codegen cannot reverse them.
             // TODO-XArch-CQ: This is not actually the case for all RMW binary operators, but there's
@@ -650,7 +653,8 @@ void LinearScan::BuildNode(GenTree* tree)
 
                 delayUseSrc = op1;
             }
-            else if ((op2 != nullptr) && (!tree->OperIsCommutative() || (op2->isContained() && !op2->IsCnsIntOrI())))
+            else if ((info->dstCount != 0) && (op2 != nullptr) &&
+                     (!tree->OperIsCommutative() || (op2->isContained() && !op2->IsCnsIntOrI())))
             {
                 delayUseSrc = op2;
             }
@@ -2252,6 +2256,7 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
     TreeNodeInfo*  info        = currentNodeInfo;
     NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
     InstructionSet isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
+    int            numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicID);
     if (isa == InstructionSet_AVX || isa == InstructionSet_AVX2)
     {
         SetContainsAVXFlags(true, 32);
@@ -2280,12 +2285,34 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         info->srcCount += GetOperandInfo(op2);
     }
 
+    if (Compiler::categoryOfHWIntrinsic(intrinsicID) == HW_Category_IMM &&
+        (Compiler::flagsOfHWIntrinsic(intrinsicID) & HW_Flag_NoJmpTableIMM) == 0)
+    {
+        GenTree* lastOp = Compiler::lastOpOfHWIntrinsic(intrinsicTree, numArgs);
+        assert(lastOp != nullptr);
+        if (Compiler::isImmHWIntrinsic(intrinsicID, lastOp) && !lastOp->isContainedIntOrIImmed())
+        {
+            assert(!lastOp->IsCnsIntOrI());
+
+            // We need two extra reg when lastOp isn't a constant so
+            // the offset into the jump table for the fallback path
+            // can be computed.
+
+            info->internalIntCount = 2;
+            info->setInternalCandidates(this, allRegs(TYP_INT));
+        }
+    }
+
     switch (intrinsicID)
     {
         case NI_SSE_CompareEqualOrderedScalar:
         case NI_SSE_CompareEqualUnorderedScalar:
         case NI_SSE_CompareNotEqualOrderedScalar:
         case NI_SSE_CompareNotEqualUnorderedScalar:
+        case NI_SSE2_CompareEqualOrderedScalar:
+        case NI_SSE2_CompareEqualUnorderedScalar:
+        case NI_SSE2_CompareNotEqualOrderedScalar:
+        case NI_SSE2_CompareNotEqualUnorderedScalar:
             info->internalIntCount = 1;
             info->setInternalCandidates(this, RBM_BYTE_REGS);
             break;
@@ -2296,27 +2323,9 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             info->setInternalCandidates(this, allSIMDRegs());
             break;
 
-        case NI_SSE_Shuffle:
-        {
-            assert(op1->OperIsList());
-            GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
-
-            if (!op3->isContainedIntOrIImmed())
-            {
-                assert(!op3->IsCnsIntOrI());
-
-                // We need two extra reg when op3 isn't a constant so
-                // the offset into the jump table for the fallback path
-                // can be computed.
-
-                info->internalIntCount = 2;
-                info->setInternalCandidates(this, allRegs(TYP_INT));
-            }
-            break;
-        }
-
         case NI_SSE_ConvertToSingle:
         case NI_SSE_StaticCast:
+        case NI_SSE2_ConvertToDouble:
             assert(info->srcCount == 1);
             assert(info->dstCount == 1);
             useList.Last()->info.isTgtPref = true;

@@ -625,7 +625,7 @@ RelativePath=readytorun\tests\mainv1\mainv1.cmd
 WorkingDir=readytorun\tests\mainv1
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;JITSTRESS_FAIL;15150
+Categories=EXPECTED_PASS
 HostStyle=0
 
 [ComparerCompare2.cmd_80]
@@ -881,7 +881,7 @@ RelativePath=GC\Scenarios\DoublinkList\dlstack\dlstack.cmd
 WorkingDir=GC\Scenarios\DoublinkList\dlstack
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;JITSTRESS_FAIL;15156
+Categories=EXPECTED_PASS
 HostStyle=0
 
 [Generated1222.cmd_112]
@@ -85145,7 +85145,7 @@ RelativePath=readytorun\tests\mainv2\mainv2.cmd
 WorkingDir=readytorun\tests\mainv2
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;JITSTRESS_FAIL;15150
+Categories=EXPECTED_PASS
 HostStyle=0
 
 [Generated1463.cmd_10690]
@@ -90815,6 +90815,14 @@ HostStyle=0
 [GitHub_15291.cmd_11401]
 RelativePath=JIT\Regression\JitBlue\GitHub_15291\GitHub_15291\GitHub_15291.cmd
 WorkingDir=JIT\Regression\JitBlue\GitHub_15291\GitHub_15291
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+
+[StructPacking.cmd_11402]
+RelativePath=Interop\StructPacking\StructPacking\StructPacking.cmd
+WorkingDir=Interop\StructPacking\StructPacking
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS

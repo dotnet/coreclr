@@ -121,8 +121,6 @@ void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins);
 void genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins);
 void genSSEIntrinsic(GenTreeHWIntrinsic* node);
 void genSSE2Intrinsic(GenTreeHWIntrinsic* node);
-void genSSE3Intrinsic(GenTreeHWIntrinsic* node);
-void genSSSE3Intrinsic(GenTreeHWIntrinsic* node);
 void genSSE41Intrinsic(GenTreeHWIntrinsic* node);
 void genSSE42Intrinsic(GenTreeHWIntrinsic* node);
 void genAVXIntrinsic(GenTreeHWIntrinsic* node);
@@ -134,6 +132,12 @@ void genFMAIntrinsic(GenTreeHWIntrinsic* node);
 void genLZCNTIntrinsic(GenTreeHWIntrinsic* node);
 void genPCLMULQDQIntrinsic(GenTreeHWIntrinsic* node);
 void genPOPCNTIntrinsic(GenTreeHWIntrinsic* node);
+template <typename HWIntrinsicSwitchCaseBody>
+void genHWIntrinsicJumpTableFallback(NamedIntrinsic            intrinsic,
+                                     regNumber                 nonConstImmReg,
+                                     regNumber                 baseReg,
+                                     regNumber                 offsReg,
+                                     HWIntrinsicSwitchCaseBody emitSwCase);
 #endif // defined(_TARGET_XARCH_)
 #if defined(_TARGET_ARM64_)
 instruction getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types instrType);

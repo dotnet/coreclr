@@ -2329,6 +2329,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
         // However, we cannot do the same for the VEX-encoding as it changes an observable
         // side-effect and may mask an Access Violation that would otherwise occur.
         case NI_SSE_LoadAlignedVector128:
+        case NI_SSE2_LoadAlignedVector128:
             isContainable = (containingCategory == HW_Category_SimpleSIMD) && !comp->canUseVexEncoding();
             break;
 
@@ -2336,21 +2337,21 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
         // read remains the same. Likewise, we can't fold a larger load into a SIMD scalar
         // intrinsic as that would read fewer bits that requested.
         case NI_SSE_LoadScalarVector128:
+        case NI_SSE2_LoadScalarVector128:
             isContainable = (containingCategory == HW_Category_SIMDScalar);
             break;
 
         // VEX encoding supports unaligned memory ops, so we can fold them
         case NI_SSE_LoadVector128:
+        case NI_SSE2_LoadVector128:
+        case NI_AVX_LoadVector256:
+        case NI_AVX_LoadAlignedVector256:
             isContainable = (containingCategory == HW_Category_SimpleSIMD) && comp->canUseVexEncoding();
             break;
 
         default:
             return false;
     }
-
-    // For containable nodes, the base type of the original node and the base type of the contained node
-    // should be the same. This helps ensure we aren't reading too many or too few bits.
-    assert(!isContainable || (containingNode->gtSIMDBaseType == node->AsHWIntrinsic()->gtSIMDBaseType));
 
     return isContainable;
 }
@@ -2405,17 +2406,24 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                 break;
 
             default:
+                // TODO-XArch-CQ: Assert that this is unreached after we have ensured the relevant node types are
+                // handled.
+                //                https://github.com/dotnet/coreclr/issues/16497
                 break;
         }
     }
-    else if (intrinsicID == NI_SSE_Shuffle) // TODO - change to all IMM intrinsics
-    {
-        assert(op1->OperIsList());
-        GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
 
-        if (op3->IsCnsIntOrI())
+    if (Compiler::categoryOfHWIntrinsic(intrinsicID) == HW_Category_IMM)
+    {
+        assert(numArgs >= 2);
+        GenTree* lastOp = Compiler::lastOpOfHWIntrinsic(node, numArgs);
+        assert(lastOp != nullptr);
+        if (Compiler::isImmHWIntrinsic(intrinsicID, lastOp))
         {
-            MakeSrcContained(node, op3);
+            if (lastOp->IsCnsIntOrI())
+            {
+                MakeSrcContained(node, lastOp);
+            }
         }
     }
 }

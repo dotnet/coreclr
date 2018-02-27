@@ -3741,7 +3741,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                                 if (addr->OperGet() == GT_ADDR)
                                 {
                                     GenTree* addrChild = addr->gtOp.gtOp1;
-                                    if (addrChild->OperGet() == GT_SIMD)
+                                    if (addrChild->OperIsSIMDorSimdHWintrinsic())
                                     {
                                         needCpyBlk = true;
                                     }
@@ -6691,11 +6691,22 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
                 }
                 else
                 {
+                    // In R2R mode the field offset for some fields may change when the code
+                    // is loaded. So we can't rely on a zero offset here to suppress the null check.
+                    //
+                    // See GitHub issue #16454.
+                    bool fieldHasChangeableOffset = false;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+                    fieldHasChangeableOffset = (tree->gtField.gtFieldLookup.addr != nullptr);
+#endif
+
 #if CONSERVATIVE_NULL_CHECK_BYREF_CREATION
-                    addExplicitNullCheck = (mac->m_kind == MACK_Addr && (mac->m_totalOffset + fldOffset > 0));
+                    addExplicitNullCheck = (mac->m_kind == MACK_Addr) &&
+                                           ((mac->m_totalOffset + fldOffset > 0) || fieldHasChangeableOffset);
 #else
                     addExplicitNullCheck = (objRef->gtType == TYP_BYREF && mac->m_kind == MACK_Addr &&
-                                            (mac->m_totalOffset + fldOffset > 0));
+                                            ((mac->m_totalOffset + fldOffset > 0) || fieldHasChangeableOffset));
 #endif
                 }
             }
@@ -9318,17 +9329,17 @@ GenTree* Compiler::fgMorphOneAsgBlockOp(GenTree* tree)
     unsigned             size;
     CORINFO_CLASS_HANDLE clsHnd = NO_CLASS_HANDLE;
 #ifdef FEATURE_SIMD
-    // importer introduces cpblk nodes with src = GT_ADDR(GT_SIMD)
+    // importer introduces cpblk nodes with src = GT_ADDR(GT_SIMD/GT_HWIntrinsic)
     // The SIMD type in question could be Vector2f which is 8-bytes in size.
     // The below check is to make sure that we don't turn that copyblk
     // into a assignment, since rationalizer logic will transform the
     // copyblk appropriately. Otherwise, the transformation made in this
     // routine will prevent rationalizer logic and we might end up with
-    // GT_ADDR(GT_SIMD) node post rationalization, leading to a noway assert
+    // GT_ADDR(GT_SIMD/GT_HWIntrinsic) node post rationalization, leading to a noway assert
     // in codegen.
     // TODO-1stClassStructs: This is here to preserve old behavior.
     // It should be eliminated.
-    if (src->OperGet() == GT_SIMD)
+    if (src->OperIsSIMDorSimdHWintrinsic())
     {
         return nullptr;
     }
@@ -10235,13 +10246,13 @@ GenTree* Compiler::fgMorphBlockOperand(GenTree* tree, var_types asgType, unsigne
         if (varTypeIsSIMD(asgType))
         {
             if ((indirTree != nullptr) && (lclNode == nullptr) && (indirTree->Addr()->OperGet() == GT_ADDR) &&
-                (indirTree->Addr()->gtGetOp1()->gtOper == GT_SIMD))
+                (indirTree->Addr()->gtGetOp1()->OperIsSIMDorSimdHWintrinsic()))
             {
                 assert(!isDest);
                 needsIndirection = false;
                 effectiveVal     = indirTree->Addr()->gtGetOp1();
             }
-            if (effectiveVal->OperIsSIMD() || effectiveVal->OperIsSimdHWIntrinsic())
+            if (effectiveVal->OperIsSIMDorSimdHWintrinsic())
             {
                 needsIndirection = false;
             }
@@ -10772,7 +10783,7 @@ GenTree* Compiler::fgMorphCopyBlock(GenTree* tree)
 
         if (!srcDoFldAsg && (srcLclVar != nullptr) && !srcSingleLclVarAsg)
         {
-            if (!srcLclVar->lvRegStruct)
+            if (!srcLclVar->lvRegStruct || (srcLclVar->lvType != dest->TypeGet()))
             {
                 lvaSetVarDoNotEnregister(srcLclNum DEBUGARG(DNER_BlockOp));
             }
@@ -11390,6 +11401,15 @@ GenTree* Compiler::getSIMDStructFromField(GenTree*   tree,
                 *simdSizeOut          = simdNode->gtSIMDSize;
                 *pBaseTypeOut         = simdNode->gtSIMDBaseType;
             }
+#ifdef FEATURE_HW_INTRINSICS
+            else if (obj->OperIsSimdHWIntrinsic())
+            {
+                ret                          = obj;
+                GenTreeHWIntrinsic* simdNode = obj->AsHWIntrinsic();
+                *simdSizeOut                 = simdNode->gtSIMDSize;
+                *pBaseTypeOut                = simdNode->gtSIMDBaseType;
+            }
+#endif // FEATURE_HW_INTRINSICS
         }
     }
     if (ret != nullptr)
@@ -15652,6 +15672,9 @@ GenTree* Compiler::fgMorphTree(GenTree* tree, MorphAddrContext* mac)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             fgSetRngChkTarget(tree);
 
@@ -18022,11 +18045,13 @@ void Compiler::fgPromoteStructs()
 
     if (!opts.OptEnabled(CLFLG_STRUCTPROMOTE))
     {
+        JITDUMP("  promotion opt flag not enabled\n");
         return;
     }
 
     if (fgNoStructPromotion)
     {
+        JITDUMP("  promotion disabled by JitNoStructPromotion\n");
         return;
     }
 
@@ -18063,11 +18088,7 @@ void Compiler::fgPromoteStructs()
 
     if (info.compIsVarArgs)
     {
-        return;
-    }
-
-    if (getNeedsGSSecurityCookie())
-    {
+        JITDUMP("  promotion disabled because of varargs\n");
         return;
     }
 
@@ -19038,7 +19059,7 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
 
         case GT_ADDR:
 #ifdef FEATURE_SIMD
-            if (tree->gtOp.gtOp1->OperGet() == GT_SIMD)
+            if (tree->gtOp.gtOp1->OperIsSIMDorSimdHWintrinsic())
             {
                 axcStack->Push(AXC_None);
             }
@@ -19170,11 +19191,9 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 // We may need to Quirk the storage size for this LCL_VAR
                 // some PInvoke signatures incorrectly specify a ByRef to an INT32
                 // when they actually write a SIZE_T or INT64
-                if (axc == AXC_Addr)
-                {
-                    comp->gtCheckQuirkAddrExposedLclVar(tree, fgWalkPre->parentStack);
-                }
+                comp->gtCheckQuirkAddrExposedLclVar(tree, fgWalkPre->parentStack);
             }
+
             // Push something to keep the PostCB, which will pop it, happy.
             axcStack->Push(AXC_None);
             // The tree is a leaf.
@@ -19229,6 +19248,22 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
         // them as AXC_IndWide.
         //
 
+        case GT_CALL:
+        {
+            // Scan for byref args
+            GenTreeCall* const call = tree->AsCall();
+            for (GenTree* args = call->gtCallArgs; (args != nullptr); args = args->gtOp.gtOp2)
+            {
+                if (args->gtOp.gtOp1->gtType == TYP_BYREF)
+                {
+                    axcStack->Push(AXC_IndWide);
+                    return WALK_CONTINUE;
+                }
+            }
+
+            break;
+        }
+
         // BINOP
         case GT_SUB:
         case GT_MUL:
@@ -19248,6 +19283,7 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
         case GT_LE:
         case GT_GT:
         case GT_GE:
+        case GT_ASG:
         // UNOP
         case GT_CAST:
             if ((tree->gtOp.gtOp1->gtType == TYP_BYREF) ||
@@ -19256,21 +19292,23 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 axcStack->Push(AXC_IndWide);
                 return WALK_CONTINUE;
             }
-            __fallthrough;
+            break;
 
         default:
-            // To be safe/conservative: pass Addr through, but not Ind -- otherwise, revert to "None".  We must
-            // handle the "Ind" propogation explicitly above.
-            if (axc == AXC_Addr || axc == AXC_AddrWide)
-            {
-                axcStack->Push(axc);
-            }
-            else
-            {
-                axcStack->Push(AXC_None);
-            }
-            return WALK_CONTINUE;
+            break;
     }
+
+    // To be safe/conservative: pass Addr through, but not Ind -- otherwise, revert to "None".  We must
+    // handle the "Ind" propogation explicitly above.
+    if (axc == AXC_Addr || axc == AXC_AddrWide)
+    {
+        axcStack->Push(axc);
+    }
+    else
+    {
+        axcStack->Push(AXC_None);
+    }
+    return WALK_CONTINUE;
 }
 
 bool Compiler::fgFitsInOrNotLoc(GenTree* tree, unsigned width)

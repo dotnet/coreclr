@@ -25,17 +25,44 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (test.IsSupported)
             {
-                // Validates basic functionality works
-                test.RunBasicScenario();
+                // Validates basic functionality works, using Unsafe.Read
+                test.RunBasicScenario_UnsafeRead();
 
-                // Validates calling via reflection works
-                test.RunReflectionScenario();
+                if (Avx.IsSupported)
+                {
+                    // Validates basic functionality works, using Load
+                    test.RunBasicScenario_Load();
+
+                    // Validates basic functionality works, using LoadAligned
+                    test.RunBasicScenario_LoadAligned();
+                }
+
+                // Validates calling via reflection works, using Unsafe.Read
+                test.RunReflectionScenario_UnsafeRead();
+
+                if (Avx.IsSupported)
+                {
+                    // Validates calling via reflection works, using Load
+                    test.RunReflectionScenario_Load();
+
+                    // Validates calling via reflection works, using LoadAligned
+                    test.RunReflectionScenario_LoadAligned();
+                }
 
                 // Validates passing a static member works
                 test.RunClsVarScenario();
 
-                // Validates passing a local works
-                test.RunLclVarScenario();
+                // Validates passing a local works, using Unsafe.Read
+                test.RunLclVarScenario_UnsafeRead();
+
+                if (Avx.IsSupported)
+                {
+                    // Validates passing a local works, using Load
+                    test.RunLclVarScenario_Load();
+
+                    // Validates passing a local works, using LoadAligned
+                    test.RunLclVarScenario_LoadAligned();
+                }
 
                 // Validates passing the field of a local works
                 test.RunLclFldScenario();
@@ -59,10 +86,13 @@ namespace JIT.HardwareIntrinsics.X86
     public sealed unsafe class SimpleBinaryOpTest__AddByte
     {
         private const int VectorSize = 32;
-        private const int ElementCount = VectorSize / sizeof(Byte);
 
-        private static Byte[] _data1 = new Byte[ElementCount];
-        private static Byte[] _data2 = new Byte[ElementCount];
+        private const int Op1ElementCount = VectorSize / sizeof(Byte);
+        private const int Op2ElementCount = VectorSize / sizeof(Byte);
+        private const int RetElementCount = VectorSize / sizeof(Byte);
+
+        private static Byte[] _data1 = new Byte[Op1ElementCount];
+        private static Byte[] _data2 = new Byte[Op2ElementCount];
 
         private static Vector256<Byte> _clsVar1;
         private static Vector256<Byte> _clsVar2;
@@ -70,15 +100,16 @@ namespace JIT.HardwareIntrinsics.X86
         private Vector256<Byte> _fld1;
         private Vector256<Byte> _fld2;
 
-        private SimpleBinaryOpTest__DataTable<Byte> _dataTable;
+        private SimpleBinaryOpTest__DataTable<Byte, Byte, Byte> _dataTable;
 
         static SimpleBinaryOpTest__AddByte()
         {
             var random = new Random();
 
-            for (var i = 0; i < ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _clsVar1), ref Unsafe.As<Byte, byte>(ref _data2[0]), VectorSize);
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _clsVar2), ref Unsafe.As<Byte, byte>(ref _data1[0]), VectorSize);
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _clsVar1), ref Unsafe.As<Byte, byte>(ref _data1[0]), VectorSize);
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _clsVar2), ref Unsafe.As<Byte, byte>(ref _data2[0]), VectorSize);
         }
 
         public SimpleBinaryOpTest__AddByte()
@@ -87,19 +118,21 @@ namespace JIT.HardwareIntrinsics.X86
 
             var random = new Random();
 
-            for (var i = 0; i < ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _fld1), ref Unsafe.As<Byte, byte>(ref _data1[0]), VectorSize);
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Byte>, byte>(ref _fld2), ref Unsafe.As<Byte, byte>(ref _data2[0]), VectorSize);
 
-            for (var i = 0; i < ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
-            _dataTable = new SimpleBinaryOpTest__DataTable<Byte>(_data1, _data2, new Byte[ElementCount]);
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            _dataTable = new SimpleBinaryOpTest__DataTable<Byte, Byte, Byte>(_data1, _data2, new Byte[RetElementCount], VectorSize);
         }
 
         public bool IsSupported => Avx2.IsSupported;
 
         public bool Succeeded { get; set; }
 
-        public void RunBasicScenario()
+        public void RunBasicScenario_UnsafeRead()
         {
             var result = Avx2.Add(
                 Unsafe.Read<Vector256<Byte>>(_dataTable.inArray1Ptr),
@@ -107,10 +140,32 @@ namespace JIT.HardwareIntrinsics.X86
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_dataTable.inArray1, _dataTable.inArray2, _dataTable.outArray);
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
         }
 
-        public void RunReflectionScenario()
+        public void RunBasicScenario_Load()
+        {
+            var result = Avx2.Add(
+                Avx.LoadVector256((Byte*)(_dataTable.inArray1Ptr)),
+                Avx.LoadVector256((Byte*)(_dataTable.inArray2Ptr))
+            );
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
+        }
+
+        public void RunBasicScenario_LoadAligned()
+        {
+            var result = Avx2.Add(
+                Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray1Ptr)),
+                Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray2Ptr))
+            );
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
+        }
+
+        public void RunReflectionScenario_UnsafeRead()
         {
             var result = typeof(Avx2).GetMethod(nameof(Avx2.Add), new Type[] { typeof(Vector256<Byte>), typeof(Vector256<Byte>) })
                                      .Invoke(null, new object[] {
@@ -119,7 +174,31 @@ namespace JIT.HardwareIntrinsics.X86
                                      });
 
             Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Byte>)(result));
-            ValidateResult(_dataTable.inArray1, _dataTable.inArray2, _dataTable.outArray);
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
+        }
+
+        public void RunReflectionScenario_Load()
+        {
+            var result = typeof(Avx2).GetMethod(nameof(Avx2.Add), new Type[] { typeof(Vector256<Byte>), typeof(Vector256<Byte>) })
+                                     .Invoke(null, new object[] {
+                                        Avx.LoadVector256((Byte*)(_dataTable.inArray1Ptr)),
+                                        Avx.LoadVector256((Byte*)(_dataTable.inArray2Ptr))
+                                     });
+
+            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Byte>)(result));
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
+        }
+
+        public void RunReflectionScenario_LoadAligned()
+        {
+            var result = typeof(Avx2).GetMethod(nameof(Avx2.Add), new Type[] { typeof(Vector256<Byte>), typeof(Vector256<Byte>) })
+                                     .Invoke(null, new object[] {
+                                        Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray1Ptr)),
+                                        Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray2Ptr))
+                                     });
+
+            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Byte>)(result));
+            ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
         }
 
         public void RunClsVarScenario()
@@ -130,17 +209,37 @@ namespace JIT.HardwareIntrinsics.X86
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_clsVar1, _clsVar2, _dataTable.outArray);
+            ValidateResult(_clsVar1, _clsVar2, _dataTable.outArrayPtr);
         }
 
-        public void RunLclVarScenario()
+        public void RunLclVarScenario_UnsafeRead()
         {
             var left = Unsafe.Read<Vector256<Byte>>(_dataTable.inArray1Ptr);
             var right = Unsafe.Read<Vector256<Byte>>(_dataTable.inArray2Ptr);
             var result = Avx2.Add(left, right);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(left, right, _dataTable.outArray);
+            ValidateResult(left, right, _dataTable.outArrayPtr);
+        }
+
+        public void RunLclVarScenario_Load()
+        {
+            var left = Avx.LoadVector256((Byte*)(_dataTable.inArray1Ptr));
+            var right = Avx.LoadVector256((Byte*)(_dataTable.inArray2Ptr));
+            var result = Avx2.Add(left, right);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(left, right, _dataTable.outArrayPtr);
+        }
+
+        public void RunLclVarScenario_LoadAligned()
+        {
+            var left = Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray1Ptr));
+            var right = Avx.LoadAlignedVector256((Byte*)(_dataTable.inArray2Ptr));
+            var result = Avx2.Add(left, right);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(left, right, _dataTable.outArrayPtr);
         }
 
         public void RunLclFldScenario()
@@ -149,7 +248,7 @@ namespace JIT.HardwareIntrinsics.X86
             var result = Avx2.Add(test._fld1, test._fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(test._fld1, test._fld2, _dataTable.outArray);
+            ValidateResult(test._fld1, test._fld2, _dataTable.outArrayPtr);
         }
 
         public void RunFldScenario()
@@ -157,7 +256,7 @@ namespace JIT.HardwareIntrinsics.X86
             var result = Avx2.Add(_fld1, _fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_fld1, _fld2, _dataTable.outArray);
+            ValidateResult(_fld1, _fld2, _dataTable.outArrayPtr);
         }
 
         public void RunUnsupportedScenario()
@@ -166,7 +265,7 @@ namespace JIT.HardwareIntrinsics.X86
 
             try
             {
-                RunBasicScenario();
+                RunBasicScenario_UnsafeRead();
             }
             catch (PlatformNotSupportedException)
             {
@@ -174,15 +273,30 @@ namespace JIT.HardwareIntrinsics.X86
             }
         }
 
-        private void ValidateResult(Vector256<Byte> left, Vector256<Byte> right, Byte[] result, [CallerMemberName] string method = "")
+        private void ValidateResult(Vector256<Byte> left, Vector256<Byte> right, void* result, [CallerMemberName] string method = "")
         {
-            Byte[] inArray1 = new Byte[ElementCount];
-            Byte[] inArray2 = new Byte[ElementCount];
+            Byte[] inArray1 = new Byte[Op1ElementCount];
+            Byte[] inArray2 = new Byte[Op2ElementCount];
+            Byte[] outArray = new Byte[RetElementCount];
 
             Unsafe.Write(Unsafe.AsPointer(ref inArray1[0]), left);
             Unsafe.Write(Unsafe.AsPointer(ref inArray2[0]), right);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Byte, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), VectorSize);
 
-            ValidateResult(inArray1, inArray2, result, method);
+            ValidateResult(inArray1, inArray2, outArray, method);
+        }
+
+        private void ValidateResult(void* left, void* right, void* result, [CallerMemberName] string method = "")
+        {
+            Byte[] inArray1 = new Byte[Op1ElementCount];
+            Byte[] inArray2 = new Byte[Op2ElementCount];
+            Byte[] outArray = new Byte[RetElementCount];
+
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Byte, byte>(ref inArray1[0]), ref Unsafe.AsRef<byte>(left), VectorSize);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Byte, byte>(ref inArray2[0]), ref Unsafe.AsRef<byte>(right), VectorSize);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Byte, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), VectorSize);
+
+            ValidateResult(inArray1, inArray2, outArray, method);
         }
 
         private void ValidateResult(Byte[] left, Byte[] right, Byte[] result, [CallerMemberName] string method = "")
@@ -193,7 +307,7 @@ namespace JIT.HardwareIntrinsics.X86
             }
             else
             {
-                for (var i = 1; i < left.Length; i++)
+                for (var i = 1; i < RetElementCount; i++)
                 {
                     if ((byte)(left[i] + right[i]) != result[i])
                     {
@@ -205,7 +319,7 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Avx2)}.{nameof(Avx2.Add)}<Byte>: {method} failed:");
+                Console.WriteLine($"{nameof(Avx2)}.{nameof(Avx2.Add)}<Byte>(Vector256<Byte>, Vector256<Byte>): {method} failed:");
                 Console.WriteLine($"    left: ({string.Join(", ", left)})");
                 Console.WriteLine($"   right: ({string.Join(", ", right)})");
                 Console.WriteLine($"  result: ({string.Join(", ", result)})");

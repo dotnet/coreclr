@@ -149,6 +149,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DaylightTime.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DigitShapes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\EastAsianLunisolarCalendar.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\GlobalizationExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\GregorianCalendar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\GregorianCalendarHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\GregorianCalendarTypes.cs" />
@@ -444,7 +445,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\OutAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\PreserveSigAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\SafeBuffer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\StringBuffer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\StructLayoutAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\UnmanagedFunctionPointerAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\InteropServices\UnmanagedType.cs" />
@@ -487,6 +487,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Span.Fast.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\SpanDebugView.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Span.NonGeneric.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\String.Manipulation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\String.Searching.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\StringSpanHelpers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\StackOverflowException.cs" />
@@ -715,7 +716,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.Windows.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathHelper.Windows.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.Windows.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.Windows.StringBuffer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\DisableMediaInsertionPrompt.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SafeBSTRHandle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecureString.Windows.cs" />

@@ -53,8 +53,17 @@ shared framework.  In order to do that you will need to add a `RuntimeIdentifier
   <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 </PropertyGroup>
 ```
-
 For Windows you will want `win-x64`, for macOS `osx-x64` and `linux-x64` for Linux.
+
+You might also need to explicitly specify a `PlatformTarget`: it shouldn't be required though, unless for some reason the default `PlatformTarget` on your machine, for that directory, is not `x64`.
+
+```xml
+<PropertyGroup>
+  ...
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <PlatformTarget>x64</PlatformTarget>
+</PropertyGroup>
+```
 
 ### Publish
 

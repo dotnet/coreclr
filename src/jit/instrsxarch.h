@@ -184,6 +184,7 @@ INST3( mov_i2xmm,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( mov_xmm2i,   "movd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x7E)) // Move xmm reg to an int reg. reg1=xmm reg, reg2=int reg
 INST3( pmovmskb,    "pmovmskb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xD7)) // Move the MSB bits of all bytes in a xmm reg to an int reg
 INST3( movmskpd,    "movmskpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x50)) // Extract 2-bit sign mask from xmm and store in reg. The upper bits of r32 or r64 are filled with zeros.
+INST3( movd,        "movd"        , 0, IUM_WR, 0, 0, PCKDBL(0x7E), BAD_CODE, PCKDBL(0x6E))
 INST3( movq,        "movq"        , 0, IUM_WR, 0, 0, PCKDBL(0xD6), BAD_CODE, SSEFLT(0x7E))
 INST3( movsdsse2,   "movsd"       , 0, IUM_WR, 0, 0, SSEDBL(0x11), BAD_CODE, SSEDBL(0x10))
 
@@ -194,6 +195,8 @@ INST3( xorps,       "xorps"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( cvttsd2si,   "cvttsd2si"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x2C)) // cvt with trunc scalar double to signed DWORDs
 
 #ifndef LEGACY_BACKEND
+INST3( movntdq,     "movntdq"     , 0, IUM_WR, 0, 0, PCKDBL(0xE7), BAD_CODE, BAD_CODE)
+INST3( movntpd,     "movntpd"     , 0, IUM_WR, 0, 0, PCKDBL(0x2B), BAD_CODE, BAD_CODE)
 INST3( movntps,     "movntps"     , 0, IUM_WR, 0, 0, PCKFLT(0x2B), BAD_CODE, BAD_CODE)
 INST3( movdqu,      "movdqu"      , 0, IUM_WR, 0, 0, SSEFLT(0x7F), BAD_CODE, SSEFLT(0x6F))
 INST3( movdqa,      "movdqa"      , 0, IUM_WR, 0, 0, PCKDBL(0x7F), BAD_CODE, PCKDBL(0x6F))
@@ -216,6 +219,14 @@ INST3( shufps,      "shufps"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 INST3( shufpd,      "shufpd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0xC6))
 
 INST3( punpckhdq,   "punpckhdq"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCKDBL(0x6A))
+
+INST3( lfence,      "lfence"      , 0, IUM_RD, 0, 0, 0x000FE8AE,   BAD_CODE, BAD_CODE)
+INST3( mfence,      "mfence"      , 0, IUM_RD, 0, 0, 0x000FF0AE,   BAD_CODE, BAD_CODE)
+INST3( prefetchnta, "prefetchnta" , 0, IUM_RD, 0, 0, 0x000F0018,   BAD_CODE, BAD_CODE)
+INST3( prefetcht0,  "prefetcht0"  , 0, IUM_RD, 0, 0, 0x000F0818,   BAD_CODE, BAD_CODE)
+INST3( prefetcht1,  "prefetcht1"  , 0, IUM_RD, 0, 0, 0x000F1018,   BAD_CODE, BAD_CODE)
+INST3( prefetcht2,  "prefetcht2"  , 0, IUM_RD, 0, 0, 0x000F1818,   BAD_CODE, BAD_CODE)
+INST3( sfence,      "sfence"      , 0, IUM_RD, 0, 0, 0x000FF8AE,   BAD_CODE, BAD_CODE)
 
 // SSE 2 arith
 INST3( addps,  "addps",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x58))    // Add packed singles
@@ -254,6 +265,11 @@ INST3( andnpd, "andnpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x55))    /
 INST3( orps,   "orps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x56))    // Or packed singles
 INST3( orpd,   "orpd",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x56))    // Or packed doubles
 INST3( haddpd, "haddpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x7C))    // Horizontal add packed doubles
+INST3( haddps, "haddps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0x7C))    // Horizontal add packed floats
+INST3( hsubpd, "hsubpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x7D))    // Horizontal subtract packed doubles
+INST3( hsubps, "hsubps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0x7D))    // Horizontal subtract packed floats
+INST3( addsubps, "addsubps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0xD0))    // Add/Subtract packed singles
+INST3( addsubpd, "addsubpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0xD0))    // Add/Subtract packed doubles
 
 // SSE 2 approx arith
 INST3( rcpps,   "rcpps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x53))    // Reciprocal of packed singles
@@ -331,14 +347,14 @@ INST3( psubusw,     "psubusw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,    
 // which is handled in emitxarch.cpp.
 INST3( psrldq,      "psrldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Shift right logical of xmm reg by given number of bytes
 INST3( pslldq,      "pslldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Shift left logical of xmm reg by given number of bytes
-INST3( psllq,       "psllq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Packed shift left logical of 64-bit integers
-INST3( psrlq,       "psrlq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  BAD_CODE    )   // Packed shift right logical of 64-bit integers
-INST3( pslld,       "pslld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift left logical of 32-bit integers
-INST3( psrld,       "psrld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift right logical of 32-bit integers
-INST3( psllw,       "psllw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift left logical of 16-bit integers
-INST3( psrlw,       "psrlw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift right logical of 16-bit integers
-INST3( psrad,       "psrad"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  BAD_CODE    )   // Packed shift right arithmetic of 32-bit integers
-INST3( psraw,       "psraw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  BAD_CODE    )   // Packed shift right arithmetic of 16-bit integers
+INST3( psllw,       "psllw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  PCKDBL(0xF1))   // Packed shift left logical of 16-bit integers
+INST3( pslld,       "pslld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  PCKDBL(0xF2))   // Packed shift left logical of 32-bit integers
+INST3( psllq,       "psllq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  PCKDBL(0xF3))   // Packed shift left logical of 64-bit integers
+INST3( psrlw,       "psrlw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  PCKDBL(0xD1))   // Packed shift right logical of 16-bit integers
+INST3( psrld,       "psrld"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  PCKDBL(0xD2))   // Packed shift right logical of 32-bit integers
+INST3( psrlq,       "psrlq"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x73),  PCKDBL(0xD3))   // Packed shift right logical of 64-bit integers
+INST3( psraw,       "psraw"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x71),  PCKDBL(0xE1))   // Packed shift right arithmetic of 16-bit integers
+INST3( psrad,       "psrad"       , 0, IUM_WR, 0, 0, BAD_CODE,     PCKDBL(0x72),  PCKDBL(0xE2))   // Packed shift right arithmetic of 32-bit integers
 
 INST3( pmaxub,      "pmaxub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDE))   // packed maximum unsigned bytes
 INST3( pminub,      "pminub"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0xDA))   // packed minimum unsigned bytes
@@ -384,6 +400,13 @@ INST3( phaddd,       "phaddd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( pabsb,        "pabsb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1C))   // Packed absolute value of bytes
 INST3( pabsw,        "pabsw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1D))   // Packed absolute value of 16-bit integers
 INST3( pabsd,        "pabsd"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1E))   // Packed absolute value of 32-bit integers
+INST3( palignr,      "palignr"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x0F))   // Packed Align Right
+INST3( pmaddubsw,    "pmaddubsw"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x04))   // Multiply and Add Packed Signed and Unsigned Bytes
+INST3( pmulhrsw,     "pmulhrsw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x0B))   // Packed Multiply High with Round and Scale
+INST3( pshufb,       "pshufb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x00))   // Packed Shuffle Bytes
+INST3( psignb,       "psignb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x08))   // Packed SIGN
+INST3( psignw,       "psignw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x09))   // Packed SIGN
+INST3( psignd,       "psignd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x0A))   // Packed SIGN
 INST3( pminsb,       "pminsb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x38))   // packed minimum signed bytes
 INST3( pminsd,       "pminsd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x39))   // packed minimum 32-bit signed integers
 INST3( pminuw,       "pminuw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3A))   // packed minimum 16-bit unsigned integers
@@ -404,6 +427,16 @@ INST3( pmuldq,       "pmuldq"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( blendvps,     "blendvps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x14))   // Variable Blend Packed Singles
 INST3( blendvpd,     "blendvpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x15))   // Variable Blend Packed Doubles
 INST3( pblendvb,     "pblendvb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x10))   // Variable Blend Packed Bytes
+INST3( phaddw,       "phaddw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x01))   // Packed horizontal add of 16-bit integers
+INST3( phsubw,       "phsubw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x05))   // Packed horizontal subtract of 16-bit integers
+INST3( phsubd,       "phsubd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x06))   // Packed horizontal subtract of 32-bit integers
+INST3( phaddsw,      "phaddsw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x03))   // Packed horizontal add of 16-bit integers with saturation
+INST3( phsubsw,      "phsubsw"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x07))   // Packed horizontal subtract of 16-bit integers with saturation
+INST3( lddqu,        "lddqu"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0xF0))  // Load Unaligned integer
+INST3( movntdqa,     "movntdqa"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2A))   // Load Double Quadword Non-Temporal Aligned Hint
+INST3( movddup,      "movddup"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x12))   // Replicate Double FP Values
+INST3( movsldup,     "movsldup"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEFLT(0x12))  // Replicate even-indexed Single FP Values  
+INST3( movshdup,     "movshdup"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEFLT(0x16))  // Replicate odd-indexed Single FP Values
 
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
@@ -422,9 +455,15 @@ INST3( vinserti128,  "inserti128"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vzeroupper,   "zeroupper"   , 0, IUM_WR, 0, 0, 0xC577F8,     BAD_CODE, BAD_CODE)      // Zero upper 128-bits of all YMM regs (includes 2-byte fixed VEX prefix)
 INST3( vperm2i128,   "perm2i128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x46))   // Permute 128-bit halves of input register
 INST3( vpermq,       "permq"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x00))   // Permute 64-bit of input register
-INST3( vblendvps,    "blendvps"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4A))   // Variable Blend Packed Singles
-INST3( vblendvpd,    "blendvpd"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4B))   // Variable Blend Packed Doubles
-INST3( vpblendvb,    "pblendvb"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4C))   // Variable Blend Packed Bytes
+INST3( vblendvps,    "blendvps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4A))   // Variable Blend Packed Singles
+INST3( vblendvpd,    "blendvpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4B))   // Variable Blend Packed Doubles
+INST3( vpblendvb,    "pblendvb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4C))   // Variable Blend Packed Bytes
+
+INST3( vpsrlvd,      "psrlvd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x45))   // Variable Bit Shift Right Logical
+INST3( vpsrlvq,      "psrlvq"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x45))   // Variable Bit Shift Right Logical
+INST3( vpsravd,      "psravd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x46))   // Variable Bit Shift Right Arithmetic
+INST3( vpsllvd,      "psllvd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x47))   // Variable Bit Shift Left Logical
+INST3( vpsllvq,      "psllvq"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x47))   // Variable Bit Shift Left Logical
 INST3(LAST_AVX_INSTRUCTION, "LAST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 // Scalar instructions in SSE4.2

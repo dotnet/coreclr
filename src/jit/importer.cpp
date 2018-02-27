@@ -1176,11 +1176,11 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                     // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
                     fgLclFldAssign(lcl->gtLclVarCommon.gtLclNum);
+                    lcl->gtType = src->gtType;
+                    asgType     = src->gtType;
                 }
 
-                lcl->gtType = src->gtType;
-                asgType     = src->gtType;
-                dest        = lcl;
+                dest = lcl;
 
 #if defined(_TARGET_ARM_)
                 // TODO-Cleanup: This should have been taken care of in the above HasMultiRegRetVal() case,
@@ -1394,7 +1394,8 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
         assert(structVal->gtObj.gtClass == structHnd);
         return (structVal->gtObj.Addr());
     }
-    else if (oper == GT_CALL || oper == GT_RET_EXPR || oper == GT_OBJ || oper == GT_MKREFANY)
+    else if (oper == GT_CALL || oper == GT_RET_EXPR || oper == GT_OBJ || oper == GT_MKREFANY ||
+             structVal->OperIsSimdHWIntrinsic())
     {
         unsigned tmpNum = lvaGrabTemp(true DEBUGARG("struct address for call/obj"));
 
@@ -1644,15 +1645,7 @@ GenTree* Compiler::impNormStructVal(GenTree*             structVal,
             }
 
 #ifdef FEATURE_SIMD
-            if (blockNode->OperGet() == GT_SIMD)
-            {
-                parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
-                alreadyNormalized  = true;
-            }
-            else
-#endif
-#ifdef FEATURE_HW_INTRINSICS
-                if (blockNode->OperGet() == GT_HWIntrinsic && blockNode->AsHWIntrinsic()->isSIMD())
+            if (blockNode->OperIsSIMDorSimdHWintrinsic())
             {
                 parent->gtOp.gtOp2 = impNormStructVal(blockNode, structHnd, curLevel, forceNormalization);
                 alreadyNormalized  = true;
@@ -15712,7 +15705,7 @@ GenTree* Compiler::impAssignMultiRegTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE 
 {
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for multireg return."));
     impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_ALL);
-    GenTree* ret = gtNewLclvNode(tmpNum, op->gtType);
+    GenTree* ret = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
 
     // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
     ret->gtFlags |= GTF_DONT_CSE;
@@ -18277,7 +18270,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         // the inlining multiplier) for anything in that assembly.
         // But we only need to normalize it if it is a TYP_STRUCT
         // (which we need to do even if we have already set foundSIMDType).
-        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
+        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[0].lclVerTypeInfo)))
         {
             if (sigType == TYP_STRUCT)
             {
@@ -18344,7 +18337,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         lclVarInfo[i].lclVerTypeInfo = verParseArgSigToTypeInfo(&methInfo->args, argLst);
 
 #ifdef FEATURE_SIMD
-        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDClass(&(lclVarInfo[i].lclVerTypeInfo)))
+        if ((!foundSIMDType || (sigType == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[i].lclVerTypeInfo)))
         {
             // If this is a SIMD class (i.e. in the SIMD assembly), then we will consider that we've
             // found a SIMD type, even if this may not be a type we recognize (the assumption is that
@@ -18520,7 +18513,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         localsSig = info.compCompHnd->getArgNext(localsSig);
 
 #ifdef FEATURE_SIMD
-        if ((!foundSIMDType || (type == TYP_STRUCT)) && isSIMDClass(&(lclVarInfo[i + argCnt].lclVerTypeInfo)))
+        if ((!foundSIMDType || (type == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[i + argCnt].lclVerTypeInfo)))
         {
             foundSIMDType = true;
             if (featureSIMD && type == TYP_STRUCT)
@@ -18533,7 +18526,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
     }
 
 #ifdef FEATURE_SIMD
-    if (!foundSIMDType && (call->AsCall()->gtRetClsHnd != nullptr) && isSIMDClass(call->AsCall()->gtRetClsHnd))
+    if (!foundSIMDType && (call->AsCall()->gtRetClsHnd != nullptr) && isSIMDorHWSIMDClass(call->AsCall()->gtRetClsHnd))
     {
         foundSIMDType = true;
     }
@@ -19157,8 +19150,7 @@ bool Compiler::IsTargetIntrinsic(CorInfoIntrinsics intrinsicId)
         case CORINFO_INTRINSIC_Round:
         case CORINFO_INTRINSIC_Ceiling:
         case CORINFO_INTRINSIC_Floor:
-            // TODO-XArch-CQ: Update to work on non-AVX machines: https://github.com/dotnet/coreclr/issues/15908
-            return compSupports(InstructionSet_SSE41) && canUseVexEncoding();
+            return compSupports(InstructionSet_SSE41);
 
         default:
             return false;

@@ -1564,7 +1564,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
             // Check to see if this is a SIMD type.
             // We will only check this if we have already found a SIMD type, which will be true if
             // we have encountered any SIMD intrinsics.
-            if (usesSIMDTypes() && (pFieldInfo->fldSize == 0) && isSIMDClass(pFieldInfo->fldTypeHnd))
+            if (usesSIMDTypes() && (pFieldInfo->fldSize == 0) && isSIMDorHWSIMDClass(pFieldInfo->fldTypeHnd))
             {
                 unsigned  simdSize;
                 var_types simdBaseType = getBaseTypeAndSizeOfSIMDType(pFieldInfo->fldTypeHnd, &simdSize);
@@ -2224,14 +2224,14 @@ bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc)
 
         if (howToPassStruct == SPK_ByValueAsHfa)
         {
-            assert(varTypeIsStruct(TYP_STRUCT));
+            assert(type == TYP_STRUCT);
             return true;
         }
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)
         if (howToPassStruct == SPK_ByValue)
         {
-            assert(varTypeIsStruct(TYP_STRUCT));
+            assert(type == TYP_STRUCT);
             return true;
         }
 #endif

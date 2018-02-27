@@ -23,34 +23,35 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</CoreFxCurrentRef>
-    <CoreClrCurrentRef>fded6196b42fb66aa3ee8ffd800c1b1b5d240f8c</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>e3595665a1f18a7ebbc332285fb34cc386e6f2df</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>fb8aaa87581eafdad52a1997540471169cf1b6bb</PgoDataCurrentRef>
+    <CoreFxCurrentRef>327292411fdf51d221596f4ed55f42df7efd6108</CoreFxCurrentRef>
+    <CoreClrCurrentRef>bd49c8985dc365d502ae636cace03708e57b0667</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>4c8b64e5a75c84378f6203d4a40421bd8d5f575b</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>d308636a775b853ed2916ac229d425489f3417b6</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview2-26202-05</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview2-26202-05</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20180131-0033</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26205-05</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview2-26225-02</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview2-26225-02</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20180226-0052</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26222-07</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
-    <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
-    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
-    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+
+    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0018</XunitPerformanceApiPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.5</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <CommandLineParserVersion>2.1.1</CommandLineParserVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
     
     <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
          updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
          as we do with many of the package versions above -->
-    <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview2-26124-05</BaselineMicrosoftNetCoreAppPackageVersion>
+    <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview2-26131-06</BaselineMicrosoftNetCoreAppPackageVersion>
   </PropertyGroup>
 
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.1.0-preview2-02502-01</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.1.0-preview2-02522-03</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->

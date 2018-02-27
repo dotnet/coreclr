@@ -3114,12 +3114,17 @@ protected:
     bool compSupportsHWIntrinsic(InstructionSet isa);
     bool isScalarISA(InstructionSet isa);
     static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
+    unsigned simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_INFO* sig);
     static int numArgsOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static GenTree* lastOpOfHWIntrinsic(GenTreeHWIntrinsic* node, int numArgs);
     static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
     static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
     static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    GenTreeArgList* buildArgList(CORINFO_SIG_INFO* sig);
+    static int immUpperBoundOfHWIntrinsic(NamedIntrinsic intrinsic);
+    GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
+    static bool isImmHWIntrinsic(NamedIntrinsic intrinsic, GenTree* lastOp);
+    GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
@@ -4826,8 +4831,32 @@ private:
 
     unsigned fgPtrArgCntCur;
     unsigned fgPtrArgCntMax;
-    hashBv*  fgOutgoingArgTemps;
-    hashBv*  fgCurrentlyInUseArgTemps;
+
+public:
+    //------------------------------------------------------------------------
+    // fgGetPtrArgCntMax: Return the maximum number of pointer-sized stack arguments that calls inside this method
+    // can push on the stack. This value is calculated during morph.
+    //
+    // Return Value:
+    //    Returns fgPtrArgCntMax, that is a private field.
+    //
+    unsigned fgGetPtrArgCntMax() const
+    {
+        return fgPtrArgCntMax;
+    }
+
+    //------------------------------------------------------------------------
+    // fgSetPtrArgCntMax: Set the maximum number of pointer-sized stack arguments that calls inside this method
+    // can push on the stack. This function is used during StackLevelSetter to fix incorrect morph calculations.
+    //
+    void fgSetPtrArgCntMax(unsigned argCntMax)
+    {
+        fgPtrArgCntMax = argCntMax;
+    }
+
+private:
+    hashBv* fgOutgoingArgTemps;
+    hashBv* fgCurrentlyInUseArgTemps;
 
     bool compCanEncodePtrArgCntMax();
 
@@ -5012,7 +5041,10 @@ public:
         BasicBlock*     acdDstBlk; // block  to  which we jump
         unsigned        acdData;
         SpecialCodeKind acdKind; // what kind of a special block is this?
-        unsigned short  acdStkLvl;
+#if !FEATURE_FIXED_OUT_ARGS
+        bool     acdStkLvlInit; // has acdStkLvl value been already set?
+        unsigned acdStkLvl;
+#endif // !FEATURE_FIXED_OUT_ARGS
     };
 
 private:
@@ -5029,6 +5061,13 @@ private:
 
 public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);
+
+    bool fgUseThrowHelperBlocks();
+
+    AddCodeDsc* fgGetAdditionalCodeDescriptors()
+    {
+        return fgAddCodeList;
+    }
 
 private:
     bool fgIsCodeAdded();
@@ -5713,7 +5752,7 @@ protected:
     void optCSEstop();
 
     CSEdsc* optCSEfindDsc(unsigned index);
-    void optUnmarkCSE(GenTree* tree);
+    bool optUnmarkCSE(GenTree* tree);
 
     // user defined callback data for the tree walk function optCSE_MaskHelper()
     struct optCSE_MaskData
@@ -5738,6 +5777,7 @@ protected:
     static fgWalkPreFn  optHasNonCSEChild;
 
     static fgWalkPreFn optUnmarkCSEs;
+    static fgWalkPreFn optHasCSEdefWithSideeffect;
 
     static int __cdecl optCSEcostCmpEx(const void* op1, const void* op2);
     static int __cdecl optCSEcostCmpSz(const void* op1, const void* op2);
@@ -5766,7 +5806,7 @@ protected:
     void     optValnumCSE_DataFlow();
     void     optValnumCSE_Availablity();
     void     optValnumCSE_Heuristic();
-    void optValnumCSE_UnmarkCSEs(GenTree* deadTree, GenTree* keepList);
+    bool optValnumCSE_UnmarkCSEs(GenTree* deadTree, GenTree** wbKeepList);
 
 #endif // FEATURE_VALNUM_CSE
 
@@ -7146,6 +7186,18 @@ public:
         codeGen->setInterruptible(value);
     }
 
+#ifdef _TARGET_ARMARCH_
+    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
+    bool getHasTailCalls()
+    {
+        return codeGen->hasTailCalls;
+    }
+    void setHasTailCalls(bool value)
+    {
+        codeGen->setHasTailCalls(value);
+    }
+#endif // _TARGET_ARMARCH_
+
 #if DOUBLE_ALIGN
     const bool genDoubleAlign()
     {
@@ -7416,7 +7468,10 @@ private:
             return SIMD_AVX2_Supported;
         }
 
-        if (CanUseSSE4())
+        // SIMD_SSE4_Supported actually requires all of SSE3, SSSE3, SSE4.1, and SSE4.2
+        // to be supported. We can only enable it if all four are enabled in the compiler
+        if (compSupports(InstructionSet_SSE42) && compSupports(InstructionSet_SSE41) &&
+            compSupports(InstructionSet_SSSE3) && compSupports(InstructionSet_SSE3))
         {
             return SIMD_SSE4_Supported;
         }
@@ -7633,6 +7688,38 @@ private:
     bool isSIMDClass(typeInfo* pTypeInfo)
     {
         return pTypeInfo->IsStruct() && isSIMDClass(pTypeInfo->GetClassHandleForValueClass());
+    }
+
+    bool isHWSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
+    {
+#ifdef FEATURE_HW_INTRINSICS
+        if (isIntrinsicType(clsHnd))
+        {
+            const char* namespaceName = nullptr;
+            (void)getClassNameFromMetadata(clsHnd, &namespaceName);
+            return strcmp(namespaceName, "System.Runtime.Intrinsics") == 0;
+        }
+#endif // FEATURE_HW_INTRINSICS
+        return false;
+    }
+
+    bool isHWSIMDClass(typeInfo* pTypeInfo)
+    {
+#ifdef FEATURE_HW_INTRINSICS
+        return pTypeInfo->IsStruct() && isHWSIMDClass(pTypeInfo->GetClassHandleForValueClass());
+#else
+        return false;
+#endif
+    }
+
+    bool isSIMDorHWSIMDClass(CORINFO_CLASS_HANDLE clsHnd)
+    {
+        return isSIMDClass(clsHnd) || isHWSIMDClass(clsHnd);
+    }
+
+    bool isSIMDorHWSIMDClass(typeInfo* pTypeInfo)
+    {
+        return isSIMDClass(pTypeInfo) || isHWSIMDClass(pTypeInfo);
     }
 
     // Get the base (element) type and size in bytes for a SIMD type. Returns TYP_UNKNOWN
@@ -7946,21 +8033,11 @@ private:
         return false;
     }
 
-    // Whether SSE2 is available
+    // Whether SSE and SSE2 is available
     bool canUseSSE2() const
     {
 #ifdef _TARGET_XARCH_
         return opts.compCanUseSSE2;
-#else
-        return false;
-#endif
-    }
-
-    // Whether SSE3, SSSE3, SSE4.1 and SSE4.2 is available
-    bool CanUseSSE4() const
-    {
-#ifdef _TARGET_XARCH_
-        return opts.compCanUseSSE4;
 #else
         return false;
 #endif
@@ -8091,7 +8168,6 @@ public:
         bool compUseCMOV;
 #ifdef _TARGET_XARCH_
         bool compCanUseSSE2; // Allow CodeGen to use "movq XMM" instructions
-        bool compCanUseSSE4; // Allow CodeGen to use SSE3, SSSE3, SSE4.1 and SSE4.2 instructions
 #endif                       // _TARGET_XARCH_
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
@@ -9968,6 +10044,9 @@ public:
 #ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             {
                 GenTreeBoundsChk* const boundsChk = node->AsBoundsChk();
 
