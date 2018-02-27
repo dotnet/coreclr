@@ -4,6 +4,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.Serialization;
 
@@ -69,6 +70,8 @@ namespace System
         // Convert a StringComparison to a StringComparer
         public static StringComparer FromComparison(StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
@@ -83,9 +86,10 @@ namespace System
                     return Ordinal;
                 case StringComparison.OrdinalIgnoreCase:
                     return OrdinalIgnoreCase;
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return null;
         }
 
         public static StringComparer Create(CultureInfo culture, bool ignoreCase)

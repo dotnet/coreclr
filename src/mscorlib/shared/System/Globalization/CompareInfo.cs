@@ -339,7 +339,7 @@ namespace System.Globalization
             if (_invariantMode)
             {
                 if ((options & CompareOptions.IgnoreCase) != 0)
-                    return CompareOrdinalIgnoreCase(string1, 0, string1.Length, string2, 0, string2.Length);
+                    return CompareOrdinalIgnoreCase(string1, string2);
 
                 return String.CompareOrdinal(string1, string2);
             }

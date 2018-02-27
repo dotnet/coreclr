@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -44,31 +45,29 @@ namespace System
 
         public int IndexOf(char value, StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IndexOf(this, value, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IndexOf(this, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IndexOf(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return CompareInfo.Invariant.IndexOf(this, value, CompareOptions.Ordinal);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return CompareInfo.Invariant.IndexOf(this, value, CompareOptions.OrdinalIgnoreCase);
-                    
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return 0;
         }
-        
+
         public unsafe int IndexOf(char value, int startIndex, int count)
         {
             if (startIndex < 0 || startIndex > Length)
@@ -352,29 +351,27 @@ namespace System
             if (count < 0 || startIndex > this.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, startIndex, count, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, startIndex, count, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IndexOf(this, value, startIndex, count, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IndexOf(this, value, startIndex, count, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return CompareInfo.Invariant.IndexOfOrdinal(this, value, startIndex, count, ignoreCase: false);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return CompareInfo.Invariant.IndexOfOrdinal(this, value, startIndex, count, ignoreCase: true);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return 0;
         }
 
         // Returns the index of the last occurrence of a specified character in the current instance.
@@ -580,29 +577,25 @@ namespace System
             if (value.Length == 0)
                 return startIndex;
 
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.LastIndexOf(this, value, startIndex, count, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.LastIndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.LastIndexOf(this, value, startIndex, count, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.LastIndexOf(this, value, startIndex, count, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.LastIndexOf(this, value, startIndex, count, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.LastIndexOf(this, value, startIndex, count, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
-                    return CompareInfo.Invariant.LastIndexOfOrdinal(this, value, startIndex, count, ignoreCase: false);
-
                 case StringComparison.OrdinalIgnoreCase:
-                    return CompareInfo.Invariant.LastIndexOfOrdinal(this, value, startIndex, count, ignoreCase: true);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+                    return CompareInfo.Invariant.LastIndexOfOrdinal(this, value, startIndex, count, ignoreCase: comparisonType == StringComparison.OrdinalIgnoreCase);
             }
+
+            Debug.Fail("StringComparison outside range");
+            return 0;
         }
 
         [StructLayout(LayoutKind.Explicit, Size = PROBABILISTICMAP_SIZE * sizeof(uint))]

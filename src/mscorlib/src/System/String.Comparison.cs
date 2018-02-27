@@ -2,13 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-
 using Internal.Runtime.CompilerServices;
 
 #if BIT64
@@ -24,42 +21,6 @@ namespace System
         //
         //Native Static Methods
         //
-
-        private unsafe static int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
-        {
-            Debug.Assert(strA != null);
-            Debug.Assert(strB != null);
-            int length = Math.Min(strA.Length, strB.Length);
-
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
-            {
-                char* a = ap;
-                char* b = bp;
-                int charA = 0, charB = 0;
-
-                while (length != 0)
-                {
-                    charA = *a;
-                    charB = *b;
-
-                    Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
-
-                    // uppercase both chars - notice that we need just one compare per char
-                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
-
-                    //Return the (case-insensitive) difference between them.
-                    if (charA != charB)
-                        return charA - charB;
-
-                    // Next char
-                    a++; b++;
-                    length--;
-                }
-
-                return strA.Length - strB.Length;
-            }
-        }
 
         // native call to COMString::CompareOrdinalEx
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -131,44 +92,6 @@ namespace System
                 {
                     if (*(int*)a != *(int*)b) return false;
                     length -= 2; a += 2; b += 2;
-                }
-
-                return true;
-            }
-        }
-
-        private unsafe static bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)
-        {
-            Debug.Assert(strA != null);
-            Debug.Assert(strB != null);
-            Debug.Assert(strA.Length == strB.Length);
-            int length = strA.Length;
-
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
-            {
-                char* a = ap;
-                char* b = bp;
-
-                while (length != 0)
-                {
-                    int charA = *a;
-                    int charB = *b;
-
-                    Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
-
-                    // Ordinal equals or lowercase equals if the result ends up in the a-z range 
-                    if (charA == charB ||
-                       ((charA | 0x20) == (charB | 0x20) &&
-                          (uint)((charA | 0x20) - 'a') <= (uint)('z' - 'a')))
-                    {
-                        a++;
-                        b++;
-                        length--;
-                    }
-                    else
-                    {
-                        return false;
-                    }
                 }
 
                 return true;
@@ -385,37 +308,32 @@ namespace System
         // for meaning of different comparisonType.
         public static int Compare(String strA, String strB, StringComparison comparisonType)
         {
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             if (object.ReferenceEquals(strA, strB))
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return 0;
             }
 
             // They can't both be null at this point.
             if (strA == null)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return -1;
             }
             if (strB == null)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return 1;
             }
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.Compare(strA, strB, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.Compare(strA, strB, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.Compare(strA, strB, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     // Most common case: first character is different.
@@ -428,17 +346,11 @@ namespace System
                     return CompareOrdinalHelper(strA, strB);
 
                 case StringComparison.OrdinalIgnoreCase:
-                    // If both strings are ASCII strings, we can take the fast path.
-                    if (strA.IsAscii() && strB.IsAscii())
-                    {
-                        return (CompareOrdinalIgnoreCaseHelper(strA, strB));
-                    }
-
-                    return CompareInfo.CompareOrdinalIgnoreCase(strA, 0, strA.Length, strB, 0, strB.Length);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+                    return CompareInfo.CompareOrdinalIgnoreCase(strA, strB);
             }
+
+            Debug.Fail("StringComparison outside range");
+            return 0;
         }
 
 
@@ -601,26 +513,22 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return (CompareInfo.CompareOrdinalIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB));
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return 0;
         }
 
         // Compares strA and strB using an ordinal (code-point) comparison.
@@ -778,42 +686,38 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
+
+            StringSpanHelpers.CheckStringComparison(comparisonType);
             
             if ((Object)this == (Object)value)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(this, value, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(this, value, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IsSuffix(this, value, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IsSuffix(this, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IsSuffix(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     return this.Length < value.Length ? false : (CompareOrdinalHelper(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length < value.Length ? false : (CompareInfo.CompareOrdinalIgnoreCase(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return false;
         }
 
         public Boolean EndsWith(String value, Boolean ignoreCase, CultureInfo culture)
@@ -841,98 +745,62 @@ namespace System
         // Determines whether two strings match.
         public override bool Equals(Object obj)
         {
-            if (object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
+            {
                 return true;
+            }
 
             string str = obj as string;
-            if (str == null)
+            if (str is null || this.Length != str.Length)
+            {
                 return false;
-
-            if (this.Length != str.Length)
-                return false;
+            }
 
             return EqualsHelper(this, str);
         }
 
         // Determines whether two strings match.
-        public bool Equals(String value)
+        public bool Equals(string value)
         {
-            if (object.ReferenceEquals(this, value))
+            if (ReferenceEquals(this, value))
+            {
                 return true;
+            }
 
-            // NOTE: No need to worry about casting to object here.
-            // If either side of an == comparison between strings
-            // is null, Roslyn generates a simple ceq instruction
-            // instead of calling string.op_Equality.
-            if (value == null)
+            if (value is null || this.Length != value.Length)
+            {
                 return false;
-
-            if (this.Length != value.Length)
-                return false;
+            }
 
             return EqualsHelper(this, value);
         }
 
-        public bool Equals(String value, StringComparison comparisonType)
+        public bool Equals(string value, StringComparison comparisonType)
         {
-            if ((Object)this == (Object)value)
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
+            if (ReferenceEquals(this, value))
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
-            if ((Object)value == null)
+            if (value is null)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return false;
             }
 
-            switch (comparisonType)
-            {
-                case StringComparison.CurrentCulture:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, CompareOptions.None) == 0);
-
-                case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, CompareOptions.IgnoreCase) == 0);
-
-                case StringComparison.InvariantCulture:
-                    return (CompareInfo.Invariant.Compare(this, value, CompareOptions.None) == 0);
-
-                case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.Compare(this, value, CompareOptions.IgnoreCase) == 0);
-
-                case StringComparison.Ordinal:
-                    if (this.Length != value.Length)
-                        return false;
-                    return EqualsHelper(this, value);
-
-                case StringComparison.OrdinalIgnoreCase:
-                    if (this.Length != value.Length)
-                        return false;
-
-                    // If both strings are ASCII strings, we can take the fast path.
-                    if (this.IsAscii() && value.IsAscii())
-                    {
-                        return EqualsIgnoreCaseAsciiHelper(this, value);
-                    }
-
-                    return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, this.Length, value, 0, value.Length) == 0);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
+            return EqualsHelper(this, value, comparisonType);
         }
 
-
         // Determines whether two Strings match.
-        public static bool Equals(String a, String b)
+        public static bool Equals(string a, string b)
         {
-            if ((Object)a == (Object)b)
+            if (ReferenceEquals(a, b))
             {
                 return true;
             }
 
-            if ((Object)a == null || (Object)b == null || a.Length != b.Length)
+            if (a is null || b is null || a.Length != b.Length)
             {
                 return false;
             }
@@ -940,68 +808,58 @@ namespace System
             return EqualsHelper(a, b);
         }
 
-        public static bool Equals(String a, String b, StringComparison comparisonType)
+        public static bool Equals(string a, string b, StringComparison comparisonType)
         {
-            if ((Object)a == (Object)b)
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
+            if (ReferenceEquals(a, b))
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
-            if ((Object)a == null || (Object)b == null)
+            if (a is null || b is null)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return false;
             }
+
+            return EqualsHelper(a, b, comparisonType);
+        }
+
+        private static bool EqualsHelper(string a, string b, StringComparison comparisonType)
+        {
+            Debug.Assert((uint)(comparisonType - StringComparison.CurrentCulture) <= (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture));
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, CompareOptions.None) == 0);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase) == 0);
+                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
 
                 case StringComparison.InvariantCulture:
-                    return (CompareInfo.Invariant.Compare(a, b, CompareOptions.None) == 0);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.Compare(a, b, CompareOptions.IgnoreCase) == 0);
+                    return (CompareInfo.Invariant.Compare(a, b, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
 
                 case StringComparison.Ordinal:
-                    if (a.Length != b.Length)
-                        return false;
-
-                    return EqualsHelper(a, b);
-
                 case StringComparison.OrdinalIgnoreCase:
                     if (a.Length != b.Length)
-                        return false;
-                    else
                     {
-                        // If both strings are ASCII strings, we can take the fast path.
-                        if (a.IsAscii() && b.IsAscii())
-                        {
-                            return EqualsIgnoreCaseAsciiHelper(a, b);
-                        }
-                        // Take the slow path.
-
-                        return (CompareInfo.CompareOrdinalIgnoreCase(a, 0, a.Length, b, 0, b.Length) == 0);
+                        return false;
                     }
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+                    return comparisonType == StringComparison.Ordinal ? EqualsHelper(a, b) : (CompareInfo.CompareOrdinalIgnoreCase(a, b) == 0);
             }
+
+            Debug.Fail("StringComparison outside range");
+            return false;
         }
 
-        public static bool operator ==(String a, String b)
+        public static bool operator ==(string a, string b)
         {
-            return String.Equals(a, b);
+            return string.Equals(a, b);
         }
 
-        public static bool operator !=(String a, String b)
+        public static bool operator !=(string a, string b)
         {
-            return !String.Equals(a, b);
+            return !string.Equals(a, b);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1094,31 +952,27 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
+            StringSpanHelpers.CheckStringComparison(comparisonType);
+
             if ((Object)this == (Object)value)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
                 return true;
             }
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(this, value, CompareOptions.None);
-
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(this, value, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.IsPrefix(this, value, CompareOptions.None);
-
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.IsPrefix(this, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IsPrefix(this, value, StringSpanHelpers.GetCaseCompareOfComparisonCulture(comparisonType));
 
                 case StringComparison.Ordinal:
                     if (this.Length < value.Length || _firstChar != value._firstChar)
@@ -1135,10 +989,10 @@ namespace System
                         return false;
                     }
                     return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, value.Length, value, 0, value.Length) == 0);
-
-                default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
+
+            Debug.Fail("StringComparison outside range");
+            return false;
         }
 
         public Boolean StartsWith(String value, Boolean ignoreCase, CultureInfo culture)
