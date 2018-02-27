@@ -1141,7 +1141,7 @@ StackWalkAction LogCallstackForLogCallback(
 // A worker to save managed stack trace.
 //
 // Arguments:
-//    reporter - EventReporter object for EventLog
+//    None
 //
 // Return Value:
 //    None
@@ -1200,6 +1200,22 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
         {
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
+        }
+
+        if (errorSource == NULL) // Log inner exception details
+        {
+            EXCEPTIONREF refException = (EXCEPTIONREF)(pThread->LastThrownObject());
+            PrintToStdErrA("\n");
+            PrintToStdErrA("Inner exception details:");
+            PrintToStdErrA("\n");
+            if (refException != NULL) {
+                StackSString msg;
+                GetExceptionMessage(refException, msg);
+                StackScratchBuffer buf;
+                const CHAR * str = msg.GetANSI(buf);
+                PrintToStdErrA(str);
+                PrintToStdErrA("\n");
+            }
         }
     }
     EX_CATCH
