@@ -78,15 +78,6 @@ public class Test
         int bytesDiff = 0;
 
 
-        if (Environment.Is64BitOperatingSystem)
-        {
-            bytesDiff = 24;
-        }
-        else
-        {
-            bytesDiff = 16;
-        }
-
         for (int i = 0; i < 10000; ++i)
         {
             nBytesBefore = (long)method.Invoke(null, null);
@@ -98,7 +89,7 @@ public class Test
 
             nBytesAfter = (long)method.Invoke(null, null);
 
-            if ((nBytesBefore + bytesDiff) != nBytesAfter)
+            if (((nBytesBefore + 16) != nBytesAfter) || (if ((nBytesBefore + 24) != nBytesAfter)))
             {
                 int countAfter = GC.CollectionCount(0);
                 Console.WriteLine("b: {0}, a: {1}, iter {2}, {3}->{4}", nBytesBefore, nBytesAfter, i, countBefore, countAfter);
