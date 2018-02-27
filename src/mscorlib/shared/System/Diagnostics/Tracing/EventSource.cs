@@ -702,7 +702,7 @@ namespace System.Diagnostics.Tracing
 
         private static TypeCode GetTypeCodeExtended(Type parameterType)
         {
-            // Guid is not part of TypeCode (yet), we decided to use 17 to represent it, as it's the "free slot" 
+            // Guid is not part of TypeCode, we decided to use 17 to represent it, as it's the "free slot" 
             // see https://github.com/dotnet/coreclr/issues/16105#issuecomment-361749750 for more
             const TypeCode GuidTypeCode = (TypeCode)17;
 

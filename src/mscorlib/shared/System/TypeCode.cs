@@ -42,7 +42,6 @@ namespace System
         Double = 14,        // IEEE 64-bit double
         Decimal = 15,       // Decimal
         DateTime = 16,      // DateTime
-        // Guid = 17           value 17 was used to express Guid for the purpose of Event Pipe, but did not went through API review https://github.com/dotnet/coreclr/issues/16105#issuecomment-364612281
         String = 18,        // Unicode character string
     }
 }
