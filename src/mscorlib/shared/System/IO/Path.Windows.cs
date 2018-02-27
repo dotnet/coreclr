@@ -216,19 +216,11 @@ namespace System.IO
         }
 
         /// <summary>
-        /// Returns true if the path ends in a directory separator.
-        /// </summary>
-        internal static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
-        {
-            return path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
-        }
-
-        /// <summary>
         /// Trims the ending directory separator if present.
         /// </summary>
         /// <param name="path"></param>
         internal static ReadOnlySpan<char> TrimEndingDirectorySeparator(ReadOnlySpan<char> path) =>
-            EndsInDirectorySeparator(path) ?
+            PathInternal.EndsInDirectorySeparator(path) ?
                 path.Slice(0, path.Length - 1) :
                 path;
 
