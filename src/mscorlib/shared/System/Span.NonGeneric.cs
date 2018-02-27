@@ -23,6 +23,12 @@ namespace System
     /// </summary>
     public static class Span
     {
+        public static Span<byte> AsBytes<T>(Span<T> source)
+            where T : struct => source.AsBytes();
+
+        public static ReadOnlySpan<byte> AsBytes<T>(ReadOnlySpan<T> source)
+            where T : struct => source.AsBytes();
+
         // TODO: Delete once the AsReadOnlySpan -> AsSpan rename propages through the system
         public static ReadOnlySpan<char> AsReadOnlySpan(this string text) => text.AsSpan();
         public static ReadOnlySpan<char> AsReadOnlySpan(this string text, int start) => text.AsSpan(start);
