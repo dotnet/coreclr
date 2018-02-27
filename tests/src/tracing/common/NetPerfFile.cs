@@ -1,27 +1,28 @@
 using System;
+using System.IO;
 
 namespace Tracing.Tests.Common
 {
-    public class NetperfFile : IDisposable
+    public class NetPerfFile : IDisposable
     {
         public string Path { get; }
-        private bool keepOutput { get; }
+        private bool KeepOutput { get; }
 
-        private NetperfFile(string fileName, bool keep)
+        private NetPerfFile(string fileName, bool keep)
         {
             Path = fileName;
-            keepOutput = keep;
+            KeepOutput = keep;
         }
 
         public void Dispose()
         {
-            if (keepOutput)
+            if (KeepOutput)
                 Console.WriteLine("\n\tOutput file: {0}", Path);
             else
-                System.IO.File.Delete(Path);
+                File.Delete(Path);
         }
 
-        public static NetperfFile Create(string[] args)
+        public static NetPerfFile Create(string[] args)
         {
             if (args.Length >= 1)
                 return new NetperfFile(args[0], true);

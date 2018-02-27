@@ -17,7 +17,7 @@ namespace Tracing.Tests
 
         public static int Main(string[] args)
         {
-            using(var netPerfFile = NetperfFile.Create(args))
+            using (var netPerfFile = NetPerfFile.Create(args))
             {
                 Console.WriteLine("\tStart: Enable tracing.");
                 TraceControl.EnableDefault(netPerfFile.Path);

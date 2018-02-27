@@ -26,7 +26,7 @@
 // be that you DON'T NEED ETW.    
 //
 // Now in actual practice, EventSouce have rather intimate knowledge of ETW and send events
-// to it directly, but this can be VIEWED AS AN OPTIMISATION.  
+// to it directly, but this can be VIEWED AS AN OPTIMIZATION.  
 //
 // Basic Event Data Flow:
 // 
