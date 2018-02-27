@@ -38,7 +38,7 @@ enum ComMemberType
 class MarshalNative
 {
 public:
-    static INT32 QCALLTYPE NumParamBytes(MethodDesc * pMD);
+    static INT32 QCALLTYPE NumParamBytes(MethodDesc * pMD, CLR_BOOL fForStdCallDelegate);
     static VOID QCALLTYPE Prelink(MethodDesc * pMD);
 
     //====================================================================

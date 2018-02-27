@@ -54,7 +54,7 @@
 //
 // NumParamBytes
 // Counts # of parameter bytes
-INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD)
+INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD, CLR_BOOL fForStdCallDelegate)
 {
     QCALL_CONTRACT;
 
@@ -65,7 +65,7 @@ INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD)
 
     BEGIN_QCALL;
 
-    if (!(pMD->IsNDirect()))
+    if (!fForStdCallDelegate && !(pMD->IsNDirect()))
         COMPlusThrow(kArgumentException, IDS_EE_NOTNDIRECT);
 
     // Read the unmanaged stack size from the stub MethodDesc. For vararg P/Invoke,
@@ -83,13 +83,29 @@ INT32 QCALLTYPE MarshalNative::NumParamBytes(MethodDesc * pMD)
 
     cbParamBytes = pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize();
 
-#ifdef _X86_
-    if (((NDirectMethodDesc *)pMD)->IsThisCall())
+#ifdef _TARGET_X86_
+    if (fForStdCallDelegate)
+    {
+        // Compute the kStdCallWithRetBuf flag which is needed at link time for entry point mangling.
+        // This logic is a hybrid of the logic in NDirect::PopulateNDirectMethodDesc and NDirectMethodDesc::FindEntryPoint.
+        MetaSig msig(pMD);
+        ArgIterator argit(&msig);
+        if (argit.HasRetBuffArg())
+        {
+            MethodTable *pRetMT = msig.GetRetTypeHandleThrowing().AsMethodTable();
+            if (IsUnmanagedValueTypeReturnedByRef(pRetMT->GetNativeSize()))
+            {
+                _ASSERTE(cbParamBytes >= sizeof(LPVOID));
+                cbParamBytes -= sizeof(LPVOID);
+            }
+        }
+    }
+    else if (((NDirectMethodDesc *)pMD)->IsThisCall())
     {
         // The size of 'this' is not included in native stack arg size.
         cbParamBytes += sizeof(LPVOID);
     }
-#endif // _X86_
+#endif // _TARGET_X86_
 
     END_QCALL;
 

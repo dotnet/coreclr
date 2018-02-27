@@ -1191,6 +1191,30 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
 FCIMPLEND
 
 
+FCIMPL1(MethodDesc*, StubHelpers::GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject* refTypeUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    MethodDesc *pMD = NULL;
+
+    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF) refTypeUNSAFE;
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refType);
+
+    MethodTable* pMT = refType->GetType().GetMethodTable();
+    pMD = COMDelegate::FindDelegateInvokeMethod(pMT);
+    if (pMD->IsSharedByGenericInstantiations())
+    {
+        // we need the exact MethodDesc
+        pMD = InstantiatedMethodDesc::FindOrCreateExactClassMethod(pMT, pMD);
+    }
+
+    HELPER_METHOD_FRAME_END();
+
+    _ASSERTE(pMD);
+    return pMD;
+}
+FCIMPLEND
+
 
 FCIMPL2(void, StubHelpers::ThrowInteropParamException, UINT resID, UINT paramIdx)
 {

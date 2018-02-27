@@ -5774,6 +5774,12 @@ public:
         return m_message;
     }
 
+    // Returns true if this tracker contains a higher-priority error than simply "not found".
+    bool ContainsHighPriorityError()
+    {
+        return (m_priorityOfLastError > const_priorityNotFound);
+    }
+
     void DECLSPEC_NORETURN Throw(SString &libraryNameOrPath)
     {
         STANDARD_VM_CONTRACT;
@@ -5907,7 +5913,7 @@ HMODULE NDirect::LoadLibraryFromPath(LPCWSTR libraryPath)
 }
 
 /* static */
-HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName)
+HMODULE NDirect::LoadLibraryModuleViaHost(Assembly * pAssembly, AppDomain* pDomain, const wchar_t* wszLibName)
 {
     STANDARD_VM_CONTRACT;
     //Dynamic Pinvoke Support:
@@ -5924,7 +5930,6 @@ HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pD
 
     LPVOID hmod = NULL;
     CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
-    Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
    
     PEFile *pManifestFile = pAssembly->GetManifestFile();
     PTR_ICLRPrivBinder pBindingContext = pManifestFile->GetBindingContext();
@@ -6098,6 +6103,8 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
 }
 #endif
 
+// This routine is used for methods annotated with [DllImport].
+// Keep it (generally) in sync with LoadLibraryModuleForNativeLibrary.
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
@@ -6125,7 +6132,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     // AppX mode.
     if (!AppX::IsAppXProcess())
     {
-        hmod = LoadLibraryModuleViaHost(pMD, pDomain, wszLibName);
+        hmod = LoadLibraryModuleViaHost(pMD->GetMethodTable()->GetAssembly(), pDomain, wszLibName);
     }
     
     
@@ -6272,6 +6279,118 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     if (hmod)
     {
         pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
+    }
+
+    return hmod.Extract();
+}
+
+// This method is used by the NativeLibrary class for mimicking [DllImport] but without having that exact annotation.
+// Keep it (generally) in sync with LoadLibraryModule.
+HINSTANCE NDirect::LoadLibraryModuleForNativeLibrary(LPCUTF8 name, Assembly* pCallingAssembly, BOOL fSearchAssemblyDirectory, DWORD dwSearchPaths)
+{
+    CONTRACTL
+    {
+        STANDARD_VM_CHECK;
+        PRECONDITION(CheckPointer(name));
+    }
+    CONTRACTL_END;
+
+    // This is a lightweight version of LoadLibraryModule intended to be used by application code,
+    // not framework code. As such this doesn't support all features that [DllImport] would support.
+    // For example, calls into the CLR aren't special-cased, nor are Windows-specific API sets, nor
+    // is checking to see if the library name is actually a managed assembly name. There's also no
+    // guarantee that a caller assembly has been provided, and if this is the case we need to skip
+    // the assembly-relative lookups (either via AssemblyLoadContext or directory fixups).
+
+    LoadLibErrorTracker errorTracker;
+    ModuleHandleHolder hmod;
+
+    DWORD loadWithAlteredPathFlags = GetLoadWithAlteredSearchPathFlag();
+
+    PREFIX_ASSUME(name != NULL);
+    MAKE_WIDEPTR_FROMUTF8(wszLibName, name);
+
+    AppDomain* pDomain = GetAppDomain();
+
+    // AssemblyLoadContext is not supported in AppX mode and thus,
+    // we should not perform PInvoke resolution via it when operating in
+    // AppX mode.
+    if (pCallingAssembly != nullptr && !AppX::IsAppXProcess())
+    {
+        hmod = LoadLibraryModuleViaHost(pCallingAssembly, pDomain, wszLibName);
+    }
+
+    if (hmod == nullptr)
+    {
+        hmod = pDomain->FindUnmanagedImageInCache(wszLibName);
+    }
+
+    if (hmod != nullptr)
+    {
+        return hmod.Extract();
+    }
+
+    bool libNameIsRelativePath = Path::IsRelative(wszLibName);
+#ifdef FEATURE_PAL
+    // P/Invokes are often declared with variations on the actual library name.
+    // For example, it's common to leave off the extension/suffix of the library
+    // even if it has one, or to leave off a prefix like "lib" even if it has one
+    // (both of these are typically done to smooth over cross-platform differences). 
+    // We try to dlopen with such variations on the original.
+    const char* const* prefixSuffixCombinations = nullptr;
+    int numberOfVariations = 0;
+    DetermineLibNameVariations(&prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
+    for (int i = 0; hmod == nullptr && i < numberOfVariations; i++)
+    {
+        SString currLibNameVariation;
+        currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
+#else
+    {
+        LPCWSTR currLibNameVariation = wszLibName;
+#endif
+        if (hmod == nullptr)
+        {
+            // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
+            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, &errorTracker);
+        }
+
+        if (hmod == nullptr)
+        {
+            if (!libNameIsRelativePath)
+            {
+                DWORD flags = loadWithAlteredPathFlags;
+                if ((dwSearchPaths & LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR) != 0)
+                {
+                    // LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR is the only flag affecting absolute path. Don't OR the flags
+                    // unconditionally as all absolute path P/Invokes could then lose LOAD_WITH_ALTERED_SEARCH_PATH.
+                    flags |= dwSearchPaths;
+                }
+
+                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, &errorTracker);
+            }
+            else if (fSearchAssemblyDirectory)
+            {
+                hmod = LoadFromPInvokeAssemblyDirectory(pCallingAssembly, currLibNameVariation, loadWithAlteredPathFlags | dwSearchPaths, &errorTracker);
+            }
+        }
+
+        // This call searches the application directory instead of the location for the library.
+        if (hmod == nullptr)
+        {
+            hmod = LocalLoadLibraryHelper(currLibNameVariation, dwSearchPaths, &errorTracker);
+        }
+    }
+
+    // After all this, if we have a handle add it to the cache.
+    if (hmod != nullptr)
+    {
+        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
+    }
+
+    if (hmod == nullptr && errorTracker.ContainsHighPriorityError())
+    {
+        SString libNameSString(wszLibName);
+        errorTracker.Throw(libNameSString);
     }
 
     return hmod.Extract();

@@ -3715,4 +3715,13 @@
   <data name="Argument_InvalidGenericInstantiation" xml:space="preserve">
     <value>The given generic instantiation was invalid.</value>
   </data>
+  <data name="NativeLibrary_CallerNotSpecified" xml:space="preserve">
+    <value>A calling assembly must be provided if the flag DllImportSearchPath.AssemblyDirectory is specified.</value>
+  </data>
+  <data name="NativeLibrary_FlagsInvalidForPlatform" xml:space="preserve">
+    <value>The specified DllImportSearchPath flags are not supported on the current platform.</value>
+  </data>
+  <data name="NativeLibrary_InvalidOrdinal" xml:space="preserve">
+    <value>An invalid ordinal value was specified.</value>
+  </data>
 </root>

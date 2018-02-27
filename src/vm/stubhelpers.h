@@ -94,6 +94,7 @@ public:
     static FCDECL1(void,            InitDeclaringType,      NDirectMethodDesc* pMND);
     static FCDECL1(void*,           GetNDirectTarget,       NDirectMethodDesc* pNMD);
     static FCDECL2(void*,           GetDelegateTarget,      DelegateObject *pThisUNSAFE, UINT_PTR *ppStubArg);
+    static FCDECL1(MethodDesc *,    GetDelegateInvokeMethodFromDelegateType, ReflectClassBaseObject *refTypeUNSAFE);
 
 
     static FCDECL2(void,            ThrowInteropParamException, UINT resID, UINT paramIdx);
