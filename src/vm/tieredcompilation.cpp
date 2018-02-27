@@ -108,7 +108,6 @@ void TieredCompilationManager::Init(ADID appDomainId)
     SpinLockHolder holder(&m_lock);
     m_domainId = appDomainId;
     m_callCountOptimizationThreshhold = g_pConfig->TieredCompilation_Tier1CallCountThreshold();
-    m_asyncWorkDoneEvent.CreateManualEventNoThrow(TRUE);
 }
 
 void TieredCompilationManager::InitiateTier1CountingDelay()
@@ -330,23 +329,17 @@ void TieredCompilationManager::ShutdownAllDomains()
         AppDomain * pDomain = domain.GetDomain();
         if (pDomain != NULL)
         {
-            pDomain->GetTieredCompilationManager()->Shutdown(TRUE);
+            pDomain->GetTieredCompilationManager()->Shutdown();
         }
     }
 }
 
-void TieredCompilationManager::Shutdown(BOOL fBlockUntilAsyncWorkIsComplete)
+void TieredCompilationManager::Shutdown()
 {
     STANDARD_VM_CONTRACT;
 
-    {
-        SpinLockHolder holder(&m_lock);
-        m_isAppDomainShuttingDown = TRUE;
-    }
-    if (fBlockUntilAsyncWorkIsComplete)
-    {
-        m_asyncWorkDoneEvent.Wait(INFINITE, FALSE);
-    }
+    SpinLockHolder holder(&m_lock);
+    m_isAppDomainShuttingDown = TRUE;
 }
 
 VOID WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
@@ -619,7 +612,6 @@ void TieredCompilationManager::IncrementWorkerThreadCount()
     //m_lock should be held
 
     m_countOptimizationThreadsRunning++;
-    m_asyncWorkDoneEvent.Reset();
 }
 
 void TieredCompilationManager::DecrementWorkerThreadCount()
@@ -628,10 +620,6 @@ void TieredCompilationManager::DecrementWorkerThreadCount()
     //m_lock should be held
     
     m_countOptimizationThreadsRunning--;
-    if (m_countOptimizationThreadsRunning == 0)
-    {
-        m_asyncWorkDoneEvent.Set();
-    }
 }
 
 //static
