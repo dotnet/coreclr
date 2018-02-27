@@ -25,7 +25,7 @@ namespace Tracing.Tests.Common
         public static NetPerfFile Create(string[] args)
         {
             if (args.Length >= 1)
-                return new NetperfFile(args[0], true);
+                return new NetPerfFile(args[0], true);
 
             return new NetperfFile(System.IO.Path.GetTempPath() + Guid.NewGuid().ToString() + ".netperf", false);
         }
