@@ -612,8 +612,7 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R(INS_setpo, EA_1BYTE, targetReg);
             emit->emitIns_R(INS_sete, EA_1BYTE, tmpReg);
             emit->emitIns_R_R(INS_and, EA_1BYTE, tmpReg, targetReg);
-            emit->emitIns_R(INS_setne, EA_1BYTE, targetReg);
-            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, tmpReg);
             break;
         }
 
@@ -682,8 +681,7 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R(INS_setpe, EA_1BYTE, targetReg);
             emit->emitIns_R(INS_setne, EA_1BYTE, tmpReg);
             emit->emitIns_R_R(INS_or, EA_1BYTE, tmpReg, targetReg);
-            emit->emitIns_R(INS_setne, EA_1BYTE, targetReg);
-            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, tmpReg);
             break;
         }
 
@@ -837,8 +835,7 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R(INS_setpo, EA_1BYTE, targetReg);
             emit->emitIns_R(INS_sete, EA_1BYTE, tmpReg);
             emit->emitIns_R_R(INS_and, EA_1BYTE, tmpReg, targetReg);
-            emit->emitIns_R(INS_setne, EA_1BYTE, targetReg);
-            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, tmpReg);
             break;
         }
 
@@ -906,8 +903,7 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
             emit->emitIns_R(INS_setpe, EA_1BYTE, targetReg);
             emit->emitIns_R(INS_setne, EA_1BYTE, tmpReg);
             emit->emitIns_R_R(INS_or, EA_1BYTE, tmpReg, targetReg);
-            emit->emitIns_R(INS_setne, EA_1BYTE, targetReg);
-            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, tmpReg);
             break;
         }
 
