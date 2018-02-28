@@ -72,6 +72,9 @@ namespace System.IO
             if (IsPathFullyQualified(path))
                 return GetFullPath(path);
 
+            if (PathInternal.IsEffectivelyEmpty(path))
+                return basePath;
+
             int length = path.Length;
             string combinedPath = null;
 
@@ -80,7 +83,7 @@ namespace System.IO
                 // Path is current drive rooted i.e. starts with \:
                 // "\Foo" and "C:\Bar" => "C:\Foo"
                 // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
-                combinedPath = Join(GetPathRoot(basePath.AsSpan()), path);
+                combinedPath = Join(GetPathRoot(basePath.AsSpan()), path.AsSpan().Slice(1));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
@@ -118,7 +121,7 @@ namespace System.IO
             // to GetFullPath() won't do anything by design. Additionally, GetFullPathName() in
             // Windows doesn't root them properly. As such we need to manually remove segments.
             return PathInternal.IsDevice(combinedPath)
-                ? RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath))
+                ? RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath) - 1)
                 : GetFullPath(combinedPath);
         }
 
