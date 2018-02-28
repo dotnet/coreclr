@@ -157,10 +157,6 @@
       <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </StaticDependency>
 
-    <StaticDependency Include="xunit.console.netcore">
-      <Version>$(XunitConsoleNetcorePackageVersion)</Version>
-    </StaticDependency>
-
     <DependencyBuildInfo Include="@(StaticDependency)">
       <PackageId>%(Identity)</PackageId>
       <UpdateStableVersions>true</UpdateStableVersions>
