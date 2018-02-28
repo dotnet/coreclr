@@ -1905,11 +1905,94 @@ void Compiler::fgRemoveSuccs()
     }
 }
 
+unsigned GetPredsNumber(BasicBlock* block)
+{
+    unsigned  predsNumber = 0;
+    flowList* pred        = block->bbPreds;
+    for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+    {
+        predsNumber += 1;
+    }
+    return predsNumber;
+}
+
 //------------------------------------------------------------------------
 // fgSetBlockHasGCSafepoint: Set BBF_GC_SAFE_POINT on a block when all its predecessors have BBF_GC_SAFE_POINT.
 //
 void Compiler::fgSetBlockHasGCSafepoint()
 {
+
+    typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, unsigned> NonGcSafePredsCounter;
+
+    CompAllocator           memAllocator(this, CMK_fgArgInfoPtrArr);
+    NonGcSafePredsCounter   nonGcSafePredsCounter(&memAllocator);
+    ArrayStack<BasicBlock*> unprocessedGcSafeBlocks(this);
+
+#define CHECK_GC_SAFE_FLAGS 1
+#ifdef CHECK_GC_SAFE_FLAGS
+    typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, bool> FlagsChecker; // Do we have std::set?
+    FlagsChecker flagsCheckerInitState(&memAllocator);
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
+        {
+            flagsCheckerInitState.Set(block, true);
+        }
+    }
+#endif // CHECK_GC_SAFE_FLAGS
+
+    fgComputeSuccs();
+
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
+        {
+            unprocessedGcSafeBlocks.Push(block);
+        }
+        else
+        {
+            nonGcSafePredsCounter.Set(block, GetPredsNumber(block));
+        }
+    }
+
+    while (!unprocessedGcSafeBlocks.Empty())
+    {
+        BasicBlock* block = unprocessedGcSafeBlocks.Pop();
+        block->bbFlags |= BBF_GC_SAFE_POINT;
+        for (flowList* succFlow = block->bbSuccs; succFlow != nullptr; succFlow = succFlow->flNext)
+        {
+            BasicBlock* succ = succFlow->flBlock;
+            if ((succ->bbFlags & BBF_GC_SAFE_POINT) == 0)
+            {
+                assert(nonGcSafePredsCounter.Lookup(succ));
+                unsigned* counter = nonGcSafePredsCounter.LookupPointer(succ);
+                (*counter)--;
+                if (*counter == 0)
+                {
+                    nonGcSafePredsCounter.Remove(succ);
+                    unprocessedGcSafeBlocks.Push(succ);
+                }
+            }
+        }
+    }
+
+    fgRemoveSuccs();
+
+#ifdef CHECK_GC_SAFE_FLAGS
+    FlagsChecker flagsChecker(&memAllocator);
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
+        {
+            flagsChecker.Set(block, true);
+        }
+        block->bbFlags &= ~BBF_GC_SAFE_POINT;
+        if (flagsCheckerInitState.Lookup(block))
+        {
+            block->bbFlags |= BBF_GC_SAFE_POINT;
+        }
+    }
+
     bool gcFlagsChanged;
     do
     {
@@ -1943,6 +2026,19 @@ void Compiler::fgSetBlockHasGCSafepoint()
             }
         }
     } while (gcFlagsChanged);
+
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
+        {
+            assert(flagsChecker.Lookup(block));
+        }
+        else
+        {
+            assert(!flagsChecker.Lookup(block));
+        }
+    }
+#endif // CHECK_GC_SAFE_FLAGS
 }
 
 /*****************************************************************************
