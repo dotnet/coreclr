@@ -76,7 +76,7 @@ public:
 
 private:
     // Common processing code for FailFast
-    static void GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF errorSource);
+    static void GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF errorSource, ExceptionObject * pInnerException=NULL);
 };
 
 /* static */
