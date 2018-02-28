@@ -80,26 +80,29 @@ namespace System.IO
                 // Path is current drive rooted i.e. starts with \:
                 // "\Foo" and "C:\Bar" => "C:\Foo"
                 // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
-                combinedPath = CombineInternal(GetPathRoot(basePath), path.AsSpan().Slice(1));
+                combinedPath = Join(GetPathRoot(basePath.AsSpan()), path);
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
                 // Drive relative paths
                 Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
 
-                if (StringSpanHelpers.Equals(GetVolumeName(path.AsSpan()), GetVolumeName(basePath.AsSpan())))
+                if (StringSpanHelpers.Equals(GetVolumeName(path), GetVolumeName(basePath)))
                 {
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
                     // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                    combinedPath = CombineInternal(basePath, path.AsSpan().Slice(2));
+                    combinedPath = Join(basePath, path.AsSpan().Slice(2));
                 }
                 else
                 {
                     // No matching root, root to specified drive
                     // "D:Foo" and "C:\Bar" => "D:Foo"
                     // "D:Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
-                    combinedPath = PathInternal.IsDevice(basePath) ? CombineNoChecksInternal(basePath.AsSpan().Slice(0, 4), path.AsSpan().Slice(0, 2), @"\", path.AsSpan().Slice(2)) : path.Insert(2, "\\");
+
+                    combinedPath = PathInternal.IsDevice(basePath) 
+                        ? JoinInternal(basePath.AsSpan().Slice(0, 4), path.AsSpan().Slice(0, 2), @"\", path.AsSpan().Slice(2))
+                        : path.Insert(2, @"\");
                 }
             }
             else
@@ -107,7 +110,7 @@ namespace System.IO
                 // "Simple" relative path
                 // "Foo" and "C:\Bar" => "C:\Bar\Foo"
                 // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                combinedPath = CombineInternal(basePath, path);
+                combinedPath = JoinInternal(basePath, path);
             }
 
             // Device paths are normalized by definition, so passing something of this format

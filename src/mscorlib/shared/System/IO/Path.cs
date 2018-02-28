@@ -262,7 +262,6 @@ namespace System.IO
             return !PathInternal.IsPartiallyQualified(path);
         }
 
-
         /// <summary>
         /// Tests if a path's file name includes a file extension. A trailing period
         /// is not considered an extension.
