@@ -614,8 +614,6 @@ namespace System
 
         internal static Delegate CreateDelegateInternal(RuntimeType rtType, RuntimeMethodInfo rtMethod, Object firstArgument, DelegateBindingFlags flags)
         {
-            Debug.Assert((flags & DelegateBindingFlags.SkipSecurityChecks) == 0);
-
             Delegate d = InternalAlloc(rtType);
 
             if (d.BindToMethodInfo(firstArgument, rtMethod, rtMethod.GetDeclaringTypeInternal(), flags))
