@@ -11,8 +11,8 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestPriority>0</CLRTestPriority>
+    <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'"></PropertyGroup>
@@ -23,8 +23,8 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EventPipeSmoke.cs" />
-    <ProjectReference Include="../common/common.csproj" />
+    <Compile Include="Rundown.cs" />
+    <ProjectReference Include="../../common/common.csproj" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
