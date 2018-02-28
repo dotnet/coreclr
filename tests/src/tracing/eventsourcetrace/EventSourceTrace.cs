@@ -78,7 +78,7 @@ namespace Tracing.Tests
 
                 Console.WriteLine("\tStart: Processing events from file.");
                 int msgCount = 0;
-                using (var trace = new TraceLog(TraceLog.CreateFromEventPipeDataFile(eventPipeFilePath)).Events.GetSource())
+                using (var trace = new TraceLog(TraceLog.CreateFromEventPipeDataFile(netPerfFile.Path)).Events.GetSource())
                 {
                     var names = new HashSet<string>();
 
