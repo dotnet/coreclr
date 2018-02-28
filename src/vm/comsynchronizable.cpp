@@ -1768,7 +1768,7 @@ FCIMPL1(void, ThreadNative::ClearAbortReason, ThreadBaseObject* pThisUNSAFE)
 FCIMPLEND
 
 
-FCIMPL0(UINT32, ThreadNative::GetCurrentProcessorNumber)
+FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
 {
     FCALL_CONTRACT;
 

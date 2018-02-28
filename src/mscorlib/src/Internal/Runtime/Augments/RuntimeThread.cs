@@ -214,7 +214,7 @@ namespace Internal.Runtime.Augments
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int GetCurrentProcessorNumber();
+        private static extern int GetCurrentProcessorNumber();
 
         // The upper bits of t_currentProcessorIdCache are the currentProcessorId. The lower bits of
         // the t_currentProcessorIdCache are counting down to get it periodically refreshed.
@@ -237,6 +237,9 @@ namespace Internal.Runtime.Augments
             // by default, we use the current managed thread ID as a proxy.
             if (currentProcessorId < 0) currentProcessorId = Environment.CurrentManagedThreadId;
 
+            // Add offset to make it clear that it is not guaranteed to be 0-based processor number
+            currentProcessorId += 100;
+
             Debug.Assert(ProcessorIdRefreshRate <= ProcessorIdCacheCountDownMask);
 
             // Mask with Int32.MaxValue to ensure the execution Id is not negative
@@ -245,7 +248,7 @@ namespace Internal.Runtime.Augments
             return currentProcessorId;
         }
 
-        // Cached processor number used as a hint for which per-core stack to access. It is periodically
+        // Cached processor id used as a hint for which per-core stack to access. It is periodically
         // refreshed to trail the actual thread core affinity.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int GetCurrentProcessorId()
