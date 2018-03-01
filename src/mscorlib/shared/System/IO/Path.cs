@@ -738,7 +738,7 @@ namespace System.IO
                         {
                             if (PathInternal.IsDirectorySeparator(sb[s]))
                             {
-                                sb.Length = (i + 3 >= path.Length && s <= skip ) ? s + 1 : s; // to avoid removing the complete \tmp\ in cases like \\?\C:\tmp\..\, C:\tmp\.. 
+                                sb.Length = (i + 3 >= path.Length && s <= skip ) ? s + 1 : s; // to avoid removing the complete "\tmp\" segment in cases like \\?\C:\tmp\..\, C:\tmp\..
                                 break;
                             }
                         }

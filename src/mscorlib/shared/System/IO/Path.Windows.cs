@@ -122,7 +122,7 @@ namespace System.IO
             // Windows doesn't root them properly. As such we need to manually remove segments.
             return PathInternal.IsDevice(combinedPath)
                 ? RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath) - 1)
-                // Paths at this point are in the form of \\?\C:\.\tmp we skip to the last character of the root when calling RemoveRelativeSegments to remove relative paths in such cases"
+                // Paths at this point are in the form of \\?\C:\.\tmp we skip to the last character of the root when calling RemoveRelativeSegments to remove relative paths in such cases.
                 : GetFullPath(combinedPath);
         }
 
