@@ -235,7 +235,6 @@ unsigned Compiler::simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_I
 int Compiler::numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     assert(node != nullptr);
-
     NamedIntrinsic intrinsic = node->gtHWIntrinsicId;
 
     assert(intrinsic != NI_Illegal);
@@ -1027,6 +1026,119 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
             op1      = impSIMDPopStack(TYP_SIMD16);
             baseType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
             retNode  = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
+            break;
+        }
+
+        case NI_SSE2_SetAllVector128:
+        {
+            assert(sig->numArgs == 1);
+            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+            assert((baseType >= TYP_BYTE) && (baseType <= TYP_DOUBLE));
+            assert(baseType != TYP_FLOAT);
+
+            op1          = impPopStack().val;
+            GenTree* src = nullptr;
+
+            switch (baseType)
+            {
+                case TYP_DOUBLE:
+                {
+                    src     = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, NI_SSE2_SetScalarVector128, baseType, simdSize);
+                    retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, src, gtNewIconNode(0b01000100), NI_SSE2_Shuffle,
+                                                       TYP_INT, simdSize);
+                    break;
+                }
+
+                case TYP_LONG:
+                case TYP_ULONG:
+                {
+                    var_types shuffleBaseType = TYP_UNKNOWN;
+                    if (baseType == TYP_LONG)
+                    {
+                        intrinsic       = NI_SSE2_ConvertScalarToVector128Int64;
+                        shuffleBaseType = TYP_INT;
+                    }
+                    else
+                    {
+                        intrinsic       = NI_SSE2_ConvertScalarToVector128UInt64;
+                        shuffleBaseType = TYP_UINT;
+                    }
+#ifdef _TARGET_X86_
+                    src     = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, NI_SSE2_SetScalarVector128, TYP_DOUBLE, simdSize);
+#else
+                    src     = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, intrinsic, baseType, simdSize);
+#endif
+                    retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, src, gtNewIconNode(0b01000100), NI_SSE2_Shuffle,
+                                                       shuffleBaseType, simdSize);
+                    break;
+                }
+
+                case TYP_INT:
+                case TYP_UINT:
+                {
+                    src = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, NI_SSE2_ConvertScalarToVector128Int32, TYP_INT,
+                                                   simdSize);
+                    retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, src, gtNewIconNode(0), NI_SSE2_Shuffle, baseType,
+                                                       simdSize);
+                    break;
+                }
+
+                case TYP_SHORT:
+                case TYP_USHORT:
+                {
+                    GenTree* srcClone = nullptr;
+
+                    // Initialize XMM register with initial value
+                    src = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, NI_SSE2_ConvertScalarToVector128Int32, TYP_INT,
+                                                   simdSize);
+
+                    // src is used twice - clone it
+                    CORINFO_CLASS_HANDLE vectorHandle =
+                        (baseType == TYP_SHORT) ? Vector128ShortHandle : Vector128UShortHandle;
+
+                    srcClone = fgMakeMultiUse(&src, vectorHandle);
+
+                    GenTree* tmp =
+                        gtNewSimdHWIntrinsicNode(TYP_SIMD16, src, srcClone, NI_SSE2_UnpackLow, TYP_SHORT, simdSize);
+                    retNode =
+                        gtNewSimdHWIntrinsicNode(TYP_SIMD16, tmp, gtNewIconNode(0), NI_SSE2_Shuffle, TYP_INT, simdSize);
+                    break;
+                }
+
+                case TYP_BYTE:
+                case TYP_UBYTE:
+                {
+                    GenTree* srcClone = nullptr;
+                    GenTree* tmpClone = nullptr;
+
+                    // Initialize XMM register with initial value
+                    src = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, NI_SSE2_ConvertScalarToVector128Int32, TYP_INT,
+                                                   simdSize);
+
+                    // src is used twice - clone it
+                    CORINFO_CLASS_HANDLE vectorSrcHandle =
+                        (baseType == TYP_BYTE) ? Vector128ByteHandle : Vector128UByteHandle;
+
+                    srcClone = fgMakeMultiUse(&src, vectorSrcHandle);
+
+                    GenTree* tmp =
+                        gtNewSimdHWIntrinsicNode(TYP_SIMD16, src, srcClone, NI_SSE2_UnpackLow, TYP_BYTE, simdSize);
+
+                    // tmp is used two times - clone it
+                    vectorSrcHandle = (baseType == TYP_BYTE) ? Vector128ShortHandle : Vector128UShortHandle;
+                    tmpClone        = fgMakeMultiUse(&tmp, vectorSrcHandle);
+
+                    GenTree* shufSrc =
+                        gtNewSimdHWIntrinsicNode(TYP_SIMD16, tmp, tmpClone, NI_SSE2_UnpackLow, TYP_SHORT, simdSize);
+                    retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, shufSrc, gtNewIconNode(0), NI_SSE2_Shuffle, TYP_INT,
+                                                       simdSize);
+                    break;
+                }
+
+                default:
+                    unreached();
+                    break;
+            }
             break;
         }
 

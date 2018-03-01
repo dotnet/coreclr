@@ -999,7 +999,7 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
 
         case NI_SSE2_SetScalarVector128:
         {
-            assert(baseType == TYP_DOUBLE);
+            assert(baseType == TYP_DOUBLE || baseType == TYP_LONG || baseType == TYP_ULONG);
             assert(op2 == nullptr);
 
             instruction ins = Compiler::insOfHWIntrinsic(intrinsicID, node->gtSIMDBaseType);
@@ -1010,11 +1010,11 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
                 // Ensure we aren't overwriting targetReg
                 assert(tmpReg != targetReg);
 
-                emit->emitIns_R_R(INS_movapd, emitTypeSize(TYP_SIMD16), tmpReg, op1Reg);
+                emit->emitIns_R_R(INS_movaps, emitTypeSize(TYP_SIMD16), tmpReg, op1Reg);
                 op1Reg = tmpReg;
             }
 
-            emit->emitIns_SIMD_R_R_R(INS_xorpd, emitTypeSize(TYP_SIMD16), targetReg, targetReg, targetReg);
+            emit->emitIns_SIMD_R_R_R(INS_xorps, emitTypeSize(TYP_SIMD16), targetReg, targetReg, targetReg);
             emit->emitIns_SIMD_R_R_R(ins, emitTypeSize(TYP_SIMD16), targetReg, targetReg, op1Reg);
             break;
         }

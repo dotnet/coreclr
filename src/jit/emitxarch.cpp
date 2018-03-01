@@ -5547,7 +5547,7 @@ static bool isSseShift(instruction ins)
 // Return Value:
 //    true if instruction has "R(M) R(M) I" format and has no (E)VEX.NDS
 //
-static bool IsDstSrcImmAvxInstruction(instruction ins)
+bool emitter::IsDstSrcImmAvxInstruction(instruction ins)
 {
     switch (ins)
     {

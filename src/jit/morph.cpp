@@ -2660,8 +2660,9 @@ int Compiler::fgEstimateCallStackSize(GenTreeCall* call)
 //                  otherwise insert a comma form temp
 //
 // Arguments:
-//    ppTree  - a pointer to the child node we will be replacing with the comma expression that
-//              evaluates ppTree to a temp and returns the result
+//    ppTree     - a pointer to the child node we will be replacing with the comma expression that
+//                 evaluates ppTree to a temp and returns the result
+//    structType - if tree is not local and is structure its type is needed
 //
 // Return Value:
 //    A fresh GT_LCL_VAR node referencing the temp which has not been used
@@ -2670,7 +2671,7 @@ int Compiler::fgEstimateCallStackSize(GenTreeCall* call)
 //    The result tree MUST be added to the tree structure since the ref counts are
 //    already incremented.
 
-GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
+GenTree* Compiler::fgMakeMultiUse(GenTree** pOp, CORINFO_CLASS_HANDLE structType /*= nullptr*/)
 {
     GenTree* tree = *pOp;
     if (tree->IsLocal())
@@ -2684,7 +2685,7 @@ GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
     }
     else
     {
-        GenTree* result = fgInsertCommaFormTemp(pOp);
+        GenTree* result = fgInsertCommaFormTemp(pOp, structType);
 
         // At this point, *pOp is GT_COMMA(GT_ASG(V01, *pOp), V01) and result = V01
         // Therefore, the ref count has to be incremented 3 times for *pOp and result, if result will
