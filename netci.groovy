@@ -621,7 +621,12 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
                 Utilities.setMachineAffinity(job, 'Ubuntu', 'latest-or-auto')
             } else {
                 // arm Ubuntu test machine
-                Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-latest')
+                // There is no tag (like, e.g., "arm-latest") for this, so don't call
+                // Utilities.setMachineAffinity. Just add the machine affinity
+                // manually. We specify the Helix queue name here.
+                job.with {
+                    label('ubuntu.1404.arm32.open')
+                }
             }
         }
     }
@@ -665,7 +670,7 @@ def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def i
         }
     }
 
-    setMachineAffinity(newFlowJob, os, affinityArchitecture, affinityOptions)
+    setMachineAffinity(job, os, affinityArchitecture, affinityOptions)
 }
 
 def static isGCStressRelatedTesting(def scenario) {
@@ -2699,7 +2704,7 @@ Constants.allScenarios.each { scenario ->
 
 // Create a Windows ARM/ARMLB/ARM64 test job that will be used by a flow job.
 // Returns the newly created job.
-def static CreateWindowsArmTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
+def CreateWindowsArmTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     def osGroup = getOSGroup(os)
     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
@@ -2890,7 +2895,7 @@ def static CreateWindowsArmTestJob(def architecture, def os, def configuration, 
 // Create a test job not covered by the "Windows ARM" case that will be used by a flow job.
 // E.g., non-Windows tests.
 // Returns the newly created job.
-def static CreateOtherTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def CreateOtherTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
     def isUbuntuArmJob = ((os == "Ubuntu") && (architecture == 'arm')) // ARM Ubuntu running on hardware (not emulator)
 
@@ -3125,7 +3130,7 @@ ${dockerCmd}./tests/runtest.sh \\
 
 // Create a test job that will be used by a flow job.
 // Returns the newly created job.
-def static CreateTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def CreateTestJob(def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
 
@@ -3142,6 +3147,7 @@ def static CreateTestJob(def architecture, def os, def configuration, def scenar
     addToViews(newJob, isPR, architecture, os)
 
     if (scenario == 'jitdiff') {
+        def osGroup = getOSGroup(os)
         Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/dasm/**")
     }
 
@@ -3153,7 +3159,7 @@ def static CreateTestJob(def architecture, def os, def configuration, def scenar
 
 // Create a flow job to tie together a build job with the given test job.
 // Returns the new flow job.
-def static CreateFlowJob(def architecture, def os, def configuration, def scenario, def isPR, def testJob, def inputCoreCLRBuildName, def inputTestsBuildName)
+def CreateFlowJob(def architecture, def os, def configuration, def scenario, def isPR, def testJob, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
     if (os == 'RHEL7.2' || os == 'Debian8.4') {
         // Do not create the flow job for RHEL jobs.
