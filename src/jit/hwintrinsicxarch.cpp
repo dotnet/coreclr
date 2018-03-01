@@ -597,7 +597,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         unsigned int sizeBytes;
         baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeSigClass, &sizeBytes);
         retType  = getSIMDTypeForSize(sizeBytes);
-        assert(sizeBytes != 0 && baseType != TYP_UNKNOWN);
+        assert(sizeBytes != 0);
     }
 
     // This intrinsic is supported if
@@ -650,25 +650,19 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     if ((flags & (HW_Flag_OneTypeGeneric | HW_Flag_TwoTypeGeneric)) != 0)
     {
-        assert(baseType != TYP_UNKNOWN);
-        // When the type argument is not a numeric type (and we are not being forced to expand), we need to
-        // return nullptr so a GT_CALL to the intrinsic method is emitted that will throw NotSupportedException
         if (!varTypeIsArithmetic(baseType))
         {
-            assert(!mustExpand);
-            return nullptr;
+            return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
         }
 
         if ((flags & HW_Flag_TwoTypeGeneric) != 0)
         {
             // StaticCast<T, U> has two type parameters.
-            assert(!mustExpand);
             assert(numArgs == 1);
             var_types srcType = getBaseTypeOfSIMDType(info.compCompHnd->getArgClass(sig, sig->args));
-            assert(srcType != TYP_UNKNOWN);
             if (!varTypeIsArithmetic(srcType))
             {
-                return nullptr;
+                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED, method, sig, mustExpand);
             }
         }
     }
@@ -683,7 +677,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     // table-driven importer of simple intrinsics
     if (impIsTableDrivenHWIntrinsic(category, flags))
     {
-        if (!varTypeIsSIMD(retType) || (flags & HW_Flag_BaseTypeFromArg))
+        if (!varTypeIsSIMD(retType) || ((flags & HW_Flag_BaseTypeFromArg) != 0))
         {
             if (retType != TYP_VOID)
             {
@@ -1089,7 +1083,44 @@ GenTree* Compiler::impSSE41Intrinsic(NamedIntrinsic        intrinsic,
                                      CORINFO_SIG_INFO*     sig,
                                      bool                  mustExpand)
 {
-    return nullptr;
+    GenTree* retNode  = nullptr;
+    GenTree* op1      = nullptr;
+    GenTree* op2      = nullptr;
+    GenTree* op3      = nullptr;
+    GenTree* op4      = nullptr;
+    int      simdSize = simdSizeOfHWIntrinsic(intrinsic, sig);
+
+    assert(simdSize == 16);
+
+    switch (intrinsic)
+    {
+        case NI_SSE41_CeilingScalar:
+        case NI_SSE41_FloorScalar:
+        case NI_SSE41_RoundCurrentDirectionScalar:
+        case NI_SSE41_RoundToNearestIntegerScalar:
+        case NI_SSE41_RoundToNegativeInfinityScalar:
+        case NI_SSE41_RoundToPositiveInfinityScalar:
+        case NI_SSE41_RoundToZeroScalar:
+        {
+            assert((sig->numArgs == 1) || (sig->numArgs == 2));
+            var_types baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+            assert((baseType == TYP_FLOAT) || (baseType == TYP_DOUBLE));
+
+            if (sig->numArgs == 2)
+            {
+                op2 = impSIMDPopStack(TYP_SIMD16);
+            }
+
+            op1     = impSIMDPopStack(TYP_SIMD16);
+            retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, intrinsic, baseType, simdSize);
+            break;
+        }
+
+        default:
+            JITDUMP("Not implemented hardware intrinsic");
+            break;
+    }
+    return retNode;
 }
 
 GenTree* Compiler::impSSE42Intrinsic(NamedIntrinsic        intrinsic,

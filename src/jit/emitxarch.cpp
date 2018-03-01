@@ -87,6 +87,8 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_andnps:
         case INS_andpd:
         case INS_andps:
+        case INS_blendpd:
+        case INS_blendps:
         case INS_cmppd:
         case INS_cmpps:
         case INS_cmpsd:
@@ -114,6 +116,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_minss:
         case INS_movhlps:
         case INS_movlhps:
+        case INS_mpsadbw:
         case INS_mulpd:
         case INS_mulps:
         case INS_mulsd:
@@ -137,6 +140,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_pandn:
         case INS_pavgb:
         case INS_pavgw:
+        case INS_pblendw:
         case INS_pcmpeqb:
         case INS_pcmpeqd:
         case INS_pcmpeqq:
@@ -5486,6 +5490,9 @@ void emitter::emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, 
     {
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2
+            assert(reg2 != reg);
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R(ins, attr, reg, reg2);
@@ -5565,10 +5572,18 @@ void emitter::emitIns_SIMD_R_R_R_R(
         // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
         if (reg3 != REG_XMM0)
         {
+            // Ensure we aren't overwriting op1 or op2
+            assert(reg1 != REG_XMM0);
+            assert(reg2 != REG_XMM0);
+
             emitIns_R_R(INS_movaps, attr, REG_XMM0, reg3);
         }
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2 or op3
+            assert(reg2 != reg);
+            assert((reg3 == REG_XMM0) || (reg != REG_XMM0));
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R(ins, attr, reg, reg2);
@@ -5653,6 +5668,9 @@ void emitter::emitIns_SIMD_R_R_R_I(
     {
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2
+            assert(reg2 != reg);
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R_I(ins, attr, reg, reg2, ival);
