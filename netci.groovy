@@ -2356,12 +2356,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     def dockerImage = getDockerImageName(architecture, os, true)
                     def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm ${dockerImage} "
 
-                    shell("${dockerCmd}\${WORKSPACE}/build.sh arm checked cross")
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh arm checked cross"
 
                     // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                     // download the appropriate CoreFX packages.
 
-                    shell("${dockerCmd}\${WORKSPACE}/build-test.sh arm checked cross generatelayoutonly")
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh arm checked cross generatelayoutonly"
 
                     // ZIP up for the test job (created in the flow job code):
                     // (1) the built CORE_ROOT, /home/user/coreclr/bin/tests/Linux.arm.Checked/Tests/Core_Root,
@@ -2371,8 +2371,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // (3) /home/user/coreclr/tests tree (especially runtests.sh and the various exclusion / inclusion text files)
                     //     TBD: will the CI already create an enlistment on the Test machine?
 
-                    shell("zip -r coreroot.zip \${WORKSPACE}/bin/tests/Linux.arm.{configuration}/Tests/Core_Root")
-                    shell("zip -r testnativebin.zip \${WORKSPACE}/bin/obj/Linux.arm.{configuration}/tests")
+                    buildCommands += "zip -r coreroot.zip \${WORKSPACE}/bin/tests/Linux.arm.{configuration}/Tests/Core_Root"
+                    buildCommands += "zip -r testnativebin.zip \${WORKSPACE}/bin/obj/Linux.arm.{configuration}/tests"
 
                     Utilities.addArchival(newJob, "coreroot.zip,testnativebin.zip", "")
                     break
