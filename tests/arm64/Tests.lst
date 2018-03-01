@@ -10556,14 +10556,6 @@ MaxAllowedDurationSeconds=600
 Categories=Pri1;RT;EXPECTED_PASS
 HostStyle=0
 
-[DoubleGetHashCode.cmd_1368]
-RelativePath=CoreMangLib\cti\system\double\DoubleGetHashCode\DoubleGetHashCode.cmd
-WorkingDir=CoreMangLib\cti\system\double\DoubleGetHashCode
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=Pri1;RT;EXPECTED_PASS
-HostStyle=0
-
 [DoubleIConvertibleToBoolean.cmd_1369]
 RelativePath=CoreMangLib\cti\system\double\DoubleIConvertibleToBoolean\DoubleIConvertibleToBoolean.cmd
 WorkingDir=CoreMangLib\cti\system\double\DoubleIConvertibleToBoolean
@@ -17831,14 +17823,6 @@ HostStyle=0
 [SingleEpsilon.cmd_2433]
 RelativePath=CoreMangLib\cti\system\single\SingleEpsilon\SingleEpsilon.cmd
 WorkingDir=CoreMangLib\cti\system\single\SingleEpsilon
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=Pri1;RT;EXPECTED_PASS
-HostStyle=0
-
-[SingleGetHashCode.cmd_2434]
-RelativePath=CoreMangLib\cti\system\single\SingleGetHashCode\SingleGetHashCode.cmd
-WorkingDir=CoreMangLib\cti\system\single\SingleGetHashCode
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=Pri1;RT;EXPECTED_PASS

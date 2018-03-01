@@ -63620,14 +63620,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS
 HostStyle=0
 
-[DoubleGetHashCode.cmd_7983]
-RelativePath=CoreMangLib\cti\system\double\DoubleGetHashCode\DoubleGetHashCode.cmd
-WorkingDir=CoreMangLib\cti\system\double\DoubleGetHashCode
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;Pri1
-HostStyle=0
-
 [ActionCtor.cmd_7984]
 RelativePath=CoreMangLib\cti\system\action\ActionCtor\ActionCtor.cmd
 WorkingDir=CoreMangLib\cti\system\action\ActionCtor
@@ -79199,14 +79191,6 @@ HostStyle=0
 [Generated675.cmd_9940]
 RelativePath=Loader\classloader\TypeGeneratorTests\TypeGeneratorTest675\Generated675\Generated675.cmd
 WorkingDir=Loader\classloader\TypeGeneratorTests\TypeGeneratorTest675\Generated675
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;Pri1
-HostStyle=0
-
-[SingleGetHashCode.cmd_9941]
-RelativePath=CoreMangLib\cti\system\single\SingleGetHashCode\SingleGetHashCode.cmd
-WorkingDir=CoreMangLib\cti\system\single\SingleGetHashCode
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;Pri1
