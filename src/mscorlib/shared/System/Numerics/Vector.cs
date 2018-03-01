@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if (!netfx && !netstandard)
+#if netcoreapp
 using Internal.Runtime.CompilerServices;
 #endif
 using System.Globalization;
@@ -768,6 +768,7 @@ namespace System.Numerics
             this.register = existingRegister;
         }
 
+#if netcoreapp
         /// <summary>
         /// Constructs a vector from the given span. The span must contain at least Vector'T.Count elements.
         /// </summary>
@@ -796,6 +797,7 @@ namespace System.Numerics
                 throw new NotSupportedException(SR.Arg_TypeNotSupported);
             }
         }
+#endif
         #endregion Constructors
 
         #region Public Instance Methods
