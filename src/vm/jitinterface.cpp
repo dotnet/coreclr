@@ -8522,7 +8522,7 @@ CEEInfo::getMethodSigInternal(
         // JIT should not generate shared generics aware call code and insert the secret argument again at the callsite.
         // Otherwise we would end up with two secret generic dictionary arguments (since the stub also provides one).
         //
-        BOOL isDefaultInterfaceMethodCallSite = isCallSite && ftn->IsDefaultInterfaceMethod();
+        BOOL isDefaultInterfaceMethodCallSite = isCallSite && (ftn->GetMethodTable()->IsInterface() && !ftn->IsStatic() && !ftn->IsAbstract());
         if (!isDefaultInterfaceMethodCallSite)
             sigRet->callConv = (CorInfoCallConv) (sigRet->callConv | CORINFO_CALLCONV_PARAMTYPE);
     }
