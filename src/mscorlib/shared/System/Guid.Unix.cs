@@ -9,19 +9,16 @@ namespace System
 {
     partial struct Guid
     {
-        static Random _random = new Random();
-
         // This will create a new guid.  Since we've now decided that constructors should 0-init,
         // we need a method that allows users to create a guid.
         // It creates a random guid based on the https://www.ietf.org/rfc/rfc4122.txt 
-        public static Guid NewGuid()
+        public static unsafe Guid NewGuid()
         {
-            byte[] randomData = new byte[16];
-            lock (_random)
-            {
-                _random.NextBytes(randomData);
-            }
-            Guid g = new Guid(randomData);
+            const int GuidSize = 16;
+            byte* randomData = stackalloc byte[GuidSize];
+            Interop.GetRandomBytes(randomData, GuidSize);
+
+            Guid g = new Guid(new ReadOnlySpan<byte>(randomData, GuidSize));
             
             const ushort VersionMask = 0xF000;
             const ushort RandomGuidVersion = 0x4000;
@@ -38,10 +35,6 @@ namespace System
                 // clock_seq_hi_and_reserved
                 g._d = (byte)((g._d & ~ClockSeqHiAndReservedMask) | ClockSeqHiAndReservedValue);
             }
-
-            // CoCreateGuid should never return Guid.Empty, since it attempts to maintain some
-            // uniqueness guarantees.  It should also never return a known GUID, but it's unclear
-            // how extensively it checks for known values.
 
             return g;
         }
