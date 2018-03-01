@@ -145,45 +145,39 @@ namespace System.Diagnostics.Tracing
 
         internal unsafe void AddNullTerminatedString(string value)
         {
-            // Don't use value.Length here because string allows for embedded NULL characters.
-            int size = 0;
-            fixed (char* strValue = value)
+            // Treat null strings as empty strings.
+            if (value == null)
             {
-                char* pChar = strValue;
-                do
-                {
-                    // Char == UTF16
-                    size += 2;
-                }
-                while (*pChar++ != '\0');
+                value = string.Empty;
             }
 
-            if (size > ushort.MaxValue)
+            // Calculate the size of the string including the trailing NULL char.
+            // Don't use value.Length here because string allows for embedded NULL characters.
+            int nullCharIndex = value.IndexOf((char)0);
+            if (nullCharIndex < 0)
             {
-                size = ushort.MaxValue - 1;
+                nullCharIndex = value.Length;
             }
+            int size = (nullCharIndex + 1) * 2;
 
             if (this.bufferNesting != 0)
             {
                 this.EnsureBuffer(size);
             }
 
-            if (size != 0)
+            if (this.bufferNesting == 0)
             {
-                if (this.bufferNesting == 0)
+                this.ScalarsEnd();
+                this.PinArray(value, size);
+            }
+            else
+            {
+                var oldPos = this.bufferPos;
+                this.bufferPos = checked(this.bufferPos + size);
+                this.EnsureBuffer();
+                fixed (void* p = value)
                 {
-                    this.ScalarsEnd();
-                    this.PinArray(value, size);
-                }
-                else
-                {
-                    var oldPos = this.bufferPos;
-                    this.bufferPos = checked(this.bufferPos + size);
-                    this.EnsureBuffer();
-                    fixed (void* p = value)
-                    {
-                        Marshal.Copy((IntPtr)p, buffer, oldPos, size);
-                    }
+                    Marshal.Copy((IntPtr)p, buffer, oldPos, size);
                 }
             }
         }

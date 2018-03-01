@@ -207,7 +207,6 @@ namespace System.Diagnostics.Tracing
             switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask))
             {
                 case TraceLoggingDataType.Utf16String:
-                case TraceLoggingDataType.MbcsString:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type));
