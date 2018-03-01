@@ -105,7 +105,7 @@ namespace System.Runtime.InteropServices
         /// <param name="start">The starting location in <paramref name="text"/>.</param>
         /// <param name="length">The number of items in <paramref name="text"/>.</param>
         /// <returns></returns>
-        public static bool TryGetString(this ReadOnlyMemory<char> readOnlyMemory, out string text, out int start, out int length)
+        public static bool TryGetString(ReadOnlyMemory<char> readOnlyMemory, out string text, out int start, out int length)
         {
             if (readOnlyMemory.GetObjectStartLength(out int offset, out int count) is string s)
             {
