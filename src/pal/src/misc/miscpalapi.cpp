@@ -295,8 +295,6 @@ PAL_Random(
             while (offset != dwLength);
 
             _ASSERTE(offset == dwLength);
-
-            close(rand_des);
         }
     }    
 
