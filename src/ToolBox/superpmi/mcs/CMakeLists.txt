@@ -70,4 +70,4 @@ else()
     install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mcs.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS mcs DESTINATION .)
+_install (TARGETS mcs DESTINATION .)

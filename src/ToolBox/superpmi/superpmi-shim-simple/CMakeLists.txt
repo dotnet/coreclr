@@ -70,4 +70,4 @@ else()
     install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-simple.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS superpmi-shim-simple DESTINATION .)
+_install (TARGETS superpmi-shim-simple DESTINATION .)
