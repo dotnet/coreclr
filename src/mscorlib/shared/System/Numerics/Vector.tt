@@ -7,9 +7,13 @@
 <#@ import namespace="System.Runtime.InteropServices" #>
 <#@ include file="GenerationConfig.ttinclude" #><# GenerateCopyrightHeader(); #>
 
+#if (!netfx && !netstandard)
+using Internal.Runtime.CompilerServices;
+#endif
 using System.Globalization;
 using System.Numerics.Hashing;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System.Numerics
@@ -198,7 +202,7 @@ namespace System.Numerics
             }
             if (index < 0 || (values.Length - index) < Count)
             {
-                throw new IndexOutOfRangeException();
+                throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
             }
 
             if (Vector.IsHardwareAccelerated)
@@ -282,6 +286,26 @@ namespace System.Numerics
         private Vector(ref Register existingRegister)
         {
             this.register = existingRegister;
+        }
+
+        /// <summary>
+        /// Constructs a vector from the given span. The span must contain at least Vector'T.Count elements.
+        /// </summary>
+        public Vector(Span<T> values)
+            : this()
+        {
+            <#=GenerateIfConditionAllTypes(supportedTypes)#>
+            {
+                if (values.Length < Count)
+                {
+                    throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
+                }
+                this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
+            }
+            else
+            {
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
+            }
         }
         #endregion Constructors
 
