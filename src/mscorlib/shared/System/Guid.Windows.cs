@@ -14,7 +14,7 @@ namespace System
             // uniqueness guarantees.
 
             Guid g;
-            int hr = Microsoft.Win32.Win32Native.CoCreateGuid(out g);
+            int hr = Interop.Ole32.CoCreateGuid(out g);
             // We don't expect that this will ever throw an error, none are even documented, and so we don't want to pull 
             // in the HR to ComException mappings into the core library just for this so we will try a generic exception if 
             // we ever hit this condition.

@@ -285,6 +285,7 @@ PAL_Random(
                     {
                         continue;
                     }
+                    ASSERT("read() failed, errno:%d (%s)\n", errno, strerror(errno));
 
                     break;
                 }

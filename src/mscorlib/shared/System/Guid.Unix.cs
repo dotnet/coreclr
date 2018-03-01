@@ -9,16 +9,11 @@ namespace System
 {
     partial struct Guid
     {
-        // This will create a new guid.  Since we've now decided that constructors should 0-init,
-        // we need a method that allows users to create a guid.
-        // It creates a random guid based on the https://www.ietf.org/rfc/rfc4122.txt 
+        // This will create a new random guid based on the https://www.ietf.org/rfc/rfc4122.txt 
         public static unsafe Guid NewGuid()
         {
-            const int GuidSize = 16;
-            byte* randomData = stackalloc byte[GuidSize];
-            Interop.GetRandomBytes(randomData, GuidSize);
-
-            Guid g = new Guid(new ReadOnlySpan<byte>(randomData, GuidSize));
+            Guid g = new Guid();
+            Interop.GetRandomBytes((byte*)&g, sizeof(Guid));
             
             const ushort VersionMask = 0xF000;
             const ushort RandomGuidVersion = 0x4000;
