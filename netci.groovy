@@ -194,7 +194,7 @@ class Constants {
             ],
             'arm64': [
                 'Debug'
-            ]
+            ],
             'arm': [
                 'Checked'
             ]
