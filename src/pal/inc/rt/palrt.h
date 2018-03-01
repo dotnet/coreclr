@@ -1577,8 +1577,7 @@ EXTERN_C HRESULT PALAPI PAL_CoCreateInstance(REFCLSID   rclsid,
 // instead of spreading around of if'def FEATURE_PALs for PAL_CoCreateInstance.
 #define CoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv) PAL_CoCreateInstance(rclsid, riid, ppv)
 
-HRESULT
-PALAPI
+STDAPI
 CoCreateGuid(OUT GUID * pguid);
 
 /************** verrsrc.h ************************************/

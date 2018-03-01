@@ -42,7 +42,6 @@ Revision History:
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
-static const char RANDOM_DEVICE_NAME[] ="/dev/random";
 static const char URANDOM_DEVICE_NAME[]="/dev/urandom";
 
 /*++
@@ -232,60 +231,21 @@ PAL_GetPALDirectoryA(
 VOID
 PALAPI
 PAL_Random(
-        IN BOOL bStrong,
         IN OUT LPVOID lpBuffer,
         IN DWORD dwLength)
 {
     int rand_des = -1;
     DWORD i;
-    char buf;
+    BYTE* buf = (BYTE*)alloca(dwLength);
     long num = 0;
-    static BOOL sMissingDevRandom;
     static BOOL sMissingDevURandom;
     static BOOL sInitializedMRand;
 
     PERF_ENTRY(PAL_Random);
-    ENTRY("PAL_Random(bStrong=%d, lpBuffer=%p, dwLength=%d)\n", 
-          bStrong, lpBuffer, dwLength);
+    ENTRY("PAL_Random(lpBuffer=%p, dwLength=%d)\n",
+          lpBuffer, dwLength);
 
-    i = 0;
-
-    if (bStrong == TRUE && i < dwLength && !sMissingDevRandom)
-    {
-        // request non-blocking access to avoid hangs if the /dev/random is exhausted
-        // or just simply broken
-        if ((rand_des = PAL__open(RANDOM_DEVICE_NAME, O_RDONLY | O_NONBLOCK)) == -1)
-        {
-            if (errno == ENOENT)
-            {
-                sMissingDevRandom = TRUE;
-            }
-            else
-            {
-                ASSERT("PAL__open() failed, errno:%d (%s)\n", errno, strerror(errno));
-            }
-
-            // Back off and try /dev/urandom.
-        }
-        else
-        {
-            for( ; i < dwLength; i++)
-            {
-                if (read(rand_des, &buf, 1) < 1)
-                {
-                    // the /dev/random pool has been exhausted.  Fall back
-                    // to /dev/urandom for the remainder of the buffer.
-                    break;
-                }
-
-                *(((BYTE*)lpBuffer) + i) ^= buf;
-            }
-
-            close(rand_des);
-        }
-    }
- 
-    if (i < dwLength && !sMissingDevURandom)
+    if (!sMissingDevURandom)
     {
         if ((rand_des = PAL__open(URANDOM_DEVICE_NAME, O_RDONLY)) == -1)
         {
@@ -302,16 +262,25 @@ PAL_Random(
         }
         else
         {
-            for( ; i < dwLength; i++)
+            size_t index = 0;
+            do
             {
-                if (read(rand_des, &buf, 1) < 1)
+                ssize_t n = read(rand_des, buf + index , dwLength - index);
+                if (n == -1)
                 {
-                    // Fall back to srand48 for the remainder of the buffer.
+                    if (errno == EINTR)
+                    {
+                        continue;
+                    }
+
                     break;
                 }
 
-                *(((BYTE*)lpBuffer) + i) ^= buf;
+                index += n;
             }
+            while (index != dwLength);
+
+            _ASSERTE(index == dwLength);
 
             close(rand_des);
         }
@@ -326,13 +295,13 @@ PAL_Random(
     // always xor srand48 over the whole buffer to get some randomness
     // in case /dev/random is not really random
 
-    for(i = 0; i < dwLength; i++)
+    for (i = 0; i < dwLength; i++)
     {
         if (i % sizeof(long) == 0) {
             num = mrand48();
         }
 
-        *(((BYTE*)lpBuffer) + i) ^= num;
+        *(((BYTE*)lpBuffer) + i) ^= buf[i] ^ num;
         num >>= 8;
     }
 

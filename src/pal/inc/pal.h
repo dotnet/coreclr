@@ -529,7 +529,6 @@ PALIMPORT
 VOID
 PALAPI
 PAL_Random(
-    IN BOOL bStrong,
     IN OUT LPVOID lpBuffer,
     IN DWORD dwLength);
 

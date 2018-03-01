@@ -26,11 +26,10 @@ DEFINE_GUID(IID_ISequentialStream, 0x0c733a30, 0x2a1c, 0x11ce, 0xad, 0xe5, 0x00,
 DEFINE_GUID(IID_IStream, 0x0000000c, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
 
 // Create a random guid based on the https://www.ietf.org/rfc/rfc4122.txt
-HRESULT
-PALAPI
+STDAPI
 CoCreateGuid(OUT GUID * pguid)
 {
-    PAL_Random(TRUE /* bStrong */, pguid, sizeof(GUID));
+    PAL_Random(pguid, sizeof(GUID));
 
     static const USHORT VersionMask = 0xF000;
     static const USHORT RandomGuidVersion = 0x4000;
