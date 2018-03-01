@@ -234,7 +234,7 @@ PAL_Random(
         IN OUT LPVOID lpBuffer,
         IN DWORD dwLength)
 {
-    static volatile int rand_des = -1;
+    int rand_des = -1;
     DWORD i;
     long num = 0;
     static BOOL sMissingDevURandom;
@@ -245,40 +245,31 @@ PAL_Random(
 
     if (!sMissingDevURandom)
     {
+        do
+        {
+            rand_des = open("/dev/urandom", O_RDONLY, O_CLOEXEC);
+        }
+        while ((rand_des == -1) && (errno == EINTR));
+
         if (rand_des == -1)
         {
-            int fd;
-
-            do
-            {
-                fd = open("/dev/urandom", O_RDONLY, O_CLOEXEC);
-            }
-            while ((fd == -1) && (errno == EINTR));
-
-            if (fd != -1)
-            {
-                if (!__sync_bool_compare_and_swap(&rand_des, -1, fd))
-                {
-                    // Another thread has already set the rand_des
-                    close(fd);
-                }
-            }
-            else if (errno == ENOENT)
+            if (errno == ENOENT)
             {                
                 sMissingDevURandom = TRUE;
             }
             else
             {
-                ASSERT("open() failed, errno:%d (%s)\n", errno, strerror(errno));
+                ASSERT("PAL__open() failed, errno:%d (%s)\n", errno, strerror(errno));
             }
-        }
 
-        if (rand_des != -1)
+            // Back off and try mrand48.
+        }
+        else
         {
             DWORD offset = 0;
             do
             {
-                ssize_t n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
+                DWORD n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
                 if (n == -1)
                 {
                     if (errno == EINTR)
@@ -295,6 +286,8 @@ PAL_Random(
             while (offset != dwLength);
 
             _ASSERTE(offset == dwLength);
+
+            close(rand_des);
         }
     }    
 

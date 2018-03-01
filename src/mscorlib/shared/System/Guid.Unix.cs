@@ -12,7 +12,7 @@ namespace System
         // This will create a new random guid based on the https://www.ietf.org/rfc/rfc4122.txt 
         public static unsafe Guid NewGuid()
         {
-            Guid g = new Guid();
+            Guid g;
             Interop.GetRandomBytes((byte*)&g, sizeof(Guid));
             
             const ushort VersionMask = 0xF000;

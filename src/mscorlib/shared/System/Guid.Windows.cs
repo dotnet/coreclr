@@ -6,8 +6,6 @@ namespace System
 {
     partial struct Guid
     {
-        // This will create a new guid.  Since we've now decided that constructors should 0-init,
-        // we need a method that allows users to create a guid.
         public static Guid NewGuid()
         {
             // CoCreateGuid should never return Guid.Empty, since it attempts to maintain some
