@@ -151,6 +151,8 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
             SetThrowHelperBlock(SCK_ARITH_EXCPN, block);
         }
         break;
+        default: // Other opers do not target throw blocks.
+            break;
     }
     if (node->gtOverflowEx())
     {
