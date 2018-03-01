@@ -20,19 +20,18 @@ namespace IntelHardwareIntrinsicTest
         {
             int testResult = Pass;
 
-            if (Sse.IsSupported)
+            if (Sse2.IsSupported)
             {
-                using (TestTable<float> floatTable = new TestTable<float>(new float[4] { 1, -5, 100, 0 }, new float[4]))
+                using (TestTable<uint> uintTable = new TestTable<uint>(new uint[4] { 1, 5, 100, 0 }, new uint[4]))
                 {
-                    var vf1 = Unsafe.Read<Vector128<float>>(floatTable.inArrayPtr);
-                    var vf2 = Sse.ConvertScalarToVector128Single(vf1, 5);
-                    Unsafe.Write(floatTable.outArrayPtr, vf2);
+                    var vu = Sse2.ConvertScalarToVector128UInt32(5);
+                    Unsafe.Write(uintTable.outArrayPtr, vu);
 
-                    if (!floatTable.CheckResult((x, y) => (y[0] == 5)
-                                                       && (y[1] == x[1]) && (y[2] == x[2]) && (y[3] == x[3])))
+                    if (!uintTable.CheckResult((x, y) => (y[0] == 5)
+                                                       && (y[1] == 0) && (y[2] == 0) && (y[3] == 0)))
                     {
-                        Console.WriteLine("SSE ConvertScalarToVector128Single failed on float:");
-                        foreach (var item in floatTable.outArray)
+                        Console.WriteLine("SSE2 ConvertScalarToVector128UInt32 failed on uint:");
+                        foreach (var item in uintTable.outArray)
                         {
                             Console.Write(item + ", ");
                         }
