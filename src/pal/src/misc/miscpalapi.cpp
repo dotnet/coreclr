@@ -236,14 +236,12 @@ PAL_Random(
 {
     int rand_des = -1;
     DWORD i;
-    BYTE* buf = (BYTE*)alloca(dwLength);
     long num = 0;
     static BOOL sMissingDevURandom;
     static BOOL sInitializedMRand;
 
     PERF_ENTRY(PAL_Random);
-    ENTRY("PAL_Random(lpBuffer=%p, dwLength=%d)\n",
-          lpBuffer, dwLength);
+    ENTRY("PAL_Random(lpBuffer=%p, dwLength=%d)\n", lpBuffer, dwLength);
 
     if (!sMissingDevURandom)
     {
@@ -262,10 +260,10 @@ PAL_Random(
         }
         else
         {
-            size_t index = 0;
+            DWORD offset = 0;
             do
             {
-                ssize_t n = read(rand_des, buf + index , dwLength - index);
+                ssize_t n = read(rand_des, (BYTE*)lpBuffer + offset , dwLength - offset);
                 if (n == -1)
                 {
                     if (errno == EINTR)
@@ -276,11 +274,11 @@ PAL_Random(
                     break;
                 }
 
-                index += n;
+                offset += n;
             }
-            while (index != dwLength);
+            while (offset != dwLength);
 
-            _ASSERTE(index == dwLength);
+            _ASSERTE(offset == dwLength);
 
             close(rand_des);
         }
@@ -293,7 +291,7 @@ PAL_Random(
     }
 
     // always xor srand48 over the whole buffer to get some randomness
-    // in case /dev/random is not really random
+    // in case /dev/urandom is not really random
 
     for (i = 0; i < dwLength; i++)
     {
@@ -301,7 +299,7 @@ PAL_Random(
             num = mrand48();
         }
 
-        *(((BYTE*)lpBuffer) + i) ^= buf[i] ^ num;
+        *(((BYTE*)lpBuffer) + i) ^= num;
         num >>= 8;
     }
 
