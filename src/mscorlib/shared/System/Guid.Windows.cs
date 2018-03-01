@@ -11,8 +11,7 @@ namespace System
         public static Guid NewGuid()
         {
             // CoCreateGuid should never return Guid.Empty, since it attempts to maintain some
-            // uniqueness guarantees.  It should also never return a known GUID, but it's unclear
-            // how extensively it checks for known values.
+            // uniqueness guarantees.
 
             Guid g;
             int hr = Microsoft.Win32.Win32Native.CoCreateGuid(out g);

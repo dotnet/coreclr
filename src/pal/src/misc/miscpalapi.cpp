@@ -234,7 +234,7 @@ PAL_Random(
         IN OUT LPVOID lpBuffer,
         IN DWORD dwLength)
 {
-    int rand_des = -1;
+    static volatile int rand_des = -1;
     DWORD i;
     long num = 0;
     static BOOL sMissingDevURandom;
@@ -245,20 +245,35 @@ PAL_Random(
 
     if (!sMissingDevURandom)
     {
-        if ((rand_des = PAL__open(URANDOM_DEVICE_NAME, O_RDONLY)) == -1)
+        if (rand_des == -1)
         {
-            if (errno == ENOENT)
+            int fd;
+
+            do
+            {
+                fd = open("/dev/urandom", O_RDONLY, O_CLOEXEC);
+            }
+            while ((fd == -1) && (errno == EINTR));
+
+            if (fd != -1)
+            {
+                if (!__sync_bool_compare_and_swap(&rand_des, -1, fd))
+                {
+                    // Another thread has already set the rand_des
+                    close(fd);
+                }
+            }
+            else if (errno == ENOENT)
             {                
-                sMissingDevURandom = TRUE;                
+                sMissingDevURandom = TRUE;
             }
             else
             {
-                ASSERT("PAL__open() failed, errno:%d (%s)\n", errno, strerror(errno));               
+                ASSERT("open() failed, errno:%d (%s)\n", errno, strerror(errno));
             }
-
-            // Back off and try mrand48.           
         }
-        else
+
+        if (rand_des != -1)
         {
             DWORD offset = 0;
             do
