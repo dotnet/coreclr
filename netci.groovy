@@ -654,7 +654,7 @@ def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def i
         if (architecture == 'arm64') {
             if (isBuildJob) {
                 affinityOptions = ['is_build_only': true]
-            } else (isTestJob) {
+            } else if (isTestJob) {
                 affinityOptions = [ "large_pages" : false ]
             }
         }
