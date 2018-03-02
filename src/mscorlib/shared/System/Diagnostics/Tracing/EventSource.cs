@@ -537,7 +537,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        #region protected
+#region protected
         /// <summary>
         /// This is the constructor that most users will use to create their eventSource.   It takes 
         /// no parameters.  The ETW provider name and GUID of the EventSource are determined by the EventSource 
@@ -1100,7 +1100,7 @@ namespace System.Diagnostics.Tracing
             /// </summary>
             internal int Reserved { get { return m_Reserved; } set { m_Reserved = value; } }
 
-            #region private
+#region private
             /// <summary>
             /// Initializes the members of this EventData object to point at a previously-pinned
             /// tracelogging-compatible metadata blob.
@@ -1122,7 +1122,7 @@ namespace System.Diagnostics.Tracing
 #pragma warning disable 0649
             internal int m_Reserved;       // Used to pad the size to match the Win32 API
 #pragma warning restore 0649
-            #endregion
+#endregion
         }
 
         /// <summary>
@@ -1288,9 +1288,9 @@ namespace System.Diagnostics.Tracing
             WriteEventVarargs(eventId, &relatedActivityId, args);
         }
 
-        #endregion
+#endregion
 
-        #region IDisposable Members
+#region IDisposable Members
         /// <summary>
         /// Disposes of an EventSource.
         /// </summary>
@@ -1345,9 +1345,9 @@ namespace System.Diagnostics.Tracing
         {
             this.Dispose(false);
         }
-        #endregion
+#endregion
 
-        #region private
+#region private
 
         private unsafe void WriteEventRaw(
             string eventName,
@@ -2718,7 +2718,7 @@ namespace System.Diagnostics.Tracing
 
             Debug.Assert(!SelfDescribingEvents);
 
-#if FEATURE_MANAGED_ETW 
+#if FEATURE_MANAGED_ETW
             fixed (byte* dataPtr = rawManifest)
             {
                 // we don't want the manifest to show up in the event log channels so we specify as keywords 

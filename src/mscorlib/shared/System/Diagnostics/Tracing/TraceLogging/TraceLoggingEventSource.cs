@@ -5,6 +5,9 @@
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
 // It is available from http://www.codeplex.com/hyperAddin 
 
+// TODO: Remove before check-in
+#define FEATURE_PERFTRACING
+
 #if PLATFORM_WINDOWS
 #define FEATURE_MANAGED_ETW
 #endif // PLATFORM_WINDOWS
@@ -889,7 +892,72 @@ namespace System.Diagnostics.Tracing
             }
 
             descriptor = new EventDescriptor(identity, level, opcode, (long)keywords);
+
+#if FEATURE_PERFTRACING
+            // Lookup or create the event.
+            IntPtr eventHandle = GetEventPipeEventHandleForDescriptor(descriptor);
+            if (eventHandle == IntPtr.Zero)
+            {
+                byte[] b = new byte[10];
+                unsafe
+                {
+                    fixed (byte* pB = b)
+                    {
+                        // Define the event.
+                        eventHandle = m_provider.m_eventProvider.DefineEventHandle(
+                            (uint)descriptor.EventId,
+                            name,
+                            descriptor.Keywords,
+                            descriptor.Version,
+                            descriptor.Level,
+                            pB, /* pMetadata */
+                            (uint)b.Length /* metadataLength */);
+                    }
+                }
+
+                // Save the event handle.
+                SaveEventPipeEventHandleForDescriptor(descriptor, eventHandle);
+            }
+#endif
+
             return nameInfo;
         }
+
+#if FEATURE_PERFTRACING
+        // EventPipe requires that every event be registered.
+        //   Key: Event identity (EventDescriptor.m_traceloggingId).
+        //   Value: EventPipe event handle returned from DefineEvent.
+        private Dictionary<int, IntPtr> m_eventIdentityToEventHandleMap = new Dictionary<int, IntPtr>();
+
+        private IntPtr GetEventPipeEventHandleForDescriptor(EventDescriptor descriptor)
+        {
+            if (descriptor == null)
+            {
+                throw new ArgumentNullException(nameof(descriptor));
+            }
+
+            IntPtr ret;
+            if (!m_eventIdentityToEventHandleMap.TryGetValue(descriptor.TraceLoggingId, out ret))
+            {
+                ret = IntPtr.Zero;
+            }
+
+            return ret;
+        }
+
+        private void SaveEventPipeEventHandleForDescriptor(EventDescriptor descriptor, IntPtr eventHandle)
+        {
+            if (descriptor == null)
+            {
+                throw new ArgumentNullException(nameof(descriptor));
+            }
+            if (eventHandle == IntPtr.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(eventHandle));
+            }
+
+            m_eventIdentityToEventHandleMap.Add(descriptor.TraceLoggingId, eventHandle);
+        }
+#endif
     }
 }
