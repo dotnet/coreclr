@@ -327,6 +327,10 @@ void genMultiRegCallStoreToLocal(GenTree* treeNode);
 bool isStructReturn(GenTree* treeNode);
 void genStructReturn(GenTree* treeNode);
 
+#if defined(_TARGET_ARM64_)
+void genSimpleReturn(GenTree* treeNode);
+#endif // _TARGET_ARM64_
+
 void genReturn(GenTree* treeNode);
 
 void genLclHeap(GenTree* tree);
