@@ -595,12 +595,12 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         assert os in supportedArmLinuxOs
 
         if (architecture == 'arm64') {
-            if (options['is_build_only'] == true) {
+            if ((options != null) && (options['is_build_only'] == true)) {
                 // Arm64 Linux build machine
                 Utilities.setMachineAffinity(job, os, 'arm64-cross-latest')
             } else {
                 // Arm64 Linux test machines
-                if (options['large_pages'] == true) {
+                if ((options != null) && (options['large_pages'] == true)) {
                     Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size')
                 } else {
                     Utilities.setMachineAffinity(job, os, 'arm64-small-page-size')
@@ -615,7 +615,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         else {
             // arm Ubuntu on hardware.
             assert (architecture == 'arm') && (os == 'Ubuntu')
-            def isBuild = options['is_build_only'] == true
+            def isBuild = (options != null) && (options['is_build_only'] == true)
             if (isBuild) {
                 // arm Ubuntu build machine: use any Ubuntu x64 machine to cross build arm using Docker.
                 Utilities.setMachineAffinity(job, 'Ubuntu', 'latest-or-auto')
@@ -3058,8 +3058,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // However, it's believed that perhaps there's an issue with executable permission bits not getting
             // copied correctly.
             if (isUbuntuArmJob) {
-                shell("unzip -q -o ./coreroot.zip || exit 0")
-                shell("unzip -q -o ./testnativebin.zip || exit 0")
+                shell("unzip -q -o ./coreroot.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.Checked/Tests/Core_Root
+                shell("unzip -q -o ./testnativebin.zip || exit 0") // unzips to ./bin/obj/Linux.arm.Checked/tests
             }
             else {
                 shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
@@ -3424,9 +3424,13 @@ Constants.allScenarios.each { scenario ->
                         def testBuildScenario = scenario == 'innerloop' ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
-                        if (architecture == "arm64" && os != "Windows_NT") {
+                        if (architecture == "arm64") {
                             // Use the x64 test build for arm64 unix
                             inputTestsBuildArch = "x64"
+                        }
+                        else if (architecture == "arm") {
+                            // Use the x86 test build for arm unix
+                            inputTestsBuildArch = "x86"
                         }
 
                         // If this is a stress scenario, there isn't any difference in the build job, so we didn't create a build only
