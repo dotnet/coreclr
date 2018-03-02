@@ -36,28 +36,24 @@ namespace System
         /// </summary>
         public static bool Equals(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            StringSpanHelpers.CheckStringComparison(comparisonType);
+            string.CheckStringComparison(comparisonType);
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.None) == 0);
+                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value, CompareOptions.None) == 0);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.IgnoreCase) == 0);
+                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.InvariantCulture:
-                    return (CompareInfo.Invariant.Compare(span, value, CompareOptions.None) == 0);
+                    return (CompareInfo.Invariant.CompareOptionNone(span, value, CompareOptions.None) == 0);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.Compare(span, value, CompareOptions.IgnoreCase) == 0);
+                    return (CompareInfo.Invariant.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.Ordinal:
-                    if (span.Length != value.Length)
-                        return false;
-                    if (value.Length == 0)  // span.Length == value.Length == 0
-                        return true;
-                    return span.SequenceEqual(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
+                    return EqualsOrdinal(span, value);
 
                 case StringComparison.OrdinalIgnoreCase:
                     if (span.Length != value.Length)
@@ -71,6 +67,30 @@ namespace System
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool EqualsOrdinal(this ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            if (span.Length != value.Length)
+                return false;
+            if (value.Length == 0)  // span.Length == value.Length == 0
+                return true;
+            return span.SequenceEqual(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
+        }
+
+        // TODO https://github.com/dotnet/corefx/issues/27526
+        internal static bool Contains(this ReadOnlySpan<char> source, char value)
+        {
+            for (int i = 0; i < source.Length; i++)
+            {
+                if (source[i] == value)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Compares the specified <paramref name="span"/> and <paramref name="value"/> using the specified <paramref name="comparisonType"/>,
         /// and returns an integer that indicates their relative position in the sort order.
@@ -80,21 +100,21 @@ namespace System
         /// </summary>
         public static int CompareTo(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            StringSpanHelpers.CheckStringComparison(comparisonType);
+            string.CheckStringComparison(comparisonType);
 
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.None);
+                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value, CompareOptions.None);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.Compare(span, value, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.Compare(span, value, CompareOptions.None);
+                    return CompareInfo.Invariant.CompareOptionNone(span, value, CompareOptions.None);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.Compare(span, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
                     if (span.Length == 0 || value.Length == 0)
@@ -117,7 +137,7 @@ namespace System
         /// </summary>
         public static int IndexOf(this ReadOnlySpan<char> span, ReadOnlySpan<char> value, StringComparison comparisonType)
         {
-            StringSpanHelpers.CheckStringComparison(comparisonType);
+            string.CheckStringComparison(comparisonType);
 
             if (value.Length == 0)
             {
@@ -262,7 +282,7 @@ namespace System
         {
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
+                string.CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -301,7 +321,7 @@ namespace System
         {
             if (value.Length == 0)
             {
-                StringSpanHelpers.CheckStringComparison(comparisonType);
+                string.CheckStringComparison(comparisonType);
                 return true;
             }
 
