@@ -8163,17 +8163,18 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         compiler->fgPtrArgCntMax = 1;
     }
 
-#elif defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#elif defined(_TARGET_ARM_)
+//
+// Push the profilerHandle
+//
 
-    //
-    // Push the profilerHandle
-    //
-
-    // We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
-    // RBM_PROFILER_RET_USED always.
+// We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
+// RBM_PROFILER_RET_USED always.
+#ifdef LEGACY_BACKEND
     regNumber scratchReg = regSet.rsGrabReg(RBM_PROFILER_RET_SCRATCH);
     noway_assert(scratchReg == REG_PROFILER_RET_SCRATCH);
     regSet.rsLockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
     // Contract between JIT and Profiler Leave callout on arm:
     // Return size <= 4 bytes: REG_PROFILER_RET_SCRATCH will contain return value
@@ -8239,7 +8240,9 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
     }
 
+#ifdef LEGACY_BACKEND
     regSet.rsUnlockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
 #else  // target
     NYI("Emit Profiler Leave callback");
