@@ -1332,22 +1332,7 @@ void CodeGen::genReturn(GenTree* treeNode)
 #ifdef _TARGET_X86_
     if (treeNode->TypeGet() == TYP_LONG)
     {
-        assert(op1 != nullptr);
-        noway_assert(op1->OperGet() == GT_LONG);
-        GenTree* loRetVal = op1->gtGetOp1();
-        GenTree* hiRetVal = op1->gtGetOp2();
-        noway_assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
-
-        genConsumeReg(loRetVal);
-        genConsumeReg(hiRetVal);
-        if (loRetVal->gtRegNum != REG_LNGRET_LO)
-        {
-            inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
-        }
-        if (hiRetVal->gtRegNum != REG_LNGRET_HI)
-        {
-            inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
-        }
+        genLongReturn(treeNode);
     }
     else
 #endif // !defined(_TARGET_X86_)

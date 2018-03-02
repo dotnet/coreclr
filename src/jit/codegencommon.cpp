@@ -12771,4 +12771,42 @@ GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
     return i;
 }
 
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+//------------------------------------------------------------------------
+// genLongReturn: Generates code for long return statement for x86 and arm.
+//
+// Note: treeNode's and op1's registers are already consumed.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node with LONG return type.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genLongReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    assert(treeNode->TypeGet() == TYP_LONG);
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
+
+    assert(op1 != nullptr);
+    assert(op1->OperGet() == GT_LONG);
+    GenTree* loRetVal = op1->gtGetOp1();
+    GenTree* hiRetVal = op1->gtGetOp2();
+    assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
+
+    genConsumeReg(loRetVal);
+    genConsumeReg(hiRetVal);
+    if (loRetVal->gtRegNum != REG_LNGRET_LO)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
+    }
+    if (hiRetVal->gtRegNum != REG_LNGRET_HI)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
+    }
+}
+#endif // _TARGET_X86_ || _TARGET_ARM_
+
 #endif // !LEGACY_BACKEND
