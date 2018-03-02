@@ -7915,6 +7915,8 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     regNumber argReg = regSet.rsGrabReg(RBM_PROFILER_ENTER_ARG);
     noway_assert(argReg == REG_PROFILER_ENTER_ARG);
     regSet.rsLockReg(RBM_PROFILER_ENTER_ARG);
+    regMaskTP argRegMask = genRegMask(argReg);
+    assert((regSet.rsMaskPreSpillRegArg & argRegMask) != 0);
 
     if (compiler->compProfilerMethHndIndirected)
     {
