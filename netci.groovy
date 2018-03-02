@@ -2370,8 +2370,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     //     used by runtest.sh as the "--testNativeBinDir" argument.
 
                     // These commands are assumed to be run from the root of the workspace.
-                    buildCommands += "zip -r coreroot.zip ./bin/tests/Linux.arm.{configuration}/Tests/Core_Root"
-                    buildCommands += "zip -r testnativebin.zip ./bin/obj/Linux.arm.{configuration}/tests"
+                    buildCommands += "zip -r coreroot.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
+                    buildCommands += "zip -r testnativebin.zip ./bin/obj/Linux.arm.${configuration}/tests"
 
                     Utilities.addArchival(newJob, "coreroot.zip,testnativebin.zip", "")
                     break
@@ -3077,7 +3077,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
             // If we are running a stress mode, we'll set those variables first
             if (isJitStressScenario(scenario)) {
-                def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                def scriptFileName = "\${WORKSPACE}/set_stress_test_env.sh"
                 def envScriptCmds = envScriptCreate(os, scriptFileName)
                 envScriptCmds += envScriptSetStressModeVariables(os, Constants.jitStressModeScenarios[scenario], scriptFileName)
                 envScriptCmds += envScriptFinalize(os, scriptFileName)
@@ -3095,9 +3095,7 @@ ${dockerCmd}./tests/runtest.sh \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
     --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
-    --copyNativeTestBin \\
-    --limitedDumpGeneration \\
-    ${testOpts}""")
+    --copyNativeTestBin --limitedDumpGeneration ${testOpts}""")
 
             if (isGcReliabilityFramework(scenario)) {
                 // runtest.sh doesn't actually execute the reliability framework - do it here.
