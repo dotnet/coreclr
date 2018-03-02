@@ -159,7 +159,7 @@
         "restoreNugetPackages": "false",
         "logProjectEvents": "false",
         "createLogFile": "false"
-      }
+      } 
     },
     {
       "environment": {},
