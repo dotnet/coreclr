@@ -1252,6 +1252,55 @@ void CodeGen::genStructReturn(GenTree* treeNode)
 #endif
 }
 
+#if defined(_TARGET_X86_)
+
+//------------------------------------------------------------------------
+// genFloatReturn: Generates code for float return statement for x86.
+//
+// Note: treeNode's and op1's registers are already consumed.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node with float type.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genFloatReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    assert(varTypeIsFloating(treeNode));
+
+    GenTree* op1 = treeNode->gtGetOp1();
+    // Spill the return value register from an XMM register to the stack, then load it on the x87 stack.
+    // If it already has a home location, use that. Otherwise, we need a temp.
+    if (genIsRegCandidateLocal(op1) && compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvOnFrame)
+    {
+        if (compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvRegNum != REG_STK)
+        {
+            op1->gtFlags |= GTF_SPILL;
+            inst_TT_RV(ins_Store(op1->gtType, compiler->isSIMDTypeLocalAligned(op1->gtLclVarCommon.gtLclNum)), op1,
+                       op1->gtRegNum);
+        }
+        // Now, load it to the fp stack.
+        getEmitter()->emitIns_S(INS_fld, emitTypeSize(op1), op1->AsLclVarCommon()->gtLclNum, 0);
+    }
+    else
+    {
+        // Spill the value, which should be in a register, then load it to the fp stack.
+        // TODO-X86-CQ: Deal with things that are already in memory (don't call genConsumeReg yet).
+        op1->gtFlags |= GTF_SPILL;
+        regSet.rsSpillTree(op1->gtRegNum, op1);
+        op1->gtFlags |= GTF_SPILLED;
+        op1->gtFlags &= ~GTF_SPILL;
+
+        TempDsc* t = regSet.rsUnspillInPlace(op1, op1->gtRegNum);
+        inst_FS_ST(INS_fld, emitActualTypeSize(op1->gtType), t, 0);
+        op1->gtFlags &= ~GTF_SPILLED;
+        compiler->tmpRlsTemp(t);
+    }
+}
+#endif // _TARGET_X86_
+
 //------------------------------------------------------------------------
 // genReturn: Generates code for return statement.
 //            In case of struct return, delegates to the genStructReturn method.
@@ -1325,34 +1374,7 @@ void CodeGen::genReturn(GenTree* treeNode)
 #ifdef _TARGET_X86_
             if (varTypeIsFloating(treeNode))
             {
-                // Spill the return value register from an XMM register to the stack, then load it on the x87 stack.
-                // If it already has a home location, use that. Otherwise, we need a temp.
-                if (genIsRegCandidateLocal(op1) && compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvOnFrame)
-                {
-                    if (compiler->lvaTable[op1->gtLclVarCommon.gtLclNum].lvRegNum != REG_STK)
-                    {
-                        op1->gtFlags |= GTF_SPILL;
-                        inst_TT_RV(ins_Store(op1->gtType,
-                                             compiler->isSIMDTypeLocalAligned(op1->gtLclVarCommon.gtLclNum)),
-                                   op1, op1->gtRegNum);
-                    }
-                    // Now, load it to the fp stack.
-                    getEmitter()->emitIns_S(INS_fld, emitTypeSize(op1), op1->AsLclVarCommon()->gtLclNum, 0);
-                }
-                else
-                {
-                    // Spill the value, which should be in a register, then load it to the fp stack.
-                    // TODO-X86-CQ: Deal with things that are already in memory (don't call genConsumeReg yet).
-                    op1->gtFlags |= GTF_SPILL;
-                    regSet.rsSpillTree(op1->gtRegNum, op1);
-                    op1->gtFlags |= GTF_SPILLED;
-                    op1->gtFlags &= ~GTF_SPILL;
-
-                    TempDsc* t = regSet.rsUnspillInPlace(op1, op1->gtRegNum);
-                    inst_FS_ST(INS_fld, emitActualTypeSize(op1->gtType), t, 0);
-                    op1->gtFlags &= ~GTF_SPILLED;
-                    compiler->tmpRlsTemp(t);
-                }
+                genFloatReturn(treeNode);
             }
             else
 #endif // _TARGET_X86_
