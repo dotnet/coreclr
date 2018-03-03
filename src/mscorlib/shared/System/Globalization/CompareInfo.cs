@@ -389,20 +389,18 @@ namespace System.Globalization
             return CompareString(string1, string2, options);
         }
 
-        internal virtual int CompareOptionNone(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2, CompareOptions options)
+        internal virtual int CompareOptionNone(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2)
         {
-            Debug.Assert(options == CompareOptions.None);
             return _invariantMode ?
                 string.CompareOrdinal(string1, string2) :
-                CompareString(string1, string2, options);
+                CompareString(string1, string2, CompareOptions.None);
         }
 
-        internal virtual int CompareOptionIgnoreCase(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2, CompareOptions options)
+        internal virtual int CompareOptionIgnoreCase(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2)
         {
-            Debug.Assert(options == CompareOptions.IgnoreCase);
             return _invariantMode ?
                 CompareOrdinalIgnoreCase(string1, string2) :
-                CompareString(string1, string2, options);
+                CompareString(string1, string2, CompareOptions.IgnoreCase);
         }
 
         ////////////////////////////////////////////////////////////////////////

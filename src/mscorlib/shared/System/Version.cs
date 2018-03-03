@@ -336,9 +336,11 @@ namespace System
             int minorEnd = input.Slice(majorEnd + 1).IndexOf('.');
             if (minorEnd != -1)
             {
+                minorEnd += (majorEnd + 1);
                 buildEnd = input.Slice(minorEnd + 1).IndexOf('.');
                 if (buildEnd != -1)
                 {
+                    buildEnd += (minorEnd + 1);
                     if (input.Slice(buildEnd + 1).IndexOf('.') != -1)
                     {
                         if (throwOnFailure) throw new ArgumentException(SR.Arg_VersionString, nameof(input));
@@ -347,10 +349,10 @@ namespace System
                 }
             }
 
-            int major, minor, build, revision;
+            int minor, build, revision;
 
             // Parse the major version
-            if (!TryParseComponent(input.Slice(0, majorEnd), nameof(input), throwOnFailure, out major))
+            if (!TryParseComponent(input.Slice(0, majorEnd), nameof(input), throwOnFailure, out int major))
             {
                 return null;
             }

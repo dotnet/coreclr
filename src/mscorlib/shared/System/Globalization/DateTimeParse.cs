@@ -5045,7 +5045,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                         {
                             return false;
                         }
-                        if (m_info.CompareOptionIgnoreCase(Value.Slice(thisPosition, segmentLength), target.AsSpan().Slice(targetPosition, segmentLength), CompareOptions.IgnoreCase) != 0)
+                        if (m_info.CompareOptionIgnoreCase(Value.Slice(thisPosition, segmentLength), target.AsSpan().Slice(targetPosition, segmentLength)) != 0)
                         {
                             return false;
                         }
@@ -5071,7 +5071,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                     {
                         return false;
                     }
-                    if (m_info.CompareOptionIgnoreCase(Value.Slice(thisPosition, segmentLength), target.AsSpan().Slice(targetPosition, segmentLength), CompareOptions.IgnoreCase) != 0)
+                    if (m_info.CompareOptionIgnoreCase(Value.Slice(thisPosition, segmentLength), target.AsSpan().Slice(targetPosition, segmentLength)) != 0)
                     {
                         return false;
                     }
@@ -5314,7 +5314,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             // Check if the last character is a quote.
             if (ch == '\'' || ch == '\"')
             {
-                while ((i + 1) < Length && Char.IsWhiteSpace(Value[i + 1]))
+                while ((i + 1) < Length && char.IsWhiteSpace(Value[i + 1]))
                 {
                     i++;
                 }

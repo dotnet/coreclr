@@ -41,26 +41,22 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value, CompareOptions.None) == 0);
+                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value) == 0);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase) == 0);
+                    return (CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value) == 0);
 
                 case StringComparison.InvariantCulture:
-                    return (CompareInfo.Invariant.CompareOptionNone(span, value, CompareOptions.None) == 0);
+                    return (CompareInfo.Invariant.CompareOptionNone(span, value) == 0);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase) == 0);
+                    return (CompareInfo.Invariant.CompareOptionIgnoreCase(span, value) == 0);
 
                 case StringComparison.Ordinal:
                     return EqualsOrdinal(span, value);
 
                 case StringComparison.OrdinalIgnoreCase:
-                    if (span.Length != value.Length)
-                        return false;
-                    if (value.Length == 0)  // span.Length == value.Length == 0
-                        return true;
-                    return (CompareInfo.CompareOrdinalIgnoreCase(span, value) == 0);
+                    return EqualsOrdinalIgnoreCase(span, value);
             }
 
             Debug.Fail("StringComparison outside range");
@@ -75,6 +71,16 @@ namespace System
             if (value.Length == 0)  // span.Length == value.Length == 0
                 return true;
             return span.SequenceEqual(value); //TODO: Optimize - https://github.com/dotnet/corefx/issues/27487
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool EqualsOrdinalIgnoreCase(this ReadOnlySpan<char> span, ReadOnlySpan<char> value)
+        {
+            if (span.Length != value.Length)
+                return false;
+            if (value.Length == 0)  // span.Length == value.Length == 0
+                return true;
+            return (CompareInfo.CompareOrdinalIgnoreCase(span, value) == 0);
         }
 
         // TODO https://github.com/dotnet/corefx/issues/27526
@@ -105,16 +111,16 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
-                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value, CompareOptions.None);
+                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionNone(span, value);
 
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase);
+                    return CultureInfo.CurrentCulture.CompareInfo.CompareOptionIgnoreCase(span, value);
 
                 case StringComparison.InvariantCulture:
-                    return CompareInfo.Invariant.CompareOptionNone(span, value, CompareOptions.None);
+                    return CompareInfo.Invariant.CompareOptionNone(span, value);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.CompareOptionIgnoreCase(span, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.CompareOptionIgnoreCase(span, value);
 
                 case StringComparison.Ordinal:
                     if (span.Length == 0 || value.Length == 0)

@@ -1158,12 +1158,12 @@ namespace System
 
         public bool StartsWith(char value) => Length != 0 && _firstChar == value;
 
-        public static void CheckStringComparison(StringComparison comparisonType)
+        internal static void CheckStringComparison(StringComparison comparisonType)
         {
             // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
             if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
             {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
+                ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
             }
         }
     }
