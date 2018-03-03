@@ -1352,6 +1352,7 @@ namespace System.Diagnostics.Tracing
         private unsafe void WriteEventRaw(
             string eventName,
             ref EventDescriptor eventDescriptor,
+            IntPtr eventHandle,
             Guid* activityID,
             Guid* relatedActivityID,
             int dataCount,
@@ -1364,7 +1365,7 @@ namespace System.Diagnostics.Tracing
             }
             else
             {
-                if (!m_provider.WriteEventRaw(ref eventDescriptor, activityID, relatedActivityID, dataCount, data))
+                if (!m_provider.WriteEventRaw(ref eventDescriptor, eventHandle, activityID, relatedActivityID, dataCount, data))
                     ThrowEventSourceException(eventName);
             }
 #endif // FEATURE_MANAGED_ETW

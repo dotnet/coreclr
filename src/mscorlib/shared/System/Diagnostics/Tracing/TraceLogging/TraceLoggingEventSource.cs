@@ -434,6 +434,13 @@ namespace System.Diagnostics.Tracing
             identity = nameInfo.identity;
             EventDescriptor descriptor = new EventDescriptor(identity, level, opcode, (long)keywords);
 
+#if FEATURE_PERFTRACING
+            IntPtr eventHandle = GetOrCreateEventHandle(eventName ?? eventTypes.Name, descriptor, eventTypes);
+            Debug.Assert(eventHandle != IntPtr.Zero);
+#else
+            IntPtr eventHandle = IntPtr.Zero;
+#endif
+
             var pinCount = eventTypes.pinCount;
             var scratch = stackalloc byte[eventTypes.scratchSize];
             var descriptors = stackalloc EventData[eventTypes.dataCount + 3];
@@ -475,6 +482,7 @@ namespace System.Diagnostics.Tracing
                     this.WriteEventRaw(
                         eventName,
                         ref descriptor,
+                        eventHandle,
                         activityID,
                         childActivityID,
                         (int)(DataCollector.ThreadInstance.Finish() - descriptors),
@@ -541,6 +549,13 @@ namespace System.Diagnostics.Tracing
                     return;
                 }
 
+#if FEATURE_PERFTRACING
+                    IntPtr eventHandle = GetOrCreateEventHandle(eventName, descriptor, eventTypes);
+                    Debug.Assert(eventHandle != IntPtr.Zero);
+#else
+                    IntPtr eventHandle = IntPtr.Zero;
+#endif
+
                 // We make a descriptor for each EventData, and because we morph strings to counted strings
                 // we may have 2 for each arg, so we allocate enough for this.  
                 var descriptorsLength = eventTypes.dataCount + eventTypes.typeInfos.Length * 2 + 3;
@@ -589,6 +604,7 @@ namespace System.Diagnostics.Tracing
                     this.WriteEventRaw(
                         eventName,
                         ref descriptor,
+                        eventHandle,
                         activityID,
                         childActivityID,
                         numDescrs,
@@ -618,6 +634,13 @@ namespace System.Diagnostics.Tracing
                         return;
                     }
 
+#if FEATURE_PERFTRACING
+                    IntPtr eventHandle = GetOrCreateEventHandle(eventName, descriptor, eventTypes);
+                    Debug.Assert(eventHandle != IntPtr.Zero);
+#else
+                    IntPtr eventHandle = IntPtr.Zero;
+#endif
+
 #if FEATURE_MANAGED_ETW
                     var pinCount = eventTypes.pinCount;
                     var scratch = stackalloc byte[eventTypes.scratchSize];
@@ -640,7 +663,7 @@ namespace System.Diagnostics.Tracing
 #endif // FEATURE_MANAGED_ETW
 
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
-                        System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
+                    System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
 #endif
                         EventOpcode opcode = (EventOpcode)descriptor.Opcode;
 
@@ -680,6 +703,7 @@ namespace System.Diagnostics.Tracing
                             this.WriteEventRaw(
                                 eventName,
                                 ref descriptor,
+                                eventHandle,
                                 pActivityId,
                                 pRelatedActivityId,
                                 (int)(DataCollector.ThreadInstance.Finish() - descriptors),
@@ -892,8 +916,13 @@ namespace System.Diagnostics.Tracing
             }
 
             descriptor = new EventDescriptor(identity, level, opcode, (long)keywords);
+            return nameInfo;
+        }
 
 #if FEATURE_PERFTRACING
+
+        private IntPtr GetOrCreateEventHandle(string eventName, EventDescriptor descriptor, TraceLoggingEventTypes eventInfo)
+        {
             // Lookup or create the event.
             IntPtr eventHandle = GetEventPipeEventHandleForDescriptor(descriptor);
             if (eventHandle == IntPtr.Zero)
@@ -906,7 +935,7 @@ namespace System.Diagnostics.Tracing
                         // Define the event.
                         eventHandle = m_provider.m_eventProvider.DefineEventHandle(
                             (uint)descriptor.EventId,
-                            name,
+                            eventName,
                             descriptor.Keywords,
                             descriptor.Version,
                             descriptor.Level,
@@ -918,12 +947,10 @@ namespace System.Diagnostics.Tracing
                 // Save the event handle.
                 SaveEventPipeEventHandleForDescriptor(descriptor, eventHandle);
             }
-#endif
 
-            return nameInfo;
+            return eventHandle;
         }
 
-#if FEATURE_PERFTRACING
         // EventPipe requires that every event be registered.
         //   Key: Event identity (EventDescriptor.m_traceloggingId).
         //   Value: EventPipe event handle returned from DefineEvent.
