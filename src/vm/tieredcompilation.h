@@ -32,7 +32,6 @@ public:
     void OnMethodCalled(MethodDesc* pMethodDesc, DWORD currentCallCount, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToTier1Ref);
     void OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc);
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
-    static void ShutdownAllDomains();
     void Shutdown();
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
 

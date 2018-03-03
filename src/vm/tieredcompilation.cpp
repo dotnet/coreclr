@@ -317,23 +317,6 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
     return;
 }
 
-// static
-// called from EEShutDownHelper
-void TieredCompilationManager::ShutdownAllDomains()
-{
-    STANDARD_VM_CONTRACT;
-
-    AppDomainIterator domain(TRUE);
-    while (domain.Next())
-    {
-        AppDomain * pDomain = domain.GetDomain();
-        if (pDomain != NULL)
-        {
-            pDomain->GetTieredCompilationManager()->Shutdown();
-        }
-    }
-}
-
 void TieredCompilationManager::Shutdown()
 {
     STANDARD_VM_CONTRACT;
