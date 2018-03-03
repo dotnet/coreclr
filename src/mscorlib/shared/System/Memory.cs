@@ -18,8 +18,8 @@ namespace System
     /// Memory represents a contiguous region of arbitrary memory similar to <see cref="Span{T}"/>.
     /// Unlike <see cref="Span{T}"/>, it is not a byref-like type.
     /// </summary>
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
+    [DebuggerDisplay("{ToString(),raw}")]
     public readonly struct Memory<T>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
@@ -145,9 +145,6 @@ namespace System
         public static implicit operator ReadOnlyMemory<T>(Memory<T> memory) =>
             Unsafe.As<Memory<T>, ReadOnlyMemory<T>>(ref memory);
 
-        //Debugger Display = {T[length]}
-        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
-
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
         /// </summary>
@@ -162,6 +159,30 @@ namespace System
         /// Returns true if Length is 0.
         /// </summary>
         public bool IsEmpty => _length == 0;
+
+        /// <summary>
+        /// For <see cref="Memory{Char}"/>, returns a new instance of string that represents the characters pointed to by the memory.
+        /// Otherwise, returns a <see cref="string"/> with the name of the type and the number of elements.
+        /// </summary>
+        public override string ToString()
+        {
+            if (typeof(T) == typeof(char))
+            {
+                if (_object is string str)
+                {
+                    return str.Substring(_index, _length);
+                }
+                else if (_index < 0)
+                {
+                    return Span.ToString();
+                }
+                else if (_object != null)
+                {
+                    return new string((char[])_object);
+                }
+            }
+            return string.Format("System.Memory<{0}>[{1}]", typeof(T).Name, _length);
+        }
 
         /// <summary>
         /// Forms a slice out of the given memory, beginning at 'start'.

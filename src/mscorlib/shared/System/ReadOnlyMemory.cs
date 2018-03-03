@@ -18,8 +18,8 @@ namespace System
     /// Represents a contiguous region of memory, similar to <see cref="ReadOnlySpan{T}"/>.
     /// Unlike <see cref="ReadOnlySpan{T}"/>, it is not a byref-like type.
     /// </summary>
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
+    [DebuggerDisplay("{ToString(),raw}")]
     public readonly struct ReadOnlyMemory<T>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
@@ -97,9 +97,6 @@ namespace System
             _length = length;
         }
 
-        //Debugger Display = {T[length]}
-        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
-
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="ReadOnlyMemory{T}"/>
         /// </summary>
@@ -124,6 +121,30 @@ namespace System
         /// Returns true if Length is 0.
         /// </summary>
         public bool IsEmpty => _length == 0;
+
+        /// <summary>
+        /// For <see cref="ReadOnlyMemory{Char}"/>, returns a new instance of string that represents the characters pointed to by the memory.
+        /// Otherwise, returns a <see cref="string"/> with the name of the type and the number of elements.
+        /// </summary>
+        public override string ToString()
+        {
+            if (typeof(T) == typeof(char))
+            {
+                if (_object is string str)
+                {
+                    return str.Substring(_index, _length);
+                }
+                else if (_index < 0)
+                {
+                    return Span.ToString();
+                }
+                else if (_object != null)
+                {
+                    return new string((char[])_object);
+                }
+            }
+            return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
+        }
 
         /// <summary>
         /// Forms a slice out of the given memory, beginning at 'start'.
