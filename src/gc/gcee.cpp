@@ -607,6 +607,11 @@ bool GCHeap::RuntimeStructuresValid()
     return GCScan::GetGcRuntimeStructuresValid();
 }
 
+void GCHeap::SetSuspensionPending(bool fSuspensionPending)
+{
+    g_fSuspensionPending = fSuspensionPending;
+}
+
 void GCHeap::ControlEvents(GCEventKeyword keyword, GCEventLevel level)
 {
     GCEventStatus::Set(GCEventProvider_Default, keyword, level);
