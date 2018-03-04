@@ -130,18 +130,7 @@ namespace System
         {
             if (typeof(T) == typeof(char))
             {
-                if (_object is string str)
-                {
-                    return str.Substring(_index, _length);
-                }
-                else if (_index < 0)
-                {
-                    return Span.ToString();
-                }
-                else if (_object != null)
-                {
-                    return new string((char[])_object);
-                }
+                return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
             }
             return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
         }
