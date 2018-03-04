@@ -69,7 +69,7 @@ int compact_ratio = 0;
 BOOL reset_mm_p = TRUE;
 
 bool g_fFinalizerRunOnShutDown = false;
-bool g_fSuspensionPending = false;
+VOLATILE(int32_t) g_fSuspensionPending = 0;
 
 #ifdef FEATURE_SVR_GC
 bool g_built_with_svr_gc = true;
@@ -25142,11 +25142,15 @@ void gc_heap::recover_bgc_settings()
 void gc_heap::allow_fgc()
 {
     assert (bgc_thread == GCToEEInterface::GetThread());
+    bool bToggleGC = false;
 
-    if (GCToEEInterface::IsPreemptiveGCDisabled() && GCToEEInterface::CatchAtSafePoint())
+    if (g_fSuspensionPending > 0)
     {
-        GCToEEInterface::EnablePreemptiveGC();
-        GCToEEInterface::DisablePreemptiveGC();
+        bToggleGC = GCToEEInterface::EnablePreemptiveGC();
+        if (bToggleGC)
+        {
+            GCToEEInterface::DisablePreemptiveGC();
+        }
     }
 }
 

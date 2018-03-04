@@ -177,10 +177,17 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
     return pThread->PreemptiveGCDisabled();
 }
 
-void GCToEEInterface::EnablePreemptiveGC()
+bool GCToEEInterface::EnablePreemptiveGC()
 {
     Thread* pThread = ::GetThread();
-    return pThread->EnablePreemptiveGC();
+    bool bToggleGC = GCToEEInterface::IsPreemptiveGCDisabled();
+
+    if (pThread && bToggleGC)
+    {
+        pThread->EnablePreemptiveGC();
+    }
+
+    return bToggleGC;
 }
 
 void GCToEEInterface::DisablePreemptiveGC()

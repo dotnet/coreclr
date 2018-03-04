@@ -609,7 +609,14 @@ bool GCHeap::RuntimeStructuresValid()
 
 void GCHeap::SetSuspensionPending(bool fSuspensionPending)
 {
-    g_fSuspensionPending = fSuspensionPending;
+    if (fSuspensionPending)
+    {
+        Interlocked::Increment(&g_fSuspensionPending);
+    }
+    else
+    {
+        Interlocked::Decrement(&g_fSuspensionPending);
+    }
 }
 
 void GCHeap::ControlEvents(GCEventKeyword keyword, GCEventLevel level)

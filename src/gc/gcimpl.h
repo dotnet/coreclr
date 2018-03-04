@@ -41,7 +41,7 @@ extern bool g_fFinalizerRunOnShutDown;
 extern bool g_built_with_svr_gc;
 extern uint8_t g_build_variant;
 extern VOLATILE(int32_t) g_no_gc_lock;
-extern bool g_fSuspensionPending;
+extern VOLATILE(int32_t) g_fSuspensionPending;
 
 class GCHeap : public IGCHeapInternal
 {

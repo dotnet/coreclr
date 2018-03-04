@@ -3586,14 +3586,14 @@ void ThreadStore::TrapReturningThreads(BOOL yes)
     else
     {
         FastInterlockDecrement (&g_TrapReturningThreads);
+        GCHeapUtilities::GetGCHeap()->SetSuspensionPending(false);
 
+#ifdef ENABLE_FAST_GCPOLL_HELPER
         if (0 == g_TrapReturningThreads)
         {
-            GCHeapUtilities::GetGCHeap()->SetSuspensionPending(false);
-#ifdef ENABLE_FAST_GCPOLL_HELPER
             DisableJitGCPoll();
-#endif
         }
+#endif
 
         _ASSERTE(g_TrapReturningThreads >= 0);
     }
