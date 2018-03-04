@@ -70,6 +70,11 @@ namespace System
             throw new ArgumentException(SR.Argument_DestinationTooShort);
         }
 
+        internal static void ThrowArgumentException_OverlapAlignmentMismatch()
+        {
+            throw new ArgumentException(SR.Argument_OverlapAlignmentMismatch);
+        }
+
         internal static void ThrowArgumentOutOfRange_IndexException()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index,
@@ -471,7 +476,11 @@ namespace System
         pointer,
         start,
         format,
-        culture
+        culture,
+        comparable,
+        source,
+        state,
+        comparisonType
     }
 
     //
@@ -581,6 +590,7 @@ namespace System
         InvalidOperation_HandleIsNotInitialized,
         AsyncMethodBuilder_InstanceNotInitialized,
         ArgumentNull_SafeHandle,
+        NotSupported_StringComparison,
     }
 }
 

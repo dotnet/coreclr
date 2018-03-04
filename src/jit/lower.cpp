@@ -204,6 +204,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             ContainCheckBoundsChk(node->AsBoundsChk());
             break;
 #endif // _TARGET_XARCH_
@@ -2146,10 +2149,12 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                     // Create tmp and use it in place of callerArgDsc
                     if (tmpLclNum == BAD_VAR_NUM)
                     {
+                        // Set tmpType first before calling lvaGrabTemp, as that call invalidates callerArgDsc
+                        tmpType   = genActualType(callerArgDsc->lvaArgType());
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
+
                         comp->lvaSortAgain                          = true;
-                        tmpType                                     = genActualType(callerArgDsc->lvaArgType());
                         comp->lvaTable[tmpLclNum].lvType            = tmpType;
                         comp->lvaTable[tmpLclNum].lvRefCnt          = 1;
                         comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;

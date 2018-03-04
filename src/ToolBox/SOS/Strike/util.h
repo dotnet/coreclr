@@ -60,6 +60,10 @@ struct IMDInternalImport;
 #define POINTERSIZE_TYPE "I32"
 #endif
 
+#ifndef TARGET_POINTER_SIZE
+#define TARGET_POINTER_SIZE POINTERSIZE_BYTES
+#endif // TARGET_POINTER_SIZE
+
 #if defined(_MSC_VER)
 #pragma warning(disable:4510 4512 4610)
 #endif
@@ -1942,27 +1946,6 @@ void PrintNotReachableInRange(TADDR rngStart, TADDR rngEnd, BOOL bExcludeReadyFo
     HeapStat* stat, BOOL bShort);
 
 const char *EHTypeName(EHClauseType et);
-
-template<typename T>
-inline const LPCSTR GetTransparency(const T &t)
-{
-    if (!t.bHasCriticalTransparentInfo)
-    {
-        return "Not calculated";
-    }
-    else if (t.bIsCritical && !t.bIsTreatAsSafe)
-    {
-        return "Critical";
-    }
-    else if (t.bIsCritical)
-    {
-        return "Safe critical";
-    }
-    else
-    {
-        return "Transparent";
-    }
-}
 
 struct StringHolder
 {

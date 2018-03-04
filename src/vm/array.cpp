@@ -503,10 +503,10 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     if (arrayKind == ELEMENT_TYPE_ARRAY)
         baseSize += Rank*sizeof(DWORD)*2;
 
-#if !defined(_WIN64) && (DATA_ALIGNMENT > 4) 
+#if !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4)
     if (dwComponentSize >= DATA_ALIGNMENT)
         baseSize = (DWORD)ALIGN_UP(baseSize, DATA_ALIGNMENT);
-#endif // !defined(_WIN64) && (DATA_ALIGNMENT > 4)
+#endif // !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4)
     pMT->SetBaseSize(baseSize);
     // Because of array method table persisting, we need to copy the map
     for (unsigned index = 0; index < pParentClass->GetNumInterfaces(); ++index)
@@ -704,9 +704,9 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
                          - ObjSizeOf(Object) - currentOffset;
                 }
 
-                _ASSERTE(!"Module::CreateArrayMethodTable() - unaligned GC info" || IS_ALIGNED(skip, sizeof(size_t)));
+                _ASSERTE(!"Module::CreateArrayMethodTable() - unaligned GC info" || IS_ALIGNED(skip, TARGET_POINTER_SIZE));
 
-                unsigned short NumPtrs = (unsigned short) (numPtrsInBytes / sizeof(void*));
+                unsigned short NumPtrs = (unsigned short) (numPtrsInBytes / TARGET_POINTER_SIZE);
                 if(skip > MAX_SIZE_FOR_VALUECLASS_IN_ARRAY || numPtrsInBytes > MAX_PTRS_FOR_VALUECLASSS_IN_ARRAY) {
                     StackSString ssElemName;
                     elemTypeHnd.GetName(ssElemName);
