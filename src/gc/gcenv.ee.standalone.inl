@@ -95,11 +95,10 @@ inline bool GCToEEInterface::IsPreemptiveGCDisabled()
     return g_theGCToCLR->IsPreemptiveGCDisabled();
 }
 
-
-inline void GCToEEInterface::EnablePreemptiveGC()
+inline bool GCToEEInterface::EnablePreemptiveGC()
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->EnablePreemptiveGC();
+    return  g_theGCToCLR->EnablePreemptiveGC();
 }
 
 inline void GCToEEInterface::DisablePreemptiveGC()

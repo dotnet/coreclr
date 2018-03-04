@@ -1588,10 +1588,7 @@ void WaitLongerNoInstru (int i)
 {
     // every 8th attempt:
     Thread* pCurThread = GCToEEInterface::GetThread();
-    bool bToggleGC = GCToEEInterface::IsPreemptiveGCDisabled();
-    if (bToggleGC) {
-        GCToEEInterface::EnablePreemptiveGC();
-    }
+    bool bToggleGC = GCToEEInterface::EnablePreemptiveGC();
 
     // if we're waiting for gc to finish, we should block immediately
     if (!GCToEEInterface::TrapReturningThreads())
@@ -1765,15 +1762,8 @@ void WaitLonger (int i
     bool bToggleGC = false;
     if (pCurThread)
     {
-        bToggleGC = GCToEEInterface::IsPreemptiveGCDisabled();
-        if (bToggleGC)
-        {
-            GCToEEInterface::EnablePreemptiveGC();
-        }
-        else
-        {
-            assert (!"bToggleGC == TRUE");
-        }
+        bToggleGC = GCToEEInterface::EnablePreemptiveGC();
+        assert (bToggleGC);
     }
 
     // if we're waiting for gc to finish, we should block immediately
@@ -1885,13 +1875,7 @@ static void leave_spin_lock (GCSpinLock * spin_lock)
 
 bool gc_heap::enable_preemptive ()
 {
-    bool cooperative_mode = GCToEEInterface::IsPreemptiveGCDisabled();
-    if (cooperative_mode)
-    {
-        GCToEEInterface::EnablePreemptiveGC();
-    }
-
-    return cooperative_mode;
+    return GCToEEInterface::EnablePreemptiveGC();
 }
 
 void gc_heap::disable_preemptive (bool restore_cooperative)

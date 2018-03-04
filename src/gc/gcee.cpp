@@ -461,10 +461,9 @@ uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int tim
     if (!no_mode_change)
     {
         pCurThread = GCToEEInterface::GetThread();
-        mode = pCurThread ? GCToEEInterface::IsPreemptiveGCDisabled() : false;
-        if (mode)
+        if (pCurThread != NULL)
         {
-            GCToEEInterface::EnablePreemptiveGC();
+            mode = GCToEEInterface::EnablePreemptiveGC();
         }
     }
 

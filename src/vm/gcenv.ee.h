@@ -30,7 +30,7 @@ public:
     void SyncBlockCachePromotionsGranted(int max_gen);
     uint32_t GetActiveSyncBlockCount();
     bool IsPreemptiveGCDisabled();
-    void EnablePreemptiveGC();
+    bool EnablePreemptiveGC();
     void DisablePreemptiveGC();
     Thread* GetThread();
     bool TrapReturningThreads();

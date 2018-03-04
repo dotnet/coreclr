@@ -88,11 +88,7 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (NULL != pCurThread)
         {
-            if (GCToEEInterface::IsPreemptiveGCDisabled())
-            {
-                GCToEEInterface::EnablePreemptiveGC();
-                disablePreemptive = true;
-            }
+            disablePreemptive = GCToEEInterface::EnablePreemptiveGC();
         }
 
         result = WaitForSingleObjectEx(m_hEvent, dwMilliseconds, bAlertable);

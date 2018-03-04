@@ -48,7 +48,7 @@ public:
 
     // Thread functions
     static bool IsPreemptiveGCDisabled();
-    static void EnablePreemptiveGC();
+    static bool EnablePreemptiveGC();
     static void DisablePreemptiveGC();
     static bool TrapReturningThreads();
     static Thread* GetThread();

@@ -227,7 +227,7 @@ public:
 
     // Enables preemptive GC on the current thread.
     virtual
-    void EnablePreemptiveGC() = 0;
+    bool EnablePreemptiveGC() = 0;
 
     // Disables preemptive GC on the current thread.
     virtual
