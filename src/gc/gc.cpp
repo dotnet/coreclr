@@ -1588,11 +1588,10 @@ inline bool can_use_write_watch_for_card_table()
 void WaitLongerNoInstru (int i)
 {
     // every 8th attempt:
-    Thread* pCurThread = GCToEEInterface::GetThread();
     bool bToggleGC = GCToEEInterface::EnablePreemptiveGC();
 
     // if we're waiting for gc to finish, we should block immediately
-    if (!GCToEEInterface::TrapReturningThreads())
+    if (g_fSuspensionPending == 0)
     {
         if  (g_num_processors > 1)
         {
@@ -1610,30 +1609,23 @@ void WaitLongerNoInstru (int i)
     // or it has no Thread object, in order to force a task to yield, or to triger a GC.
     // It is important that the thread is going to wait for GC.  Otherwise the thread
     // is in a tight loop.  If the thread has high priority, the perf is going to be very BAD.
-    if (pCurThread)
+    if (bToggleGC)
     {
-        if (bToggleGC || GCToEEInterface::TrapReturningThreads())
-        {
 #ifdef _DEBUG
-            // In debug builds, all enter_spin_lock operations go through this code.  If a GC has
-            // started, it is important to block until the GC thread calls set_gc_done (since it is
-            // guaranteed to have cleared g_TrapReturningThreads by this point).  This avoids livelock
-            // conditions which can otherwise occur if threads are allowed to spin in this function
-            // (and therefore starve the GC thread) between the point when the GC thread sets the
-            // WaitForGC event and the point when the GC thread clears g_TrapReturningThreads.
-            if (gc_heap::gc_started)
-            {
-                gc_heap::wait_for_gc_done();
-            }
-#endif // _DEBUG
-            GCToEEInterface::DisablePreemptiveGC();
-            if (!bToggleGC)
-            {
-                GCToEEInterface::EnablePreemptiveGC();
-            }
+        // In debug builds, all enter_spin_lock operations go through this code.  If a GC has
+        // started, it is important to block until the GC thread calls set_gc_done (since it is
+        // guaranteed to have cleared g_TrapReturningThreads by this point).  This avoids livelock
+        // conditions which can otherwise occur if threads are allowed to spin in this function
+        // (and therefore starve the GC thread) between the point when the GC thread sets the
+        // WaitForGC event and the point when the GC thread clears g_TrapReturningThreads.
+        if (gc_heap::gc_started)
+        {
+            gc_heap::wait_for_gc_done();
         }
+#endif // _DEBUG
+        GCToEEInterface::DisablePreemptiveGC();
     }
-    else if (GCToEEInterface::TrapReturningThreads())
+    else if (g_fSuspensionPending > 0)
     {
         g_theGCHeap->WaitUntilGCComplete();
     }
@@ -1760,12 +1752,8 @@ void WaitLonger (int i
 #endif //SYNCHRONIZATION_STATS
 
     // every 8th attempt:
-    bool bToggleGC = false;
-    if (pCurThread)
-    {
-        bToggleGC = GCToEEInterface::EnablePreemptiveGC();
-        assert (bToggleGC);
-    }
+    bool bToggleGC = GCToEEInterface::EnablePreemptiveGC();
+    assert (bToggleGC);
 
     // if we're waiting for gc to finish, we should block immediately
     if (!gc_heap::gc_started)
@@ -1788,21 +1776,18 @@ void WaitLonger (int i
     // If CLR is hosted, a thread may reach here while it is in preemptive GC mode,
     // or it has no Thread object, in order to force a task to yield, or to triger a GC.
     // It is important that the thread is going to wait for GC.  Otherwise the thread
-    // is in a tight loop.  If the thread has high priority, the perf is going to be very BAD.
-    if (pCurThread)
+    // is in a tight loop.  If the thread has high priority, the perf is going to be very BAD. 
+    if (gc_heap::gc_started)
     {
-        if (bToggleGC || gc_heap::gc_started)
-        {
-            if (gc_heap::gc_started)
-            {
-                gc_heap::wait_for_gc_done();
-            }
+        gc_heap::wait_for_gc_done();
+    }
 
+    if (bToggleGC)
+    {
 #ifdef SYNCHRONIZATION_STATS
-            (spin_lock->num_disable_preemptive_w)++;
+        (spin_lock->num_disable_preemptive_w)++;
 #endif //SYNCHRONIZATION_STATS
-            GCToEEInterface::DisablePreemptiveGC(pCurThread);
-        }
+        GCToEEInterface::DisablePreemptiveGC();
     }
 }
 
