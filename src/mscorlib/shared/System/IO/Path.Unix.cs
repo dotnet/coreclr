@@ -47,13 +47,13 @@ namespace System.IO
         public static string GetFullPath(string path, string basePath)
         {
             if (path == null)
-                throw new ArgumentException(nameof(path));
+                throw new ArgumentNullException(nameof(path));
 
             if (basePath == null)
                 throw new ArgumentNullException(nameof(basePath));
 
             if (!IsPathFullyQualified(basePath))
-                throw new ArgumentException(SR.Arg_BasePathNotFullyQualified);
+                throw new ArgumentException(SR.Arg_BasePathNotFullyQualified, nameof(basePath));
 
             if (basePath.Contains('\0') || path.Contains('\0'))
                 throw new ArgumentException(SR.Argument_InvalidPathChars);
@@ -61,7 +61,7 @@ namespace System.IO
             if (IsPathFullyQualified(path))
                 return GetFullPath(path);
 
-            return GetFullPath(CombineNoChecks(basePath, path));
+            return GetFullPath(CombineInternal(basePath, path));
         }
 
         private static string RemoveLongPathPrefix(string path)
@@ -108,7 +108,7 @@ namespace System.IO
             if (path == null)
                 return false;
 
-            return IsPathRooted(path.AsReadOnlySpan());
+            return IsPathRooted(path.AsSpan());
         }
 
         public static bool IsPathRooted(ReadOnlySpan<char> path)
@@ -116,20 +116,19 @@ namespace System.IO
             return path.Length > 0 && path[0] == PathInternal.DirectorySeparatorChar;
         }
 
-        // The resulting string is null if path is null. If the path is empty or
-        // only contains whitespace characters an ArgumentException gets thrown.
+        /// <summary>
+        /// Returns the path root or null if path is empty or null.
+        /// </summary>
         public static string GetPathRoot(string path)
         {
-            if (path == null) return null;
-            if (PathInternal.IsEffectivelyEmpty(path))
-                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+            if (PathInternal.IsEffectivelyEmpty(path)) return null;
 
-            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : String.Empty;
+            return IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString : string.Empty;
         }
 
         public static ReadOnlySpan<char> GetPathRoot(ReadOnlySpan<char> path)
         {
-            return PathInternal.IsEffectivelyEmpty(path) && IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsReadOnlySpan() : ReadOnlySpan<char>.Empty;
+            return PathInternal.IsEffectivelyEmpty(path) && IsPathRooted(path) ? PathInternal.DirectorySeparatorCharAsString.AsSpan() : ReadOnlySpan<char>.Empty;
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>

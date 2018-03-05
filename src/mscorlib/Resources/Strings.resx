@@ -1660,6 +1660,9 @@
   <data name="ArgumentNull_Waithandles" xml:space="preserve">
     <value>The waitHandles parameter cannot be null.</value>
   </data>
+  <data name="ArgumentNull_WithParamName" xml:space="preserve">
+    <value>Parameter '{0}' cannot be null.</value>
+  </data>
   <data name="ArgumentOutOfRange_ActualValue" xml:space="preserve">
     <value>Actual value was {0}.</value>
   </data>
@@ -3705,5 +3708,14 @@
   </data>
   <data name="Arg_NullArgumentNullRef" xml:space="preserve">
     <value>The method was called with a null array argument.</value>
+  </data>
+  <data name="Argument_CannotPrepareAbstract" xml:space="preserve">
+    <value>Abstract methods cannot be prepared.</value>
+  </data>
+  <data name="Argument_InvalidGenericInstantiation" xml:space="preserve">
+    <value>The given generic instantiation was invalid.</value>
+  </data>
+  <data name="Argument_OverlapAlignmentMismatch" xml:space="preserve">
+    <value>Overlapping spans have mismatching alignment.</value>
   </data>
 </root>

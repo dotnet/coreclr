@@ -477,23 +477,37 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
 
         // Establish a return point in case the common_signal_handler returns
 
-        volatile bool contextInitialization = true;
-
-        SignalHandlerWorkerReturnPoint returnPoint;
-        RtlCaptureContext(&returnPoint.context);
-
-        // When the signal handler worker completes, it uses setcontext to return to this point
-
-        if (contextInitialization)
+        if (GetCurrentPalThread())
         {
-            contextInitialization = false;
-            ExecuteHandlerOnOriginalStack(code, siginfo, context, &returnPoint);
-            _ASSERTE(FALSE); // The ExecuteHandlerOnOriginalStack should never return
+            volatile bool contextInitialization = true;
+
+            void *ptr = alloca(sizeof(SignalHandlerWorkerReturnPoint) + alignof(SignalHandlerWorkerReturnPoint) - 1);
+            SignalHandlerWorkerReturnPoint *pReturnPoint = (SignalHandlerWorkerReturnPoint *)ALIGN_UP(ptr, alignof(SignalHandlerWorkerReturnPoint));
+            RtlCaptureContext(&pReturnPoint->context);
+
+            // When the signal handler worker completes, it uses setcontext to return to this point
+
+            if (contextInitialization)
+            {
+                contextInitialization = false;
+                ExecuteHandlerOnOriginalStack(code, siginfo, context, pReturnPoint);
+                _ASSERTE(FALSE); // The ExecuteHandlerOnOriginalStack should never return
+            }
+
+            if (pReturnPoint->returnFromHandler)
+            {
+                return;
+            }
         }
-        
-        if (returnPoint.returnFromHandler)
+        else
         {
-            return;
+            // If thread isn't created by coreclr and has alternate signal stack GetCurrentPalThread() will return NULL too.
+            // But since in this case we don't handle hardware exceptions (IsSafeToHandleHardwareException returns false)
+            // we can call common_signal_handler on the alternate stack.
+            if (common_signal_handler(code, siginfo, context, 2, (size_t)0, (size_t)siginfo->si_addr))
+            {
+                return;
+            }
         }
     }
 
@@ -831,32 +845,29 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
 {
     sigset_t signal_set;
     CONTEXT signalContextRecord;
-    CONTEXT *contextRecord;
-    EXCEPTION_RECORD *exceptionRecord;
+    EXCEPTION_RECORD exceptionRecord;
     native_context_t *ucontext;
 
     ucontext = (native_context_t *)sigcontext;
     g_common_signal_handler_context_locvar_offset = (int)((char*)&signalContextRecord - (char*)__builtin_frame_address(0));
 
-    AllocateExceptionRecords(&exceptionRecord, &contextRecord);
-
-    exceptionRecord->ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
-    exceptionRecord->ExceptionFlags = EXCEPTION_IS_SIGNAL;
-    exceptionRecord->ExceptionRecord = NULL;
-    exceptionRecord->ExceptionAddress = GetNativeContextPC(ucontext);
-    exceptionRecord->NumberParameters = numParams;
+    exceptionRecord.ExceptionCode = CONTEXTGetExceptionCodeForSignal(siginfo, ucontext);
+    exceptionRecord.ExceptionFlags = EXCEPTION_IS_SIGNAL;
+    exceptionRecord.ExceptionRecord = NULL;
+    exceptionRecord.ExceptionAddress = GetNativeContextPC(ucontext);
+    exceptionRecord.NumberParameters = numParams;
 
     va_list params;
     va_start(params, numParams);
 
     for (int i = 0; i < numParams; i++)
     {
-        exceptionRecord->ExceptionInformation[i] = va_arg(params, size_t);
+        exceptionRecord.ExceptionInformation[i] = va_arg(params, size_t);
     }
 
     // Pre-populate context with data from current frame, because ucontext doesn't have some data (e.g. SS register)
     // which is required for restoring context
-    RtlCaptureContext(contextRecord);
+    RtlCaptureContext(&signalContextRecord);
 
     ULONG contextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT;
 
@@ -867,7 +878,7 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     // Fill context record with required information. from pal.h:
     // On non-Win32 platforms, the CONTEXT pointer in the
     // PEXCEPTION_POINTERS will contain at least the CONTEXT_CONTROL registers.
-    CONTEXTFromNativeContext(ucontext, contextRecord, contextFlags);
+    CONTEXTFromNativeContext(ucontext, &signalContextRecord, contextFlags);
 
     /* Unmask signal so we can receive it again */
     sigemptyset(&signal_set);
@@ -878,17 +889,15 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
         ASSERT("pthread_sigmask failed; error number is %d\n", sigmaskRet);
     }
 
-    contextRecord->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
-
-    memcpy_s(&signalContextRecord, sizeof(CONTEXT), contextRecord, sizeof(CONTEXT));
+    signalContextRecord.ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
 
     // The exception object takes ownership of the exceptionRecord and contextRecord
-    PAL_SEHException exception(exceptionRecord, contextRecord);
+    PAL_SEHException exception(&exceptionRecord, &signalContextRecord, true);
 
     if (SEHProcessException(&exception))
     {
         // Exception handling may have modified the context, so update it.
-        CONTEXTToNativeContext(contextRecord, ucontext);
+        CONTEXTToNativeContext(exception.ExceptionPointers.ContextRecord, ucontext);
         return true;
     }
 

@@ -2367,7 +2367,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
     NamedIntrinsic      intrinsicID = node->gtHWIntrinsicId;
     HWIntrinsicCategory category    = Compiler::categoryOfHWIntrinsic(intrinsicID);
     HWIntrinsicFlag     flags       = Compiler::flagsOfHWIntrinsic(intrinsicID);
-    int                 numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicID);
+    int                 numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicID, node);
     GenTree*            op1         = node->gtGetOp1();
     GenTree*            op2         = node->gtGetOp2();
 
@@ -2406,17 +2406,24 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                 break;
 
             default:
+                // TODO-XArch-CQ: Assert that this is unreached after we have ensured the relevant node types are
+                // handled.
+                //                https://github.com/dotnet/coreclr/issues/16497
                 break;
         }
     }
-    else if (intrinsicID == NI_SSE_Shuffle) // TODO - change to all IMM intrinsics
-    {
-        assert(op1->OperIsList());
-        GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
 
-        if (op3->IsCnsIntOrI())
+    if (Compiler::categoryOfHWIntrinsic(intrinsicID) == HW_Category_IMM)
+    {
+        assert(numArgs >= 2);
+        GenTree* lastOp = Compiler::lastOpOfHWIntrinsic(node, numArgs);
+        assert(lastOp != nullptr);
+        if (Compiler::isImmHWIntrinsic(intrinsicID, lastOp))
         {
-            MakeSrcContained(node, op3);
+            if (lastOp->IsCnsIntOrI())
+            {
+                MakeSrcContained(node, lastOp);
+            }
         }
     }
 }

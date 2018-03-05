@@ -1294,6 +1294,11 @@ public:
         return gtOper == GT_PUTARG_STK;
     }
 
+    bool OperIsPutArgStkOrSplit() const
+    {
+        return OperIsPutArgStk() || OperIsPutArgSplit();
+    }
+
     bool OperIsPutArgReg() const
     {
         return gtOper == GT_PUTARG_REG;
@@ -1614,6 +1619,11 @@ public:
     }
 #endif
 
+    bool OperIsSIMDorSimdHWintrinsic() const
+    {
+        return OperIsSIMD() || OperIsSimdHWIntrinsic();
+    }
+
     // This is here for cleaner GT_LONG #ifdefs.
     static bool OperIsLong(genTreeOps gtOper)
     {
@@ -1651,6 +1661,12 @@ public:
             return true;
         }
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        if (op == GT_HW_INTRINSIC_CHK)
+        {
+            return true;
+        }
+#endif // FEATURE_HW_INTRINSICS
         return false;
     }
 
@@ -4260,9 +4276,7 @@ inline bool GenTree::OperIsSimdHWIntrinsic() const
 {
     if (gtOper == GT_HWIntrinsic)
     {
-        // We cannot use AsHWIntrinsic() as it is not declared const
-        const GenTreeHWIntrinsic* hwIntrinsic = reinterpret_cast<const GenTreeHWIntrinsic*>(this);
-        return hwIntrinsic->isSIMD();
+        return this->AsHWIntrinsic()->isSIMD();
     }
     return false;
 }

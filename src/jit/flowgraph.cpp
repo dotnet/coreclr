@@ -9583,6 +9583,9 @@ void Compiler::fgSimpleLowering()
 #ifdef FEATURE_SIMD
                     case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+                    case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
                     {
                         // Add in a call to an error routine.
                         fgSetRngChkTarget(tree, false);
@@ -18201,9 +18204,7 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     // arg slots on the stack frame if there are no other calls.
     compUsesThrowHelper = true;
 
-    // For debuggable code, genJumpToThrowHlpBlk() will generate the 'throw'
-    // code inline. It has to be kept consistent with fgAddCodeRef()
-    if (opts.compDbgCode)
+    if (!fgUseThrowHelperBlocks())
     {
         return nullptr;
     }
@@ -18226,7 +18227,7 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
     if (add) // found it
     {
-#ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
         // If different range checks happen at different stack levels,
         // they can't all jump to the same "call @rngChkFailed" AND have
         // frameless methods, as the rngChkFailed may need to unwind the
@@ -18261,19 +18262,22 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
             codeGen->setFramePointerRequiredGCInfo(true);
         }
 #endif // !defined(UNIX_X86_ABI)
-#endif // _TARGET_X86_
+#endif // !FEATURE_FIXED_OUT_ARGS
 
         return add->acdDstBlk;
     }
 
     /* We have to allocate a new entry and prepend it to the list */
 
-    add            = new (this, CMK_Unknown) AddCodeDsc;
-    add->acdData   = refData;
-    add->acdKind   = kind;
-    add->acdStkLvl = (unsigned short)stkDepth;
-    noway_assert(add->acdStkLvl == stkDepth);
-    add->acdNext  = fgAddCodeList;
+    add          = new (this, CMK_Unknown) AddCodeDsc;
+    add->acdData = refData;
+    add->acdKind = kind;
+    add->acdNext = fgAddCodeList;
+#if !FEATURE_FIXED_OUT_ARGS
+    add->acdStkLvl     = stkDepth;
+    add->acdStkLvlInit = false;
+#endif // !FEATURE_FIXED_OUT_ARGS
+
     fgAddCodeList = add;
 
     /* Create the target basic block */
@@ -18424,7 +18428,7 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
 Compiler::AddCodeDsc* Compiler::fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData)
 {
-    assert(!opts.compDbgCode);
+    assert(fgUseThrowHelperBlocks());
     if (!(fgExcptnTargetCache[kind] && // Try the cached value first
           fgExcptnTargetCache[kind]->acdData == refData))
     {
@@ -18795,6 +18799,9 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             // Evaluate the trees left to right
             fgSetTreeSeqHelper(tree->gtBoundsChk.gtIndex, isLIR);
             fgSetTreeSeqHelper(tree->gtBoundsChk.gtArrLen, isLIR);
@@ -21425,6 +21432,9 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 #ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
 
                 GenTreeBoundsChk* bndsChk;
                 bndsChk = tree->AsBoundsChk();
@@ -25903,4 +25913,16 @@ bool Compiler::fgNeedReturnSpillTemp()
 {
     assert(compIsForInlining());
     return (lvaInlineeReturnSpillTemp != BAD_VAR_NUM);
+}
+
+//------------------------------------------------------------------------
+// fgUseThrowHelperBlocks: Determinate does compiler use throw helper blocks.
+//
+// Note:
+//   For debuggable code, codegen will generate the 'throw' code inline.
+// Return Value:
+//    true if 'throw' helper block should be created.
+bool Compiler::fgUseThrowHelperBlocks()
+{
+    return !opts.compDbgCode;
 }

@@ -56,6 +56,28 @@ namespace System.Globalization
             }
         }
 
+        private static unsafe int FindStringOrdinal(
+            uint dwFindStringOrdinalFlags,
+            ReadOnlySpan<char> source,
+            ReadOnlySpan<char> value,
+            bool bIgnoreCase)
+        {
+            Debug.Assert(!GlobalizationMode.Invariant);
+
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
+            fixed (char* pValue = &MemoryMarshal.GetReference(value))
+            {
+                int ret = Interop.Kernel32.FindStringOrdinal(
+                            dwFindStringOrdinalFlags,
+                            pSource,
+                            source.Length,
+                            pValue,
+                            value.Length,
+                            bIgnoreCase ? 1 : 0);
+                return ret;
+            }
+        }
+
         internal static int IndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
@@ -64,6 +86,16 @@ namespace System.Globalization
             Debug.Assert(value != null);
 
             return FindStringOrdinal(FIND_FROMSTART, source, startIndex, count, value, value.Length, ignoreCase);
+        }
+
+        internal static int IndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(!GlobalizationMode.Invariant);
+
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(value.Length != 0);
+
+            return FindStringOrdinal(FIND_FROMSTART, source, value, ignoreCase);
         }
 
         internal static int LastIndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
@@ -186,13 +218,41 @@ namespace System.Globalization
 
         private unsafe int FindString(
                     uint dwFindNLSStringFlags,
-                    string lpStringSource,
-                    int startSource,
-                    int cchSource,
-                    string lpStringValue,
-                    int startValue,
-                    int cchValue,
-                    int *pcchFound)
+                    ReadOnlySpan<char> lpStringSource,
+                    ReadOnlySpan<char> lpStringValue,
+                    int* pcchFound)
+        {
+            Debug.Assert(!_invariantMode);
+
+            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+
+            fixed (char* pLocaleName = localeName)
+            fixed (char* pSource = &MemoryMarshal.GetReference(lpStringSource))
+            fixed (char* pValue = &MemoryMarshal.GetReference(lpStringValue))
+            {
+                return Interop.Kernel32.FindNLSStringEx(
+                                    pLocaleName,
+                                    dwFindNLSStringFlags,
+                                    pSource,
+                                    lpStringSource.Length,
+                                    pValue,
+                                    lpStringValue.Length,
+                                    pcchFound,
+                                    null,
+                                    null,
+                                    _sortHandle);
+            }
+        }
+        
+        private unsafe int FindString(
+            uint dwFindNLSStringFlags,
+            string lpStringSource,
+            int startSource,
+            int cchSource,
+            string lpStringValue,
+            int startValue,
+            int cchValue,
+            int* pcchFound)
         {
             Debug.Assert(!_invariantMode);
 
@@ -262,6 +322,18 @@ namespace System.Globalization
             return -1;
         }
 
+        internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(target.Length != 0);
+            Debug.Assert((options == CompareOptions.None || options == CompareOptions.IgnoreCase));
+
+            int retValue = FindString(FIND_FROMSTART | (uint)GetNativeCompareFlags(options), source, target, matchLengthPtr);
+            return retValue;
+        }
+
         private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -281,7 +353,7 @@ namespace System.Globalization
             }
             else
             {
-                int retValue = FindString(FIND_FROMEND | (uint) GetNativeCompareFlags(options), source, startIndex - count + 1,
+                int retValue = FindString(FIND_FROMEND | (uint)GetNativeCompareFlags(options), source, startIndex - count + 1,
                                                                count, target, 0, target.Length, null);
 
                 if (retValue >= 0)
@@ -305,6 +377,17 @@ namespace System.Globalization
                                                    prefix, 0, prefix.Length, null) >= 0;
         }
 
+        private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!prefix.IsEmpty);
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            return FindString(FIND_STARTSWITH | (uint)GetNativeCompareFlags(options), source, prefix, null) >= 0;
+        }
+
         private unsafe bool EndsWith(string source, string suffix, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -315,6 +398,17 @@ namespace System.Globalization
 
             return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, 0, source.Length,
                                                    suffix, 0, suffix.Length, null) >= 0;
+        }
+
+        private unsafe bool EndsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> suffix, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!suffix.IsEmpty);
+            Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+
+            return FindString(FIND_ENDSWITH | (uint)GetNativeCompareFlags(options), source, suffix, null) >= 0;
         }
 
         // PAL ends here

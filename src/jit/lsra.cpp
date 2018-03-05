@@ -3358,8 +3358,10 @@ bool LinearScan::isRefPositionActive(RefPosition* refPosition, LsraLocation refL
 //    False - otherwise
 //
 // Notes:
-//    This helper is designed to be used only from allocateBusyReg().
-//    The caller must have already checked for the case where 'refPosition' is a fixed ref.
+//    This helper is designed to be used only from allocateBusyReg(), where:
+//    - This register was *not* found when looking for a free register, and
+//    - The caller must have already checked for the case where 'refPosition' is a fixed ref
+//      (asserted at the beginning of this method).
 //
 bool LinearScan::isRegInUse(RegRecord* regRec, RefPosition* refPosition)
 {
@@ -3370,27 +3372,43 @@ bool LinearScan::isRegInUse(RegRecord* regRec, RefPosition* refPosition)
     {
         if (!assignedInterval->isActive)
         {
-            // This can only happen if we have a recentRefPosition active at this location that hasn't yet been freed
-            // (Or, in the case of ARM, the other half of a double is either active or has an active recentRefPosition).
+            // This can only happen if we have a recentRefPosition active at this location that hasn't yet been freed.
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_ARM_
-            if (refPosition->getInterval()->registerType == TYP_DOUBLE)
+            if (isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation))
             {
-                if (!isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation))
-                {
-                    RegRecord* otherHalfRegRec = findAnotherHalfRegRec(regRec);
-                    assert(otherHalfRegRec->assignedInterval->isActive ||
-                           isRefPositionActive(otherHalfRegRec->assignedInterval->recentRefPosition,
-                                               refPosition->nodeLocation));
-                }
+                return true;
             }
             else
-#endif
             {
-                assert(isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation));
+#ifdef _TARGET_ARM_
+                // In the case of TYP_DOUBLE, we may have the case where 'assignedInterval' is inactive,
+                // but the other half register is active. If so, it must be have an active recentRefPosition,
+                // as above.
+                if (refPosition->getInterval()->registerType == TYP_DOUBLE)
+                {
+                    RegRecord* otherHalfRegRec = findAnotherHalfRegRec(regRec);
+                    if (!otherHalfRegRec->assignedInterval->isActive)
+                    {
+                        if (isRefPositionActive(otherHalfRegRec->assignedInterval->recentRefPosition,
+                                                refPosition->nodeLocation))
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            assert(!"Unexpected inactive assigned interval in isRegInUse");
+                            return true;
+                        }
+                    }
+                }
+                else
+#endif
+                {
+                    assert(!"Unexpected inactive assigned interval in isRegInUse");
+                    return true;
+                }
             }
-            return true;
         }
         RefPosition* nextAssignedRef = assignedInterval->getNextRefPosition();
 
@@ -4939,6 +4957,12 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool alloc
                 }
 
 #ifdef _TARGET_ARM_
+                // unassignPhysReg, above, may have restored a 'previousInterval', in which case we need to
+                // get the value of 'physRegRecord->assignedInterval' rather than using 'assignedInterval'.
+                if (physRegRecord->assignedInterval != nullptr)
+                {
+                    assignedInterval = physRegRecord->assignedInterval;
+                }
                 if (assignedInterval->registerType == TYP_DOUBLE)
                 {
                     // Skip next float register, because we already addressed a double register
@@ -5230,16 +5254,23 @@ void LinearScan::allocateRegisters()
 
         if ((regsToFree | delayRegsToFree) != RBM_NONE)
         {
-            bool doFreeRegs = false;
             // Free at a new location, or at a basic block boundary
-            if (currentLocation > prevLocation || refType == RefTypeBB)
+            if (refType == RefTypeBB)
             {
-                doFreeRegs = true;
+                assert(currentLocation > prevLocation);
             }
-
-            if (doFreeRegs)
+            if (currentLocation > prevLocation)
             {
                 freeRegisters(regsToFree);
+                if ((currentLocation > (prevLocation + 1)) && (delayRegsToFree != RBM_NONE))
+                {
+                    // We should never see a delayReg that is delayed until a Location that has no RefPosition
+                    // (that would be the RefPosition that it was supposed to interfere with).
+                    assert(!"Found a delayRegFree associated with Location with no reference");
+                    // However, to be cautious for the Release build case, we will free them.
+                    freeRegisters(delayRegsToFree);
+                    delayRegsToFree = RBM_NONE;
+                }
                 regsToFree      = delayRegsToFree;
                 delayRegsToFree = RBM_NONE;
             }

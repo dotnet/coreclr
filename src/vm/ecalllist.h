@@ -156,7 +156,6 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("get_HasShutdownStarted", SystemNative::HasShutdownStarted)
     QCFuncElement("GetProcessorCount", SystemNative::GetProcessorCount)
     FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)
-    FCFuncElement("get_CurrentProcessorNumber", SystemNative::GetCurrentProcessorNumber)
 
 #if defined(FEATURE_COMINTEROP)
     QCFuncElement("WinRTSupported", SystemNative::WinRTSupported)
@@ -690,6 +689,7 @@ FCFuncStart(gRuntimeThreadFuncs)
     FCFuncElement("InterruptInternal", ThreadNative::Interrupt)
     FCFuncElement("JoinInternal", ThreadNative::Join)
     QCFuncElement("GetOptimalMaxSpinWaitsPerSpinIterationInternal", ThreadNative::GetOptimalMaxSpinWaitsPerSpinIteration)
+    FCFuncElement("GetCurrentProcessorNumber", ThreadNative::GetCurrentProcessorNumber)
 FCFuncEnd()
 
 FCFuncStart(gThreadFuncs)
@@ -744,9 +744,7 @@ FCFuncEnd()
 FCFuncStart(gWaitHandleFuncs)
     FCFuncElement("WaitOneNative", WaitHandleNative::CorWaitOneNative)
     FCFuncElement("WaitMultiple", WaitHandleNative::CorWaitMultipleNative)
-#ifndef FEATURE_PAL
     FCFuncElement("SignalAndWaitOne", WaitHandleNative::CorSignalAndWaitOneNative)
-#endif // !FEATURE_PAL
 FCFuncEnd()
 
 FCFuncStart(gNumberFuncs)
@@ -1019,6 +1017,8 @@ FCFuncStart(gCompilerFuncs)
     FCFuncElement("_RunClassConstructor", ReflectionInvocation::RunClassConstructor)
     FCFuncElement("_RunModuleConstructor", ReflectionInvocation::RunModuleConstructor)
     QCFuncElement("_CompileMethod", ReflectionInvocation::CompileMethod)
+    FCFuncElement("_PrepareMethod", ReflectionInvocation::PrepareMethod)
+    FCFuncElement("PrepareDelegate", ReflectionInvocation::PrepareDelegate)
     FCFuncElement("ExecuteCodeWithGuaranteedCleanup", ReflectionInvocation::ExecuteCodeWithGuaranteedCleanup)
     FCFuncElement("GetHashCode", ObjectNative::GetHashCode)
     FCFuncElement("Equals", ObjectNative::Equals)
@@ -1159,9 +1159,9 @@ FCFuncStart(gStubHelperFuncs)
     FCFuncElement("ValidateByref", StubHelpers::ValidateByref)
     FCFuncElement("LogPinnedArgument", StubHelpers::LogPinnedArgument)
     FCIntrinsic("GetStubContext", StubHelpers::GetStubContext, CORINFO_INTRINSIC_StubHelpers_GetStubContext)
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
     FCIntrinsic("GetStubContextAddr", StubHelpers::GetStubContextAddr, CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 #ifdef MDA_SUPPORTED
     FCFuncElement("TriggerGCForMDA", StubHelpers::TriggerGCForMDA)
 #endif // MDA_SUPPORTED
