@@ -129,7 +129,7 @@ namespace System.Threading
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name), SR.ArgumentNull_WithParamName);
+                throw new ArgumentNullException(nameof(name), SR.Format(SR.ArgumentNull_WithParamName, nameof(name)));
             }
 
             if (name.Length == 0)

@@ -349,7 +349,7 @@ namespace System
         public static Type MakeGenericMethodParameter(int position)
         {
             if (position < 0)
-                throw new ArgumentException(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(position));
+                throw new ArgumentException(SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(position)), nameof(position));
             return new SignatureGenericMethodParameterType(position);
         }
 
