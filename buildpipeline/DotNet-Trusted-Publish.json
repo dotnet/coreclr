@@ -560,6 +560,10 @@
     },
     "PB_SymbolCatalogCertificateId": {
       "value": "400"
+    },
+    "PB_SignType": {
+      "value": "test",
+      "allowOverride": true
     }
   },
   "retentionRules": [
