@@ -109,22 +109,45 @@ namespace System.Diagnostics.Tracing
                 sb.Append("\\\"");
                 sb.Append(':');
 
-                var valuestr = payload[i] as string;
-
-                if( valuestr != null)
+                Type payloadType = payload[i].GetType();
+                if(payloadType == typeof(string))
                 {
                     sb.Append("\\\"");
-                    minimalJsonserializer(valuestr,sb);
+                    minimalJsonserializer((string)payload[i], sb);
+                    sb.Append("\\\"");
+                }
+                else if(payloadType == typeof(byte[]))
+                {
+                    sb.Append("\\\"");
+                    AppendByteArrayAsHexString(sb, (byte[])payload[i]);
                     sb.Append("\\\"");
                 }
                 else
                 {
                     sb.Append(payload[i].ToString());
                 }
-
             }
             sb.Append('}');
             return StringBuilderCache.GetStringAndRelease(sb);
+        }
+
+        private static void AppendByteArrayAsHexString(StringBuilder builder, byte[] byteArray)
+        {
+            if(builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            // Treat NULL byte arrays as empty byte arrays.
+            if(byteArray == null)
+            {
+                byteArray = new byte[0];
+            }
+
+            for(int i=0; i<byteArray.Length; i++)
+            {
+                builder.AppendFormat("{0:X2}", byteArray[i]);
+            }
         }
 
         internal protected  override void OnEventSourceCreated(EventSource eventSource)
