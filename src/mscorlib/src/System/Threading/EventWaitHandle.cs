@@ -176,7 +176,7 @@ namespace System.Threading
 #else
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name), SR.Format(SR.ArgumentNull_WithParamName, nameof(name)));
+                throw new ArgumentNullException(nameof(name));
             }
 
             if (name.Length == 0)
