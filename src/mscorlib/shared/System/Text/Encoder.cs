@@ -134,7 +134,7 @@ namespace System.Text
         {
             fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
             {
-                return GetByteCount(charsPtr, chars.Length, flush);
+                return GetByteCount((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, flush);
             }
         }
 
@@ -224,7 +224,7 @@ namespace System.Text
             fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
             fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
             {
-                return GetBytes(charsPtr, chars.Length, bytesPtr, bytes.Length, flush);
+                return GetBytes((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, (bytes.Length != 0) ? bytesPtr : (byte*)1, bytes.Length, flush);
             }
         }
 
@@ -338,9 +338,8 @@ namespace System.Text
             fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
             fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
             {
-                Convert(charsPtr, chars.Length, bytesPtr, bytes.Length, flush, out charsUsed, out bytesUsed, out completed);
+                Convert((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, (bytes.Length != 0) ? bytesPtr : (byte*)1, bytes.Length, flush, out charsUsed, out bytesUsed, out completed);
             }
         }
     }
 }
-
