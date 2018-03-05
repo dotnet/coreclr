@@ -40,6 +40,20 @@ namespace System.Runtime.InteropServices
         public static ref T GetReference<T>(ReadOnlySpan<T> span) => ref span._pointer.Value;
 
         /// <summary>
+        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to fake non-null pointer. Such a reference can be used
+        /// for pinning but must never be dereferenced. This is useful for interop with methods that do not accept null pointers for zero-sized buffers.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe ref T GetNonNullPinnableReference<T>(Span<T> span) => ref (span.Length != 0) ? ref span._pointer.Value : ref Unsafe.AsRef<T>((void*)1);
+
+        /// <summary>
+        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to fake non-null pointer. Such a reference can be used
+        /// for pinning but must never be dereferenced. This is useful for interop with methods that do not accept null pointers for zero-sized buffers.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe ref T GetNonNullPinnableReference<T>(ReadOnlySpan<T> span) => ref (span.Length != 0) ? ref span._pointer.Value : ref Unsafe.AsRef<T>((void*)1);
+
+        /// <summary>
         /// Casts a Span of one primitive type <typeparamref name="TFrom"/> to another primitive type <typeparamref name="TTo"/>.
         /// These types may not contain pointers or references. This is checked at runtime in order to preserve type safety.
         /// </summary>

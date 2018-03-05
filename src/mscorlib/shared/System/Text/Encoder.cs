@@ -132,9 +132,9 @@ namespace System.Text
 
         public virtual unsafe int GetByteCount(ReadOnlySpan<char> chars, bool flush)
         {
-            fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
+            fixed (char* charsPtr = &MemoryMarshal.GetNonNullPinnableReference(chars))
             {
-                return GetByteCount((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, flush);
+                return GetByteCount(charsPtr, chars.Length, flush);
             }
         }
 
@@ -221,10 +221,10 @@ namespace System.Text
 
         public virtual unsafe int GetBytes(ReadOnlySpan<char> chars, Span<byte> bytes, bool flush)
         {
-            fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
-            fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
+            fixed (char* charsPtr = &MemoryMarshal.GetNonNullPinnableReference(chars))
+            fixed (byte* bytesPtr = &MemoryMarshal.GetNonNullPinnableReference(bytes))
             {
-                return GetBytes((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, (bytes.Length != 0) ? bytesPtr : (byte*)1, bytes.Length, flush);
+                return GetBytes(charsPtr, chars.Length, bytesPtr, bytes.Length, flush);
             }
         }
 
@@ -335,11 +335,12 @@ namespace System.Text
 
         public virtual unsafe void Convert(ReadOnlySpan<char> chars, Span<byte> bytes, bool flush, out int charsUsed, out int bytesUsed, out bool completed)
         {
-            fixed (char* charsPtr = &MemoryMarshal.GetReference(chars))
-            fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
+            fixed (char* charsPtr = &MemoryMarshal.GetNonNullPinnableReference(chars))
+            fixed (byte* bytesPtr = &MemoryMarshal.GetNonNullPinnableReference(bytes))
             {
-                Convert((chars.Length != 0) ? charsPtr : (char*)2, chars.Length, (bytes.Length != 0) ? bytesPtr : (byte*)1, bytes.Length, flush, out charsUsed, out bytesUsed, out completed);
+                Convert(charsPtr, chars.Length, bytesPtr, bytes.Length, flush, out charsUsed, out bytesUsed, out completed);
             }
         }
     }
 }
+
