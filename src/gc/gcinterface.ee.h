@@ -249,10 +249,6 @@ public:
     virtual
     gc_alloc_context * GetAllocContext() = 0;
 
-    // Returns true if this thread is waiting to reach a safe point.
-    virtual
-    bool CatchAtSafePoint() = 0;
-
     // Calls the given enum_alloc_context_func with every active alloc context.
     virtual
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param) = 0;

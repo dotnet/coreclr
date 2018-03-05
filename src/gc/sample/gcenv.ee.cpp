@@ -212,12 +212,6 @@ gc_alloc_context * GCToEEInterface::GetAllocContext()
     return pThread->GetAllocContext();
 }
 
-bool GCToEEInterface::CatchAtSafePoint()
-{
-    Thread* pThread = ::GetThread();
-    return pThread->CatchAtSafePoint();
-}
-
 void GCToEEInterface::GcEnumAllocContexts (enum_alloc_context_func* fn, void* param)
 {
     Thread * pThread = NULL;

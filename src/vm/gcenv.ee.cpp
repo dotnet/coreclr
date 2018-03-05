@@ -324,15 +324,6 @@ gc_alloc_context * GCToEEInterface::GetAllocContext()
     return pThread->GetAllocContext();
 }
 
-bool GCToEEInterface::CatchAtSafePoint()
-{
-    WRAPPER_NO_CONTRACT;
-
-    Thread* pThread = ::GetThread();
-    assert(pThread != nullptr);
-    return !!pThread->CatchAtSafePoint();
-}
-
 void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* param)
 {
     CONTRACTL

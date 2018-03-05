@@ -54,7 +54,6 @@ public:
     static Thread* GetThread();
 
     static gc_alloc_context * GetAllocContext();
-    static bool CatchAtSafePoint();
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
     // Diagnostics methods.

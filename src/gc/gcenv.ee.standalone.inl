@@ -125,12 +125,6 @@ inline gc_alloc_context * GCToEEInterface::GetAllocContext()
     return g_theGCToCLR->GetAllocContext();
 }
 
-inline bool GCToEEInterface::CatchAtSafePoint()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CatchAtSafePoint();
-}
-
 inline void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* param)
 {
     assert(g_theGCToCLR != nullptr);
