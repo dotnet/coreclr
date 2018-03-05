@@ -133,20 +133,21 @@ namespace System.Diagnostics.Tracing
 
         private static void AppendByteArrayAsHexString(StringBuilder builder, byte[] byteArray)
         {
-            if(builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
+            Debug.Assert(builder != null);
 
             // Treat NULL byte arrays as empty byte arrays.
             if(byteArray == null)
             {
-                byteArray = new byte[0];
+                byteArray = Array.Empty<byte>();
             }
 
+            ReadOnlySpan<char> hexFormat = "X2";
+            Span<char> hex = stackalloc char[2];
             for(int i=0; i<byteArray.Length; i++)
             {
-                builder.AppendFormat("{0:X2}", byteArray[i]);
+                byteArray[i].TryFormat(hex, out int charsWritten, hexFormat);
+                Debug.Assert(charsWritten == 2);
+                builder.Append(hex);
             }
         }
 
