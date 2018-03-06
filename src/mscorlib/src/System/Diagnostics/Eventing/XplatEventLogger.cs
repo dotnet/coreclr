@@ -142,12 +142,7 @@ namespace System.Diagnostics.Tracing
         private static void AppendByteArrayAsHexString(StringBuilder builder, byte[] byteArray)
         {
             Debug.Assert(builder != null);
-
-            // Treat NULL byte arrays as empty byte arrays.
-            if(byteArray == null)
-            {
-                byteArray = Array.Empty<byte>();
-            }
+            Debug.Assert(byteArray != null);
 
             ReadOnlySpan<char> hexFormat = "X2";
             Span<char> hex = stackalloc char[2];
