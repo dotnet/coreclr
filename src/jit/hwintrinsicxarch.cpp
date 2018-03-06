@@ -947,12 +947,15 @@ GenTree* Compiler::impSSEIntrinsic(NamedIntrinsic        intrinsic,
         }
 
         case NI_SSE_SetAllVector128:
+        {
             assert(sig->numArgs == 1);
             assert(getBaseTypeOfSIMDType(sig->retTypeSigClass) == TYP_FLOAT);
-            op1     = impPopStack().val;
-            retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, gtCloneExpr(op1), gtNewIconNode(0), NI_SSE_Shuffle,
-                                               TYP_FLOAT, simdSize);
+            op1               = impPopStack().val;
+            GenTree* op1Clone = fgMakeMultiUse(&op1);
+            retNode           = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op1Clone, gtNewIconNode(0), NI_SSE_Shuffle,
+                                                         TYP_FLOAT, simdSize);
             break;
+        }
 
         case NI_SSE_StoreFence:
             assert(sig->numArgs == 0);
