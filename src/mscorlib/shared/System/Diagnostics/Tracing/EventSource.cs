@@ -615,101 +615,28 @@ namespace System.Diagnostics.Tracing
                 if (eventID == 0)
                     continue;
 
+                byte[] metadata = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(m_eventData[i]);
+
                 string eventName = m_eventData[i].Name;
                 Int64 keywords = m_eventData[i].Descriptor.Keywords;
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
 
-                // eventID          : 4 bytes
-                // eventName        : (eventName.Length + 1) * 2 bytes
-                // keywords         : 8 bytes
-                // eventVersion     : 4 bytes
-                // level            : 4 bytes
-                // parameterCount   : 4 bytes
-                uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
-
-                // Increase the metadataLength for the types of all parameters.
-                metadataLength += (uint)m_eventData[i].Parameters.Length * 4;
-
-                // Increase the metadataLength for the names of all parameters.
-                foreach (var parameter in m_eventData[i].Parameters)
-                {
-                    string parameterName = parameter.Name;
-                    metadataLength = metadataLength + ((uint)parameterName.Length + 1) * 2;
-                }
-
-                byte[] metadata = new byte[metadataLength];
-
-                // Write metadata: eventID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
                 fixed (byte *pMetadata = metadata)
                 {
-                    uint offset = 0;
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventID);
-                    fixed(char *pEventName = eventName)
-                    {
-                        WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pEventName, ((uint)eventName.Length + 1) * 2);
-                    }
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, keywords);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, eventVersion);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, level);
-                    WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)m_eventData[i].Parameters.Length);
-                    foreach (var parameter in m_eventData[i].Parameters)
-                    {
-                        // Write parameter type.
-                        WriteToBuffer(pMetadata, metadataLength, ref offset, (uint)GetTypeCodeExtended(parameter.ParameterType));
-                        
-                        // Write parameter name.
-                        string parameterName = parameter.Name;
-                        fixed (char *pParameterName = parameterName)
-                        {
-                            WriteToBuffer(pMetadata, metadataLength, ref offset, (byte *)pParameterName, ((uint)parameterName.Length + 1) * 2);
-                        }
-                    }
-                    Debug.Assert(metadataLength == offset);
-                    IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(eventID, eventName, keywords, eventVersion, level, pMetadata, metadataLength);
-                    m_eventData[i].EventHandle = eventHandle; 
+                    IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(
+                        eventID,
+                        eventName,
+                        keywords,
+                        eventVersion,
+                        level,
+                        pMetadata,
+                        (uint)metadata.Length);
+
+                    Debug.Assert(eventHandle != IntPtr.Zero);
+                    m_eventData[i].EventHandle = eventHandle;
                 }
             }
-        }
-
-        // Copy src to buffer and modify the offset.
-        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
-        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
-        {
-            Debug.Assert(bufferLength >= (offset + srcLength));
-            for (int i = 0; i < srcLength; i++)
-            {
-                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
-            }
-            offset += srcLength;
-        }
-
-        // Copy uint value to buffer.
-        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, uint value)
-        {
-            Debug.Assert(bufferLength >= (offset + 4));
-            *(uint *)(buffer + offset) = value;
-            offset += 4;
-        }
-
-        // Copy long value to buffer.
-        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, long value)
-        {
-            Debug.Assert(bufferLength >= (offset + 8));
-            *(long *)(buffer + offset) = value;
-            offset += 8;
-        }
-
-        private static TypeCode GetTypeCodeExtended(Type parameterType)
-        {
-            // Guid is not part of TypeCode, we decided to use 17 to represent it, as it's the "free slot" 
-            // see https://github.com/dotnet/coreclr/issues/16105#issuecomment-361749750 for more
-            const TypeCode GuidTypeCode = (TypeCode)17;
-
-            if (parameterType == typeof(Guid)) // Guid is not a part of TypeCode enum
-                return GuidTypeCode;
-
-            return Type.GetTypeCode(parameterType);
         }
 #endif
 
