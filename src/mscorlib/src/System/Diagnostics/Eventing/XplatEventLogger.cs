@@ -127,7 +127,10 @@ namespace System.Diagnostics.Tracing
                     }
                     default:
                     {
-                        sb.Append(payload[i].ToString());
+                        if(payload[i] != null)
+                        {
+                            sb.Append(payload[i].ToString());
+                        }
                         break;
                     }
                 }
