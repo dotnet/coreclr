@@ -109,22 +109,27 @@ namespace System.Diagnostics.Tracing
                 sb.Append("\\\"");
                 sb.Append(':');
 
-                Type payloadType = payload[i].GetType();
-                if(payloadType == typeof(string))
+                switch(payload[i])
                 {
-                    sb.Append("\\\"");
-                    minimalJsonserializer((string)payload[i], sb);
-                    sb.Append("\\\"");
-                }
-                else if(payloadType == typeof(byte[]))
-                {
-                    sb.Append("\\\"");
-                    AppendByteArrayAsHexString(sb, (byte[])payload[i]);
-                    sb.Append("\\\"");
-                }
-                else
-                {
-                    sb.Append(payload[i].ToString());
+                    case string str:
+                    {
+                        sb.Append("\\\"");
+                        minimalJsonserializer(str, sb);
+                        sb.Append("\\\"");
+                        break;
+                    }
+                    case byte[] byteArr:
+                    {
+                        sb.Append("\\\"");
+                        AppendByteArrayAsHexString(sb, byteArr);
+                        sb.Append("\\\"");
+                        break;
+                    }
+                    default:
+                    {
+                        sb.Append(payload[i].ToString());
+                        break;
+                    }
                 }
             }
             sb.Append('}');
