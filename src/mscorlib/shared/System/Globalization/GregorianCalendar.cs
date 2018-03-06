@@ -520,8 +520,13 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
-        internal override Boolean TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
+        internal override bool TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
         {
+            if (!IsValidDay(year, month, day, era))
+            {
+                result = DateTime.Now;
+                return false;
+            }
             if (era == CurrentEra || era == ADEra)
             {
                 try
