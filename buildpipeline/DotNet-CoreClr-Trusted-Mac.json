@@ -92,8 +92,8 @@
     },
     {
       "enabled": true,
-      "continueOnError": false,
-      "alwaysRun": true,
+      "continueOnError": true,
+      "alwaysRun": false,
       "displayName": "Copy Publish Artifact: BuildLogs",
       "timeoutInMinutes": 0,
       "task": {
