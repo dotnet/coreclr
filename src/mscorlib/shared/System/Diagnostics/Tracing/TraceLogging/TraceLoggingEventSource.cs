@@ -5,9 +5,6 @@
 // This program uses code hyperlinks available as part of the HyperAddin Visual Studio plug-in.
 // It is available from http://www.codeplex.com/hyperAddin 
 
-// TODO: Remove before check-in
-#define FEATURE_PERFTRACING
-
 #if PLATFORM_WINDOWS
 #define FEATURE_MANAGED_ETW
 #endif // PLATFORM_WINDOWS

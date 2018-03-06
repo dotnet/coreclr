@@ -620,7 +620,7 @@ namespace System.Diagnostics.Tracing
                 uint eventVersion = m_eventData[i].Descriptor.Version;
                 uint level = m_eventData[i].Descriptor.Level;
 
-                // evnetID          : 4 bytes
+                // eventID          : 4 bytes
                 // eventName        : (eventName.Length + 1) * 2 bytes
                 // keywords         : 8 bytes
                 // eventVersion     : 4 bytes
@@ -640,7 +640,7 @@ namespace System.Diagnostics.Tracing
 
                 byte[] metadata = new byte[metadataLength];
 
-                // Write metadata: evnetID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
+                // Write metadata: eventID, eventName, keywords, eventVersion, level, parameterCount, param1 type, param1 name...
                 fixed (byte *pMetadata = metadata)
                 {
                     uint offset = 0;
