@@ -2370,10 +2370,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     //     used by runtest.sh as the "--testNativeBinDir" argument.
 
                     // These commands are assumed to be run from the root of the workspace.
-                    buildCommands += "zip -r coreroot.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
-                    buildCommands += "zip -r testnativebin.zip ./bin/obj/Linux.arm.${configuration}/tests"
+                    buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
+                    buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.arm.${configuration}/tests"
 
-                    Utilities.addArchival(newJob, "coreroot.zip,testnativebin.zip", "")
+                    Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -3058,8 +3058,9 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // However, it's believed that perhaps there's an issue with executable permission bits not getting
             // copied correctly.
             if (isUbuntuArmJob) {
-                shell("unzip -q -o ./coreroot.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.Checked/Tests/Core_Root
-                shell("unzip -q -o ./testnativebin.zip || exit 0") // unzips to ./bin/obj/Linux.arm.Checked/tests
+                def lowerConfiguration = configuration.toLowerCase()
+                shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root
+                shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.arm.${configuration}/tests
             }
             else {
                 shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
