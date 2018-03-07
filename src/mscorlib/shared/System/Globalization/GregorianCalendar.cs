@@ -522,28 +522,9 @@ namespace System.Globalization
 
         internal override bool TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
         {
-            if (!IsValidDay(year, month, day, era))
-            {
-                result = DateTime.Now;
-                return false;
-            }
             if (era == CurrentEra || era == ADEra)
             {
-                try
-                {
-                    result = new DateTime(year, month, day, hour, minute, second, millisecond);
-                    return true;
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    result = DateTime.Now;
-                    return false;
-                }
-                catch (ArgumentException)
-                {
-                    result = DateTime.Now;
-                    return false;
-                }
+                return DateTime.TryCreate(year, month, day, hour, minute, second, millisecond, out result);
             }
             result = DateTime.MinValue;
             return false;
