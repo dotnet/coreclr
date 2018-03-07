@@ -3121,6 +3121,7 @@ ${dockerCmd}./tests/runtest.sh \\
         summaries.emit(newJob)
     }
 
+    Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/coreclrtests.*.txt")
     Utilities.addXUnitDotNETResults(newJob, '**/coreclrtests.xml')
 
     return newJob
