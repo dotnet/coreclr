@@ -49,6 +49,12 @@ set __BuildArch=x64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
+:: Disable telemetry, first time experience, and global sdk lookup for the CLI 
+:: As this is not always honored by run.cmd
+set DOTNET_CLI_TELEMETRY_OPTOUT=1
+set DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
+set DOTNET_MULTILEVEL_LOOKUP=0
+
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set "__MsgPrefix=BUILD: "
