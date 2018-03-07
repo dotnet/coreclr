@@ -66,6 +66,12 @@ namespace System.Diagnostics.Tracing
                     return 0;
                 }
 
+                if (eventDescriptor.Channel == 11)
+                {
+                    userData = userData + 3;
+                    userDataCount = userDataCount - 3;
+                    Debug.Assert(userDataCount > 0);
+                }
                 EventPipeInternal.WriteEventData(eventHandle, eventID, &userData, (uint) userDataCount, activityId, relatedActivityId);
             }
             return 0;
