@@ -87,7 +87,8 @@
 		.maxstack  7
 		.locals init (int32 V_0)
 		IL_0000:  nop
-		
+		.try
+		{
 		IL_0001:  nop
 		IL_0002:  ldc.i4.0
 		IL_0003:  ldc.r4     0.0
@@ -103,11 +104,27 @@
 																	 uint8,
 																	 int16,
 																	 uint32)
-		IL_0012:  pop		
+		IL_0012:  pop
+		IL_0013:  nop
+		IL_0014:  leave.s    IL_001b
+
+		}  // end .try
+		catch [System.Runtime]System.Object 
+		{
+		IL_0016:  pop
+		IL_0017:  nop
+		IL_0018:  nop
+		IL_0019:  leave.s    IL_001b
+
+		}  // end handler
 		IL_001b:  ldc.i4.s   100
+		IL_001d:  stloc.0
+		IL_001e:  br.s       IL_0020
+
+		IL_0020:  ldloc.0
 		IL_0021:  ret
 	} // end of method Program::Main
-
+  
 	.method public hidebysig specialname rtspecialname 
 	  instance void  .ctor() cil managed
 	{
