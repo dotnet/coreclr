@@ -3091,8 +3091,18 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell('./init-tools.sh')
             }
 
+            def runScript = ""
+            if (isUbuntuArmJob) {
+                // Use 'runtesttilstable.sh' to rerun failing tests (in sequential mode);
+                // there are many tests that pass on rerun (currently), and we don't want
+                // that flakiness to affect overall test job robustness.
+                runScript = "${dockerCmd}./tests/runtesttilstable.sh"
+            } else {
+                runScript = "${dockerCmd}./tests/runtest.sh"
+            }
+
             shell("""\
-${dockerCmd}./tests/runtest.sh \\
+${runScript} \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
     --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
