@@ -470,7 +470,7 @@ void CONTEXTToNativeContext(CONST CONTEXT *lpContext, native_context_t *native)
 #if defined(_AMD64_) && defined(__linux__)
     if ((lpContext->ContextFlags & CONTEXT_XSTATE) == CONTEXT_XSTATE)
     {
-        _ASSERTE(FPREG_HasExtendedState(native));
+        _ASSERTE(FPREG_HasYmmRegisters(native));
         memcpy_s(FPREG_Xstate_Ymmh(native), sizeof(M128A) * 16, lpContext->VectorRegister, sizeof(M128A) * 16);
     }
 #endif // _AMD64_
@@ -568,7 +568,7 @@ void CONTEXTFromNativeContext(const native_context_t *native, LPCONTEXT lpContex
 #if defined(_AMD64_) && defined(__linux__)
     if ((contextFlags & CONTEXT_XSTATE) == CONTEXT_XSTATE)
     {
-        if (FPREG_HasExtendedState(native))
+        if (FPREG_HasYmmRegisters(native))
         {
             memcpy_s(lpContext->VectorRegister, sizeof(M128A) * 16, FPREG_Xstate_Ymmh(native), sizeof(M128A) * 16);
         }
