@@ -2027,9 +2027,9 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 
                     // Removing a call does not affect liveness unless it is a tail call in a nethod with P/Invokes or
                     // is itself a P/Invoke, in which case it may affect the liveness of the frame root variable.
-                    fgStmtRemoved = !opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
-                                    ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
-                                    lvaTable[info.compLvFrameListRoot].lvTracked;
+                    fgStmtRemoved |= !opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
+                                     ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
+                                     lvaTable[info.compLvFrameListRoot].lvTracked;
                 }
                 else
                 {
@@ -2050,7 +2050,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     DISPNODE(lclVarNode);
 
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = varDsc.lvTracked && !opts.MinOpts();
+                    fgStmtRemoved |= varDsc.lvTracked && !opts.MinOpts();
                 }
                 else if (varDsc.lvTracked)
                 {
@@ -2072,7 +2072,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 
                     const bool isTracked = lvaTable[node->AsLclVarCommon()->gtLclNum].lvTracked;
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = isTracked && !opts.MinOpts();
+                    fgStmtRemoved |= isTracked && !opts.MinOpts();
                 }
                 else
                 {
