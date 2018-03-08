@@ -41,7 +41,6 @@ extern bool g_fFinalizerRunOnShutDown;
 extern bool g_built_with_svr_gc;
 extern uint8_t g_build_variant;
 extern VOLATILE(int32_t) g_no_gc_lock;
-extern VOLATILE(int32_t) g_fSuspensionPending;
 
 class GCHeap : public IGCHeapInternal
 {
@@ -261,7 +260,7 @@ private:
         // to threads returning to cooperative mode is down after gc.
         // In other words, if the sequence in GCHeap::RestartEE changes,
         // the condition here may have to change as well.
-        return !GCToEEInterface::TrapReturningThreads();
+        return g_fSuspensionPending == 0;
     }
 public:
     //return TRUE if GC actually happens, otherwise FALSE

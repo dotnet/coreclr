@@ -11,8 +11,6 @@
 
 MethodTable * g_pFreeObjectMethodTable;
 
-int32_t g_TrapReturningThreads;
-
 EEConfig * g_pConfig;
 
 gc_alloc_context g_global_alloc_context;
@@ -179,12 +177,16 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
 
 bool GCToEEInterface::EnablePreemptiveGC()
 {
+    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
-    bool bToggleGC = GCToEEInterface::IsPreemptiveGCDisabled();
 
-    if (pThread && bToggleGC)
+    if (pThread)
     {
-        pThread->EnablePreemptiveGC();
+        bToggleGC = !!pThread->PreemptiveGCDisabled();
+        if (bToggleGC)
+        {
+            pThread->EnablePreemptiveGC();
+        }
     }
 
     return bToggleGC;
@@ -199,11 +201,6 @@ void GCToEEInterface::DisablePreemptiveGC()
 Thread* GCToEEInterface::GetThread()
 {
     return ::GetThread();
-}
-
-bool GCToEEInterface::TrapReturningThreads()
-{
-    return !!g_TrapReturningThreads;
 }
 
 gc_alloc_context * GCToEEInterface::GetAllocContext()

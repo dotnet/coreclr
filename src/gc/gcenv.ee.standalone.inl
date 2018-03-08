@@ -113,12 +113,6 @@ inline Thread* GCToEEInterface::GetThread()
     return g_theGCToCLR->GetThread();
 }
 
-inline bool GCToEEInterface::TrapReturningThreads()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->TrapReturningThreads();
-}
-
 inline gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
     assert(g_theGCToCLR != nullptr);

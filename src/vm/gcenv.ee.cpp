@@ -364,12 +364,16 @@ bool GCToEEInterface::EnablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
 
+    bool bToggleGC = false;
     Thread* pThread = ::GetThread();
-    bool bToggleGC = GCToEEInterface::IsPreemptiveGCDisabled();
 
-    if (pThread && bToggleGC)
+    if (pThread)
     {
-        pThread->EnablePreemptiveGC();
+        bToggleGC = !!pThread->PreemptiveGCDisabled();
+        if (bToggleGC)
+        {
+            pThread->EnablePreemptiveGC();
+        }
     }
 
     return bToggleGC;
@@ -391,12 +395,6 @@ Thread* GCToEEInterface::GetThread()
     WRAPPER_NO_CONTRACT;
 
     return ::GetThread();
-}
-
-bool GCToEEInterface::TrapReturningThreads()
-{
-    WRAPPER_NO_CONTRACT;
-    return !!g_TrapReturningThreads;
 }
 
 struct BackgroundThreadStubArgs

@@ -225,7 +225,9 @@ public:
     virtual
     bool IsPreemptiveGCDisabled() = 0;
 
-    // Enables preemptive GC on the current thread.
+    // Enables preemptive GC on the current thread. Returns true if the thread mode 
+    // was changed and false if the therad mode wasn't changed or the thread is not
+    // a managed thread. 
     virtual
     bool EnablePreemptiveGC() = 0;
 
@@ -240,10 +242,6 @@ public:
     // that were not created as suspendable (see `IGCHeap::CreateThread`).
     virtual
     Thread* GetThread() = 0;
-
-    // Returns whether or not a thread suspension is pending.
-    virtual
-    bool TrapReturningThreads() = 0;
 
     // Retrieves the alloc context associated with the current thread.
     virtual

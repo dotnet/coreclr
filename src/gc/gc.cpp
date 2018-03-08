@@ -69,7 +69,6 @@ int compact_ratio = 0;
 BOOL reset_mm_p = TRUE;
 
 bool g_fFinalizerRunOnShutDown = false;
-VOLATILE(int32_t) g_fSuspensionPending = 0;
 
 #ifdef FEATURE_SVR_GC
 bool g_built_with_svr_gc = true;
