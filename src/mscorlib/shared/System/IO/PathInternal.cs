@@ -116,7 +116,7 @@ namespace System.IO
         /// <param name="skip">Skip the specified number of characters before evaluating.</param>
         internal static string RemoveRelativeSegments(string path, int skip = 0)
         {
-            Debug.Assert(skip > 0);
+            Debug.Assert(skip >= 0);
             bool flippedSeparator = false;
 
             // Remove "//", "/./", and "/../" from the path by copying each character to the output, 
