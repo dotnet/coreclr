@@ -141,8 +141,6 @@ if [ $exitCode -eq $EXIT_CODE_TEST_FAILURE ]; then
         fi
         mv "$testRootDir/coreclrtests.fail.txt" "$retryFile"
 
-read -p "Press [Enter] to continue"
-
         ${scriptPath}/runtest.sh --sequential --playlist=${retryFile} ${__UnprocessedBuildArgs}
         exitCode=$?
         if [ $exitCode -ne $EXIT_CODE_TEST_FAILURE ]; then
