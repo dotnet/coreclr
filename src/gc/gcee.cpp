@@ -455,21 +455,17 @@ void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
-    bool mode = false;
+    bool bToggleGC = false;
     uint32_t dwWaitResult = NOERROR;
     
     if (!no_mode_change)
     {
-        pCurThread = GCToEEInterface::GetThread();
-        if (pCurThread != NULL)
-        {
-            mode = GCToEEInterface::EnablePreemptiveGC();
-        }
+        bToggleGC = GCToEEInterface::EnablePreemptiveGC();
     }
 
     dwWaitResult = event->Wait(time_out_ms, FALSE);
 
-    if (!no_mode_change && mode)
+    if (bToggleGC)
     {
         GCToEEInterface::DisablePreemptiveGC();
     }

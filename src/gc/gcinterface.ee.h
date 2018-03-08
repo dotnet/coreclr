@@ -226,7 +226,7 @@ public:
     bool IsPreemptiveGCDisabled() = 0;
 
     // Enables preemptive GC on the current thread. Returns true if the thread mode 
-    // was changed and false if the therad mode wasn't changed or the thread is not
+    // was changed and false if the thread mode wasn't changed or the thread is not
     // a managed thread. 
     virtual
     bool EnablePreemptiveGC() = 0;
