@@ -41,6 +41,11 @@ namespace System.Diagnostics.Tracing
         internal readonly int identity;
         internal readonly byte[] nameMetadata;
 
+#if FEATURE_PERFTRACING
+        private IntPtr eventHandle = IntPtr.Zero;
+        private readonly object eventHandleCreationLock = new object();
+#endif
+
         public NameInfo(string name, EventTags tags, int typeMetadataSize)
         {
             this.name = name;
@@ -74,6 +79,44 @@ namespace System.Diagnostics.Tracing
                 result = this.tags < otherTags ? -1 : 1;
             }
             return result;
+        }
+
+        public IntPtr GetOrCreateEventHandle(EventProvider provider, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
+        {
+            if (eventHandle == IntPtr.Zero)
+            {
+                lock (eventHandleCreationLock)
+                {
+                    if (eventHandle == IntPtr.Zero)
+                    {
+                        byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(
+                            descriptor.EventId,
+                            name,
+                            (EventKeywords)descriptor.Keywords,
+                            (EventLevel)descriptor.Level,
+                            descriptor.Version,
+                            eventTypes);
+
+                        unsafe
+                        {
+                            fixed (byte* pMetadataBlob = metadataBlob)
+                            {
+                                // Define the event.
+                                eventHandle = provider.m_eventProvider.DefineEventHandle(
+                                    (uint)descriptor.EventId,
+                                    name,
+                                    descriptor.Keywords,
+                                    descriptor.Version,
+                                    descriptor.Level,
+                                    pMetadataBlob,
+                                    (uint)metadataBlob.Length);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return eventHandle;
         }
     }
 }

@@ -432,7 +432,7 @@ namespace System.Diagnostics.Tracing
             EventDescriptor descriptor = new EventDescriptor(identity, level, opcode, (long)keywords);
 
 #if FEATURE_PERFTRACING
-            IntPtr eventHandle = GetOrCreateEventHandle(eventName ?? eventTypes.Name, descriptor, eventTypes);
+            IntPtr eventHandle = nameInfo.GetOrCreateEventHandle(m_provider, descriptor, eventTypes);
             Debug.Assert(eventHandle != IntPtr.Zero);
 #else
             IntPtr eventHandle = IntPtr.Zero;
@@ -547,7 +547,7 @@ namespace System.Diagnostics.Tracing
                 }
 
 #if FEATURE_PERFTRACING
-                    IntPtr eventHandle = GetOrCreateEventHandle(eventName, descriptor, eventTypes);
+                    IntPtr eventHandle = nameInfo.GetOrCreateEventHandle(m_provider, descriptor, eventTypes);
                     Debug.Assert(eventHandle != IntPtr.Zero);
 #else
                     IntPtr eventHandle = IntPtr.Zero;
@@ -616,7 +616,7 @@ namespace System.Diagnostics.Tracing
                     }
 
 #if FEATURE_PERFTRACING
-                    IntPtr eventHandle = GetOrCreateEventHandle(eventName, descriptor, eventTypes);
+                    IntPtr eventHandle = nameInfo.GetOrCreateEventHandle(m_provider, descriptor, eventTypes);
                     Debug.Assert(eventHandle != IntPtr.Zero);
 #else
                     IntPtr eventHandle = IntPtr.Zero;
@@ -899,73 +899,5 @@ namespace System.Diagnostics.Tracing
             descriptor = new EventDescriptor(identity, level, opcode, (long)keywords);
             return nameInfo;
         }
-
-#if FEATURE_PERFTRACING
-
-        private IntPtr GetOrCreateEventHandle(string eventName, EventDescriptor descriptor, TraceLoggingEventTypes eventInfo)
-        {
-            // Lookup or create the event.
-            IntPtr eventHandle = GetEventPipeEventHandleForDescriptor(descriptor);
-            if (eventHandle == IntPtr.Zero)
-            {
-                byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(descriptor.EventId, eventName, (EventKeywords)descriptor.Keywords, (EventLevel)descriptor.Level, descriptor.Version, eventInfo);
-                unsafe
-                {
-                    fixed (byte* pMetadataBlob = metadataBlob)
-                    {
-                        // Define the event.
-                        eventHandle = m_provider.m_eventProvider.DefineEventHandle(
-                            (uint)descriptor.EventId,
-                            eventName,
-                            descriptor.Keywords,
-                            descriptor.Version,
-                            descriptor.Level,
-                            pMetadataBlob,
-                            (uint)metadataBlob.Length);
-                    }
-                }
-
-                // Save the event handle.
-                SaveEventPipeEventHandleForDescriptor(descriptor, eventHandle);
-            }
-
-            return eventHandle;
-        }
-
-        // EventPipe requires that every event be registered.
-        //   Key: Event identity (EventDescriptor.m_traceloggingId).
-        //   Value: EventPipe event handle returned from DefineEvent.
-        private Dictionary<int, IntPtr> m_eventIdentityToEventHandleMap = new Dictionary<int, IntPtr>();
-
-        private IntPtr GetEventPipeEventHandleForDescriptor(EventDescriptor descriptor)
-        {
-            if (descriptor == null)
-            {
-                throw new ArgumentNullException(nameof(descriptor));
-            }
-
-            IntPtr ret;
-            if (!m_eventIdentityToEventHandleMap.TryGetValue(descriptor.TraceLoggingId, out ret))
-            {
-                ret = IntPtr.Zero;
-            }
-
-            return ret;
-        }
-
-        private void SaveEventPipeEventHandleForDescriptor(EventDescriptor descriptor, IntPtr eventHandle)
-        {
-            if (descriptor == null)
-            {
-                throw new ArgumentNullException(nameof(descriptor));
-            }
-            if (eventHandle == IntPtr.Zero)
-            {
-                throw new ArgumentOutOfRangeException(nameof(eventHandle));
-            }
-
-            m_eventIdentityToEventHandleMap.Add(descriptor.TraceLoggingId, eventHandle);
-        }
-#endif
     }
 }

@@ -73,6 +73,14 @@ namespace System.Diagnostics.Tracing
             // parameterCount   : 4 bytes
             uint metadataLength = 24 + ((uint)eventName.Length + 1) * 2;
 
+            // Check for an empty payload.
+            // Write<T> calls with no arguments by convention have a parameter of
+            // type NullTypeInfo which is serialized as nothing.
+            if((parameters.Length == 1) && (parameters[0].ParameterType == typeof(EmptyStruct)))
+            {
+                parameters = Array.Empty<EventParameterInfo>();
+            }
+
             // Increase the metadataLength for parameters.
             foreach (var parameter in parameters)
             {
