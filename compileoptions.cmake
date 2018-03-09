@@ -24,8 +24,11 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-ferror-limit=4096)
 
   if (CLR_CMAKE_WARNINGS_ARE_ERRORS)
-    # All warnings that are not explicitly disabled are reported as errors
-    add_compile_options(-Werror)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+        CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "3.4.9" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "7.0.0")
+      # All warnings that are not explicitly disabled are reported as errors when building with a tested version of clang
+      add_compile_options(-Werror)
+    endif()
   endif(CLR_CMAKE_WARNINGS_ARE_ERRORS)
 
   # Disabled warnings
