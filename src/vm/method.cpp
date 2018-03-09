@@ -2520,10 +2520,8 @@ BOOL MethodDesc::MayHaveNativeCode()
         return FALSE;
     case mcInstantiated:    // IsIL() case. Handled below.
         break;     
-#ifdef FEATURE_COMINTEROP 
     case mcComInterop:      // Generated stub. No native code.
-        return FALSE;       
-#endif // FEATURE_COMINTEROP
+        return FALSE;
     case mcDynamic:         // LCG or stub-as-il.
         return TRUE; 
     default:

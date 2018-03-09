@@ -168,9 +168,7 @@ private:
         METHOD_TYPE_NDIRECT = 2,
         METHOD_TYPE_EEIMPL  = 3,
         METHOD_TYPE_INSTANTIATED = 5,
-#ifdef FEATURE_COMINTEROP
         METHOD_TYPE_COMINTEROP = 6,
-#endif
     };
 
 private:
@@ -1316,12 +1314,11 @@ private:
         bool fNoSanityChecks;
         bool fSparse;                           // Set to true if a sparse interface is being used.
 
-#ifdef FEATURE_COMINTEROP
         // Com Interop, ComWrapper classes extend from ComObject
         bool fIsComObjectType;                  // whether this class is an instance of ComObject class
-
-        bool fIsMngStandardItf;                 // Set to true if the interface is a manages standard interface.
         bool fComEventItfType;                  // Set to true if the class is a special COM event interface.
+#ifdef FEATURE_COMINTEROP        
+        bool fIsMngStandardItf;                 // Set to true if the interface is a manages standard interface.
         bool fIsRedirectedInterface;            // Set to true if the class is an interface redirected for WinRT
         bool fNeedsRCWPerTypeData;              // Set to true if the class needs optional RCW data attached to the MethodTable
 #endif // FEATURE_COMINTEROP

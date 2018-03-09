@@ -850,6 +850,7 @@ public:
     BOOL IsWinRTDelegate();
     BOOL IsWinRTRedirectedInterface(TypeHandle::InteropKind interopKind);
     BOOL IsWinRTRedirectedDelegate();
+    void SetComInterfaceType(CorIfaceAttr ItfType);
 
 #ifdef FEATURE_COMINTEROP
     TypeHandle GetCoClassForInterface();
@@ -862,8 +863,7 @@ public:
 
     // Retrieves the COM interface type.
     CorIfaceAttr    GetComInterfaceType();
-    void SetComInterfaceType(CorIfaceAttr ItfType);
-    
+
     // Determines whether this is a WinRT-legal type
     BOOL IsLegalWinRTType(OBJECTREF *poref);
 
@@ -882,9 +882,6 @@ public:
 
     BOOL            IsExtensibleRCW();
 
-    // mark the class type as COM object class
-    void SetComObjectType();
-
 #if defined(FEATURE_TYPEEQUIVALENCE)
     // mark the type as opted into type equivalence
     void SetHasTypeEquivalence();
@@ -894,12 +891,6 @@ public:
     // the hierarchy
     MethodTable* GetComPlusParentMethodTable();
 
-    // class is a com object class
-    BOOL IsComObjectType()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetFlag(enum_flag_ComObject);
-    }
     // class is a WinRT object class (is itself or derives from a ProjectedFromWinRT class)
     BOOL IsWinRTObjectType();
 
@@ -943,17 +934,22 @@ public:
     InteropMethodTableData *GetComInteropData();
 
 #else // !FEATURE_COMINTEROP
-    BOOL IsComObjectType()
-    {
-        SUPPORTS_DAC;
-        return FALSE;
-    }
     BOOL IsWinRTObjectType()
     {
         LIMITED_METHOD_CONTRACT;
         return FALSE;
     }
 #endif // !FEATURE_COMINTEROP
+
+    // class is a com object class
+    BOOL IsComObjectType()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return GetFlag(enum_flag_ComObject);
+    }
+
+    // mark the class type as COM object class
+    void SetComObjectType();
 
 #ifdef FEATURE_ICASTABLE
     void SetICastable();
