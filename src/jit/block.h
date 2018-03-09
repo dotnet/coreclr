@@ -895,6 +895,7 @@ struct BasicBlock : private LIR::Range
         flowList*       bbPreds;      // ptr to list of predecessors
     };
 
+    bool      visited;
     flowList* bbSuccs; // ptr to list of successors
 
     BlockSet    bbReach; // Set of all blocks that can reach this one

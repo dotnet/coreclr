@@ -1380,6 +1380,7 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
     block->bbNatLoopNum = BasicBlock::NOT_IN_LOOP;
 
     block->bbSuccs = nullptr;
+    block->visited = false;
 
     return block;
 }

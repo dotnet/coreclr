@@ -1824,7 +1824,8 @@ void Compiler::fgComputeReachabilitySets()
     fgReachabilitySetsValid = false;
 #endif // DEBUG
 
-    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    ArrayStack<BasicBlock*> blocksWorkSet(this);
+    for (BasicBlock* block = fgLastBB; block != nullptr; block = block->bbPrev)
     {
         // Initialize the per-block bbReach sets. It creates a new empty set,
         // because the block epoch could change since the previous initialization
@@ -1832,6 +1833,54 @@ void Compiler::fgComputeReachabilitySets()
         block->bbReach = BlockSetOps::MakeEmpty(this);
 
         /* Mark block as reaching itself */
+        BlockSetOps::AddElemD(this, block->bbReach, block->bbNum);
+
+        block->visited = false;
+        blocksWorkSet.Push(block);
+    }
+
+    fgComputeSuccs();
+
+    BlockSet tempReach(BlockSetOps::MakeEmpty(this)); // Preallocate temp buffer to use it for each iteration.
+
+    while (!blocksWorkSet.Empty())
+    {
+        BasicBlock* block = blocksWorkSet.Pop();
+        block->visited    = true;
+
+        BlockSetOps::Assign(this, tempReach, block->bbReach);
+        for (flowList* predFlow = block->bbPreds; predFlow != nullptr; predFlow = predFlow->flNext)
+        {
+            BasicBlock* pred = predFlow->flBlock;
+            BlockSetOps::UnionD(this, tempReach, pred->bbReach);
+        }
+
+        if (!BlockSetOps::Equal(this, tempReach, block->bbReach))
+        {
+            BlockSetOps::Assign(this, block->bbReach, tempReach);
+            for (flowList* succFlow = block->bbSuccs; succFlow != nullptr; succFlow = succFlow->flNext)
+            {
+                BasicBlock* succ = succFlow->flBlock;
+                if (!succ->visited)
+                {
+                    continue;
+                }
+                blocksWorkSet.Push(succ);
+                succ->visited = false;
+            }
+        }
+    }
+
+#define CHECK_REACHABLE_BLOCKS 1
+#ifdef CHECK_REACHABLE_BLOCKS
+    typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, BlockSet> ReachabilitySetsChecker;
+
+    CompAllocator           memAllocator(this, CMK_fgArgInfoPtrArr);
+    ReachabilitySetsChecker reachabilitySets(&memAllocator);
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        reachabilitySets.Set(block, BlockSetOps::MakeCopy(this, block->bbReach));
+        BlockSetOps::ClearD(this, block->bbReach);
         BlockSetOps::AddElemD(this, block->bbReach, block->bbNum);
     }
 
@@ -1862,6 +1911,12 @@ void Compiler::fgComputeReachabilitySets()
         }
     } while (reachableBlocksChanged);
 
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        assert(BlockSetOps::Equal(this, block->bbReach, reachabilitySets[block]));
+    }
+#endif // CHECK_REACHABLE_BLOCKS
+
 #ifdef DEBUG
     if (verbose)
     {
@@ -1873,6 +1928,8 @@ void Compiler::fgComputeReachabilitySets()
 #endif // DEBUG
 
     fgSetBlockHasGCSafepoint();
+
+    fgRemoveSuccs();
 }
 
 void Compiler::fgComputeSuccs()
@@ -1941,8 +1998,6 @@ void Compiler::fgSetBlockHasGCSafepoint()
     }
 #endif // CHECK_GC_SAFE_FLAGS
 
-    fgComputeSuccs();
-
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
         if ((block->bbFlags & BBF_GC_SAFE_POINT) != 0)
@@ -1975,8 +2030,6 @@ void Compiler::fgSetBlockHasGCSafepoint()
             }
         }
     }
-
-    fgRemoveSuccs();
 
 #ifdef CHECK_GC_SAFE_FLAGS
     FlagsChecker flagsChecker(&memAllocator);
