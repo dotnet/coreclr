@@ -117,6 +117,14 @@ namespace System.IO
         internal static string RemoveRelativeSegments(string path, int skip = 0)
         {
             Debug.Assert(skip >= 0);
+
+            while (path.Length > skip && !PathInternal.IsDirectorySeparator(path[skip])
+                && !(path[skip - 1] == PathInternal.VolumeSeparatorChar)
+                && !PathInternal.IsDirectorySeparator(path[skip - 1]))
+            {
+                skip++;
+            }
+
             bool flippedSeparator = false;
 
             Span<char> initialBuffer = stackalloc char[260 /* PathInternal.MaxShortPath */];
