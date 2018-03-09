@@ -606,6 +606,13 @@ namespace System.Diagnostics.Tracing
         // typed event methods. Dynamically defined events (that use Write) hare defined on the fly and are handled elsewhere.
         private unsafe void DefineEventPipeEvents()
         {
+            // If the EventSource is set to emit all events as TraceLogging events, skip this initialization.
+            // Events will be defined when they are emitted for the first time.
+            if(SelfDescribingEvents)
+            {
+                return;
+            }
+
             Debug.Assert(m_eventData != null);
             Debug.Assert(m_provider != null);
             int cnt = m_eventData.Length;

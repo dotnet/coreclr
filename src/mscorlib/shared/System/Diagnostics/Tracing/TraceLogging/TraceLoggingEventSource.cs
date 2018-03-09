@@ -908,7 +908,7 @@ namespace System.Diagnostics.Tracing
             IntPtr eventHandle = GetEventPipeEventHandleForDescriptor(descriptor);
             if (eventHandle == IntPtr.Zero)
             {
-                byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(descriptor.EventId, eventName, (EventKeywords)descriptor.Keywords, (EventLevel)descriptor.Level, descriptor.Version, eventInfo.typeInfos);
+                byte[] metadataBlob = EventPipeMetadataGenerator.Instance.GenerateEventMetadata(descriptor.EventId, eventName, (EventKeywords)descriptor.Keywords, (EventLevel)descriptor.Level, descriptor.Version, eventInfo);
                 unsafe
                 {
                     fixed (byte* pMetadataBlob = metadataBlob)

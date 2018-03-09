@@ -39,12 +39,19 @@ namespace System.Diagnostics.Tracing
             EventKeywords keywords,
             EventLevel level,
             uint version,
-            TraceLoggingTypeInfo[] parameters)
+            TraceLoggingEventTypes eventTypes)
         {
-            EventParameterInfo[] eventParams = new EventParameterInfo[parameters.Length];
-            for(int i=0; i<parameters.Length; i++)
+            TraceLoggingTypeInfo[] typeInfos = eventTypes.typeInfos;
+            string[] paramNames = eventTypes.paramNames;
+            EventParameterInfo[] eventParams = new EventParameterInfo[typeInfos.Length];
+            for(int i=0; i<typeInfos.Length; i++)
             {
-                eventParams[i].SetInfo(parameters[i].Name, parameters[i].DataType, parameters[i]);
+                string paramName = string.Empty;
+                if(paramNames != null)
+                {
+                    paramName = paramNames[i];
+                }
+                eventParams[i].SetInfo(paramName, typeInfos[i].DataType, typeInfos[i]);
             }
 
             return GenerateMetadata(eventId, eventName, (long)keywords, (uint)level, version, eventParams);
@@ -124,6 +131,15 @@ namespace System.Diagnostics.Tracing
             *(long *)(buffer + offset) = value;
             offset += 8;
         }
+
+        // Copy char value to buffer.
+        internal static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, char value)
+        {
+            Debug.Assert(bufferLength >= (offset + 2));
+            *(char *)(buffer + offset) = value;
+            offset += 2;
+        }
+
     }
 
     internal struct EventParameterInfo
@@ -144,7 +160,40 @@ namespace System.Diagnostics.Tracing
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
             {
-                Debug.Assert(false);
+                // Each nested struct is serialized as:
+                //     TypeCode.Object              : 4 bytes
+                //     Number of properties         : 4 bytes
+                //     Property description 0...N
+                //     Nested struct property name  : NULL-terminated string.
+                EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)TypeCode.Object);
+
+                InvokeTypeInfo invokeTypeInfo = TypeInfo as InvokeTypeInfo;
+                if(invokeTypeInfo == null)
+                {
+                    throw new NotSupportedException();
+                }
+
+                // Get the set of properties to be serialized.
+                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                if(properties != null)
+                {
+                    // Write the count of serializable properties.
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)properties.Length);
+
+                    foreach(PropertyAnalysis prop in properties)
+                    {
+                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                    }
+                }
+                else
+                {
+                    // This struct has zero serializable properties so we just write the property count.
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)0);
+                }
+
+                // Top-level structs don't have a property name, but for simplicity we write a NULL-char to represent the name.
+                EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, '\0');
+               
             }
             else
             {
@@ -159,6 +208,66 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        private static unsafe void GenerateMetadataForProperty(PropertyAnalysis property, byte* pMetadataBlob, ref uint offset, uint blobSize)
+        {
+            Debug.Assert(property != null);
+            Debug.Assert(pMetadataBlob != null);
+
+            // Check if this property is a nested struct.
+            InvokeTypeInfo invokeTypeInfo = property.typeInfo as InvokeTypeInfo;
+            if(invokeTypeInfo != null)
+            {
+                // Each nested struct is serialized as:
+                //     TypeCode.Object              : 4 bytes
+                //     Number of properties         : 4 bytes
+                //     Property description 0...N
+                //     Nested struct property name  : NULL-terminated string.
+                EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)TypeCode.Object);
+
+                // Get the set of properties to be serialized.
+                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                if(properties != null)
+                {
+                    // Write the count of serializable properties.
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)properties.Length);
+
+                    foreach(PropertyAnalysis prop in properties)
+                    {
+                        GenerateMetadataForProperty(prop, pMetadataBlob, ref offset, blobSize);
+                    }
+                }
+                else
+                {
+                    // This struct has zero serializable properties so we just write the property count.
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)0);
+                }
+
+                // Write the property name.
+                fixed(char *pPropertyName = property.name)
+                {
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pPropertyName, ((uint)property.name.Length + 1) * 2);
+                }
+            }
+            else
+            {
+                // Each primitive type is serialized as:
+                //     TypeCode : 4 bytes
+                //     PropertyName : NULL-terminated string
+                TypeCode typeCode = GetTypeCodeExtended(property.typeInfo.DataType);
+                Debug.Assert(typeCode != TypeCode.Object);
+
+                // Write the type code.
+                EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)typeCode);
+
+                // Write the property name.
+                fixed(char *pPropertyName = property.name)
+                {
+                    EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (byte *)pPropertyName, ((uint)property.name.Length + 1) * 2);
+                }
+            }
+        }
+
+
         internal unsafe uint GetMetadataLength()
         {
             uint ret = 0;
@@ -166,11 +275,77 @@ namespace System.Diagnostics.Tracing
             TypeCode typeCode = GetTypeCodeExtended(ParameterType);
             if(typeCode == TypeCode.Object)
             {
-                Debug.Assert(false);
+                InvokeTypeInfo typeInfo = TypeInfo as InvokeTypeInfo;
+                if(typeInfo == null)
+                {
+                    throw new NotSupportedException();
+                }
+
+                // Each nested struct is serialized as:
+                //     TypeCode.Object      : 4 bytes
+                //     Number of properties : 4 bytes
+                //     Property description 0...N
+                //     Nested struct property name  : NULL-terminated string.
+                ret += sizeof(uint)  // TypeCode
+                     + sizeof(uint); // Property count
+
+                // Get the set of properties to be serialized.
+                PropertyAnalysis[] properties = typeInfo.properties;
+                if(properties != null)
+                {
+                    foreach(PropertyAnalysis prop in properties)
+                    {
+                        ret += GetMetadataLengthForProperty(prop);
+                    }
+                }
+
+                // For simplicity when writing a reader, we write a NULL char
+                // after the metadata for a top-level struct (for its name) so that 
+                // readers don't have do special case the outer-most struct.
+                ret += sizeof(char);
             }
             else
             {
-                ret = (uint)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
+                ret += (uint)(sizeof(uint) + ((ParameterName.Length + 1) * 2));
+            }
+
+            return ret;
+        }
+
+        private static uint GetMetadataLengthForProperty(PropertyAnalysis property)
+        {
+            Debug.Assert(property != null);
+
+            uint ret = 0;
+
+            // Check if this property is a nested struct.
+            InvokeTypeInfo invokeTypeInfo = property.typeInfo as InvokeTypeInfo;
+            if(invokeTypeInfo != null)
+            {
+                // Each nested struct is serialized as:
+                //     TypeCode.Object      : 4 bytes
+                //     Number of properties : 4 bytes
+                //     Property description 0...N
+                //     Nested struct property name  : NULL-terminated string.
+                ret += sizeof(uint)  // TypeCode
+                     + sizeof(uint); // Property count
+
+                // Get the set of properties to be serialized.
+                PropertyAnalysis[] properties = invokeTypeInfo.properties;
+                if(properties != null)
+                {
+                    foreach(PropertyAnalysis prop in properties)
+                    {
+                        ret += GetMetadataLengthForProperty(prop);
+                    }
+                }
+
+                // Add the size of the property name.
+                ret += (uint)((property.name.Length + 1) * 2);
+            }
+            else
+            {
+                ret += (uint)(sizeof(uint) + ((property.name.Length + 1) * 2));
             }
 
             return ret;
