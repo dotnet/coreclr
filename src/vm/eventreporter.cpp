@@ -448,7 +448,6 @@ BOOL ShouldLogInEventLog()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORESYSTEM
     // If the process is being debugged, don't log
     if ((CORDebuggerAttached() || IsDebuggerPresent())
 #ifdef _DEBUG
@@ -471,10 +470,6 @@ BOOL ShouldLogInEventLog()
         return FALSE;
     else
         return TRUE;
-#else
-    // no event log on Apollo
-    return FALSE;
-#endif //!FEATURE_CORESYSTEM
 }
 
 //---------------------------------------------------------------------------------------
