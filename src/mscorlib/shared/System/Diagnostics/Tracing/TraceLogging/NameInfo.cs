@@ -81,6 +81,7 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
+#if FEATURE_PERFTRACING
         public IntPtr GetOrCreateEventHandle(EventProvider provider, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
             if (eventHandle == IntPtr.Zero)
@@ -118,5 +119,6 @@ namespace System.Diagnostics.Tracing
 
             return eventHandle;
         }
+#endif
     }
 }
