@@ -392,8 +392,6 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         STRINGREF refMesgString;
         EXCEPTIONREF refExceptionForWatsonBucketing;
         STRINGREF refErrorSourceString;
-        StackSString msg;  // Used for generating inner exception message
-        StackScratchBuffer buf;  // Used for generating inner exception message
     } gc;
     ZeroMemory(&gc, sizeof(gc));
 
@@ -471,11 +469,12 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         WszOutputDebugString(W("\"\r\n"));
     }
 
-    const CHAR * innerExceptionString = NULL;
+    const WCHAR * argExceptionString = NULL;
+    StackSString msg;
     if (gc.refExceptionForWatsonBucketing != NULL)
     {
-        GetExceptionMessage(gc.refExceptionForWatsonBucketing, gc.msg);
-        innerExceptionString = gc.msg.GetANSI(gc.buf);
+        GetExceptionMessage(gc.refExceptionForWatsonBucketing, msg);
+        argExceptionString = msg.GetUnicode();
     }
 
     Thread *pThread = GetThread();
@@ -508,7 +507,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
 
-    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, innerExceptionString);
+    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, argExceptionString);
 
     GCPROTECT_END();
 }
