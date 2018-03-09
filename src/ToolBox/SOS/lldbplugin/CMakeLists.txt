@@ -55,8 +55,8 @@ endif()
 
 if (CLR_CMAKE_PLATFORM_DARWIN)
     # Check for LLDB library
-    find_library(LLDB NAMES LLDB lldb lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm NO_DEFAULT_PATH)
-    find_library(LLDB NAMES LLDB lldb lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATH_SUFFIXES llvm)
+    find_library(LLDB NAMES LLDB lldb lldb-6.0 lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATHS "${WITH_LLDB_LIBS}" PATH_SUFFIXES llvm NO_DEFAULT_PATH)
+    find_library(LLDB NAMES LLDB lldb lldb-6.0 lldb-4.0 lldb-3.9 lldb-3.8 lldb-3.7 lldb-3.6 lldb-3.5 PATH_SUFFIXES llvm)
     if(LLDB STREQUAL LLDB-NOTFOUND)
         if(REQUIRE_LLDBPLUGIN)
             set(MESSAGE_MODE FATAL_ERROR)
@@ -76,6 +76,7 @@ endif()
 # If the file in a directory is found the result is stored in the variable and the search will not be repeated unless the variable is cleared.
 find_path(LLDB_H "lldb/API/LLDB.h" PATHS "${WITH_LLDB_INCLUDES}" NO_DEFAULT_PATH)
 find_path(LLDB_H "lldb/API/LLDB.h")
+find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-6.0/include")
 find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-4.0/include")
 find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-3.9/include")
 find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-3.8/include")
