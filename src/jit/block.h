@@ -895,6 +895,8 @@ struct BasicBlock : private LIR::Range
         flowList*       bbPreds;      // ptr to list of predecessors
     };
 
+    flowList* bbSuccs; // ptr to list of successors
+
     BlockSet    bbReach; // Set of all blocks that can reach this one
     BasicBlock* bbIDom;  // Represent the closest dominator to this block (called the Immediate
                          // Dominator) used to compute the dominance tree.

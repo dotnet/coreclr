@@ -3723,6 +3723,7 @@ public:
 
     bool fgModified;         // True if the flow graph has been modified recently
     bool fgComputePredsDone; // Have we computed the bbPreds list
+    bool fgComputeSuccsDone; // Have we computed the bbSuccs list
     bool fgCheapPredsValid;  // Is the bbCheapPreds list valid?
     bool fgDomsComputed;     // Have we computed the dominator sets?
     bool fgOptimizedFinally; // Did we optimize any try-finallys?
@@ -4346,6 +4347,12 @@ protected:
     void fgUpdateChangedFlowGraph();
 
 public:
+    // Compute the successors of the blocks in the control flow graph.
+    void fgComputeSuccs();
+
+    // Remove all successors information.
+    void fgRemoveSuccs();
+
     // Compute the predecessors of the blocks in the control flow graph.
     void fgComputePreds();
 

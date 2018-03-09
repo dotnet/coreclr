@@ -38,6 +38,9 @@ void Compiler::fgInit()
     /* We haven't yet computed the bbPreds lists */
     fgComputePredsDone = false;
 
+    /* We haven't yet computed the bbSuccs lists */
+    fgComputeSuccsDone = false;
+
     /* We haven't yet computed the bbCheapPreds lists */
     fgCheapPredsValid = false;
 
@@ -1870,6 +1873,36 @@ void Compiler::fgComputeReachabilitySets()
 #endif // DEBUG
 
     fgSetBlockHasGCSafepoint();
+}
+
+void Compiler::fgComputeSuccs()
+{
+    assert(fgComputePredsDone);
+    assert(!fgComputeSuccsDone);
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        for (flowList* predFlow = block->bbPreds; predFlow != nullptr; predFlow = predFlow->flNext)
+        {
+            BasicBlock* pred = predFlow->flBlock;
+
+            flowList* succFlow   = new (this, CMK_FlowList) flowList();
+            succFlow->flNext     = pred->bbSuccs;
+            succFlow->flDupCount = predFlow->flDupCount;
+            succFlow->flBlock    = block;
+            pred->bbSuccs        = succFlow;
+        }
+    }
+    fgComputeSuccsDone = true;
+}
+
+void Compiler::fgRemoveSuccs()
+{
+    assert(fgComputeSuccsDone);
+    fgComputeSuccsDone = false;
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        block->bbSuccs = nullptr;
+    }
 }
 
 //------------------------------------------------------------------------
