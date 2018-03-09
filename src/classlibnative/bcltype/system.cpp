@@ -377,7 +377,7 @@ WCHAR g_szFailFastBuffer[256];
 
 // This is the common code for FailFast processing that is wrapped by the two
 // FailFast FCalls below.
-void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF refErrorSourceString, ExceptionObject * pInnerException)
+void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF refErrorSourceString)
 {
     CONTRACTL
     {
@@ -392,6 +392,8 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         STRINGREF refMesgString;
         EXCEPTIONREF refExceptionForWatsonBucketing;
         STRINGREF refErrorSourceString;
+        StackSString msg;  // Used for generating inner exception message
+        StackScratchBuffer buf;  // Used for generating inner exception message
     } gc;
     ZeroMemory(&gc, sizeof(gc));
 
@@ -469,6 +471,13 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         WszOutputDebugString(W("\"\r\n"));
     }
 
+    const CHAR * innerExceptionString = NULL;
+    if (gc.refExceptionForWatsonBucketing != NULL)
+    {
+        GetExceptionMessage(gc.refExceptionForWatsonBucketing, gc.msg);
+        innerExceptionString = gc.msg.GetANSI(gc.buf);
+    }
+
     Thread *pThread = GetThread();
 
 #ifndef FEATURE_PAL    
@@ -499,7 +508,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
 
-    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, (VOID*)pInnerException);
+    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, innerExceptionString);
 
     GCPROTECT_END();
 }
@@ -555,7 +564,7 @@ FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAF
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, NULL, refExceptionUNSAFE);
+    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, NULL);
 
     HELPER_METHOD_FRAME_END();
 }

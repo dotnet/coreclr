@@ -1176,7 +1176,7 @@ inline void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, VOID * pInnerException)
+inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, const CHAR * innerExceptionString)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1201,21 +1201,12 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
 
-            if (pInnerException != NULL) {
-                ExceptionObject * pRefInnerException = (ExceptionObject*)pInnerException;
-                EXCEPTIONREF refException = (EXCEPTIONREF)(pRefInnerException);
-                GCPROTECT_BEGIN(refException);
-                StackSString msg;
-                GetExceptionMessage(refException, msg);
-                StackScratchBuffer buf;
-                const CHAR * innerExceptionMsg = msg.GetANSI(buf);
-
+            if (innerExceptionString != NULL) {
                 PrintToStdErrA("\n");
                 PrintToStdErrA("Inner exception details:");
                 PrintToStdErrA("\n");
-                PrintToStdErrA(innerExceptionMsg);
+                PrintToStdErrA(innerExceptionString);
                 PrintToStdErrA("\n");
-                GCPROTECT_END();
             }
         }
     }
@@ -1229,7 +1220,7 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
 // Log an error to the event log if possible, then throw up a dialog box.
 //
 
-void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, VOID * pInnerException)
+void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, const CHAR * innerExceptionString)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -1240,7 +1231,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     // Log FailFast exception to StdErr
     if (exitCode == (UINT)COR_E_FAILFAST)
     {
-        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, pInnerException);
+        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, innerExceptionString);
     }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
@@ -1495,7 +1486,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, VOID * refInnerException /* = NULL */)
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, const CHAR * innerExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1545,11 +1536,11 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         switch (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime))
         {
         case eRudeExitProcess:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, refInnerException);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, innerExceptionString);
 	        SafeExitProcess(exitCode, TRUE);
             break;
         case eDisableRuntime:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, refInnerException);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, innerExceptionString);
             DisableRuntime(SCA_ExitProcessWhenShutdownComplete);
             break;
         default:
