@@ -120,6 +120,7 @@ namespace System.IO
 
             // It moves the value of the skip to the second last character of the segment.
             while (path.Length > skip && !PathInternal.IsDirectorySeparator(path[skip])
+                && (skip != 0)
                 && !(path[skip - 1] == PathInternal.VolumeSeparatorChar)
                 && !PathInternal.IsDirectorySeparator(path[skip - 1]))
             {
