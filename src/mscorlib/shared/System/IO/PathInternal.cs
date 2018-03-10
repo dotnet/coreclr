@@ -118,7 +118,8 @@ namespace System.IO
         {
             Debug.Assert(skip >= 0);
 
-            // It moves the value of the skip to the second last character of the segment.
+            // Moves skip forward to the last character in the segment because for UNC path, the root length doesnot include the last directory separator.
+            // So When we subtract one in GetFullPath it changes the skip length to "\\Server\Shar" instead of "\\Server\Share"
             while (path.Length > skip && !PathInternal.IsDirectorySeparator(path[skip])
                 && (skip != 0)
                 && !(path[skip - 1] == PathInternal.VolumeSeparatorChar)

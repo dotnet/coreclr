@@ -117,11 +117,11 @@ namespace System.IO
                 combinedPath = JoinInternal(basePath, path);
             }
 
-            // Device paths are normalized by definition, so passing something of this format
-            // to GetFullPath() won't do anything by design. Additionally, GetFullPathName() in
-            // Windows doesn't root them properly. As such we need to manually remove segments.
+            // Device paths are normalized by definition, so passing something of this format (i.e. \\?\C:\.\tmp, \\.\C:\foo)
+            // to Windows APIs won't do anything by design. Additionally, GetFullPathName() in Windows doesn't root
+            // them properly. As such we need to manually remove segments and not use GetFullPath(). Note that we need
+            // to subtract one from GetRootLength in order to normalize the first segment after the root. eg "\\?\C:\..\", "\\?\C:\.\", "\\?\C:\\"
             return PathInternal.IsDevice(combinedPath)
-                // Paths at this point are in the form of \\?\C:\.\tmp we skip to the last character of the root when calling RemoveRelativeSegments to remove relative paths in such cases.
                 ? PathInternal.RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath) - 1)
                 : GetFullPath(combinedPath);
         }
