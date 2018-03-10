@@ -497,13 +497,15 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
     }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
+#ifndef _TARGET_ARM_
     // Ignore ReadyToRun during NGen
     if (IsCompilationProcess() && !IsNgenPDBCompilationProcess())
     {
         DoLog("Ready to Run disabled - compilation process");
         return NULL;
     }
-#endif
+#endif // _TARGET_ARM_
+#endif // FEATURE_NATIVE_IMAGE_GENERATION
 
     if (!pLayout->IsNativeMachineFormat())
     {
