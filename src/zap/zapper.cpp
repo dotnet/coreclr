@@ -9,24 +9,6 @@
 
 #include "clr/fs/dir.h"
 
-/* --------------------------------------------------------------------------- *
- * Error Macros
- * --------------------------------------------------------------------------- */
-
-#ifdef ALLOW_LOCAL_WORKER
-namespace
-{
-
-bool g_eeInitialized = false;
-//these track the initialization state of the runtime in local worker mode.  If
-//the flags change during subsequent calls to InitEE, then fail.
-BOOL g_fForceDebug, g_fForceProfile, g_fForceInstrument;
-
-}
-#endif
-
-
-
 #pragma warning(push)
 #pragma warning(disable: 4995)
 #include "shlwapi.h"
@@ -638,31 +620,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
     if (m_pOpt->m_verbose)
         IfFailThrow(m_pEECompileInfo->SetVerboseLevel (CORCOMPILE_VERBOSE));
 
-#ifdef ALLOW_LOCAL_WORKER
-    //if this is not NULL it means that we've already initialized the EE.
-    //Do not do so again.  However, verify that it would get initialized
-    //the same way.
-    if (g_eeInitialized)
-    {
-        if (fForceDebug != g_fForceDebug ||
-            fForceProfile != g_fForceProfile ||
-            fForceInstrument != g_fForceInstrument)
-        {
-            Error(W("AllowLocalWorker does not support changing EE initialization state\r\n"));
-            ThrowHR(E_FAIL);
-        }
-    }
-    else
-    {
-#endif // ALLOW_LOCAL_WORKER
-        IfFailThrow(m_pEECompileInfo->Startup(fForceDebug, fForceProfile, fForceInstrument));
-#ifdef ALLOW_LOCAL_WORKER
-        g_fForceDebug = fForceDebug;
-        g_fForceProfile = fForceProfile;
-        g_fForceInstrument = fForceInstrument;
-        g_eeInitialized = true;
-    }
-#endif // ALLOW_LOCAL_WORKER
+    IfFailThrow(m_pEECompileInfo->Startup(fForceDebug, fForceProfile, fForceInstrument));
 
     m_pEEJitInfo = GetZapJitInfo();
 
