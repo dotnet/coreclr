@@ -180,6 +180,7 @@ void SetContains256bitAVX(bool value)
 
 bool IsDstDstSrcAVXInstruction(instruction ins);
 bool IsDstSrcSrcAVXInstruction(instruction ins);
+bool IsDstSrcImmAvxInstruction(instruction ins);
 bool IsThreeOperandAVXInstruction(instruction ins)
 {
     return (IsDstDstSrcAVXInstruction(ins) || IsDstSrcSrcAVXInstruction(ins));
@@ -227,6 +228,10 @@ bool IsDstDstSrcAVXInstruction(instruction ins)
     return false;
 }
 bool IsDstSrcSrcAVXInstruction(instruction ins)
+{
+    return false;
+}
+bool IsDstSrcImmAvxInstruction(instruction ins)
 {
     return false;
 }

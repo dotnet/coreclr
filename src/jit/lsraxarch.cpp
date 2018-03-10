@@ -2421,7 +2421,7 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             break;
     }
 }
-#endif
+#endif // FEATURE_HW_INTRINSICS
 
 //------------------------------------------------------------------------
 // BuildCast: Set the NodeInfo for a GT_CAST.
