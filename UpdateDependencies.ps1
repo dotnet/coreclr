@@ -16,5 +16,6 @@ $initTools = Join-Path $PSScriptRoot "init-tools.cmd"
 # Execute MSBuild using the dotnet.exe host
 $dotNetExe = Join-Path $toolsLocalPath "dotnetcli\dotnet.exe"
 $msbuildExe = Join-Path $toolsLocalPath "msbuild.exe"
-& $dotNetExe $msbuildExe $args
+$testsBuildProj = Join-Path $PSScriptRoot "tests\build.proj"
+& $dotNetExe $msbuildExe $testsBuildProj /t:UpdateDependenciesAndSubmitPullRequest $args
 exit $LastExitCode
