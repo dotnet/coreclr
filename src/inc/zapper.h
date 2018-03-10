@@ -126,7 +126,6 @@ class Zapper
 #if !defined(NO_NGENPDB)
     SString                 m_DiasymreaderPath;
 #endif // !defined(NO_NGENPDB)
-    bool                    m_fForceFullTrust;
 
     SString                 m_outputFilename;
 
@@ -352,7 +351,6 @@ class Zapper
     void SetAppPaths(LPCWSTR pwzAppPaths);
     void SetAppNiPaths(LPCWSTR pwzAppNiPaths);
     void SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths);
-    void SetForceFullTrust(bool val);
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     void SetCLRJITPath(LPCWSTR pwszCLRJITPath);
