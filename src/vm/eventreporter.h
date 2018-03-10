@@ -61,6 +61,8 @@ public:
     void BeginStackTrace();
     // Add one frame to the callstack part
     void AddStackTrace(SString& s);
+    // Add failfast stack trace
+    void AddFailFastStackTrace(SString& s);
     // Report to the EventLog
     void Report();
 };

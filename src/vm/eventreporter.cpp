@@ -345,6 +345,34 @@ void EventReporter::AddStackTrace(SString& s)
 
 //---------------------------------------------------------------------------------------
 //
+// Add the stack trace of exception passed to managed FailFast call (Environment.FailFast()) to Event Log
+//
+// Arguments:
+//    s       - String representation of the stack trace of argument exception
+//
+// Return Value:
+//    None.
+//
+void EventReporter::AddFailFastStackTrace(SString& s)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(m_eventType == ERT_ManagedFailFast);
+
+    m_Description.Append(W("Exception stack:\n"));
+    m_Description.Append(s);
+    m_Description.Append(W("\n"));
+}
+
+//---------------------------------------------------------------------------------------
+//
 // Generate an entry in EventLog.
 //
 // Arguments:
@@ -448,7 +476,6 @@ BOOL ShouldLogInEventLog()
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORESYSTEM
     // If the process is being debugged, don't log
     if ((CORDebuggerAttached() || IsDebuggerPresent())
 #ifdef _DEBUG
@@ -471,10 +498,6 @@ BOOL ShouldLogInEventLog()
         return FALSE;
     else
         return TRUE;
-#else
-    // no event log on Apollo
-    return FALSE;
-#endif //!FEATURE_CORESYSTEM
 }
 
 //---------------------------------------------------------------------------------------

@@ -1262,13 +1262,18 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
             else if (exitCode == (UINT)COR_E_CODECONTRACTFAILED)
                 failureType = EventReporter::ERT_CodeContractFailed;
             EventReporter reporter(failureType);
-
+            StackSString s(argExceptionString);
 
             if ((exitCode == (UINT)COR_E_FAILFAST) || (exitCode == (UINT)COR_E_CODECONTRACTFAILED) || (exitCode == (UINT)CLR_E_GC_OOM))
             {
                 if (pszMessage)
                 {
                     reporter.AddDescription((WCHAR*)pszMessage);
+                }
+
+                if (argExceptionString)
+                {
+                    reporter.AddFailFastStackTrace(s);
                 }
 
                 if (exitCode != (UINT)CLR_E_GC_OOM)
