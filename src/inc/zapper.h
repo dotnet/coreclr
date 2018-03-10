@@ -448,30 +448,5 @@ class ZapperOptions
     ~ZapperOptions();
 };
 
-struct NGenPrivateAttributesClass : public NGenPrivateAttributes
-{
-    NGenPrivateAttributesClass()
-    {
-        Flags    = 0;
-        ZapStats = 0;
-        DbgDir   = NULL;
-    }
-
-private:
-    // Make sure that copies of this object aren't inadvertently created
-    NGenPrivateAttributesClass(const NGenPrivateAttributesClass &init);
-    const NGenPrivateAttributesClass &operator =(const NGenPrivateAttributesClass &rhs);
-
-public:
-    ~NGenPrivateAttributesClass()
-    {
-        if (DbgDir)
-        {
-            ::SysFreeString(DbgDir);
-            DbgDir = NULL;
-        }
-    }
-};
-
 #endif // ZAPPER_H_
 
