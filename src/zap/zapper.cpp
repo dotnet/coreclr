@@ -245,8 +245,7 @@ ZapperOptions::ZapperOptions() :
   m_fPartialNGenSet(false),
   m_fNGenLastRetry(false),
   m_compilerFlags(),
-  m_legacyMode(false)
-  ,m_fNoMetaData(s_fNGenNoMetaData)
+  m_fNoMetaData(s_fNGenNoMetaData)
 {
     SetCompilerFlags();
 
@@ -1812,11 +1811,3 @@ SString Zapper::GetOutputFileName()
 {
     return m_outputFilename;
 }
-
-void Zapper::SetLegacyMode()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    m_pOpt->m_legacyMode = true;
-}
-

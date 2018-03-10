@@ -364,8 +364,6 @@ class Zapper
     void SetOutputFilename(LPCWSTR pwszOutputFilename);
     SString GetOutputFileName();
 
-    void SetLegacyMode();
-
  private:
 
     void DestroyDomain();
@@ -441,8 +439,6 @@ class ZapperOptions
     bool        m_fNGenLastRetry;       // This is retry of the compilation
 
     CORJIT_FLAGS m_compilerFlags;
-
-    bool       m_legacyMode;          // true if the zapper was invoked using legacy mode
 
     bool        m_fNoMetaData;          // Do not copy metadata and IL to native image
 
