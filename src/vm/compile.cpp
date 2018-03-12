@@ -90,7 +90,6 @@ HRESULT CEECompileInfo::Startup(  BOOL fForceDebug,
     HRESULT hr = S_OK;
 
     m_fCachingOfInliningHintsEnabled = TRUE;
-    m_fGeneratingNgenPDB = FALSE;
 
     _ASSERTE(!g_fEEStarted && !g_fEEInit && "You cannot run the EE inside an NGEN compilation process");
 
@@ -129,8 +128,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
                                      IMetaDataAssemblyEmit *pEmitter,
                                      BOOL fForceDebug,
                                      BOOL fForceProfiling,
-                                     BOOL fForceInstrument,
-                                     BOOL fForceFulltrustDomain)
+                                     BOOL fForceInstrument)
 {
     STANDARD_VM_CONTRACT;
 

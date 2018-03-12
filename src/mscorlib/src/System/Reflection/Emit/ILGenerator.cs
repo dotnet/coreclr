@@ -727,7 +727,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(arg >> 56);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, float arg)
+        public unsafe virtual void Emit(OpCode opcode, float arg)
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
@@ -738,7 +738,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(tempVal >> 24);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, double arg)
+        public unsafe virtual void Emit(OpCode opcode, double arg)
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
@@ -1402,22 +1402,6 @@ namespace System.Reflection.Emit
         internal int m_currentCatch;
 
         private int m_currentState;
-
-
-        //This will never get called.  The values exist merely to keep the
-        //compiler happy.
-        private __ExceptionInfo()
-        {
-            m_startAddr = 0;
-            m_filterAddr = null;
-            m_catchAddr = null;
-            m_catchEndAddr = null;
-            m_endAddr = 0;
-            m_currentCatch = 0;
-            m_type = null;
-            m_endFinally = -1;
-            m_currentState = State_Try;
-        }
 
         internal __ExceptionInfo(int startAddr, Label endLabel)
         {

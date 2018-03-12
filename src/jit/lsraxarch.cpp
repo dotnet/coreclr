@@ -821,6 +821,11 @@ bool LinearScan::isRMWRegOper(GenTree* tree)
         case GT_MUL:
             return (!tree->gtOp.gtOp2->isContainedIntOrIImmed() && !tree->gtOp.gtOp1->isContainedIntOrIImmed());
 
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            return tree->isRMWHWIntrinsic(compiler);
+#endif // FEATURE_HW_INTRINSICS
+
         default:
             return true;
     }
@@ -2309,28 +2314,17 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         }
     }
 
-    if (!compiler->canUseVexEncoding())
+    // Check for "srcCount >= 2" to match against 3+ operand nodes where one is constant
+    if ((op2 == nullptr) && (info->srcCount >= 2) && intrinsicTree->isRMWHWIntrinsic(compiler))
     {
-        // On machines without VEX support, we sometimes have to inject an intermediate
-        // `movaps targetReg, op1Reg` in order to maintain the correct behavior. This
-        // becomes a problem if `op2Reg == targetReg` since that means we will overwrite
-        // op2. In order to resolve this, we currently mark the second operand as delay free.
+        // TODO-XArch-CQ: This is currently done in order to handle intrinsics which have more than
+        // two arguments but which still have RMW semantics (such as NI_SSE41_Insert). We should make
+        // this handling more general and move it back out to LinearScan::BuildNode.
 
-        if ((flags & HW_Flag_NoRMWSemantics) == 0)
-        {
-            assert(category != HW_Category_MemoryLoad);
-            assert(category != HW_Category_MemoryStore);
-
-            assert((flags & HW_Flag_NoCodeGen) == 0);
-
-            if (info->srcCount >= 2)
-            {
-                assert(numArgs >= 2);
-                LocationInfoListNode* op2Info = useList.Begin()->Next();
-                op2Info->info.isDelayFree     = true;
-                info->hasDelayFreeSrc         = true;
-            }
-        }
+        assert(numArgs > 2);
+        LocationInfoListNode* op2Info = useList.Begin()->Next();
+        op2Info->info.isDelayFree     = true;
+        info->hasDelayFreeSrc         = true;
     }
 
     switch (intrinsicID)
@@ -2359,10 +2353,15 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         case NI_SSE_ConvertToSingle:
         case NI_SSE_StaticCast:
         case NI_SSE2_ConvertToDouble:
+        case NI_AVX_ExtendToVector256:
+        case NI_AVX_GetLowerHalf:
+        case NI_AVX_StaticCast:
+        {
             assert(info->srcCount == 1);
             assert(info->dstCount == 1);
             useList.Last()->info.isTgtPref = true;
             break;
+        }
 
         case NI_SSE2_MaskMove:
         {

@@ -33,7 +33,7 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
-    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;CODE_ANALYSIS_BASELINE</DefineConstants>
+    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;CODE_ANALYSIS_BASELINE;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
@@ -319,7 +319,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Object.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\String.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
@@ -672,6 +672,8 @@
   <ItemGroup>
     <EmbeddedResource Include="$(_ILLinkRuntimeRootDescriptorFilePath)" />
   </ItemGroup>
+
+  <Import Project="ILLink.targets" />
 
   <Import Project="GenerateCompilerResponseFile.targets" />
 </Project>

@@ -35,10 +35,6 @@ namespace System.Runtime.InteropServices
         {
             private Delegate _d;
 
-            private bool _once = false;
-            private int _expectedParamsCount;
-            private Type[] _cachedTargetTypes;
-
             public DelegateWrapper(Delegate d)
             {
                 _d = d;
@@ -77,7 +73,7 @@ namespace System.Runtime.InteropServices
         #endregion
 
 
-        #region static internal methods
+        #region internal static methods
 
         internal static ComEventsMethod Find(ComEventsMethod methods, int dispid)
         {
