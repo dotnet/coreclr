@@ -117,12 +117,17 @@ namespace System.IO
                 combinedPath = JoinInternal(basePath, path);
             }
 
+            int skip = PathInternal.GetRootLength(combinedPath);
+
             // Device paths are normalized by definition, so passing something of this format (i.e. \\?\C:\.\tmp, \\.\C:\foo)
             // to Windows APIs won't do anything by design. Additionally, GetFullPathName() in Windows doesn't root
-            // them properly. As such we need to manually remove segments and not use GetFullPath(). Note that we need
-            // to subtract one from GetRootLength in order to normalize the first segment after the root. eg "\\?\C:\..\", "\\?\C:\.\", "\\?\C:\\"
+            // them properly. As such we need to manually remove segments and not use GetFullPath(). We treat "\.." , "\." and "\\" as a
+            // relative segment. In cases like "\\?\C:\.\" and "\\?\C:\..\", we set length of "\\?\C:" (Root Length - 1) as the skip length
+            // for RemoveRelativeSegments. Therefore, the first segment for RemoveRelativeSegments will start with a leading separator.
+            // For UNC Device paths the root (e.g. "\\?\UNC\Server\Share") is without ending separator, so we don't need to subtract one
+            // from the root length.
             return PathInternal.IsDevice(combinedPath)
-                ? PathInternal.RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath) - 1)
+                ? PathInternal.RemoveRelativeSegments(combinedPath, PathInternal.IsDeviceUNC(combinedPath) ? skip : skip - 1)
                 : GetFullPath(combinedPath);
         }
 

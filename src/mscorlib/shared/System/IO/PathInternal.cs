@@ -117,17 +117,6 @@ namespace System.IO
         internal static string RemoveRelativeSegments(string path, int skip = 0)
         {
             Debug.Assert(skip >= 0);
-
-            // Moves skip forward to the last character in the segment because for UNC path, the root length doesnot include the last directory separator.
-            // So When we subtract one in GetFullPath it changes the skip length to "\\Server\Shar" instead of "\\Server\Share"
-            while (path.Length > skip && !PathInternal.IsDirectorySeparator(path[skip])
-                && (skip != 0)
-                && !(path[skip - 1] == PathInternal.VolumeSeparatorChar)
-                && !PathInternal.IsDirectorySeparator(path[skip - 1]))
-            {
-                skip++;
-            }
-
             bool flippedSeparator = false;
 
             Span<char> initialBuffer = stackalloc char[260 /* PathInternal.MaxShortPath */];
