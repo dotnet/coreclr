@@ -9579,7 +9579,7 @@ void gc_heap::switch_one_quantum()
 {
     enable_preemptive ();
     GCToOSInterface::Sleep (1);
-    disable_preemptive (TRUE);
+    disable_preemptive (true);
 }
 
 void gc_heap::reset_ww_by_chunk (uint8_t* start_address, size_t total_reset_size)
@@ -15597,7 +15597,7 @@ void gc_heap::gc1()
         )
     {
 #ifdef BACKGROUND_GC
-        bool cooperative_mode = TRUE;
+        bool cooperative_mode = true;
 
         if (settings.concurrent)
         {
@@ -25713,7 +25713,7 @@ void gc_heap::background_mark_phase ()
         if (bgc_t_join.joined())
 #endif //MULTIPLE_HEAPS
         {
-            disable_preemptive (TRUE);
+            disable_preemptive (true);
 
 #ifndef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
             // When software write watch is enabled, resetting write watch is done while the runtime is suspended above. The
@@ -25766,7 +25766,7 @@ void gc_heap::background_mark_phase ()
 #endif //MULTIPLE_HEAPS
         }
 
-        disable_preemptive (TRUE);
+        disable_preemptive (true);
 
         if (num_sizedrefs > 0)
         {
@@ -25783,7 +25783,7 @@ void gc_heap::background_mark_phase ()
             }
 #endif //MULTIPLE_HEAPS
 
-            disable_preemptive (TRUE);
+            disable_preemptive (true);
         }
 
         dprintf (3,("BGC: handle table marking"));
@@ -25835,7 +25835,7 @@ void gc_heap::background_mark_phase ()
         }
 #endif //MULTIPLE_HEAPS
 
-        disable_preemptive (TRUE);
+        disable_preemptive (true);
 
         dprintf (2, ("before CRov count: %d", bgc_overflow_count));
         bgc_overflow_count = 0;
@@ -31317,7 +31317,7 @@ void gc_heap::background_sweep()
 #endif //MULTIPLE_HEAPS
     }
 
-    disable_preemptive (TRUE);
+    disable_preemptive (true);
 
     dprintf (2, ("bgs: sweeping gen2 objects"));
     dprintf (2, ("bgs: seg: %Ix, [%Ix, %Ix[%Ix", (size_t)seg,
@@ -31559,7 +31559,7 @@ void gc_heap::background_sweep()
 #endif //MULTIPLE_HEAPS
     }
 
-    disable_preemptive (TRUE);
+    disable_preemptive (true);
 
     if (gc_lh_block_event.IsValid())
     {
