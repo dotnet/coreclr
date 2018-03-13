@@ -42,14 +42,31 @@ namespace System.IO
             return result;
         }
 
-        private static void GetFullPathName(string path, ref ValueStringBuilder builder)
+        internal static string Normalize(ReadOnlySpan<char> path)
+        {
+            Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
+            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+
+            // Get the full path
+            GetFullPathName(path, ref builder);
+
+            string result = builder.AsSpan().Contains('~')
+                ? TryExpandShortFileName(ref builder, originalPath: null)
+                : builder.ToString();
+
+            // Clear the buffer
+            builder.Dispose();
+            return result;
+        }
+
+        internal static void GetFullPathName(ReadOnlySpan<char> path, ref ValueStringBuilder builder)
         {
             // If the string starts with an extended prefix we would need to remove it from the path before we call GetFullPathName as
             // it doesn't root extended paths correctly. We don't currently resolve extended paths, so we'll just assert here.
             Debug.Assert(PathInternal.IsPartiallyQualified(path) || !PathInternal.IsExtended(path));
 
             uint result = 0;
-            while ((result = Interop.Kernel32.GetFullPathNameW(path, (uint)builder.Capacity, ref builder.GetPinnableReference(), IntPtr.Zero)) > builder.Capacity)
+            while ((result = Interop.Kernel32.GetFullPathNameW(ref MemoryMarshal.GetReference(path), (uint)builder.Capacity, ref builder.GetPinnableReference(), IntPtr.Zero)) > builder.Capacity)
             {
                 // Reported size is greater than the buffer size. Increase the capacity.
                 builder.EnsureCapacity(checked((int)result));
@@ -61,7 +78,7 @@ namespace System.IO
                 int errorCode = Marshal.GetLastWin32Error();
                 if (errorCode == 0)
                     errorCode = Interop.Errors.ERROR_BAD_PATHNAME;
-                throw Win32Marshal.GetExceptionForWin32Error(errorCode, path);
+                throw Win32Marshal.GetExceptionForWin32Error(errorCode, path.ToString());
             }
 
             builder.Length = (int)result;
@@ -220,7 +237,7 @@ namespace System.IO
             // Strip out any added characters at the front of the string
             ReadOnlySpan<char> output = builderToUse.AsSpan(rootDifference);
 
-            string returnValue = output.EqualsOrdinal(originalPath.AsSpan())
+            string returnValue = !string.IsNullOrEmpty(originalPath) && output.EqualsOrdinal(originalPath.AsSpan())
                 ? originalPath : new string(output);
 
             inputBuilder.Dispose();

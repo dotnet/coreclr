@@ -23,7 +23,7 @@ internal partial class Interop
                 return GetFullPathNameW(path, numBufferChars, pBuffer, mustBeZero);
         }
 #else
-        internal static extern uint GetFullPathNameW(string path, uint numBufferChars, ref char buffer, IntPtr mustBeZero);
+        internal static extern uint GetFullPathNameW(ref char path, uint numBufferChars, ref char buffer, IntPtr mustBeZero);
 #endif
     }
 }
