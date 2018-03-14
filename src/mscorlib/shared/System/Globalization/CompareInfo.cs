@@ -1221,6 +1221,8 @@ namespace System.Globalization
 
         internal static unsafe int GetIgnoreCaseHash(string source)
         {
+            Debug.Assert(source != null, "source must not be null");
+
             // Do not allocate on the stack if string is empty
             if (source.Length == 0)
             {
@@ -1228,34 +1230,36 @@ namespace System.Globalization
             }
 
             char[] borrowedArr = null;
-            Span<char> span = source.Length <= 250 ?
-                stackalloc char[250] :
+            Span<char> span = source.Length <= 255 ?
+                stackalloc char[255] :
                 (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
-            if (!source.IsAscii())
+            char c;
+            // We assume that str contains only ASCII characters until
+            // we hit a non-ASCII character to optimize the common case.
+            for (int i = 0; i < source.Length; i++)
             {
-                source.AsSpan().ToUpper(span, CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                char c;
-                for (int i = 0; i < source.Length; i++)
-                {
-                    c = source[i];
-                    // If we have ascii lowercase character, ANDing off 0x20
-                    // will make it an uppercase character.
-                    if ((c - 'a') <= ('z' - 'a'))
-                    {
-                        c = (char)(c & ~0x20);
-                    }
+                c = source[i];
 
-                    span[i] = c;
+                if (c >= 0x80)
+                {
+                    source.AsSpan().ToUpper(span, CultureInfo.InvariantCulture);
+                    break;
                 }
+
+                // If we have ascii lowercase character, ANDing off 0x20
+                // will make it an uppercase character.
+                if ((c - 'a') <= ('z' - 'a'))
+                {
+                    c = (char)(c & ~0x20);
+                }
+
+                span[i] = c;
             }
 
             int hash = Marvin.ComputeHash32(span.AsBytes(), Marvin.DefaultSeed);
 
-            // If input was longer than 250 characters return the borrowed char array.
+            // Return the borrowed array if necessary.
             if (borrowedArr != null)
             {
                 ArrayPool<char>.Shared.Return(borrowedArr);
