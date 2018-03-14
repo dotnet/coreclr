@@ -567,10 +567,12 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     // Arm32 emulator (Build, Test) -> arm-cross-latest
     //       |-> os in supportedArmLinuxOs && (architecture == "armem")
     //
-    // Arm32 hardware (Build) -> latest-or-auto
-    //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_build_only'] == true
+    // Arm32 hardware (Flow) -> Ubuntu 16.04 latest-or-auto (don't use limited arm hardware)
+    //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_flow_job'] == true
+    // Arm32 hardware (Build) -> Ubuntu 16.04 latest-or-auto
+    //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_build_job'] == true
     // Arm32 hardware (Test) -> ubuntu.1404.arm32.open
-    //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_build_only'] == false
+    //       |-> os == "Ubuntu" && (architecture == "arm")
     //
     // Arm64 (Build) -> arm64-cross-latest
     //       |-> os != "Windows_NT" && architecture == "arm64" && options['is_build_only'] == true
@@ -615,10 +617,14 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         else {
             // arm Ubuntu on hardware.
             assert (architecture == 'arm') && (os == 'Ubuntu')
-            def isBuild = (options != null) && (options['is_build_only'] == true)
-            if (isBuild) {
-                // arm Ubuntu build machine: use any Ubuntu x64 machine to cross build arm using Docker.
-                Utilities.setMachineAffinity(job, os, 'latest-or-auto')
+            def isFlow  = (options != null) && (options['is_flow_job'] == true)
+            def isBuild = (options != null) && (options['is_build_job'] == true)
+            if (isFlow || isBuild) {
+                // arm Ubuntu build machine: we build using Docker. Using an 'Ubuntu' (aka Ubuntu14.04)
+                // 'latest-or-auto' build machine didn't have 'zip', which we need. So using
+                // 'Ubuntu16.04' latest-or-auto instead, because (hopefully!) it does.
+                // Flow jobs don't need to use the arm hardware.
+                Utilities.setMachineAffinity(job, 'Ubuntu16.04', 'latest-or-auto')
             } else {
                 // arm Ubuntu test machine
                 // There is no tag (like, e.g., "arm-latest") for this, so don't call
@@ -632,7 +638,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     }
 }
 
-// setJobMachineAffinity: compute the machine affinity options for a test or flow job (not currently used for build jobs),
+// setJobMachineAffinity: compute the machine affinity options for a job,
 // then set the job with those affinity options.
 def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def isTestJob, def isFlowJob, def job)
 {
@@ -665,7 +671,9 @@ def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def i
         }
         else if (architecture == 'arm') {
             if (isBuildJob) {
-                affinityOptions = ['is_build_only': true]
+                affinityOptions = ['is_build_job': true]
+            } else if (isFlowJob) {
+                affinityOptions = ['is_flow_job': true]
             }
         }
     }
@@ -3229,8 +3237,6 @@ def static CreateFlowJob(def dslFactory, def project, def branch, def architectu
     def newFlowJob = null
 
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
-    
-    // For pri0 jobs we can build tests on unix
     if (windowsArmJob) {
 
         assert inputTestsBuildName == null
