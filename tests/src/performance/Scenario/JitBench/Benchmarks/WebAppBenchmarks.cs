@@ -45,7 +45,7 @@ namespace JitBench
             {
                 using (var setupSection = new IndentedTestOutputHelper("Setup " + Name, output))
                 {
-                    await DownloadAndExtractJitBenchRepo(outputDir, setupSection);
+                    await CloneAspNetJitBenchRepo(outputDir, setupSection);
                     await CreateStore(dotNetInstall, outputDir, setupSection);
                     await Publish(dotNetInstall, outputDir, setupSection);
                 }
@@ -56,28 +56,16 @@ namespace JitBench
             EnvironmentVariables.Add("DOTNET_SHARED_STORE", GetWebAppStoreDir(outputDir));
         }
 
-        async Task DownloadAndExtractJitBenchRepo(string outputDir, ITestOutputHelper output)
+        async Task CloneAspNetJitBenchRepo(string outputDir, ITestOutputHelper output)
         {
             // If the repo already exists, we delete it and extract it again.
             string jitBenchRepoRootDir = GetJitBenchRepoRootDir(outputDir);
             FileTasks.DeleteDirectory(jitBenchRepoRootDir, output);
 
-            string localJitBenchRepo = GetLocalJitBenchRepoDirectory();
-            if (localJitBenchRepo == null)
-            {
-                var url = $"{JitBenchRepoUrl}/archive/{JitBenchCommitSha1Id}.zip";
-                FileTasks.DeleteDirectory(jitBenchRepoRootDir + "_temp", output);
-                await FileTasks.DownloadAndUnzip(url, jitBenchRepoRootDir+"_temp", output);
-                FileTasks.MoveDirectory(Path.Combine(jitBenchRepoRootDir + "_temp", $"JitBench-{JitBenchCommitSha1Id}"), jitBenchRepoRootDir, output);
-            }
-            else
-            {
-                if (!Directory.Exists(localJitBenchRepo))
-                {
-                    throw new Exception("Local JitBench repo " + localJitBenchRepo + " does not exist");
-                }
-                FileTasks.DirectoryCopy(localJitBenchRepo, jitBenchRepoRootDir, output);
-            }
+            // clone the repo, checkout the commit and update submodule
+            await new ProcessRunner("git", $"clone {JitBenchRepoUrl} {jitBenchRepoRootDir}").WithLog(output).Run();
+            await new ProcessRunner("git", $"checkout {JitBenchCommitSha1Id}").WithWorkingDirectory(jitBenchRepoRootDir).WithLog(output).Run();
+            await new ProcessRunner("git", $"submodule update --init --recursive").WithWorkingDirectory(jitBenchRepoRootDir).WithLog(output).Run();
         }
 
         private static async Task CreateStore(DotNetInstallation dotNetInstall, string outputDir, ITestOutputHelper output)
@@ -265,7 +253,7 @@ namespace JitBench
         }
 
         private const string JitBenchRepoUrl = "https://github.com/adamsitnik/JitBench";
-        private const string JitBenchCommitSha1Id = "f145ba0435ebe7189cdfd721186d69db43823d41";
+        private const string JitBenchCommitSha1Id = "7b74b0efdfcf083edefb51258733087fa4f27335";
         private const string EnvironmentFileName = "JitBenchEnvironment.txt";
         private const string StoreDirName = ".store";
         private readonly Metric StartupMetric = new Metric("Startup", "ms");
