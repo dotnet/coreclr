@@ -3718,4 +3718,10 @@
   <data name="Arg_MustBeNullTerminatedString" xml:space="preserve">
     <value>The string must be null-terminated.</value>
   </data>
+  <data name="Arg_BogusIComparable" xml:space="preserve">
+    <value>Unable to sort because the IComparable.CompareTo() method returns inconsistent results. Either a value does not compare equal to itself, or one value repeatedly compared to another value yields different results. IComparable: '{0}'.</value>
+  </data>
+  <data name="Arg_ItemsMustHaveSameLengthAsKeys" xml:space="preserve">
+    <value>Items must have same length as keys</value>
+  </data>
 </root>
