@@ -2358,9 +2358,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // 5. where is zip?
                     // 6. etc.
                     buildCommands += """\
+uname -a
 ifconfig
 pwd
 ls -aF
+ls -aF /bin
+ls -aF /usr/bin
 df -H
 printenv
 which zip
@@ -3047,6 +3050,29 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 buildSelector {
                     buildNumber('${CORECLR_BUILD}')
                 }
+            }
+
+            if (isUbuntuArmJob) {
+                // Debugging:
+                // 1. show the IP address of the machine we're running on.
+                // 2. show the directory the script is run in.
+                // 3. show what's in this directory (currently).
+                // 4. how much disk space is there?
+                // etc.
+                shell("""\
+uname -a
+ifconfig
+pwd
+ls -aF
+ls -aF /bin
+ls -aF /usr/bin
+df -H
+printenv
+which unzip
+which git
+git status
+exit 0
+""")
             }
 
             if (architecture == 'arm64') {
