@@ -112,7 +112,9 @@ fi
 
 # Now start running the tests.
 
-${scriptPath}/runtest.sh ${playlistArgument} ${__UnprocessedBuildArgs}
+nextcmd="${scriptPath}/runtest.sh ${playlistArgument} ${__UnprocessedBuildArgs}"
+echo "Running: $nextcmd"
+$nextcmd
 exitCode=$?
 if [ $exitCode -eq $EXIT_CODE_TEST_FAILURE ]; then
     # Now, we loop, rerunning the failed tests up to maxIterations times minus one
@@ -141,7 +143,9 @@ if [ $exitCode -eq $EXIT_CODE_TEST_FAILURE ]; then
         fi
         mv "$testRootDir/coreclrtests.fail.txt" "$retryFile"
 
-        ${scriptPath}/runtest.sh --sequential --playlist=${retryFile} ${__UnprocessedBuildArgs}
+        nextcmd="${scriptPath}/runtest.sh --sequential --playlist=${retryFile} ${__UnprocessedBuildArgs}"
+        echo "Running: $nextcmd"
+        $nextcmd
         exitCode=$?
         if [ $exitCode -ne $EXIT_CODE_TEST_FAILURE ]; then
             # Either success or exceptional failure; we're done. For test failure, we loop,

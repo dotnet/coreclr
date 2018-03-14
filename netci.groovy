@@ -2363,7 +2363,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // 2. show the directory the script is run in.
                     // 3. show what's in this directory (currently).
                     // 4. how much disk space is there?
-                    // 5. where is zip?
                     // etc.
                     // use "|| true" to ignore all error codes
                     buildCommands += """\
@@ -2371,15 +2370,8 @@ uname -a || true
 ifconfig || true
 pwd || true
 ls -aF || true
-ls -aF /bin || true
-ls -aF /usr/bin || true
 df -H || true
 printenv || true
-which zip || true
-zip -? || true
-which docker || true
-which git || true
-git status || true
 """
 
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
@@ -3067,18 +3059,14 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 // 3. show what's in this directory (currently).
                 // 4. how much disk space is there?
                 // etc.
+                // use "|| true" to ignore all error codes
                 shell("""\
 uname -a || true
 ifconfig || true
 pwd || true
 ls -aF || true
-ls -aF /bin || true
-ls -aF /usr/bin || true
 df -H || true
 printenv || true
-which unzip || true
-which git || true
-git status || true
 """)
             }
 
