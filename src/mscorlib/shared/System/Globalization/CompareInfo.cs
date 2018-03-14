@@ -1234,16 +1234,15 @@ namespace System.Globalization
                 stackalloc char[255] :
                 (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
-            char c;
             // We assume that str contains only ASCII characters until
             // we hit a non-ASCII character to optimize the common case.
             for (int i = 0; i < source.Length; i++)
             {
-                c = source[i];
+                char c = source[i];
 
                 if (c >= 0x80)
                 {
-                    source.AsSpan().ToUpper(span, CultureInfo.InvariantCulture);
+                    source.AsSpan(i).ToUpper(span.Slice(i), CultureInfo.InvariantCulture);
                     break;
                 }
 
@@ -1257,7 +1256,8 @@ namespace System.Globalization
                 span[i] = c;
             }
 
-            int hash = Marvin.ComputeHash32(span.AsBytes(), Marvin.DefaultSeed);
+            // Slize the array to the input size as we could have gotten a larger array from the ArrayPool.
+            int hash = Marvin.ComputeHash32(span.Slice(0, source.Length).AsBytes(), Marvin.DefaultSeed);
 
             // Return the borrowed array if necessary.
             if (borrowedArr != null)
