@@ -2350,6 +2350,27 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Non-Windows ARM cross builds on hardware run on Ubuntu only
                     assert (os == 'Ubuntu')
 
+                    // Debugging:
+                    // 1. show the IP address of the machine we're running on.
+                    // 2. show the directory the script is run in.
+                    // 3. show what's in this directory (currently).
+                    // 4. how much disk space is there?
+                    // 5. where is zip?
+                    // 6. etc.
+                    buildCommands += """\
+ifconfig
+pwd
+ls -aF
+df -H
+printenv
+which zip
+zip -?
+which docker
+which git
+git status
+exit 0
+"""
+
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
 
@@ -2370,8 +2391,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     //     used by runtest.sh as the "--testNativeBinDir" argument.
 
                     // These commands are assumed to be run from the root of the workspace.
-                    buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
-                    buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.arm.${configuration}/tests"
+                    buildCommands += "zip -r \${WORKSPACE}/coreroot.${lowerConfiguration}.zip \${WORKSPACE}/bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
+                    buildCommands += "zip -r \${WORKSPACE}/testnativebin.${lowerConfiguration}.zip \${WORKSPACE}/bin/obj/Linux.arm.${configuration}/tests"
 
                     Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     break
