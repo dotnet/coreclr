@@ -270,6 +270,27 @@ namespace System.Text
             // Note: persist "m_currentThread" to be compatible with old versions
             info.AddValue(ThreadIDField, 0);
         }
+        
+        [System.Diagnostics.Conditional("DEBUG")]
+        private void DebugDump()
+        {
+            if (Length == 0)
+            {
+                return;
+            }
+            StringBuilder chunk = this;
+            // showing at most the last 10 chunks in this StringBuilder
+            const int maxChunksToPrint = 10;
+            var debugText = new StringBuilder();
+            for (int i = 0; chunk != null && i < maxChunksToPrint; i++)
+            {
+                debugText.Insert(0, "|" + new string(chunk.m_ChunkChars));
+                chunk = chunk.m_ChunkPrevious;
+            }
+            debugText.Append("|");
+
+            Debug.WriteLine(debugText.ToString().Replace("\0", "."));
+        }
 
         [System.Diagnostics.Conditional("DEBUG")]
         private void AssertInvariants()
@@ -436,6 +457,7 @@ namespace System.Text
 
         public StringBuilder Clear()
         {
+            Capacity = Math.Max(DefaultCapacity, Math.Min(Capacity, (int)(Length * 1.2)));
             this.Length = 0;
             return this;
         }
