@@ -1304,5 +1304,90 @@ namespace System
                 value, comparer);
             return BinarySearch(span, comparable);
         }
+
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <see cref="IComparable" /> implementation of each 
+        /// element of the <see cref= "Span{T}" />
+        /// </summary>
+        /// <param name="span">The <see cref="Span{T}"/> to sort.</param>
+        /// <exception cref = "InvalidOperationException"> 
+        /// One or more elements do not implement the <see cref="IComparable" /> interface.
+        /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T>(this Span<T> span)
+        {
+            SpanSortHelpersKeys.Sort(span);
+        }
+
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <typeparamref name="TComparer" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T, TComparer>(this Span<T> span, TComparer comparer)
+           where TComparer : IComparer<T>
+        {
+            SpanSortHelpersKeys.Sort(span, comparer);
+        }
+
+        /// <summary>
+        /// Sorts the elements in the entire <see cref="Span{T}" /> 
+        /// using the <see cref="Comparison{T}" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<T>(this Span<T> span, Comparison<T> comparison)
+        {
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+
+            SpanSortHelpersKeys.Sort(span, comparison);
+        }
+
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <see cref="IComparable" /> implementation of each 
+        /// element of the <see cref= "Span{TKey}"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items)
+        {
+            SpanSortHelpersKeysValues.Sort(keys, items);
+        }
+
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <typeparamref name="TComparer" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue, TComparer>(this Span<TKey> keys,
+           Span<TValue> items, TComparer comparer)
+           where TComparer : IComparer<TKey>
+        {
+            SpanSortHelpersKeysValues.Sort(keys, items, comparer);
+        }
+
+        /// <summary>
+        /// Sorts a pair of spans 
+        /// (one contains the keys <see cref="Span{TKey}"/> 
+        /// and the other contains the corresponding items <see cref="Span{TValue}"/>) 
+        /// based on the keys in the first <see cref= "Span{TKey}" /> 
+        /// using the <see cref="Comparison{TKey}" />.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Sort<TKey, TValue>(this Span<TKey> keys,
+           Span<TValue> items, Comparison<TKey> comparison)
+        {
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+
+            SpanSortHelpersKeysValues.Sort(keys, items, comparison);
+        }
     }
 }
