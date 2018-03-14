@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Buffers;
+using System.Text;
 
 namespace System.Globalization
 {
@@ -1226,13 +1227,14 @@ namespace System.Globalization
                 return source.GetHashCode();
             }
 
-            Span<char> span = source.Length < 256 ? 
-                stackalloc char[source.Length] : 
-                ArrayPool<char>.Shared.Rent(source.Length);
+            char[] borrowedArr = null;
+            Span<char> span = source.Length <= 250 ?
+                stackalloc char[250] :
+                (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
             if (!source.IsAscii())
             {
-                TextInfo.Invariant.ToLower(source).AsSpan().CopyTo(span);
+                source.AsSpan().ToUpper(span, CultureInfo.InvariantCulture);
             }
             else
             {
@@ -1251,7 +1253,15 @@ namespace System.Globalization
                 }
             }
 
-            return Marvin.ComputeHash32(span.AsBytes(), Marvin.DefaultSeed);
+            int hash = Marvin.ComputeHash32(span.AsBytes(), Marvin.DefaultSeed);
+
+            // If input was longer than 250 characters return the borrowed char array.
+            if (borrowedArr != null)
+            {
+                ArrayPool<char>.Shared.Return(borrowedArr);
+            }
+
+            return hash;
         }
 
         ////////////////////////////////////////////////////////////////////////
