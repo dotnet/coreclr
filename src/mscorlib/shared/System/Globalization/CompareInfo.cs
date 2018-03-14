@@ -16,6 +16,7 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using System.Buffers;
 
 namespace System.Globalization
 {
@@ -1217,6 +1218,41 @@ namespace System.Globalization
             return (this.Name.GetHashCode());
         }
 
+        internal static unsafe int GetIgnoreCaseHash(string source)
+        {
+            // Do not allocate on the stack if string is empty
+            if (source.Length == 0)
+            {
+                return source.GetHashCode();
+            }
+
+            Span<char> span = source.Length < 256 ? 
+                stackalloc char[source.Length] : 
+                ArrayPool<char>.Shared.Rent(source.Length);
+
+            if (!source.IsAscii())
+            {
+                TextInfo.Invariant.ToLower(source).AsSpan().CopyTo(span);
+            }
+            else
+            {
+                char c;
+                for (int i = 0; i < source.Length; i++)
+                {
+                    c = source[i];
+                    // If we have ascii lowercase character, ANDing off 0x20
+                    // will make it an uppercase character.
+                    if ((c - 'a') <= ('z' - 'a'))
+                    {
+                        c = (char)(c & ~0x20);
+                    }
+
+                    span[i] = c;
+                }
+            }
+
+            return Marvin.ComputeHash32(span.AsBytes(), Marvin.DefaultSeed);
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1259,7 +1295,7 @@ namespace System.Globalization
 
             if (_invariantMode)
             {
-                return ((options & CompareOptions.IgnoreCase) != 0) ? TextInfo.GetHashCodeOrdinalIgnoreCase(source) : source.GetHashCode();
+                return ((options & CompareOptions.IgnoreCase) != 0) ? GetIgnoreCaseHash(source) : source.GetHashCode();
             }
 
             return GetHashCodeOfStringCore(source, options);
@@ -1279,7 +1315,7 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return TextInfo.GetHashCodeOrdinalIgnoreCase(source);
+                return GetIgnoreCaseHash(source);
             }
 
             //
