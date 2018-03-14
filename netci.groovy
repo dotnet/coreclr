@@ -2402,8 +2402,8 @@ git status || true
                     //     used by runtest.sh as the "--testNativeBinDir" argument.
 
                     // These commands are assumed to be run from the root of the workspace.
-                    buildCommands += "zip -r \${WORKSPACE}/coreroot.${lowerConfiguration}.zip \${WORKSPACE}/bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
-                    buildCommands += "zip -r \${WORKSPACE}/testnativebin.${lowerConfiguration}.zip \${WORKSPACE}/bin/obj/Linux.arm.${configuration}/tests"
+                    buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
+                    buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.arm.${configuration}/tests"
 
                     Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     break
@@ -3113,8 +3113,8 @@ git status || true
             // copied correctly.
             if (isUbuntuArmJob) {
                 def lowerConfiguration = configuration.toLowerCase()
-                shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root
-                shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.arm.${configuration}/tests
+                shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root
+                shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.arm.${configuration}/tests
             }
             else {
                 shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
