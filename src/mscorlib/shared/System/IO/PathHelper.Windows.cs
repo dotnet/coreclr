@@ -29,7 +29,7 @@ namespace System.IO
             ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
 
             // Get the full path
-            GetFullPathName(path, ref builder);
+            GetFullPathName(path.AsSpanWithTerminator(), ref builder);
 
             // If we have the exact same string we were passed in, don't allocate another string.
             // TryExpandShortName does this input identity check.
@@ -61,6 +61,8 @@ namespace System.IO
 
         internal static void GetFullPathName(ReadOnlySpan<char> path, ref ValueStringBuilder builder)
         {
+            Debug.Assert(path.Length > 0 && path.Contains('\0'));
+
             // If the string starts with an extended prefix we would need to remove it from the path before we call GetFullPathName as
             // it doesn't root extended paths correctly. We don't currently resolve extended paths, so we'll just assert here.
             Debug.Assert(PathInternal.IsPartiallyQualified(path) || !PathInternal.IsExtended(path));
@@ -237,7 +239,7 @@ namespace System.IO
             // Strip out any added characters at the front of the string
             ReadOnlySpan<char> output = builderToUse.AsSpan(rootDifference);
 
-            string returnValue = !string.IsNullOrEmpty(originalPath) && output.EqualsOrdinal(originalPath.AsSpan())
+            string returnValue = ((originalPath != null) && output.EqualsOrdinal(originalPath.AsSpan()))
                 ? originalPath : new string(output);
 
             inputBuilder.Dispose();

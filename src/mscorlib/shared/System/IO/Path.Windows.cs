@@ -150,7 +150,8 @@ namespace System.IO
             if (result == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
 
-            builder.Length = (int)result;
+            // We want the null terminator in the span
+            builder.Length = (int)result + 1;
         }
 
         // Returns a unique temporary file name, and creates a 0-byte file by that
@@ -178,7 +179,9 @@ namespace System.IO
             if (result == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
 
-            builder.Length = (int)result;
+            // We want the null terminator when we call normalize
+            builder.Length = (int)result + 1;
+
             string path = PathHelper.Normalize(builder.AsSpan());
             builder.Dispose();
             return path;
