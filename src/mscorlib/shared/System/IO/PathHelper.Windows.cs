@@ -242,7 +242,7 @@ namespace System.IO
             // Strip out any added characters at the front of the string
             ReadOnlySpan<char> output = builderToUse.AsSpan(rootDifference);
 
-            string returnValue = ((originalPath != null) && output.EqualsOrdinal(originalPath.AsSpan()))
+            string returnValue = ((originalPath != null) && output.Equals(originalPath.AsSpan(), StringComparison.Ordinal))
                 ? originalPath : new string(output);
 
             inputBuilder.Dispose();
