@@ -5967,6 +5967,7 @@ inline WCHAR *PAL_wcsstr(WCHAR *_S, const WCHAR *_P)
 }
 #endif
 
+#if !__has_builtin(_rotl)
 /*++
 Function:
 _rotl
@@ -5984,11 +5985,14 @@ unsigned int __cdecl _rotl(unsigned int value, int shift)
     retval = (value << shift) | (value >> (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+#endif // !__has_builtin(_rotl)
 
 // On 64 bit unix, make the long an int.
 #ifdef BIT64
 #define _lrotl _rotl
 #endif // BIT64
+
+#if !__has_builtin(_rotr)
 
 /*++
 Function:
@@ -6007,6 +6011,8 @@ unsigned int __cdecl _rotr(unsigned int value, int shift)
     retval = (value >> shift) | (value << (sizeof(int) * CHAR_BIT - shift));
     return retval;
 }
+
+#endif // !__has_builtin(_rotr)
 
 PALIMPORT int __cdecl abs(int);
 #ifndef PAL_STDCPP_COMPAT
@@ -6734,6 +6740,7 @@ public:
     EXCEPTION_DISPOSITION disposition = EXCEPTION_CONTINUE_EXECUTION;           \
     auto exceptionFilter = [&disposition, &__param](PAL_SEHException& ex)       \
     {                                                                           \
+        (void)__param;                                                          \
         disposition = dispositionExpression;                                    \
         _ASSERTE(disposition != EXCEPTION_CONTINUE_EXECUTION);                  \
         return disposition;                                                     \
