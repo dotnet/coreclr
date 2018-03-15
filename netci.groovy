@@ -2475,13 +2475,18 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
 
         switch (architecture) {
             case 'x64':
+                // Everything implemented
+                break
+
             case 'x86':
-            case 'x86_arm_altjit':
-            case 'x64_arm64_altjit':
-                // x86 ubuntu: default only
-                if ((os == 'Ubuntu') && (architecture == 'x86')) {
+                // x86 ubuntu: no stress modes
+                if (os == 'Ubuntu') {
                     return false
                 }
+                break
+
+            case 'x86_arm_altjit':
+            case 'x64_arm64_altjit':
                 if (isBuildOnly) {
                     return false
                 }
@@ -3483,13 +3488,7 @@ Constants.allScenarios.each { scenario ->
                             inputTestsBuildArch = "x86"
                         }
 
-                        // If this is a stress scenario, there isn't any difference in the build job, so we didn't create a build only
-                        // job for Windows_NT specific to that stress mode. Just copy from the normal scenario.
-
                         def inputTestsBuildIsBuildOnly = true
-                        if (isJitStressScenario(scenario)) {
-                            inputTestsBuildIsBuildOnly = false
-                        }
 
                         inputTestsBuildName = projectFolder + '/' +
                             Utilities.getFullJobName(project, getJobName(configuration, inputTestsBuildArch, 'windows_nt', testBuildScenario, inputTestsBuildIsBuildOnly), isPR)
