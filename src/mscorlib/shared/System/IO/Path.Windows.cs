@@ -129,7 +129,7 @@ namespace System.IO
         public static string GetTempPath()
         {
             Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(initialBuffer);
 
             GetTempPath(ref builder);
 
@@ -163,7 +163,7 @@ namespace System.IO
             GetTempPath(ref tempPathBuilder);
 
             Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(initialBuffer);
 
             uint result = 0;
             while ((result = Interop.Kernel32.GetTempFileNameW(
