@@ -520,7 +520,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Latin1Encoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\NormalizationForm.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\StringBuilder.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\Text\StringBuilder.Debug.cs" />
+    <Compile Condition="'$(Configuration)' == 'Debug'" Include="$(MSBuildThisFileDirectory)System\Text\StringBuilder.Debug.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UnicodeEncoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UTF32Encoding.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\UTF7Encoding.cs" />
