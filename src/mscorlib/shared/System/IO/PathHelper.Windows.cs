@@ -26,10 +26,10 @@ namespace System.IO
         internal static string Normalize(string path)
         {
             Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(initialBuffer);
 
             // Get the full path
-            GetFullPathName(path.AsSpanWithTerminator(), ref builder);
+            GetFullPathName(path.AsSpan(), ref builder);
 
             // If we have the exact same string we were passed in, don't allocate another string.
             // TryExpandShortName does this input identity check.
@@ -42,13 +42,19 @@ namespace System.IO
             return result;
         }
 
-        internal static string Normalize(ReadOnlySpan<char> path)
+        /// <summary>
+        /// Normalize the given path.
+        /// </summary>
+        /// <remarks>
+        /// Exceptions are the same as the string overload.
+        /// </remarks>
+        internal static string Normalize(ref ValueStringBuilder path)
         {
             Span<char> initialBuffer = stackalloc char[PathInternal.MaxShortPath];
-            ValueStringBuilder builder = new ValueStringBuilder(initialBuffer);
+            var builder = new ValueStringBuilder(initialBuffer);
 
             // Get the full path
-            GetFullPathName(path, ref builder);
+            GetFullPathName(path.AsSpan(terminate: true), ref builder);
 
             string result = builder.AsSpan().Contains('~')
                 ? TryExpandShortFileName(ref builder, originalPath: null)
@@ -59,10 +65,12 @@ namespace System.IO
             return result;
         }
 
-        internal static void GetFullPathName(ReadOnlySpan<char> path, ref ValueStringBuilder builder)
+        /// <summary>
+        /// Calls GetFullPathName on the given path.
+        /// </summary>
+        /// <param name="path">The path name. MUST be null terminated after the span.</param>
+        private static void GetFullPathName(ReadOnlySpan<char> path, ref ValueStringBuilder builder)
         {
-            Debug.Assert(path.Length > 0 && path.Contains('\0'));
-
             // If the string starts with an extended prefix we would need to remove it from the path before we call GetFullPathName as
             // it doesn't root extended paths correctly. We don't currently resolve extended paths, so we'll just assert here.
             Debug.Assert(PathInternal.IsPartiallyQualified(path) || !PathInternal.IsExtended(path));
@@ -168,12 +176,10 @@ namespace System.IO
             bool success = false;
             int foundIndex = inputBuilder.Length - 1;
 
-            // Need to null terminate the input builder
-            inputBuilder.Append('\0');
-
             while (!success)
             {
-                uint result = Interop.Kernel32.GetLongPathNameW(ref inputBuilder.GetPinnableReference(), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
+                uint result = Interop.Kernel32.GetLongPathNameW(
+                    ref inputBuilder.GetPinnableReference(terminate: true), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
 
                 // Replace any temporary null we added
                 if (inputBuilder[foundIndex] == '\0') inputBuilder[foundIndex] = '\\';
@@ -216,14 +222,11 @@ namespace System.IO
                     outputBuilder.Length = checked((int)result);
                     if (foundIndex < inputLength - 1)
                     {
-                        // It was a partial find, put the non-existent part of the path back (minus the added null)
-                        outputBuilder.Append(inputBuilder.AsSpan(foundIndex, inputBuilder.Length - foundIndex - 1));
+                        // It was a partial find, put the non-existent part of the path back
+                        outputBuilder.Append(inputBuilder.AsSpan(foundIndex, inputBuilder.Length - foundIndex));
                     }
                 }
             }
-
-            // Need to trim out the trailing null in the input builder
-            inputBuilder.Length = inputBuilder.Length - 1;
 
             // If we were able to expand the path, use it, otherwise use the original full path result
             ref ValueStringBuilder builderToUse = ref (success ? ref outputBuilder : ref inputBuilder);

@@ -133,7 +133,7 @@ namespace System.IO
 
             GetTempPath(ref builder);
 
-            string path = PathHelper.Normalize(builder.AsSpan());
+            string path = PathHelper.Normalize(ref builder);
             builder.Dispose();
             return path;
         }
@@ -150,8 +150,7 @@ namespace System.IO
             if (result == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
 
-            // We want the null terminator in the span
-            builder.Length = (int)result + 1;
+            builder.Length = (int)result;
         }
 
         // Returns a unique temporary file name, and creates a 0-byte file by that
@@ -179,10 +178,9 @@ namespace System.IO
             if (result == 0)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
 
-            // We want the null terminator when we call normalize
-            builder.Length = (int)result + 1;
+            builder.Length = (int)result;
 
-            string path = PathHelper.Normalize(builder.AsSpan());
+            string path = PathHelper.Normalize(ref builder);
             builder.Dispose();
             return path;
         }

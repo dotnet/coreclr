@@ -434,14 +434,6 @@ namespace System
             return new ReadOnlySpan<char>(ref text.GetRawStringData(), text.Length);
         }
 
-        internal static ReadOnlySpan<char> AsSpanWithTerminator(this string text)
-        {
-            if (text == null)
-                return default;
-
-            return new ReadOnlySpan<char>(ref text.GetRawStringData(), text.Length + 1);
-        }
-
         /// <summary>
         /// Creates a new readonly span over the portion of the target string.
         /// </summary>
