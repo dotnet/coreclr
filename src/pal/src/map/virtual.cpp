@@ -1111,7 +1111,7 @@ VIRTUALCommitMemory(
     }
                
     TRACE( "Committing the memory now..\n");
-    
+
     // Pages that aren't already committed need to be committed. Pages that
     // are committed don't need to be committed, but they might need to have
     // their permissions changed.
@@ -1162,7 +1162,17 @@ VIRTUALCommitMemory(
 
         if (allocationType != MEM_COMMIT)
         {
+
+#if defined(LINUX_OOM_KILL)
+#define LINUX_OOM_KILL_THRESHOLD (32 * 1024)
+            if (PAL_GetMemAvailableFromOS() < LINUX_OOM_KILL_THRESHOLD)
+            {
+                pRetVal = NULL;
+                goto done;
+            }
+#endif
             // Commit the pages
+
             if (mprotect((void *) StartBoundary, MemSize, PROT_WRITE | PROT_READ) != 0)
             {
                 ERROR("mprotect() failed! Error(%d)=%s\n", errno, strerror(errno));

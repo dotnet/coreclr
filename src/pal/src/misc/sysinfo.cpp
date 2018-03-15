@@ -495,3 +495,33 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
 
     return cacheSize;
 }
+
+size_t
+PALAPI
+PAL_GetMemAvailableFromOS()
+{
+    FILE* file = fopen("/proc/meminfo", "r");
+    size_t value = (size_t)-1;
+    if (file != nullptr)
+    {
+        bool result = false;
+        char *line = nullptr;
+        size_t lineLen = 0;
+
+        while (!result && getline(&line, &lineLen, file) != -1)
+        {
+            char meminfo_name[80];
+            size_t meminfo_value;
+
+            int sscanfRet = sscanf(line, "%s %zu", meminfo_name, &meminfo_value);
+
+            if (strcmp("MemAvailable:", meminfo_name) == 0)
+            {
+                value = (size_t)meminfo_value;
+                result = true;
+            }
+        }
+        fclose(file);
+    }
+    return value;
+}

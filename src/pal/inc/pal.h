@@ -2376,6 +2376,11 @@ size_t
 PALAPI
 PAL_GetLogicalProcessorCacheSizeFromOS(VOID);
 
+PALIMPORT
+size_t
+PALAPI
+PAL_GetMemAvailableFromOS(VOID);
+
 typedef BOOL(*UnwindReadMemoryCallback)(PVOID address, PVOID buffer, SIZE_T size);
 
 PALIMPORT BOOL PALAPI PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers);
