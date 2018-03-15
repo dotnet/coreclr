@@ -1242,7 +1242,7 @@ namespace System.Globalization
 
                 if (c >= 0x80)
                 {
-                    source.AsSpan(i).ToUpper(span.Slice(i), CultureInfo.InvariantCulture);
+                    source.AsSpan().ToUpperInvariant(span);
                     break;
                 }
 
