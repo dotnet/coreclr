@@ -24,7 +24,7 @@ namespace System.Text
             Span<string> chunkChars = new string[numChunksToShow];
             var sb = lastChunk ?? this;
 
-            while (sb != null && maxChunksToShow > 0)
+            while (numChunksToShow > 0)
             {
                 chunkChars[numChunksToShow - 1] = string.Create(sb.m_ChunkChars.Length, sb.m_ChunkChars, (Span<char> chars, char[] curChunksChars) =>
                 {
@@ -32,6 +32,7 @@ namespace System.Text
                     {
                         chars[i] = curChunksChars[i];
                     }
+                    // Showing . for null chars
                 }).Replace('\0', '.');
                 sb = sb.m_ChunkPrevious;
                 numChunksToShow--;
