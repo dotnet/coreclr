@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -32,6 +33,8 @@ namespace JitBench
 
     abstract class WebAppBenchmark : Benchmark
     {
+        private static readonly HashSet<int> DefaultExitCodes = new HashSet<int>(new[] { 0 });
+
         public WebAppBenchmark(string name) : base(name)
         {
             ExePath = ExecutableName;
@@ -62,10 +65,17 @@ namespace JitBench
             string jitBenchRepoRootDir = GetJitBenchRepoRootDir(outputDir);
             FileTasks.DeleteDirectory(jitBenchRepoRootDir, output);
 
-            // clone the repo, checkout the commit and update submodule
-            await new ProcessRunner("git", $"clone {JitBenchRepoUrl} {jitBenchRepoRootDir}").WithLog(output).Run();
-            await new ProcessRunner("git", $"checkout {JitBenchCommitSha1Id}").WithWorkingDirectory(jitBenchRepoRootDir).WithLog(output).Run();
-            await new ProcessRunner("git", $"submodule update --init --recursive").WithWorkingDirectory(jitBenchRepoRootDir).WithLog(output).Run();
+            await ExecuteGitCommand($"clone {JitBenchRepoUrl} {jitBenchRepoRootDir}", output);
+            await ExecuteGitCommand($"checkout {JitBenchCommitSha1Id}", output, workingDirectory: jitBenchRepoRootDir);
+            await ExecuteGitCommand($"submodule update --init --recursive", output, workingDirectory: jitBenchRepoRootDir);
+        }
+
+        async Task ExecuteGitCommand(string arguments, ITestOutputHelper output, string workingDirectory = null)
+        {
+            int exitCode = await new ProcessRunner("git", arguments).WithLog(output).WithWorkingDirectory(workingDirectory).Run();
+
+            if (!DefaultExitCodes.Contains(exitCode))
+                throw new Exception($"git {arguments} has failed, the exit code was {exitCode}");
         }
 
         private static async Task CreateStore(DotNetInstallation dotNetInstall, string outputDir, ITestOutputHelper output)
