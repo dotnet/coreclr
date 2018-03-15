@@ -6434,15 +6434,22 @@ PCODE FixupPrecode::GetDynamicMethodPrecodeFixupJumpStub()
     _ASSERTE(((PTR_MethodDesc)GetMethodDesc())->IsLCGMethod());
 
     // The precode fixup jump stub is shared by all fixup precodes in a chunk, and immediately follows the MethodDesc. Jump
-    // stubs cannot be reused currently:
+    // stubs cannot be reused currently for the same method:
     //   - The jump stub's target would change separately from the precode being updated from "call Func" to "jmp Func", both
     //     changes would have to be done atomically with runtime suspension, which is not done currently
     //   - When changing the entry point from one version of jitted code to antoher, the jump stub's target pointer is not
     //     aligned to 8 bytes in order to be able to do an interlocked update of the target address
     // So, when initially the precode intends to be of the form "call PrecodeFixupThunk", if the target address happens to be
     // too far for a relative 32-bit jump, it will use the shared precode fixup jump stub. When changing the entry point to
-    // jitted code, the jump stub associated with the precode is patched (for the first and last time), and the precode is
-    // updated to use that jump stub.
+    // jitted code, the jump stub associated with the precode is patched, and the precode is updated to use that jump stub.
+    //
+    // Notes:
+    // - Dynamic method descs, and hence their precodes and preallocated jump stubs, may be reused for a different method
+    //   (along with reinitializing the precode), but only with a transition where the original method is no longer accessible
+    //   to user code
+    // - Concurrent calls to a dynamic method that has not yet been jitted may trigger multiple writes to the jump stub
+    //   associated with the precode, but only to the same target address (and while the precode is still pointing to
+    //   PrecodeFixupThunk)
     return GetBase() + sizeof(PTR_MethodDesc);
 }
 
@@ -6628,7 +6635,9 @@ void FixupPrecode::ResetTargetInterlocked()
     MethodDesc* pMD = (MethodDesc*)GetMethodDesc();
 #ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
     // The entry point of LCG methods cannot revert back to the original entry point, as their jump stubs would have to be
-    // reused, which is currently not supported
+    // reused, which is currently not supported. This method is intended for resetting the entry point while the method is
+    // callable, which implies that the entry point may later be changed again to something else. Currently, this is not done
+    // for LCG methods. See GetDynamicMethodPrecodeFixupJumpStub() for more.
     _ASSERTE(!pMD->IsLCGMethod());
 #endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
 
@@ -6655,6 +6664,7 @@ BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
     g_IBCLogger.LogMethodPrecodeWriteAccess(pMD);
     
 #ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+    // A different jump stub is used for this case, see Init(). This call is unexpected for resetting the entry point.
     _ASSERTE(!pMD->IsLCGMethod() || target != (TADDR)GetEEFuncEntryPoint(PrecodeFixupThunk));
 #endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
 
