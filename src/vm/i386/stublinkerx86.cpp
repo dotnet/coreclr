@@ -6437,7 +6437,7 @@ PCODE FixupPrecode::GetDynamicMethodPrecodeFixupJumpStub()
     // stubs cannot be reused currently for the same method:
     //   - The jump stub's target would change separately from the precode being updated from "call Func" to "jmp Func", both
     //     changes would have to be done atomically with runtime suspension, which is not done currently
-    //   - When changing the entry point from one version of jitted code to antoher, the jump stub's target pointer is not
+    //   - When changing the entry point from one version of jitted code to another, the jump stub's target pointer is not
     //     aligned to 8 bytes in order to be able to do an interlocked update of the target address
     // So, when initially the precode intends to be of the form "call PrecodeFixupThunk", if the target address happens to be
     // too far for a relative 32-bit jump, it will use the shared precode fixup jump stub. When changing the entry point to
