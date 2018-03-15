@@ -146,7 +146,7 @@ namespace System.IO
             bool isDevice = PathInternal.IsDevice(outputBuilder.AsSpan());
 
             // As this is a corner case we're not going to add a stackalloc here to keep the stack pressure down.
-            ValueStringBuilder inputBuilder = new ValueStringBuilder();
+            var inputBuilder = new ValueStringBuilder();
 
             bool isDosUnc = false;
             int rootDifference = 0;

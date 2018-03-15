@@ -74,7 +74,7 @@ namespace System.Text
         /// Returns a span around the contents of the builder.
         /// </summary>
         /// <param name="terminate">Ensures that the builder has a null char after <see cref="Length"/></param>
-        public ReadOnlySpan<char> AsSpan(bool terminate = false)
+        public ReadOnlySpan<char> AsSpan(bool terminate)
         {
             if (terminate)
             {
@@ -84,6 +84,7 @@ namespace System.Text
             return _chars.Slice(0, _pos);
         }
 
+        public ReadOnlySpan<char> AsSpan() => _chars.Slice(0, _pos);
         public ReadOnlySpan<char> AsSpan(int start) => _chars.Slice(start, _pos - start);
         public ReadOnlySpan<char> AsSpan(int start, int length) => _chars.Slice(start, length);
 
