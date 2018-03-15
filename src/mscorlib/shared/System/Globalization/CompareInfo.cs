@@ -1234,27 +1234,7 @@ namespace System.Globalization
                 stackalloc char[255] :
                 (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
-            // We assume that str contains only ASCII characters until
-            // we hit a non-ASCII character to optimize the common case.
-            for (int i = 0; i < source.Length; i++)
-            {
-                char c = source[i];
-
-                if (c >= 0x80)
-                {
-                    source.AsSpan().ToUpperInvariant(span);
-                    break;
-                }
-
-                // If we have ascii lowercase character, ANDing off 0x20
-                // will make it an uppercase character.
-                if ((c - 'a') <= ('z' - 'a'))
-                {
-                    c = (char)(c & ~0x20);
-                }
-
-                span[i] = c;
-            }
+            source.AsSpan().ToUpperInvariant(span);
 
             // Slize the array to the input size as we could have gotten a larger array from the ArrayPool.
             int hash = Marvin.ComputeHash32(span.Slice(0, source.Length).AsBytes(), Marvin.DefaultSeed);
