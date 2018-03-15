@@ -15,9 +15,9 @@ namespace Tracing.Tests
         {
             // Additional assemblies will be seen, but these are ones we must see
             string[] AssembliesExpected = new string[] {
+                "Common",
                 "Rundown", // this assembly
                 "System.Runtime",
-                "Microsoft.Diagnostics.Tracing.TraceEvent",
                 "System.Diagnostics.Tracing",
                 "System.Private.CoreLib"
             };
