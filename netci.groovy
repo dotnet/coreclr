@@ -784,7 +784,7 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
             timeout = 360
         }
         else if (isJitStressScenario(scenario)) {
-            timeout = 240
+            timeout = 300
         }
         else if (isR2RBaselineScenario(scenario)) {
             timeout = 240
@@ -798,8 +798,13 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
         else if (isGcReliabilityFramework(scenario)) {
             timeout = 1440
         }
-        else if (architecture == 'arm' || architecture == 'armlb' || architecture == 'armem' || architecture == 'arm64') {
+        else if (architecture == 'armlb' || architecture == 'armem' || architecture == 'arm64') {
             timeout = 240
+        }
+
+        if (architecture == 'arm') {
+            // ARM32 machines are particularly slow.
+            timeout += 120
         }
     }
 
