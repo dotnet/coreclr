@@ -7720,7 +7720,7 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
                 }
                 else
                 {
-                    typeMask = 0xFFFFFFFF80000000LL;
+                    typeMask = ssize_t((int)0x80000000);
                     typeMin  = INT_MIN;
                     typeMax  = INT_MAX;
                 }
