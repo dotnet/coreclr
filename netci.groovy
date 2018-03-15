@@ -2385,12 +2385,12 @@ printenv || true
                     def dockerImage = getDockerImageName(architecture, os, true)
                     def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm ${dockerImage} "
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh arm checked cross"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh verbose ${lowerConfiguration} ${architecture} cross"
 
                     // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                     // download the appropriate CoreFX packages.
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh arm checked cross generatelayoutonly"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
 
                     // ZIP up for the test job (created in the flow job code):
                     // (1) the built CORE_ROOT, /home/user/coreclr/bin/tests/Linux.arm.Checked/Tests/Core_Root,
