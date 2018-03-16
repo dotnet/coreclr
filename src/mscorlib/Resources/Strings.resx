@@ -2540,7 +2540,7 @@
     <value>A prior operation on this collection was interrupted by an exception. Collection's state is no longer trusted.</value>
   </data>
   <data name="InvalidOperation_ConcurrentOperationsNotSupported" xml:space="preserve">
-    <value>Concurrent operations are not supported on non-concurrent collections. A concurrent operation was performed on this collection and corrupted its state. Collection's state is no longer correct.</value>
+    <value>Operations that change non-concurrent collections must have exclusive access. A concurrent update was performed on this collection and corrupted its state. The collection's state is no longer correct.</value>
   </data>
   <data name="InvalidOperation_ConstructorNotAllowedOnInterface" xml:space="preserve">
     <value>Interface cannot have constructors.</value>
