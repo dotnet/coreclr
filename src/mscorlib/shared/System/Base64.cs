@@ -2,30 +2,34 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
-namespace System.Buffers.Text
+namespace System
 {
-    internal static partial class Base64
+    internal static class Base64
     {
         /// <summary>
-        /// Decode the span of UTF-8 encoded text represented as base 64 into binary data.
-        /// If the input is not a multiple of 4, it will decode as much as it can, to the closest multiple of 4.
+        /// Decode the span of UTF-16 encoded text represented as base 64 into binary data.
+        /// If the input is not a multiple of 4, or contains illegal characters, it will decode as much as it can, to the largest possible multiple of 4.
+        /// This invariant allows continuation of the parse with a slower, whitespace-tolerant algorithm.
         ///
-        /// <param name="utf16">The input span which contains UTF-8 encoded text in base 64 that needs to be decoded.</param>
+        /// <param name="utf16">The input span which contains UTF-16 encoded text in base 64 that needs to be decoded.</param>
         /// <param name="bytes">The output span which contains the result of the operation, i.e. the decoded binary data.</param>
         /// <param name="consumed">The number of input bytes consumed during the operation. This can be used to slice the input for subsequent calls, if necessary.</param>
         /// <param name="written">The number of bytes written into the output span. This can be used to slice the output for subsequent calls, if necessary.</param>
-        /// <param name="isFinalBlock">True (default) when the input span contains the entire data to decode. 
-        /// Set to false only if it is known that the input span contains partial data with more data to follow.</param>
-        /// <returns>It returns the OperationStatus enum values:
-        /// - Done - on successful processing of the entire input span
-        /// - DestinationTooSmall - if there is not enough space in the output span to fit the decoded input
-        /// - NeedMoreData - only if isFinalBlock is false and the input is not a multiple of 4, otherwise the partial input would be considered as InvalidData
-        /// - InvalidData - if the input contains bytes outside of the expected base 64 range, or if it contains invalid/more than two padding characters,
-        ///   or if the input is incomplete (i.e. not a multiple of 4) and isFinalBlock is true.</returns>
+        /// <returns>Returns:
+        /// - true  - The entire input span was successfully parsed.
+        /// - false - Only a part of the input span was successfully parsed. Failure causes may include embedded or trailing whitespace, 
+        ///           other illegal Base64 characters, trailing characters after an encoding pad ('='), an input span whose length is not divisible by 4
+        ///           or a destination span that's too small. <paramref name="consumed"/> and <paramref name="written"/> are set so that 
+        ///           parsing can continue with a slower whitespace-tolerant algorithm.
+        ///           
+        /// Note: This is a cut down version of the implementation of Base64.DecodeFromUtf8(), modified the accept UTF16 chars and act as a fast-path
+        /// helper for the Convert routines when the input string contains no whitespace.
+        ///           
         /// </summary> 
         public static bool TryDecodeFromUtf16(ReadOnlySpan<char> utf16, Span<byte> bytes, out int consumed, out int written)
         {
@@ -43,12 +47,11 @@ namespace System.Buffers.Text
 
             ref sbyte decodingMap = ref s_decodingMap[0];
 
-            // Last bytes could have padding characters, so process them separately and treat them as valid only if isFinalBlock is true
-            // if isFinalBlock is false, padding characters are considered invalid
+            // Last bytes could have padding characters, so process them separately and treat them as valid.
             const int skipLastChunk = 4;
 
-            int maxSrcLength = 0;
-            if (destLength >= GetMaxDecodedFromUtf8Length(srcLength))
+            int maxSrcLength;
+            if (destLength >= (srcLength >> 2) * 3)
             {
                 maxSrcLength = srcLength - skipLastChunk;
             }
@@ -78,8 +81,6 @@ namespace System.Buffers.Text
             {
                 goto InvalidExit;
             }
-
-            // if isFinalBlock is false, we will never reach this point
 
             int i0 = Unsafe.Add(ref srcChars, srcLength - 4);
             int i1 = Unsafe.Add(ref srcChars, srcLength - 3);
@@ -152,22 +153,8 @@ namespace System.Buffers.Text
         InvalidExit:
             consumed = sourceIndex;
             written = destIndex;
+            Debug.Assert((consumed % 4) == 0);
             return false;
-        }
-
-        /// <summary>
-        /// Returns the maximum length (in bytes) of the result if you were to deocde base 64 encoded text within a byte span of size "length".
-        /// </summary>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="length"/> is less than 0.
-        /// </exception>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int GetMaxDecodedFromUtf8Length(int length)
-        {
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
-
-            return (length >> 2) * 3;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -177,8 +164,9 @@ namespace System.Buffers.Text
             int i1 = Unsafe.Add(ref encodedChars, 1);
             int i2 = Unsafe.Add(ref encodedChars, 2);
             int i3 = Unsafe.Add(ref encodedChars, 3);
+
             if (((i0 | i1 | i2 | i3) & 0xffffff00) != 0)
-                return -1;
+                return -1; // One or more chars falls outside the 00..ff range. This cannot be a valid Base64 character.
 
             i0 = Unsafe.Add(ref decodingMap, i0);
             i1 = Unsafe.Add(ref decodingMap, i1);
