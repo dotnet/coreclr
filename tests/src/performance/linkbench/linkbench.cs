@@ -1,24 +1,20 @@
-using Microsoft.Xunit.Performance;
-using Microsoft.Xunit.Performance.Api;
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using System.Runtime.Loader;
-using System.Text;
+using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Runtime.Loader;
 using System.Xml.Linq;
-using Xunit;
-using Xunit.Abstractions;
+using Microsoft.Xunit.Performance.Api;
 
 namespace LinkBench
 {
     public class Benchmark
     {
         public string Name;
-        public bool ShouldRun;
+        public bool doRun;
+        public bool runByDefault;
         public string ProjFile;
         public string UnlinkedDir;
         public string LinkedDir;
@@ -37,20 +33,21 @@ namespace LinkBench
         private double certDiff;
         const double MB = 1024 * 1024;
 
-        public Benchmark(string _Name, string _UnlinkedDir, string _LinkedDir, SetupDelegate _setup = null, bool _shouldRun = false)
+        public Benchmark(string _Name, string _UnlinkedDir, string _LinkedDir, SetupDelegate _setup = null, bool _default = true)
         {
             Name = _Name;
             UnlinkedDir = _UnlinkedDir;
             LinkedDir = _LinkedDir;
             unlinkedDirInfo = new DirectoryInfo(UnlinkedDir);
             linkedDirInfo = new DirectoryInfo(LinkedDir);
-            ShouldRun = _shouldRun;
+            doRun = false;
+            runByDefault = _default;
             Setup = _setup;
         }
 
         public void SetToRun()
         {
-            ShouldRun = true;
+            doRun = true;
             Environment.SetEnvironmentVariable("__test_" + Name, "true");
         }
 
@@ -119,7 +116,7 @@ namespace LinkBench
             return size;
         }
 
-        // Get the total size difference for all certificates in all managed binaries 
+        // Get the total size difference for all certificates in all managed binaries
         // in the unlinked and linked directories.
         private double ComputeCertDiff()
         {
@@ -158,7 +155,7 @@ namespace LinkBench
                 // We should check only for BadImageFormatException.
                 // But Checking for any exception until the following
                 // issue is fixed:
-                // https://github.com/dotnet/coreclr/issues/11499 
+                // https://github.com/dotnet/coreclr/issues/11499
 
                 return false;
             }
@@ -171,13 +168,14 @@ namespace LinkBench
             var xdoc = XDocument.Load(csproj);
             var ns = xdoc.Root.GetDefaultNamespace();
             bool added = false;
+            string illinkTasksVersion = "0.1.4-preview-981901";
             foreach (var el in xdoc.Root.Elements(ns + "ItemGroup"))
             {
                 if (el.Elements(ns + "PackageReference").Any())
                 {
                     el.Add(new XElement(ns + "PackageReference",
                         new XAttribute("Include", "ILLink.Tasks"),
-                        new XAttribute("Version", "0.1.4-preview")));
+                        new XAttribute("Version", illinkTasksVersion)));
                     added = true;
                     break;
                 }
@@ -187,7 +185,7 @@ namespace LinkBench
                 xdoc.Root.Add(new XElement(ns + "ItemGroup",
                     new XElement(ns + "PackageReference",
                         new XAttribute("Include", "ILLink.Tasks"),
-                        new XAttribute("Version", "0.1.4-preview"))));
+                        new XAttribute("Version", illinkTasksVersion))));
                 added = true;
             }
             using (var fs = new FileStream(csproj, FileMode.Create))
@@ -231,7 +229,6 @@ namespace LinkBench
 
     public class LinkBench
     {
-        private static ScenarioConfiguration scenarioConfiguration = new ScenarioConfiguration(new TimeSpan(2000000));
         private static MetricModel SizeMetric = new MetricModel { Name = "Size", DisplayName = "File Size", Unit = "MB" };
         private static MetricModel PercMetric = new MetricModel { Name = "Ratio", DisplayName = "Reduction", Unit = "Linked/Unlinked" };
         public static string Workspace;
@@ -240,114 +237,76 @@ namespace LinkBench
         public static string AssetsDir;
         private static Benchmark CurrentBenchmark;
 
-        private static Benchmark[] Benchmarks =
+        public static readonly Benchmark[] Benchmarks =
         {
+            // If no benchmark name is specified at the command line, 
+            // all benchmarks are set to be run by default.
+            // However, some temporary exceptions are noted below, if any:
+            // CoreFX is not enabled by default, because the lab cannot run it yet.
+            // Jenkins runs on an older OS with path-length limit, which causes CoreFX build to fail.
+            // MusicStore build currently has a failure, turned off till it is fixed.
+
             new Benchmark("HelloWorld",
                 "HelloWorld\\bin\\release\\netcoreapp2.0\\win10-x64\\unlinked",
                 "HelloWorld\\bin\\release\\netcoreapp2.0\\win10-x64\\linked",
-                () => Benchmark.AddLinkerReference("HelloWorld\\HelloWorld.csproj")),
+                () => Benchmark.AddLinkerReference("HelloWorld\\HelloWorld.csproj"), true),
             new Benchmark("WebAPI",
                 "WebAPI\\bin\\release\\netcoreapp2.0\\win10-x64\\unlinked",
                 "WebAPI\\bin\\release\\netcoreapp2.0\\win10-x64\\linked",
                 () => { Benchmark.AddLinkerReference("WebAPI\\WebAPI.csproj");
-                        Benchmark.PreventPublishFiltering("WebAPI\\WebAPI.csproj"); }),
-            //Remove the MusicStore from the run as the scenario is currently flaky and breaking performance runs
-            /*new Benchmark("MusicStore",
+                        Benchmark.PreventPublishFiltering("WebAPI\\WebAPI.csproj"); }, true),
+            new Benchmark("MusicStore",
                 "JitBench\\src\\MusicStore\\bin\\release\\netcoreapp2.0\\win10-x64\\unlinked",
                 "JitBench\\src\\MusicStore\\bin\\release\\netcoreapp2.0\\win10-x64\\linked",
                 () => { Benchmark.AddLinkerReference("JitBench\\src\\MusicStore\\MusicStore.csproj");
-                       Benchmark.SetRuntimeFrameworkVersion("JitBench\\src\\MusicStore\\MusicStore.csproj"); }),
+                       Benchmark.SetRuntimeFrameworkVersion("JitBench\\src\\MusicStore\\MusicStore.csproj"); }, false),
             new Benchmark("MusicStore_R2R",
                 "JitBench\\src\\MusicStore\\bin\\release\\netcoreapp2.0\\win10-x64\\R2R\\unlinked",
-                "JitBench\\src\\MusicStore\\bin\\release\\netcoreapp2.0\\win10-x64\\R2R\\linked"),*/
+                "JitBench\\src\\MusicStore\\bin\\release\\netcoreapp2.0\\win10-x64\\R2R\\linked", null, false),
             new Benchmark("Corefx",
                 "corefx\\bin\\ILLinkTrimAssembly\\netcoreapp-Windows_NT-Release-x64\\pretrimmed",
-                "corefx\\bin\\ILLinkTrimAssembly\\netcoreapp-Windows_NT-Release-x64\\trimmed"),
-            /*new Benchmark("Roslyn",
-                "roslyn\\Binaries\\Release\\Exes\\CscCore\\win7-x64\\publish",
-                "roslyn\\Binaries\\Release\\Exes\\CscCore\\win7-x64\\Linked") */
+                "corefx\\bin\\ILLinkTrimAssembly\\netcoreapp-Windows_NT-Release-x64\\trimmed", null, false),
+            new Benchmark("Roslyn",
+                "roslyn\\Binaries\\release\\Exes\\csc\\netcoreapp2.0\\win10-x64\\Unlinked",
+                "roslyn\\Binaries\\release\\Exes\\csc\\netcoreapp2.0\\win10-x64\\Linked",
+                () => Benchmark.AddLinkerReference("roslyn\\src\\Compilers\\CSharp\\csc\\csc.csproj"), true)
         };
 
-        static int UsageError()
+        public static int Main(string[] args)
         {
-            Console.WriteLine("Usage: LinkBench [--nosetup] [--nobuild] [--perf:runid <id>] [<benchmarks>]");
-            Console.WriteLine("  --nosetup: Don't clone and fixup benchmark repositories");
-            Console.WriteLine("  --nosetup: Don't build and link benchmarks");
-            Console.WriteLine("  --perf:runid: Specify the ID to append to benchmark result files");
-            Console.WriteLine("    Benchmarks: HelloWorld, WebAPI, MusicStore, MusicStore_R2R, CoreFX, Roslyn");
-            Console.WriteLine("                Default is to run all the above benchmarks.");
-            return -4;
-        }
+            var options = BenchmarkOptions.Parse(args);
 
-        public static int Main(String [] args)
-        {
-            bool doSetup = true;
-            bool doBuild = true;
-            string runId = "";
-            string runOne = null;
             bool benchmarkSpecified = false;
-
-            for (int i = 0; i < args.Length; i++)
+            foreach (Benchmark benchmark in Benchmarks)
             {
-                if (String.Compare(args[i], "--nosetup", true) == 0)
+                if (options.BenchmarkNames.Contains(benchmark.Name, StringComparer.OrdinalIgnoreCase))
                 {
-                    doSetup = false;
-                }
-                else if (String.Compare(args[i], "--nobuild", true) == 0)
-                {
-                    doSetup = false;
-                    doBuild = false;
-                }
-                else if (String.Compare(args[i], "--perf:runid", true) == 0)
-                {
-                    if (i + 1 < args.Length)
-                    {
-                        runId = args[++i] + "-";
-                    }
-                    else
-                    {
-                        Console.WriteLine("Missing runID ");
-                        return UsageError();
-                    }
-                }
-                else if (args[i][0] == '-')
-                {
-                    Console.WriteLine("Unknown Option {0}", args[i]);
-                    return UsageError();
-                }
-                else
-                {
-                    foreach (Benchmark benchmark in Benchmarks)
-                    {
-                        if (String.Compare(args[i], benchmark.Name, true) == 0)
-                        {
-                            benchmark.SetToRun();
-                            benchmarkSpecified = true;
-                            break;
-                        }
-                    }
-
-                    if (!benchmarkSpecified)
-                    {
-                        Console.WriteLine("Unknown Benchmark {0}", args[i]);
-                    }
+                    benchmark.SetToRun();
+                    benchmarkSpecified = true;
+                    break;
                 }
             }
 
-            // If benchmarks are not explicitly specified, run all benchmarks
-            if (!benchmarkSpecified)
+            var arguments = new List<string>();
+            string runId = "";
+            for (int i = 0; i < args.Length; i++)
             {
-                foreach (Benchmark benchmark in Benchmarks)
+                if (string.Compare(args[i], "--perf:runid", true) == 0)
                 {
-                    if (String.Compare(benchmark.Name, "CoreFX", true) == 0)
+                    if (i + 1 < args.Length)
                     {
-                        // CoreFX is not enabled by default, because the lab cannot run it yet.
-                        // Jenkins runs on an older OS with path-length limit, which causes 
-                        // CoreFX build to fail.
-                        continue;
+                        runId = args[++i];
                     }
-
-                    benchmark.SetToRun();
+                    else
+                    {
+                        Console.WriteLine("Missing --perf:runid");
+                        Console.WriteLine(BenchmarkOptions.Usage());
+                        Environment.Exit(1);
+                    }
+                }
+                else
+                {
+                    arguments.Add(args[i]);
                 }
             }
 
@@ -371,13 +330,14 @@ namespace LinkBench
             AssetsDir = linkBenchSrcDir + "assets\\";
 
             Environment.SetEnvironmentVariable("LinkBenchRoot", LinkBenchRoot);
-            Environment.SetEnvironmentVariable("__dotnet1", LinkBenchRoot + "\\.Net1\\dotnet.exe");
+            Environment.SetEnvironmentVariable("__dotnet", LinkBenchRoot + "\\.Net\\dotnet.exe");
             Environment.SetEnvironmentVariable("__dotnet2", LinkBenchRoot + "\\.Net2\\dotnet.exe");
 
-            // Update the build files to facilitate the link step
-            if (doSetup)
+
+            PrintHeader("Update the build files to facilitate the link step.");
+            if (options.DoSetup)
             {
-                // Clone the benchmarks
+                PrintHeader("Clone the benchmarks.");
                 using (var setup = new Process())
                 {
                     setup.StartInfo.FileName = ScriptDir + "clone.cmd";
@@ -385,23 +345,22 @@ namespace LinkBench
                     setup.WaitForExit();
                     if (setup.ExitCode != 0)
                     {
-                        Console.WriteLine("Benchmark Setup failed");
+                        PrintHeader("Benchmark Setup failed");
                         return -2;
                     }
                 }
 
-                // Setup the benchmarks
-
+                PrintHeader("Setup the benchmarks.");
                 foreach (Benchmark benchmark in Benchmarks)
                 {
-                    if (benchmark.ShouldRun && benchmark.Setup != null)
+                    if (benchmark.doRun && benchmark.Setup != null)
                     {
                         benchmark.Setup();
                     }
                 }
             }
 
-            if (doBuild)
+            if (options.DoBuild)
             {
                 // Run the setup Script, which clones, builds and links the benchmarks.
                 using (var setup = new Process())
@@ -418,7 +377,7 @@ namespace LinkBench
                 }
             }
 
-            // Since this is a size measurement scenario, there are no iterations 
+            // Since this is a size measurement scenario, there are no iterations
             // to perform. So, create a process that does nothing, to satisfy XUnit.
             // All size measurements are performed PostRun()
             var emptyCmd = new ProcessStartInfo()
@@ -429,30 +388,37 @@ namespace LinkBench
             for (int i = 0; i < Benchmarks.Length; i++)
             {
                 CurrentBenchmark = Benchmarks[i];
-                if (!CurrentBenchmark.ShouldRun)
-                {
+                if (!CurrentBenchmark.doRun)
                     continue;
-                }
 
-                string[] scriptArgs = { "--perf:runid", runId + CurrentBenchmark.Name };
-                using (var h = new XunitPerformanceHarness(scriptArgs))
+                var newArgs = new List<string>(arguments);
+                newArgs.AddRange(new[] { "--perf:runid", $"{runId}-{CurrentBenchmark.Name}", });
+                Console.WriteLine($"{string.Join(" ", newArgs)}");
+                using (var h = new XunitPerformanceHarness(newArgs.ToArray()))
                 {
-                    h.RunScenario(emptyCmd, null, null, PostRun, scenarioConfiguration);
+                    var configuration = new ScenarioTestConfiguration(new TimeSpan(2000000), emptyCmd)
+                    {
+                        Scenario = new ScenarioBenchmark(CurrentBenchmark.Name) { Namespace = "LinkBench" },
+                    };
+                    h.RunScenario(configuration, PostRun);
                 }
             }
 
             return 0;
         }
 
-        private static ScenarioBenchmark PostRun()
+        private static void PrintHeader(string message)
+        {
+            Console.WriteLine();
+            Console.WriteLine("**********************************************************************");
+            Console.WriteLine($"** [{DateTime.Now}] {message}");
+            Console.WriteLine("**********************************************************************");
+        }
+
+        private static void PostRun(ScenarioBenchmark scenario)
         {
             // The XUnit output doesn't print the benchmark name, so print it now.
             Console.WriteLine("{0}", CurrentBenchmark.Name);
-
-            var scenario = new ScenarioBenchmark(CurrentBenchmark.Name)
-            {
-                Namespace = "LinkBench"
-            };
 
             CurrentBenchmark.Compute();
 
@@ -462,8 +428,6 @@ namespace LinkBench
             addMeasurement(ref scenario, "Total Uninked", SizeMetric, CurrentBenchmark.UnlinkedDirSize);
             addMeasurement(ref scenario, "Total Linked", SizeMetric, CurrentBenchmark.LinkedDirSize);
             addMeasurement(ref scenario, "Total Reduction", PercMetric, CurrentBenchmark.DirSizeReduction);
-
-            return scenario;
         }
 
         private static void addMeasurement(ref ScenarioBenchmark scenario, string name, MetricModel metric, double value)
