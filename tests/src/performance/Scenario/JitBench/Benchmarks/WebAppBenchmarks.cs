@@ -262,8 +262,8 @@ namespace JitBench
             return Environment.GetEnvironmentVariable("MUSICSTORE_PRIVATE_REPO");
         }
 
-        private const string JitBenchRepoUrl = "https://github.com/adamsitnik/JitBench";
-        private const string JitBenchCommitSha1Id = "7b74b0efdfcf083edefb51258733087fa4f27335";
+        private const string JitBenchRepoUrl = "https://github.com/aspnet/JitBench";
+        private const string JitBenchCommitSha1Id = "6bee730486f272d31f23f1033225090511f856f3";
         private const string EnvironmentFileName = "JitBenchEnvironment.txt";
         private const string StoreDirName = ".store";
         private readonly Metric StartupMetric = new Metric("Startup", "ms");
