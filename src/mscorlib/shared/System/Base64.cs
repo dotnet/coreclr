@@ -27,7 +27,7 @@ namespace System.Buffers.Text
         /// - InvalidData - if the input contains bytes outside of the expected base 64 range, or if it contains invalid/more than two padding characters,
         ///   or if the input is incomplete (i.e. not a multiple of 4) and isFinalBlock is true.</returns>
         /// </summary> 
-        public static OperationStatus DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written, bool isFinalBlock = true)
+        public static OperationStatus DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written)
         {
             ref char srcBytes = ref MemoryMarshal.GetReference(utf8);
             ref byte destBytes = ref MemoryMarshal.GetReference(bytes);
@@ -45,7 +45,7 @@ namespace System.Buffers.Text
 
             // Last bytes could have padding characters, so process them separately and treat them as valid only if isFinalBlock is true
             // if isFinalBlock is false, padding characters are considered invalid
-            int skipLastChunk = isFinalBlock ? 4 : 0;
+            const int skipLastChunk = 4;
 
             int maxSrcLength = 0;
             if (destLength >= GetMaxDecodedFromUtf8Length(srcLength))
@@ -76,9 +76,7 @@ namespace System.Buffers.Text
             // If input is not a multiple of 4, sourceIndex == srcLength != 0
             if (sourceIndex == srcLength)
             {
-                if (isFinalBlock)
-                    goto InvalidExit;
-                goto NeedMoreExit;
+                goto InvalidExit;
             }
 
             // if isFinalBlock is false, we will never reach this point
@@ -152,16 +150,11 @@ namespace System.Buffers.Text
             return OperationStatus.Done;
 
         DestinationSmallExit:
-            if (srcLength != utf8.Length && isFinalBlock)
+            if (srcLength != utf8.Length)
                 goto InvalidExit; // if input is not a multiple of 4, and there is no more data, return invalid data instead
             consumed = sourceIndex;
             written = destIndex;
             return OperationStatus.DestinationTooSmall;
-
-        NeedMoreExit:
-            consumed = sourceIndex;
-            written = destIndex;
-            return OperationStatus.NeedMoreData;
 
         InvalidExit:
             consumed = sourceIndex;
