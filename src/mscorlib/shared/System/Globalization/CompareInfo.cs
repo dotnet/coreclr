@@ -1234,10 +1234,10 @@ namespace System.Globalization
                 stackalloc char[255] :
                 (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
-            source.AsSpan().ToUpperInvariant(span);
+            int charsWritten = source.AsSpan().ToUpperInvariant(span);
 
             // Slice the array to the input size as we could have gotten a larger array from the ArrayPool.
-            int hash = Marvin.ComputeHash32(span.Slice(0, source.Length).AsBytes(), Marvin.DefaultSeed);
+            int hash = Marvin.ComputeHash32(span.Slice(0, charsWritten).AsBytes(), Marvin.DefaultSeed);
 
             // Return the borrowed array if necessary.
             if (borrowedArr != null)
