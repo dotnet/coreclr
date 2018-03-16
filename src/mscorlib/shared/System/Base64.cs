@@ -27,9 +27,9 @@ namespace System.Buffers.Text
         /// - InvalidData - if the input contains bytes outside of the expected base 64 range, or if it contains invalid/more than two padding characters,
         ///   or if the input is incomplete (i.e. not a multiple of 4) and isFinalBlock is true.</returns>
         /// </summary> 
-        public static OperationStatus DecodeFromUtf8(ReadOnlySpan<byte> utf8, Span<byte> bytes, out int consumed, out int written, bool isFinalBlock = true)
+        public static OperationStatus DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written, bool isFinalBlock = true)
         {
-            ref byte srcBytes = ref MemoryMarshal.GetReference(utf8);
+            ref char srcBytes = ref MemoryMarshal.GetReference(utf8);
             ref byte destBytes = ref MemoryMarshal.GetReference(bytes);
 
             int srcLength = utf8.Length & ~0x3;  // only decode input up to the closest multiple of 4.
@@ -87,6 +87,8 @@ namespace System.Buffers.Text
             int i1 = Unsafe.Add(ref srcBytes, srcLength - 3);
             int i2 = Unsafe.Add(ref srcBytes, srcLength - 2);
             int i3 = Unsafe.Add(ref srcBytes, srcLength - 1);
+            if (((i0 | i1 | i2 | i3) & 0xffffff00) != 0)
+                goto InvalidExit;
 
             i0 = Unsafe.Add(ref decodingMap, i0);
             i1 = Unsafe.Add(ref decodingMap, i1);
@@ -183,12 +185,14 @@ namespace System.Buffers.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Decode(ref byte encodedBytes, ref sbyte decodingMap)
+        private static int Decode(ref char encodedBytes, ref sbyte decodingMap)
         {
             int i0 = encodedBytes;
             int i1 = Unsafe.Add(ref encodedBytes, 1);
             int i2 = Unsafe.Add(ref encodedBytes, 2);
             int i3 = Unsafe.Add(ref encodedBytes, 3);
+            if (((i0 | i1 | i2 | i3) & 0xffffff00) != 0)
+                return -1;
 
             i0 = Unsafe.Add(ref decodingMap, i0);
             i1 = Unsafe.Add(ref decodingMap, i1);
