@@ -289,6 +289,30 @@ namespace System
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
         }
 
+        internal static void ThrowArgumentException_ItemsMustHaveSameLength() { throw CreateArgumentException_ItemsMustHaveSameLength(); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateArgumentException_ItemsMustHaveSameLength()
+        {
+            return GetArgumentException(ExceptionResource.Arg_ItemsMustHaveSameLengthAsKeys);
+        }
+
+        // coreclr does not have an exception for bad IComparable but instead throws with comparer == null
+        internal static void ThrowArgumentException_BadComparer(object comparer) { throw CreateArgumentException_BadComparer(comparer); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateArgumentException_BadComparer(object comparer)
+        {
+            return new ArgumentException(string.Format(GetResourceString(ExceptionResource.Arg_BogusIComparer), comparer));
+        }
+
+        // here we throw if bad comparable, including the case when user uses Comparer<TKey>.Default and TKey is IComparable<TKey>
+        internal static void ThrowArgumentException_BadComparable(Type comparableType) { throw CreateArgumentException_BadComparable(comparableType); }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static Exception CreateArgumentException_BadComparable(Type comparableType)
+        {
+            return new ArgumentException(string.Format(GetResourceString(ExceptionResource.Arg_BogusIComparable), comparableType.FullName));
+        }
+
+
         private static Exception GetArraySegmentCtorValidationFailedException(Array array, int offset, int count)
         {
             if (array == null)
@@ -591,6 +615,8 @@ namespace System
         AsyncMethodBuilder_InstanceNotInitialized,
         ArgumentNull_SafeHandle,
         NotSupported_StringComparison,
+        Arg_BogusIComparable,
+        Arg_ItemsMustHaveSameLengthAsKeys
     }
 }
 
