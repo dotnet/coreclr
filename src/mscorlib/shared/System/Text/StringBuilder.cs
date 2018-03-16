@@ -436,8 +436,6 @@ namespace System.Text
 
         public StringBuilder Clear()
         {
-            // Retain enough storage to store the same size content, plus 20% buffer, to help avoid reallocating during repeated use
-            Capacity = Math.Max(DefaultCapacity, Math.Min(Capacity, (int)(Length * 1.2)));
             this.Length = 0;
             return this;
         }
@@ -463,9 +461,9 @@ namespace System.Text
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
-
+#if DEBUG
                 int originalCapacity = Capacity;
-
+#endif
                 if (value == 0 && m_ChunkPrevious == null)
                 {
                     m_ChunkLength = 0;
@@ -485,9 +483,12 @@ namespace System.Text
                     StringBuilder chunk = FindChunkForIndex(value);
                     if (chunk != this)
                     {
+                        // Avoid possible infinite capacity growth.  See https://github.com/dotnet/coreclr/pull/16926
+                        int capacityToPreserve = Math.Min(Capacity, Math.Max(Length * 6 / 5, m_ChunkChars.Length));
+                        
                         // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
                         // to ensure the original capacity is preserved.
-                        int newLen = originalCapacity - chunk.m_ChunkOffset;
+                        int newLen = capacityToPreserve - chunk.m_ChunkOffset;
                         char[] newArray = new char[newLen];
 
                         Debug.Assert(newLen > chunk.m_ChunkChars.Length, "The new chunk should be larger than the one it is replacing.");
@@ -500,7 +501,6 @@ namespace System.Text
                     m_ChunkLength = value - chunk.m_ChunkOffset;
                     AssertInvariants();
                 }
-                Debug.Assert(Capacity >= originalCapacity);
             }
         }
 
