@@ -2656,7 +2656,48 @@ namespace System
             return TryFromBase64Chars(s.AsSpan(), bytes, out bytesWritten);
         }
 
-        public static unsafe bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
+        public static bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
+        {
+            // First, attempt the decode using a faster algorithm that doesn't tolerate whitespace. 
+            if (Base64.TryDecodeFromUtf16(chars, bytes, out int consumed, out bytesWritten))
+            {
+                Debug.Assert(consumed == chars.Length);
+                return true;
+            }
+
+            Debug.Assert((consumed % 4) == 0);
+            if ((bytesWritten % 3) == 0)
+            {
+                // If we got here, the last valid 4-character chunk read had no padding characters ('='). It is possible that 
+                // the remainder of the string contains a valid Base64 encoding with whitepace interspersed. Continue decoding the rest of
+                // the string using the slower algorithm that ignores whitespace.
+                if (!TryFromBase64CharsSlow(chars.Slice(consumed), bytes.Slice(bytesWritten), out int moreBytesWritten))
+                {
+                    bytesWritten = default;
+                    return false;
+                }
+
+                bytesWritten += moreBytesWritten;
+                return true;
+            }
+            else
+            {
+                // If we got here, the last valid 4-character chunk read had padding characters ('='). Hence, we cannot accept 
+                // any more Base64 characters after this point but we can accept trailing whitespace.
+                while (consumed < chars.Length)
+                {
+                    char c = chars[consumed++];
+                    if (c != ' ' && c != '\n' && c != '\r' && c != '\t')
+                    {
+                        bytesWritten = default;
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        private static unsafe bool TryFromBase64CharsSlow(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
         {
             if (chars.Length == 0)
             {
