@@ -14,7 +14,7 @@ namespace System.Buffers.Text
         /// Decode the span of UTF-8 encoded text represented as base 64 into binary data.
         /// If the input is not a multiple of 4, it will decode as much as it can, to the closest multiple of 4.
         ///
-        /// <param name="utf8">The input span which contains UTF-8 encoded text in base 64 that needs to be decoded.</param>
+        /// <param name="utf16">The input span which contains UTF-8 encoded text in base 64 that needs to be decoded.</param>
         /// <param name="bytes">The output span which contains the result of the operation, i.e. the decoded binary data.</param>
         /// <param name="consumed">The number of input bytes consumed during the operation. This can be used to slice the input for subsequent calls, if necessary.</param>
         /// <param name="written">The number of bytes written into the output span. This can be used to slice the output for subsequent calls, if necessary.</param>
@@ -27,18 +27,18 @@ namespace System.Buffers.Text
         /// - InvalidData - if the input contains bytes outside of the expected base 64 range, or if it contains invalid/more than two padding characters,
         ///   or if the input is incomplete (i.e. not a multiple of 4) and isFinalBlock is true.</returns>
         /// </summary> 
-        public static bool DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written)
+        public static bool TryDecodeFromUtf16(ReadOnlySpan<char> utf16, Span<byte> bytes, out int consumed, out int written)
         {
-            ref char srcBytes = ref MemoryMarshal.GetReference(utf8);
+            ref char srcChars = ref MemoryMarshal.GetReference(utf16);
             ref byte destBytes = ref MemoryMarshal.GetReference(bytes);
 
-            int srcLength = utf8.Length & ~0x3;  // only decode input up to the closest multiple of 4.
+            int srcLength = utf16.Length & ~0x3;  // only decode input up to the closest multiple of 4.
             int destLength = bytes.Length;
 
             int sourceIndex = 0;
             int destIndex = 0;
 
-            if (utf8.Length == 0)
+            if (utf16.Length == 0)
                 goto DoneExit;
 
             ref sbyte decodingMap = ref s_decodingMap[0];
@@ -61,7 +61,7 @@ namespace System.Buffers.Text
 
             while (sourceIndex < maxSrcLength)
             {
-                int result = Decode(ref Unsafe.Add(ref srcBytes, sourceIndex), ref decodingMap);
+                int result = Decode(ref Unsafe.Add(ref srcChars, sourceIndex), ref decodingMap);
                 if (result < 0)
                     goto InvalidExit;
                 WriteThreeLowOrderBytes(ref Unsafe.Add(ref destBytes, destIndex), result);
@@ -81,10 +81,10 @@ namespace System.Buffers.Text
 
             // if isFinalBlock is false, we will never reach this point
 
-            int i0 = Unsafe.Add(ref srcBytes, srcLength - 4);
-            int i1 = Unsafe.Add(ref srcBytes, srcLength - 3);
-            int i2 = Unsafe.Add(ref srcBytes, srcLength - 2);
-            int i3 = Unsafe.Add(ref srcBytes, srcLength - 1);
+            int i0 = Unsafe.Add(ref srcChars, srcLength - 4);
+            int i1 = Unsafe.Add(ref srcChars, srcLength - 3);
+            int i2 = Unsafe.Add(ref srcChars, srcLength - 2);
+            int i3 = Unsafe.Add(ref srcChars, srcLength - 1);
             if (((i0 | i1 | i2 | i3) & 0xffffff00) != 0)
                 goto InvalidExit;
 
@@ -141,7 +141,7 @@ namespace System.Buffers.Text
 
             sourceIndex += 4;
 
-            if (srcLength != utf8.Length)
+            if (srcLength != utf16.Length)
                 goto InvalidExit;
 
         DoneExit:
@@ -171,12 +171,12 @@ namespace System.Buffers.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Decode(ref char encodedBytes, ref sbyte decodingMap)
+        private static int Decode(ref char encodedChars, ref sbyte decodingMap)
         {
-            int i0 = encodedBytes;
-            int i1 = Unsafe.Add(ref encodedBytes, 1);
-            int i2 = Unsafe.Add(ref encodedBytes, 2);
-            int i3 = Unsafe.Add(ref encodedBytes, 3);
+            int i0 = encodedChars;
+            int i1 = Unsafe.Add(ref encodedChars, 1);
+            int i2 = Unsafe.Add(ref encodedChars, 2);
+            int i3 = Unsafe.Add(ref encodedChars, 3);
             if (((i0 | i1 | i2 | i3) & 0xffffff00) != 0)
                 return -1;
 
