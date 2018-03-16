@@ -27,7 +27,7 @@ namespace System.Buffers.Text
         /// - InvalidData - if the input contains bytes outside of the expected base 64 range, or if it contains invalid/more than two padding characters,
         ///   or if the input is incomplete (i.e. not a multiple of 4) and isFinalBlock is true.</returns>
         /// </summary> 
-        public static OperationStatus DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written)
+        public static bool DecodeFromUtf8(ReadOnlySpan<char> utf8, Span<byte> bytes, out int consumed, out int written)
         {
             ref char srcBytes = ref MemoryMarshal.GetReference(utf8);
             ref byte destBytes = ref MemoryMarshal.GetReference(bytes);
@@ -70,7 +70,7 @@ namespace System.Buffers.Text
             }
 
             if (maxSrcLength != srcLength - skipLastChunk)
-                goto DestinationSmallExit;
+                goto InvalidExit;
 
             // If input is less than 4 bytes, srcLength == sourceIndex == 0
             // If input is not a multiple of 4, sourceIndex == srcLength != 0
@@ -109,7 +109,7 @@ namespace System.Buffers.Text
                 if (i0 < 0)
                     goto InvalidExit;
                 if (destIndex > destLength - 3)
-                    goto DestinationSmallExit;
+                    goto InvalidExit;
                 WriteThreeLowOrderBytes(ref Unsafe.Add(ref destBytes, destIndex), i0);
                 destIndex += 3;
             }
@@ -124,7 +124,7 @@ namespace System.Buffers.Text
                 if (i0 < 0)
                     goto InvalidExit;
                 if (destIndex > destLength - 2)
-                    goto DestinationSmallExit;
+                    goto InvalidExit;
                 Unsafe.Add(ref destBytes, destIndex) = (byte)(i0 >> 16);
                 Unsafe.Add(ref destBytes, destIndex + 1) = (byte)(i0 >> 8);
                 destIndex += 2;
@@ -134,7 +134,7 @@ namespace System.Buffers.Text
                 if (i0 < 0)
                     goto InvalidExit;
                 if (destIndex > destLength - 1)
-                    goto DestinationSmallExit;
+                    goto InvalidExit;
                 Unsafe.Add(ref destBytes, destIndex) = (byte)(i0 >> 16);
                 destIndex += 1;
             }
@@ -147,19 +147,12 @@ namespace System.Buffers.Text
         DoneExit:
             consumed = sourceIndex;
             written = destIndex;
-            return OperationStatus.Done;
-
-        DestinationSmallExit:
-            if (srcLength != utf8.Length)
-                goto InvalidExit; // if input is not a multiple of 4, and there is no more data, return invalid data instead
-            consumed = sourceIndex;
-            written = destIndex;
-            return OperationStatus.DestinationTooSmall;
+            return true;
 
         InvalidExit:
             consumed = sourceIndex;
             written = destIndex;
-            return OperationStatus.InvalidData;
+            return false;
         }
 
         /// <summary>
@@ -233,33 +226,4 @@ namespace System.Buffers.Text
 
         private const byte EncodingPad = (byte)'='; // '=', for padding
     }
-
-    /// <summary>
-    /// This enum defines the various potential status that can be returned from Span-based operations
-    /// that support processing of input contained in multiple discontiguous buffers.
-    /// </summary>
-    internal enum OperationStatus
-    {
-        /// <summary>
-        /// The entire input buffer has been processed and the operation is complete.
-        /// </summary>
-        Done,
-        /// <summary>
-        /// The input is partially processed, up to what could fit into the destination buffer.
-        /// The caller can enlarge the destination buffer, slice the buffers appropriately, and retry.
-        /// </summary>
-        DestinationTooSmall,
-        /// <summary>
-        /// The input is partially processed, up to the last valid chunk of the input that could be consumed.
-        /// The caller can stitch the remaining unprocessed input with more data, slice the buffers appropriately, and retry.
-        /// </summary>
-        NeedMoreData,
-        /// <summary>
-        /// The input contained invalid bytes which could not be processed. If the input is partially processed,
-        /// the destination contains the partial result. This guarantees that no additional data appended to the input
-        /// will make the invalid sequence valid.
-        /// </summary>
-        InvalidData,
-    }
-
 }
