@@ -19627,8 +19627,25 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                     {
                         // Pass the local var as this and the type handle as a new arg
                         JITDUMP("Success! invoking unboxed entry point on local copy, and passing method table arg\n");
-                        call->gtCallObjp    = localCopyThis;
-                        call->gtCallArgs    = gtNewListNode(methodTableArg, call->gtCallArgs);
+                        call->gtCallObjp = localCopyThis;
+
+                        // Prepend for R2L arg passing or empty L2R passing
+                        if ((Target::g_tgtArgOrder == Target::ARG_ORDER_R2L) || (call->gtCallArgs == nullptr))
+                        {
+                            call->gtCallArgs = gtNewListNode(methodTableArg, call->gtCallArgs);
+                        }
+                        // Append for non-empty L2R
+                        else
+                        {
+                            GenTreeArgList* beforeArg = call->gtCallArgs;
+                            while (beforeArg->Rest() != nullptr)
+                            {
+                                beforeArg = beforeArg->Rest();
+                            }
+
+                            beforeArg->Rest() = gtNewListNode(methodTableArg, nullptr);
+                        }
+
                         call->gtCallMethHnd = unboxedEntryMethod;
                         derivedMethod       = unboxedEntryMethod;
 
