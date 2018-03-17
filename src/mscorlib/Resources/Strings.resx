@@ -1,17 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!--
-    Microsoft ResX Schema
-
+  <!-- 
+    Microsoft ResX Schema 
+    
     Version 2.0
-
-    The primary goals of this format is to allow a simple XML format
-    that is mostly human readable. The generation and parsing of the
-    various data types are done through the TypeConverter classes
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
     associated with the data types.
-
+    
     Example:
-
+    
     ... ado.net/XML headers & schema ...
     <resheader name="resmimetype">text/microsoft-resx</resheader>
     <resheader name="version">2.0</resheader>
@@ -26,36 +26,36 @@
         <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
         <comment>This is a comment</comment>
     </data>
-
-    There are any number of "resheader" rows that contain simple
+                
+    There are any number of "resheader" rows that contain simple 
     name/value pairs.
-
-    Each data row contains a name, and value. The row also contains a
-    type or mimetype. Type corresponds to a .NET class that support
-    text/value conversion through the TypeConverter architecture.
-    Classes that don't support this are serialized and stored with the
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
     mimetype set.
-
-    The mimetype is used for serialized objects, and tells the
-    ResXResourceReader how to depersist the object. This is currently not
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
     extensible. For a given mimetype the value must be set accordingly:
-
-    Note - application/x-microsoft.net.object.binary.base64 is the format
-    that the ResXResourceWriter will generate, however the reader can
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
     read any of the formats listed below.
-
+    
     mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
             : and then encoded with base64 encoding.
-
+    
     mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with
+    value   : The object must be serialized with 
             : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
             : and then encoded with base64 encoding.
 
     mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array
+    value   : The object must be serialized into a byte array 
             : using a System.ComponentModel.TypeConverter
             : and then encoded with base64 encoding.
     -->
@@ -531,9 +531,6 @@
   </data>
   <data name="Arg_MustBeString" xml:space="preserve">
     <value>Object must be of type String.</value>
-  </data>
-  <data name="Arg_MustBeStringPtrNotAtom" xml:space="preserve">
-    <value>The pointer passed in as a String must not be in the bottom 64K of the process's address space.</value>
   </data>
   <data name="Arg_MustBeTimeSpan" xml:space="preserve">
     <value>Object must be of type TimeSpan.</value>
@@ -1240,9 +1237,6 @@
   <data name="Argument_InvalidPathChars" xml:space="preserve">
     <value>Illegal characters in path.</value>
   </data>
-  <data name="Argument_InvalidREG_TZI_FORMAT" xml:space="preserve">
-    <value>The REG_TZI_FORMAT structure is corrupt.</value>
-  </data>
   <data name="Argument_InvalidRegistryViewCheck" xml:space="preserve">
     <value>The specified RegistryView value is invalid.</value>
   </data>
@@ -1662,9 +1656,6 @@
   </data>
   <data name="ArgumentNull_Waithandles" xml:space="preserve">
     <value>The waitHandles parameter cannot be null.</value>
-  </data>
-  <data name="ArgumentNull_WithParamName" xml:space="preserve">
-    <value>Parameter '{0}' cannot be null.</value>
   </data>
   <data name="ArgumentOutOfRange_ActualValue" xml:space="preserve">
     <value>Actual value was {0}.</value>
@@ -2547,6 +2538,9 @@
   </data>
   <data name="InvalidOperation_CollectionCorrupted" xml:space="preserve">
     <value>A prior operation on this collection was interrupted by an exception. Collection's state is no longer trusted.</value>
+  </data>
+  <data name="InvalidOperation_ConcurrentOperationsNotSupported" xml:space="preserve">
+    <value>Operations that change non-concurrent collections must have exclusive access. A concurrent update was performed on this collection and corrupted its state. The collection's state is no longer correct.</value>
   </data>
   <data name="InvalidOperation_ConstructorNotAllowedOnInterface" xml:space="preserve">
     <value>Interface cannot have constructors.</value>
@@ -3702,5 +3696,29 @@
   </data>
   <data name="IO_InvalidReadLength" xml:space="preserve">
     <value>The read operation returned an invalid length.</value>
+  </data>
+  <data name="Arg_BasePathNotFullyQualified" xml:space="preserve">
+    <value>Basepath argument is not fully qualified.</value>
+  </data>
+  <data name="Arg_ElementsInSourceIsGreaterThanDestination" xml:space="preserve">
+    <value>Number of elements in source vector is greater than the destination array</value>
+  </data>
+  <data name="Arg_NullArgumentNullRef" xml:space="preserve">
+    <value>The method was called with a null array argument.</value>
+  </data>
+  <data name="Argument_CannotPrepareAbstract" xml:space="preserve">
+    <value>Abstract methods cannot be prepared.</value>
+  </data>
+  <data name="Argument_InvalidGenericInstantiation" xml:space="preserve">
+    <value>The given generic instantiation was invalid.</value>
+  </data>
+  <data name="Argument_OverlapAlignmentMismatch" xml:space="preserve">
+    <value>Overlapping spans have mismatching alignment.</value>
+  </data>
+  <data name="Arg_InsufficientNumberOfElements" xml:space="preserve">
+    <value>At least {0} element(s) are expected in the parameter "{1}".</value>
+  </data>
+  <data name="Arg_MustBeNullTerminatedString" xml:space="preserve">
+    <value>The string must be null-terminated.</value>
   </data>
 </root>

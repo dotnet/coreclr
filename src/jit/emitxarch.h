@@ -105,6 +105,7 @@ void SetUseSSE4(bool value)
 }
 bool EncodedBySSE38orSSE3A(instruction ins);
 bool Is4ByteSSE4Instruction(instruction ins);
+bool Is4ByteSSE4OrAVXInstruction(instruction ins);
 
 bool hasRexPrefix(code_t code)
 {
@@ -183,7 +184,6 @@ bool IsThreeOperandAVXInstruction(instruction ins)
 {
     return (IsDstDstSrcAVXInstruction(ins) || IsDstSrcSrcAVXInstruction(ins));
 }
-bool Is4ByteAVXInstruction(instruction ins);
 bool isAvxBlendv(instruction ins)
 {
     return ins == INS_vblendvps || ins == INS_vblendvpd || ins == INS_vpblendvb;
@@ -191,6 +191,10 @@ bool isAvxBlendv(instruction ins)
 bool isSse41Blendv(instruction ins)
 {
     return ins == INS_blendvps || ins == INS_blendvpd || ins == INS_pblendvb;
+}
+bool isPrefetch(instruction ins)
+{
+    return (ins == INS_prefetcht0) || (ins == INS_prefetcht1) || (ins == INS_prefetcht2) || (ins == INS_prefetchnta);
 }
 #else  // LEGACY_BACKEND
 bool UseVEXEncoding()
@@ -230,10 +234,6 @@ bool IsThreeOperandAVXInstruction(instruction ins)
 {
     return false;
 }
-bool Is4ByteAVXInstruction(instruction ins)
-{
-    return false;
-}
 bool isAvxBlendv(instruction ins)
 {
     return false;
@@ -246,6 +246,11 @@ bool TakesVexPrefix(instruction ins)
 {
     return false;
 }
+bool isPrefetch(instruction ins)
+{
+    return false;
+}
+
 code_t AddVexPrefixIfNeeded(instruction ins, code_t code, emitAttr attr)
 {
     return code;
@@ -363,7 +368,7 @@ void emitIns(instruction ins);
 
 void emitIns(instruction ins, emitAttr attr);
 
-void emitInsRMW(instruction inst, emitAttr attr, GenTreeStoreInd* storeInd, GenTreePtr src);
+void emitInsRMW(instruction inst, emitAttr attr, GenTreeStoreInd* storeInd, GenTree* src);
 
 void emitInsRMW(instruction inst, emitAttr attr, GenTreeStoreInd* storeInd);
 
@@ -382,9 +387,13 @@ void emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2)
 void emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, int ival);
 
 #ifndef LEGACY_BACKEND
+void emitIns_AR(instruction ins, emitAttr attr, regNumber base, int offs);
+
 void emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, insFormat fmt);
 
 void emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, int ival);
+
+void emitIns_R_AR_I(instruction ins, emitAttr attr, regNumber reg1, regNumber base, int offs, int ival);
 
 void emitIns_R_C_I(instruction ins, emitAttr attr, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival);
 
@@ -405,6 +414,8 @@ void emitIns_R_R_R(instruction ins, emitAttr attr, regNumber reg1, regNumber reg
 #ifndef LEGACY_BACKEND
 void emitIns_R_R_A_I(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, int ival, insFormat fmt);
+void emitIns_R_R_AR_I(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs, int ival);
 #endif // !LEGACY_BACKEND
 
 void emitIns_R_R_C_I(
@@ -475,6 +486,7 @@ void emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg,
 #ifdef FEATURE_HW_INTRINSICS
 void emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base);
 void emitIns_SIMD_R_R_A_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir, int ival);
+void emitIns_SIMD_R_R_AR_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base, int ival);
 void emitIns_SIMD_R_R_C_I(
     instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival);
 void emitIns_SIMD_R_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int ival);
@@ -484,6 +496,7 @@ void emitIns_SIMD_R_R_C(
     instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs);
 void emitIns_SIMD_R_R_S(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs);
 void emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2);
+void emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int ival);
 void emitIns_SIMD_R_R_R_R(
     instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber reg3);
 #endif // FEATURE_HW_INTRINSICS

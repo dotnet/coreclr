@@ -33,7 +33,7 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <SignAssembly>true</SignAssembly>
     <DelaySign>true</DelaySign>
-    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;CODE_ANALYSIS_BASELINE</DefineConstants>
+    <DefineConstants>$(DefineConstants);CORECLR;_USE_NLS_PLUS_TABLE;RESOURCE_SATELLITE_CONFIG;CODE_ANALYSIS_BASELINE;netcoreapp</DefineConstants>
     <!-- We don't use any of MSBuild's resolution logic for resolving the framework, so just set these two properties to any folder that exists to skip
          the GenerateReferenceAssemblyPaths task (not target) and to prevent it from outputting a warning (MSB3644). -->
     <_TargetFrameworkDirectories>$(MSBuildThisFileDirectory)/Documentation</_TargetFrameworkDirectories>
@@ -296,6 +296,20 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse42.PlatformNotSupported.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Ssse3.PlatformNotSupported.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Platform)' == 'arm64'">
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Aes.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Base.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha1.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha256.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Simd.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Platform)' != 'arm64'">
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Aes.PlatformNotSupported.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Base.PlatformNotSupported.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha1.PlatformNotSupported.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha256.PlatformNotSupported.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Simd.PlatformNotSupported.cs" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContext.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextSwitches.cs" />
@@ -307,9 +321,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Object.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\String.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\String.Manipulation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
@@ -333,7 +346,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Enum.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\GC.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Guid.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\InsufficientMemoryException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Math.CoreCLR.cs" />
@@ -494,9 +506,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\IO\BinaryReader.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\Directory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\SearchOption.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
@@ -514,7 +524,8 @@
     <Compile Condition="'$(FeatureXplatEventSource)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\FrameworkEventSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
-    <Compile Condition="'$(FeaturePerfTracing)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeMetadataGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\Contracts.cs" />
@@ -567,7 +578,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentQueue.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFindHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeWaitHandle.cs" />
     <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
@@ -581,10 +591,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IO\FileSystemEnumerable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
@@ -594,7 +602,26 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\TimeZoneInfo.Win32.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+    These files are also added to CoreLib.Shared.projitems, but they don't show up in
+    Visual Studio Solution Explorer. Adding them here as well so developers can
+    edit them and regenerate the .cs files.
+    -->
+    <Content Include="shared\System\Numerics\ConstantHelper.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>ConstantHelper.cs</LastGenOutput>
+    </Content>
+    <None Include="shared\System\Numerics\GenerationConfig.ttinclude" />
+    <Content Include="shared\System\Numerics\Register.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Register.cs</LastGenOutput>
+    </Content>
+    <Content Include="shared\System\Numerics\Vector.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Vector.cs</LastGenOutput>
+    </Content>
   </ItemGroup>
   <!-- Include additional sources shared files in the compilation -->
   <ItemGroup>
@@ -642,5 +669,14 @@
     <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
     <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>
+
+  <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(_ILLinkRuntimeRootDescriptorFilePath)" />
+  </ItemGroup>
+
+  <Import Project="ILLink.targets" />
+
   <Import Project="GenerateCompilerResponseFile.targets" />
 </Project>

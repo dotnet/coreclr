@@ -79,7 +79,7 @@ def static getOSGroup(def os) {
 
                             batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH /AFFINITY 0x2\""
+                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH /AFFINITY 0x2\""
 
                             // Run with just stopwatch: Profile=Off
                             batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\perflab\\Perflab -library")
@@ -96,6 +96,7 @@ def static getOSGroup(def os) {
                     def archiveSettings = new ArchivalSettings()
                     archiveSettings.addFiles('bin/sandbox_logs/**')
                     archiveSettings.addFiles('machinedata.json')
+                    archiveSettings.setAlwaysArchive()
 
                     Utilities.addArchival(newJob, archiveSettings)
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -199,7 +200,6 @@ def static getOSGroup(def os) {
                                 "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\build.py\" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type ${runType}")
                                 batchFile("py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\"")
                                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}${pgo_build} skiptests")
-                                batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
                                 batchFile("py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${configuration} -opt_level ${opt_level} -jit_name ${jit}${pgo_test} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\Microsoft.BenchView.ThroughputBenchmarks.${architecture}.${os}\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}")
                             }
                         }
@@ -207,6 +207,7 @@ def static getOSGroup(def os) {
                         // Save machinedata.json to /artifact/bin/ Jenkins dir
                         def archiveSettings = new ArchivalSettings()
                         archiveSettings.addFiles('throughput-*.csv')
+                        archiveSettings.setAlwaysArchive()
                         Utilities.addArchival(newJob, archiveSettings)
 
                         Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -305,7 +306,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
             def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
             def uploadString = '-uploadToBenchview'
 
-            def runXUnitCommonArgs = "-arch ${architecture} -os Ubuntu16.04 -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
+            def runXUnitCommonArgs = "-arch ${architecture} -os ${os} -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
 
             steps {
                 shell("./tests/scripts/perf-prep.sh --nocorefx")
@@ -326,6 +327,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         def archiveSettings = new ArchivalSettings()
         archiveSettings.addFiles('bin/sandbox_logs/**')
         archiveSettings.addFiles('machinedata.json')
+        archiveSettings.setAlwaysArchive()
 
         Utilities.addArchival(newJob, archiveSettings)
         Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -473,6 +475,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
             def archiveSettings = new ArchivalSettings()
             archiveSettings.addFiles('throughput-*.csv')
             archiveSettings.addFiles('machinedata.json')
+            archiveSettings.setAlwaysArchive()
             Utilities.addArchival(newJob, archiveSettings)
 
             Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -582,7 +585,7 @@ parallel(
 
                             batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH\" -scenarioTest"
+                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH\" -scenarioTest"
 
                             // Profile=Off
                             batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios")
@@ -597,6 +600,7 @@ parallel(
                     def archiveSettings = new ArchivalSettings()
                     archiveSettings.addFiles('bin/sandbox_logs/**')
                     archiveSettings.addFiles('machinedata.json')
+                    archiveSettings.setAlwaysArchive()
 
                     Utilities.addArchival(newJob, archiveSettings)
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
@@ -706,6 +710,7 @@ parallel(
         def archiveSettings = new ArchivalSettings()
         archiveSettings.addFiles('bin/toArchive/**')
         archiveSettings.addFiles('machinedata.json')
+        archiveSettings.setAlwaysArchive()
 
         Utilities.addArchival(newJob, archiveSettings)
         Utilities.standardJobSetup(newJob, project, false, "*/${branch}")
@@ -779,16 +784,18 @@ parallel(
 
                             batchFile("tests\\runtest.cmd ${configuration} ${architecture} GenerateLayoutOnly")
 
-                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -scenarioTest"
+                            def runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${configuration} -os ${os} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\" -scenarioTest"
 
                             // Scenario: ILLink
-                            batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -group ILLink -nowarmup")
+                            batchFile("\"%VS140COMNTOOLS%\\..\\..\\VC\\vcvarsall.bat\" x86_amd64 && " +
+                            "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -group ILLink -nowarmup")
                         }
                     }
 
                     def archiveSettings = new ArchivalSettings()
                     archiveSettings.addFiles('bin/sandbox_logs/**')
                     archiveSettings.addFiles('machinedata.json')
+                    archiveSettings.setAlwaysArchive()
 
                     // Set the label (currently we are only measuring size, therefore we are running on VM).
                     Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')

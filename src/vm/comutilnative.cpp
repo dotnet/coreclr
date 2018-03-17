@@ -1807,46 +1807,6 @@ FCIMPL2(LPVOID,COMInterlocked::ExchangeObject, LPVOID*location, LPVOID value)
 }
 FCIMPLEND
 
-FCIMPL2_VV(void,COMInterlocked::ExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value)
-{
-    FCALL_CONTRACT;
-
-    LPVOID* loc = (LPVOID*)location.data;
-    if( NULL == loc) {
-        FCThrowVoid(kNullReferenceException);
-    }
-
-    LPVOID val = *(LPVOID*)value.data;
-    *(LPVOID*)value.data = FastInterlockExchangePointer(loc, val);
-#ifdef _DEBUG
-    Thread::ObjectRefAssign((OBJECTREF *)loc);
-#endif
-    ErectWriteBarrier((OBJECTREF*) loc, ObjectToOBJECTREF((Object*) val));
-}
-FCIMPLEND
-
-FCIMPL3_VVI(void,COMInterlocked::CompareExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value, LPVOID comparand)
-{
-    FCALL_CONTRACT;
-
-    LPVOID* loc = (LPVOID*)location.data;
-    LPVOID val = *(LPVOID*)value.data;
-    if( NULL == loc) {
-        FCThrowVoid(kNullReferenceException);
-    }
-
-    LPVOID ret = FastInterlockCompareExchangePointer(loc, val, comparand);
-    *(LPVOID*)value.data = ret;
-    if(ret == comparand)
-    {
-#ifdef _DEBUG
-        Thread::ObjectRefAssign((OBJECTREF *)loc);
-#endif
-        ErectWriteBarrier((OBJECTREF*) loc, ObjectToOBJECTREF((Object*) val));
-    }
-}
-FCIMPLEND
-
 FCIMPL3(LPVOID,COMInterlocked::CompareExchangeObject, LPVOID *location, LPVOID value, LPVOID comparand)
 {
     FCALL_CONTRACT;
@@ -2098,7 +2058,8 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
     } CONTRACTL_END;
 
     INT32 hashCode = 0;
-    INT32 *pObj = (INT32*)pObjRef;
+
+    GCPROTECT_BEGININTERIOR(pObjRef);
 
     BOOL canUseFastGetHashCodeHelper = FALSE;
     if (mt->HasCheckedCanCompareBitsOrUseFastGetHashCode())
@@ -2114,7 +2075,7 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
     // be able to handle getting the hashcode for an embedded structure whose hashcode is computed by the fast path.
     if (canUseFastGetHashCodeHelper)
     {
-        return FastGetValueTypeHashCodeHelper(mt, pObjRef);
+        hashCode = FastGetValueTypeHashCodeHelper(mt, pObjRef);
     }
     else
     {
@@ -2127,60 +2088,65 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
         //
         // <TODO> check this approximation - we may be losing exact type information </TODO>
         ApproxFieldDescIterator fdIterator(mt, ApproxFieldDescIterator::INSTANCE_FIELDS);
-        INT32 count = (INT32)fdIterator.Count();
 
-        if (count != 0)
+        FieldDesc *field;
+        while ((field = fdIterator.Next()) != NULL)
         {
-            for (INT32 i = 0; i < count; i++)
+            _ASSERTE(!field->IsRVA());
+            if (field->IsObjRef())
             {
-                FieldDesc *field = fdIterator.Next();
-                _ASSERTE(!field->IsRVA());
-                void *pFieldValue = (BYTE *)pObj + field->GetOffsetUnsafe();
-                if (field->IsObjRef())
+                // if we get an object reference we get the hash code out of that
+                if (*(Object**)((BYTE *)pObjRef + field->GetOffsetUnsafe()) != NULL)
                 {
-                    // if we get an object reference we get the hash code out of that
-                    if (*(Object**)pFieldValue != NULL)
-                    {
-
-                        OBJECTREF fieldObjRef = ObjectToOBJECTREF(*(Object **) pFieldValue);
-                        GCPROTECT_BEGIN(fieldObjRef);
-
-                        MethodDescCallSite getHashCode(METHOD__OBJECT__GET_HASH_CODE, &fieldObjRef);
-
-                        // Make the call.
-                        ARG_SLOT arg[1] = {ObjToArgSlot(fieldObjRef)};
-                        hashCode = getHashCode.Call_RetI4(arg);
-
-                        GCPROTECT_END();
-                    }
-                    else
-                    {
-                        // null object reference, try next
-                        continue;
-                    }
+                    PREPARE_SIMPLE_VIRTUAL_CALLSITE(METHOD__OBJECT__GET_HASH_CODE, (*(Object**)((BYTE *)pObjRef + field->GetOffsetUnsafe())));
+                    DECLARE_ARGHOLDER_ARRAY(args, 1);
+                    args[ARGNUM_0] = PTR_TO_ARGHOLDER(*(Object**)((BYTE *)pObjRef + field->GetOffsetUnsafe()));
+                    CALL_MANAGED_METHOD(hashCode, INT32, args);
                 }
                 else
                 {
-                    UINT fieldSize = field->LoadSize();
-                    INT32 *pValue = (INT32*)pFieldValue;
-                    CorElementType fieldType = field->GetFieldType();
-                    if (fieldType != ELEMENT_TYPE_VALUETYPE)
-                    {
-                        for (INT32 j = 0; j < (INT32)(fieldSize / sizeof(INT32)); j++)
-                            hashCode ^= *pValue++;
-                    }
-                    else
-                    {
-                        // got another value type. Get the type
-                        TypeHandle fieldTH = field->LookupFieldTypeHandle(); // the type was loaded already
-                        _ASSERTE(!fieldTH.IsNull());
-                        hashCode = RegularGetValueTypeHashCode(fieldTH.GetMethodTable(), pValue);
-                    }
+                    // null object reference, try next
+                    continue;
                 }
-                break;
             }
+            else
+            {
+                CorElementType fieldType = field->GetFieldType();
+                if (fieldType == ELEMENT_TYPE_R8)
+                {
+                    PREPARE_NONVIRTUAL_CALLSITE(METHOD__DOUBLE__GET_HASH_CODE);
+                    DECLARE_ARGHOLDER_ARRAY(args, 1);
+                    args[ARGNUM_0] = PTR_TO_ARGHOLDER(((BYTE *)pObjRef + field->GetOffsetUnsafe()));
+                    CALL_MANAGED_METHOD(hashCode, INT32, args);
+                }
+                else if (fieldType == ELEMENT_TYPE_R4)
+                {
+                    PREPARE_NONVIRTUAL_CALLSITE(METHOD__SINGLE__GET_HASH_CODE);
+                    DECLARE_ARGHOLDER_ARRAY(args, 1);
+                    args[ARGNUM_0] = PTR_TO_ARGHOLDER(((BYTE *)pObjRef + field->GetOffsetUnsafe()));
+                    CALL_MANAGED_METHOD(hashCode, INT32, args);
+                }
+                else if (fieldType != ELEMENT_TYPE_VALUETYPE)
+                {
+                    UINT fieldSize = field->LoadSize();
+                    INT32 *pValue = (INT32*)((BYTE *)pObjRef + field->GetOffsetUnsafe());
+                    for (INT32 j = 0; j < (INT32)(fieldSize / sizeof(INT32)); j++)
+                        hashCode ^= *pValue++;
+                }
+                else
+                {
+                    // got another value type. Get the type
+                    TypeHandle fieldTH = field->GetFieldTypeHandleThrowing();
+                    _ASSERTE(!fieldTH.IsNull());
+                    hashCode = RegularGetValueTypeHashCode(fieldTH.GetMethodTable(), (BYTE *)pObjRef + field->GetOffsetUnsafe());
+                }
+            }
+            break;
         }
     }
+
+    GCPROTECT_END();
+
     return hashCode;
 }
 
@@ -2371,7 +2337,7 @@ PCBYTE COMNlsHashProvider::GetEntropy()
         AllocMemHolder<BYTE> pNewEntropy(GetAppDomain()->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(SYMCRYPT_MARVIN32_SEED_SIZE))));
 
 #ifdef FEATURE_PAL
-        PAL_Random(TRUE, pNewEntropy, SYMCRYPT_MARVIN32_SEED_SIZE);
+        PAL_Random(pNewEntropy, SYMCRYPT_MARVIN32_SEED_SIZE);
 #else
         HCRYPTPROV hCryptProv;
         WszCryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);

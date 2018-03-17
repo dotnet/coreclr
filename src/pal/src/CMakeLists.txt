@@ -101,6 +101,9 @@ endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT
 if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Setting RLIMIT_NOFILE breaks debugging of coreclr on Alpine Linux for some reason
   add_definitions(-DDONT_SET_RLIMIT_NOFILE)
+  # On Alpine Linux, we need to ensure that the reported stack range for the primary thread is
+  # larger than the initial committed stack size.
+  add_definitions(-DENSURE_PRIMARY_STACK_SIZE)
 endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
 
 # turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
@@ -153,7 +156,6 @@ set(SOURCES
   file/filetime.cpp
   file/find.cpp
   file/path.cpp
-  file/shmfilelockmgr.cpp
   handlemgr/handleapi.cpp
   handlemgr/handlemgr.cpp
   init/pal.cpp
@@ -180,6 +182,7 @@ set(SOURCES
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
+  misc/tracepointprovider.cpp
   misc/utils.cpp
   numa/numa.cpp
   objmgr/palobjbase.cpp
@@ -238,15 +241,6 @@ add_library(coreclrpal
   ${ARCH_SOURCES}
   ${PLATFORM_SOURCES}
 )
-
-# This builds in functionality to load LTTng tracepoints at runtime
-# Needed when using LTTng to support event tracing on Linux
-if(CLR_CMAKE_PLATFORM_LINUX)
-    add_library(tracepointprovider
-      STATIC
-      misc/tracepointprovider.cpp
-    )
-endif(CLR_CMAKE_PLATFORM_LINUX)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
@@ -346,7 +340,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
   target_link_libraries(coreclrpal
     dl
-    uuid
   )
 
   if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)

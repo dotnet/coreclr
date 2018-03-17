@@ -379,6 +379,7 @@ typedef long time_t;
 #define PAL_INITIALIZE_STD_HANDLES                  0x04
 #define PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER     0x08
 #define PAL_INITIALIZE_DEBUGGER_EXCEPTIONS          0x10
+#define PAL_INITIALIZE_ENSURE_STACK_SIZE            0x20
 
 // PAL_Initialize() flags
 #define PAL_INITIALIZE                 (PAL_INITIALIZE_SYNC_THREAD | PAL_INITIALIZE_STD_HANDLES)
@@ -387,7 +388,7 @@ typedef long time_t;
 #define PAL_INITIALIZE_DLL             PAL_INITIALIZE_NONE       
 
 // PAL_InitializeCoreCLR() flags
-#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | PAL_INITIALIZE_EXEC_ALLOCATOR | PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | PAL_INITIALIZE_DEBUGGER_EXCEPTIONS)
+#define PAL_INITIALIZE_CORECLR         (PAL_INITIALIZE | PAL_INITIALIZE_EXEC_ALLOCATOR | PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER | PAL_INITIALIZE_DEBUGGER_EXCEPTIONS | PAL_INITIALIZE_ENSURE_STACK_SIZE)
 
 typedef DWORD (PALAPI *PTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 typedef PTHREAD_START_ROUTINE LPTHREAD_START_ROUTINE;
@@ -480,7 +481,7 @@ BOOL
 PALAPI
 PAL_NotifyRuntimeStarted(VOID);
 
-static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = 64;
+static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = MAX_PATH;
 
 PALIMPORT
 VOID
@@ -526,10 +527,9 @@ PAL_GetPALDirectoryW(
 #endif
 
 PALIMPORT
-BOOL
+VOID
 PALAPI
 PAL_Random(
-    IN BOOL bStrong,
     IN OUT LPVOID lpBuffer,
     IN DWORD dwLength);
 
@@ -1493,6 +1493,15 @@ WaitForMultipleObjectsEx(
              IN BOOL bWaitAll,
              IN DWORD dwMilliseconds,
              IN BOOL bAlertable);
+
+PALIMPORT
+DWORD
+PALAPI
+SignalObjectAndWait(
+    IN HANDLE hObjectToSignal,
+    IN HANDLE hObjectToWaitOn,
+    IN DWORD dwMilliseconds,
+    IN BOOL bAlertable);
 
 #define DUPLICATE_CLOSE_SOURCE      0x00000001
 #define DUPLICATE_SAME_ACCESS       0x00000002
@@ -2717,6 +2726,11 @@ GetModuleFileNameExW(
 PALAPI
 LPCVOID
 PAL_GetSymbolModuleBase(void *symbol);
+
+PALIMPORT
+LPCSTR
+PALAPI
+PAL_GetLoadLibraryError();
 
 PALIMPORT
 LPVOID
@@ -4862,11 +4876,6 @@ SetThreadIdealProcessorEx(
 #define EVENTLOG_AUDIT_SUCCESS          0x0008
 #define EVENTLOG_AUDIT_FAILURE          0x0010
 
-PALIMPORT
-HRESULT
-PALAPI
-CoCreateGuid(OUT GUID * pguid);
-
 #if defined FEATURE_PAL_ANSI
 #include "palprivate.h"
 #endif //FEATURE_PAL_ANSI
@@ -5677,13 +5686,14 @@ private:
         ExceptionPointers.ExceptionRecord = ex.ExceptionPointers.ExceptionRecord;
         ExceptionPointers.ContextRecord = ex.ExceptionPointers.ContextRecord;
         TargetFrameSp = ex.TargetFrameSp;
+        RecordsOnStack = ex.RecordsOnStack;
 
         ex.Clear();
     }
 
     void FreeRecords()
     {
-        if (ExceptionPointers.ExceptionRecord != NULL)
+        if (ExceptionPointers.ExceptionRecord != NULL && !RecordsOnStack )
         {
             PAL_FreeExceptionRecords(ExceptionPointers.ExceptionRecord, ExceptionPointers.ContextRecord);
             ExceptionPointers.ExceptionRecord = NULL;
@@ -5695,12 +5705,14 @@ public:
     EXCEPTION_POINTERS ExceptionPointers;
     // Target frame stack pointer set before the 2nd pass.
     SIZE_T TargetFrameSp;
+    bool RecordsOnStack;
 
-    PAL_SEHException(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContextRecord)
+    PAL_SEHException(EXCEPTION_RECORD *pExceptionRecord, CONTEXT *pContextRecord, bool onStack = false)
     {
         ExceptionPointers.ExceptionRecord = pExceptionRecord;
         ExceptionPointers.ContextRecord = pContextRecord;
         TargetFrameSp = NoTargetFrameSp;
+        RecordsOnStack = onStack;
     }
 
     PAL_SEHException()
@@ -5736,6 +5748,7 @@ public:
         ExceptionPointers.ExceptionRecord = NULL;
         ExceptionPointers.ContextRecord = NULL;
         TargetFrameSp = NoTargetFrameSp;
+        RecordsOnStack = false;
     }
 
     CONTEXT* GetContextRecord()

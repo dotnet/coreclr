@@ -49,8 +49,9 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="stateMachine"/> argument was null (Nothing in Visual Basic).</exception>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
-            _builder.Start(ref stateMachine);
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -198,8 +199,9 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
-            m_builder.Start(ref stateMachine);
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -312,29 +314,9 @@ namespace System.Runtime.CompilerServices
         /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [DebuggerStepThrough]
-        public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
-        {
-            if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
-            }
-
-            // Run the MoveNext method within a copy-on-write ExecutionContext scope.
-            // This allows us to undo any ExecutionContext changes made in MoveNext,
-            // so that they won't "leak" out of the first await.
-
-            Thread currentThread = Thread.CurrentThread;
-            ExecutionContextSwitcher ecs = default(ExecutionContextSwitcher);
-            try
-            {
-                ExecutionContext.EstablishCopyOnWriteScope(currentThread, ref ecs);
-                stateMachine.MoveNext();
-            }
-            finally
-            {
-                ecs.Undo(currentThread);
-            }
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
+            AsyncMethodBuilderCore.Start(ref stateMachine);
 
         /// <summary>Associates the builder with the state machine it represents.</summary>
         /// <param name="stateMachine">The heap-allocated state machine object.</param>
@@ -395,7 +377,8 @@ namespace System.Runtime.CompilerServices
             IAsyncStateMachineBox box = GetStateMachineBox(ref stateMachine);
 
             // The null tests here ensure that the jit can optimize away the interface
-            // tests when TAwaiter is is a ref type.
+            // tests when TAwaiter is a ref type.
+
             if ((null != (object)default(TAwaiter)) && (awaiter is ITaskAwaiter))
             {
                 ref TaskAwaiter ta = ref Unsafe.As<TAwaiter, TaskAwaiter>(ref awaiter); // relies on TaskAwaiter/TaskAwaiter<T> having the same layout
@@ -408,17 +391,25 @@ namespace System.Runtime.CompilerServices
             }
             else if ((null != (object)default(TAwaiter)) && (awaiter is IValueTaskAwaiter))
             {
-                Task t = ((IValueTaskAwaiter)awaiter).GetTask();
-                TaskAwaiter.UnsafeOnCompletedInternal(t, box, continueOnCapturedContext: true);
+                try
+                {
+                    ((IValueTaskAwaiter)awaiter).AwaitUnsafeOnCompleted(box);
+                }
+                catch (Exception e)
+                {
+                    // Whereas with Task the code that hooks up and invokes the continuation is all local to corelib,
+                    // with ValueTaskAwaiter we may be calling out to an arbitrary implementation of IValueTaskSource
+                    // wrapped in the ValueTask, and as such we protect against errant exceptions that may emerge.
+                    // We don't want such exceptions propagating back into the async method, which can't handle
+                    // exceptions well at that location in the state machine, especially if the exception may occur
+                    // after the ValueTaskAwaiter already successfully hooked up the callback, in which case it's possible
+                    // two different flows of execution could end up happening in the same async method call.
+                    AsyncMethodBuilderCore.ThrowAsync(e, targetContext: null);
+                }
             }
-            else if ((null != (object)default(TAwaiter)) && (awaiter is IConfiguredValueTaskAwaiter))
-            {
-                (Task task, bool continueOnCapturedContext) t = ((IConfiguredValueTaskAwaiter)awaiter).GetTask();
-                TaskAwaiter.UnsafeOnCompletedInternal(t.task, box, t.continueOnCapturedContext);
-            }
-            // The awaiter isn't specially known. Fall back to doing a normal await.
             else
             {
+                // The awaiter isn't specially known. Fall back to doing a normal await.
                 try
                 {
                     awaiter.UnsafeOnCompleted(box.MoveNextAction);
@@ -541,20 +532,25 @@ namespace System.Runtime.CompilerServices
             public ExecutionContext Context;
 
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            public Action MoveNextAction =>
-                _moveNextAction ??
-                (_moveNextAction = AsyncCausalityTracer.LoggingOn ? AsyncMethodBuilderCore.OutputAsyncCausalityEvents(this, new Action(MoveNext)) : new Action(MoveNext));
+            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext()
             {
-                if (Context == null)
+                bool loggingOn = AsyncCausalityTracer.LoggingOn;
+                if (loggingOn)
+                {
+                    AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, Id, CausalitySynchronousWork.Execution);
+                }
+
+                ExecutionContext context = Context;
+                if (context == null)
                 {
                     StateMachine.MoveNext();
                 }
                 else
                 {
-                    ExecutionContext.Run(Context, s_callback, this);
+                    ExecutionContext.RunInternal(context, s_callback, this);
                 }
 
                 // In case this is a state machine box with a finalizer, suppress its finalization
@@ -564,18 +560,12 @@ namespace System.Runtime.CompilerServices
                 {
                     GC.SuppressFinalize(this);
                 }
+
+                if (loggingOn)
+                {
+                    AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
+                }
             }
-
-            /// <summary>
-            /// Calls MoveNext on <see cref="StateMachine"/>. Implements ITaskCompletionAction.Invoke so
-            /// that the state machine object may be queued directly as a continuation into a Task's
-            /// continuation slot/list.
-            /// </summary>
-            /// <param name="completedTask">The completing task that caused this method to be invoked, if there was one.</param>
-            void ITaskCompletionAction.Invoke(Task completedTask) => MoveNext();
-
-            /// <summary>Signals to Task's continuation logic that <see cref="Invoke"/> runs arbitrary user code via MoveNext.</summary>
-            bool ITaskCompletionAction.InvokeMayRunArbitraryCode => true;
 
             /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
             IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => StateMachine; // likely boxes, only use for debugging
@@ -801,7 +791,6 @@ namespace System.Runtime.CompilerServices
                 // - Boolean
                 // - Byte, SByte
                 // - Char
-                // - Decimal
                 // - Int32, UInt32
                 // - Int64, UInt64
                 // - Int16, UInt16
@@ -836,7 +825,6 @@ namespace System.Runtime.CompilerServices
                     (typeof(TResult) == typeof(Byte) && default(Byte) == (Byte)(object)result) ||
                     (typeof(TResult) == typeof(SByte) && default(SByte) == (SByte)(object)result) ||
                     (typeof(TResult) == typeof(Char) && default(Char) == (Char)(object)result) ||
-                    (typeof(TResult) == typeof(Decimal) && default(Decimal) == (Decimal)(object)result) ||
                     (typeof(TResult) == typeof(Int64) && default(Int64) == (Int64)(object)result) ||
                     (typeof(TResult) == typeof(UInt64) && default(UInt64) == (UInt64)(object)result) ||
                     (typeof(TResult) == typeof(Int16) && default(Int16) == (Int16)(object)result) ||
@@ -896,8 +884,11 @@ namespace System.Runtime.CompilerServices
     /// <summary>
     /// An interface implemented by all <see cref="AsyncStateMachineBox{TStateMachine, TResult}"/> instances, regardless of generics.
     /// </summary>
-    internal interface IAsyncStateMachineBox : ITaskCompletionAction
+    internal interface IAsyncStateMachineBox
     {
+        /// <summary>Move the state machine forward.</summary>
+        void MoveNext();
+
         /// <summary>
         /// Gets an action for moving forward the contained state machine.
         /// This will lazily-allocate the delegate as needed.
@@ -911,6 +902,61 @@ namespace System.Runtime.CompilerServices
     /// <summary>Shared helpers for manipulating state related to async state machines.</summary>
     internal static class AsyncMethodBuilderCore // debugger depends on this exact name
     {
+        /// <summary>Initiates the builder's execution with the associated state machine.</summary>
+        /// <typeparam name="TStateMachine">Specifies the type of the state machine.</typeparam>
+        /// <param name="stateMachine">The state machine instance, passed by reference.</param>
+        [DebuggerStepThrough]
+        public static void Start<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine
+        {
+            if (stateMachine == null) // TStateMachines are generally non-nullable value types, so this check will be elided
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.stateMachine);
+            }
+
+            // enregistrer variables with 0 post-fix so they can be used in registers without EH forcing them to stack
+            // Capture references to Thread Contexts
+            Thread currentThread0 = Thread.CurrentThread;
+            Thread currentThread = currentThread0;
+            ExecutionContext previousExecutionCtx0 = currentThread0.ExecutionContext;
+
+            // Store current ExecutionContext and SynchronizationContext as "previousXxx".
+            // This allows us to restore them and undo any Context changes made in stateMachine.MoveNext
+            // so that they won't "leak" out of the first await.
+            ExecutionContext previousExecutionCtx = previousExecutionCtx0;
+            SynchronizationContext previousSyncCtx = currentThread0.SynchronizationContext;
+
+            try
+            {
+                stateMachine.MoveNext();
+            }
+            finally
+            {
+                // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
+                SynchronizationContext previousSyncCtx1 = previousSyncCtx;
+                Thread currentThread1 = currentThread;
+                // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
+                if (previousSyncCtx1 != currentThread1.SynchronizationContext)
+                {
+                    // Restore changed SynchronizationContext back to previous
+                    currentThread1.SynchronizationContext = previousSyncCtx1;
+                }
+
+                ExecutionContext previousExecutionCtx1 = previousExecutionCtx;
+                ExecutionContext currentExecutionCtx1 = currentThread1.ExecutionContext;
+                if (previousExecutionCtx1 != currentExecutionCtx1)
+                {
+                    // Restore changed ExecutionContext back to previous
+                    currentThread1.ExecutionContext = previousExecutionCtx1;
+                    if ((currentExecutionCtx1 != null && currentExecutionCtx1.HasChangeNotifications) ||
+                        (previousExecutionCtx1 != null && previousExecutionCtx1.HasChangeNotifications))
+                    {
+                        // There are change notifications; trigger any affected
+                        ExecutionContext.OnValuesChanged(currentExecutionCtx1, previousExecutionCtx1);
+                    }
+                }
+            }
+        }
+
         /// <summary>Gets whether we should be tracking async method completions for eventing.</summary>
         internal static bool TrackAsyncMethodCompletion
         {
@@ -936,14 +982,6 @@ namespace System.Runtime.CompilerServices
             }
             return sb.ToString();
         }
-
-        internal static Action OutputAsyncCausalityEvents(Task task, Action continuation) =>
-            CreateContinuationWrapper(continuation, (innerContinuation, innerTask) =>
-            {
-                AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, innerTask.Id, CausalitySynchronousWork.Execution);
-                innerContinuation.Invoke(); // Invoke the original continuation
-                AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
-            }, task);
 
         internal static Action CreateContinuationWrapper(Action continuation, Action<Action,Task> invokeAction, Task innerTask) =>
             new ContinuationWrapper(continuation, invokeAction, innerTask).Invoke;

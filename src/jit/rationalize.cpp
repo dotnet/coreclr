@@ -108,7 +108,7 @@ void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
         addr->gtType = simdType;
         use.ReplaceWith(comp, addr);
     }
-    else if ((addr->OperGet() == GT_ADDR) && (addr->gtGetOp1()->OperGet() == GT_SIMD))
+    else if ((addr->OperGet() == GT_ADDR) && (addr->gtGetOp1()->OperIsSIMDorSimdHWintrinsic()))
     {
         // if we have GT_IND(GT_ADDR(GT_SIMD)), remove the GT_IND(GT_ADDR()), leaving just the GT_SIMD.
         BlockRange().Remove(tree);
@@ -160,13 +160,13 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
     assert(JITtype2varType(sig.retType) == tree->gtType);
 #endif // DEBUG
 
-    call = comp->fgMorphArgs(call);
-    // Determine if this call has changed any codegen requirements.
-    comp->fgCheckArgCnt();
-
 #ifdef FEATURE_READYTORUN_COMPILER
     call->gtCall.setEntryPoint(entryPoint);
 #endif
+
+    call = comp->fgMorphArgs(call);
+    // Determine if this call has changed any codegen requirements.
+    comp->fgCheckArgCnt();
 
     // Replace "tree" with "call"
     if (parents.Height() > 1)
@@ -848,7 +848,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
                 else if (!comp->isAddrOfSIMDType(node->AsBlk()->Addr()))
                 {
                     GenTree* dataSrc = parent->gtGetOp2();
-                    if (!dataSrc->IsLocal() && (dataSrc->OperGet() != GT_SIMD))
+                    if (!dataSrc->IsLocal() && (dataSrc->OperGet() != GT_SIMD) && (!dataSrc->OperIsHWIntrinsic()))
                     {
                         noway_assert(dataSrc->OperIsIndir());
                         keepBlk = !comp->isAddrOfSIMDType(dataSrc->AsIndir()->Addr());

@@ -23,7 +23,6 @@ SET_DEFAULT_DEBUG_CHANNEL(FILE); // some headers have code with asserts, so do t
 
 #include "pal/thread.hpp"
 #include "pal/file.hpp"
-#include "shmfilelockmgr.hpp"
 #include "pal/malloc.hpp"
 #include "pal/stackstring.hpp"
 
@@ -91,8 +90,6 @@ CObjectType CorUnix::otFile(
                 );
 
 CAllowedObjectTypes CorUnix::aotFile(otiFile);
-static CSharedMemoryFileLockMgr _FileLockManager;
-IFileLockManager *CorUnix::g_pFileLockManager = &_FileLockManager;
 
 void
 CFileProcessLocalDataCleanupRoutine(
@@ -145,11 +142,6 @@ FileCleanupRoutine(
     {
         ASSERT("Unable to obtain data to cleanup file object");
         return;
-    }
-
-    if (pLocalData->pLockController != NULL)
-    {
-        pLocalData->pLockController->ReleaseController();
     }
 
     if (!fShutdown && -1 != pLocalData->unix_fd)
@@ -481,7 +473,6 @@ CorUnix::InternalCreateFile(
     IPalObject *pRegisteredFile = NULL;
     IDataLock *pDataLock = NULL;
     CFileProcessLocalData *pLocalData = NULL;
-    IFileLockController *pLockController = NULL;
     CObjectAttributes oaFile(NULL, lpSecurityAttributes);
     BOOL fFileExists = FALSE;
 
@@ -490,7 +481,6 @@ CorUnix::InternalCreateFile(
     int   filed = -1;
     int   create_flags = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     int   open_flags = 0;
-    int   lock_mode = LOCK_SH;
 
     // track whether we've created the file with the intended name,
     // so that it can be removed on failure exit
@@ -611,29 +601,6 @@ CorUnix::InternalCreateFile(
         goto done;
     }
 
-    //
-    // The file sharing mode checks are performed by the lock manager so we need
-    // to get the lock controller for this file.
-    // Do this before modifying the file system since we wouldn't want to, for
-    // instance, truncate a file before finding out if we have write access to it.
-    // It may seem odd that in some cases we will acquire a lock on a file that
-    // doesn't exist yet but the lock manager does not care -- files are
-    // abstract entities represented by a name from its point of view.
-    //
-
-    palError = g_pFileLockManager->GetLockControllerForFile(
-        pThread, 
-        lpUnixPath,
-        dwDesiredAccess,
-        dwShareMode,
-        &pLockController
-        );
-
-    if (NO_ERROR != palError)
-    {
-        goto done;
-    }
-
     /* NB: According to MSDN docs, When CREATE_ALWAYS or OPEN_ALWAYS is
        set, CreateFile should SetLastError to ERROR_ALREADY_EXISTS,
        even though/if CreateFile will be successful.
@@ -700,29 +667,6 @@ CorUnix::InternalCreateFile(
                     dwCreationDisposition == CREATE_NEW ||
                     dwCreationDisposition == OPEN_ALWAYS) &&
         !fFileExists;
-
-
-    // While the lock manager is able to provide support for share modes within an instance of
-    // the PAL, other PALs will ignore these locks.  In order to support a basic level of cross
-    // process locking, we'll use advisory locks.  FILE_SHARE_NONE implies a exclusive lock on the
-    // file and all other modes use a shared lock.  While this is not as granular as Windows,
-    // you can atleast implement a lock file using this.
-    lock_mode = (dwShareMode == 0 /* FILE_SHARE_NONE */) ? LOCK_EX : LOCK_SH;
-
-    if(flock(filed, lock_mode | LOCK_NB) != 0) 
-    {
-        TRACE("flock() failed; error is %s (%d)\n", strerror(errno), errno);
-        if (errno == EWOULDBLOCK) 
-        {
-            palError = ERROR_SHARING_VIOLATION;
-        }
-        else
-        {
-            palError = FILEGetLastErrorFromErrno();
-        }
-
-        goto done;
-    }
 
 #ifndef O_DIRECT
     if ( dwFlagsAndAttributes & FILE_FLAG_NO_BUFFERING )
@@ -791,14 +735,6 @@ CorUnix::InternalCreateFile(
     pLocalData->open_flags_deviceaccessonly = (dwDesiredAccess == 0);
 
     //
-    // Transfer the lock controller reference from our local variable
-    // to the local file data
-    //
-
-    pLocalData->pLockController = pLockController;
-    pLockController = NULL;
-
-    //
     // We've finished initializing our local data, so release that lock
     //
 
@@ -841,11 +777,6 @@ done:
                      errno, strerror(errno));
             }
         }
-    }
-
-    if (NULL != pLockController)
-    {
-        pLockController->ReleaseController();
     }
 
     if (NULL != pDataLock)
@@ -1872,7 +1803,6 @@ CorUnix::InternalWriteFile(
     IPalObject *pFileObject = NULL;
     CFileProcessLocalData *pLocalData = NULL;
     IDataLock *pLocalDataLock = NULL;
-    IFileTransactionLock *pTransactionLock = NULL;
     int ifd;
 
     LONG writeOffsetStartLow = 0, writeOffsetStartHigh = 0;
@@ -1942,46 +1872,6 @@ CorUnix::InternalWriteFile(
     ifd = pLocalData->unix_fd;
 
     //
-    // Inform the lock controller for this file (if any) of our intention
-    // to perform a write. (Note that pipes don't have lock controllers.)
-    //
-    
-    if (NULL != pLocalData->pLockController)
-    {
-        /* Get the current file position to calculate the region to lock */
-        palError = InternalSetFilePointerForUnixFd(
-            ifd,
-            0,
-            &writeOffsetStartHigh,
-            FILE_CURRENT,
-            &writeOffsetStartLow
-            );
-
-        if (NO_ERROR != palError)
-        {
-            ASSERT("Failed to get the current file position\n");
-            palError = ERROR_INTERNAL_ERROR;
-            goto done;
-        }
-
-        palError = pLocalData->pLockController->GetTransactionLock(
-            pThread,
-            IFileLockController::WriteLock,
-            writeOffsetStartLow,
-            writeOffsetStartHigh,
-            nNumberOfBytesToWrite,
-            0,
-            &pTransactionLock
-            );
-
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to obtain write transaction lock");
-            goto done;
-        }
-    }
-
-    //
     // Release the data lock before performing the (possibly blocking)
     // write call
     //
@@ -2013,11 +1903,6 @@ CorUnix::InternalWriteFile(
     
 done:
     
-    if (NULL != pTransactionLock)
-    {
-        pTransactionLock->ReleaseLock();
-    }
-
     if (NULL != pLocalDataLock)
     {
         pLocalDataLock->ReleaseLock(pThread, FALSE);
@@ -2093,7 +1978,6 @@ CorUnix::InternalReadFile(
     IPalObject *pFileObject = NULL;
     CFileProcessLocalData *pLocalData = NULL;
     IDataLock *pLocalDataLock = NULL;
-    IFileTransactionLock *pTransactionLock = NULL;
     int ifd;
     
     LONG readOffsetStartLow = 0, readOffsetStartHigh = 0;
@@ -2169,46 +2053,6 @@ CorUnix::InternalReadFile(
     ifd = pLocalData->unix_fd;
 
     //
-    // Inform the lock controller for this file (if any) of our intention
-    // to perform a read. (Note that pipes don't have lock controllers.)
-    //
-    
-    if (NULL != pLocalData->pLockController)
-    {
-        /* Get the current file position to calculate the region to lock */
-        palError = InternalSetFilePointerForUnixFd(
-            ifd,
-            0,
-            &readOffsetStartHigh,
-            FILE_CURRENT,
-            &readOffsetStartLow
-            );
-
-        if (NO_ERROR != palError)
-        {
-            ASSERT("Failed to get the current file position\n");
-            palError = ERROR_INTERNAL_ERROR;
-            goto done;
-        }
-
-        palError = pLocalData->pLockController->GetTransactionLock(
-            pThread,
-            IFileLockController::ReadLock,
-            readOffsetStartLow,
-            readOffsetStartHigh,
-            nNumberOfBytesToRead,
-            0,
-            &pTransactionLock
-            );
-
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to obtain read transaction lock");
-            goto done;
-        }
-    }
-
-    //
     // Release the data lock before performing the (possibly blocking)
     // read call
     //
@@ -2237,11 +2081,6 @@ Read:
     }
     
 done:
-
-    if (NULL != pTransactionLock)
-    {
-        pTransactionLock->ReleaseLock();
-    }
 
     if (NULL != pLocalDataLock)
     {
@@ -4159,7 +3998,6 @@ static HANDLE init_std_handle(HANDLE * pStd, FILE *stream)
     IPalObject *pRegisteredFile = NULL;
     IDataLock *pDataLock = NULL;
     CFileProcessLocalData *pLocalData = NULL;
-    IFileLockController *pLockController = NULL;
     CObjectAttributes oa;
 
     HANDLE hFile = INVALID_HANDLE_VALUE;
@@ -4205,14 +4043,6 @@ static HANDLE init_std_handle(HANDLE * pStd, FILE *stream)
     pLocalData->open_flags_deviceaccessonly = FALSE;
 
     //
-    // Transfer the lock controller reference from our local variable
-    // to the local file data
-    //
-
-    pLocalData->pLockController = pLockController;
-    pLockController = NULL;
-
-    //
     // We've finished initializing our local data, so release that lock
     //
 
@@ -4237,11 +4067,6 @@ static HANDLE init_std_handle(HANDLE * pStd, FILE *stream)
     pFileObject = NULL;
 
 done:
-
-    if (NULL != pLockController)
-    {
-        pLockController->ReleaseController();
-    }
 
     if (NULL != pDataLock)
     {

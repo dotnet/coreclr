@@ -18,34 +18,40 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview1</PreReleaseLabel>
+    <PreReleaseLabel>preview2</PreReleaseLabel>
   </PropertyGroup>
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>0e808d0e044a03165109c14a7cad29a653e31fff</CoreFxCurrentRef>
-    <CoreClrCurrentRef>0e808d0e044a03165109c14a7cad29a653e31fff</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>d6b3c82aed663b00f6075e6832008eac5e589948</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>33f898021854b561ef3f633f8e2507fe63c41d55</PgoDataCurrentRef>
+    <CoreFxCurrentRef>fc1fbe0b638a97baf2aa3bf403a7db7dbfc0b8b5</CoreFxCurrentRef>
+    <CoreClrCurrentRef>fc1fbe0b638a97baf2aa3bf403a7db7dbfc0b8b5</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>0e6f6fa6b335fa1e0c26c6f24031003cb2d48b81</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>553f30357d08df4ed6d32f70f3478a76f5db79c2</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview1-26218-04</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview1-26218-04</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>2.1.0-release-20180221-0048</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview1-26218-05</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview2-26316-03</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview2-26316-03</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20180228-0037</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview2-26316-03</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
-    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.2</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <CommandLineParserVersion>2.1.1</CommandLineParserVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
+    
+    <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
+         updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
+         as we do with many of the package versions above -->
+    <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview2-26131-06</BaselineMicrosoftNetCoreAppPackageVersion>
   </PropertyGroup>
 
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.1.0-preview1-02523-01</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.1.0-preview2-02612-03</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -53,6 +59,12 @@
     <BaseDotNetBuildInfo>build-info/dotnet/</BaseDotNetBuildInfo>
     <DependencyBranch>release/2.1</DependencyBranch>
     <CurrentRefXmlPath>$(MSBuildThisFileFullPath)</CurrentRefXmlPath>
+  </PropertyGroup>
+
+  <!-- ILLinik.Tasks package version -->
+  <PropertyGroup>
+    <ILLinkTasksPackage>ILLink.Tasks</ILLinkTasksPackage>
+    <ILLinkTasksPackageVersion>0.1.5-preview-1461378</ILLinkTasksPackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

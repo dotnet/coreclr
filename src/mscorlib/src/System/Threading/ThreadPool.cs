@@ -894,23 +894,19 @@ namespace System.Threading
         void MarkAborted(ThreadAbortException tae);
     }
 
-    internal sealed class QueueUserWorkItemCallback : IThreadPoolWorkItem
+    internal abstract class QueueUserWorkItemCallbackBase : IThreadPoolWorkItem
     {
-        private WaitCallback callback;
-        private readonly ExecutionContext context;
-        private readonly Object state;
-
 #if DEBUG
         private volatile int executed;
 
-        ~QueueUserWorkItemCallback()
+        ~QueueUserWorkItemCallbackBase()
         {
             Debug.Assert(
                 executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
                 "A QueueUserWorkItemCallback was never called!");
         }
 
-        private void MarkExecuted(bool aborted)
+        protected void MarkExecuted(bool aborted)
         {
             GC.SuppressFinalize(this);
             Debug.Assert(
@@ -919,107 +915,152 @@ namespace System.Threading
         }
 #endif
 
-        internal QueueUserWorkItemCallback(WaitCallback waitCallback, Object stateObj, ExecutionContext ec)
-        {
-            callback = waitCallback;
-            state = stateObj;
-            context = ec;
-        }
-
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
-#if DEBUG
-            MarkExecuted(aborted: false);
-#endif
-            // call directly if it is an unsafe call OR EC flow is suppressed
-            if (context == null)
-            {
-                WaitCallback cb = callback;
-                callback = null;
-                cb(state);
-            }
-            else
-            {
-                ExecutionContext.Run(context, ccb, this);
-            }
-        }
-
         void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
         {
 #if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
+            // This workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.
             // This counts as being executed for our purposes.
             MarkExecuted(aborted: true);
 #endif
         }
 
-        internal static readonly ContextCallback ccb = new ContextCallback(WaitCallback_Context);
-
-        private static void WaitCallback_Context(Object state)
+        public virtual void ExecuteWorkItem()
         {
-            QueueUserWorkItemCallback obj = (QueueUserWorkItemCallback)state;
-            WaitCallback wc = obj.callback;
-            Debug.Assert(null != wc);
-            wc(obj.state);
+#if DEBUG
+            MarkExecuted(aborted: false);
+#endif
         }
     }
 
-    internal sealed class QueueUserWorkItemCallbackDefaultContext : IThreadPoolWorkItem
+    internal sealed class QueueUserWorkItemCallback : QueueUserWorkItemCallbackBase
     {
-        private WaitCallback callback;
-        private readonly Object state;
+        private WaitCallback _callback;
+        private readonly object _state;
+        private readonly ExecutionContext _context;
 
-#if DEBUG
-        private volatile int executed;
-
-        ~QueueUserWorkItemCallbackDefaultContext()
+        internal static readonly ContextCallback s_executionContextShim = state =>
         {
-            Debug.Assert(
-                executed != 0 || Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload(),
-                "A QueueUserWorkItemCallbackDefaultContext was never called!");
+            var obj = (QueueUserWorkItemCallback)state;
+            WaitCallback c = obj._callback;
+            Debug.Assert(c != null);
+            obj._callback = null;
+            c(obj._state);
+        };
+
+        internal QueueUserWorkItemCallback(WaitCallback callback, object state, ExecutionContext context)
+        {
+            _callback = callback;
+            _state = state;
+            _context = context;
         }
 
-        private void MarkExecuted(bool aborted)
+        public override void ExecuteWorkItem()
         {
-            GC.SuppressFinalize(this);
-            Debug.Assert(
-                0 == Interlocked.Exchange(ref executed, 1) || aborted,
-                "A QueueUserWorkItemCallbackDefaultContext was called twice!");
+            base.ExecuteWorkItem();
+            ExecutionContext context = _context;
+            if (context == null)
+            {
+                WaitCallback c = _callback;
+                _callback = null;
+                c(_state);
+            }
+            else
+            {
+                ExecutionContext.RunInternal(context, s_executionContextShim, this);
+            }
         }
-#endif
+    }
 
-        internal QueueUserWorkItemCallbackDefaultContext(WaitCallback waitCallback, Object stateObj)
+    internal sealed class QueueUserWorkItemCallback<TState> : QueueUserWorkItemCallbackBase
+    {
+        private Action<TState> _callback;
+        private readonly TState _state;
+        private readonly ExecutionContext _context;
+
+        internal static readonly ContextCallback s_executionContextShim = state =>
         {
-            callback = waitCallback;
-            state = stateObj;
+            var obj = (QueueUserWorkItemCallback<TState>)state;
+            Action<TState> c = obj._callback;
+            Debug.Assert(c != null);
+            obj._callback = null;
+            c(obj._state);
+        };
+
+        internal QueueUserWorkItemCallback(Action<TState> callback, TState state, ExecutionContext context)
+        {
+            _callback = callback;
+            _state = state;
+            _context = context;
         }
 
-        void IThreadPoolWorkItem.ExecuteWorkItem()
+        public override void ExecuteWorkItem()
         {
-#if DEBUG
-            MarkExecuted(aborted: false);
-#endif
-            ExecutionContext.Run(ExecutionContext.Default, ccb, this);
+            base.ExecuteWorkItem();
+            ExecutionContext context = _context;
+            if (context == null)
+            {
+                Action<TState> c = _callback;
+                _callback = null;
+                c(_state);
+            }
+            else
+            {
+                ExecutionContext.RunInternal(context, s_executionContextShim, this);
+            }
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackDefaultContext : QueueUserWorkItemCallbackBase
+    {
+        private WaitCallback _callback;
+        private readonly object _state;
+
+        internal static readonly ContextCallback s_executionContextShim = state =>
+        {
+            var obj = (QueueUserWorkItemCallbackDefaultContext)state;
+            WaitCallback c = obj._callback;
+            Debug.Assert(c != null);
+            obj._callback = null;
+            c(obj._state);
+        };
+
+        internal QueueUserWorkItemCallbackDefaultContext(WaitCallback callback, object state)
+        {
+            _callback = callback;
+            _state = state;
         }
 
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
+        public override void ExecuteWorkItem()
         {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(aborted: true);
-#endif
+            base.ExecuteWorkItem();
+            ExecutionContext.RunInternal(executionContext: null, s_executionContextShim, this); // null executionContext on RunInternal is Default context
+        }
+    }
+
+    internal sealed class QueueUserWorkItemCallbackDefaultContext<TState> : QueueUserWorkItemCallbackBase
+    {
+        private Action<TState> _callback;
+        private readonly TState _state;
+
+        internal static readonly ContextCallback s_executionContextShim = state =>
+        {
+            var obj = (QueueUserWorkItemCallbackDefaultContext<TState>)state;
+            Action<TState> c = obj._callback;
+            Debug.Assert(c != null);
+            obj._callback = null;
+            c(obj._state);
+        };
+
+        internal QueueUserWorkItemCallbackDefaultContext(Action<TState> callback, TState state)
+        {
+            _callback = callback;
+            _state = state;
         }
 
-        internal static readonly ContextCallback ccb = new ContextCallback(WaitCallback_Context);
-
-        private static void WaitCallback_Context(Object state)
+        public override void ExecuteWorkItem()
         {
-            QueueUserWorkItemCallbackDefaultContext obj = (QueueUserWorkItemCallbackDefaultContext)state;
-            WaitCallback wc = obj.callback;
-            Debug.Assert(null != wc);
-            obj.callback = null;
-            wc(obj.state);
+            base.ExecuteWorkItem();
+            ExecutionContext.RunInternal(executionContext: null, s_executionContextShim, this); // null executionContext on RunInternal is Default context
         }
     }
 
@@ -1061,20 +1102,21 @@ namespace System.Threading
             _ThreadPoolWaitOrTimerCallback helper = (_ThreadPoolWaitOrTimerCallback)state;
             Debug.Assert(helper != null, "Null state passed to PerformWaitOrTimerCallback!");
             // call directly if it is an unsafe call OR EC flow is suppressed
-            if (helper._executionContext == null)
+            ExecutionContext context = helper._executionContext;
+            if (context == null)
             {
                 WaitOrTimerCallback callback = helper._waitOrTimerCallback;
                 callback(helper._state, timedOut);
             }
             else
             {
-                ExecutionContext.Run(helper._executionContext, timedOut ? _ccbt : _ccbf, helper);
+                ExecutionContext.Run(context, timedOut ? _ccbt : _ccbf, helper);
             }
         }
     }
 
     [CLSCompliant(false)]
-    unsafe public delegate void IOCompletionCallback(uint errorCode, // Error code
+    public unsafe delegate void IOCompletionCallback(uint errorCode, // Error code
                                        uint numBytes, // No. of bytes transferred 
                                        NativeOverlapped* pOVERLAP // ptr to OVERLAP structure
                                        );
@@ -1107,7 +1149,6 @@ namespace System.Threading
         }
 
         [CLSCompliant(false)]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod            
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
              WaitOrTimerCallback callBack,
@@ -1116,12 +1157,10 @@ namespace System.Threading
              bool executeOnlyOnce    // NOTE: we do not allow other options that allow the callback to be queued as an APC
              )
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, true);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, true);
         }
 
         [CLSCompliant(false)]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
              WaitOrTimerCallback callBack,
@@ -1130,8 +1169,7 @@ namespace System.Threading
              bool executeOnlyOnce    // NOTE: we do not allow other options that allow the callback to be queued as an APC
              )
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, false);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, millisecondsTimeOutInterval, executeOnlyOnce, false);
         }
 
 
@@ -1141,7 +1179,6 @@ namespace System.Threading
              Object state,
              uint millisecondsTimeOutInterval,
              bool executeOnlyOnce,   // NOTE: we do not allow other options that allow the callback to be queued as an APC
-             ref StackCrawlMark stackMark,
              bool compressStack
              )
         {
@@ -1158,9 +1195,7 @@ namespace System.Threading
                                                                                state,
                                                                                millisecondsTimeOutInterval,
                                                                                executeOnlyOnce,
-                                                                               registeredWaitHandle,
-                                                                               ref stackMark,
-                                                                               compressStack);
+                                                                               registeredWaitHandle);
                 registeredWaitHandle.SetHandle(nativeRegisteredWaitHandle);
             }
             else
@@ -1171,7 +1206,6 @@ namespace System.Threading
         }
 
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
              WaitOrTimerCallback callBack,
@@ -1182,11 +1216,9 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, true);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, true);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod            
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
              WaitOrTimerCallback callBack,
@@ -1197,11 +1229,9 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, false);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, false);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle waitObject,
             WaitOrTimerCallback callBack,
@@ -1212,11 +1242,9 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, true);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, true);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(  // throws RegisterWaitException
             WaitHandle waitObject,
             WaitOrTimerCallback callBack,
@@ -1227,11 +1255,9 @@ namespace System.Threading
         {
             if (millisecondsTimeOutInterval < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeOutInterval), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, ref stackMark, false);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)millisecondsTimeOutInterval, executeOnlyOnce, false);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle RegisterWaitForSingleObject(
                           WaitHandle waitObject,
                           WaitOrTimerCallback callBack,
@@ -1245,11 +1271,9 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (tm > (long)Int32.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_LessEqualToIntegerMaxVal);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)tm, executeOnlyOnce, ref stackMark, true);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)tm, executeOnlyOnce, true);
         }
 
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static RegisteredWaitHandle UnsafeRegisterWaitForSingleObject(
                           WaitHandle waitObject,
                           WaitOrTimerCallback callBack,
@@ -1263,17 +1287,13 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (tm > (long)Int32.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_LessEqualToIntegerMaxVal);
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)tm, executeOnlyOnce, ref stackMark, false);
+            return RegisterWaitForSingleObject(waitObject, callBack, state, (UInt32)tm, executeOnlyOnce, false);
         }
 
         public static bool QueueUserWorkItem(WaitCallback callBack) =>
-            QueueUserWorkItem(callBack, null, preferLocal: false);
+            QueueUserWorkItem(callBack, null);
 
-        public static bool QueueUserWorkItem(WaitCallback callBack, object state) =>
-            QueueUserWorkItem(callBack, state, preferLocal: false);
-
-        public static bool QueueUserWorkItem(WaitCallback callBack, object state, bool preferLocal)
+        public static bool QueueUserWorkItem(WaitCallback callBack, object state)
         {
             if (callBack == null)
             {
@@ -1284,9 +1304,29 @@ namespace System.Threading
 
             ExecutionContext context = ExecutionContext.Capture();
 
-            IThreadPoolWorkItem tpcallBack = context == ExecutionContext.Default ?
+            IThreadPoolWorkItem tpcallBack = (context != null && context.IsDefault) ?
                 new QueueUserWorkItemCallbackDefaultContext(callBack, state) :
                 (IThreadPoolWorkItem)new QueueUserWorkItemCallback(callBack, state, context);
+
+            ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: true);
+
+            return true;
+        }
+
+        public static bool QueueUserWorkItem<TState>(Action<TState> callBack, TState state, bool preferLocal)
+        {
+            if (callBack == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.callBack);
+            }
+
+            EnsureVMInitialized();
+
+            ExecutionContext context = ExecutionContext.Capture();
+
+            IThreadPoolWorkItem tpcallBack = (context != null && context.IsDefault) ?
+                new QueueUserWorkItemCallbackDefaultContext<TState>(callBack, state) :
+                (IThreadPoolWorkItem)new QueueUserWorkItemCallback<TState>(callBack, state, context);
 
             ThreadPoolGlobals.workQueue.Enqueue(tpcallBack, forceGlobal: !preferLocal);
 
@@ -1404,10 +1444,10 @@ namespace System.Threading
         internal static extern bool RequestWorkerThread();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe private static extern bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
+        private static extern unsafe bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
 
         [CLSCompliant(false)]
-        unsafe public static bool UnsafeQueueNativeOverlapped(NativeOverlapped* overlapped) =>
+        public static unsafe bool UnsafeQueueNativeOverlapped(NativeOverlapped* overlapped) =>
             PostQueuedCompletionStatus(overlapped);
 
         // The thread pool maintains a per-appdomain managed work queue.
@@ -1470,9 +1510,7 @@ namespace System.Threading
              Object state,
              uint timeOutInterval,
              bool executeOnlyOnce,
-             RegisteredWaitHandle registeredWaitHandle,
-             ref StackCrawlMark stackMark,
-             bool compressStack
+             RegisteredWaitHandle registeredWaitHandle
              );
 
 

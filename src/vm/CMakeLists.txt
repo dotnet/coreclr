@@ -69,6 +69,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     formattype.cpp
     fptrstubs.cpp
     frames.cpp
+    gctoclreventsink.cpp
     gcheaputilities.cpp
     gchandleutilities.cpp
     genericdict.cpp
@@ -183,11 +184,13 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeblock.cpp
     eventpipefile.cpp
     eventpipejsonfile.cpp
     eventpipeprovider.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
+    eventpipesession.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -221,7 +224,6 @@ set(VM_SOURCES_WKS
     nativeoverlapped.cpp
     objectlist.cpp
     olevariant.cpp
-    pefingerprint.cpp
     pendingload.cpp
     profattach.cpp
     profattachclient.cpp
@@ -259,6 +261,7 @@ set(VM_SOURCES_WKS
 
 set(GC_SOURCES_WKS
     ${GC_SOURCES_DAC_AND_WKS_COMMON}
+    ../gc/gceventstatus.cpp
     ../gc/gcconfig.cpp
     ../gc/gccommon.cpp
     ../gc/gcscan.cpp
@@ -474,7 +477,6 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
-        ${ARCH_SOURCES_DIR}/cgenarm64.cpp
         ${ARCH_SOURCES_DIR}/stubs.cpp
         exceptionhandling.cpp
         gcinfodecoder.cpp

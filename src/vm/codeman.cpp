@@ -2188,9 +2188,9 @@ HeapList* LoaderCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, LoaderHeap 
          DBG_ADDR(pHp->startAddress), DBG_ADDR(pHp->startAddress+pHp->maxCodeHeapSize)
          ));
 
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
     emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
-#endif
+#endif // _TARGET_64BIT_
 
     pCodeHeap.SuppressRelease();
     RETURN pHp;
@@ -4154,6 +4154,19 @@ ExecutionManager::FindCodeRangeWithLock(PCODE currentPC)
 
     ReaderLockHolder rlh;
     return GetRangeSection(currentPC);
+}
+
+
+//**************************************************************************
+PCODE ExecutionManager::GetCodeStartAddress(PCODE currentPC)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(currentPC != NULL);
+
+    EECodeInfo codeInfo(currentPC);
+    if (!codeInfo.IsValid())
+        return NULL;
+    return (PCODE)codeInfo.GetStartAddress();
 }
 
 //**************************************************************************

@@ -152,7 +152,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     genTrnslLocalVarCount = 0;
 
     // Shouldn't be used before it is set in genFnProlog()
-    compiler->compCalleeRegsPushed = UninitializedWord<unsigned>();
+    compiler->compCalleeRegsPushed = UninitializedWord<unsigned>(compiler);
 
 #if defined(_TARGET_XARCH_) && !FEATURE_STACK_FP_X87
     // Shouldn't be used before it is set in genFnProlog()
@@ -180,13 +180,16 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     /* Assume that we not fully interruptible */
 
     genInterruptible = false;
+#ifdef _TARGET_ARMARCH_
+    hasTailCalls = false;
+#endif // _TARGET_ARMARCH_
 #ifdef DEBUG
     genInterruptibleUsed = false;
     genCurDispOffset     = (unsigned)-1;
 #endif
 }
 
-void CodeGenInterface::genMarkTreeInReg(GenTreePtr tree, regNumber reg)
+void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
 {
     tree->gtRegNum = reg;
 #ifdef LEGACY_BACKEND
@@ -195,7 +198,7 @@ void CodeGenInterface::genMarkTreeInReg(GenTreePtr tree, regNumber reg)
 }
 
 #if CPU_LONG_USES_REGPAIR
-void CodeGenInterface::genMarkTreeInRegPair(GenTreePtr tree, regPairNo regPair)
+void CodeGenInterface::genMarkTreeInRegPair(GenTree* tree, regPairNo regPair)
 {
     tree->gtRegPair = regPair;
 #ifdef LEGACY_BACKEND
@@ -463,7 +466,7 @@ void CodeGen::genPrepForEHCodegen()
 #endif        // FEATURE_EH_CALLFINALLY_THUNKS
 }
 
-void CodeGenInterface::genUpdateLife(GenTreePtr tree)
+void CodeGenInterface::genUpdateLife(GenTree* tree)
 {
     compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
 }
@@ -478,10 +481,10 @@ void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
 // "tree" MUST occur in the current statement, AFTER the most recent
 // update of compiler->compCurLifeTree and compiler->compCurLife.
 //
-VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTreePtr tree)
+VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTree* tree)
 {
-    VARSET_TP  startLiveSet(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
-    GenTreePtr startNode;
+    VARSET_TP startLiveSet(VarSetOps::MakeCopy(compiler, compiler->compCurLife));
+    GenTree*  startNode;
     assert(tree != compiler->compCurLifeTree);
     if (compiler->compCurLifeTree == nullptr)
     {
@@ -501,7 +504,7 @@ VARSET_VALRET_TP CodeGen::genUpdateLiveSetForward(GenTreePtr tree)
 // 1. "first" must occur after compiler->compCurLifeTree in execution order for the current statement
 // 2. "second" must occur after "first" in the current statement
 //
-regMaskTP CodeGen::genNewLiveRegMask(GenTreePtr first, GenTreePtr second)
+regMaskTP CodeGen::genNewLiveRegMask(GenTree* first, GenTree* second)
 {
     // First, compute the liveset after "first"
     VARSET_TP firstLiveSet = genUpdateLiveSetForward(first);
@@ -537,7 +540,7 @@ regMaskTP CodeGenInterface::genGetRegMask(const LclVarDsc* varDsc)
 
 // Return the register mask for the given lclVar or regVar tree node
 // inline
-regMaskTP CodeGenInterface::genGetRegMask(GenTreePtr tree)
+regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
 {
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_REG_VAR);
 
@@ -565,7 +568,7 @@ regMaskTP CodeGenInterface::genGetRegMask(GenTreePtr tree)
 // It might be both going live and dying (that is, it is a dead store) under MinOpts.
 // Update regSet.rsMaskVars accordingly.
 // inline
-void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTreePtr tree))
+void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTree* tree))
 {
 #if FEATURE_STACK_FP_X87
     // The stack fp reg vars are handled elsewhere
@@ -758,13 +761,13 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 // regSet.rsMaskVars as well)
 // if the given lclVar (or indir(addr(local)))/regVar node is going live (being born) or dying.
 template <bool ForCodeGen>
-void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
+void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
 {
-    GenTreePtr indirAddrLocal = fgIsIndirOfAddrOfLocal(tree);
+    GenTree* indirAddrLocal = fgIsIndirOfAddrOfLocal(tree);
     assert(tree->OperIsNonPhiLocal() || indirAddrLocal != nullptr);
 
     // Get the local var tree -- if "tree" is "Ldobj(addr(x))", or "ind(addr(x))" this is "x", else it's "tree".
-    GenTreePtr lclVarTree = indirAddrLocal;
+    GenTree* lclVarTree = indirAddrLocal;
     if (lclVarTree == nullptr)
     {
         lclVarTree = tree;
@@ -797,7 +800,7 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
         // ifdef'ed out for AMD64).
         else if (!varDsc->lvIsStructField)
         {
-            GenTreePtr prevTree;
+            GenTree* prevTree;
             for (prevTree = tree->gtPrev;
                  prevTree != NULL && prevTree != compCurLifeTree;
                  prevTree = prevTree->gtPrev)
@@ -1076,10 +1079,10 @@ void Compiler::compUpdateLifeVar(GenTreePtr tree, VARSET_TP* pLastUseVars)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compUpdateLifeVar<false>(GenTreePtr tree, VARSET_TP* pLastUseVars);
+template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
-void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree))
+void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
 {
     LclVarDsc* varDsc;
 
@@ -1219,7 +1222,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree));
+template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree));
 
 #ifdef LEGACY_BACKEND
 
@@ -1231,11 +1234,11 @@ template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(G
  *  The output is the mask of integer registers that are currently
  *  alive and holding the enregistered local variables.
  */
-regMaskTP CodeGenInterface::genLiveMask(GenTreePtr tree)
+regMaskTP CodeGenInterface::genLiveMask(GenTree* tree)
 {
     regMaskTP liveMask = regSet.rsMaskVars;
 
-    GenTreePtr nextNode;
+    GenTree* nextNode;
     if (compiler->compCurLifeTree == nullptr)
     {
         assert(compiler->compCurStmt != nullptr);
@@ -1726,7 +1729,7 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
 #ifdef _TARGET_ARMARCH_
 // return size
 // alignmentWB is out param
-unsigned CodeGenInterface::InferOpSizeAlign(GenTreePtr op, unsigned* alignmentWB)
+unsigned CodeGenInterface::InferOpSizeAlign(GenTree* op, unsigned* alignmentWB)
 {
     unsigned alignment = 0;
     unsigned opSize    = 0;
@@ -1749,7 +1752,7 @@ unsigned CodeGenInterface::InferOpSizeAlign(GenTreePtr op, unsigned* alignmentWB
 }
 // return size
 // alignmentWB is out param
-unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* alignmentWB)
+unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignmentWB)
 {
     unsigned alignment = 0;
     unsigned opSize    = 0;
@@ -1785,7 +1788,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
     }
     else if (op->OperIsCopyBlkOp())
     {
-        GenTreePtr op2 = op->gtOp.gtOp2;
+        GenTree* op2 = op->gtOp.gtOp2;
 
         if (op2->OperGet() == GT_CNS_INT)
         {
@@ -1798,10 +1801,10 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
             }
             else
             {
-                opSize         = (unsigned)op2->gtIntCon.gtIconVal;
-                GenTreePtr op1 = op->gtOp.gtOp1;
+                opSize       = (unsigned)op2->gtIntCon.gtIconVal;
+                GenTree* op1 = op->gtOp.gtOp1;
                 assert(op1->OperGet() == GT_LIST);
-                GenTreePtr dstAddr = op1->gtOp.gtOp1;
+                GenTree* dstAddr = op1->gtOp.gtOp1;
                 if (dstAddr->OperGet() == GT_ADDR)
                 {
                     InferStructOpSizeAlign(dstAddr->gtOp.gtOp1, &alignment);
@@ -1890,13 +1893,13 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTreePtr op, unsigned* align
  *                  form an address mode later on.
  */
 
-bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
-                                int         mode,
-                                bool        fold,
-                                regMaskTP   regMask,
-                                bool*       revPtr,
-                                GenTreePtr* rv1Ptr,
-                                GenTreePtr* rv2Ptr,
+bool CodeGen::genCreateAddrMode(GenTree*  addr,
+                                int       mode,
+                                bool      fold,
+                                regMaskTP regMask,
+                                bool*     revPtr,
+                                GenTree** rv1Ptr,
+                                GenTree** rv2Ptr,
 #if SCALED_ADDR_MODES
                                 unsigned* mulPtr,
 #endif
@@ -1949,18 +1952,18 @@ bool CodeGen::genCreateAddrMode(GenTreePtr  addr,
         return false;
     }
 
-    GenTreePtr rv1 = nullptr;
-    GenTreePtr rv2 = nullptr;
+    GenTree* rv1 = nullptr;
+    GenTree* rv2 = nullptr;
 
-    GenTreePtr op1;
-    GenTreePtr op2;
+    GenTree* op1;
+    GenTree* op2;
 
     ssize_t cns;
 #if SCALED_ADDR_MODES
     unsigned mul;
 #endif
 
-    GenTreePtr tmp;
+    GenTree* tmp;
 
     /* What order are the sub-operands to be evaluated */
 
@@ -2447,8 +2450,8 @@ FOUND_AM:
 
         if (fold)
         {
-            ssize_t    tmpMul;
-            GenTreePtr index;
+            ssize_t  tmpMul;
+            GenTree* index;
 
             if ((rv2->gtOper == GT_MUL || rv2->gtOper == GT_LSH) && (rv2->gtOp.gtOp2->IsCnsIntOrI()))
             {
@@ -2784,17 +2787,21 @@ void CodeGen::genExitCode(BasicBlock* block)
     genReserveEpilog(block);
 }
 
-/*****************************************************************************
- *
- * Generate code for an out-of-line exception.
- * For debuggable code, we generate the 'throw' inline.
- * For non-dbg code, we share the helper blocks created by fgAddCodeRef().
- */
-
-void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTreePtr failBlk)
+//------------------------------------------------------------------------
+// genJumpToThrowHlpBlk: Generate code for an out-of-line exception.
+//
+// Notes:
+//   For code that uses throw helper blocks, we share the helper blocks created by fgAddCodeRef().
+//   Otherwise, we generate the 'throw' inline.
+//
+// Arguments:
+//   jumpKind - jump kind to generate;
+//   codeKind - the special throw-helper kind;
+//   failBlk  - optional fail target block, if it is already known;
+//
+void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, GenTree* failBlk)
 {
-    bool useThrowHlpBlk = !compiler->opts.compDbgCode;
-
+    bool useThrowHlpBlk = compiler->fgUseThrowHelperBlocks();
 #if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
     // Inline exception-throwing code in funclet to make it possible to unwind funclet frames.
     useThrowHlpBlk = useThrowHlpBlk && (compiler->funCurrentFunc()->funKind == FUNC_ROOT);
@@ -2802,41 +2809,47 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
 
     if (useThrowHlpBlk)
     {
-        /* For non-debuggable code, find and use the helper block for
-           raising the exception. The block may be shared by other trees too. */
+        // For code with throw helper blocks, find and use the helper block for
+        // raising the exception. The block may be shared by other trees too.
 
-        BasicBlock* tgtBlk;
+        BasicBlock* excpRaisingBlock;
 
-        if (failBlk)
+        if (failBlk != nullptr)
         {
-            /* We already know which block to jump to. Use that. */
+            // We already know which block to jump to. Use that.
+            assert(failBlk->gtOper == GT_LABEL);
+            excpRaisingBlock = failBlk->gtLabel.gtLabBB;
 
-            noway_assert(failBlk->gtOper == GT_LABEL);
-            tgtBlk = failBlk->gtLabel.gtLabBB;
-            noway_assert(
-                tgtBlk ==
-                compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB))->acdDstBlk);
+#ifdef DEBUG
+            Compiler::AddCodeDsc* add =
+                compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB));
+            assert(excpRaisingBlock == add->acdDstBlk);
+#if !FEATURE_FIXED_OUT_ARGS
+            assert(add->acdStkLvlInit || isFramePointerUsed());
+#endif // !FEATURE_FIXED_OUT_ARGS
+#endif // DEBUG
         }
         else
         {
-            /* Find the helper-block which raises the exception. */
-
+            // Find the helper-block which raises the exception.
             Compiler::AddCodeDsc* add =
                 compiler->fgFindExcptnTarget(codeKind, compiler->bbThrowIndex(compiler->compCurBB));
             PREFIX_ASSUME_MSG((add != nullptr), ("ERROR: failed to find exception throw block"));
-            tgtBlk = add->acdDstBlk;
+            excpRaisingBlock = add->acdDstBlk;
+#if !FEATURE_FIXED_OUT_ARGS
+            assert(add->acdStkLvlInit || isFramePointerUsed());
+#endif // !FEATURE_FIXED_OUT_ARGS
         }
 
-        noway_assert(tgtBlk);
+        noway_assert(excpRaisingBlock != nullptr);
 
-        // Jump to the excption-throwing block on error.
-
-        inst_JMP(jumpKind, tgtBlk);
+        // Jump to the exception-throwing block on error.
+        inst_JMP(jumpKind, excpRaisingBlock);
     }
     else
     {
-        /* The code to throw the exception will be generated inline, and
-           we will jump around it in the normal non-exception case */
+        // The code to throw the exception will be generated inline, and
+        //  we will jump around it in the normal non-exception case.
 
         BasicBlock*  tgtBlk          = nullptr;
         emitJumpKind reverseJumpKind = emitter::emitReverseJumpKind(jumpKind);
@@ -2848,7 +2861,7 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
 
         genEmitHelperCall(compiler->acdHelper(codeKind), 0, EA_UNKNOWN);
 
-        /* Define the spot for the normal non-exception case to jump to */
+        // Define the spot for the normal non-exception case to jump to.
         if (tgtBlk != nullptr)
         {
             assert(reverseJumpKind != jumpKind);
@@ -2864,7 +2877,7 @@ void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKi
  */
 
 // inline
-void CodeGen::genCheckOverflow(GenTreePtr tree)
+void CodeGen::genCheckOverflow(GenTree* tree)
 {
     // Overflow-check should be asked for this tree
     noway_assert(tree->gtOverflow());
@@ -4068,7 +4081,7 @@ CorInfoHelpFunc CodeGenInterface::genWriteBarrierHelperForWriteBarrierForm(GenTr
 //   tgt - target tree of write (e.g., GT_STOREIND)
 //   wbf - already computed write barrier form to use
 //
-void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
+void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
 {
     CorInfoHelpFunc helper = genWriteBarrierHelperForWriteBarrierForm(tgt, wbf);
 
@@ -4087,9 +4100,9 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
     CheckedWriteBarrierKinds wbKind = CWBKind_Unclassified;
     if (tgt->gtOper == GT_IND)
     {
-        GenTreePtr lcl = NULL;
+        GenTree* lcl = NULL;
 
-        GenTreePtr indArg = tgt->gtOp.gtOp1;
+        GenTree* indArg = tgt->gtOp.gtOp1;
         if (indArg->gtOper == GT_ADDR && indArg->gtOp.gtOp1->gtOper == GT_IND)
         {
             indArg = indArg->gtOp.gtOp1->gtOp.gtOp1;
@@ -6722,11 +6735,8 @@ void CodeGen::genZeroInitFltRegs(const regMaskTP& initFltRegs, const regMaskTP& 
                     inst_RV_RV(INS_vmov_i2f, reg, initReg, TYP_FLOAT, EA_4BYTE);
                 }
 #elif defined(_TARGET_XARCH_)
-                // Xorpd xmmreg, xmmreg is the fastest way to initialize a float register to
-                // zero instead of moving constant 0.0f.  Though we just need to initialize just the 32-bits
-                // we will use xorpd to initialize 64-bits of the xmm register so that it can be
-                // used to zero initialize xmm registers that hold double values.
-                inst_RV_RV(INS_xorpd, reg, reg, TYP_DOUBLE);
+                // XORPS is the fastest and smallest way to initialize a XMM register to zero.
+                inst_RV_RV(INS_xorps, reg, reg, TYP_DOUBLE);
                 dblInitReg = reg;
 #elif defined(_TARGET_ARM64_)
                 NYI("Initialize floating-point register to zero");
@@ -6759,10 +6769,8 @@ void CodeGen::genZeroInitFltRegs(const regMaskTP& initFltRegs, const regMaskTP& 
                     inst_RV_RV_RV(INS_vmov_i2d, reg, initReg, initReg, EA_8BYTE);
                 }
 #elif defined(_TARGET_XARCH_)
-                // Xorpd xmmreg, xmmreg is the fastest way to initialize a double register to
-                // zero than moving constant 0.0d.  We can also use lower 32-bits of 'reg'
-                // for zero initializing xmm registers subsequently that contain float values.
-                inst_RV_RV(INS_xorpd, reg, reg, TYP_DOUBLE);
+                // XORPS is the fastest and smallest way to initialize a XMM register to zero.
+                inst_RV_RV(INS_xorps, reg, reg, TYP_DOUBLE);
                 fltInitReg = reg;
 #elif defined(_TARGET_ARM64_)
                 // We will just zero out the entire vector register. This sets it to a double zero value
@@ -7883,7 +7891,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
 #endif // !defined(UNIX_AMD64_ABI)
 
-#elif defined(_TARGET_X86_) || (defined(_TARGET_ARM_) && defined(LEGACY_BACKEND))
+#elif defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
     unsigned saveStackLvl2 = genStackLevel;
 
@@ -7901,12 +7909,19 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         inst_IV(INS_push, (size_t)compiler->compProfilerMethHnd);
     }
 #elif defined(_TARGET_ARM_)
-    // On Arm arguments are prespilled on stack, which frees r0-r3.
-    // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
-    // The call target register could be any free register.
+// On Arm arguments are prespilled on stack, which frees r0-r3.
+// For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
+// The call target register could be any free register.
+#ifdef LEGACY_BACKEND
     regNumber argReg = regSet.rsGrabReg(RBM_PROFILER_ENTER_ARG);
     noway_assert(argReg == REG_PROFILER_ENTER_ARG);
     regSet.rsLockReg(RBM_PROFILER_ENTER_ARG);
+#else  // !LEGACY_BACKEND
+    regNumber argReg = REG_PROFILER_ENTER_ARG;
+#endif // !LEGACY_BACKEND
+
+    regMaskTP argRegMask = genRegMask(argReg);
+    assert((regSet.rsMaskPreSpillRegArg & argRegMask) != 0);
 
     if (compiler->compProfilerMethHndIndirected)
     {
@@ -7943,8 +7958,10 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         compiler->fgPtrArgCntMax = 1;
     }
 #elif defined(_TARGET_ARM_)
+#ifdef LEGACY_BACKEND
     // Unlock registers
     regSet.rsUnlockReg(RBM_PROFILER_ENTER_ARG);
+#endif // LEGACY_BACKEND
 
     if (initReg == argReg)
     {
@@ -8146,17 +8163,18 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         compiler->fgPtrArgCntMax = 1;
     }
 
-#elif defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#elif defined(_TARGET_ARM_)
+//
+// Push the profilerHandle
+//
 
-    //
-    // Push the profilerHandle
-    //
-
-    // We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
-    // RBM_PROFILER_RET_USED always.
+// We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
+// RBM_PROFILER_RET_USED always.
+#ifdef LEGACY_BACKEND
     regNumber scratchReg = regSet.rsGrabReg(RBM_PROFILER_RET_SCRATCH);
     noway_assert(scratchReg == REG_PROFILER_RET_SCRATCH);
     regSet.rsLockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
     // Contract between JIT and Profiler Leave callout on arm:
     // Return size <= 4 bytes: REG_PROFILER_RET_SCRATCH will contain return value
@@ -8222,7 +8240,9 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
     }
 
+#ifdef LEGACY_BACKEND
     regSet.rsUnlockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
 #else  // target
     NYI("Emit Profiler Leave callback");
@@ -9668,6 +9688,10 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     if (jmpEpilog)
     {
+#ifdef _TARGET_ARMARCH_
+        hasTailCalls = true;
+#endif // _TARGET_ARMARCH_
+
         noway_assert(block->bbJumpKind == BBJ_RETURN);
         noway_assert(block->bbTreeList != nullptr);
 
@@ -11124,7 +11148,7 @@ void CodeGen::genGenerateStackProbe()
  *  Record the constant and return a tree node that yields its address.
  */
 
-GenTreePtr CodeGen::genMakeConst(const void* cnsAddr, var_types cnsType, GenTreePtr cnsTree, bool dblAlign)
+GenTree* CodeGen::genMakeConst(const void* cnsAddr, var_types cnsType, GenTree* cnsTree, bool dblAlign)
 {
     // Assign the constant an offset in the data section
     UNATIVE_OFFSET cnsSize = genTypeSize(cnsType);
@@ -11372,7 +11396,7 @@ bool Compiler::IsHfa(CORINFO_CLASS_HANDLE hClass)
 #endif
 }
 
-bool Compiler::IsHfa(GenTreePtr tree)
+bool Compiler::IsHfa(GenTree* tree)
 {
 #ifdef FEATURE_HFA
     return IsHfa(gtGetStructHandleIfPresent(tree));
@@ -11381,7 +11405,7 @@ bool Compiler::IsHfa(GenTreePtr tree)
 #endif
 }
 
-var_types Compiler::GetHfaType(GenTreePtr tree)
+var_types Compiler::GetHfaType(GenTree* tree)
 {
 #ifdef FEATURE_HFA
     return GetHfaType(gtGetStructHandleIfPresent(tree));
@@ -11390,7 +11414,7 @@ var_types Compiler::GetHfaType(GenTreePtr tree)
 #endif
 }
 
-unsigned Compiler::GetHfaCount(GenTreePtr tree)
+unsigned Compiler::GetHfaCount(GenTree* tree)
 {
     return GetHfaCount(gtGetStructHandleIfPresent(tree));
 }
@@ -12757,6 +12781,205 @@ GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
     GenTreeIntCon i(type, value);
     i.gtRegNum = REG_NA;
     return i;
+}
+
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+//------------------------------------------------------------------------
+// genLongReturn: Generates code for long return statement for x86 and arm.
+//
+// Note: treeNode's and op1's registers are already consumed.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node with LONG return type.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genLongReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    assert(treeNode->TypeGet() == TYP_LONG);
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
+
+    assert(op1 != nullptr);
+    assert(op1->OperGet() == GT_LONG);
+    GenTree* loRetVal = op1->gtGetOp1();
+    GenTree* hiRetVal = op1->gtGetOp2();
+    assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
+
+    genConsumeReg(loRetVal);
+    genConsumeReg(hiRetVal);
+    if (loRetVal->gtRegNum != REG_LNGRET_LO)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
+    }
+    if (hiRetVal->gtRegNum != REG_LNGRET_HI)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
+    }
+}
+#endif // _TARGET_X86_ || _TARGET_ARM_
+
+//------------------------------------------------------------------------
+// genReturn: Generates code for return statement.
+//            In case of struct return, delegates to the genStructReturn method.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
+
+    // A void GT_RETFILT is the end of a finally. For non-void filter returns we need to load the result in the return
+    // register, if it's not already there. The processing is the same as GT_RETURN. For filters, the IL spec says the
+    // result is type int32. Further, the only legal values are 0 or 1; the use of other values is "undefined".
+    assert(!treeNode->OperIs(GT_RETFILT) || (targetType == TYP_VOID) || (targetType == TYP_INT));
+
+#ifdef DEBUG
+    if (targetType == TYP_VOID)
+    {
+        assert(op1 == nullptr);
+    }
+#endif // DEBUG
+
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+    if (targetType == TYP_LONG)
+    {
+        genLongReturn(treeNode);
+    }
+    else
+#endif // _TARGET_X86_ || _TARGET_ARM_
+    {
+        if (isStructReturn(treeNode))
+        {
+            genStructReturn(treeNode);
+        }
+        else if (targetType != TYP_VOID)
+        {
+            assert(op1 != nullptr);
+            noway_assert(op1->gtRegNum != REG_NA);
+
+            // !! NOTE !! genConsumeReg will clear op1 as GC ref after it has
+            // consumed a reg for the operand. This is because the variable
+            // is dead after return. But we are issuing more instructions
+            // like "profiler leave callback" after this consumption. So
+            // if you are issuing more instructions after this point,
+            // remember to keep the variable live up until the new method
+            // exit point where it is actually dead.
+            genConsumeReg(op1);
+
+#if defined(_TARGET_ARM64_)
+            genSimpleReturn(treeNode);
+#else // !_TARGET_ARM64_
+#if defined(_TARGET_X86_)
+            if (varTypeIsFloating(treeNode))
+            {
+                genFloatReturn(treeNode);
+            }
+            else
+#elif defined(_TARGET_ARM_)
+            if (varTypeIsFloating(treeNode) && (compiler->opts.compUseSoftFP || compiler->info.compIsVarArgs))
+            {
+                if (targetType == TYP_FLOAT)
+                {
+                    getEmitter()->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, REG_INTRET, op1->gtRegNum);
+                }
+                else
+                {
+                    assert(targetType == TYP_DOUBLE);
+                    getEmitter()->emitIns_R_R_R(INS_vmov_d2i, EA_8BYTE, REG_INTRET, REG_NEXT(REG_INTRET),
+                                                op1->gtRegNum);
+                }
+            }
+            else
+#endif // _TARGET_ARM_
+            {
+                regNumber retReg = varTypeIsFloating(treeNode) ? REG_FLOATRET : REG_INTRET;
+                if (op1->gtRegNum != retReg)
+                {
+                    inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->gtRegNum, targetType);
+                }
+            }
+#endif // !_TARGET_ARM64_
+        }
+    }
+
+#ifdef PROFILING_SUPPORTED
+    // !! Note !!
+    // TODO-AMD64-Unix: If the profiler hook is implemented on *nix, make sure for 2 register returned structs
+    //                  the RAX and RDX needs to be kept alive. Make the necessary changes in lowerxarch.cpp
+    //                  in the handling of the GT_RETURN statement.
+    //                  Such structs containing GC pointers need to be handled by calling gcInfo.gcMarkRegSetNpt
+    //                  for the return registers containing GC refs.
+
+    // There will be a single return block while generating profiler ELT callbacks.
+    //
+    // Reason for not materializing Leave callback as a GT_PROF_HOOK node after GT_RETURN:
+    // In flowgraph and other places assert that the last node of a block marked as
+    // BBJ_RETURN is either a GT_RETURN or GT_JMP or a tail call.  It would be nice to
+    // maintain such an invariant irrespective of whether profiler hook needed or not.
+    // Also, there is not much to be gained by materializing it as an explicit node.
+    if (compiler->compCurBB == compiler->genReturnBB)
+    {
+        // !! NOTE !!
+        // Since we are invalidating the assumption that we would slip into the epilog
+        // right after the "return", we need to preserve the return reg's GC state
+        // across the call until actual method return.
+        ReturnTypeDesc retTypeDesc;
+        unsigned       regCount = 0;
+        if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            if (varTypeIsLong(compiler->info.compRetNativeType))
+            {
+                retTypeDesc.InitializeLongReturnType(compiler);
+            }
+            else // we must have a struct return type
+            {
+                retTypeDesc.InitializeStructReturnType(compiler, compiler->info.compMethodInfo->args.retTypeClass);
+            }
+            regCount = retTypeDesc.GetReturnRegCount();
+        }
+
+        if (varTypeIsGC(compiler->info.compRetType))
+        {
+            gcInfo.gcMarkRegPtrVal(REG_INTRET, compiler->info.compRetType);
+        }
+        else if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                if (varTypeIsGC(retTypeDesc.GetReturnRegType(i)))
+                {
+                    gcInfo.gcMarkRegPtrVal(retTypeDesc.GetABIReturnReg(i), retTypeDesc.GetReturnRegType(i));
+                }
+            }
+        }
+
+        genProfilingLeaveCallback();
+
+        if (varTypeIsGC(compiler->info.compRetType))
+        {
+            gcInfo.gcMarkRegSetNpt(genRegMask(REG_INTRET));
+        }
+        else if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                if (varTypeIsGC(retTypeDesc.GetReturnRegType(i)))
+                {
+                    gcInfo.gcMarkRegSetNpt(genRegMask(retTypeDesc.GetABIReturnReg(i)));
+                }
+            }
+        }
+    }
+#endif // PROFILING_SUPPORTED
 }
 
 #endif // !LEGACY_BACKEND

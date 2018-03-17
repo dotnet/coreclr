@@ -661,6 +661,12 @@ DEFINE_METHOD(OBJECT,               EQUALS,                 Equals,             
 DEFINE_METHOD(OBJECT,               FIELD_SETTER,           FieldSetter,                IM_Str_Str_Obj_RetVoid)
 DEFINE_METHOD(OBJECT,               FIELD_GETTER,           FieldGetter,                IM_Str_Str_RefObj_RetVoid)
 
+// DEFINE_CLASS(DOUBLE,                System,                 Double)
+DEFINE_METHOD(DOUBLE,               GET_HASH_CODE,          GetHashCode, IM_RetInt)
+
+// DEFINE_CLASS(SINGLE,                System,                 Single)
+DEFINE_METHOD(SINGLE,               GET_HASH_CODE,          GetHashCode, IM_RetInt)
+
 DEFINE_CLASS(__CANON,              System,                 __Canon)
 
 
@@ -780,6 +786,8 @@ DEFINE_METHOD(UNSAFE,               PTR_ADD,                Add, GM_PtrVoid_Int_
 DEFINE_METHOD(UNSAFE,               BYREF_BYTE_OFFSET,      ByteOffset, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_ADD_BYTE_OFFSET,  AddByteOffset, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_ARE_SAME,         AreSame, NoSig)
+DEFINE_METHOD(UNSAFE,               BYREF_IS_ADDRESS_GREATER_THAN, IsAddressGreaterThan, NoSig)
+DEFINE_METHOD(UNSAFE,               BYREF_IS_ADDRESS_LESS_THAN, IsAddressLessThan, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_INIT_BLOCK_UNALIGNED, InitBlockUnaligned, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_READ_UNALIGNED,   ReadUnaligned, GM_RefByte_RetT)
 DEFINE_METHOD(UNSAFE,               BYREF_WRITE_UNALIGNED,  WriteUnaligned, GM_RefByte_T_RetVoid)
@@ -793,8 +801,9 @@ DEFINE_METHOD(INTERLOCKED,          COMPARE_EXCHANGE_OBJECT,CompareExchange, SM_
 DEFINE_CLASS(PINNING_HELPER,        CompilerServices,       PinningHelper)
 DEFINE_FIELD(PINNING_HELPER,        M_DATA,                 m_data)
 
-DEFINE_CLASS(ARRAY_PINNING_HELPER,  CompilerServices,       ArrayPinningHelper)
-DEFINE_FIELD(ARRAY_PINNING_HELPER,  M_ARRAY_DATA,           m_arrayData)
+DEFINE_CLASS(ARRAY_PINNING_HELPER,  CompilerServices,                     ArrayPinningHelper)
+DEFINE_FIELD(ARRAY_PINNING_HELPER,  M_ARRAY_DATA,                         m_arrayData)
+DEFINE_FIELD(ARRAY_PINNING_HELPER,  M_ARRAY_LENGTH_AND_PADDING,           m_lengthAndPadding)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
 DEFINE_METHOD(RUNTIME_WRAPPED_EXCEPTION, OBJ_CTOR,          .ctor,                      IM_Obj_RetVoid)
@@ -857,18 +866,21 @@ DEFINE_FIELD(UINTPTR,               ZERO,                   Zero)
 
 DEFINE_CLASS(BITCONVERTER,          System,                 BitConverter)
 DEFINE_FIELD(BITCONVERTER,          ISLITTLEENDIAN,         IsLittleEndian)
+
 // Defined as element type alias
 // DEFINE_CLASS(STRING,                System,                 String)
 DEFINE_FIELD(STRING,                M_FIRST_CHAR,           _firstChar)
 DEFINE_FIELD(STRING,                EMPTY,                  Empty)
-DEFINE_METHOD(STRING,               CREATE_STRING,          CreateString,               SM_PtrSByt_Int_Int_Encoding_RetStr)
 DEFINE_METHOD(STRING,               CTOR_CHARPTR,           .ctor,                      IM_PtrChar_RetVoid)
-DEFINE_METHOD(STRING,               CTORF_CHARARRAY,        CtorCharArray,              IM_ArrChar_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARARRAY_START_LEN,CtorCharArrayStartLength, IM_ArrChar_Int_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHAR_COUNT,       CtorCharCount,              IM_Char_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARPTR,          CtorCharPtr,                IM_PtrChar_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARPTR_START_LEN,CtorCharPtrStartLength,     IM_PtrChar_Int_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_READONLYSPANOFCHAR,CtorReadOnlySpanOfChar,    IM_ReadOnlySpanOfChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARARRAY,        Ctor,                       IM_ArrChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARARRAY_START_LEN,Ctor,                     IM_ArrChar_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHAR_COUNT,       Ctor,                       IM_Char_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARPTR,          Ctor,                       IM_PtrChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARPTR_START_LEN,Ctor,                       IM_PtrChar_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_READONLYSPANOFCHAR,Ctor,                      IM_ReadOnlySpanOfChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR,         Ctor,                       IM_PtrSByt_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR_START_LEN, Ctor,                     IM_PtrSByt_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR_START_LEN_ENCODING, Ctor,            IM_PtrSByt_Int_Int_Encoding_RetStr)
 DEFINE_METHOD(STRING,               INTERNAL_COPY,          InternalCopy,               SM_Str_IntPtr_Int_RetVoid)
 DEFINE_METHOD(STRING,               WCSLEN,                 wcslen,                     SM_PtrChar_RetInt)
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
@@ -1049,9 +1061,9 @@ DEFINE_METHOD(STUBHELPERS,          VALIDATE_OBJECT,                    Validate
 DEFINE_METHOD(STUBHELPERS,          VALIDATE_BYREF,                     ValidateByref,                  SM_IntPtr_IntPtr_Obj_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          GET_STUB_CONTEXT,                   GetStubContext,                 SM_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          LOG_PINNED_ARGUMENT,                LogPinnedArgument,              SM_IntPtr_IntPtr_RetVoid)
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
 DEFINE_METHOD(STUBHELPERS,          GET_STUB_CONTEXT_ADDR,              GetStubContextAddr,             SM_RetIntPtr)
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 #ifdef MDA_SUPPORTED
 DEFINE_METHOD(STUBHELPERS,          TRIGGER_GC_FOR_MDA,                 TriggerGCForMDA,                SM_RetVoid)
 #endif
@@ -1420,8 +1432,13 @@ DEFINE_FIELD_U(_userMessage,        ContractExceptionObject,    _UserMessage)
 DEFINE_FIELD_U(_condition,          ContractExceptionObject,    _Condition)
 
 #ifdef FEATURE_COMINTEROP
+DEFINE_CLASS(CAUSALITY_TRACE_LEVEL, WindowsFoundationDiag,   CausalityTraceLevel)
 DEFINE_CLASS(ASYNC_TRACING_EVENT_ARGS,       WindowsFoundationDiag,         TracingStatusChangedEventArgs)
+DEFINE_PROPERTY(ASYNC_TRACING_EVENT_ARGS, ENABLED, Enabled, Bool)
+DEFINE_PROPERTY(ASYNC_TRACING_EVENT_ARGS, TRACELEVEL, TraceLevel, CausalityTraceLevel)
 DEFINE_CLASS(IASYNC_TRACING_EVENT_ARGS,      WindowsFoundationDiag,         ITracingStatusChangedEventArgs)
+DEFINE_PROPERTY(IASYNC_TRACING_EVENT_ARGS, ENABLED, Enabled, Bool)
+DEFINE_PROPERTY(IASYNC_TRACING_EVENT_ARGS, TRACELEVEL, TraceLevel, CausalityTraceLevel)
 #endif // FEATURE_COMINTEROP
 
 DEFINE_CLASS(MODULEBASE,        Reflection,         Module)

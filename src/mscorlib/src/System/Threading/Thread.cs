@@ -46,9 +46,9 @@ namespace System.Threading
             _executionContext = ec;
         }
 
-        static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
+        internal static ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
 
-        static private void ThreadStart_Context(Object state)
+        private static void ThreadStart_Context(Object state)
         {
             ThreadHelper t = (ThreadHelper)state;
             if (t._start is ThreadStart)
@@ -65,9 +65,10 @@ namespace System.Threading
         internal void ThreadStart(object obj)
         {
             _startArg = obj;
-            if (_executionContext != null)
+            ExecutionContext context = _executionContext;
+            if (context != null)
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.RunInternal(context, _ccb, (Object)this);
             }
             else
             {
@@ -78,9 +79,10 @@ namespace System.Threading
         // call back helper
         internal void ThreadStart()
         {
-            if (_executionContext != null)
+            ExecutionContext context = _executionContext;
+            if (context != null)
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.RunInternal(context, _ccb, (Object)this);
             }
             else
             {
@@ -137,10 +139,6 @@ namespace System.Threading
 #pragma warning restore 414
 #pragma warning restore 169
 
-        private bool m_ExecutionContextBelongsToOuterScope;
-#if DEBUG
-        private bool m_ForbidExecutionContextMutation;
-#endif
 
         // Do not move! Order of above fields needs to be preserved for alignment
         // with native code
@@ -203,7 +201,7 @@ namespace System.Threading
             return _managedThreadId;
         }
 
-        extern public new int ManagedThreadId
+        public extern new int ManagedThreadId
         {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
@@ -231,14 +229,6 @@ namespace System.Threading
         **
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public new void Start()
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Start(ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public new void Start(object parameter)
         {
             //In the case of a null delegate (second call to start on same thread)
@@ -251,11 +241,10 @@ namespace System.Threading
                 throw new InvalidOperationException(SR.InvalidOperation_ThreadWrongThreadStart);
             }
             m_ThreadStartArg = parameter;
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Start(ref stackMark);
+            Start();
         }
 
-        private void Start(ref StackCrawlMark stackMark)
+        public new void Start()
         {
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             // Eagerly initialize the COM Apartment state of the thread if we're allowed to.
@@ -274,7 +263,7 @@ namespace System.Threading
                 t.SetExecutionContextHelper(ec);
             }
 
-            StartInternal(ref stackMark);
+            StartInternal();
         }
 
         internal ExecutionContext ExecutionContext
@@ -290,14 +279,14 @@ namespace System.Threading
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern void StartInternal(ref StackCrawlMark stackMark);
+        private extern void StartInternal();
 
 
         // Helper method to get a logical thread ID for StringBuilder (for
         // correctness) and for FileStream's async code path (for perf, to
         // avoid creating a Thread instance).
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static IntPtr InternalGetCurrentThread();
+        internal static extern IntPtr InternalGetCurrentThread();
 
         /*=========================================================================
         ** Suspends the current thread for timeout milliseconds. If timeout == 0,
@@ -389,7 +378,6 @@ namespace System.Threading
         private extern void InternalFinalize();
 
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT

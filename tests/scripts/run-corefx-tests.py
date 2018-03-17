@@ -29,6 +29,8 @@ import sys
 # Globals
 ##########################################################################
 
+testing = False
+
 Corefx_url = 'https://github.com/dotnet/corefx.git'
 
 # This should be factored out of build.sh
@@ -67,6 +69,7 @@ parser.add_argument('-fx_root', dest='fx_root', default=None)
 parser.add_argument('-fx_branch', dest='fx_branch', default='master')
 parser.add_argument('-fx_commit', dest='fx_commit', default=None)
 parser.add_argument('-env_script', dest='env_script', default=None)
+parser.add_argument('-no_run_tests', dest='no_run_tests', action="store_true", default=False)
 
 
 ##########################################################################
@@ -78,7 +81,7 @@ def validate_args(args):
     Args:
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script)
+        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
             (str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
@@ -93,6 +96,7 @@ def validate_args(args):
     fx_branch = args.fx_branch
     fx_commit = args.fx_commit
     env_script = args.env_script
+    no_run_tests = args.no_run_tests
 
     def validate_arg(arg, check):
         """ Validate an individual arg
@@ -120,6 +124,9 @@ def validate_args(args):
     validate_arg(build_type, lambda item: item in valid_build_types)
     validate_arg(fx_branch, lambda item: True)
 
+    if fx_commit is None:
+        fx_commit = 'HEAD'
+
     if clr_root is None:
         clr_root = nth_dirname(os.path.abspath(sys.argv[0]), 3)
     else:
@@ -135,7 +142,7 @@ def validate_args(args):
         validate_arg(env_script, lambda item: os.path.isfile(env_script))
         env_script = os.path.abspath(env_script)
 
-    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script)
+    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
 
     log('Configuration:')
     log(' arch: %s' % arch)
@@ -146,6 +153,7 @@ def validate_args(args):
     log(' fx_branch: %s' % fx_branch)
     log(' fx_commit: %s' % fx_commit)
     log(' env_script: %s' % env_script)
+    log(' no_run_tests: %s' % no_run_tests)
 
     return args
 
@@ -175,6 +183,29 @@ def log(message):
 
     print '[%s]: %s' % (sys.argv[0], message)
 
+def copy_files(source_dir, target_dir):
+    """ Copy any files in the source_dir to the target_dir.
+        The copy is not recursive.
+        The directories must already exist.
+    Args:
+        source_dir (str): source directory path
+        target_dir (str): target directory path
+    Returns:
+        Nothing
+    """
+
+    global testing
+    assert os.path.isdir(source_dir)
+    assert os.path.isdir(target_dir)
+
+    for source_filename in os.listdir(source_dir):
+        source_pathname = os.path.join(source_dir, source_filename)
+        if os.path.isfile(source_pathname):
+            target_pathname = os.path.join(target_dir, source_filename)
+            log('Copy: %s => %s' % (source_pathname, target_pathname))
+            if not testing:
+                shutil.copy2(source_pathname, target_pathname)
+
 ##########################################################################
 # Main
 ##########################################################################
@@ -182,10 +213,9 @@ def log(message):
 def main(args):
     global Corefx_url
     global Unix_name_map
+    global testing
 
-    testing = False
-
-    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script = validate_args(
+    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests = validate_args(
         args)
 
     clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
@@ -194,53 +224,6 @@ def main(args):
                              'bin',
                              'Product',
                              '%s.%s.%s' % (clr_os, arch, build_type))
-
-    # If the user doesn't specify a specific corefx commit hash to use, try to find the matching
-    # commit hash in the coreclr repro. If the matching hash can't be found, use 'HEAD'.
-    #
-    # We find the matching corefx commit hash by first parsing file 'dependencies.props' at the root
-    # of the coreclr repro, looking for this:
-    #    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview1-26112-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    # This determines the corefx package version that matches. Next, we look for the version.txt
-    # file in the package cache, e.g.,
-    #    <coreclr_root>\packages\microsoft.private.corefx.netcoreapp\4.5.0-preview1-26112-01\version.txt
-    # The contents of this file is exactly the git commit hash we need to use, e.g.:
-    #    197a0699b08087ea85581679afdd9fd7b5c465c3
-    # The version.txt file is created when the corefx package is restored, which happens when doing one of:
-    #    Windows: tests\runtests.cmd GenerateLayoutOnly
-    #    non-Windows: build-test.sh generatelayoutonly
-    #
-    # It would also be possible to not depend on the package already being downloaded, but instead
-    # download the correct package here, using the determined "MicrosoftPrivateCoreFxNETCoreAppPackageVersion"
-    # package version, e.g.:
-    #    https://dotnet.myget.org/F/dotnet-core/api/v2/package/Microsoft.Private.CoreFx.NETCoreApp/4.5.0-preview1-26112-01
-    # and then extracting the ZIP archive to find the version.txt file.
-    #
-    # This might get easier if the corefx commit hash is added directly to dependencies.props, as
-    # discussed in https://github.com/dotnet/buildtools/issues/1141.
-
-    if fx_commit is None:
-        # Default to 'HEAD'; overwrite if we find an actual commit hash.
-        fx_commit = 'HEAD'
-        try:
-            dependencies_filename = os.path.join(clr_root, 'dependencies.props')
-            if os.path.isfile(dependencies_filename):
-                with open(dependencies_filename, 'r') as dependencies_file_handle:
-                    dependencies_file = dependencies_file_handle.read()
-                matchObj = re.search(r'.*<MicrosoftPrivateCoreFxNETCoreAppPackageVersion>(.+)</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>.*', dependencies_file)
-                if matchObj:
-                    package_version_string = matchObj.group(1)
-                    version_filename = os.path.join(clr_root, 'packages', 'microsoft.private.corefx.netcoreapp', package_version_string, 'version.txt')
-                    if os.path.isfile(version_filename):
-                        with open(version_filename, 'r') as f:
-                            version_file = f.readlines()
-                        fx_commit = version_file[0].strip()
-                        log("Using matching corefx commit hash: %s" % fx_commit)
-        except:
-            log("Failed to find matching corefx commit hash")
-
-        if fx_commit == 'HEAD':
-            log("Using default corefx commit hash: HEAD")
 
     # corefx creates both files that are read-only and files that include non-ascii
     # characters. Using onerror=del_rw allows us to delete all of the read-only files.
@@ -281,8 +264,8 @@ def main(args):
     command = "git checkout %s" % fx_commit
     log(command)
     returncode = 0 if testing else os.system(command)
-    if not returncode == 0:
-        sys.exit(returncode)
+    if returncode != 0:
+        sys.exit(1)
 
     # On Unix, coreFx build.sh requires HOME to be set, and it isn't by default
     # under our CI system, so set it now.
@@ -294,20 +277,50 @@ def main(args):
         os.putenv('HOME', fx_home)
         log('HOME=' + fx_home)
 
+    # Determine the RID to specify the to corefix build scripts.  This seems to
+    # be way harder than it ought to be.
+ 
     # Gather up some arguments to pass to both build and build-tests.
 
     config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
 
-    # Run the primary (non-test) corefx build
+    # Run the primary (non-test) corefx build. We previously passed the argument:
+    #
+    #    /p:CoreCLROverridePath=<path-to-core_root>
+    #
+    # which causes the corefx build to overwrite its built runtime with the binaries from
+    # the coreclr build. However, this often causes build failures when breaking changes are
+    # in progress (e.g., a breaking change is made in coreclr that has not yet had compensating
+    # changes made in the corefx repo). Instead, build corefx normally. This should always work
+    # since corefx is protected by a CI testing system. Then, overwrite the built corefx
+    # runtime with the runtime built in the coreclr build. The result will be that perhaps
+    # some, hopefully few, corefx tests will fail, but the builds will never fail.
 
     command = ' '.join(('build.cmd' if Is_windows else './build.sh',
-                        config_args,
-                        '-- /p:CoreCLROverridePath=%s' % core_root))
+                        config_args))
 
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
-        sys.exit(returncode)
+        sys.exit(1)
+
+    # Override the built corefx runtime (which it picked up by copying from packages determined
+    # by its dependencies.props file). Note that we always build Release corefx.
+    # We must copy all files, not just the files that already exist in the corefx runtime
+    # directory. This is required so we copy over all altjit compilers.
+    # TODO: it might be cleaner to encapsulate the knowledge of how to do this in the
+    # corefx msbuild files somewhere.
+
+    fx_runtime = os.path.join(fx_root,
+                             'bin',
+                             'testhost',
+                             'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch),
+                             'shared',
+                             'Microsoft.NETCore.App',
+                             '9.9.9')
+
+    log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
+    copy_files(core_root, fx_runtime)
 
     # Build the build-tests command line.
 
@@ -330,6 +343,7 @@ def main(args):
     command = ' '.join((
         command,
         config_args,
+        '-SkipTests' if no_run_tests else '',
         '--',
         without_categories
     ))
@@ -344,8 +358,10 @@ def main(args):
 
     log(command)
     returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        sys.exit(1)
 
-    sys.exit(returncode)
+    sys.exit(0)
 
 
 ##########################################################################

@@ -53,8 +53,17 @@ shared framework.  In order to do that you will need to add a `RuntimeIdentifier
   <RuntimeIdentifier>win-x64</RuntimeIdentifier>
 </PropertyGroup>
 ```
-
 For Windows you will want `win-x64`, for macOS `osx-x64` and `linux-x64` for Linux.
+
+You might also need to explicitly specify a `PlatformTarget`: it shouldn't be required though, unless for some reason the default `PlatformTarget` on your machine, for that directory, is not `x64`.
+
+```xml
+<PropertyGroup>
+  ...
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <PlatformTarget>x64</PlatformTarget>
+</PropertyGroup>
+```
 
 ### Publish
 
@@ -129,7 +138,7 @@ Hello World from Core 4.6.26210.0 @BuiltBy: adsitnik-MININT-O513E3V @SrcCode: ht
 The location is C:\coreclr\helloWorld\bin\Debug\netcoreapp2.1\win-x64\publish\System.Private.CoreLib.dll
 ```
 
-## Using CoreRun to run your .NET Core Application
+## Using DotNetCli to run your .NET Core Application
 
 If you don't like the idea of copying files manually you can follow [this instructions](UsingDotNetCli.md) to use dotnet cli to do this for you.
 However the steps described here are the simplest and most commonly used by CoreCLR developers for ad-hoc testing.

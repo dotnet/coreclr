@@ -70,6 +70,11 @@ namespace System
             throw new ArgumentException(SR.Argument_DestinationTooShort);
         }
 
+        internal static void ThrowArgumentException_OverlapAlignmentMismatch()
+        {
+            throw new ArgumentException(SR.Argument_OverlapAlignmentMismatch);
+        }
+
         internal static void ThrowArgumentOutOfRange_IndexException()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index,
@@ -279,6 +284,11 @@ namespace System
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_NoValue);
         }
 
+        internal static void ThrowInvalidOperationException_ConcurrentOperationsNotSupported()
+        {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_ConcurrentOperationsNotSupported);
+        }
+
         internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count)
         {
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
@@ -470,7 +480,12 @@ namespace System
         ownedMemory,
         pointer,
         start,
-        format
+        format,
+        culture,
+        comparable,
+        source,
+        state,
+        comparisonType
     }
 
     //
@@ -580,6 +595,8 @@ namespace System
         InvalidOperation_HandleIsNotInitialized,
         AsyncMethodBuilder_InstanceNotInitialized,
         ArgumentNull_SafeHandle,
+        NotSupported_StringComparison,
+        InvalidOperation_ConcurrentOperationsNotSupported,
     }
 }
 

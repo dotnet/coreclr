@@ -91,6 +91,8 @@ public:
 
     bool RuntimeStructuresValid();
 
+    void SetSuspensionPending(bool fSuspensionPending);
+
     void SetWaitForGCEvent();
     void ResetWaitForGCEvent();
 
@@ -230,6 +232,10 @@ public:	// FIX
     virtual segment_handle RegisterFrozenSegment(segment_info *pseginfo);
     virtual void UnregisterFrozenSegment(segment_handle seg);
 
+    // Event control functions
+    void ControlEvents(GCEventKeyword keyword, GCEventLevel level);
+    void ControlPrivateEvents(GCEventKeyword keyword, GCEventLevel level);
+
     void    WaitUntilConcurrentGCComplete ();                               // Use in managd threads
 #ifndef DACCESS_COMPILE    
     HRESULT WaitUntilConcurrentGCCompleteAsync(int millisecondsTimeout);    // Use in native threads. TRUE if succeed. FALSE if failed or timeout
@@ -254,7 +260,7 @@ private:
         // to threads returning to cooperative mode is down after gc.
         // In other words, if the sequence in GCHeap::RestartEE changes,
         // the condition here may have to change as well.
-        return !GCToEEInterface::TrapReturningThreads();
+        return g_fSuspensionPending == 0;
     }
 public:
     //return TRUE if GC actually happens, otherwise FALSE

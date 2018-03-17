@@ -59,7 +59,7 @@ namespace System.Threading.Tasks
         public static readonly TplEtwProvider Log = new TplEtwProvider();
 
         /// <summary>Prevent external instantiation.  All logging should go through the Log instance.</summary>
-        private TplEtwProvider() { }
+        private TplEtwProvider() : base(new Guid(0x2e5dba47, 0xa3d2, 0x4d16, 0x8e, 0xe0, 0x66, 0x71, 0xff, 0xdc, 0xd7, 0xb5), "System.Threading.Tasks.TplEventSource") { }
 
         /// <summary>Configured behavior of a task wait operation.</summary>
         public enum TaskWaitBehavior : int
@@ -228,16 +228,22 @@ namespace System.Threading.Tasks
                     EventData* eventPayload = stackalloc EventData[6];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
+                    eventPayload[0].Reserved = 0;
                     eventPayload[1].Size = sizeof(int);
                     eventPayload[1].DataPointer = ((IntPtr)(&OriginatingTaskID));
+                    eventPayload[1].Reserved = 0;
                     eventPayload[2].Size = sizeof(int);
                     eventPayload[2].DataPointer = ((IntPtr)(&TaskID));
+                    eventPayload[2].Reserved = 0;
                     eventPayload[3].Size = sizeof(int);
                     eventPayload[3].DataPointer = ((IntPtr)(&CreatingTaskID));
+                    eventPayload[3].Reserved = 0;
                     eventPayload[4].Size = sizeof(int);
                     eventPayload[4].DataPointer = ((IntPtr)(&TaskCreationOptions));
+                    eventPayload[4].Reserved = 0;
                     eventPayload[5].Size = sizeof(int);
                     eventPayload[5].DataPointer = ((IntPtr)(&appDomain));
+                    eventPayload[5].Reserved = 0;
                     if (TasksSetActivityIds)
                     {
                         Guid childActivityId = CreateGuidForTaskID(TaskID);
@@ -290,12 +296,16 @@ namespace System.Threading.Tasks
                     Int32 isExceptionalInt = IsExceptional ? 1 : 0;
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
+                    eventPayload[0].Reserved = 0;
                     eventPayload[1].Size = sizeof(int);
                     eventPayload[1].DataPointer = ((IntPtr)(&OriginatingTaskID));
+                    eventPayload[1].Reserved = 0;
                     eventPayload[2].Size = sizeof(int);
                     eventPayload[2].DataPointer = ((IntPtr)(&TaskID));
+                    eventPayload[2].Reserved = 0;
                     eventPayload[3].Size = sizeof(int);
                     eventPayload[3].DataPointer = ((IntPtr)(&isExceptionalInt));
+                    eventPayload[3].Reserved = 0;
                     WriteEventCore(TASKCOMPLETED_ID, 4, eventPayload);
                 }
             }
@@ -326,14 +336,19 @@ namespace System.Threading.Tasks
                     EventData* eventPayload = stackalloc EventData[5];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
+                    eventPayload[0].Reserved = 0;
                     eventPayload[1].Size = sizeof(int);
                     eventPayload[1].DataPointer = ((IntPtr)(&OriginatingTaskID));
+                    eventPayload[1].Reserved = 0;
                     eventPayload[2].Size = sizeof(int);
                     eventPayload[2].DataPointer = ((IntPtr)(&TaskID));
+                    eventPayload[2].Reserved = 0;
                     eventPayload[3].Size = sizeof(int);
                     eventPayload[3].DataPointer = ((IntPtr)(&Behavior));
+                    eventPayload[3].Reserved = 0;
                     eventPayload[4].Size = sizeof(int);
                     eventPayload[4].DataPointer = ((IntPtr)(&ContinueWithTaskID));
+                    eventPayload[4].Reserved = 0;
                     if (TasksSetActivityIds)
                     {
                         Guid childActivityId = CreateGuidForTaskID(TaskID);
@@ -414,10 +429,13 @@ namespace System.Threading.Tasks
                     EventData* eventPayload = stackalloc EventData[3];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
+                    eventPayload[0].Reserved = 0;
                     eventPayload[1].Size = sizeof(int);
                     eventPayload[1].DataPointer = ((IntPtr)(&OriginatingTaskID));
+                    eventPayload[1].Reserved = 0;
                     eventPayload[2].Size = sizeof(int);
                     eventPayload[2].DataPointer = ((IntPtr)(&ContinuwWithTaskId));
+                    eventPayload[2].Reserved = 0;
                     if (TasksSetActivityIds)
                     {
                         Guid continuationActivityId = CreateGuidForTaskID(ContinuwWithTaskId);
@@ -442,12 +460,15 @@ namespace System.Threading.Tasks
                         EventData* eventPayload = stackalloc EventData[3];
                         eventPayload[0].Size = sizeof(int);
                         eventPayload[0].DataPointer = ((IntPtr)(&TaskID));
+                        eventPayload[0].Reserved = 0;
 
                         eventPayload[1].Size = ((OperationName.Length + 1) * 2);
                         eventPayload[1].DataPointer = ((IntPtr)operationNamePtr);
+                        eventPayload[1].Reserved = 0;
 
                         eventPayload[2].Size = sizeof(long);
                         eventPayload[2].DataPointer = ((IntPtr)(&RelatedContext));
+                        eventPayload[2].Reserved = 0;
                         WriteEventCore(TRACEOPERATIONSTART_ID, 3, eventPayload);
                     }
                 }
@@ -489,6 +510,7 @@ namespace System.Threading.Tasks
                     EventData* eventPayload = stackalloc EventData[1];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&Work));
+                    eventPayload[0].Reserved = 0;
 
                     WriteEventCore(TRACESYNCHRONOUSWORKSTOP_ID, 1, eventPayload);
                 }
@@ -496,7 +518,7 @@ namespace System.Threading.Tasks
         }
 
         [NonEvent]
-        unsafe public void RunningContinuation(int TaskID, object Object) { RunningContinuation(TaskID, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
+        public unsafe void RunningContinuation(int TaskID, object Object) { RunningContinuation(TaskID, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
         [Event(20, Keywords = Keywords.Debug)]
         private void RunningContinuation(int TaskID, long Object)
         {
@@ -505,7 +527,7 @@ namespace System.Threading.Tasks
         }
 
         [NonEvent]
-        unsafe public void RunningContinuationList(int TaskID, int Index, object Object) { RunningContinuationList(TaskID, Index, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
+        public unsafe void RunningContinuationList(int TaskID, int Index, object Object) { RunningContinuationList(TaskID, Index, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
 
         [Event(21, Keywords = Keywords.Debug)]
         public void RunningContinuationList(int TaskID, int Index, long Object)

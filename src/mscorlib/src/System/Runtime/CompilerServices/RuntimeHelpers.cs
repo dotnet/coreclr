@@ -86,17 +86,35 @@ namespace System.Runtime.CompilerServices
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void _CompileMethod(IRuntimeMethodInfo method);
 
-        public static void PrepareMethod(RuntimeMethodHandle method) { }
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation) { }
-        public static void PrepareContractedDelegate(Delegate d) { }
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
 
-        public static void PrepareDelegate(Delegate d)
+        public static void PrepareMethod(RuntimeMethodHandle method) 
         {
-            if (d == null)
+            unsafe
             {
-                throw new ArgumentNullException("d");
+                _PrepareMethod(method.GetMethodInfo(), null, 0);
             }
         }
+
+        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation)
+        {
+            unsafe
+            {
+                int length;
+                IntPtr[] instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
+                fixed (IntPtr* pInstantiation = instantiationHandles)
+                {
+                    _PrepareMethod(method.GetMethodInfo(), pInstantiation, length);
+                    GC.KeepAlive(instantiation);
+                }
+            }
+        }
+
+        public static void PrepareContractedDelegate(Delegate d) { }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void PrepareDelegate(Delegate d);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetHashCode(Object o);
@@ -170,7 +188,7 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <returns>true if given type is reference type or value type that contains references</returns>
-        static public bool IsReferenceOrContainsReferences<T>()
+        public static bool IsReferenceOrContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
