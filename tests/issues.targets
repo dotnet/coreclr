@@ -1,6 +1,33 @@
 <?xml version="1.0" ?>
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape_d\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape_r\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_d\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_r\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\GetInterfaceMapConsumer\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\Emit\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\InvokeConsumer\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Regressions\coreclr\16064\methodimpl\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Regressions\coreclr\15650\interfacecctor\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\GC\Coverage\271010\*">
             <Issue>3392</Issue>
         </ExcludeList>
