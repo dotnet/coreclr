@@ -1,3 +1,12 @@
+Loader/classloader/DefaultInterfaceMethods/diamondshape/diamondshape_d/diamondshape_d.sh
+Loader/classloader/DefaultInterfaceMethods/sharedgenerics/sharedgenerics_d/sharedgenerics_d.sh
+Loader/classloader/DefaultInterfaceMethods/sharedgenerics/sharedgenerics_r/sharedgenerics_r.sh
+Loader/classloader/DefaultInterfaceMethods/diamondshape/diamondshape_r/diamondshape_r.sh
+reflection/DefaultInterfaceMethods/GetInterfaceMapConsumer/GetInterfaceMapConsumer.sh
+reflection/DefaultInterfaceMethods/Emit/Emit.sh
+reflection/DefaultInterfaceMethods/InvokeConsumer/InvokeConsumer.sh
+Regressions/coreclr/15650/interfacecctor/interfacecctor.sh
+Regressions/coreclr/16064/methodimpl/methodimpl.sh
 baseservices/threading/paramthreadstart/ThreadStartString_1/ThreadStartString_1.sh
 CoreMangLib/cti/system/multicastdelegate/MulticastDelegateCtor/MulticastDelegateCtor.sh
 CoreMangLib/cti/system/runtime/interopservices/marshal/MarshalGetLastWin32Error_PSC/MarshalGetLastWin32Error_PSC.sh
@@ -71,8 +80,6 @@ GC/Features/BackgroundGC/foregroundgc/foregroundgc.sh
 GC/Features/LOHFragmentation/lohfragmentation/lohfragmentation.sh
 GC/Features/SustainedLowLatency/scenario/scenario.sh
 GC/Regressions/dev10bugs/536168/536168/536168.sh
-Loader/classloader/DefaultInterfaceMethods/diamondshape/diamondshape/diamondshape.sh
-Loader/classloader/DefaultInterfaceMethods/sharedgenerics/sharedgenerics/sharedgenerics.sh
 Loader/classloader/DefaultInterfaceMethods/constrainedcall/constrainedcall/constrainedcall.sh
 Loader/classloader/DefaultInterfaceMethods/genericmethods/genericmethods/genericmethods.sh
 Loader/classloader/DefaultInterfaceMethods/methodimpl/methodimpl/methodimpl.sh

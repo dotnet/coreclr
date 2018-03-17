@@ -107,10 +107,6 @@ GPTR_IMPL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 GPTR_IMPL(SyncTableEntry,g_pSyncTable);
 
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-DWORD g_dwHandles = 0;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
-
 #ifdef STRESS_LOG
 GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 #endif
@@ -120,6 +116,9 @@ GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_IMPL_INIT(DWORD, g_debuggerWordTLSIndex, TLS_OUT_OF_INDEXES);
+#endif
 GVAL_IMPL_INIT(DWORD, g_TlsIndex, TLS_OUT_OF_INDEXES);
 
 #ifndef DACCESS_COMPILE

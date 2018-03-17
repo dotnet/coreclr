@@ -1,6 +1,33 @@
 <?xml version="1.0" ?>
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape_d\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape_r\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_d\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_r\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\GetInterfaceMapConsumer\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\Emit\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\reflection\DefaultInterfaceMethods\InvokeConsumer\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Regressions\coreclr\16064\methodimpl\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Regressions\coreclr\15650\interfacecctor\*">
+            <Issue>17013</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\GC\Coverage\271010\*">
             <Issue>3392</Issue>
         </ExcludeList>
@@ -165,12 +192,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\GitHub_11408\GitHub_11408\GitHub_11408.cmd">
             <Issue>11408</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\diamondshape\diamondshape\*">
-            <Issue>15591</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics\*">
-            <Issue>15591</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\DefaultInterfaceMethods\constrainedcall\constrainedcall\*">
             <Issue>15353</Issue>
@@ -478,15 +499,6 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\runtime\interopservices\marshal\MarshalGetLastWin32Error_PSC\MarshalGetLastWin32Error_PSC.cmd">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\string\StringCompare15\StringCompare15.cmd">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\string\StringCompare1\StringCompare1.cmd">
-            <Issue>needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\string\StringCompare2\StringCompare2.cmd">
             <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\CoreMangLib\cti\system\uint16\UInt16ToString3\UInt16ToString3.cmd">
@@ -1743,18 +1755,15 @@
         <ExcludeList Include="$(XunitTestBinBase)\managed\Compilation\Compilation\Compilation.cmd">
             <Issue>needs triage</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\**">
-            <Issue>15919</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventpipetrace\**">
-            <Issue>15924</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are tests that fail on Windows -->
 
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource**">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\eventsourcetrace\eventsourcetrace.cmd">
+            <Issue>15494</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\tracevalidation\tracelogging\tracelogging\tracelogging.cmd">
             <Issue>15494</Issue>
         </ExcludeList>
     </ItemGroup>

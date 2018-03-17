@@ -15,8 +15,8 @@ void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
     WRAPPER_NO_CONTRACT;
 
-    static_assert_no_msg(SUSPEND_FOR_GC == ThreadSuspend::SUSPEND_FOR_GC);
-    static_assert_no_msg(SUSPEND_FOR_GC_PREP == ThreadSuspend::SUSPEND_FOR_GC_PREP);
+    static_assert_no_msg(SUSPEND_FOR_GC == (int)ThreadSuspend::SUSPEND_FOR_GC);
+    static_assert_no_msg(SUSPEND_FOR_GC_PREP == (int)ThreadSuspend::SUSPEND_FOR_GC_PREP);
 
     _ASSERTE(reason == SUSPEND_FOR_GC || reason == SUSPEND_FOR_GC_PREP);
 
@@ -169,7 +169,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
         STRESS_LOG2(LF_GC | LF_GCROOTS, LL_INFO100, "{ Starting scan of Thread %p ID = %x\n", pThread, pThread->GetThreadId());
 
         if (GCHeapUtilities::GetGCHeap()->IsThreadUsingAllocationContextHeap(
-            GCToEEInterface::GetAllocContext(pThread), sc->thread_number))
+            pThread->GetAllocContext(), sc->thread_number))
         {
             sc->thread_under_crawl = pThread;
 #ifdef FEATURE_EVENT_TRACE
@@ -303,16 +303,25 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     SyncBlockCache::GetSyncBlockCache()->GCDone(FALSE, max_gen);
 }
 
-gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+uint32_t GCToEEInterface::GetActiveSyncBlockCount()
 {
-    WRAPPER_NO_CONTRACT;
-    return pThread->GetAllocContext();
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    return SyncBlockCache::GetSyncBlockCache()->GetActiveCount();   
 }
 
-bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
     WRAPPER_NO_CONTRACT;
-    return !!pThread->CatchAtSafePoint();
+    
+    Thread* pThread = ::GetThread();
+    assert(pThread != nullptr);
+    return pThread->GetAllocContext();
 }
 
 void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* param)
@@ -338,22 +347,47 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
 }
 
-bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
+bool GCToEEInterface::IsPreemptiveGCDisabled()
 {
     WRAPPER_NO_CONTRACT;
-    return !!pThread->PreemptiveGCDisabled();
+
+    Thread* pThread = ::GetThread();
+    if (pThread)
+    {
+        return !!pThread->PreemptiveGCDisabled();
+    }
+
+    return false;
 }
 
-void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
+bool GCToEEInterface::EnablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
-    pThread->EnablePreemptiveGC();
+
+    bool bToggleGC = false;
+    Thread* pThread = ::GetThread();
+
+    if (pThread)
+    {
+        bToggleGC = !!pThread->PreemptiveGCDisabled();
+        if (bToggleGC)
+        {
+            pThread->EnablePreemptiveGC();
+        }
+    }
+
+    return bToggleGC;
 }
 
-void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::DisablePreemptiveGC()
 {
     WRAPPER_NO_CONTRACT;
-    pThread->DisablePreemptiveGC();
+
+    Thread* pThread = ::GetThread();
+    if (pThread)
+    {
+        pThread->DisablePreemptiveGC();
+    }
 }
 
 Thread* GCToEEInterface::GetThread()
@@ -361,12 +395,6 @@ Thread* GCToEEInterface::GetThread()
     WRAPPER_NO_CONTRACT;
 
     return ::GetThread();
-}
-
-bool GCToEEInterface::TrapReturningThreads()
-{
-    WRAPPER_NO_CONTRACT;
-    return !!g_TrapReturningThreads;
 }
 
 struct BackgroundThreadStubArgs
@@ -1383,4 +1411,11 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
             }
         }
     }
+}
+
+IGCToCLREventSink* GCToEEInterface::EventSink()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return &g_gcToClrEventSink;
 }

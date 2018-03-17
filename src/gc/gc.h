@@ -70,6 +70,29 @@ enum gc_reason
     reason_max
 };
 
+// Types of GCs, emitted by the GCStart ETW event.
+enum gc_etw_type
+{
+   gc_etw_type_ngc = 0,
+   gc_etw_type_bgc = 1,
+   gc_etw_type_fgc = 2
+};
+
+// Types of segments, emitted by the GCCreateSegment ETW event.
+enum gc_etw_segment_type
+{
+    gc_etw_segment_small_object_heap = 0,
+    gc_etw_segment_large_object_heap = 1,
+    gc_etw_segment_read_only_heap = 2
+};
+
+// Types of allocations, emitted by the GCAllocationTick ETW event.
+enum gc_etw_alloc_kind
+{
+    gc_etw_alloc_soh = 0,
+    gc_etw_alloc_loh = 1
+};
+
 /* forward declerations */
 class CObjectHeader;
 class Object;
@@ -99,6 +122,12 @@ class DacHeapWalker;
 extern "C" uint32_t* g_gc_card_bundle_table;
 #endif
 
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+// Note this is not updated in a thread safe way so the value may not be accurate. We get
+// it accurately in full GCs if the handle count is requested.
+extern DWORD g_dwHandles;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+
 extern "C" uint32_t* g_gc_card_table;
 extern "C" uint8_t* g_gc_lowest_address;
 extern "C" uint8_t* g_gc_highest_address;
@@ -106,6 +135,8 @@ extern "C" GCHeapType g_gc_heap_type;
 extern "C" uint32_t g_max_generation;
 extern "C" MethodTable* g_gc_pFreeObjectMethodTable;
 extern "C" uint32_t g_num_processors;
+
+extern VOLATILE(int32_t) g_fSuspensionPending;
 
 ::IGCHandleManager*  CreateGCHandleManager();
 

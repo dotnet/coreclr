@@ -1170,7 +1170,7 @@ BOOL MethodTableBuilder::CheckIfSIMDAndUpdateSize()
     STANDARD_VM_CONTRACT;
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-    if (!GetAssembly()->IsSIMDVectorAssembly())
+    if (!(GetAssembly()->IsSIMDVectorAssembly() || bmtProp->fIsIntrinsicType))
         return false;
 
     if (bmtFP->NumInstanceFieldBytes != 16)
@@ -1500,20 +1500,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         LPCUTF8 nameSpace;
         HRESULT hr = GetMDImport()->GetNameOfTypeDef(bmtInternal->pType->GetTypeDefToken(), &className, &nameSpace);
 
-        if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics") == 0)
-        {
-            if (IsCompilationProcess())
-            {
-                // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
-                // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
-                // aggregate or union types. See https://github.com/dotnet/coreclr/issues/15943
-                //
-                // Once they are properly handled according to the ABI requirements, we can remove this check
-                // and allow them to be used in crossgen/AOT scenarios.
-                COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
-            }
-        }
-
 #if defined(_TARGET_ARM64_)
         // All the funtions in System.Runtime.Intrinsics.Arm.Arm64 are hardware intrinsics.
         if (hr == S_OK && strcmp(nameSpace, "System.Runtime.Intrinsics.Arm.Arm64") == 0)
@@ -1532,6 +1518,23 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 #endif
+
+    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
+    // Currently, only SIMD types have [Intrinsic] attribute
+    //
+    // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
+    if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
+    {
+        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
+            g_CompilerServicesIntrinsicAttribute,
+            NULL,
+            NULL);
+
+        if (hr == S_OK)
+        {
+            bmtProp->fIsIntrinsicType = true;
+        }
+    }
 
 #ifdef FEATURE_COMINTEROP 
 
@@ -1858,24 +1861,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
         pMT->SetIsByRefLike();
     }
 
-    // If this type is marked by [Intrinsic] attribute, it may be specially treated by the runtime/compiler
-    // Currently, only SIMD types have [Intrinsic] attribute
-    //
-    // We check this here, before the SystemVAmd64CheckForPass[Native]StructInRegister calls to ensure the SIMD
-    // intrinsics are not enregistered incorrectly.
-    if ((GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly()) && IsValueClass() && bmtGenerics->HasInstantiation())
-    {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(), 
-            g_CompilerServicesIntrinsicAttribute, 
-            NULL, 
-            NULL);
-
-        if (hr == S_OK)
-        {
-            pMT->SetIsIntrinsicType();
-        }
-    }
-
     if (IsValueClass())
     {
         if (bmtFP->NumInstanceFieldBytes != totalDeclaredFieldSize || HasOverLayedField())
@@ -1974,7 +1959,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     // Check for the RemotingProxy Attribute
     // structs with GC pointers MUST be pointer sized aligned because the GC assumes it
-    if (IsValueClass() && pMT->ContainsPointers() && (bmtFP->NumInstanceFieldBytes % sizeof(void*) != 0))
+    if (IsValueClass() && pMT->ContainsPointers() && (bmtFP->NumInstanceFieldBytes % TARGET_POINTER_SIZE != 0))
     {
         BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
     }
@@ -7923,7 +7908,7 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
         // value types can never get large enough to allocate on the LOH). 
         if (!IsValueClass())
         {
-            dwOffsetBias = sizeof(MethodTable*);
+            dwOffsetBias = TARGET_POINTER_SIZE;
             dwCumulativeInstanceFieldPos += dwOffsetBias;
         }
 #endif // FEATURE_64BIT_ALIGNMENT
@@ -8102,17 +8087,17 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
                     // value classes could have GC pointers in them, which need to be pointer-size aligned
                     // so do this if it has not been done already
 
-#if !defined(_WIN64) && (DATA_ALIGNMENT > 4) 
+#if !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4) 
                 dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos,
-                    (pByValueMT->GetNumInstanceFieldBytes() >= DATA_ALIGNMENT) ? DATA_ALIGNMENT : sizeof(void*));
-#else // !(!defined(_WIN64) && (DATA_ALIGNMENT > 4))
+                    (pByValueMT->GetNumInstanceFieldBytes() >= DATA_ALIGNMENT) ? DATA_ALIGNMENT : TARGET_POINTER_SIZE);
+#else // !(!defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4))
 #ifdef FEATURE_64BIT_ALIGNMENT
                 if (pByValueMT->RequiresAlign8())
                     dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, 8);
                 else
 #endif // FEATURE_64BIT_ALIGNMENT
-                    dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, sizeof(void*));
-#endif // !(!defined(_WIN64) && (DATA_ALIGNMENT > 4))
+                    dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, TARGET_POINTER_SIZE);
+#endif // !(!defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4))
 
                 pFieldDescList[i].SetOffset(dwCumulativeInstanceFieldPos - dwOffsetBias);
                 dwCumulativeInstanceFieldPos += pByValueMT->GetAlignedNumInstanceFieldBytes();
@@ -8144,8 +8129,8 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
             }
             else
 #endif // FEATURE_64BIT_ALIGNMENT
-            if (dwNumInstanceFieldBytes > sizeof(void*)) {
-                minAlign = sizeof(void*);
+            if (dwNumInstanceFieldBytes > TARGET_POINTER_SIZE) {
+                minAlign = TARGET_POINTER_SIZE;
             }
             else {
                 minAlign = 1;
@@ -8334,9 +8319,9 @@ MethodTableBuilder::HandleExplicitLayout(
     // 3. If an OREF does overlap with another OREF, the class is marked unverifiable.
     // 4. If an overlap of any kind occurs, the class will be marked NotTightlyPacked (affects ValueType.Equals()).
     //
-    char emptyObject[sizeof(void*)];
-    char isObject[sizeof(void*)];
-    for (i = 0; i < sizeof(void*); i++)
+    char emptyObject[TARGET_POINTER_SIZE];
+    char isObject[TARGET_POINTER_SIZE];
+    for (i = 0; i < TARGET_POINTER_SIZE; i++)
     {
         emptyObject[i] = empty;
         isObject[i]    = oref;
@@ -8424,7 +8409,7 @@ MethodTableBuilder::HandleExplicitLayout(
                 MethodTable *pByValueMT = pByValueClassCache[valueClassCacheIndex];
                 if (pByValueMT->ContainsPointers())
                 {
-                    if ((pFD->GetOffset_NoLogging() & ((ULONG)sizeof(void*) - 1)) == 0)
+                    if ((pFD->GetOffset_NoLogging() & ((ULONG)TARGET_POINTER_SIZE - 1)) == 0)
                     {
                         ExplicitFieldTrust::TrustLevel trust;
                         DWORD firstObjectOverlapOffsetInsideValueClass = ((DWORD)(-1));
@@ -8533,7 +8518,7 @@ MethodTableBuilder::HandleExplicitLayout(
     S_UINT32 dwInstanceSliceOffset = S_UINT32(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0);
     if (bmtGCSeries->numSeries != 0)
     {
-        dwInstanceSliceOffset.AlignUp(sizeof(void*));
+        dwInstanceSliceOffset.AlignUp(TARGET_POINTER_SIZE);
     }
     if (dwInstanceSliceOffset.IsOverflow())
     {
@@ -8561,10 +8546,10 @@ MethodTableBuilder::HandleExplicitLayout(
         }
     }
     
-    // The GC requires that all valuetypes containing orefs be sized to a multiple of sizeof(void*).
+    // The GC requires that all valuetypes containing orefs be sized to a multiple of TARGET_POINTER_SIZE.
     if (bmtGCSeries->numSeries != 0)
     {
-        numInstanceFieldBytes.AlignUp(sizeof(void*));
+        numInstanceFieldBytes.AlignUp(TARGET_POINTER_SIZE);
     }
     if (numInstanceFieldBytes.IsOverflow())
     {
@@ -8726,7 +8711,7 @@ void MethodTableBuilder::FindPointerSeriesExplicit(UINT instanceSliceSize,
         bmtGCSeries->pSeries[bmtGCSeries->numSeries].offset = (DWORD)(loc - pFieldLayout);
         bmtGCSeries->pSeries[bmtGCSeries->numSeries].len = (DWORD)(cur - loc);
 
-        CONSISTENCY_CHECK(IS_ALIGNED(cur - loc, sizeof(size_t)));
+        CONSISTENCY_CHECK(IS_ALIGNED(cur - loc, TARGET_POINTER_SIZE));
 
         bmtGCSeries->numSeries++;
         loc = cur;
@@ -8772,7 +8757,7 @@ MethodTableBuilder::HandleGCForExplicitLayout()
 
         }
 
-        UINT32 dwInstanceSliceOffset = AlignUp(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0, sizeof(void*));
+        UINT32 dwInstanceSliceOffset = AlignUp(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0, TARGET_POINTER_SIZE);
 
         // Build the pointer series map for this pointers in this instance
         CGCDescSeries *pSeries = ((CGCDesc*)pMT)->GetLowestSeries();
@@ -9535,42 +9520,126 @@ void MethodTableBuilder::CheckForSystemTypes()
 {
     STANDARD_VM_CONTRACT;
 
+    LPCUTF8 name, nameSpace;
+
     MethodTable * pMT = GetHalfBakedMethodTable();
     EEClass * pClass = GetHalfBakedClass();
 
     // We can exit early for generic types - there are just a few cases to check for.
-    if (bmtGenerics->HasInstantiation() && g_pNullableClass != NULL)
+    if (bmtGenerics->HasInstantiation())
     {
-        _ASSERTE(g_pByReferenceClass != NULL);
-        _ASSERTE(g_pByReferenceClass->IsByRefLike());
+        if (pMT->IsIntrinsicType() && pClass->HasLayout())
+        {
+            if (FAILED(GetMDImport()->GetNameOfTypeDef(GetCl(), &name, &nameSpace)))
+            {
+                BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
+            }
+
+            if (strcmp(nameSpace, g_IntrinsicsNS) == 0)
+            {
+                EEClassLayoutInfo * pLayout = pClass->GetLayoutInfo();
+
+                // The SIMD Hardware Intrinsic types correspond to fundamental data types in the underlying ABIs:
+                // * Vector64<T>:  __m64
+                // * Vector128<T>: __m128
+                // * Vector256<T>: __m256
+
+                // These __m128 and __m256 types, among other requirements, are special in that they must always
+                // be aligned properly.
+
+                if (IsCompilationProcess())
+                {
+                    // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
+                    // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
+                    // aggregate or union types. See https://github.com/dotnet/coreclr/issues/15943
+                    //
+                    // Once they are properly handled according to the ABI requirements, we can remove this check
+                    // and allow them to be used in crossgen/AOT scenarios.
+                    COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
+                }
+
+                if (strcmp(name, g_Vector64Name) == 0)
+                {
+                    // The System V ABI for i386 defaults to 8-byte alignment for __m64, except for parameter passing,
+                    // where it has an alignment of 4.
+
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 8; // sizeof(__m64)
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 8; // sizeof(__m64)
+                }
+                else if (strcmp(name, g_Vector128Name) == 0)
+                {
+    #ifdef _TARGET_ARM_
+                    // The Procedure Call Standard for ARM defaults to 8-byte alignment for __m128
+
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 8;
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 8;
+    #else
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 16; // sizeof(__m128)
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 16; // sizeof(__m128)
+    #endif // _TARGET_ARM_
+                }
+                else if (strcmp(name, g_Vector256Name) == 0)
+                {
+    #ifdef _TARGET_ARM_
+                    // No such type exists for the Procedure Call Standard for ARM. We will default
+                    // to the same alignment as __m128, which is supported by the ABI.
+
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 8;
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 8;
+    #elif defined(_TARGET_ARM64_)
+                    // The Procedure Call Standard for ARM 64-bit (with SVE support) defaults to
+                    // 16-byte alignment for __m256.
+
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 16;
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 16;
+    #else
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 32; // sizeof(__m256)
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 32; // sizeof(__m256)
+    #endif // _TARGET_ARM_ elif _TARGET_ARM64_
+                }
+                else
+                {
+                    // These types should be handled or explicitly skipped below to ensure that we don't
+                    // miss adding required ABI support for future types.
+
+                    _ASSERTE_MSG(FALSE, "Unhandled Hardware Intrinsic Type.");
+                }
+
+                return;
+            }
+        }
+
+        if (g_pNullableClass != NULL)
+        {
+            _ASSERTE(g_pByReferenceClass != NULL);
+            _ASSERTE(g_pByReferenceClass->IsByRefLike());
 
 #ifdef _TARGET_X86_
-        if (GetCl() == g_pByReferenceClass->GetCl())
-        {
-            // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
-            // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
-            // treated as a value type so that its field can be considered as a by-ref pointer.
-            _ASSERTE(pMT->GetFlag(MethodTable::enum_flag_Category_Mask) == MethodTable::enum_flag_Category_PrimitiveValueType);
-            pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
-            pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
-            return;
-        }
+            if (GetCl() == g_pByReferenceClass->GetCl())
+            {
+                // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
+                // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
+                // treated as a value type so that its field can be considered as a by-ref pointer.
+                _ASSERTE(pMT->GetFlag(MethodTable::enum_flag_Category_Mask) == MethodTable::enum_flag_Category_PrimitiveValueType);
+                pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
+                pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
+                return;
+            }
 #endif
 
-        _ASSERTE(g_pNullableClass->IsNullable());
+            _ASSERTE(g_pNullableClass->IsNullable());
 
-        // Pre-compute whether the class is a Nullable<T> so that code:Nullable::IsNullableType is efficient
-        // This is useful to the performance of boxing/unboxing a Nullable
-        if (GetCl() == g_pNullableClass->GetCl())
-            pMT->SetIsNullable();
+            // Pre-compute whether the class is a Nullable<T> so that code:Nullable::IsNullableType is efficient
+            // This is useful to the performance of boxing/unboxing a Nullable
+            if (GetCl() == g_pNullableClass->GetCl())
+                pMT->SetIsNullable();
 
-        return;
+            return;
+        }
     }
 
     if (IsNested() || IsEnum())
         return;
-      
-    LPCUTF8 name, nameSpace;
 
     if (FAILED(GetMDImport()->GetNameOfTypeDef(GetCl(), &name, &nameSpace)))
     {
@@ -9593,6 +9662,26 @@ void MethodTableBuilder::CheckForSystemTypes()
         {
             pMT->SetInternalCorElementType(type);
             pMT->SetIsTruePrimitive();
+
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+            switch (type)
+            {
+                // The System V ABI for i386 defines different packing for these types.
+
+                case ELEMENT_TYPE_I8:
+                case ELEMENT_TYPE_U8:
+                case ELEMENT_TYPE_R8:
+                {
+                    EEClassLayoutInfo * pLayout = pClass->GetLayoutInfo();
+                    pLayout->m_LargestAlignmentRequirementOfAllMembers        = 4;
+                    pLayout->m_ManagedLargestAlignmentRequirementOfAllMembers = 4;
+                    break;
+                }
+
+                default:
+                    break;
+            }
+#endif // _TARGET_X86_ && UNIX_X86_ABI
 
 #ifdef _DEBUG 
             if (FAILED(GetMDImport()->GetNameOfTypeDef(GetCl(), &name, &nameSpace)))
@@ -9840,7 +9929,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
 
     BYTE *pData = (BYTE *)pamTracker->Track(pAllocator->GetHighFrequencyHeap()->AllocMem(cbTotalSize));
 
-    _ASSERTE(IS_ALIGNED(pData, sizeof(size_t)));
+    _ASSERTE(IS_ALIGNED(pData, TARGET_POINTER_SIZE));
     
     // There should be no overflows if we have allocated the memory succesfully
     _ASSERTE(!cbTotalSize.IsOverflow());
@@ -10353,6 +10442,11 @@ MethodTableBuilder::SetupMethodTable2(
     }
     pMT->SetInternalCorElementType(normalizedType);
 
+    if (bmtProp->fIsIntrinsicType)
+    {
+        pMT->SetIsIntrinsicType();
+    }
+
     if (GetModule()->IsSystem())
     {
         // we are in mscorlib
@@ -10729,7 +10823,7 @@ BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
                 if (pMD->IsMethodImpl())
                 {
                     MethodImpl::Iterator it(pMD);
-                    while (it.IsValid())
+                    for (; it.IsValid(); it.Next())
                     {
                         if (it.GetMethodDesc() == pDeclMD)
                             return TRUE;

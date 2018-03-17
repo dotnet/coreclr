@@ -61,7 +61,7 @@ public:
     // TODO-Cleanup: We should handle the spill directly in CodeGen, rather than
     // calling it from compUpdateLifeVar.  Then this can be non-virtual.
 
-    virtual void genSpillVar(GenTreePtr tree) = 0;
+    virtual void genSpillVar(GenTree* tree) = 0;
 #endif // !LEGACY_BACKEND
 
     //-------------------------------------------------------------------------
@@ -79,13 +79,13 @@ public:
 
     // TODO-Cleanup: Abstract out the part of this that finds the addressing mode, and
     // move it to Lower
-    virtual bool genCreateAddrMode(GenTreePtr  addr,
-                                   int         mode,
-                                   bool        fold,
-                                   regMaskTP   regMask,
-                                   bool*       revPtr,
-                                   GenTreePtr* rv1Ptr,
-                                   GenTreePtr* rv2Ptr,
+    virtual bool genCreateAddrMode(GenTree*  addr,
+                                   int       mode,
+                                   bool      fold,
+                                   regMaskTP regMask,
+                                   bool*     revPtr,
+                                   GenTree** rv1Ptr,
+                                   GenTree** rv2Ptr,
 #if SCALED_ADDR_MODES
                                    unsigned* mulPtr,
 #endif
@@ -126,9 +126,9 @@ public:
     //-------------------------------------------------------------------------
     // Liveness-related fields & methods
 public:
-    void genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTreePtr tree));
+    void genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bool isDying DEBUGARG(GenTree* tree));
 #ifndef LEGACY_BACKEND
-    void genUpdateVarReg(LclVarDsc* varDsc, GenTreePtr tree);
+    void genUpdateVarReg(LclVarDsc* varDsc, GenTree* tree);
 #endif // !LEGACY_BACKEND
 
 protected:
@@ -141,13 +141,13 @@ protected:
     regMaskTP genLastLiveMask; // these two are used in genLiveMask
 
     regMaskTP genGetRegMask(const LclVarDsc* varDsc);
-    regMaskTP genGetRegMask(GenTreePtr tree);
+    regMaskTP genGetRegMask(GenTree* tree);
 
-    void genUpdateLife(GenTreePtr tree);
+    void genUpdateLife(GenTree* tree);
     void genUpdateLife(VARSET_VALARG_TP newLife);
 
 #ifdef LEGACY_BACKEND
-    regMaskTP genLiveMask(GenTreePtr tree);
+    regMaskTP genLiveMask(GenTree* tree);
     regMaskTP genLiveMask(VARSET_VALARG_TP liveSet);
 #endif
 
@@ -225,10 +225,21 @@ public:
     {
         return m_cgFramePointerRequired;
     }
+
     void setFramePointerRequired(bool value)
     {
         m_cgFramePointerRequired = value;
     }
+
+    //------------------------------------------------------------------------
+    // resetWritePhaseForFramePointerRequired: Return m_cgFramePointerRequired into the write phase.
+    // It is used only before the first phase, that locks this value, currently it is LSRA.
+    // Use it if you want to skip checks that set this value to true if the value is already true.
+    void resetWritePhaseForFramePointerRequired()
+    {
+        m_cgFramePointerRequired.ResetWritePhase();
+    }
+
     void setFramePointerRequiredEH(bool value);
 
     void setFramePointerRequiredGCInfo(bool value)
@@ -317,23 +328,23 @@ public:
 #endif // FEATURE_STACK_FP_X87
 
 #ifndef LEGACY_BACKEND
-    regNumber genGetAssignedReg(GenTreePtr tree);
+    regNumber genGetAssignedReg(GenTree* tree);
 #endif // !LEGACY_BACKEND
 
 #ifdef LEGACY_BACKEND
     // Changes GT_LCL_VAR nodes to GT_REG_VAR nodes if possible.
-    bool genMarkLclVar(GenTreePtr tree);
+    bool genMarkLclVar(GenTree* tree);
 
-    void genBashLclVar(GenTreePtr tree, unsigned varNum, LclVarDsc* varDsc);
+    void genBashLclVar(GenTree* tree, unsigned varNum, LclVarDsc* varDsc);
 #endif // LEGACY_BACKEND
 
 public:
-    unsigned InferStructOpSizeAlign(GenTreePtr op, unsigned* alignmentWB);
-    unsigned InferOpSizeAlign(GenTreePtr op, unsigned* alignmentWB);
+    unsigned InferStructOpSizeAlign(GenTree* op, unsigned* alignmentWB);
+    unsigned InferOpSizeAlign(GenTree* op, unsigned* alignmentWB);
 
-    void genMarkTreeInReg(GenTreePtr tree, regNumber reg);
+    void genMarkTreeInReg(GenTree* tree, regNumber reg);
 #if CPU_LONG_USES_REGPAIR
-    void genMarkTreeInRegPair(GenTreePtr tree, regPairNo regPair);
+    void genMarkTreeInRegPair(GenTree* tree, regPairNo regPair);
 #endif
     // Methods to abstract target information
 
@@ -408,8 +419,23 @@ public:
         m_cgInterruptible = value;
     }
 
+#ifdef _TARGET_ARMARCH_
+    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
+    bool getHasTailCalls()
+    {
+        return m_cgHasTailCalls;
+    }
+    void setHasTailCalls(bool value)
+    {
+        m_cgHasTailCalls = value;
+    }
+#endif // _TARGET_ARMARCH_
+
 private:
     bool m_cgInterruptible;
+#ifdef _TARGET_ARMARCH_
+    bool m_cgHasTailCalls;
+#endif // _TARGET_ARMARCH_
 
     //  The following will be set to true if we've determined that we need to
     //  generate a full-blown pointer register map for the current method.

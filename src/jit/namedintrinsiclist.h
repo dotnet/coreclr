@@ -14,16 +14,24 @@ enum NamedIntrinsic : unsigned int
     NI_MathF_Round                                             = 2,
     NI_Math_Round                                              = 3,
     NI_System_Collections_Generic_EqualityComparer_get_Default = 4,
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
     NI_HW_INTRINSIC_START,
+#if defined(_TARGET_XARCH_)
 #define HARDWARE_INTRINSIC(id, name, isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag) \
     NI_##id,
 #include "hwintrinsiclistxarch.h"
-    NI_HW_INTRINSIC_END
-#endif
+#elif defined(_TARGET_ARM64_)
+    NI_ARM64_IsSupported_False,
+    NI_ARM64_IsSupported_True,
+    NI_ARM64_PlatformNotSupported,
+#define HARDWARE_INTRINSIC(id, isa, name, form, ins0, ins1, ins2, flags) id,
+#include "hwintrinsiclistArm64.h"
+#endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
+    NI_HW_INTRINSIC_END,
+#endif // FEATURE_HW_INTRINSICS
 };
 
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
 enum HWIntrinsicFlag : unsigned int
 {
     HW_Flag_NoFlag = 0,
@@ -33,15 +41,15 @@ enum HWIntrinsicFlag : unsigned int
     HW_Flag_Commutative = 0x1,
 
     // Full range IMM intrinsic
-    // - the immediate value is vaild on the full range of imm8 (0-255)
+    // - the immediate value is valid on the full range of imm8 (0-255)
     HW_Flag_FullRangeIMM = 0x2,
 
     // Generic
     // - must throw NotSupportException if the type argument is not numeric type
-    HW_Flag_Generic = 0x4,
+    HW_Flag_OneTypeGeneric = 0x4,
     // Two-type Generic
     // - the intrinsic has two type parameters
-    HW_Flag_TwoTypeGeneric = 0xC,
+    HW_Flag_TwoTypeGeneric = 0x8,
 
     // NoCodeGen
     // - should be transformed in the compiler front-end, cannot reach CodeGen
@@ -66,6 +74,42 @@ enum HWIntrinsicFlag : unsigned int
     // Copy Upper bits
     // some SIMD scalar intrinsics need the semantics of copying upper bits from the source operand
     HW_Flag_CopyUpperBits = 0x200,
+
+    // Select base type using the first argument type
+    HW_Flag_BaseTypeFromFirstArg = 0x400,
+
+    // Indicates compFloatingPointUsed does not need to be set.
+    HW_Flag_NoFloatingPointUsed = 0x800,
+
+    // Maybe IMM
+    // the intrinsic has either imm or Vector overloads
+    HW_Flag_MaybeIMM = 0x1000,
+
+    // NoJmpTable IMM
+    // the imm intrinsic does not need jumptable fallback when it gets non-const argument
+    HW_Flag_NoJmpTableIMM = 0x2000,
+
+    // 64-bit intrinsics
+    // Intrinsics that operate over 64-bit general purpose registers are not supported on 32-bit platform
+    HW_Flag_64BitOnly           = 0x4000,
+    HW_Flag_SecondArgMaybe64Bit = 0x8000,
+
+    // Select base type using the second argument type
+    HW_Flag_BaseTypeFromSecondArg = 0x10000,
+
+    // Special codegen
+    // the intrinsics need special rules in CodeGen,
+    // but may be table-driven in the front-end
+    HW_Flag_SpecialCodeGen = 0x20000,
+
+    // No Read/Modify/Write Semantics
+    // the intrinsic doesn't have read/modify/write semantics in two/three-operand form.
+    HW_Flag_NoRMWSemantics = 0x40000,
+
+    // Special import
+    // the intrinsics need special rules in importer,
+    // but may be table-driven in the back-end
+    HW_Flag_SpecialImport = 0x80000,
 };
 
 inline HWIntrinsicFlag operator|(HWIntrinsicFlag c1, HWIntrinsicFlag c2)

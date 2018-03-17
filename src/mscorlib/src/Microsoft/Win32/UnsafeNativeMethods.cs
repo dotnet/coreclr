@@ -13,37 +13,6 @@ namespace Microsoft.Win32
 
     internal static class UnsafeNativeMethods
     {
-        [DllImport(Interop.Libraries.Kernel32, EntryPoint = "GetTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
-        internal static extern int GetTimeZoneInformation(out Win32Native.TimeZoneInformation lpTimeZoneInformation);
-
-        [DllImport(Interop.Libraries.Kernel32, EntryPoint = "GetDynamicTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
-        internal static extern int GetDynamicTimeZoneInformation(out Win32Native.DynamicTimeZoneInformation lpDynamicTimeZoneInformation);
-
-        // 
-        // BOOL GetFileMUIPath(
-        //   DWORD  dwFlags,
-        //   PCWSTR  pcwszFilePath,
-        //   PWSTR  pwszLanguage,
-        //   PULONG  pcchLanguage,
-        //   PWSTR  pwszFileMUIPath,
-        //   PULONG  pcchFileMUIPath,
-        //   PULONGLONG  pululEnumerator
-        // );
-        // 
-        [DllImport(Interop.Libraries.Kernel32, EntryPoint = "GetFileMUIPath", SetLastError = true, ExactSpelling = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetFileMUIPath(
-                                     int flags,
-                                     [MarshalAs(UnmanagedType.LPWStr)]
-                                     String filePath,
-                                     [MarshalAs(UnmanagedType.LPWStr)]
-                                     StringBuilder language,
-                                     ref int languageLength,
-                                     [Out, MarshalAs(UnmanagedType.LPWStr)]
-                                     StringBuilder fileMuiPath,
-                                     ref int fileMuiPathLength,
-                                     ref Int64 enumerator);
-
         internal static unsafe class ManifestEtw
         {
             //
@@ -108,7 +77,7 @@ namespace Microsoft.Win32
                     );
 
             [StructLayout(LayoutKind.Sequential)]
-            unsafe internal struct EVENT_FILTER_DESCRIPTOR
+            internal unsafe struct EVENT_FILTER_DESCRIPTOR
             {
                 public long Ptr;
                 public int Size;

@@ -874,15 +874,14 @@ VOID ETW::GCLog::ForceGC(LONGLONG l64ClientSequenceNumber)
 //---------------------------------------------------------------------------------------
 //
 // Helper to fire the GCStart event.  Figures out which version of GCStart to fire, and
-// includes the client sequence number, if available.  Also logs the generation range
-// events.
+// includes the client sequence number, if available.
 //
 // Arguments:
 //      pGcInfo - ETW_GC_INFO containing details from GC about this collection
 //
 
 // static
-VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
+VOID ETW::GCLog::FireGcStart(ETW_GC_INFO * pGcInfo)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -902,80 +901,7 @@ VOID ETW::GCLog::FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo)
         }
 
         FireEtwGCStart_V2(pGcInfo->GCStart.Count, pGcInfo->GCStart.Depth, pGcInfo->GCStart.Reason, pGcInfo->GCStart.Type, GetClrInstanceId(), l64ClientSequenceNumberToLog);
-
-        // Fire an event per range per generation
-        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
-        hp->DiagDescrGenerations(FireSingleGenerationRangeEvent, NULL /* context */);
     }
-}
-
-
-//---------------------------------------------------------------------------------------
-//
-// Helper to fire the GCEnd event and the generation range events.
-// 
-// Arguments:
-//      Count - (matching Count from corresponding GCStart event0
-//      Depth - (matching Depth from corresponding GCStart event0
-//
-//
-
-// static
-VOID ETW::GCLog::FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (ETW_TRACING_CATEGORY_ENABLED(
-        MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
-        TRACE_LEVEL_INFORMATION, 
-        CLR_GC_KEYWORD))
-    {
-        // Fire an event per range per generation
-        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
-        hp->DiagDescrGenerations(FireSingleGenerationRangeEvent, NULL /* context */);
-
-        // GCEnd
-        FireEtwGCEnd_V1(Count, Depth, GetClrInstanceId());
-    }
-}
- 
-//---------------------------------------------------------------------------------------
-//
-// Callback made by GC when we call GCHeapUtilities::DiagDescrGenerations().  This is
-// called once per range per generation, and results in a single ETW event per range per
-// generation.
-//
-// Arguments:
-//      context - unused
-//      generation - Generation number
-//      rangeStart - Where does this range start?
-//      rangeEnd - How large is the used portion of this range?
-//      rangeEndReserved - How large is the reserved portion of this range?
-//
-
-// static
-VOID ETW::GCLog::FireSingleGenerationRangeEvent(
-    void * /* context */,
-    int generation, 
-    BYTE * rangeStart, 
-    BYTE * rangeEnd,
-    BYTE * rangeEndReserved)
-{
-    CONTRACT_VOID
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY; // can be called even on GC threads        
-        PRECONDITION(0 <= generation && generation <= 3);
-        PRECONDITION(CheckPointer(rangeStart));
-        PRECONDITION(CheckPointer(rangeEnd));
-        PRECONDITION(CheckPointer(rangeEndReserved));
-    } 
-    CONTRACT_END;
-
-    FireEtwGCGenerationRange((BYTE) generation, rangeStart, rangeEnd - rangeStart, rangeEndReserved - rangeStart, GetClrInstanceId());
-
-    RETURN;
 }
 
 //---------------------------------------------------------------------------------------
@@ -4313,6 +4239,110 @@ void InitializeEventTracing()
     ETW::TypeSystemLog::PostRegistrationInit();
 }
 
+// Plumbing to funnel event pipe callbacks and ETW callbacks together into a single common
+// handler, for the purposes of informing the GC of changes to the event state.
+//
+// There is one callback for every EventPipe provider and one for all of ETW. The reason
+// for this is that ETW passes the registration handle of the provider that was enabled
+// as a field on the "CallbackContext" field of the callback, while EventPipe passes null
+// unless another token is given to it when the provider is constructed. In the absence of
+// a suitable token, this implementation has a different callback for every EventPipe provider
+// that ultimately funnels them all into a common handler.
+
+// CallbackProviderIndex provides a quick identification of which provider triggered the
+// ETW callback.
+enum CallbackProviderIndex
+{
+    DotNETRuntime = 0,
+    DotNETRuntimeRundown = 1,
+    DotNETRuntimeStress = 2,
+    DotNETRuntimePrivate = 3
+};
+
+// Common handler for all ETW or EventPipe event notifications. Based on the provider that
+// was enabled/disabled, this implementation forwards the event state change onto GCHeapUtilities
+// which will inform the GC to update its local state about what events are enabled.
+VOID EtwCallbackCommon(
+    CallbackProviderIndex ProviderIndex,
+    ULONG ControlCode,
+    UCHAR Level,
+    ULONGLONG MatchAnyKeyword)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    bool bIsPublicTraceHandle = ProviderIndex == DotNETRuntime;
+#if !defined(FEATURE_PAL)
+    static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
+    static_assert(GCEventLevel_Fatal == TRACE_LEVEL_FATAL, "GCEventLevel_Fatal value mismatch");
+    static_assert(GCEventLevel_Error == TRACE_LEVEL_ERROR, "GCEventLevel_Error value mismatch");
+    static_assert(GCEventLevel_Warning == TRACE_LEVEL_WARNING, "GCEventLevel_Warning mismatch");
+    static_assert(GCEventLevel_Information == TRACE_LEVEL_INFORMATION, "GCEventLevel_Information mismatch");
+    static_assert(GCEventLevel_Verbose == TRACE_LEVEL_VERBOSE, "GCEventLevel_Verbose mismatch");
+#endif // !defined(FEATURE_PAL)
+    GCEventKeyword keywords = static_cast<GCEventKeyword>(MatchAnyKeyword);
+    GCEventLevel level = static_cast<GCEventLevel>(Level);
+    GCHeapUtilities::RecordEventStateChange(bIsPublicTraceHandle, keywords, level);
+}
+
+// Individual callbacks for each EventPipe provider.
+
+VOID EventPipeEtwCallbackDotNETRuntimeStress(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword);
+}
+
+VOID EventPipeEtwCallbackDotNETRuntime(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword);
+}
+
+VOID EventPipeEtwCallbackDotNETRuntimeRundown(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword);
+}
+
+VOID EventPipeEtwCallbackDotNETRuntimePrivate(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext)
+{
+    WRAPPER_NO_CONTRACT;
+
+    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword);
+}
+
+
 #if !defined(FEATURE_PAL)
 HRESULT ETW::CEtwTracer::Register()
 {
@@ -4397,7 +4427,6 @@ extern "C"
 
 extern "C"
 {
-
     // #EtwCallback:
     // During the build, MC generates the code to register our provider, and to register
     // our ETW callback. (This is buried under Intermediates, in a path like
@@ -4446,12 +4475,30 @@ extern "C"
 
         BOOLEAN bIsRundownTraceHandle = (context->RegistrationHandle==Microsoft_Windows_DotNETRuntimeRundownHandle);
 
-		// TypeSystemLog needs a notification when certain keywords are modified, so
-		// give it a hook here.
-		if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
-		{
-			ETW::TypeSystemLog::OnKeywordsChanged();
-		}
+        // EventPipeEtwCallback contains some GC eventing functionality shared between EventPipe and ETW.
+        // Eventually, we'll want to merge these two codepaths whenever we can.
+        CallbackProviderIndex providerIndex = DotNETRuntime;
+        if (context->RegistrationHandle == Microsoft_Windows_DotNETRuntimeHandle) {
+            providerIndex = DotNETRuntime;
+        } else if (context->RegistrationHandle == Microsoft_Windows_DotNETRuntimeRundownHandle) {
+            providerIndex = DotNETRuntimeRundown;
+        } else if (context->RegistrationHandle == Microsoft_Windows_DotNETRuntimeStressHandle) {
+            providerIndex = DotNETRuntimeStress;
+        } else if (context->RegistrationHandle == Microsoft_Windows_DotNETRuntimePrivateHandle) {
+            providerIndex = DotNETRuntimePrivate;
+        } else {
+            assert(!"unknown registration handle");
+            return;
+        }
+
+        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword);
+
+        // TypeSystemLog needs a notification when certain keywords are modified, so
+        // give it a hook here.
+        if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle)
+        {
+            ETW::TypeSystemLog::OnKeywordsChanged();
+        }
 
         // A manifest based provider can be enabled to multiple event tracing sessions
         // As long as there is atleast 1 enabled session, IsEnabled will be TRUE
@@ -5230,7 +5277,7 @@ HRESULT ETW::CodeSymbolLog::ReadInMemorySymbols(
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
-VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID)
+VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         NOTHROW;
@@ -5243,7 +5290,7 @@ VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrC
                                         TRACE_LEVEL_INFORMATION, 
                                         CLR_JIT_KEYWORD))
         {
-            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pCode, rejitID);
+            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pCode, rejitID, bProfilerRejectedPrecompiledCode, bReadyToRunRejectedPrecompiledCode); 
         }
 
         if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
@@ -5756,6 +5803,7 @@ VOID ETW::LoaderLog::SendAssemblyEvent(Assembly *pAssembly, DWORD dwEventOptions
     BOOL bIsCollectibleAssembly = pAssembly->IsCollectible();
     BOOL bIsDomainNeutral = pAssembly->IsDomainNeutral() ;
     BOOL bHasNativeImage = pAssembly->GetManifestFile()->HasNativeImage();
+    BOOL bIsReadyToRun = pAssembly->GetManifestFile()->IsILImageReadyToRun();
 
     ULONGLONG ullAssemblyId = (ULONGLONG)pAssembly;
     ULONGLONG ullDomainId = (ULONGLONG)pAssembly->GetDomain();
@@ -5763,7 +5811,8 @@ VOID ETW::LoaderLog::SendAssemblyEvent(Assembly *pAssembly, DWORD dwEventOptions
     ULONG ulAssemblyFlags = ((bIsDomainNeutral ? ETW::LoaderLog::LoaderStructs::DomainNeutralAssembly : 0) |
                              (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicAssembly : 0) |
                              (bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeAssembly : 0) |
-                             (bIsCollectibleAssembly ? ETW::LoaderLog::LoaderStructs::CollectibleAssembly : 0));
+                             (bIsCollectibleAssembly ? ETW::LoaderLog::LoaderStructs::CollectibleAssembly : 0) |
+                             (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunAssembly : 0));
 
     SString sAssemblyPath;
     pAssembly->GetDisplayName(sAssemblyPath);
@@ -6080,12 +6129,14 @@ VOID ETW::LoaderLog::SendModuleEvent(Module *pModule, DWORD dwEventOptions, BOOL
     {
         bIsIbcOptimized = pModule->IsIbcOptimized();
     }
+    BOOL bIsReadyToRun = pModule->IsReadyToRun();
     ULONG ulReservedFlags = 0;
     ULONG ulFlags = ((bIsDomainNeutral ? ETW::LoaderLog::LoaderStructs::DomainNeutralModule : 0) |
                      (bHasNativeImage ? ETW::LoaderLog::LoaderStructs::NativeModule : 0) |
                      (bIsDynamicAssembly ? ETW::LoaderLog::LoaderStructs::DynamicModule : 0) |
                      (bIsManifestModule ? ETW::LoaderLog::LoaderStructs::ManifestModule : 0) |
-                     (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0));
+                     (bIsIbcOptimized ? ETW::LoaderLog::LoaderStructs::IbcOptimized : 0) |
+                     (bIsReadyToRun ? ETW::LoaderLog::LoaderStructs::ReadyToRunModule : 0));
 
     // Grab PDB path, guid, and age for managed PDB and native (NGEN) PDB when
     // available.  Any failures are not fatal.  The corresponding PDB info will remain
@@ -6271,7 +6322,7 @@ VOID ETW::MethodLog::SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *n
 /****************************************************************************/
 /* This routine is used to send a method load/unload or rundown event                              */
 /****************************************************************************/
-VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID)
+VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         THROWS;
@@ -6345,7 +6396,9 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
         (bHasSharedGenericCode ? ETW::MethodLog::MethodStructs::SharedGenericCode : 0) |
         (bIsGenericMethod ? ETW::MethodLog::MethodStructs::GenericMethod : 0) |
         (bIsDynamicMethod ? ETW::MethodLog::MethodStructs::DynamicMethod : 0) |
-        (bIsJit ? ETW::MethodLog::MethodStructs::JittedMethod : 0)));
+        (bIsJit ? ETW::MethodLog::MethodStructs::JittedMethod : 0) |
+        (bProfilerRejectedPrecompiledCode ? ETW::MethodLog::MethodStructs::ProfilerRejectedPrecompiledCode : 0) |
+        (bReadyToRunRejectedPrecompiledCode ? ETW::MethodLog::MethodStructs::ReadyToRunRejectedPrecompiledCode : 0)));
 
     // Intentionally set the extent flags (cold vs. hot) only after all the other common
     // flags (above) have been set.

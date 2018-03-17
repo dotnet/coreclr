@@ -66,6 +66,15 @@ namespace System.Diagnostics.Tracing
                     return 0;
                 }
 
+                // If Channel == 11, this is a TraceLogging event.
+                // The first 3 descriptors contain event metadata that is emitted for ETW and should be discarded on EventPipe.
+                // EventPipe metadata is provided via the EventPipeEventProvider.DefineEventHandle.
+                if (eventDescriptor.Channel == 11)
+                {
+                    userData = userData + 3;
+                    userDataCount = userDataCount - 3;
+                    Debug.Assert(userDataCount >= 0);
+                }
                 EventPipeInternal.WriteEventData(eventHandle, eventID, &userData, (uint) userDataCount, activityId, relatedActivityId);
             }
             return 0;
@@ -74,7 +83,7 @@ namespace System.Diagnostics.Tracing
         // Get or set the per-thread activity ID.
         int IEventProvider.EventActivityIdControl(UnsafeNativeMethods.ManifestEtw.ActivityControl ControlCode, ref Guid ActivityId)
         {
-            return 0;
+            return EventPipeInternal.EventActivityIdControl((uint)ControlCode, ref ActivityId);
         }
 
         // Define an EventPipeEvent handle.
@@ -82,18 +91,6 @@ namespace System.Diagnostics.Tracing
         {
             IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
             return eventHandlePtr;
-        }
-
-        // Copy src to buffer and modify the offset.
-        // Note: We know the buffer size ahead of time to make sure no buffer overflow.
-        private static unsafe void WriteToBuffer(byte *buffer, uint bufferLength, ref uint offset, byte *src, uint srcLength)
-        {
-            Debug.Assert(bufferLength >= (offset + srcLength));
-            for (int i = 0; i < srcLength; i++)
-            {
-                *(byte *)(buffer + offset + i) = *(byte *)(src + i);
-            }
-            offset += srcLength;
         }
     }
 }

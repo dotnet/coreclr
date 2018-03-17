@@ -55,8 +55,6 @@ namespace System.Reflection.Emit
         // class initialization (ctor and init)
         //
 
-        private DynamicMethod() { }
-
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes)
@@ -212,9 +210,9 @@ namespace System.Reflection.Emit
 
         // helpers for intialization
 
-        static private void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention)
+        private static void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention)
         {
-            // only static public for method attributes
+            // only public static for method attributes
             if ((attributes & ~MethodAttributes.MemberAccessMask) != MethodAttributes.Static)
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
             if ((attributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
@@ -286,7 +284,7 @@ namespace System.Reflection.Emit
                     if (signature[i] == null)
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                     m_parameterTypes[i] = signature[i].UnderlyingSystemType as RuntimeType;
-                    if (m_parameterTypes[i] == null || m_parameterTypes[i] == (RuntimeType)typeof(void))
+                    if (m_parameterTypes[i] == null || m_parameterTypes[i] == typeof(void))
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                 }
             }
@@ -582,11 +580,6 @@ namespace System.Reflection.Emit
             private String m_name;
             private MethodAttributes m_attributes;
             private CallingConventions m_callingConvention;
-
-            //
-            // ctors
-            //
-            private RTDynamicMethod() { }
 
             internal RTDynamicMethod(DynamicMethod owner, String name, MethodAttributes attributes, CallingConventions callingConvention)
             {

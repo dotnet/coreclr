@@ -4,13 +4,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories("./jitstd")
 include_directories("../inc")
 
-if (CLR_CMAKE_TARGET_ARCH_AMD64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
+if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
   add_definitions(-DFEATURE_SIMD)
   add_definitions(-DFEATURE_HW_INTRINSICS)
-endif ()
-
-if (CLR_CMAKE_TARGET_ARCH_ARM64)
-  add_definitions(-DFEATURE_SIMD)
 endif ()
 
 # JIT_BUILD disables certain PAL_TRY debugging features
@@ -42,6 +38,7 @@ set( JIT_SOURCES
   gentree.cpp
   gschecks.cpp
   hashbv.cpp
+  hwintrinsic.cpp
   hostallocator.cpp
   importer.cpp
   inline.cpp
@@ -56,6 +53,7 @@ set( JIT_SOURCES
   loopcloning.cpp
   lower.cpp
   lsra.cpp
+  lsrabuild.cpp
   morph.cpp
   objectalloc.cpp
   optcse.cpp
@@ -77,6 +75,7 @@ set( JIT_SOURCES
   unwind.cpp
   utils.cpp
   valuenum.cpp
+  stacklevelsetter.cpp
 )
 
 # Add header files to Visual Studio vcxproj, not required for unixes
@@ -265,6 +264,7 @@ set( JIT_ARM64_SOURCES
   targetarm64.cpp
   unwindarm.cpp
   unwindarm64.cpp
+  hwintrinsicArm64.cpp
 )
 
 if(CLR_CMAKE_TARGET_ARCH_AMD64)

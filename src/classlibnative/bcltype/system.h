@@ -39,7 +39,6 @@ private:
 public:
     // Functions on the System.Environment class
     static FCDECL0(INT64, __GetSystemTimeAsFileTime);
-    static FCDECL0(UINT32, GetCurrentProcessorNumber);
     static FCDECL0(UINT32, GetTickCount);
 
     static
@@ -55,6 +54,7 @@ public:
     static FCDECL1(VOID, FailFast, StringObject* refMessageUNSAFE);
     static FCDECL2(VOID, FailFastWithExitCode, StringObject* refMessageUNSAFE, UINT exitCode);
     static FCDECL2(VOID, FailFastWithException, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE);
+    static FCDECL3(VOID, FailFastWithExceptionAndSource, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE, StringObject* errorSourceUNSAFE);
 
     static FCDECL0(StringObject*, _GetModuleFileName);
     static FCDECL0(StringObject*, GetRuntimeDirectory);
@@ -75,7 +75,7 @@ public:
 
 private:
     // Common processing code for FailFast
-    static void GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode);
+    static void GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF errorSource);
 };
 
 /* static */

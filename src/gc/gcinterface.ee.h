@@ -5,6 +5,159 @@
 #ifndef _GCINTERFACE_EE_H_
 #define _GCINTERFACE_EE_H_
 
+enum EtwGCRootFlags
+{
+    kEtwGCRootFlagsPinning =            0x1,
+    kEtwGCRootFlagsWeakRef =            0x2,
+    kEtwGCRootFlagsInterior =           0x4,
+    kEtwGCRootFlagsRefCounted =         0x8,
+};
+
+enum EtwGCRootKind
+{
+    kEtwGCRootKindStack =               0,
+    kEtwGCRootKindFinalizer =           1,
+    kEtwGCRootKindHandle =              2,
+    kEtwGCRootKindOther =               3,
+};
+
+// This interface provides functions that the GC can use to fire events.
+// Events fired on this interface are split into two categories: "known"
+// events and "dynamic" events. Known events are events that are baked-in
+// to the hosting runtime's event manifest and are part of the GC/EE interface.
+// There is one callback on IGCToCLREventSink for each known event.
+//
+// Dynamic events are constructed at runtime by the GC and are not known
+// to the EE. ([LOCALGC TODO dynamic event implementation])
+class IGCToCLREventSink
+{
+public:
+    // Fires a dynamic event with the given event name and payload. Dynamic
+    // events are not known to the EE and are fired as an unschematized event
+    // to the underlying eventing implementation.
+    virtual
+    void FireDynamicEvent(
+        const char* eventName,
+        void* payload,
+        uint32_t payloadSize) = 0;
+    virtual
+    void FireGCStart_V2(uint32_t count, uint32_t depth, uint32_t reason, uint32_t type) = 0;
+
+    virtual
+    void FireGCEnd_V1(uint32_t count, uint32_t depth) = 0;
+
+    virtual
+    void FireGCGenerationRange(uint8_t generation, void* rangeStart, uint64_t rangeUsedLength, uint64_t rangeReservedLength) = 0;
+
+    virtual
+    void FireGCHeapStats_V1(
+        uint64_t generationSize0,
+        uint64_t totalPromotedSize0,
+        uint64_t generationSize1,
+        uint64_t totalPromotedSize1,
+        uint64_t generationSize2,
+        uint64_t totalPromotedSize2,
+        uint64_t generationSize3,
+        uint64_t totalPromotedSize3,
+        uint64_t finalizationPromotedSize,
+        uint64_t finalizationPromotedCount,
+        uint32_t pinnedObjectCount,
+        uint32_t sinkBlockCount,
+        uint32_t gcHandleCount) = 0;
+
+    virtual
+    void FireGCCreateSegment_V1(void* address, size_t size, uint32_t type) = 0;
+
+    virtual
+    void FireGCFreeSegment_V1(void* address) = 0;
+
+    virtual
+    void FireGCCreateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTerminateConcurrentThread_V1() = 0;
+
+    virtual
+    void FireGCTriggered(uint32_t reason) = 0;
+
+    virtual
+    void FireGCMarkWithType(uint32_t heapNum, uint32_t type, uint64_t bytes) = 0;
+
+    virtual
+    void FireGCJoin_V2(uint32_t heap, uint32_t joinTime, uint32_t joinType, uint32_t joinId) = 0;
+
+    virtual
+    void FireGCGlobalHeapHistory_V2(uint64_t finalYoungestDesired,
+        int32_t numHeaps,
+        uint32_t condemnedGeneration,
+        uint32_t gen0reductionCount,
+        uint32_t reason,
+        uint32_t globalMechanisms,
+        uint32_t pauseMode,
+        uint32_t memoryPressure) = 0;
+
+    virtual
+    void FireGCAllocationTick_V1(uint32_t allocationAmount, uint32_t allocationKind) = 0;
+
+    virtual
+    void FireGCAllocationTick_V3(uint64_t allocationAmount, uint32_t allocationKind, uint32_t heapIndex, void* objectAddress) = 0;
+
+    virtual
+    void FirePinObjectAtGCTime(void* object, uint8_t** ppObject) = 0;
+
+    virtual
+    void FireGCPerHeapHistory_V3(void *freeListAllocated,
+                                 void *freeListRejected,
+                                 void *endOfSegAllocated,
+                                 void *condemnedAllocated,
+                                 void *pinnedAllocated,
+                                 void *pinnedAllocatedAdvance,
+                                 uint32_t runningFreeListEfficiency,
+                                 uint32_t condemnReasons0,
+                                 uint32_t condemnReasons1,
+                                 uint32_t compactMechanisms,
+                                 uint32_t expandMechanisms,
+                                 uint32_t heapIndex,
+                                 void *extraGen0Commit,
+                                 uint32_t count,
+                                 uint32_t valuesLen,
+                                 void *values) = 0;
+    virtual
+    void FireBGCBegin() = 0;
+    virtual
+    void FireBGC1stNonConEnd() = 0;
+    virtual
+    void FireBGC1stConEnd() = 0;
+    virtual
+    void FireBGC2ndNonConBegin() = 0;
+    virtual
+    void FireBGC2ndNonConEnd() = 0;
+    virtual
+    void FireBGC2ndConBegin() = 0;
+    virtual
+    void FireBGC2ndConEnd() = 0;
+    virtual
+    void FireBGCDrainMark(uint64_t objects) = 0;
+    virtual
+    void FireBGCRevisit(uint64_t pages, uint64_t objects, uint32_t isLarge) = 0;
+    virtual
+    void FireBGCOverflow(uint64_t min, uint64_t max, uint64_t objects, uint32_t isLarge) = 0;
+    virtual
+    void FireBGCAllocWaitBegin(uint32_t reason) = 0;
+    virtual
+    void FireBGCAllocWaitEnd(uint32_t reason) = 0;
+    virtual
+    void FireGCFullNotify_V1(uint32_t genNumber, uint32_t isAlloc) = 0;
+    virtual
+    void FireSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID) = 0;
+    virtual
+    void FirePrvSetGCHandle(void *handleID, void *objectID, uint32_t kind, uint32_t generation, uint64_t appDomainID) = 0;
+    virtual
+    void FireDestroyGCHandle(void *handleID) = 0;
+    virtual
+    void FirePrvDestroyGCHandle(void *handleID) = 0;
+};
+
 // This interface provides the interface that the GC will use to speak to the rest
 // of the execution engine. Everything that the GC does that requires the EE
 // to be informed or that requires EE action must go through this interface.
@@ -65,17 +218,22 @@ public:
     virtual
     void SyncBlockCachePromotionsGranted(int max_gen) = 0;
 
-    // Queries whether or not the given thread has preemptive GC disabled.
     virtual
-    bool IsPreemptiveGCDisabled(Thread * pThread) = 0;
+    uint32_t GetActiveSyncBlockCount() = 0;
 
-    // Enables preemptive GC on the given thread.
+    // Queries whether or not the current thread has preemptive GC disabled.
     virtual
-    void EnablePreemptiveGC(Thread * pThread) = 0;
+    bool IsPreemptiveGCDisabled() = 0;
 
-    // Disables preemptive GC on the given thread.
+    // Enables preemptive GC on the current thread. Returns true if the thread mode 
+    // was changed and false if the thread mode wasn't changed or the thread is not
+    // a managed thread. 
     virtual
-    void DisablePreemptiveGC(Thread * pThread) = 0;
+    bool EnablePreemptiveGC() = 0;
+
+    // Disables preemptive GC on the current thread.
+    virtual
+    void DisablePreemptiveGC() = 0;
 
     // Gets the Thread instance for the current thread, or null if no thread
     // instance is associated with this thread.
@@ -85,17 +243,9 @@ public:
     virtual
     Thread* GetThread() = 0;
 
-    // Returns whether or not a thread suspension is pending.
+    // Retrieves the alloc context associated with the current thread.
     virtual
-    bool TrapReturningThreads() = 0;
-
-    // Retrieves the alloc context associated with a given thread.
-    virtual
-    gc_alloc_context * GetAllocContext(Thread * pThread) = 0;
-
-    // Returns true if this thread is waiting to reach a safe point.
-    virtual
-    bool CatchAtSafePoint(Thread * pThread) = 0;
+    gc_alloc_context * GetAllocContext() = 0;
 
     // Calls the given enum_alloc_context_func with every active alloc context.
     virtual
@@ -251,6 +401,10 @@ public:
     // This function is a no-op if "object" is not an OverlappedData object.
     virtual
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*)) = 0;
+
+    // Returns an IGCToCLREventSink instance that can be used to fire events.
+    virtual
+    IGCToCLREventSink* EventSink() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
