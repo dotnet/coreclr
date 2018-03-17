@@ -273,7 +273,12 @@ namespace System.Diagnostics.Tracing
                 //     TypeCode : 4 bytes
                 //     PropertyName : NULL-terminated string
                 TypeCode typeCode = GetTypeCodeExtended(property.typeInfo.DataType);
-                Debug.Assert(typeCode != TypeCode.Object);
+
+                // EventPipe does not support this type.  Throw, which will cause no metadata to be registered for this event.
+                if(typeCode == TypeCode.Object)
+                {
+                    throw new NotSupportedException();
+                }
 
                 // Write the type code.
                 EventPipeMetadataGenerator.WriteToBuffer(pMetadataBlob, blobSize, ref offset, (uint)typeCode);
