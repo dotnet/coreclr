@@ -40,8 +40,6 @@
 //  Constant Declarations.
 //
 
-#define MAX_STRING_VALUE        512
-
 // TODO: NLS Arrowhead -Be nice if we could depend more on the OS for this
 // Language ID for CHT (Taiwan)
 #define LANGID_ZH_TW            0x0404
@@ -81,66 +79,6 @@ INT32 COMNlsInfo::CallGetUserDefaultUILanguage()
     }
 
     return s_lcid;
-}
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  InternalGetGlobalizedHashCode
-//
-////////////////////////////////////////////////////////////////////////////
-INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, LPCWSTR localeName, LPCWSTR string, INT32 length, INT32 dwFlagsIn)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(localeName));
-        PRECONDITION(CheckPointer(string, NULL_OK));
-    } CONTRACTL_END;
-
-    INT32  iReturnHash  = 0;
-    BEGIN_QCALL;
-
-    int byteCount = 0;
-
-    //
-    //  Make sure there is a string.
-    //
-    if (!string) {
-        COMPlusThrowArgumentNull(W("string"),W("ArgumentNull_String"));
-    }
-
-    DWORD dwFlags = (LCMAP_SORTKEY | dwFlagsIn);
-
-    //
-    // Caller has already verified that the string is not of zero length
-    //
-    // Assert if we might hit an AV in LCMapStringEx for the invariant culture.
-    _ASSERTE(length > 0 || (dwFlags & LCMAP_LINGUISTIC_CASING) == 0);
-    {
-        byteCount=NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, NULL, 0, NULL, NULL, (LPARAM) handle);
-    }
-
-    //A count of 0 indicates that we either had an error or had a zero length string originally.
-    if (byteCount==0)
-    {
-        COMPlusThrow(kArgumentException, W("Arg_MustBeString"));
-    }
-
-    // We used to use a NewArrayHolder here, but it turns out that hurts our large # process
-    // scalability in ASP.Net hosting scenarios, using the quick bytes instead mostly stack
-    // allocates and ups throughput by 8% in 100 process case, 5% in 1000 process case
-    {
-        CQuickBytesSpecifySize<MAX_STRING_VALUE * sizeof(WCHAR)> qbBuffer;
-        BYTE* pByte = (BYTE*)qbBuffer.AllocThrows(byteCount);
-
-        {
-            NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, (LPWSTR)pByte, byteCount, NULL,NULL, (LPARAM) handle);
-        }
-
-        iReturnHash = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pByte, byteCount);
-    }
-    END_QCALL;
-    return(iReturnHash);
 }
 
 /**
