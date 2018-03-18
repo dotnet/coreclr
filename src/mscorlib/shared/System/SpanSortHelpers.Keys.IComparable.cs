@@ -27,7 +27,7 @@ namespace System
             ref TKey keys, int length)
             where TKey : IComparable<TKey>
         {
-            var depthLimit = 2 * FloorLog2PlusOne(length);
+            int depthLimit = 2 * FloorLog2PlusOne(length);
             IntroSort(ref keys, 0, length - 1, depthLimit);
         }
 
@@ -57,7 +57,6 @@ namespace System
                         ref TKey loRef = ref Unsafe.Add(ref keys, lo);
                         ref TKey miRef = ref Unsafe.Add(ref keys, hi - 1);
                         ref TKey hiRef = ref Unsafe.Add(ref keys, hi);
-                        //ref TKey miRef = ref Unsafe.SubtractByteOffset(ref hiRef, new IntPtr(Unsafe.SizeOf<TKey>()));
                         Sort3(ref loRef, ref miRef, ref hiRef);
                         return;
                     }
@@ -74,6 +73,8 @@ namespace System
                 depthLimit--;
 
                 // We should never reach here, unless > 3 elements due to partition size
+                Debug.Assert(partitionSize > 3);
+
                 int p = PickPivotAndPartition(ref keys, lo, hi);
                 // Note we've already partitioned around the pivot and do not have to move the pivot again.
                 IntroSort(ref keys, p + 1, hi, depthLimit);
@@ -115,8 +116,6 @@ namespace System
 
             while (left < right)
             {
-                // TODO: Would be good to be able to update local ref here
-
                 if (pivot == null)
                 {
                     while (left < (hi - 1) && Unsafe.Add(ref keys, ++left) == null) ;
@@ -176,11 +175,11 @@ namespace System
             
             Debug.Assert(lo >= 0);
 
-            //TKey d = keys[lo + i - 1];
+            // Below lines are equivalent to: TKey d = keys[lo + i - 1];
             ref TKey keysAtLo = ref Unsafe.Add(ref keys, lo);
-            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // No Subtract??
+            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // TODO: Use Subtract when available
             TKey d = Unsafe.Add(ref keysAtLoMinus1, i);
-            var nHalf = n / 2;
+            int nHalf = n / 2;
             while (i <= nHalf)
             {
                 int child = i << 1;
@@ -198,12 +197,12 @@ namespace System
                     Unsafe.Add(ref keysAtLoMinus1, child).CompareTo(d) < 0)
                     break;
 
-                // keys[lo + i - 1] = keys[lo + child - 1]
+                // Below lines are equivalent to: keys[lo + i - 1] = keys[lo + child - 1]
                 Unsafe.Add(ref keysAtLoMinus1, i) = Unsafe.Add(ref keysAtLoMinus1, child);
 
                 i = child;
             }
-            //keys[lo + i - 1] = d;
+            // Below lines are equivalent to: keys[lo + i - 1] = d;
             Unsafe.Add(ref keysAtLoMinus1, i) = d;
         }
 
@@ -218,9 +217,9 @@ namespace System
             for (int i = lo; i < hi; ++i)
             {
                 int j = i;
-                //t = keys[i + 1];
+
                 var t = Unsafe.Add(ref keys, j + 1);
-                // TODO: Would be good to be able to update local ref here
+
                 if (j >= lo && (t == null || t.CompareTo(Unsafe.Add(ref keys, j)) < 0))
                 {
                     do
@@ -229,7 +228,6 @@ namespace System
                         --j;
                     }
                     while (j >= lo && (t == null || t.CompareTo(Unsafe.Add(ref keys, j)) < 0));
-                    //while (j >= lo && (t == null || t.CompareTo(keys[j]) < 0))
 
                     Unsafe.Add(ref keys, j + 1) = t;
                 }
@@ -244,47 +242,7 @@ namespace System
             Sort2(ref r0, ref r1);
             Sort2(ref r0, ref r2);
             Sort2(ref r1, ref r2);
-
-            // Below works but does not give exactly the same result as Array.Sort
-            // i.e. order could be a bit different for keys that are equal
-            //if (r0 != null && r0.CompareTo(r1) <= 0) //r0 <= r1)
-            //{
-            //    if (r1 != null && r1.CompareTo(r2) <= 0) //(r1 <= r2)
-            //    {
-            //        return;
-            //    }
-            //    else if (r0.CompareTo(r2) < 0) //(r0 < r2)
-            //    {
-            //        Swap(ref r1, ref r2);
-            //    }
-            //    else
-            //    {
-            //        TKey tmp = r0;
-            //        r0 = r2;
-            //        r2 = r1;
-            //        r1 = tmp;
-            //    }
-            //}
-            //else
-            //{
-            //    if (r0 != null && r0.CompareTo(r2) < 0) //(r0 < r2)
-            //    {
-            //        Swap(ref r0, ref r1);
-            //    }
-            //    else if (r2 != null && r2.CompareTo(r1) < 0) //(r2 < r1)
-            //    {
-            //        Swap(ref r0, ref r2);
-            //    }
-            //    else
-            //    {
-            //        TKey tmp = r0;
-            //        r0 = r1;
-            //        r1 = r2;
-            //        r2 = tmp;
-            //    }
-            //}
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Sort2<TKey>(

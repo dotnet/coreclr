@@ -27,7 +27,7 @@ namespace System
             ref TKey keys, int length,
             Comparison<TKey> comparison)
         {
-            var depthLimit = 2 * FloorLog2PlusOne(length);
+            int depthLimit = 2 * FloorLog2PlusOne(length);
             IntroSort(ref keys, 0, length - 1, depthLimit, comparison);
         }
 
@@ -58,7 +58,6 @@ namespace System
                         ref TKey loRef = ref Unsafe.Add(ref keys, lo);
                         ref TKey miRef = ref Unsafe.Add(ref keys, hi - 1);
                         ref TKey hiRef = ref Unsafe.Add(ref keys, hi);
-                        //ref TKey miRef = ref Unsafe.SubtractByteOffset(ref hiRef, new IntPtr(Unsafe.SizeOf<TKey>()));
                         Sort3(ref loRef, ref miRef, ref hiRef, comparison);
                         return;
                     }
@@ -75,6 +74,8 @@ namespace System
                 depthLimit--;
 
                 // We should never reach here, unless > 3 elements due to partition size
+                Debug.Assert(partitionSize > 3);
+
                 int p = PickPivotAndPartition(ref keys, lo, hi, comparison);
                 // Note we've already partitioned around the pivot and do not have to move the pivot again.
                 IntroSort(ref keys, p + 1, hi, depthLimit, comparison);
@@ -116,8 +117,6 @@ namespace System
 
             while (left < right)
             {
-                // TODO: Would be good to be able to update local ref here
-
                 while (left < (hi - 1) && comparison(Unsafe.Add(ref keys, ++left), pivot) < 0) ;
                 // Check if bad comparable/comparison
                 if (left == (hi - 1) && comparison(Unsafe.Add(ref keys, left), pivot) < 0)
@@ -171,11 +170,11 @@ namespace System
             Debug.Assert(comparison != null);
             Debug.Assert(lo >= 0);
 
-            //TKey d = keys[lo + i - 1];
+            // Below lines are equivalent to: TKey d = keys[lo + i - 1];
             ref TKey keysAtLo = ref Unsafe.Add(ref keys, lo);
-            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // No Subtract??
+            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // TODO: Use Subtract when available
             TKey d = Unsafe.Add(ref keysAtLoMinus1, i);
-            var nHalf = n / 2;
+            int nHalf = n / 2;
             while (i <= nHalf)
             {
                 int child = i << 1;
@@ -191,12 +190,12 @@ namespace System
                 if (!(comparison(d, Unsafe.Add(ref keysAtLoMinus1, child)) < 0))
                     break;
 
-                // keys[lo + i - 1] = keys[lo + child - 1]
+                // Below lines are equivalent to: keys[lo + i - 1] = keys[lo + child - 1]
                 Unsafe.Add(ref keysAtLoMinus1, i) = Unsafe.Add(ref keysAtLoMinus1, child);
 
                 i = child;
             }
-            //keys[lo + i - 1] = d;
+            // Below lines are equivalent to: keys[lo + i - 1] = d;
             Unsafe.Add(ref keysAtLoMinus1, i) = d;
         }
 
@@ -212,9 +211,9 @@ namespace System
             for (int i = lo; i < hi; ++i)
             {
                 int j = i;
-                //t = keys[i + 1];
-                var t = Unsafe.Add(ref keys, j + 1);
-                // TODO: Would be good to be able to update local ref here
+                
+                TKey t = Unsafe.Add(ref keys, j + 1);
+
                 if (j >= lo && comparison(t, Unsafe.Add(ref keys, j)) < 0)
                 {
                     do
@@ -238,63 +237,6 @@ namespace System
             Sort2(ref r0, ref r1, comparison);
             Sort2(ref r0, ref r2, comparison);
             Sort2(ref r1, ref r2, comparison);
-
-            // Below works but does not give exactly the same result as Array.Sort
-            // i.e. order could be a bit different for keys that are equal
-            //if (comparison.LessThanEqual(r0, r1)) 
-            //{
-            //    // r0 <= r1
-            //    if (comparison.LessThanEqual(r1, r2)) 
-            //    {
-            //        // r0 <= r1 <= r2
-            //        return; // Is this return good or bad for perf?
-            //    }
-            //    // r0 <= r1
-            //    // r2 < r1
-            //    else if (comparison.LessThanEqual(r0, r2)) 
-            //    {
-            //        // r0 <= r2 < r1
-            //        Swap(ref r1, ref r2);
-            //    }
-            //    // r0 <= r1
-            //    // r2 < r1
-            //    // r2 < r0
-            //    else
-            //    {
-            //        // r2 < r0 <= r1
-            //        TKey tmp = r0;
-            //        r0 = r2;
-            //        r2 = r1;
-            //        r1 = tmp;
-            //    }
-            //}
-            //else 
-            //{
-            //    // r1 < r0
-            //    if (comparison.LessThan(r2, r1)) 
-            //    {
-            //        // r2 < r1 < r0
-            //        Swap(ref r0, ref r2);
-            //    }
-            //    // r1 < r0
-            //    // r1 <= r2
-            //    else if (comparison.LessThan(r2, r0)) 
-            //    {
-            //        // r1 <= r2 < r0
-            //        TKey tmp = r0;
-            //        r0 = r1;
-            //        r1 = r2;
-            //        r2 = tmp;
-            //    }
-            //    // r1 < r0
-            //    // r1 <= r2
-            //    // r0 <= r2
-            //    else 
-            //    {
-            //        // r1 < r0 <= r2
-            //        Swap(ref r0, ref r1);
-            //    }
-            //}
         }
 
 

@@ -27,7 +27,7 @@ namespace System
             ref TKey keys, ref TValue values, int length)
             where TKey : IComparable<TKey>
         {
-            var depthLimit = 2 * FloorLog2PlusOne(length);
+            int depthLimit = 2 * FloorLog2PlusOne(length);
             IntroSort(ref keys, ref values, 0, length - 1, depthLimit);
         }
 
@@ -69,6 +69,8 @@ namespace System
                 depthLimit--;
 
                 // We should never reach here, unless > 3 elements due to partition size
+                Debug.Assert(partitionSize > 3);
+
                 int p = PickPivotAndPartition(ref keys, ref values, lo, hi);
                 // Note we've already partitioned around the pivot and do not have to move the pivot again.
                 IntroSort(ref keys, ref values, p + 1, hi, depthLimit);
@@ -108,8 +110,6 @@ namespace System
 
             while (left < right)
             {
-                // TODO: Would be good to be able to update local ref here
-
                 if (pivot == null)
                 {
                     while (left < (hi - 1) && Unsafe.Add(ref keys, ++left) == null) ;
@@ -173,16 +173,16 @@ namespace System
             
             Debug.Assert(lo >= 0);
 
-            //TKey d = keys[lo + i - 1];
+            // Below lines are equivalent to: TKey d = keys[lo + i - 1];
             ref TKey keysAtLo = ref Unsafe.Add(ref keys, lo);
-            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // No Subtract??
+            ref TKey keysAtLoMinus1 = ref Unsafe.Add(ref keysAtLo, -1); // TODO: Use Subtract when available
 
             ref TValue valuesAtLoMinus1 = ref Unsafe.Add(ref values, lo - 1);
 
             TKey d = Unsafe.Add(ref keysAtLoMinus1, i);
             TValue dValue = Unsafe.Add(ref valuesAtLoMinus1, i);
 
-            var nHalf = n / 2;
+            int nHalf = n / 2;
             while (i <= nHalf)
             {
                 int child = i << 1;
@@ -200,13 +200,13 @@ namespace System
                     Unsafe.Add(ref keysAtLoMinus1, child).CompareTo(d) < 0)
                     break;
 
-                // keys[lo + i - 1] = keys[lo + child - 1]
+                // Below lines are equivalent to: keys[lo + i - 1] = keys[lo + child - 1]
                 Unsafe.Add(ref keysAtLoMinus1, i) = Unsafe.Add(ref keysAtLoMinus1, child);
                 Unsafe.Add(ref valuesAtLoMinus1, i) = Unsafe.Add(ref valuesAtLoMinus1, child);
 
                 i = child;
             }
-            //keys[lo + i - 1] = d;
+            // Below lines are equivalent to: keys[lo + i - 1] = d;
             Unsafe.Add(ref keysAtLoMinus1, i) = d;
             Unsafe.Add(ref valuesAtLoMinus1, i) = dValue;
         }
@@ -222,9 +222,9 @@ namespace System
             for (int i = lo; i < hi; ++i)
             {
                 int j = i;
-                //t = keys[i + 1];
+
                 var t = Unsafe.Add(ref keys, j + 1);
-                // TODO: Would be good to be able to update local ref here
+
                 if (j >= lo && (t == null || t.CompareTo(Unsafe.Add(ref keys, j)) < 0))
                 {
                     var v = Unsafe.Add(ref values, j + 1);
@@ -254,70 +254,6 @@ namespace System
             Sort2(ref r0, ref r1, ref values, i0, i1);
             Sort2(ref r0, ref r2, ref values, i0, i2);
             Sort2(ref r1, ref r2, ref values, i1, i2);
-
-            //ref var r0 = ref Unsafe.Add(ref keys, i0);
-            //ref var r1 = ref Unsafe.Add(ref keys, i1);
-            //ref var r2 = ref Unsafe.Add(ref keys, i2);
-
-            //if (r0 != null && r0.CompareTo(r1) <= 0) //r0 <= r1)
-            //{
-            //    if (r1 != null && r1.CompareTo(r2) <= 0) //(r1 <= r2)
-            //    {
-            //        return ref r1;
-            //    }
-            //    else if (r0.CompareTo(r2) < 0) //(r0 < r2)
-            //    {
-            //        Swap(ref r1, ref r2);
-            //        ref var v1 = ref Unsafe.Add(ref values, i1);
-            //        ref var v2 = ref Unsafe.Add(ref values, i2);
-            //        Swap(ref v1, ref v2);
-            //    }
-            //    else
-            //    {
-            //        TKey tmp = r0;
-            //        r0 = r2;
-            //        r2 = r1;
-            //        r1 = tmp;
-            //        ref var v0 = ref Unsafe.Add(ref values, i0);
-            //        ref var v1 = ref Unsafe.Add(ref values, i1);
-            //        ref var v2 = ref Unsafe.Add(ref values, i2);
-            //        TValue vTemp = v0;
-            //        v0 = v2;
-            //        v2 = v1;
-            //        v1 = vTemp;
-            //    }
-            //}
-            //else
-            //{
-            //    if (r0 != null && r0.CompareTo(r2) < 0) //(r0 < r2)
-            //    {
-            //        Swap(ref r0, ref r1);
-            //        ref var v0 = ref Unsafe.Add(ref values, i0);
-            //        ref var v1 = ref Unsafe.Add(ref values, i1);
-            //        Swap(ref v0, ref v1);
-            //    }
-            //    else if (r2 != null && r2.CompareTo(r1) < 0) //(r2 < r1)
-            //    {
-            //        Swap(ref r0, ref r2);
-            //        ref var v0 = ref Unsafe.Add(ref values, i0);
-            //        ref var v2 = ref Unsafe.Add(ref values, i2);
-            //        Swap(ref v0, ref v2);
-            //    }
-            //    else
-            //    {
-            //        TKey tmp = r0;
-            //        r0 = r1;
-            //        r1 = r2;
-            //        r2 = tmp;
-            //        ref var v0 = ref Unsafe.Add(ref values, i0);
-            //        ref var v1 = ref Unsafe.Add(ref values, i1);
-            //        ref var v2 = ref Unsafe.Add(ref values, i2);
-            //        TValue vTemp = v0;
-            //        v0 = v1;
-            //        v1 = v2;
-            //        v2 = vTemp;
-            //    }
-            //}
             return ref r1;
         }
 
