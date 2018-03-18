@@ -3722,6 +3722,6 @@
     <value>Unable to sort because the IComparable.CompareTo() method returns inconsistent results. Either a value does not compare equal to itself, or one value repeatedly compared to another value yields different results. IComparable: '{0}'.</value>
   </data>
   <data name="Arg_ItemsMustHaveSameLengthAsKeys" xml:space="preserve">
-    <value>Items must have same length as keys</value>
+    <value>Items must have same length as keys.</value>
   </data>
 </root>
