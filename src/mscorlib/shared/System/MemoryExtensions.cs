@@ -1315,10 +1315,7 @@ namespace System
         /// One or more elements do not implement the <see cref="IComparable" /> interface.
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Sort<T>(this Span<T> span)
-        {
-            SpanSortHelpersKeys.Sort(span);
-        }
+        public static void Sort<T>(this Span<T> span) => SpanSortHelpersKeys.Sort(span);
 
         /// <summary>
         /// Sorts the elements in the entire <see cref="Span{T}" /> 
@@ -1326,10 +1323,8 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Sort<T, TComparer>(this Span<T> span, TComparer comparer)
-           where TComparer : IComparer<T>
-        {
+            where TComparer : IComparer<T> =>
             SpanSortHelpersKeys.Sort(span, comparer);
-        }
 
         /// <summary>
         /// Sorts the elements in the entire <see cref="Span{T}" /> 
@@ -1353,10 +1348,8 @@ namespace System
         /// element of the <see cref= "Span{TKey}"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items)
-        {
+        public static void Sort<TKey, TValue>(this Span<TKey> keys, Span<TValue> items) =>
             SpanSortHelpersKeysValues.Sort(keys, items);
-        }
 
         /// <summary>
         /// Sorts a pair of spans 
@@ -1367,11 +1360,9 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Sort<TKey, TValue, TComparer>(this Span<TKey> keys,
-           Span<TValue> items, TComparer comparer)
-           where TComparer : IComparer<TKey>
-        {
+            Span<TValue> items, TComparer comparer)
+            where TComparer : IComparer<TKey> =>
             SpanSortHelpersKeysValues.Sort(keys, items, comparer);
-        }
 
         /// <summary>
         /// Sorts a pair of spans 
