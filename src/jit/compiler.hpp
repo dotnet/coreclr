@@ -3568,7 +3568,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  */
 
 template <bool ForCodeGen>
-inline void Compiler::compUpdateLife(GenTree* tree)
+inline void Compiler::compUpdateLifeTree(GenTree* tree)
 {
     // TODO-Cleanup: We shouldn't really be calling this more than once
     if (tree == compCurLifeTree)

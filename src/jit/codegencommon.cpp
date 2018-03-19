@@ -468,7 +468,7 @@ void CodeGen::genPrepForEHCodegen()
 
 void CodeGenInterface::genUpdateLifeTree(GenTree* tree)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
+    compiler->compUpdateLifeTree</*ForCodeGen*/ true>(tree);
 }
 
 void CodeGenInterface::genUpdateLifeVars(VARSET_VALARG_TP newLife)

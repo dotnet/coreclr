@@ -7257,7 +7257,7 @@ public:
     }
 
     template <bool ForCodeGen>
-    void compUpdateLife(GenTree* tree);
+    void compUpdateLifeTree(GenTree* tree);
 
     // Updates "compCurLife" to its state after evaluate of "true".  If "pLastUseVars" is
     // non-null, sets "*pLastUseVars" to the set of tracked variables for which "tree" was a last
