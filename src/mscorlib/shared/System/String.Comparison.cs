@@ -21,10 +21,6 @@ namespace System
 {
     public partial class String
     {
-        //
-        //Native Static Methods
-        //
-
         private static unsafe int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
         {
             Debug.Assert(strA != null);
@@ -60,16 +56,6 @@ namespace System
                 return strA.Length - strB.Length;
             }
         }
-
-        // native call to COMString::CompareOrdinalEx
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern int CompareOrdinalHelper(String strA, int indexA, int countA, String strB, int indexB, int countB);
-
-        //
-        //
-        // NATIVE INSTANCE METHODS
-        //
-        //
 
         //
         // Search/Query methods

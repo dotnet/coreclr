@@ -64,6 +64,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool IsAscii();
 
+        // native call to COMString::CompareOrdinalEx
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int CompareOrdinalHelper(String strA, int indexA, int countA, String strB, int indexB, int countB);
+
 #if FEATURE_COMINTEROP
         // Set extra byte for odd-sized strings that came from interop as BSTR.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
