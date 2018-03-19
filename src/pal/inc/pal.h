@@ -299,6 +299,16 @@ typedef long time_t;
 #define _TIME_T_DEFINED
 #endif // !PAL_STDCPP_COMPAT
 
+#define C1_UPPER                  0x0001      /* upper case */
+#define C1_LOWER                  0x0002      /* lower case */
+#define C1_DIGIT                  0x0004      /* decimal digits */
+#define C1_SPACE                  0x0008      /* spacing characters */
+#define C1_PUNCT                  0x0010      /* punctuation characters */
+#define C1_CNTRL                  0x0020      /* control characters */
+#define C1_BLANK                  0x0040      /* blank characters */
+#define C1_XDIGIT                 0x0080      /* other digits */
+#define C1_ALPHA                  0x0100      /* any linguistic character */
+
 #define DLL_PROCESS_ATTACH 1
 #define DLL_THREAD_ATTACH  2
 #define DLL_THREAD_DETACH  3
