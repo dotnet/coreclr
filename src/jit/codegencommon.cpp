@@ -473,7 +473,7 @@ void CodeGenInterface::genUpdateLife(GenTree* tree)
 
 void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(newLife);
+    compiler->compUpdateLifeVars</*ForCodeGen*/ true>(newLife);
 }
 
 #ifdef LEGACY_BACKEND
@@ -1082,7 +1082,7 @@ void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
 template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
-void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
+void Compiler::compChangeLifeVars(VARSET_VALARG_TP newLife)
 {
     LclVarDsc* varDsc;
 
@@ -1218,7 +1218,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife);
+template void Compiler::compChangeLifeVars<true>(VARSET_VALARG_TP newLife);
 
 #ifdef LEGACY_BACKEND
 

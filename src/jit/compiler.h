@@ -7249,11 +7249,11 @@ public:
     GenTree*  compCurLifeTree; // node after which compCurLife has been computed
 
     template <bool ForCodeGen>
-    void compChangeLife(VARSET_VALARG_TP newLife);
+    void compChangeLifeVars(VARSET_VALARG_TP newLife);
 
     void genChangeLife(VARSET_VALARG_TP newLife)
     {
-        compChangeLife</*ForCodeGen*/ true>(newLife);
+        compChangeLifeVars</*ForCodeGen*/ true>(newLife);
     }
 
     template <bool ForCodeGen>
@@ -7266,7 +7266,7 @@ public:
     void compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars = nullptr);
 
     template <bool ForCodeGen>
-    inline void compUpdateLife(VARSET_VALARG_TP newLife);
+    inline void compUpdateLifeVars(VARSET_VALARG_TP newLife);
 
     // Gets a register mask that represent the kill set for a helper call since
     // not all JIT Helper calls follow the standard ABI on the target architecture.
