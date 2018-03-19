@@ -51,7 +51,8 @@ namespace System.IO
                         s = path.Substring(0, i);
                         break;
                     }
-                    if (PathInternal.IsDirectorySeparator(ch)) break;
+                    if (PathInternal.IsDirectorySeparator(ch))
+                        break;
                 }
 
                 if (extension != null && path.Length != 0)
@@ -110,7 +111,8 @@ namespace System.IO
             if (end <= rootLength)
                 return -1;
 
-            while (end > rootLength && !PathInternal.IsDirectorySeparator(path[--end]));
+            while (end > rootLength && !PathInternal.IsDirectorySeparator(path[--end]))
+                ;
 
             // Trim off any remaining separators (to deal with C:\foo\\bar)
             while (end > rootLength && PathInternal.IsDirectorySeparator(path[end - 1]))
@@ -409,6 +411,81 @@ namespace System.IO
             return JoinInternal(path1, path2, path3);
         }
 
+        public static bool TryGetTempPath(Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            var tmpPath = Path.GetTempPath();
+
+            if (tmpPath.Length > destination.Length)
+                return false;
+
+            new Span<char>(ref tmpPath.GetRawStringData(), tmpPath.Length).CopyTo(destination);
+            charsWritten = tmpPath.Length;
+
+            return true;
+        }
+
+        public static bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            var tmpPath = Path.GetRandomFileName();
+
+            if (tmpPath.Length > destination.Length)
+                return false;
+
+            new Span<char>(ref tmpPath.GetRawStringData(), tmpPath.Length).CopyTo(destination);
+            charsWritten = tmpPath.Length;
+
+            return true;
+        }
+
+        public static bool TryGetRelativePath(ReadOnlySpan<char> relativeTo, ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            var tmpPath = Path.GetRelativePath(relativeTo.ToString(), path.ToString());
+
+            if (tmpPath.Length > destination.Length)
+                return false;
+
+            new Span<char>(ref tmpPath.GetRawStringData(), tmpPath.Length).CopyTo(destination);
+            charsWritten = tmpPath.Length;
+
+            return true;
+        }
+
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            var tmpPath = Path.GetFullPath(path.ToString());
+
+            if (tmpPath.Length > destination.Length)
+                return false;
+
+            new Span<char>(ref tmpPath.GetRawStringData(), tmpPath.Length).CopyTo(destination);
+            charsWritten = tmpPath.Length;
+
+            return true;
+        }
+
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, ReadOnlySpan<char> basePath, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            var tmpPath = Path.GetFullPath(path.ToString(), basePath.ToString());
+
+            if (tmpPath.Length > destination.Length)
+                return false;
+
+            new Span<char>(ref tmpPath.GetRawStringData(), tmpPath.Length).CopyTo(destination);
+            charsWritten = tmpPath.Length;
+
+            return true;
+        }
+
         public static bool TryJoin(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, Span<char> destination, out int charsWritten)
         {
             charsWritten = 0;
@@ -595,7 +672,7 @@ namespace System.IO
                 return string.Create(
                     first.Length + second.Length + third.Length + fourth.Length + (firstHasSeparator ? 0 : 1) + (thirdHasSeparator ? 0 : 1) + (fourthHasSeparator ? 0 : 1),
                     (First: (IntPtr)f, FirstLength: first.Length, Second: (IntPtr)s, SecondLength: second.Length,
-                        Third: (IntPtr)t, ThirdLength: third.Length, Fourth: (IntPtr)u, FourthLength:fourth.Length,
+                        Third: (IntPtr)t, ThirdLength: third.Length, Fourth: (IntPtr)u, FourthLength: fourth.Length,
                         FirstHasSeparator: firstHasSeparator, ThirdHasSeparator: thirdHasSeparator, FourthHasSeparator: fourthHasSeparator),
                     (destination, state) =>
                     {
@@ -686,8 +763,10 @@ namespace System.IO
 
         private static string GetRelativePath(string relativeTo, string path, StringComparison comparisonType)
         {
-            if (string.IsNullOrEmpty(relativeTo)) throw new ArgumentNullException(nameof(relativeTo));
-            if (PathInternal.IsEffectivelyEmpty(path)) throw new ArgumentNullException(nameof(path));
+            if (string.IsNullOrEmpty(relativeTo))
+                throw new ArgumentNullException(nameof(relativeTo));
+            if (PathInternal.IsEffectivelyEmpty(path))
+                throw new ArgumentNullException(nameof(path));
             Debug.Assert(comparisonType == StringComparison.Ordinal || comparisonType == StringComparison.OrdinalIgnoreCase);
 
             relativeTo = GetFullPath(relativeTo);
@@ -714,7 +793,8 @@ namespace System.IO
                 pathLength--;
 
             // If we have effectively the same path, return "."
-            if (relativeToLength == pathLength && commonLength >= relativeToLength) return ".";
+            if (relativeToLength == pathLength && commonLength >= relativeToLength)
+                return ".";
 
             // We have the same root, we need to calculate the difference now using the
             // common Length and Segment count past the length.
