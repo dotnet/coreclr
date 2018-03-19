@@ -620,10 +620,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
             def isFlow  = (options != null) && (options['is_flow_job'] == true)
             def isBuild = (options != null) && (options['is_build_job'] == true)
             if (isFlow || isBuild) {
-                // arm Ubuntu build machine: we build using Docker. Using an 'Ubuntu' (aka Ubuntu14.04)
-                // 'latest-or-auto' build machine didn't have 'zip', which we need. So using
-                // 'Ubuntu16.04' latest-or-auto instead, because (hopefully!) it does.
-                // Flow jobs don't need to use the arm hardware.
+                // arm Ubuntu build machine. Build uses docker, so the actual host OS is not
+                // very important. Therefore, use latest or auto. Flow jobs don't need to use
+                // arm hardware.
                 Utilities.setMachineAffinity(job, 'Ubuntu16.04', 'latest-or-auto')
             } else {
                 // arm Ubuntu test machine
@@ -981,7 +980,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20170319080304"
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180317125354"
             }
         }
     }
@@ -2363,21 +2362,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Non-Windows ARM cross builds on hardware run on Ubuntu only
                     assert (os == 'Ubuntu')
 
-                    // Debugging:
-                    // 1. show the IP address of the machine we're running on.
-                    // 2. show the directory the script is run in.
-                    // 3. show what's in this directory (currently).
-                    // 4. how much disk space is there?
-                    // etc.
-                    // use "|| true" to ignore all error codes
-                    buildCommands += """\
-uname -a || true
-ifconfig || true
-pwd || true
-ls -aF || true
-df -H || true
-printenv || true
-"""
+                    // Add some useful information to the log file. Ignore return codes.
+                    buildCommands += "uname -a || true"
 
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
@@ -2389,6 +2375,8 @@ printenv || true
 
                     // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                     // download the appropriate CoreFX packages.
+                    // Note that docker should not be necessary here, for the "generatelayoutonly" case, but we use it
+                    // just to be consistent with the "build.sh" case -- so both are run with the same environment.
 
                     buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
 
@@ -3063,21 +3051,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             }
 
             if (isUbuntuArmJob) {
-                // Debugging:
-                // 1. show the IP address of the machine we're running on.
-                // 2. show the directory the script is run in.
-                // 3. show what's in this directory (currently).
-                // 4. how much disk space is there?
-                // etc.
-                // use "|| true" to ignore all error codes
-                shell("""\
-uname -a || true
-ifconfig || true
-pwd || true
-ls -aF || true
-df -H || true
-printenv || true
-""")
+                // Add some useful information to the log file. Ignore return codes.
+                shell("uname -a || true")
             }
 
             if (architecture == 'arm64') {
