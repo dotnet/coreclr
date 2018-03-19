@@ -405,7 +405,7 @@ CLR_DEBUGGING_PROCESS_FLAGS;
 interface ICLRDebuggingLibraryProvider : IUnknown
 {
     /**********************************************************************************
-    ** The goal of this method is to allow the debugger to provide a  handle to a    **
+    ** The goal of this method is to allow the debugger to provide a handle to a     **
     ** module which is needed for debugging. The debugger may use any available means**
     ** to locate and/or procure the module. See the security note below for important**
     ** information about implementing this method securely.                          **
@@ -435,11 +435,8 @@ interface ICLRDebuggingLibraryProvider : IUnknown
  /**************************************************************************************
  ** ICLRDebuggingLibraryProvider2                                                     **
  ** Implemented by API user                                                           **
- ** This interface allows the debugger to provide modules which are needed for        **
- ** debugging a particular CLR such as mscordbi and mscordacwks. The module handles   **
- ** need to remain valid until a call to ICLRDebugging::CanUnloadNow indicates they   **
- ** may be freed, at which point it is the caller's responsibility to free the        **
- ** handles.                                                                          **
+ ** This interface allows the debugger to provide module paths which are needed for   **
+ ** debugging a particular CLR such as mscordbi and mscordacwks.                      **
  **************************************************************************************/
 [
     uuid(E04E2FF1-DCFD-45D5-BCD1-16FFF2FAF7BA),
@@ -450,9 +447,9 @@ interface ICLRDebuggingLibraryProvider : IUnknown
 interface ICLRDebuggingLibraryProvider2 : IUnknown
 {
     /**********************************************************************************
-    ** The goal of this method is to allow the debugger to provide a  handle to a    **
-    ** module which is needed for debugging. The debugger may use any available means**
-    ** to locate and/or procure the module. See the security note below for important**
+    ** The goal of this method is to allow the debugger to provide a module path     **
+    ** which is needed for debugging. The debugger may use any available means to    **
+    ** locate and/or procure the module. See the security note below for important   **
     ** information about implementing this method securely.                          **
     ** Arguments:                                                                    **
     ** pwzFileName - The name of the module being requested                          **
