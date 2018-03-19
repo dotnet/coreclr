@@ -243,7 +243,7 @@ void genCodeForTree_DONE(GenTree* tree, regNumber reg)
 {
     /* Check whether this subtree has freed up any variables */
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     genCodeForTree_DONE_LIFE(tree, reg);
 }

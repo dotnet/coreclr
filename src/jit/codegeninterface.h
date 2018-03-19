@@ -143,7 +143,7 @@ protected:
     regMaskTP genGetRegMask(const LclVarDsc* varDsc);
     regMaskTP genGetRegMask(GenTree* tree);
 
-    void genUpdateLife(GenTree* tree);
+    void genUpdateLifeTree(GenTree* tree);
     void genUpdateLifeVars(VARSET_VALARG_TP newLife);
 
 #ifdef LEGACY_BACKEND

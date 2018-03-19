@@ -1358,7 +1358,7 @@ void CodeGen::genCodeForTreeStackFP_Leaf(GenTree* tree)
             assert(!"unexpected leaf");
     }
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 }
 
 void CodeGen::genCodeForTreeStackFP_Asg(GenTree* tree)
@@ -1529,7 +1529,7 @@ void CodeGen::genCodeForTreeStackFP_Asg(GenTree* tree)
             }
 
             genDoneAddressableStackFP(op1, addrRegInt, addrRegFlt, RegSet::KEEP_REG);
-            genUpdateLife(op1);
+            genUpdateLifeTree(op1);
             return;
 
         default:
@@ -1584,7 +1584,7 @@ void CodeGen::genSetupForOpStackFP(
                 // read only and not dying, so just make addressable
                 op1 = genMakeAddressableStackFP(op1, &addrRegInt, &addrRegFlt);
                 genKeepAddressableStackFP(op1, &addrRegInt, &addrRegFlt);
-                genUpdateLife(op2);
+                genUpdateLifeTree(op2);
             }
             else
             {
@@ -1624,7 +1624,7 @@ void CodeGen::genSetupForOpStackFP(
             !genRegVarDiesInSubTree(op2, op1->gtRegVar.gtRegNum)) // regvar can't die in op2 either
         {
             // First update liveness for op1, since we're "evaluating" it here
-            genUpdateLife(op1);
+            genUpdateLifeTree(op1);
 
             op2 = genCodeForCommaTree(op2);
 
@@ -1718,8 +1718,8 @@ void CodeGen::genCodeForTreeStackFP_Arithm(GenTree* tree)
         // Do operation
         result = genArithmStackFP(oper, op2, op2->gtRegVar.gtRegNum, op1, REG_FPNONE, !bReverse);
 
-        genUpdateLife(op1);
-        genUpdateLife(op2);
+        genUpdateLifeTree(op1);
+        genUpdateLifeTree(op2);
     }
     else if (!op1->IsRegVar() &&                         // We don't do this for regvars, as we'll need a scratch reg
              ((tree->gtFlags & GTF_SIDE_EFFECT) == 0) && // No side effects
@@ -2328,7 +2328,7 @@ void CodeGen::genCodeForTreeStackFP_SmpOp(GenTree* tree)
             // If exponent was all 1's, we need to throw ArithExcep
             genJumpToThrowHlpBlk(EJ_je, SCK_ARITH_EXCPN);
 
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
 
             genCodeForTreeStackFP_DONE(tree, op1->gtRegNum);
             break;
@@ -3296,7 +3296,7 @@ GenTree* CodeGen::genMakeAddressableStackFP(GenTree*   tree,
             {
                 assert(false);
             }
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
             return tree;
 
         case GT_IND:
@@ -3304,7 +3304,7 @@ GenTree* CodeGen::genMakeAddressableStackFP(GenTree*   tree,
 
             if (genMakeIndAddrMode(tree->gtOp.gtOp1, tree, false, 0, RegSet::KEEP_REG, regMaskIntPtr, false))
             {
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return tree;
             }
             else
@@ -3356,7 +3356,7 @@ void CodeGen::genKeepAddressableStackFP(GenTree* tree, regMaskTP* regMaskIntPtr,
             {
                 genRegVarDeathStackFP(tree);
             }
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
 
             return;
         case GT_CNS_DBL:
@@ -3373,7 +3373,7 @@ void CodeGen::genKeepAddressableStackFP(GenTree* tree, regMaskTP* regMaskIntPtr,
         case GT_LCL_FLD:
         case GT_LCL_VAR:
         case GT_CLS_VAR:
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
             return;
         case GT_IND:
         case GT_LEA:

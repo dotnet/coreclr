@@ -998,7 +998,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
         emit->emitIns_S_R(ins, attr, data->gtRegNum, varNum, offset);
     }
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
     varDsc->lvRegNum = REG_STK;
 }
 
@@ -1059,7 +1059,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
 
             emit->emitIns_S_R(ins, attr, dataReg, varNum, /* offset */ 0);
 
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
 
             varDsc->lvRegNum = REG_STK;
         }

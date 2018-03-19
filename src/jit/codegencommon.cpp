@@ -466,7 +466,7 @@ void CodeGen::genPrepForEHCodegen()
 #endif        // FEATURE_EH_CALLFINALLY_THUNKS
 }
 
-void CodeGenInterface::genUpdateLife(GenTree* tree)
+void CodeGenInterface::genUpdateLifeTree(GenTree* tree)
 {
     compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
 }
@@ -2048,13 +2048,13 @@ AGAIN:
                 // In case genMarkLclVar(op1) bashed it above and it is
                 // the last use of the variable.
 
-                genUpdateLife(op1);
+                genUpdateLifeTree(op1);
 
                 /* 'reg1' is trashable, so add "icon" into it */
 
                 genIncRegBy(reg1, cns, addr, addr->TypeGet());
 
-                genUpdateLife(addr);
+                genUpdateLifeTree(addr);
                 return true;
             }
         }

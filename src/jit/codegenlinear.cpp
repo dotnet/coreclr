@@ -1186,7 +1186,7 @@ regNumber CodeGen::genConsumeReg(GenTree* tree)
     // interferes with one of the other sources (or the target, if it's a "delayed use" register)).
     // TODO-Cleanup: This is a special copyReg case in LSRA - consider eliminating these and
     // always using GT_COPY to make the lclVar location explicit.
-    // Note that we have to do this before calling genUpdateLife because otherwise if we spill it
+    // Note that we have to do this before calling genUpdateLifeTree because otherwise if we spill it
     // the lvRegNum will be set to REG_STK and we will lose track of what register currently holds
     // the lclVar (normally when a lclVar is spilled it is then used from its former register
     // location, which matches the gtRegNum on the node).
@@ -1204,8 +1204,8 @@ regNumber CodeGen::genConsumeReg(GenTree* tree)
 
     genUnspillRegIfNeeded(tree);
 
-    // genUpdateLife() will also spill local var if marked as GTF_SPILL by calling CodeGen::genSpillVar
-    genUpdateLife(tree);
+    // genUpdateLifeTree() will also spill local var if marked as GTF_SPILL by calling CodeGen::genSpillVar
+    genUpdateLifeTree(tree);
 
     assert(tree->gtHasReg());
 
@@ -1291,7 +1291,7 @@ void CodeGen::genConsumeRegs(GenTree* tree)
             noway_assert(tree->IsRegOptional() || !varDsc->lvLRACandidate);
 
             // Update the life of the lcl var.
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
         }
 #endif // _TARGET_XARCH_
         else if (tree->OperIsInitVal())
@@ -1714,7 +1714,7 @@ void CodeGen::genProduceReg(GenTree* tree)
         }
     }
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     // If we've produced a register, mark it as a pointer, as needed.
     if (tree->gtHasReg())
