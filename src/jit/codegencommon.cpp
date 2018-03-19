@@ -471,7 +471,7 @@ void CodeGenInterface::genUpdateLife(GenTree* tree)
     compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
 }
 
-void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
+void CodeGenInterface::genUpdateLifeVars(VARSET_VALARG_TP newLife)
 {
     compiler->compUpdateLifeVars</*ForCodeGen*/ true>(newLife);
 }

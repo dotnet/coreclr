@@ -155,10 +155,11 @@ void CodeGen::genCodeForBBlist()
 
         compiler->m_pLinearScan->recordVarLocationsAtStartOfBB(block);
 
-        genUpdateLife(block->bbLiveIn);
+        genUpdateLifeVars(block->bbLiveIn);
 
         // Even if liveness didn't change, we need to update the registers containing GC references.
-        // genUpdateLife will update the registers live due to liveness changes. But what about registers that didn't
+        // genUpdateLifeVars will update the registers live due to liveness changes. But what about registers that
+        // didn't
         // change? We cleared them out above. Maybe we should just not clear them out, but update the ones that change
         // here. That would require handling the changes in recordVarLocationsAtStartOfBB().
 
@@ -649,7 +650,7 @@ void CodeGen::genCodeForBBlist()
     } //------------------ END-FOR each block of the method -------------------
 
     /* Nothing is live at this point */
-    genUpdateLife(VarSetOps::MakeEmpty(compiler));
+    genUpdateLifeVars(VarSetOps::MakeEmpty(compiler));
 
     /* Finalize the spill  tracking logic */
 

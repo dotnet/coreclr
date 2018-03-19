@@ -11406,7 +11406,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTree* tree)
 
                 if (rpCanAsgOperWithoutReg(op2, true))
                 {
-                    genUpdateLife(VarSetOps::RemoveElem(compiler, compiler->compCurLife, varDsc->lvVarIndex));
+                    genUpdateLifeVars(VarSetOps::RemoveElem(compiler, compiler->compCurLife, varDsc->lvVarIndex));
                     needReg = regSet.rsNarrowHint(needReg, genRegMask(op1Reg));
 #ifdef DEBUG
                     needToUpdateRegSetCheckLevel = true;
@@ -12607,7 +12607,7 @@ void CodeGen::genCodeForBBlist()
 #endif
         gcInfo.gcResetForBB();
 
-        genUpdateLife(liveSet); // This updates regSet.rsMaskVars with bits from any enregistered LclVars
+        genUpdateLifeVars(liveSet); // This updates regSet.rsMaskVars with bits from any enregistered LclVars
 #if FEATURE_STACK_FP_X87
         VarSetOps::IntersectionD(compiler, liveSet, compiler->optAllNonFPvars);
 #endif
@@ -13163,7 +13163,7 @@ void CodeGen::genCodeForBBlist()
     } //------------------ END-FOR each block of the method -------------------
 
     /* Nothing is live at this point */
-    genUpdateLife(VarSetOps::MakeEmpty(compiler));
+    genUpdateLifeVars(VarSetOps::MakeEmpty(compiler));
 
     /* Finalize the spill  tracking logic */
 
@@ -16056,7 +16056,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                             genSinglePush();
 
                                             // Prepare the set of vars to be cleared from gcref/gcbyref set
-                                            // in case they become dead after genUpdateLife.
+                                            // in case they become dead after genUpdateLifeVars.
                                             // genDoneAddressable() will remove dead gc vars by calling
                                             // gcInfo.gcMarkRegSetNpt.
                                             // Although it is not addrReg, we just borrow the name here.
@@ -16097,7 +16097,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                             genSinglePush();
 
                                             // Prepare the set of vars to be cleared from gcref/gcbyref set
-                                            // in case they become dead after genUpdateLife.
+                                            // in case they become dead after genUpdateLifeVars.
                                             // genDoneAddressable() will remove dead gc vars by calling
                                             // gcInfo.gcMarkRegSetNpt.
                                             // Although it is not addrReg, we just borrow the name here.
