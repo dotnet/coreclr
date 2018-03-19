@@ -721,53 +721,28 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 // We can also be here when in non-DefaultDomain an exception goes unhandled on a pure managed thread. In such a case,
                 // we wont have CrossAppDomainMarshaledException instance but the original exception object that will be used to extract
                 //  the stack trace from.
-                if (pThread->GetDomain()->IsDefaultDomain())
+                if (IsException(gc.throwable->GetMethodTable()))
                 {
-                    if (IsExceptionOfType(kCrossAppDomainMarshaledException, &(gc.throwable)))
+                    SmallStackSString wordAt;
+                    if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
                     {
-                        // This is a CrossAppDomainMarshaledException instance - check if it has
-                        // something for us in the Message property.
-                        gc.originalExceptionMessage = ((EXCEPTIONREF)gc.throwable)->GetMessage();
-                        if (gc.originalExceptionMessage != NULL)
-                        {
-                            // Ok - so, we have details about the original exception. Add them to the
-                            // EventReporter object so that they get written to the event log.
-                            reporter.AddDescription(gc.originalExceptionMessage->GetBuffer());
-
-                            LOG((LF_EH, LL_INFO100, "DoReportForUnhandledException - Added original exception details to EventReporter from CrossAppDomainMarshaledException object.\n"));
-                        }
-                        else
-                        {
-                            LOG((LF_EH, LL_INFO100, "DoReportForUnhandledException - Original exception details not present in CrossAppDomainMarshaledException object.\n"));
-                        }
-                    }
-                }
-                else
-                {
-                    if (IsException(gc.throwable->GetMethodTable()))
-                    {
-                        SmallStackSString wordAt;
-                        if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
-                        {
-                            wordAt.Set(W("   at"));
-                        }
-                        else
-                        {
-                            wordAt.Insert(wordAt.Begin(), W("   "));
-                        }
-                        wordAt += W(" ");
-
-                        ReportExceptionStackHelper(gc.throwable, reporter, wordAt, /* recursionLimit = */10);
+                        wordAt.Set(W("   at"));
                     }
                     else
                     {
-                        TypeString::AppendType(s, TypeHandle(gc.throwable->GetMethodTable()), TypeString::FormatNamespace | TypeString::FormatFullInst);
-                        reporter.AddDescription(s);
-                        reporter.BeginStackTrace();
-                        LogCallstackForEventReporterWorker(reporter);
+                        wordAt.Insert(wordAt.Begin(), W("   "));
                     }
-                }
+                    wordAt += W(" ");
 
+                    ReportExceptionStackHelper(gc.throwable, reporter, wordAt, /* recursionLimit = */10);
+                }
+                else
+                {
+                    TypeString::AppendType(s, TypeHandle(gc.throwable->GetMethodTable()), TypeString::FormatNamespace | TypeString::FormatFullInst);
+                    reporter.AddDescription(s);
+                    reporter.BeginStackTrace();
+                    LogCallstackForEventReporterWorker(reporter);
+                }
                 GCPROTECT_END();
             }
             else
