@@ -2658,6 +2658,10 @@ namespace System
 
         public static bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
         {
+            // This is actually local to one of the nested blocks but is being declared at the top as we don't want multiple stackallocs
+            // for each iteraton of the loop. 
+            Span<char> tempBuffer = stackalloc char[4];  // Note: The tempBuffer size could be made larger than 4 but the size must be a multiple of 4.
+
             bytesWritten = 0;
 
             while (chars.Length != 0)
@@ -2700,64 +2704,50 @@ namespace System
                 }
                 else
                 {
-                    unsafe
+                    Debug.Assert(chars.Length != 0 && !chars[0].IsSpace());
+
+                    // If we got here, it is possible that there is whitespace that occurred in the middle of a 4-byte chunk. That is, we still have
+                    // up to three Base64 characters that were left undecoded by the fast-path helper because they didn't form a complete 4-byte chunk.
+                    // This is hopefully the rare case (multiline-formatted base64 message with a non-space character width that's not a multiple of 4.)
+                    // We'll filter out whitespace and copy the remaining characters into a temporary buffer.
+                    CopyToTempBufferWithoutWhiteSpace(chars, tempBuffer, out int consumedFromChars, out int charsWritten);
+                    if ((charsWritten & 0x3) != 0)
                     {
-                        Debug.Assert(chars.Length != 0 && !chars[0].IsSpace());
-
-                        // If we got here, it is possible that there is whitespace that occurred in the middle of a 4-byte chunk. That is, we still have
-                        // up to three Base64 characters that were left undecoded by the fast-path helper because they didn't form a complete 4-byte chunk.
-                        // This is hopefully the rare case (multiline-formatted base64 message with a non-space character width that's not a multiple of 4.)
-                        // We'll filter out whitespace and copy the remaining characters into a temporary buffer.
-                        TempCharBuffer tempBufferStorage = default;
-                        Span<char> tempBuffer = MemoryMarshal.CreateSpan(ref tempBufferStorage.C0, sizeof(TempCharBuffer) / sizeof(char));
-                        CopyToTempBufferWithoutWhiteSpace(chars, tempBuffer, out int consumedFromChars, out int charsWritten);
-                        if ((charsWritten & 0x3) != 0)
-                        {
-                            // Even after stripping out whitespace, the number of characters is not divisible by 4. This cannot be a legal Base64 string.
-                            bytesWritten = default;
-                            return false;
-                        }
-
-                        tempBuffer = tempBuffer.Slice(0, charsWritten);
-                        if (!Base64.TryDecodeFromUtf16(tempBuffer, bytes, out int consumedFromTempBuffer, out int bytesWrittenFromTempBuffer))
-                        {
-                            bytesWritten = default;
-                            return false;
-                        }
-                        bytesWritten += bytesWrittenFromTempBuffer;
-                        chars = chars.Slice(consumedFromChars);
-                        bytes = bytes.Slice(bytesWrittenFromTempBuffer);
-
-                        if ((bytesWrittenFromTempBuffer % 3) != 0)
-                        {
-                            // If we got here, this decode contained one or more padding characters ('='). We can accept trailing whitespace after this
-                            // but nothing else.
-                            for (int i = 0; i < chars.Length; i++)
-                            {
-                                if (!chars[i].IsSpace())
-                                {
-                                    bytesWritten = default;
-                                    return false;
-                                }
-                            }
-                            return true;
-                        }
-
-                        // We now loop again to decode the next run of non-space characters. 
+                        // Even after stripping out whitespace, the number of characters is not divisible by 4. This cannot be a legal Base64 string.
+                        bytesWritten = default;
+                        return false;
                     }
+
+                    tempBuffer = tempBuffer.Slice(0, charsWritten);
+                    if (!Base64.TryDecodeFromUtf16(tempBuffer, bytes, out int consumedFromTempBuffer, out int bytesWrittenFromTempBuffer))
+                    {
+                        bytesWritten = default;
+                        return false;
+                    }
+                    bytesWritten += bytesWrittenFromTempBuffer;
+                    chars = chars.Slice(consumedFromChars);
+                    bytes = bytes.Slice(bytesWrittenFromTempBuffer);
+
+                    if ((bytesWrittenFromTempBuffer % 3) != 0)
+                    {
+                        // If we got here, this decode contained one or more padding characters ('='). We can accept trailing whitespace after this
+                        // but nothing else.
+                        for (int i = 0; i < chars.Length; i++)
+                        {
+                            if (!chars[i].IsSpace())
+                            {
+                                bytesWritten = default;
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+
+                    // We now loop again to decode the next run of non-space characters. 
                 }
             }
 
             return true;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct TempCharBuffer
-        {
-            public char C0;
-            public char C1;
-            public char C2;
-            public char C3;
         }
 
         private static void CopyToTempBufferWithoutWhiteSpace(ReadOnlySpan<char> chars, Span<char> tempBuffer, out int consumed, out int charsWritten)
