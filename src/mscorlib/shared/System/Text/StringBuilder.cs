@@ -461,14 +461,11 @@ namespace System.Text
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
-#if DEBUG
-                int originalCapacity = Capacity;
-#endif
+
                 if (value == 0 && m_ChunkPrevious == null)
                 {
                     m_ChunkLength = 0;
                     m_ChunkOffset = 0;
-                    Debug.Assert(Capacity >= originalCapacity);
                     return;
                 }
 
