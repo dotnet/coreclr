@@ -735,7 +735,7 @@ namespace System.Globalization
                 {
                     if (Interop.Globalization.GetSortKey(_sortHandle, source, source.Length, pSortKey, sortKeyLength, options) != sortKeyLength)
                     {
-                        throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                        throw new ArgumentException(SR.Arg_ExternalException);
                     }
                 }
             }
@@ -809,7 +809,7 @@ namespace System.Globalization
             {
                 if (Interop.Globalization.GetSortKey(_sortHandle, source, source.Length, pSortKey, sortKeyLength, options) != sortKeyLength)
                 {
-                    throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                    throw new ArgumentException(SR.Arg_ExternalException);
                 }
             }
 

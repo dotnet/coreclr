@@ -132,7 +132,7 @@ namespace System.Globalization
                                                   null, null, _sortHandle);
                 if (sortKeyLength == 0)
                 {
-                    throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                    throw new ArgumentException(SR.Arg_ExternalException);
                 }
 
                 byte[] borrowedArr = null;
@@ -148,7 +148,7 @@ namespace System.Globalization
                                                       null, 0,
                                                       null, null, _sortHandle) != sortKeyLength)
                     {
-                        throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                        throw new ArgumentException(SR.Arg_ExternalException);
                     }
                 }
 
@@ -551,7 +551,7 @@ namespace System.Globalization
                                                 null, null, _sortHandle);
                     if (sortKeyLength == 0)
                     {
-                        throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                        throw new ArgumentException(SR.Arg_ExternalException);
                     }
 
                     keyData = new byte[sortKeyLength];
@@ -564,7 +564,7 @@ namespace System.Globalization
                                                 pBytes, keyData.Length,
                                                 null, null, _sortHandle) != sortKeyLength)
                         {
-                            throw new ArgumentException(SR.Arg_MustBeString, nameof(source));
+                            throw new ArgumentException(SR.Arg_ExternalException);
                         }
                     }
                 }
