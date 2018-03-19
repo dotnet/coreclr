@@ -87,7 +87,7 @@ CodeGenInterface* getCodeGenerator(Compiler* comp)
 
 // CodeGen constructor
 CodeGenInterface::CodeGenInterface(Compiler* theCompiler)
-    : gcInfo(theCompiler), regSet(theCompiler, gcInfo), compiler(theCompiler)
+    : gcInfo(theCompiler), regSet(theCompiler, gcInfo), compiler(theCompiler), treeLifeUpdater(nullptr)
 {
 }
 
@@ -343,8 +343,7 @@ bool CodeGen::genShouldRoundFP()
 
 void CodeGen::genPrepForCompiler()
 {
-    unsigned   varNum;
-    LclVarDsc* varDsc;
+    treeLifeUpdater = new (compiler, CMK_bitset) TreeLifeUpdater<true>(compiler);
 
     /* Figure out which non-register variables hold pointers */
 
@@ -357,6 +356,8 @@ void CodeGen::genPrepForCompiler()
 
     VarSetOps::AssignNoCopy(compiler, compiler->raRegVarsMask, VarSetOps::MakeEmpty(compiler));
 
+    unsigned   varNum;
+    LclVarDsc* varDsc;
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
         if (varDsc->lvTracked
@@ -468,7 +469,7 @@ void CodeGen::genPrepForEHCodegen()
 
 void CodeGenInterface::genUpdateLife(GenTree* tree)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
+    treeLifeUpdater->UpdateLife(tree);
 }
 
 void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
@@ -772,9 +773,6 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
             return RBM_CALLEE_TRASH_NOGC;
     }
 }
-// Need an explicit instantiation.
-template void Compiler::compUpdateLifeVar<true>(GenTree* tree, VARSET_TP* pLastUseVars);
-template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)

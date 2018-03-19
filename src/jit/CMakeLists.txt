@@ -192,6 +192,7 @@ if (WIN32)
     varset.h
     vartype.h
     x86_instrs.h
+    treelifeupdater.h
   )
 endif(WIN32)
 
