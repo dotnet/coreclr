@@ -56,6 +56,8 @@ FCIMPL1(Object*, AssemblyNameNative::GetFileInformation, StringObject* filenameU
     SString sFileName(gc.filename->GetBuffer());
     PEImageHolder pImage = PEImage::OpenImage(sFileName, MDInternalImport_NoCache);
 
+    PEImageLayoutHolder pLayout(pImage->GetLayout(PEImageLayout::LAYOUT_FLAT, PEImage::LAYOUT_CREATEIFNEEDED));
+
     // Allow AssemblyLoadContext.GetAssemblyName for native images on CoreCLR
     if (pImage->HasNTHeaders() && pImage->HasCorHeader() && pImage->HasNativeHeader())
         pImage->VerifyIsNIAssembly();
