@@ -7251,9 +7251,9 @@ public:
     template <bool ForCodeGen>
     void compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree));
 
-    void genChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
+    void genChangeLife(VARSET_VALARG_TP newLife)
     {
-        compChangeLife</*ForCodeGen*/ true>(newLife DEBUGARG(tree));
+        compChangeLife</*ForCodeGen*/ true>(newLife DEBUGARG(nullptr));
     }
 
     template <bool ForCodeGen>
