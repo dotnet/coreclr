@@ -9,7 +9,7 @@ using Internal.Runtime.CompilerServices;
 
 namespace System
 {
-    internal static class Base64
+    public static partial class Convert
     {
         /// <summary>
         /// Decode the span of UTF-16 encoded text represented as base 64 into binary data.
@@ -31,7 +31,7 @@ namespace System
         /// helper for the Convert routines when the input string contains no whitespace.
         ///           
         /// </summary> 
-        public static bool TryDecodeFromUtf16(ReadOnlySpan<char> utf16, Span<byte> bytes, out int consumed, out int written)
+        private static bool TryDecodeFromUtf16(ReadOnlySpan<char> utf16, Span<byte> bytes, out int consumed, out int written)
         {
             ref char srcChars = ref MemoryMarshal.GetReference(utf16);
             ref byte destBytes = ref MemoryMarshal.GetReference(bytes);
@@ -145,7 +145,7 @@ namespace System
             if (srcLength != utf16.Length)
                 goto InvalidExit;
 
-        DoneExit:
+            DoneExit:
             consumed = sourceIndex;
             written = destIndex;
             return true;
@@ -214,4 +214,4 @@ namespace System
 
         private const byte EncodingPad = (byte)'='; // '=', for padding
     }
-}
+} 

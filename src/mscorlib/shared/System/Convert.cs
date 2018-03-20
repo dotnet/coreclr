@@ -96,7 +96,7 @@ namespace System
     // When passed Value.DBNull, the Value.ToXXX() methods all throw an
     // InvalidCastException.
 
-    public static class Convert
+    public static partial class Convert
     {
         //A typeof operation is fairly expensive (does a system call), so we'll cache these here
         //statically.  These are exactly lined up with the TypeCode, eg. ConvertType[TypeCode.Int16]
@@ -2667,7 +2667,7 @@ namespace System
             while (chars.Length != 0)
             {
                 // Attempt to decode a segment that doesn't contain whitespace.
-                bool complete = Base64.TryDecodeFromUtf16(chars, bytes, out int consumedInThisIteration, out int bytesWrittenInThisIteration);
+                bool complete = TryDecodeFromUtf16(chars, bytes, out int consumedInThisIteration, out int bytesWrittenInThisIteration);
                 bytesWritten += bytesWrittenInThisIteration;
                 if (complete)
                     return true;
@@ -2719,7 +2719,7 @@ namespace System
                     }
 
                     tempBuffer = tempBuffer.Slice(0, charsWritten);
-                    if (!Base64.TryDecodeFromUtf16(tempBuffer, bytes, out int consumedFromTempBuffer, out int bytesWrittenFromTempBuffer))
+                    if (!TryDecodeFromUtf16(tempBuffer, bytes, out int consumedFromTempBuffer, out int bytesWrittenFromTempBuffer))
                     {
                         bytesWritten = default;
                         return false;
