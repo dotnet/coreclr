@@ -9577,8 +9577,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     }
                 }
             }
-
-            if (tree->gtOper == GT_STMT)
+            else if (tree->gtOper == GT_STMT)
             {
                 if (opts.compDbgInfo)
                 {
@@ -9605,13 +9604,14 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     printf(")");
                 }
             }
-
-            if (tree->IsArgPlaceHolderNode() && (tree->gtArgPlace.gtArgPlaceClsHnd != nullptr))
+            else if (tree->IsArgPlaceHolderNode())
             {
-                printf(" => [clsHnd=%08X]", dspPtr(tree->gtArgPlace.gtArgPlaceClsHnd));
+                if (tree->gtArgPlace.gtArgPlaceClsHnd != nullptr)
+                {
+                    printf(" => [clsHnd=%08X]", dspPtr(tree->gtArgPlace.gtArgPlaceClsHnd));
+                }
             }
-
-            if (tree->gtOper == GT_RUNTIMELOOKUP)
+            else if (tree->gtOper == GT_RUNTIMELOOKUP)
             {
 #ifdef _TARGET_64BIT_
                 printf(" 0x%llx", dspPtr(tree->gtRuntimeLookup.gtHnd));
@@ -9634,6 +9634,19 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                         printf(" unknown");
                         break;
                 }
+            }
+            else if (tree->OperIs(GT_JCC, GT_SETCC))
+            {
+                printf("(%s)", tree->AsCC()->gtCondition.Name());
+            }
+            else if (tree->OperIs(GT_SELCC))
+            {
+                printf("(%s)", tree->AsOpCC()->gtCondition.Name());
+            }
+            else if (tree->OperIs(GT_JCMP))
+            {
+                printf("(%s%s)", (tree->gtFlags & GTF_JCMP_TST) != 0 ? "TEST_" : "",
+                       (tree->gtFlags & GTF_JCMP_EQ) != 0 ? "EQ" : "NE");
             }
         }
 
@@ -10322,6 +10335,9 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         case GT_MEMORYBARRIER:
         case GT_ARGPLACE:
         case GT_PINVOKE_PROLOG:
+        case GT_JCC:
+        case GT_SETCC:
+        case GT_JCMP:
         case GT_JMPTABLE:
             break;
 
@@ -10346,14 +10362,6 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
                 printf("0x%x", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
             }
             break;
-
-        case GT_JCC:
-        case GT_SETCC:
-            printf(" cond=%s", tree->AsCC()->gtCondition.Name());
-            break;
-        case GT_JCMP:
-            printf(" cond=%s%s", (tree->gtFlags & GTF_JCMP_TST) ? "TEST_" : "",
-                   (tree->gtFlags & GTF_JCMP_EQ) ? "EQ" : "NE");
 
         default:
             assert(!"don't know how to display tree leaf node");
