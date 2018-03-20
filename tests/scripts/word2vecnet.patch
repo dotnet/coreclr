@@ -1,0 +1,1899 @@
+diff --git a/.gitignore b/.gitignore
+index 8098fe2..7c82f99 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -17,7 +17,6 @@
+ [Rr]eleases/
+ x64/
+ x86/
+-build/
+ bld/
+ [Bb]in/
+ [Oo]bj/
+diff --git a/Dotnet-Install.ps1 b/Dotnet-Install.ps1
+new file mode 100644
+index 0000000..85b786c
+--- /dev/null
++++ b/Dotnet-Install.ps1
+@@ -0,0 +1,486 @@
++#
++# Copyright (c) .NET Foundation and contributors. All rights reserved.
++# Licensed under the MIT license. See LICENSE file in the project root for full license information.
++#
++
++<#
++.SYNOPSIS
++    Installs dotnet cli
++.DESCRIPTION
++    Installs dotnet cli. If dotnet installation already exists in the given directory
++    it will update it only if the requested version differs from the one already installed.
++.PARAMETER Channel
++    Default: LTS
++    Download from the Channel specified
++.PARAMETER Version
++    Default: latest
++    Represents a build version on specific channel. Possible values:
++    - latest - most latest build on specific channel
++    - 3-part version in a format A.B.C - represents specific version of build
++      examples: 2.0.0-preview2-006120; 1.1.0
++.PARAMETER InstallDir
++    Default: %LocalAppData%\Microsoft\dotnet
++    Path to where to install dotnet. Note that binaries will be placed directly in a given directory.
++.PARAMETER Architecture
++    Default: <auto> - this value represents currently running OS architecture
++    Architecture of dotnet binaries to be installed.
++    Possible values are: <auto>, x64 and x86
++.PARAMETER SharedRuntime
++    Default: false
++    Installs just the shared runtime bits, not the entire SDK
++.PARAMETER DebugSymbols
++    If set the installer will include symbols in the installation.
++.PARAMETER DryRun
++    If set it will not perform installation but instead display what command line to use to consistently install
++    currently requested version of dotnet cli. In example if you specify version 'latest' it will display a link
++    with specific version so that this command can be used deterministicly in a build script.
++    It also displays binaries location if you prefer to install or download it yourself.
++.PARAMETER NoPath
++    By default this script will set environment variable PATH for the current process to the binaries folder inside installation folder.
++    If set it will display binaries location but not set any environment variable.
++.PARAMETER Verbose
++    Displays diagnostics information.
++.PARAMETER AzureFeed
++    Default: https://dotnetcli.azureedge.net/dotnet
++    This parameter typically is not changed by the user.
++    It allows to change URL for the Azure feed used by this installer.
++.PARAMETER UncachedFeed
++    This parameter typically is not changed by the user.
++    It allows to change URL for the Uncached feed used by this installer.
++.PARAMETER ProxyAddress
++    If set, the installer will use the proxy when making web requests
++.PARAMETER ProxyUseDefaultCredentials
++    Default: false
++    Use default credentials, when using proxy address.
++#>
++[cmdletbinding()]
++param(
++   [string]$Channel="LTS",
++   [string]$Version="Latest",
++   [string]$InstallDir="<auto>",
++   [string]$Architecture="<auto>",
++   [switch]$SharedRuntime,
++   [switch]$DebugSymbols, # TODO: Switch does not work yet. Symbols zip is not being uploaded yet.
++   [switch]$DryRun,
++   [switch]$NoPath,
++   [string]$AzureFeed="https://dotnetcli.azureedge.net/dotnet",
++   [string]$UncachedFeed="https://dotnetcli.blob.core.windows.net/dotnet",
++   [string]$ProxyAddress,
++   [switch]$ProxyUseDefaultCredentials
++)
++
++Set-StrictMode -Version Latest
++$ErrorActionPreference="Stop"
++$ProgressPreference="SilentlyContinue"
++
++$BinFolderRelativePath=""
++
++# example path with regex: shared/1.0.0-beta-12345/somepath
++$VersionRegEx="/\d+\.\d+[^/]+/"
++$OverrideNonVersionedFiles=$true
++
++function Say($str) {
++    Write-Output "dotnet-install: $str"
++}
++
++function Say-Verbose($str) {
++    Write-Verbose "dotnet-install: $str"
++}
++
++function Say-Invocation($Invocation) {
++    $command = $Invocation.MyCommand;
++    $args = (($Invocation.BoundParameters.Keys | foreach { "-$_ `"$($Invocation.BoundParameters[$_])`"" }) -join " ")
++    Say-Verbose "$command $args"
++}
++
++function Invoke-With-Retry([ScriptBlock]$ScriptBlock, [int]$MaxAttempts = 3, [int]$SecondsBetweenAttempts = 1) {
++    $Attempts = 0
++
++    while ($true) {
++        try {
++            return $ScriptBlock.Invoke()
++        }
++        catch {
++            $Attempts++
++            if ($Attempts -lt $MaxAttempts) {
++                Start-Sleep $SecondsBetweenAttempts
++            }
++            else {
++                throw
++            }
++        }
++    }
++}
++
++function Get-Machine-Architecture() {
++    Say-Invocation $MyInvocation
++
++    # possible values: AMD64, IA64, x86
++    return $ENV:PROCESSOR_ARCHITECTURE
++}
++
++# TODO: Architecture and CLIArchitecture should be unified
++function Get-CLIArchitecture-From-Architecture([string]$Architecture) {
++    Say-Invocation $MyInvocation
++
++    switch ($Architecture.ToLower()) {
++        { $_ -eq "<auto>" } { return Get-CLIArchitecture-From-Architecture $(Get-Machine-Architecture) }
++        { ($_ -eq "amd64") -or ($_ -eq "x64") } { return "x64" }
++        { $_ -eq "x86" } { return "x86" }
++        default { throw "Architecture not supported. If you think this is a bug, please report it at https://github.com/dotnet/cli/issues" }
++    }
++}
++
++function Get-Version-Info-From-Version-Text([string]$VersionText) {
++    Say-Invocation $MyInvocation
++
++    $Data = @($VersionText.Split([char[]]@(), [StringSplitOptions]::RemoveEmptyEntries));
++
++    $VersionInfo = @{}
++    $VersionInfo.CommitHash = $Data[0].Trim()
++    $VersionInfo.Version = $Data[1].Trim()
++    return $VersionInfo
++}
++
++function Load-Assembly([string] $Assembly) {
++    try {
++        Add-Type -Assembly $Assembly | Out-Null
++    }
++    catch {
++        # On Nano Server, Powershell Core Edition is used.  Add-Type is unable to resolve base class assemblies because they are not GAC'd.
++        # Loading the base class assemblies is not unnecessary as the types will automatically get resolved.
++    }
++}
++
++function GetHTTPResponse([Uri] $Uri)
++{
++    Invoke-With-Retry(
++    {
++
++        $HttpClient = $null
++
++        try {
++            # HttpClient is used vs Invoke-WebRequest in order to support Nano Server which doesn't support the Invoke-WebRequest cmdlet.
++            Load-Assembly -Assembly System.Net.Http
++
++            if(-not $ProxyAddress)
++            {
++                # Despite no proxy being explicitly specified, we may still be behind a default proxy
++                $DefaultProxy = [System.Net.WebRequest]::DefaultWebProxy;
++                if($DefaultProxy -and (-not $DefaultProxy.IsBypassed($Uri))){
++                    $ProxyAddress =  $DefaultProxy.GetProxy($Uri).OriginalString
++                    $ProxyUseDefaultCredentials = $true
++                }
++            }
++
++            if($ProxyAddress){
++                $HttpClientHandler = New-Object System.Net.Http.HttpClientHandler
++                $HttpClientHandler.Proxy =  New-Object System.Net.WebProxy -Property @{Address=$ProxyAddress;UseDefaultCredentials=$ProxyUseDefaultCredentials}
++                $HttpClient = New-Object System.Net.Http.HttpClient -ArgumentList $HttpClientHandler
++            } 
++            else {
++                $HttpClient = New-Object System.Net.Http.HttpClient
++            }
++            # Default timeout for HttpClient is 100s.  For a 50 MB download this assumes 500 KB/s average, any less will time out
++            # 10 minutes allows it to work over much slower connections.
++            $HttpClient.Timeout = New-TimeSpan -Minutes 10
++            $Response = $HttpClient.GetAsync($Uri).Result
++            if (($Response -eq $null) -or (-not ($Response.IsSuccessStatusCode)))
++            {
++                $ErrorMsg = "Failed to download $Uri."
++                if ($Response -ne $null)
++                {
++                    $ErrorMsg += "  $Response"
++                }
++
++                throw $ErrorMsg
++            }
++
++             return $Response
++        }
++        finally {
++             if ($HttpClient -ne $null) {
++                $HttpClient.Dispose()
++            }
++        }
++    })  
++}
++
++
++function Get-Latest-Version-Info([string]$AzureFeed, [string]$Channel) {
++    Say-Invocation $MyInvocation
++
++    $VersionFileUrl = $null
++    if ($SharedRuntime) {
++        $VersionFileUrl = "$UncachedFeed/Runtime/$Channel/latest.version"
++    }
++    else {
++        $VersionFileUrl = "$UncachedFeed/Sdk/$Channel/latest.version"
++    }
++    
++    $Response = GetHTTPResponse -Uri $VersionFileUrl
++    $StringContent = $Response.Content.ReadAsStringAsync().Result
++
++    switch ($Response.Content.Headers.ContentType) {
++        { ($_ -eq "application/octet-stream") } { $VersionText = [Text.Encoding]::UTF8.GetString($StringContent) }
++        { ($_ -eq "text/plain") } { $VersionText = $StringContent }
++        { ($_ -eq "text/plain; charset=UTF-8") } { $VersionText = $StringContent }
++        default { throw "``$Response.Content.Headers.ContentType`` is an unknown .version file content type." }
++    }
++
++    $VersionInfo = Get-Version-Info-From-Version-Text $VersionText
++
++    return $VersionInfo
++}
++
++
++function Get-Specific-Version-From-Version([string]$AzureFeed, [string]$Channel, [string]$Version) {
++    Say-Invocation $MyInvocation
++
++    switch ($Version.ToLower()) {
++        { $_ -eq "latest" } {
++            $LatestVersionInfo = Get-Latest-Version-Info -AzureFeed $AzureFeed -Channel $Channel
++            return $LatestVersionInfo.Version
++        }
++        default { return $Version }
++    }
++}
++
++function Get-Download-Link([string]$AzureFeed, [string]$Channel, [string]$SpecificVersion, [string]$CLIArchitecture) {
++    Say-Invocation $MyInvocation
++    
++    if ($SharedRuntime) {
++        $PayloadURL = "$AzureFeed/Runtime/$SpecificVersion/dotnet-runtime-$SpecificVersion-win-$CLIArchitecture.zip"
++    }
++    else {
++        $PayloadURL = "$AzureFeed/Sdk/$SpecificVersion/dotnet-sdk-$SpecificVersion-win-$CLIArchitecture.zip"
++    }
++
++    Say-Verbose "Constructed primary payload URL: $PayloadURL"
++
++    return $PayloadURL
++}
++
++function Get-LegacyDownload-Link([string]$AzureFeed, [string]$Channel, [string]$SpecificVersion, [string]$CLIArchitecture) {
++    Say-Invocation $MyInvocation
++    
++    if ($SharedRuntime) {
++        $PayloadURL = "$AzureFeed/Runtime/$SpecificVersion/dotnet-win-$CLIArchitecture.$SpecificVersion.zip"
++    }
++    else {
++        $PayloadURL = "$AzureFeed/Sdk/$SpecificVersion/dotnet-dev-win-$CLIArchitecture.$SpecificVersion.zip"
++    }
++
++    Say-Verbose "Constructed legacy payload URL: $PayloadURL"
++
++    return $PayloadURL
++}
++
++function Get-User-Share-Path() {
++    Say-Invocation $MyInvocation
++
++    $InstallRoot = $env:DOTNET_INSTALL_DIR
++    if (!$InstallRoot) {
++        $InstallRoot = "$env:LocalAppData\Microsoft\dotnet"
++    }
++    return $InstallRoot
++}
++
++function Resolve-Installation-Path([string]$InstallDir) {
++    Say-Invocation $MyInvocation
++
++    if ($InstallDir -eq "<auto>") {
++        return Get-User-Share-Path
++    }
++    return $InstallDir
++}
++
++function Get-Version-Info-From-Version-File([string]$InstallRoot, [string]$RelativePathToVersionFile) {
++    Say-Invocation $MyInvocation
++
++    $VersionFile = Join-Path -Path $InstallRoot -ChildPath $RelativePathToVersionFile
++    Say-Verbose "Local version file: $VersionFile"
++    
++    if (Test-Path $VersionFile) {
++        $VersionText = cat $VersionFile
++        Say-Verbose "Local version file text: $VersionText"
++        return Get-Version-Info-From-Version-Text $VersionText
++    }
++
++    Say-Verbose "Local version file not found."
++
++    return $null
++}
++
++function Is-Dotnet-Package-Installed([string]$InstallRoot, [string]$RelativePathToPackage, [string]$SpecificVersion) {
++    Say-Invocation $MyInvocation
++    
++    $DotnetPackagePath = Join-Path -Path $InstallRoot -ChildPath $RelativePathToPackage | Join-Path -ChildPath $SpecificVersion
++    Say-Verbose "Is-Dotnet-Package-Installed: Path to a package: $DotnetPackagePath"
++    return Test-Path $DotnetPackagePath -PathType Container
++}
++
++function Get-Absolute-Path([string]$RelativeOrAbsolutePath) {
++    # Too much spam
++    # Say-Invocation $MyInvocation
++
++    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RelativeOrAbsolutePath)
++}
++
++function Get-Path-Prefix-With-Version($path) {
++    $match = [regex]::match($path, $VersionRegEx)
++    if ($match.Success) {
++        return $entry.FullName.Substring(0, $match.Index + $match.Length)
++    }
++    
++    return $null
++}
++
++function Get-List-Of-Directories-And-Versions-To-Unpack-From-Dotnet-Package([System.IO.Compression.ZipArchive]$Zip, [string]$OutPath) {
++    Say-Invocation $MyInvocation
++    
++    $ret = @()
++    foreach ($entry in $Zip.Entries) {
++        $dir = Get-Path-Prefix-With-Version $entry.FullName
++        if ($dir -ne $null) {
++            $path = Get-Absolute-Path $(Join-Path -Path $OutPath -ChildPath $dir)
++            if (-Not (Test-Path $path -PathType Container)) {
++                $ret += $dir
++            }
++        }
++    }
++    
++    $ret = $ret | Sort-Object | Get-Unique
++    
++    $values = ($ret | foreach { "$_" }) -join ";"
++    Say-Verbose "Directories to unpack: $values"
++    
++    return $ret
++}
++
++# Example zip content and extraction algorithm:
++# Rule: files if extracted are always being extracted to the same relative path locally
++# .\
++#       a.exe   # file does not exist locally, extract
++#       b.dll   # file exists locally, override only if $OverrideFiles set
++#       aaa\    # same rules as for files
++#           ...
++#       abc\1.0.0\  # directory contains version and exists locally
++#           ...     # do not extract content under versioned part
++#       abc\asd\    # same rules as for files
++#            ...
++#       def\ghi\1.0.1\  # directory contains version and does not exist locally
++#           ...         # extract content
++function Extract-Dotnet-Package([string]$ZipPath, [string]$OutPath) {
++    Say-Invocation $MyInvocation
++
++    Load-Assembly -Assembly System.IO.Compression.FileSystem
++    Set-Variable -Name Zip
++    try {
++        $Zip = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
++        
++        $DirectoriesToUnpack = Get-List-Of-Directories-And-Versions-To-Unpack-From-Dotnet-Package -Zip $Zip -OutPath $OutPath
++        
++        foreach ($entry in $Zip.Entries) {
++            $PathWithVersion = Get-Path-Prefix-With-Version $entry.FullName
++            if (($PathWithVersion -eq $null) -Or ($DirectoriesToUnpack -contains $PathWithVersion)) {
++                $DestinationPath = Get-Absolute-Path $(Join-Path -Path $OutPath -ChildPath $entry.FullName)
++                $DestinationDir = Split-Path -Parent $DestinationPath
++                $OverrideFiles=$OverrideNonVersionedFiles -Or (-Not (Test-Path $DestinationPath))
++                if ((-Not $DestinationPath.EndsWith("\")) -And $OverrideFiles) {
++                    New-Item -ItemType Directory -Force -Path $DestinationDir | Out-Null
++                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $DestinationPath, $OverrideNonVersionedFiles)
++                }
++            }
++        }
++    }
++    finally {
++        if ($Zip -ne $null) {
++            $Zip.Dispose()
++        }
++    }
++}
++
++function DownloadFile([Uri]$Uri, [string]$OutPath) {
++    $Stream = $null
++
++    try {
++        $Response = GetHTTPResponse -Uri $Uri
++        $Stream = $Response.Content.ReadAsStreamAsync().Result
++        $File = [System.IO.File]::Create($OutPath)
++        $Stream.CopyTo($File)
++        $File.Close()
++    }
++    finally {
++        if ($Stream -ne $null) {
++            $Stream.Dispose()
++        }
++    }
++}
++
++function Prepend-Sdk-InstallRoot-To-Path([string]$InstallRoot, [string]$BinFolderRelativePath) {
++    $BinPath = Get-Absolute-Path $(Join-Path -Path $InstallRoot -ChildPath $BinFolderRelativePath)
++    if (-Not $NoPath) {
++        Say "Adding to current process PATH: `"$BinPath`". Note: This change will not be visible if PowerShell was run as a child process."
++        $env:path = "$BinPath;" + $env:path
++    }
++    else {
++        Say "Binaries of dotnet can be found in $BinPath"
++    }
++}
++
++$CLIArchitecture = Get-CLIArchitecture-From-Architecture $Architecture
++$SpecificVersion = Get-Specific-Version-From-Version -AzureFeed $AzureFeed -Channel $Channel -Version $Version
++$DownloadLink = Get-Download-Link -AzureFeed $AzureFeed -Channel $Channel -SpecificVersion $SpecificVersion -CLIArchitecture $CLIArchitecture
++$LegacyDownloadLink = Get-LegacyDownload-Link -AzureFeed $AzureFeed -Channel $Channel -SpecificVersion $SpecificVersion -CLIArchitecture $CLIArchitecture
++
++if ($DryRun) {
++    Say "Payload URLs:"
++    Say "Primary - $DownloadLink"
++    Say "Legacy - $LegacyDownloadLink"
++    Say "Repeatable invocation: .\$($MyInvocation.MyCommand) -Version $SpecificVersion -Channel $Channel -Architecture $CLIArchitecture -InstallDir $InstallDir"
++    exit 0
++}
++
++$InstallRoot = Resolve-Installation-Path $InstallDir
++Say-Verbose "InstallRoot: $InstallRoot"
++
++$IsSdkInstalled = Is-Dotnet-Package-Installed -InstallRoot $InstallRoot -RelativePathToPackage "sdk" -SpecificVersion $SpecificVersion
++Say-Verbose ".NET SDK installed? $IsSdkInstalled"
++if ($IsSdkInstalled) {
++    Say ".NET SDK version $SpecificVersion is already installed."
++    Prepend-Sdk-InstallRoot-To-Path -InstallRoot $InstallRoot -BinFolderRelativePath $BinFolderRelativePath
++    exit 0
++}
++
++New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
++
++$installDrive = $((Get-Item $InstallRoot).PSDrive.Name);
++Write-Output "${installDrive}:";
++$free = Get-CimInstance -Class win32_logicaldisk | where Deviceid -eq "${installDrive}:"
++if ($free.Freespace / 1MB -le 100 ) {
++    Say "There is not enough disk space on drive ${installDrive}:"
++    exit 0
++}
++
++$ZipPath = [System.IO.Path]::GetTempFileName()
++Say "Downloading $DownloadLink"
++try {
++    DownloadFile -Uri $DownloadLink -OutPath $ZipPath
++}
++catch {
++    $DownloadLink = $LegacyDownloadLink
++    $ZipPath = [System.IO.Path]::GetTempFileName()
++    Say "Downloading $DownloadLink"
++    DownloadFile -Uri $DownloadLink -OutPath $ZipPath
++}
++
++Say "Extracting zip from $DownloadLink"
++Extract-Dotnet-Package -ZipPath $ZipPath -OutPath $InstallRoot
++
++Remove-Item $ZipPath
++
++Prepend-Sdk-InstallRoot-To-Path -InstallRoot $InstallRoot -BinFolderRelativePath $BinFolderRelativePath
++
++Say "Installation finished"
++exit 0
+\ No newline at end of file
+diff --git a/NuGet.config b/NuGet.config
+new file mode 100644
+index 0000000..bd3a6f8
+--- /dev/null
++++ b/NuGet.config
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<configuration>
++  <packageSources>
++    <clear />
++    <add key="dotnet core" value="https://dotnet.myget.org/F/dotnet-core/api/v3/index.json" />
++    <add key="NuGet" value="https://api.nuget.org/v3/index.json" />
++  </packageSources>
++</configuration>
+\ No newline at end of file
+diff --git a/Word2LibConsole/Word2LibConsole.vcxproj b/Word2LibConsole/Word2LibConsole.vcxproj
+index 2caa5a0..03b8ada 100644
+--- a/Word2LibConsole/Word2LibConsole.vcxproj
++++ b/Word2LibConsole/Word2LibConsole.vcxproj
+@@ -1,5 +1,5 @@
+ ﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
++<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
+     <ProjectConfiguration Include="Debug|Win32">
+       <Configuration>Debug</Configuration>
+@@ -14,19 +14,19 @@
+     <ProjectGuid>{9C719670-3571-4B68-A3DA-053B18C654A0}</ProjectGuid>
+     <Keyword>Win32Proj</Keyword>
+     <RootNamespace>Word2LibConsole</RootNamespace>
+-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
++    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+   </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v140</PlatformToolset>
++    <PlatformToolset>v141</PlatformToolset>
+     <CharacterSet>Unicode</CharacterSet>
+   </PropertyGroup>
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+     <ConfigurationType>Application</ConfigurationType>
+     <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v140</PlatformToolset>
++    <PlatformToolset>v141</PlatformToolset>
+     <WholeProgramOptimization>true</WholeProgramOptimization>
+     <CharacterSet>Unicode</CharacterSet>
+   </PropertyGroup>
+diff --git a/Word2Vec.Net/Distance.cs b/Word2Vec.Net/Distance.cs
+index f2c3cdc..32929cd 100644
+--- a/Word2Vec.Net/Distance.cs
++++ b/Word2Vec.Net/Distance.cs
+@@ -46,7 +46,7 @@ namespace Word2Vec.Net
+                     }
+                     if (b == Words) b = -1;
+                     bi[a] = b;
+-                    Console.Write("\nWord: {0}  Position in vocabulary: {1}\n", st[a], bi[a]);
++                    //Console.Write("\nWord: {0}  Position in vocabulary: {1}\n", st[a], bi[a]);
+                     if (b == -1)
+                     {
+                         Console.Write("Out of dictionary word!\n");
+@@ -99,4 +99,4 @@ namespace Word2Vec.Net
+         public string Word { get; set; }
+         public float Distance { get; set; }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/Word2Vec.Net/Properties/AssemblyInfo.cs b/Word2Vec.Net/Properties/AssemblyInfo.cs
+deleted file mode 100644
+index 89452bf..0000000
+--- a/Word2Vec.Net/Properties/AssemblyInfo.cs
++++ /dev/null
+@@ -1,36 +0,0 @@
+-﻿using System.Reflection;
+-using System.Runtime.CompilerServices;
+-using System.Runtime.InteropServices;
+-
+-// General Information about an assembly is controlled through the following 
+-// set of attributes. Change these attribute values to modify the information
+-// associated with an assembly.
+-[assembly: AssemblyTitle("Word2Vec.Net")]
+-[assembly: AssemblyDescription("")]
+-[assembly: AssemblyConfiguration("")]
+-[assembly: AssemblyCompany("")]
+-[assembly: AssemblyProduct("Word2Vec.Net")]
+-[assembly: AssemblyCopyright("Copyright ©  2015")]
+-[assembly: AssemblyTrademark("")]
+-[assembly: AssemblyCulture("")]
+-
+-// Setting ComVisible to false makes the types in this assembly not visible 
+-// to COM components.  If you need to access a type in this assembly from 
+-// COM, set the ComVisible attribute to true on that type.
+-[assembly: ComVisible(false)]
+-
+-// The following GUID is for the ID of the typelib if this project is exposed to COM
+-[assembly: Guid("b2bcc46d-a28b-40a4-a873-f0b1ffe65181")]
+-
+-// Version information for an assembly consists of the following four values:
+-//
+-//      Major Version
+-//      Minor Version 
+-//      Build Number
+-//      Revision
+-//
+-// You can specify all the values or you can default the Build and Revision Numbers 
+-// by using the '*' as shown below:
+-// [assembly: AssemblyVersion("1.0.*")]
+-[assembly: AssemblyVersion("1.0.0.0")]
+-[assembly: AssemblyFileVersion("1.0.0.0")]
+diff --git a/Word2Vec.Net/Word2Vec.Net.csproj b/Word2Vec.Net/Word2Vec.Net.csproj
+index ee3ddb9..52cc678 100644
+--- a/Word2Vec.Net/Word2Vec.Net.csproj
++++ b/Word2Vec.Net/Word2Vec.Net.csproj
+@@ -1,62 +1,26 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
++﻿<Project Sdk="Microsoft.NET.Sdk.Web">
++  <Import Project="..\build\common.props" />
+   <PropertyGroup>
+-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+-    <ProjectGuid>{FEFCA2DC-137B-4EEE-A779-0194BDFEBE1F}</ProjectGuid>
+-    <OutputType>Library</OutputType>
+-    <AppDesignerFolder>Properties</AppDesignerFolder>
+-    <RootNamespace>Word2Vec.Net</RootNamespace>
++    <Description>Word2Vec.Net</Description>
++    <TargetFramework>netcoreapp2.1</TargetFramework>
++    <DefineConstants>$(DefineConstants);DEMO</DefineConstants>
++    <WarningsAsErrors>true</WarningsAsErrors>
++    <PreserveCompilationContext>true</PreserveCompilationContext>
+     <AssemblyName>Word2Vec.Net</AssemblyName>
+-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+-    <FileAlignment>512</FileAlignment>
++    <OutputType>library</OutputType>
++    
++    <!-- This will prevent our build system from trying to package this project. -->
++    <IsPackable>false</IsPackable>
++    
++    <!-- This will be set as an environment variable to pin the version. -->
++    <RuntimeFrameworkVersion>$(WORD2VEC_FRAMEWORK_VERSION)</RuntimeFrameworkVersion>
+   </PropertyGroup>
+-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+-    <DebugSymbols>true</DebugSymbols>
+-    <DebugType>full</DebugType>
+-    <Optimize>false</Optimize>
+-    <OutputPath>bin\Debug\</OutputPath>
+-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+-    <ErrorReport>prompt</ErrorReport>
+-    <WarningLevel>4</WarningLevel>
+-    <DocumentationFile>bin\Debug\Word2Vec.Net.XML</DocumentationFile>
+-    <PlatformTarget>AnyCPU</PlatformTarget>
++
++  <PropertyGroup Condition=" '$(RuntimeFrameworkVersion)' == '' ">
++    <RuntimeFrameworkVersion>2.1.0-*</RuntimeFrameworkVersion>
+   </PropertyGroup>
+-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+-    <DebugType>pdbonly</DebugType>
+-    <Optimize>true</Optimize>
+-    <OutputPath>bin\Release\</OutputPath>
+-    <DefineConstants>TRACE</DefineConstants>
+-    <ErrorReport>prompt</ErrorReport>
+-    <WarningLevel>4</WarningLevel>
++  
++  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
++    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
+   </PropertyGroup>
+-  <ItemGroup>
+-    <Reference Include="System" />
+-    <Reference Include="System.Core" />
+-    <Reference Include="System.Xml.Linq" />
+-    <Reference Include="System.Data.DataSetExtensions" />
+-    <Reference Include="Microsoft.CSharp" />
+-    <Reference Include="System.Data" />
+-    <Reference Include="System.Xml" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <Compile Include="Distance.cs" />
+-    <Compile Include="StringExtension.cs" />
+-    <Compile Include="Utils\FileStreamExtensions.cs" />
+-    <Compile Include="VocubWord.cs" />
+-    <Compile Include="Word2Vec.cs" />
+-    <Compile Include="Properties\AssemblyInfo.cs" />
+-    <Compile Include="Word2VecAnalysisBase.cs" />
+-    <Compile Include="Word2VecBuilder.cs" />
+-    <Compile Include="WordAnalogy.cs" />
+-  </ItemGroup>
+-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+-       Other similar extension points exist, see Microsoft.Common.targets.
+-  <Target Name="BeforeBuild">
+-  </Target>
+-  <Target Name="AfterBuild">
+-  </Target>
+-  -->
+-</Project>
+\ No newline at end of file
++</Project>
+diff --git a/Word2Vec.Net/Word2Vec.cs b/Word2Vec.Net/Word2Vec.cs
+index 968bf88..4142c7b 100644
+--- a/Word2Vec.Net/Word2Vec.cs
++++ b/Word2Vec.Net/Word2Vec.cs
+@@ -57,7 +57,7 @@ namespace Word2Vec.Net
+         private const int TableSize = (int) 1e8;
+         private int[] _table;
+ 
+-        internal Word2Vec(
++        public Word2Vec(
+             string trainFileName,
+             string outPutfileName,
+             string saveVocabFileName,
+@@ -186,7 +186,7 @@ namespace Word2Vec.Net
+             for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
+             int size = _vocabSize;
+             _trainWords = 0;
+-            for (var a = 0; a < size; a++)
++            /*for (var a = 0; a < size; a++)
+             {
+                 // Words occuring less than min_count times will be discarded from the vocab
+                 if (_vocab[a].Cn < _minCount && (a != 0))
+@@ -203,7 +203,7 @@ namespace Word2Vec.Net
+                     _trainWords += _vocab[a].Cn;
+                 }
+             }
+-            Array.Resize(ref _vocab, _vocabSize + 1);
++            Array.Resize(ref _vocab, _vocabSize + 1);*/
+             
+             // Allocate memory for the binary tree construction
+             for (var a = 0; a < _vocabSize; a++)
+@@ -331,56 +331,48 @@ namespace Word2Vec.Net
+ 
+         private void LearnVocabFromTrainFile()
+         {
+-                int i;
+-                for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
+-            using (var fin = File.OpenText(_trainFile))
++            int i;
++            for (var a = 0; a < VocabHashSize; a++) _vocabHash[a] = -1;
++            string[] fin = System.IO.File.ReadAllLines(_trainFile);
++            _vocabSize = 0;
++
++            Regex regex = new Regex("\\s");
++                AddWordToVocab("</s>");
++            foreach (string line in fin)
++            {
++                string[] words = regex.Split(line);
++
++                foreach (var word in words)
+                 {
+-                    if (fin == StreamReader.Null)
++                    if(string.IsNullOrWhiteSpace(word)) continue;
++                    _trainWords++;
++                    if ((_debugMode > 1) && (_trainWords%100000 == 0))
+                     {
+-                        throw new InvalidOperationException("ERROR: training data file not found!\n");
++                        Console.Write("{0}K \r", _trainWords/1000);
++                        //printf("%lldK%c", train_words / 1000, 13);
++                        //fflush(stdout);
+                     }
+-                    _vocabSize = 0;
+-                
+-                string line;
+-                Regex regex = new Regex("\\s");
+-                    AddWordToVocab("</s>");
+-                while ((line = fin.ReadLine()) != null)
+-                    {
+-                        if (fin.EndOfStream) break;
+-                    string[] words = regex.Split(line);
+-
+-                    foreach (var word in words)
+-                    {
+-                        if(string.IsNullOrWhiteSpace(word)) continue;
+-                        _trainWords++;
+-                        if ((_debugMode > 1) && (_trainWords%100000 == 0))
+-                        {
+-                            Console.Write("{0}K \r", _trainWords/1000);
+-                            //printf("%lldK%c", train_words / 1000, 13);
+-                            //fflush(stdout);
+-                        }
+-                        i = SearchVocab(word);
+-                        if (i == -1)
++                    i = SearchVocab(word);
++                    if (i == -1)
+                         {
+                             var a = AddWordToVocab(word);
+                             _vocab[a].Cn = 1;
+                         }
+-                        else
+-                            _vocab[i].Cn++;
+-                        if (_vocabSize > VocabHashSize*0.7)
+-                            ReduceVocab();
+-                    }
+-                }
+-                    SortVocab();
+-                    if (_debugMode > 0)
+-                    {
+-                        Console.WriteLine("Vocab size: {0}", _vocabSize);
+-                        Console.WriteLine("Words in train file: {0}", _trainWords);
+-                    }
+-                    //file_size = ftell(fin);
+-                    _fileSize = new FileInfo(_trainFile).Length;
++                    else
++                        _vocab[i].Cn++;
++                    if (_vocabSize > VocabHashSize*0.7)
++                        ReduceVocab();
+                 }
+             }
++            SortVocab();
++            if (_debugMode > 0)
++            {
++                Console.WriteLine("Vocab size: {0}", _vocabSize);
++                Console.WriteLine("Words in train file: {0}", _trainWords);
++            }
++            //file_size = ftell(fin);
++            _fileSize = new FileInfo(_trainFile).Length;
++        }
+ 
+         private void SaveVocab()
+         {
+diff --git a/Word2Vec.Net/WordAnalogy.cs b/Word2Vec.Net/WordAnalogy.cs
+index eaa35bf..8347c0f 100644
+--- a/Word2Vec.Net/WordAnalogy.cs
++++ b/Word2Vec.Net/WordAnalogy.cs
+@@ -24,7 +24,7 @@ namespace Word2Vec.Net
+                 for (b = 0; b < Words; b++) if (!new string(Vocab, (int)(b * max_w), (int)max_w).Equals(st[a])) break;
+                 if (b == Words) b = -1;
+                 bi[a] = b;
+-                Console.Write("\nWord: {0}  Position in vocabulary: {1}\n", st[a], bi[a]);
++                //Console.Write("\nWord: {0}  Position in vocabulary: {1}\n", st[a], bi[a]);
+                 if (b == -1)
+                 {
+                     Console.Write("Out of dictionary word!\n");
+diff --git a/Word2VecScenario/App.config b/Word2VecScenario/App.config
+new file mode 100644
+index 0000000..e8482b1
+--- /dev/null
++++ b/Word2VecScenario/App.config
+@@ -0,0 +1,12 @@
++﻿<?xml version="1.0" encoding="utf-8" ?>
++<configuration>
++
++  <runtime>
++    <gcAllowVeryLargeObjects enabled="true"/>
++  </runtime>
++
++  <startup>
++    <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5" />
++  </startup>
++
++</configuration>
+\ No newline at end of file
+diff --git a/Word2VecScenario/Corpus.txt.ReadMe.txt b/Word2VecScenario/Corpus.txt.ReadMe.txt
+new file mode 100644
+index 0000000..82c04e5
+--- /dev/null
++++ b/Word2VecScenario/Corpus.txt.ReadMe.txt
+@@ -0,0 +1,5 @@
++Please download and rename the following file:
++
++http://mattmahoney.net/dc/text8.zip
++
++Renaming the file inside the zip to: Corpus.txt - In place of this File!
+diff --git a/Word2VecScenario/Program.cs b/Word2VecScenario/Program.cs
+new file mode 100644
+index 0000000..7e9ad31
+--- /dev/null
++++ b/Word2VecScenario/Program.cs
+@@ -0,0 +1,161 @@
++﻿namespace Word2VecScenario
++{
++    using System;
++    using System.Diagnostics;
++    using System.Linq;
++    using Word2Vec.Net;
++
++    class Program
++    {
++        static string path = @"Word2VectorOutputFile.bin";
++        static Distance distance = null;
++        static WordAnalogy wordAnalogy = null;
++
++        static void Main(string[] args)
++        {
++            // -train <file> Use text data from <file> to train the model
++            string train = "Corpus.txt";
++
++            // -output <file> Use <file> to save the resulting word vectors / word clusters
++            string output = "Vectors.bin";
++
++            // -save-vocab <file> The vocabulary will be saved to <file>
++            string savevocab = "";
++
++            // -read-vocab <file> The vocabulary will be read from <file>, not constructed from the training data
++            string readvocab = "";
++
++            // -size <int> Set size of word vectors; default is 100
++            int size = 100;
++
++            // -debug <int> Set the debug mode (default = 2 = more info during training)
++            int debug = 1;
++
++            // -binary <int> Save the resulting vectors in binary moded; default is 0 (off)
++            int binary = 1;
++
++            // -cbow <int> Use the continuous bag of words model; default is 1 (use 0 for skip-gram model)
++            int cbow = 1;
++
++            // -alpha <float> Set the starting learning rate; default is 0.025 for skip-gram and 0.05 for CBOW
++            float alpha = 0.05f;
++
++            // -sample <float> Set threshold for occurrence of words. Those that appear with higher frequency in the training data
++            float sample = 1e-4f;
++
++            // -hs <int> Use Hierarchical Softmax; default is 0 (not used)
++            int hs = 0;
++
++            // -negative <int> Number of negative examples; default is 5, common values are 3 - 10 (0 = not used)
++            int negative = 5;
++
++            // -threads <int> Use <int> threads (default 12)
++            int threads = 12;
++
++            // -iter <int> Run more training iterations (default 5)
++            long iter = 15;
++
++            // -min-count <int> This will discard words that appear less than <int> times; default is 5
++            int mincount = 5;
++
++            // -classes <int> Output word classes rather than word vectors; default number of classes is 0 (vectors are written)
++            long classes = 0;
++
++            // -window <int> Set max skip length between words; default is 5
++            int window = 12;
++
++            Word2Vec word2Vec = new Word2Vec(train, output, savevocab, readvocab, size, debug, binary, cbow, alpha, sample, hs, negative, threads, iter, mincount, classes, window);
++            
++            var totalTime = Stopwatch.StartNew();
++            var highRes = Stopwatch.IsHighResolution;
++
++            word2Vec.TrainModel();
++
++            totalTime.Stop();
++
++            var trainingTime = totalTime.ElapsedMilliseconds;
++            Console.WriteLine("Training took {0}ms", trainingTime);
++
++            path = @"Vectors.bin";
++            distance = new Distance(path);
++            wordAnalogy = new WordAnalogy(path);
++
++            string[] wordList = new string[] {"paris france madrid" };
++
++            var searchTime = Stopwatch.StartNew();
++
++            foreach (string word in wordList)
++            {
++                distance.Search(word);
++                wordAnalogy.Search(word);
++            }
++
++            searchTime.Stop();
++            var firstSearchTime = searchTime.ElapsedMilliseconds;
++            Console.WriteLine("Search took {0}ms", firstSearchTime);
++
++            int outerN = 5;
++
++            for (int outer = 0; outer < outerN; outer++)
++            {
++                foreach (string word in wordList)
++                {
++                    int N = 11;
++                    var minSearchTime = long.MaxValue;
++                    var maxSearchTime = long.MinValue;
++                    long[] searchTimes = new long[N];
++
++                    Console.WriteLine($"Batch {outer}, searching {word}: running {N} searches");
++
++                    for (int inner = 0; inner < N; inner++)
++                    {
++                        searchTime.Restart();
++                        distance.Search(word);
++                        BestWord[] result = wordAnalogy.Search(word);
++                        searchTime.Stop();
++
++                        /*foreach (var bestWord in result)
++                        {
++                            Console.WriteLine("{0}\t\t{1}", bestWord.Word, bestWord.Distance);
++                        }*/
++
++                        long interval = highRes ? searchTime.ElapsedTicks : searchTime.ElapsedMilliseconds;
++                        searchTimes[inner] = interval;
++
++                        if (interval < minSearchTime)
++                        {
++                            minSearchTime = interval;
++                        }
++                        if (interval > maxSearchTime)
++                        {
++                            maxSearchTime = interval;
++                        }
++                    }
++
++                    if (highRes)
++                    {
++                        double averageSearch = 1000 * ((double)searchTimes.Sum() / N / Stopwatch.Frequency);
++                        double medianSearch = 1000 * ((double)searchTimes.OrderBy(t => t).ElementAt(N / 2) / Stopwatch.Frequency);
++                        Console.WriteLine("Steadystate min search time: {0:F2}ms", (1000 * minSearchTime) / Stopwatch.Frequency);
++                        Console.WriteLine("Steadystate max search time: {0:F2}ms", (1000 * maxSearchTime) / Stopwatch.Frequency);
++                        Console.WriteLine("Steadystate average search time: {0:F2}ms", averageSearch);
++                        Console.WriteLine("Steadystate median search time: {0:F2}ms", medianSearch);
++                    }
++                    else
++                    {
++                        long averageSearch = searchTimes.Sum() / N;
++                        long medianSearch = searchTimes.OrderBy(t => t).ElementAt(N / 2);
++                        Console.WriteLine("Steadystate min search time: {0}ms", minSearchTime);
++                        Console.WriteLine("Steadystate max search time: {0}ms", maxSearchTime);
++                        Console.WriteLine("Steadystate average search time: {0}ms", (int)averageSearch);
++                        Console.WriteLine("Steadystate median search time: {0}ms", (int)medianSearch);
++                    }
++
++                    Console.WriteLine("");
++                }
++            }
++        }
++
++    }
++
++}
+diff --git a/Word2VecScenario/Word2VecScenario.csproj b/Word2VecScenario/Word2VecScenario.csproj
+new file mode 100644
+index 0000000..cacd48a
+--- /dev/null
++++ b/Word2VecScenario/Word2VecScenario.csproj
+@@ -0,0 +1,34 @@
++﻿<Project Sdk="Microsoft.NET.Sdk.Web">
++  <Import Project="..\build\common.props" />
++  <PropertyGroup>
++    <Description>Test for Word2Vec</Description>
++    <TargetFramework>netcoreapp2.1</TargetFramework>
++    <DefineConstants>$(DefineConstants);DEMO</DefineConstants>
++    <WarningsAsErrors>true</WarningsAsErrors>
++    <PreserveCompilationContext>true</PreserveCompilationContext>
++    <AssemblyName>Word2VecScenario</AssemblyName>
++    <OutputType>Exe</OutputType>
++    
++    <!-- This will prevent our build system from trying to package this project. -->
++    <IsPackable>false</IsPackable>
++    
++    <!-- This will be set as an environment variable to pin the version. -->
++    <RuntimeFrameworkVersion>$(WORD2VEC_FRAMEWORK_VERSION)</RuntimeFrameworkVersion>
++  </PropertyGroup>
++
++  <PropertyGroup Condition=" '$(RuntimeFrameworkVersion)' == '' ">
++    <RuntimeFrameworkVersion>2.1.0-*</RuntimeFrameworkVersion>
++  </PropertyGroup>
++  
++  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
++    <DefineConstants>$(DefineConstants);RELEASE</DefineConstants>
++  </PropertyGroup>
++
++  <ItemGroup>
++    <ProjectReference Include="..\Word2Vec.Net\Word2Vec.Net.csproj">
++      <Name>Word2Vec.Net</Name>
++    </ProjectReference>
++  </ItemGroup>
++
++</Project>
++
+diff --git a/build/common.props b/build/common.props
+new file mode 100644
+index 0000000..36d884c
+--- /dev/null
++++ b/build/common.props
+@@ -0,0 +1,5 @@
++<Project>
++
++  <Import Project="dependencies.props" />
++
++</Project>
+diff --git a/build/dependencies.props b/build/dependencies.props
+new file mode 100644
+index 0000000..95d79b3
+--- /dev/null
++++ b/build/dependencies.props
+@@ -0,0 +1,5 @@
++<Project>
++  <PropertyGroup>
++    <RuntimeFrameworkVersion>2.0.0-*</RuntimeFrameworkVersion>
++  </PropertyGroup>
++</Project>
+diff --git a/dotnet-install.sh b/dotnet-install.sh
+new file mode 100644
+index 0000000..549a0c7
+--- /dev/null
++++ b/dotnet-install.sh
+@@ -0,0 +1,794 @@
++#!/usr/bin/env bash
++# Copyright (c) .NET Foundation and contributors. All rights reserved.
++# Licensed under the MIT license. See LICENSE file in the project root for full license information.
++#
++
++# Stop script on NZEC
++set -e
++# Stop script if unbound variable found (use ${var:-} if intentional)
++set -u
++# By default cmd1 | cmd2 returns exit code of cmd2 regardless of cmd1 success
++# This is causing it to fail
++set -o pipefail
++
++# Use in the the functions: eval $invocation
++invocation='say_verbose "Calling: ${yellow:-}${FUNCNAME[0]} ${green:-}$*${normal:-}"'
++
++# standard output may be used as a return value in the functions
++# we need a way to write text on the screen in the functions so that
++# it won't interfere with the return value.
++# Exposing stream 3 as a pipe to standard output of the script itself
++exec 3>&1
++
++# Setup some colors to use. These need to work in fairly limited shells, like the Ubuntu Docker container where there are only 8 colors.
++# See if stdout is a terminal
++if [ -t 1 ]; then
++    # see if it supports colors
++    ncolors=$(tput colors)
++    if [ -n "$ncolors" ] && [ $ncolors -ge 8 ]; then
++        bold="$(tput bold       || echo)"
++        normal="$(tput sgr0     || echo)"
++        black="$(tput setaf 0   || echo)"
++        red="$(tput setaf 1     || echo)"
++        green="$(tput setaf 2   || echo)"
++        yellow="$(tput setaf 3  || echo)"
++        blue="$(tput setaf 4    || echo)"
++        magenta="$(tput setaf 5 || echo)"
++        cyan="$(tput setaf 6    || echo)"
++        white="$(tput setaf 7   || echo)"
++    fi
++fi
++
++say_err() {
++    printf "%b\n" "${red:-}dotnet_install: Error: $1${normal:-}" >&2
++}
++
++say() {
++    # using stream 3 (defined in the beginning) to not interfere with stdout of functions
++    # which may be used as return value
++    printf "%b\n" "${cyan:-}dotnet-install:${normal:-} $1" >&3
++}
++
++say_verbose() {
++    if [ "$verbose" = true ]; then
++        say "$1"
++    fi
++}
++
++get_os_download_name_from_platform() {
++    eval $invocation
++
++    platform="$1"
++    case "$platform" in
++        "centos.7")
++            echo "centos"
++            return 0
++            ;;
++        "debian.8")
++            echo "debian"
++            return 0
++            ;;
++        "fedora.23")
++            echo "fedora.23"
++            return 0
++            ;;
++        "fedora.24")
++            echo "fedora.24"
++            return 0
++            ;;
++        "opensuse.13.2")
++            echo "opensuse.13.2"
++            return 0
++            ;;
++        "opensuse.42.1")
++            echo "opensuse.42.1"
++            return 0
++            ;;
++        "rhel.7"*)
++            echo "rhel"
++            return 0
++            ;;
++        "ubuntu.14.04")
++            echo "ubuntu"
++            return 0
++            ;;
++        "ubuntu.16.04")
++            echo "ubuntu.16.04"
++            return 0
++            ;;
++        "ubuntu.16.10")
++            echo "ubuntu.16.10"
++            return 0
++            ;;
++        "alpine.3.4.3")
++            echo "alpine"
++            return 0
++            ;;
++    esac
++    return 1
++}
++
++get_current_os_name() {
++    eval $invocation
++
++    local uname=$(uname)
++    if [ "$uname" = "Darwin" ]; then
++        echo "osx"
++        return 0
++    else
++        if [ "$uname" = "Linux" ]; then
++            echo "linux"
++            return 0
++        fi
++    fi
++    
++    say_err "OS name could not be detected: $ID.$VERSION_ID"
++    return 1
++}
++
++get_distro_specific_os_name() {
++    eval $invocation
++
++    local uname=$(uname)
++    if [ "$uname" = "Darwin" ]; then
++        echo "osx"
++        return 0
++    elif [ -n "$runtime_id" ]; then
++        echo $(get_os_download_name_from_platform "${runtime_id%-*}" || echo "${runtime_id%-*}")
++        return 0
++    else
++        if [ -e /etc/os-release ]; then
++            . /etc/os-release
++            os=$(get_os_download_name_from_platform "$ID.$VERSION_ID" || echo "")
++            if [ -n "$os" ]; then
++                echo "$os"
++                return 0
++            fi
++        fi
++    fi
++    
++    say_verbose "Distribution specific OS name + version could not be detected: $ID.$VERSION_ID"
++    return 1
++}
++
++machine_has() {
++    eval $invocation
++
++    hash "$1" > /dev/null 2>&1
++    return $?
++}
++
++
++check_min_reqs() {
++    local hasMinimum=false
++    if machine_has "curl"; then
++        hasMinimum=true
++    elif machine_has "wget"; then
++        hasMinimum=true
++    fi
++
++    if [ "$hasMinimum" = "false" ]; then
++        say_err "curl (recommended) or wget are required to download dotnet. Install missing prerequisite to proceed."
++        return 1
++    fi
++    return 0
++}
++
++check_pre_reqs() {
++    eval $invocation
++    
++    local failing=false;
++
++    if [ "${DOTNET_INSTALL_SKIP_PREREQS:-}" = "1" ]; then
++        return 0
++    fi
++
++    if [ "$(uname)" = "Linux" ]; then
++        if ! [ -x "$(command -v ldconfig)" ]; then
++            echo "ldconfig is not in PATH, trying /sbin/ldconfig."
++            LDCONFIG_COMMAND="/sbin/ldconfig"
++        else
++            LDCONFIG_COMMAND="ldconfig"
++        fi
++
++        [ -z "$($LDCONFIG_COMMAND -p | grep libunwind)" ] && say_err "Unable to locate libunwind. Install libunwind to continue" && failing=true
++        [ -z "$($LDCONFIG_COMMAND -p | grep libssl)" ] && say_err "Unable to locate libssl. Install libssl to continue" && failing=true
++        [ -z "$($LDCONFIG_COMMAND -p | grep libicu)" ] && say_err "Unable to locate libicu. Install libicu to continue" && failing=true
++    fi
++
++    if [ "$failing" = true ]; then
++       return 1
++    fi
++    
++    return 0
++}
++
++# args:
++# input - $1
++to_lowercase() {
++    #eval $invocation
++    
++    echo "$1" | tr '[:upper:]' '[:lower:]'
++    return 0
++}
++
++# args:
++# input - $1
++remove_trailing_slash() {
++    #eval $invocation
++    
++    local input=${1:-}
++    echo "${input%/}"
++    return 0
++}
++
++# args:
++# input - $1
++remove_beginning_slash() {
++    #eval $invocation
++    
++    local input=${1:-}
++    echo "${input#/}"
++    return 0
++}
++
++# args:
++# root_path - $1
++# child_path - $2 - this parameter can be empty
++combine_paths() {
++    eval $invocation
++    
++    # TODO: Consider making it work with any number of paths. For now:
++    if [ ! -z "${3:-}" ]; then
++        say_err "combine_paths: Function takes two parameters."
++        return 1
++    fi
++    
++    local root_path=$(remove_trailing_slash $1)
++    local child_path=$(remove_beginning_slash ${2:-})
++    say_verbose "combine_paths: root_path=$root_path"
++    say_verbose "combine_paths: child_path=$child_path"
++    echo "$root_path/$child_path"
++    return 0
++}
++
++get_machine_architecture() {
++    eval $invocation
++    
++    # Currently the only one supported
++    echo "x64"
++    return 0
++}
++
++# args:
++# architecture - $1
++get_normalized_architecture_from_architecture() {
++    eval $invocation
++    
++    local architecture=$(to_lowercase $1)
++    case $architecture in
++        \<auto\>)
++            echo "$(get_normalized_architecture_from_architecture $(get_machine_architecture))"
++            return 0
++            ;;
++        amd64|x64)
++            echo "x64"
++            return 0
++            ;;
++        x86)
++            say_err "Architecture \`x86\` currently not supported"
++            return 1
++            ;;
++    esac
++   
++    say_err "Architecture \`$architecture\` not supported. If you think this is a bug, please report it at https://github.com/dotnet/cli/issues"
++    return 1
++}
++
++# version_info is a conceptual two line string representing commit hash and 4-part version
++# format:
++# Line 1: # commit_hash
++# Line 2: # 4-part version
++
++# args:
++# version_text - stdin
++get_version_from_version_info() {
++    eval $invocation
++    
++    cat | tail -n 1
++    return 0
++}
++
++# args:
++# version_text - stdin
++get_commit_hash_from_version_info() {
++    eval $invocation
++    
++    cat | head -n 1
++    return 0
++}
++
++# args:
++# install_root - $1
++# relative_path_to_package - $2
++# specific_version - $3
++is_dotnet_package_installed() {
++    eval $invocation
++    
++    local install_root=$1
++    local relative_path_to_package=$2
++    local specific_version=${3//[$'\t\r\n']}
++    
++    local dotnet_package_path=$(combine_paths $(combine_paths $install_root $relative_path_to_package) $specific_version)
++    say_verbose "is_dotnet_package_installed: dotnet_package_path=$dotnet_package_path"
++    
++    if [ -d "$dotnet_package_path" ]; then
++        return 0
++    else
++        return 1
++    fi
++}
++
++# args:
++# azure_feed - $1
++# channel - $2
++# normalized_architecture - $3
++get_latest_version_info() {
++    eval $invocation
++    
++    local azure_feed=$1
++    local channel=$2
++    local normalized_architecture=$3
++
++    local version_file_url=null
++    if [ "$shared_runtime" = true ]; then
++        version_file_url="$uncached_feed/Runtime/$channel/latest.version"
++    else
++        version_file_url="$uncached_feed/Sdk/$channel/latest.version"
++    fi
++    say_verbose "get_latest_version_info: latest url: $version_file_url"
++    
++    download $version_file_url
++    return $?
++}
++
++# args:
++# azure_feed - $1
++# channel - $2
++# normalized_architecture - $3
++# version - $4
++get_specific_version_from_version() {
++    eval $invocation
++    
++    local azure_feed=$1
++    local channel=$2
++    local normalized_architecture=$3
++    local version=$(to_lowercase $4)
++
++    case $version in
++        latest)
++            local version_info
++            version_info="$(get_latest_version_info $azure_feed $channel $normalized_architecture)" || return 1
++            say_verbose "get_specific_version_from_version: version_info=$version_info"
++            echo "$version_info" | get_version_from_version_info
++            return 0
++            ;;
++        *)
++            echo $version
++            return 0
++            ;;
++    esac
++}
++
++# args:
++# azure_feed - $1
++# channel - $2
++# normalized_architecture - $3
++# specific_version - $4
++construct_download_link() {
++    eval $invocation
++    
++    local azure_feed=$1
++    local channel=$2
++    local normalized_architecture=$3
++    local specific_version=${4//[$'\t\r\n']}
++    
++    local osname
++    osname=$(get_current_os_name) || return 1
++
++    local download_link=null
++    if [ "$shared_runtime" = true ]; then
++        download_link="$azure_feed/Runtime/$specific_version/dotnet-runtime-$specific_version-$osname-$normalized_architecture.tar.gz"
++    else
++        download_link="$azure_feed/Sdk/$specific_version/dotnet-sdk-$specific_version-$osname-$normalized_architecture.tar.gz"
++    fi
++    
++    echo "$download_link"
++    return 0
++}
++
++# args:
++# azure_feed - $1
++# channel - $2
++# normalized_architecture - $3
++# specific_version - $4
++construct_legacy_download_link() {
++    eval $invocation
++    
++    local azure_feed=$1
++    local channel=$2
++    local normalized_architecture=$3
++    local specific_version=${4//[$'\t\r\n']}
++
++    local distro_specific_osname
++    distro_specific_osname=$(get_distro_specific_os_name) || return 1
++
++    local legacy_download_link=null
++    if [ "$shared_runtime" = true ]; then
++        legacy_download_link="$azure_feed/Runtime/$specific_version/dotnet-$distro_specific_osname-$normalized_architecture.$specific_version.tar.gz"
++    else
++        legacy_download_link="$azure_feed/Sdk/$specific_version/dotnet-dev-$distro_specific_osname-$normalized_architecture.$specific_version.tar.gz"
++    fi
++
++    echo "$legacy_download_link"
++    return 0
++}
++
++get_user_install_path() {
++    eval $invocation
++    
++    if [ ! -z "${DOTNET_INSTALL_DIR:-}" ]; then
++        echo $DOTNET_INSTALL_DIR
++    else
++        echo "$HOME/.dotnet"
++    fi
++    return 0
++}
++
++# args:
++# install_dir - $1
++resolve_installation_path() {
++    eval $invocation
++    
++    local install_dir=$1
++    if [ "$install_dir" = "<auto>" ]; then
++        local user_install_path=$(get_user_install_path)
++        say_verbose "resolve_installation_path: user_install_path=$user_install_path"
++        echo "$user_install_path"
++        return 0
++    fi
++    
++    echo "$install_dir"
++    return 0
++}
++
++# args:
++# install_root - $1
++get_installed_version_info() {
++    eval $invocation
++    
++    local install_root=$1
++    local version_file=$(combine_paths "$install_root" "$local_version_file_relative_path")
++    say_verbose "Local version file: $version_file"
++    if [ ! -z "$version_file" ] | [ -r "$version_file" ]; then
++        local version_info="$(cat $version_file)"
++        echo "$version_info"
++        return 0
++    fi
++    
++    say_verbose "Local version file not found."
++    return 0
++}
++
++# args:
++# relative_or_absolute_path - $1
++get_absolute_path() {
++    eval $invocation
++    
++    local relative_or_absolute_path=$1
++    echo $(cd $(dirname "$1") && pwd -P)/$(basename "$1")
++    return 0
++}
++
++# args:
++# input_files - stdin
++# root_path - $1
++# out_path - $2
++# override - $3
++copy_files_or_dirs_from_list() {
++    eval $invocation
++
++    local root_path=$(remove_trailing_slash $1)
++    local out_path=$(remove_trailing_slash $2)
++    local override=$3
++    local override_switch=$(if [ "$override" = false ]; then printf -- "-n"; fi)
++    
++    cat | uniq | while read -r file_path; do
++        local path=$(remove_beginning_slash ${file_path#$root_path})
++        local target=$out_path/$path
++        if [ "$override" = true ] || (! ([ -d "$target" ] || [ -e "$target" ])); then
++            mkdir -p $out_path/$(dirname $path)
++            cp -R $override_switch $root_path/$path $target
++        fi
++    done
++}
++
++# args:
++# zip_path - $1
++# out_path - $2
++extract_dotnet_package() {
++    eval $invocation
++    
++    local zip_path=$1
++    local out_path=$2
++    
++    local temp_out_path=$(mktemp -d $temporary_file_template)
++    
++    local failed=false
++    tar -xzf "$zip_path" -C "$temp_out_path" > /dev/null || failed=true
++    
++    local folders_with_version_regex='^.*/[0-9]+\.[0-9]+[^/]+/'
++    find $temp_out_path -type f | grep -Eo $folders_with_version_regex | copy_files_or_dirs_from_list $temp_out_path $out_path false
++    find $temp_out_path -type f | grep -Ev $folders_with_version_regex | copy_files_or_dirs_from_list $temp_out_path $out_path true
++    
++    rm -rf $temp_out_path
++    
++    if [ "$failed" = true ]; then
++        say_err "Extraction failed"
++        return 1
++    fi
++}
++
++# args:
++# remote_path - $1
++# [out_path] - $2 - stdout if not provided
++download() {
++    eval $invocation
++
++    local remote_path=$1
++    local out_path=${2:-}
++
++    local failed=false
++    if machine_has "curl"; then
++        downloadcurl $remote_path $out_path || failed=true
++    elif machine_has "wget"; then
++        downloadwget $remote_path $out_path || failed=true
++    else
++        failed=true
++    fi
++    if [ "$failed" = true ]; then
++        say_verbose "Download failed: $remote_path"
++        return 1
++    fi
++    return 0
++}
++
++downloadcurl() {
++    eval $invocation
++    local remote_path=$1
++    local out_path=${2:-}
++
++    local failed=false
++    if [ -z "$out_path" ]; then
++        curl --retry 10 -sSL -f --create-dirs $remote_path || failed=true
++    else
++        curl --retry 10 -sSL -f --create-dirs -o $out_path $remote_path || failed=true
++    fi
++    if [ "$failed" = true ]; then
++        say_verbose "Curl download failed"
++        return 1
++    fi
++    return 0
++}
++
++downloadwget() {
++    eval $invocation
++    local remote_path=$1
++    local out_path=${2:-}
++
++    local failed=false
++    if [ -z "$out_path" ]; then
++        wget -q --tries 10 $remote_path || failed=true
++    else
++        wget -v --tries 10 -O $out_path $remote_path || failed=true
++    fi
++    if [ "$failed" = true ]; then
++        say_verbose "Wget download failed"
++        return 1
++    fi
++    return 0
++}
++
++calculate_vars() {
++    eval $invocation
++    valid_legacy_download_link=true
++
++    normalized_architecture=$(get_normalized_architecture_from_architecture "$architecture")
++    say_verbose "normalized_architecture=$normalized_architecture"
++    
++    specific_version=$(get_specific_version_from_version $azure_feed $channel $normalized_architecture $version)
++    say_verbose "specific_version=$specific_version"
++    if [ -z "$specific_version" ]; then
++        say_err "Could not get version information."
++        return 1
++    fi
++    
++    download_link=$(construct_download_link $azure_feed $channel $normalized_architecture $specific_version)
++    say_verbose "download_link=$download_link"
++
++    legacy_download_link=$(construct_legacy_download_link $azure_feed $channel $normalized_architecture $specific_version) || valid_legacy_download_link=false
++
++    if [ "$valid_legacy_download_link" = true ]; then
++        say_verbose "legacy_download_link=$legacy_download_link"
++    else
++        say_verbose "Cound not construct a legacy_download_link; omitting..."
++    fi
++
++    install_root=$(resolve_installation_path $install_dir)
++    say_verbose "install_root=$install_root"
++}
++
++install_dotnet() {
++    eval $invocation
++    local download_failed=false
++
++    if is_dotnet_package_installed $install_root "sdk" $specific_version; then
++        say ".NET SDK version $specific_version is already installed."
++        return 0
++    fi
++    
++    mkdir -p $install_root
++    zip_path=$(mktemp $temporary_file_template)
++    say_verbose "Zip path: $zip_path"
++
++    say "Downloading link: $download_link"
++    download "$download_link" $zip_path || download_failed=true
++
++    #  if the download fails, download the legacy_download_link
++    if [ "$download_failed" = true ] && [ "$valid_legacy_download_link" = true ]; then
++        say "Cannot download: $download_link"
++        zip_path=$(mktemp $temporary_file_template)
++        say_verbose "Legacy zip path: $zip_path"
++        say "Downloading legacy link: $legacy_download_link"
++        download "$legacy_download_link" $zip_path
++    fi
++    
++    say "Extracting zip"
++    extract_dotnet_package $zip_path $install_root
++    
++    return 0
++}
++
++local_version_file_relative_path="/.version"
++bin_folder_relative_path=""
++temporary_file_template="${TMPDIR:-/tmp}/dotnet.XXXXXXXXX"
++
++channel="LTS"
++version="Latest"
++install_dir="<auto>"
++architecture="<auto>"
++debug_symbols=false
++dry_run=false
++no_path=false
++azure_feed="https://dotnetcli.azureedge.net/dotnet"
++uncached_feed="https://dotnetcli.blob.core.windows.net/dotnet"
++verbose=false
++shared_runtime=false
++runtime_id=""
++
++while [ $# -ne 0 ]
++do
++    name=$1
++    case $name in
++        -c|--channel|-[Cc]hannel)
++            shift
++            channel=$1
++            ;;
++        -v|--version|-[Vv]ersion)
++            shift
++            version="$1"
++            ;;
++        -i|--install-dir|-[Ii]nstall[Dd]ir)
++            shift
++            install_dir="$1"
++            ;;
++        --arch|--architecture|-[Aa]rch|-[Aa]rchitecture)
++            shift
++            architecture="$1"
++            ;;
++        --shared-runtime|-[Ss]hared[Rr]untime)
++            shared_runtime=true
++            ;;
++        --debug-symbols|-[Dd]ebug[Ss]ymbols)
++            debug_symbols=true
++            ;;
++        --dry-run|-[Dd]ry[Rr]un)
++            dry_run=true
++            ;;
++        --no-path|-[Nn]o[Pp]ath)
++            no_path=true
++            ;;
++        --verbose|-[Vv]erbose)
++            verbose=true
++            ;;
++        --azure-feed|-[Aa]zure[Ff]eed)
++            shift
++            azure_feed="$1"
++            ;;
++        --uncached-feed|-[Uu]ncached[Ff]eed)
++            shift
++            uncached_feed="$1"
++            ;;
++        --runtime-id|-[Rr]untime[Ii]d)
++            shift
++            runtime_id="$1"
++            ;;
++        -?|--?|-h|--help|-[Hh]elp)
++            script_name="$(basename $0)"
++            echo ".NET Tools Installer"
++            echo "Usage: $script_name [-c|--channel <CHANNEL>] [-v|--version <VERSION>] [-p|--prefix <DESTINATION>]"
++            echo "       $script_name -h|-?|--help"
++            echo ""
++            echo "$script_name is a simple command line interface for obtaining dotnet cli."
++            echo ""
++            echo "Options:"
++            echo "  -c,--channel <CHANNEL>         Download from the CHANNEL specified (default: $channel)."
++            echo "      -Channel"
++            echo "  -v,--version <VERSION>         Use specific version, or \`latest\`. Defaults to \`latest\`."
++            echo "      -Version"
++            echo "  -i,--install-dir <DIR>         Install under specified location (see Install Location below)"
++            echo "      -InstallDir"
++            echo "  --architecture <ARCHITECTURE>  Architecture of .NET Tools. Currently only x64 is supported."
++            echo "      --arch,-Architecture,-Arch"
++            echo "  --shared-runtime               Installs just the shared runtime bits, not the entire SDK."
++            echo "      -SharedRuntime"
++            echo "  --debug-symbols,-DebugSymbols  Specifies if symbols should be included in the installation."
++            echo "  --dry-run,-DryRun              Do not perform installation. Display download link."
++            echo "  --no-path, -NoPath             Do not set PATH for the current process."
++            echo "  --verbose,-Verbose             Display diagnostics information."
++            echo "  --azure-feed,-AzureFeed        Azure feed location. Defaults to $azure_feed, This parameter typically is not changed by the user."
++            echo "  --uncached-feed,-UncachedFeed  Uncached feed location. This parameter typically is not changed by the user."
++            echo "  --runtime-id                   Installs the .NET Tools for the given platform (use linux-x64 for portable linux)."
++            echo "      -RuntimeId"
++            echo "  -?,--?,-h,--help,-Help         Shows this help message"
++            echo ""
++            echo "Install Location:"
++            echo "  Location is chosen in following order:"
++            echo "    - --install-dir option"
++            echo "    - Environmental variable DOTNET_INSTALL_DIR"
++            echo "    - $HOME/.dotnet"
++            exit 0
++            ;;
++        *)
++            say_err "Unknown argument \`$name\`"
++            exit 1
++            ;;
++    esac
++
++    shift
++done
++
++check_min_reqs
++calculate_vars
++
++if [ "$dry_run" = true ]; then
++    say "Payload URL: $download_link"
++    if [ "$valid_legacy_download_link" = true ]; then
++        say "Legacy payload URL: $legacy_download_link"
++    fi
++    say "Repeatable invocation: ./$(basename $0) --version $specific_version --channel $channel --install-dir $install_dir"
++    exit 0
++fi
++
++check_pre_reqs
++install_dotnet
++
++bin_path=$(get_absolute_path $(combine_paths $install_root $bin_folder_relative_path))
++if [ "$no_path" = false ]; then
++    say "Adding to current process PATH: \`$bin_path\`. Note: This change will be visible only when sourcing script."
++    export PATH=$bin_path:$PATH
++else
++    say "Binaries of dotnet can be found in $bin_path"
++fi
++
++say "Installation finished successfully."
+\ No newline at end of file
