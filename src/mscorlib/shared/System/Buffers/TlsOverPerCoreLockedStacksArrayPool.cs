@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.Win32;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -221,6 +220,7 @@ namespace System.Buffers
                     stacks[i] = new LockedStack();
                 }
                 _perCoreStacks = stacks;
+                Gen2GcCallback.Register(Gen2GcCallbackFunc, this);
             }
 
             /// <summary>Try to push the array into the stacks. If each is full when it's tested, the array will be dropped.</summary>
@@ -254,6 +254,30 @@ namespace System.Buffers
                 }
                 return null;
             }
+
+            private bool Trim()
+            {
+                LockedStack[] stacks = _perCoreStacks;
+                for (int i = 0; i < stacks.Length; i++)
+                {
+                    stacks[i].Trim();
+                }
+                return true;
+            }
+
+            /// <summary>
+            /// This is the static function that is called from the gen2 GC callback.
+            /// The input object is the instance we want the callback on.
+            /// </summary>
+            /// <remarks>
+            /// The reason that we make this function static and take the instance as a parameter is that
+            /// we would otherwise root the instance to the Gen2GcCallback object, leaking the instance even when
+            /// the application no longer needs it.
+            /// </remarks>
+            private static bool Gen2GcCallbackFunc(object target)
+            {
+                return ((PerCoreLockedStacks)(target)).Trim();
+            }
         }
 
         /// <summary>Provides a simple stack of arrays, protected by a lock.</summary>
@@ -261,6 +285,10 @@ namespace System.Buffers
         {
             private readonly T[][] _arrays = new T[MaxBuffersPerArraySizePerCore][];
             private int _count;
+            private uint _stockTicks;
+
+            private const uint TrimAfterTicks = 10 * 1000;     // Trim after 10 seconds
+            private const uint RefreshTicks = 2 * 1000;        // Time bump after trimming (2 seconds)
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool TryPush(T[] array)
@@ -269,6 +297,10 @@ namespace System.Buffers
                 Monitor.Enter(this);
                 if (_count < MaxBuffersPerArraySizePerCore)
                 {
+                    // Stash the time the bottom of the stack was filled
+                    if (_count == 0)
+                        _stockTicks = (uint)Environment.TickCount;
+
                     _arrays[_count++] = array;
                     enqueued = true;
                 }
@@ -288,6 +320,26 @@ namespace System.Buffers
                 }
                 Monitor.Exit(this);
                 return arr;
+            }
+
+            public void Trim()
+            {
+                if (_count == 0)
+                    return;
+
+                uint current = (uint)Environment.TickCount;
+                Monitor.Enter(this);
+                if (_count > 0 && _stockTicks > current || (current - _stockTicks) > TrimAfterTicks)
+                {
+                    // We've wrapped the tick count or elapsed enough time since the
+                    // first item went into the stack. Drop the top item so it can
+                    // be collected and make the stack look a little newer.
+
+                    _arrays[--_count] = null;
+                    if (_stockTicks < uint.MaxValue - RefreshTicks)
+                        _stockTicks += RefreshTicks;
+                }
+                Monitor.Exit(this);
             }
         }
     }
