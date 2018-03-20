@@ -2310,8 +2310,11 @@ void OleVariant::MarshalLPSTRRArrayComToOle(BASEARRAYREF *pComArray, void *oleAr
                 ThrowOutOfMemory();
 
             // Convert the unicode string to an ansi string.
-            InternalWideToAnsi(stringRef->GetBuffer(), Length, lpstr, allocLength, fBestFitMapping, fThrowOnUnmappableChar);
-            lpstr[Length] = 0;
+            int bytesWritten = InternalWideToAnsi(stringRef->GetBuffer(), Length, lpstr, allocLength, fBestFitMapping, fThrowOnUnmappableChar);
+            if (bytesWritten < allocLength)
+                lpstr[bytesWritten] = 0;
+            else
+                lpstr[allocLength] = 0;
         }
 
         *pOle++ = lpstr;
