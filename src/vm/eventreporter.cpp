@@ -365,8 +365,15 @@ void EventReporter::AddFailFastStackTrace(SString& s)
     CONTRACTL_END;
 
     _ASSERTE(m_eventType == ERT_ManagedFailFast);
-
-    m_Description.Append(W("Exception stack:\n"));
+    InlineSString<80> ssMessage;
+    if (!ssMessage.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTION))
+    {
+        m_Description.Append(W("Exception stack:\n"));
+    }
+    else
+    {
+        m_Description.Append(ssMessage);
+    }
     m_Description.Append(s);
     m_Description.Append(W("\n"));
 }
@@ -694,6 +701,7 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 {
                     OBJECTREF throwable;
                     STRINGREF originalExceptionMessage;
+                    STRINGREF exceptionString;
                 } gc;
                 ZeroMemory(&gc, sizeof(gc));
                 
@@ -718,23 +726,37 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 // look that up and if it is not empty, add those details to the EventReporter so that they get written to the
                 // event log as well.
                 //
-                // We can also be here when in non-DefaultDomain an exception goes unhandled on a pure managed thread. In such a case,
-                // we wont have CrossAppDomainMarshaledException instance but the original exception object that will be used to extract
-                //  the stack trace from.
                 if (IsException(gc.throwable->GetMethodTable()))
                 {
-                    SmallStackSString wordAt;
-                    if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
+                    StackSString result;
+                    // Assume we're calling Exception.InternalToString() ...
+                    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
+
+                    // Get the MethodDesc on which we'll call.
+                    MethodDescCallSite toString(sigID, &(gc.throwable));
+
+                    // Make the call.
+                    ARG_SLOT arg[1] = { ObjToArgSlot(gc.throwable) };
+                    gc.exceptionString = toString.Call_RetSTRINGREF(arg);
+                    if (gc.exceptionString != NULL) 
                     {
-                        wordAt.Set(W("   at"));
+                        gc.exceptionString->GetSString(result);
+                        reporter.AddDescription(result);
                     }
                     else
                     {
-                        wordAt.Insert(wordAt.Begin(), W("   "));
+                        SmallStackSString wordAt;
+                        if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
+                        {
+                            wordAt.Set(W("   at"));
+                        }
+                        else
+                        {
+                            wordAt.Insert(wordAt.Begin(), W("   "));
+                        }
+                        wordAt += W(" ");
+                        ReportExceptionStackHelper(gc.throwable, reporter, wordAt, /* recursionLimit = */10);
                     }
-                    wordAt += W(" ");
-
-                    ReportExceptionStackHelper(gc.throwable, reporter, wordAt, /* recursionLimit = */10);
                 }
                 else
                 {
