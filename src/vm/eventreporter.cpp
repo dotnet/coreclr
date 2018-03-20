@@ -710,22 +710,6 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
                 gc.throwable = pThread->GetThrowable();
                 _ASSERTE(gc.throwable != NULL);
 
-                // On CoreCLR, managed code execution happens in non-default AppDomains and all threads have an AD transition
-                // at their base from DefaultDomain to the target Domain before they start executing managed code. Thus, when 
-                // an exception goes unhandled in a non-default AppDomain on a reverse pinvoke thread, the original exception details are copied 
-                // to the Message property of System.CrossAppDomainMarshaledException instance at the AD transition boundary,
-                // and the exception is then thrown in the calling AppDomain. This is done since CoreCLR does not support marshaling of 
-                // objects across AppDomains.
-                //
-                // On SL, exceptions dont go unhandled to the OS. But in WLC, they can. Thus, when the scenario above happens for WLC,
-                // the OS will invoke CoreCLR's registered UEF and reach here to write the stacktrace from the 
-                // exception object (which will be a CrossAppDomainMarshaledException instance) to the event log. At this point,
-                // we shall be in DefaultDomain. 
-                //
-                // However, the original exception details are in the Message property of CrossAppDomainMarshaledException. So, we should
-                // look that up and if it is not empty, add those details to the EventReporter so that they get written to the
-                // event log as well.
-                //
                 if (IsException(gc.throwable->GetMethodTable()))
                 {
                     StackSString result;
