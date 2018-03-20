@@ -28,7 +28,7 @@ EventPipeEventSource::EventPipeEventSource()
     m_pProvider = EventPipe::CreateProvider(SL(s_pProviderName), NULL, NULL);
 
     // Generate metadata.
-    unsigned int numParams = 1;
+    const unsigned int numParams = 1;
     EventPipeParameterDesc params[numParams];
     params[0].Type = EventPipeParameterType::String;
     params[0].Name = W("CommandLine");
