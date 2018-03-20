@@ -76,7 +76,7 @@ BYTE* EventPipeMetadataGenerator::GenerateEventMetadata(
     pCurrent += sizeof(unsigned int);
 
     // Write the parameter descriptions.
-    for(int i=0; i<paramCount; i++)
+    for(unsigned int i=0; i<paramCount; i++)
     {
         EventPipeParameterDesc *pParam = &pParams[i];
         *((unsigned int *)pCurrent) = (unsigned int)pParam->Type;

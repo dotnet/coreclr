@@ -51,7 +51,7 @@ EventPipeEventSource::EventPipeEventSource()
         0,      /* eventVersion */
         EventPipeEventLevel::LogAlways,
         pMetadata,
-        metadataLength);
+        (unsigned int)metadataLength);
 
     // Delete the metadata after the event is created.
     // The metadata blob will be copied into EventPipe-owned memory.
@@ -102,7 +102,7 @@ void EventPipeEventSource::SendProcessInfo(LPCWSTR pCommandLine)
 
     EventData data[1];
     data[0].Ptr = (unsigned long) pCommandLine;
-    data[0].Size = (wcslen(pCommandLine) + 1) * 2;
+    data[0].Size = (unsigned int)(wcslen(pCommandLine) + 1) * 2;
     data[0].Reserved = 0;
 
     EventPipe::WriteEvent(*m_pProcessInfoEvent, data, 1);
