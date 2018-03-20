@@ -5979,7 +5979,7 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
 //
 void CodeGen::genCompareFloat(GenTree* treeNode)
 {
-    assert(treeNode->OperIsCompare());
+    assert(treeNode->OperIsCompare() || treeNode->OperIs(GT_CMP));
 
     GenTreeOp* tree    = treeNode->AsOp();
     GenTree*   op1     = tree->gtOp1;
@@ -5992,28 +5992,34 @@ void CodeGen::genCompareFloat(GenTree* treeNode)
     assert(varTypeIsFloating(op1Type));
     assert(op1Type == op2Type);
 
-    regNumber   targetReg = treeNode->gtRegNum;
-    instruction ins;
-    emitAttr    cmpAttr;
+    instruction ins     = ins_FloatCompare(op1Type);
+    emitAttr    cmpAttr = emitTypeSize(op1Type);
 
-    GenCondition condition = GenCondition::FromFloatRelop(treeNode);
-
-    if (condition.PreferSwap())
+    if (treeNode->OperIs(GT_CMP))
     {
-        condition = GenCondition::Swap(condition);
-        std::swap(op1, op2);
+        assert(op1->isUsedFromReg());
+        assert(op2->isUsedFromReg() || op2->isUsedFromMemory());
+
+        getEmitter()->emitInsBinary(ins, cmpAttr, op1, op2);
     }
-
-    ins     = ins_FloatCompare(op1Type);
-    cmpAttr = emitTypeSize(op1Type);
-
-    getEmitter()->emitInsBinary(ins, cmpAttr, op1, op2);
-
-    // Are we evaluating this into a register?
-    if (targetReg != REG_NA)
+    else
     {
-        inst_SETCC(condition, treeNode->TypeGet(), targetReg);
-        genProduceReg(tree);
+        GenCondition condition = GenCondition::FromFloatRelop(treeNode);
+
+        if (condition.PreferSwap())
+        {
+            condition = GenCondition::Swap(condition);
+            std::swap(op1, op2);
+        }
+
+        getEmitter()->emitInsBinary(ins, cmpAttr, op1, op2);
+
+        // Are we evaluating this into a register?
+        if (treeNode->gtRegNum != REG_NA)
+        {
+            inst_SETCC(condition, treeNode->TypeGet(), treeNode->gtRegNum);
+            genProduceReg(tree);
+        }
     }
 }
 

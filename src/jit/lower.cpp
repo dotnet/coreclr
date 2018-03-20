@@ -3500,13 +3500,35 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
 
 #ifdef _TARGET_AMD64_
     GenTreeOp* relop = jtrue->gtGetOp1()->AsOp();
-    if (!relop->OperIs(GT_TEST_EQ, GT_TEST_NE) && !varTypeIsFloating(relop->gtGetOp1()->TypeGet()))
+    if (!relop->OperIs(GT_TEST_EQ, GT_TEST_NE))
     {
         IfConversion ifConversion(comp, m_block);
         GenTreeOpCC* selcc = ifConversion.TryIfConversion(relop, jtrue);
 
         if (selcc != nullptr)
         {
+            if (varTypeIsFloating(relop->gtGetOp1()->TypeGet()))
+            {
+                if (selcc->gtCondition.Is(GenCondition::FLT, GenCondition::FLE))
+                {
+                    // Prefer FGT and FGE to FLT and FLE, they generate a single CMOV.
+                    std::swap(relop->gtOp1, relop->gtOp2);
+                    selcc->gtCondition.Swap();
+                }
+                else if (selcc->gtCondition.Is(GenCondition::FEQ))
+                {
+                    // Prefer FNEU to FEQ, FEQ requires a branch for the unordered case
+                    // but FNEU can be implemented with 2 CMOVs.
+                    std::swap(selcc->gtOp1, selcc->gtOp2);
+                    selcc->gtCondition.Reverse();
+                }
+
+                // Floating point CMP has different containment rules
+                relop->gtGetOp1()->ClearContained();
+                relop->gtGetOp2()->ClearContained();
+                ContainCheckCompare(relop);
+            }
+
             return selcc;
         }
     }
@@ -6426,8 +6448,10 @@ GenTree* Lowering::LowerSelCC(GenTreeOpCC* selcc)
     }
 
     // Put constants in the second operand, this appears to improve register allocation.
+    // Don't do this for floating point conditions, if-conversion attempts to generate
+    // conditions that generate better code and reversing the condition here would undo that.
 
-    if (falseOp->IsIntegralConst() && !trueOp->IsIntegralConst())
+    if (falseOp->IsIntegralConst() && !trueOp->IsIntegralConst() && !selcc->gtCondition.IsFloat())
     {
         std::swap(selcc->gtOp1, selcc->gtOp2);
         selcc->gtCondition = GenCondition::Reverse(selcc->gtCondition);

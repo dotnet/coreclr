@@ -1894,13 +1894,21 @@ void Lowering::ContainCheckCompare(GenTreeOp* cmp)
         assert(op1Type == op2Type);
 
         GenTree* otherOp;
-        if (GenCondition::FromFloatRelop(cmp).PreferSwap())
+
+        if (cmp->OperIs(GT_CMP))
         {
-            otherOp = op1;
+            otherOp = cmp->gtGetOp2();
         }
         else
         {
-            otherOp = op2;
+            if (GenCondition::FromFloatRelop(cmp).PreferSwap())
+            {
+                otherOp = op1;
+            }
+            else
+            {
+                otherOp = op2;
+            }
         }
 
         assert(otherOp != nullptr);
