@@ -145,7 +145,7 @@ namespace System
             if (srcLength != utf16.Length)
                 goto InvalidExit;
 
-            DoneExit:
+        DoneExit:
             consumed = sourceIndex;
             written = destIndex;
             return true;
