@@ -19,7 +19,7 @@ add_definitions(-D_GNU_SOURCE)
 
 add_compile_options(-Wno-header-guard)
 
-if(CLR_CMAKE_TARGET_ARCH_ARM)
+if(CLR_CMAKE_PLATFORM_ARCH_ARM)
     # Disable warning in asm: use of SP or PC in the list is deprecated
     add_compile_options(-Wno-inline-asm)
     # Disable warning due to labs function called on unsigned argument
@@ -32,12 +32,12 @@ if(CLR_CMAKE_TARGET_ARCH_ARM)
     # in include/tdep like it works for similar files on other architectures. So we need to add
     # the include/tdep-arm to include directories
     include_directories(../include/tdep-arm)
-elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
     # Disable warning due to labs function called on unsigned argument
     add_compile_options(-Wno-absolute-value)
     # We compile code with -std=c99 and the asm keyword is not recognized as it is a gnu extension
     add_definitions(-Dasm=__asm__)
-elseif(CLR_CMAKE_TARGET_ARCH_I386)
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
     # Disable warning due to incorrect format specifier in debugging printf via the Debug macro
     add_compile_options(-Wno-format)
 endif()
@@ -301,22 +301,22 @@ SET(libunwind_x86_64_la_SOURCES_x86_64
     x86_64/Gstash_frame.c x86_64/Gstep.c x86_64/Gtrace.c
 )
 
-if(CLR_CMAKE_TARGET_ARCH_ARM64)
+if(CLR_CMAKE_PLATFORM_ARCH_ARM64)
     SET(libunwind_la_SOURCES                    ${libunwind_la_SOURCES_aarch64})
     SET(libunwind_aarch64_la_SOURCES            ${libunwind_aarch64_la_SOURCES_aarch64})
     SET(libunwind_elf_la_SOURCES                ${libunwind_elf64_la_SOURCES})
     list(APPEND libunwind_setjmp_la_SOURCES     aarch64/siglongjmp.S)
-elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
     SET(libunwind_la_SOURCES                    ${libunwind_la_SOURCES_arm})
     SET(libunwind_arm_la_SOURCES                ${libunwind_arm_la_SOURCES_arm})
     SET(libunwind_elf_la_SOURCES                ${libunwind_elf32_la_SOURCES})
     list(APPEND libunwind_setjmp_la_SOURCES     arm/siglongjmp.S)
-elseif(CLR_CMAKE_TARGET_ARCH_I386)
+elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
     SET(libunwind_la_SOURCES                    ${libunwind_la_SOURCES_x86} ${libunwind_x86_la_SOURCES_os})
     SET(libunwind_x86_la_SOURCES                ${libunwind_x86_la_SOURCES_x86})
     SET(libunwind_elf_la_SOURCES                ${libunwind_elf32_la_SOURCES})
     list(APPEND libunwind_setjmp_la_SOURCES     x86/longjmp.S x86/siglongjmp.S)
-elseif(CLR_CMAKE_TARGET_ARCH_AMD64)
+elseif(CLR_CMAKE_PLATFORM_ARCH_AMD64)
     SET(libunwind_la_SOURCES                    ${libunwind_la_SOURCES_x86_64})
     SET(libunwind_x86_64_la_SOURCES             ${libunwind_x86_64_la_SOURCES_x86_64})
     SET(libunwind_elf_la_SOURCES                ${libunwind_elf64_la_SOURCES})
