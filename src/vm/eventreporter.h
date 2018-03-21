@@ -71,7 +71,6 @@ public:
 BOOL ShouldLogInEventLog();
 // Record managed callstack in EventReporter.
 void LogCallstackForEventReporter(EventReporter& reporter);
-// Generate a report in EventLog for unhandled exception for both managed and unmanaged.
-void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo, BOOL useManagedException);
-
+// Helper method for logging stack trace in EventReporter
+void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallStackSString& wordAt, int recursionLimit);
 #endif // _eventreporter_h_

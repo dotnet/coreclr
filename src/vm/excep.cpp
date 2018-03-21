@@ -5253,16 +5253,9 @@ LONG InternalUnhandledExceptionFilter_Worker(
 
         LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: Calling DefaultCatchHandler\n"));
 
-        BOOL useManagedExceptionLog = false;
-
         // Call our default catch handler to do the managed unhandled exception work.
         DefaultCatchHandler(pParam->pExceptionInfo, NULL, useLastThrownObject,
-            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/, &useManagedExceptionLog);
-
-#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
-        DoReportForUnhandledException(pParam->pExceptionInfo, useManagedExceptionLog);
-#endif // FEATURE_EVENT_TRACE    
-
+            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
 
 lDone: ;
     }
@@ -5534,6 +5527,22 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
         }
 
         PrintToStdErrA("\n");
+
+        // Send the log to Windows Event Log
+        EX_TRY
+        {
+            EventReporter reporter(EventReporter::ERT_UnhandledException);
+            if (!message.IsEmpty())
+            {
+                reporter.AddDescription(message);
+            }
+            reporter.Report();
+        }
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH(SwallowAllExceptions);
+
     }
 }
 
@@ -5546,8 +5555,7 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     BOOL useLastThrownObject,
                     BOOL isTerminating,
                     BOOL isThreadBaseFilter,
-                    BOOL sendAppDomainEvents,
-                    BOOL *useManagedExceptionLog)
+                    BOOL sendAppDomainEvents)
 {
     CONTRACTL
     {
@@ -5728,12 +5736,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     // this is stack heavy because of the CQuickWSTRBase, so we break it out
                     // and don't have to carry the weight through our other code paths.
                     DefaultCatchHandlerExceptionMessageWorker(pThread, throwable, buf, buf_size);
-
-                    // If this parameter was passed in, set it to true to indicate it's okay to use managed exception
-                    if (useManagedExceptionLog) 
-                    {
-                        *useManagedExceptionLog = true;
-                    }
                 }
             }
             EX_CATCH

@@ -241,8 +241,7 @@ void STDMETHODCALLTYPE DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionInfo,
                                            BOOL useLastThrownObject = FALSE,
                                            BOOL isTerminating = FALSE,
                                            BOOL isThreadBaseFilter = FALSE,
-                                           BOOL sendAppDomainEvents = TRUE,
-                                           BOOL * shouldLogMessage = NULL);
+                                           BOOL sendAppDomainEvents = TRUE);
 
 void ReplaceExceptionContextRecord(T_CONTEXT *pTarget, T_CONTEXT *pSource);
 
