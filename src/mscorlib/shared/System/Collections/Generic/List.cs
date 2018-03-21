@@ -934,6 +934,10 @@ namespace System.Collections.Generic
                     while (en.MoveNext())
                     {
                         Insert(index++, en.Current);
+#if DEBUG
+                        // Insert increments version
+                        version++;
+#endif
                     }
                 }
             }
@@ -941,6 +945,10 @@ namespace System.Collections.Generic
             {
                 // We're adding a lazy enumerable because the index is at the end of this list.
                 AddEnumerable(collection);
+#if DEBUG
+                // AddEnumerable increments version
+                version++;
+#endif
             }
 #if DEBUG
             DebugConcurrentAccessCheck(version);
