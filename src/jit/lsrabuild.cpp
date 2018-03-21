@@ -3141,22 +3141,18 @@ void LinearScan::BuildGCWriteBarrier(GenTree* tree)
     assert(info->dstCount == 0);
     bool customSourceRegs = false;
 
-#if NOGC_WRITE_BARRIERS
-
 #if defined(_TARGET_ARM64_)
-    // For the NOGC JIT Helper calls
+
+    // the 'addr' goes into x14 (REG_WRITE_BARRIER_DST)
+    // the 'src'  goes into x15 (REG_WRITE_BARRIER_SRC)
     //
-    // the 'addr' goes into x14 (REG_WRITE_BARRIER_DST_BYREF)
-    // the 'src'  goes into x15 (REG_WRITE_BARRIER)
-    //
-    addrInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_DST_BYREF);
-    srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER);
+    addrInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_DST);
+    srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_SRC);
     customSourceRegs = true;
 
-#elif defined(_TARGET_X86_)
+#elif defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     bool useOptimizedWriteBarrierHelper = compiler->codeGen->genUseOptimizedWriteBarriers(tree, src);
-
     if (useOptimizedWriteBarrierHelper)
     {
         // Special write barrier:
@@ -3166,11 +3162,8 @@ void LinearScan::BuildGCWriteBarrier(GenTree* tree)
         srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_SRC);
         customSourceRegs = true;
     }
-#else // !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
-#error "NOGC_WRITE_BARRIERS is not supported"
-#endif // !defined(_TARGET_X86_)
 
-#endif // NOGC_WRITE_BARRIERS
+#endif // defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     if (!customSourceRegs)
     {

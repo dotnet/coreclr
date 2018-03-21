@@ -237,7 +237,7 @@ void LinearScan::BuildNode(GenTree* tree)
                     assert(info->dstCount == 1);
                     break;
                 default:
-                    NYI_ARM("LinearScan::Build for GT_INTRINSIC");
+                    unreached();
                     break;
             }
         }
@@ -762,9 +762,8 @@ void LinearScan::BuildNode(GenTree* tree)
             _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
                         GenTree::OpName(tree->OperGet()));
             NYIRAW(message);
-#else
-            NYI_ARM("BuildNode default case");
 #endif
+
         case GT_LCL_FLD:
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR:
