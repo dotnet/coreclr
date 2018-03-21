@@ -72,7 +72,6 @@ namespace System.Threading
                     null; // implies the default context
             }
 
-            // Flow suppressing a Default context will have null values, set them to Empty
             return new ExecutionContext(m_localValues, m_localChangeNotifications, isFlowSuppressed);
         }
 
