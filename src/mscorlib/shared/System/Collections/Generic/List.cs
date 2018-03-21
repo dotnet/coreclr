@@ -5,6 +5,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace System.Collections.Generic
 {
@@ -181,12 +182,19 @@ namespace System.Collections.Generic
 
             set
             {
+#if DEBUG
+                int version = DebugIncrementVersion();
+#else
+                _version++;
+#endif
                 if ((uint)index >= (uint)_size)
                 {
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 }
                 _items[index] = value;
-                _version++;
+#if DEBUG
+                DebugConcurrentAccessCheck(version);
+#endif
             }
         }
 
@@ -225,9 +233,13 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(T item)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             var array = _items;
             var size = _size;
-            _version++;
             if ((uint)size < (uint)array.Length)
             {
                 _size = size + 1;
@@ -237,6 +249,9 @@ namespace System.Collections.Generic
             {
                 AddWithResize(item);
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Non-inline from List.Add to improve its code quality as uncommon path
@@ -301,6 +316,9 @@ namespace System.Collections.Generic
         // 
         public int BinarySearch(int index, int count, T item, IComparer<T> comparer)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (index < 0)
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
             if (count < 0)
@@ -308,7 +326,11 @@ namespace System.Collections.Generic
             if (_size - index < count)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-            return Array.BinarySearch<T>(_items, index, count, item, comparer);
+            int offset = Array.BinarySearch<T>(_items, index, count, item, comparer);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
+            return offset;
         }
 
         public int BinarySearch(T item)
@@ -326,11 +348,15 @@ namespace System.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 int size = _size;
                 _size = 0;
-                _version++;
                 if (size > 0)
                 {
                     Array.Clear(_items, 0, size); // Clear the elements so that the gc can reclaim the references.
@@ -339,8 +365,10 @@ namespace System.Collections.Generic
             else
             {
                 _size = 0;
-                _version++;
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Contains returns true if the specified element is in the List.
@@ -371,6 +399,9 @@ namespace System.Collections.Generic
 
         public List<TOutput> ConvertAll<TOutput>(Converter<T, TOutput> converter)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (converter == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.converter);
@@ -382,6 +413,9 @@ namespace System.Collections.Generic
                 list._items[i] = converter(_items[i]);
             }
             list._size = _size;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return list;
         }
 
@@ -396,6 +430,9 @@ namespace System.Collections.Generic
         // compatible array type.  
         void System.Collections.ICollection.CopyTo(Array array, int arrayIndex)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if ((array != null) && (array.Rank != 1))
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
@@ -410,6 +447,9 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Copies a section of this list to the given array at the given index.
@@ -418,6 +458,9 @@ namespace System.Collections.Generic
         // 
         public void CopyTo(int index, T[] array, int arrayIndex, int count)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (_size - index < count)
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
@@ -425,12 +468,21 @@ namespace System.Collections.Generic
 
             // Delegate rest of error checking to Array.Copy.
             Array.Copy(_items, index, array, arrayIndex, count);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         public void CopyTo(T[] array, int arrayIndex)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             // Delegate rest of error checking to Array.Copy.
             Array.Copy(_items, 0, array, arrayIndex, _size);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Ensures that the capacity of this list is at least the given minimum
@@ -458,6 +510,9 @@ namespace System.Collections.Generic
 
         public T Find(Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -467,14 +522,23 @@ namespace System.Collections.Generic
             {
                 if (match(_items[i]))
                 {
+#if DEBUG
+                    DebugConcurrentAccessCheck(version);
+#endif
                     return _items[i];
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return default(T);
         }
 
         public List<T> FindAll(Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -488,6 +552,9 @@ namespace System.Collections.Generic
                     list.Add(_items[i]);
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return list;
         }
 
@@ -503,6 +570,9 @@ namespace System.Collections.Generic
 
         public int FindIndex(int startIndex, int count, Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if ((uint)startIndex > (uint)_size)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
@@ -521,13 +591,25 @@ namespace System.Collections.Generic
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
-                if (match(_items[i])) return i;
+                if (match(_items[i]))
+                {
+#if DEBUG
+                    DebugConcurrentAccessCheck(version);
+#endif
+                    return i;
+                }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return -1;
         }
 
         public T FindLast(Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -537,9 +619,15 @@ namespace System.Collections.Generic
             {
                 if (match(_items[i]))
                 {
+#if DEBUG
+                    DebugConcurrentAccessCheck(version);
+#endif
                     return _items[i];
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return default(T);
         }
 
@@ -555,6 +643,9 @@ namespace System.Collections.Generic
 
         public int FindLastIndex(int startIndex, int count, Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -588,9 +679,15 @@ namespace System.Collections.Generic
             {
                 if (match(_items[i]))
                 {
+#if DEBUG
+                    DebugConcurrentAccessCheck(version);
+#endif
                     return i;
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return -1;
         }
 
@@ -638,6 +735,9 @@ namespace System.Collections.Generic
 
         public List<T> GetRange(int index, int count)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (index < 0)
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -656,6 +756,9 @@ namespace System.Collections.Generic
             List<T> list = new List<T>(count);
             Array.Copy(_items, index, list._items, 0, count);
             list._size = count;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return list;
         }
 
@@ -670,7 +773,14 @@ namespace System.Collections.Generic
         // 
         public int IndexOf(T item)
         {
-            return Array.IndexOf(_items, item, 0, _size);
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
+            int offset = Array.IndexOf(_items, item, 0, _size);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
+            return offset;
         }
 
         int System.Collections.IList.IndexOf(object item)
@@ -709,13 +819,20 @@ namespace System.Collections.Generic
         // 
         public int IndexOf(T item, int index, int count)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (index > _size)
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
 
             if (count < 0 || index > _size - count)
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
 
-            return Array.IndexOf(_items, item, index, count);
+            int offset = Array.IndexOf(_items, item, index, count);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
+            return offset;
         }
 
         // Inserts an element into this list at a given index. The size of the list
@@ -724,6 +841,11 @@ namespace System.Collections.Generic
         // 
         public void Insert(int index, T item)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             // Note that insertions at the end are legal.
             if ((uint)index > (uint)_size)
             {
@@ -736,7 +858,9 @@ namespace System.Collections.Generic
             }
             _items[index] = item;
             _size++;
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         void System.Collections.IList.Insert(int index, Object item)
@@ -760,6 +884,11 @@ namespace System.Collections.Generic
         //
         public void InsertRange(int index, IEnumerable<T> collection)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (collection == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
@@ -813,7 +942,9 @@ namespace System.Collections.Generic
                 // We're adding a lazy enumerable because the index is at the end of this list.
                 AddEnumerable(collection);
             }
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Returns the index of the last occurrence of a given value in a range of
@@ -863,6 +994,9 @@ namespace System.Collections.Generic
         // 
         public int LastIndexOf(T item, int index, int count)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if ((Count != 0) && (index < 0))
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -888,7 +1022,11 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_BiggerThanCollection);
             }
 
-            return Array.LastIndexOf(_items, item, index, count);
+            int offset = Array.LastIndexOf(_items, item, index, count);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
+            return offset;
         }
 
         // Removes the element at the given index. The size of the list is
@@ -917,6 +1055,11 @@ namespace System.Collections.Generic
         // The complexity is O(n).
         public int RemoveAll(Predicate<T> match)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -926,7 +1069,13 @@ namespace System.Collections.Generic
 
             // Find the first item which needs to be removed.
             while (freeIndex < _size && !match(_items[freeIndex])) freeIndex++;
-            if (freeIndex >= _size) return 0;
+            if (freeIndex >= _size)
+            {
+#if DEBUG
+                DebugConcurrentAccessCheck(version);
+#endif
+                return 0;
+            }
 
             int current = freeIndex + 1;
             while (current < _size)
@@ -948,7 +1097,9 @@ namespace System.Collections.Generic
 
             int result = _size - freeIndex;
             _size = freeIndex;
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return result;
         }
 
@@ -956,6 +1107,11 @@ namespace System.Collections.Generic
         // decreased by one.
         public void RemoveAt(int index)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if ((uint)index >= (uint)_size)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -969,12 +1125,19 @@ namespace System.Collections.Generic
             {
                 _items[_size] = default(T);
             }
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Removes a range of elements from this list.
         public void RemoveRange(int index, int count)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (index < 0)
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -997,12 +1160,14 @@ namespace System.Collections.Generic
                     Array.Copy(_items, index + count, _items, index, _size - index);
                 }
 
-                _version++;
                 if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 {
                     Array.Clear(_items, _size, count);
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Reverses the elements in this list.
@@ -1018,6 +1183,11 @@ namespace System.Collections.Generic
         //
         public void Reverse(int index, int count)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (index < 0)
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -1035,7 +1205,9 @@ namespace System.Collections.Generic
             {
                 Array.Reverse(_items, index, count);
             }
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // Sorts the elements in this list.  Uses the default comparer and 
@@ -1062,6 +1234,11 @@ namespace System.Collections.Generic
         // 
         public void Sort(int index, int count, IComparer<T> comparer)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (index < 0)
             {
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -1079,11 +1256,18 @@ namespace System.Collections.Generic
             {
                 Array.Sort<T>(_items, index, count, comparer);
             }
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         public void Sort(Comparison<T> comparison)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (comparison == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
@@ -1093,13 +1277,18 @@ namespace System.Collections.Generic
             {
                 ArraySortHelper<T>.Sort(_items, 0, _size, comparison);
             }
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         // ToArray returns an array containing the contents of the List.
         // This requires copying the List, which is an O(n) operation.
         public T[] ToArray()
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (_size == 0)
             {
                 return s_emptyArray;
@@ -1107,6 +1296,9 @@ namespace System.Collections.Generic
 
             T[] array = new T[_size];
             Array.Copy(_items, 0, array, 0, _size);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return array;
         }
 
@@ -1121,15 +1313,24 @@ namespace System.Collections.Generic
         // 
         public void TrimExcess()
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             int threshold = (int)(((double)_items.Length) * 0.9);
             if (_size < threshold)
             {
                 Capacity = _size;
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         public bool TrueForAll(Predicate<T> match)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -1139,21 +1340,30 @@ namespace System.Collections.Generic
             {
                 if (!match(_items[i]))
                 {
+#if DEBUG
+                    DebugConcurrentAccessCheck(version);
+#endif
                     return false;
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return true;
         }
 
         private void AddEnumerable(IEnumerable<T> enumerable)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             Debug.Assert(enumerable != null);
             Debug.Assert(!(enumerable is ICollection<T>), "We should have optimized for this beforehand.");
 
             using (IEnumerator<T> en = enumerable.GetEnumerator())
             {
-                _version++; // Even if the enumerable has no items, we can update _version.
-
                 while (en.MoveNext())
                 {
                     // Capture Current before doing anything else. If this throws
@@ -1168,7 +1378,25 @@ namespace System.Collections.Generic
                     _items[_size++] = current;
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
+
+#if DEBUG
+        private void DebugConcurrentAccessCheck(int version)
+        {
+            if (version != Volatile.Read(ref _version))
+            {
+                ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+            }
+        }
+
+        private int DebugIncrementVersion()
+        {
+            return Interlocked.Increment(ref _version);
+        }
+#endif
 
         public struct Enumerator : IEnumerator<T>, System.Collections.IEnumerator
         {
