@@ -480,16 +480,13 @@ namespace System.IO
         public static bool TryGetTempPath(Span<char> destination, out int charsWritten)
         {                        
             charsWritten = 0;
-
-            var tmpPath = Path.GetTempPath();
+            string tmpPath = Path.GetTempPath();
 
             if (tmpPath.Length > destination.Length)
                 return false;            
 
             tmpPath.AsSpan().CopyTo(destination);
-
             charsWritten = tmpPath.Length;
-
             return true;            
         }
 
