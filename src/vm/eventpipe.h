@@ -36,7 +36,7 @@ typedef void (*EventPipeCallback)(
 struct EventData
 {
 public:
-    unsigned long Ptr;
+    UINT64 Ptr;
     unsigned int Size;
     unsigned int Reserved;
 };

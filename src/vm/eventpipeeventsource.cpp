@@ -69,7 +69,14 @@ EventPipeEventSource::~EventPipeEventSource()
     CONTRACTL_END;
 
     // Delete the provider and associated events.
-    EventPipe::DeleteProvider(m_pProvider);
+    // This is called in the shutdown path which can't throw.
+    // Catch exceptions and ignore failures.
+    EX_TRY
+    {
+        EventPipe::DeleteProvider(m_pProvider);
+    }
+    EX_CATCH { }
+    EX_END_CATCH(SwallowAllExceptions);
 }
 
 void EventPipeEventSource::Enable(EventPipeSession *pSession)
@@ -101,7 +108,7 @@ void EventPipeEventSource::SendProcessInfo(LPCWSTR pCommandLine)
     CONTRACTL_END;
 
     EventData data[1];
-    data[0].Ptr = (unsigned long) pCommandLine;
+    data[0].Ptr = (UINT64) pCommandLine;
     data[0].Size = (unsigned int)(wcslen(pCommandLine) + 1) * 2;
     data[0].Reserved = 0;
 

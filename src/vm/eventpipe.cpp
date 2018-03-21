@@ -159,7 +159,7 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
             unsigned int offset = 0;
             for(unsigned int i=0; i<m_eventDataCount; i++)
             {
-                memcpy(pDst + offset, (BYTE*)m_pEventData[i].Ptr, m_pEventData[i].Size);
+                memcpy(pDst + offset, (BYTE*) m_pEventData[i].Ptr, m_pEventData[i].Size);
                 offset += m_pEventData[i].Size;
             }
         }
@@ -268,7 +268,14 @@ void EventPipe::Shutdown()
     delete(pConfig);
     delete(pBufferManager);
     delete(s_pEventSource);
-    delete(s_pCommandLine);
+    s_pEventSource = NULL;
+
+    // On Windows, this is just a pointer to the return value from
+    // GetCommandLineW(), so don't attempt to free it.
+#ifdef FEATURE_PAL
+    delete[](s_pCommandLine);
+    s_pCommandLine = NULL;
+#endif
 }
 
 void EventPipe::Enable(
@@ -464,7 +471,7 @@ EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventP
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -933,7 +940,7 @@ void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv
     // Get the command line.
     LPCWSTR osCommandLine = GetCommandLineW();
 
-#ifdef PLATFORM_WINDOWS
+#ifndef FEATURE_PAL
     // On Windows, osCommandLine contains the executable and all arguments.
     s_pCommandLine = osCommandLine;
 #else

@@ -21,7 +21,7 @@ BYTE* EventPipeMetadataGenerator::GenerateEventMetadata(
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pEventName != NULL);
         PRECONDITION(paramCount == 0 || pParams != NULL);
