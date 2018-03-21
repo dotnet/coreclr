@@ -679,11 +679,12 @@ void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallS
 //
 // Arguments:
 //    pExceptionInfo - Exception information
+//    useManagedException - Flag to indicate whether it's okay to call Exception.ToString()
 //
 // Return Value:
 //    None
 //
-void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
+void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo, BOOL useManagedException)
 {
     WRAPPER_NO_CONTRACT;
     
@@ -694,6 +695,7 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
         EX_TRY
         {
             StackSString s;
+            bool doUnmanagedLogging = true;
             if (pThread && pThread->HasException() != NULL)
             {
                 GCX_COOP();
@@ -712,22 +714,29 @@ void DoReportForUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
 
                 if (IsException(gc.throwable->GetMethodTable()))
                 {
-                    StackSString result;
-                    // Assume we're calling Exception.InternalToString() ...
-                    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
-
-                    // Get the MethodDesc on which we'll call.
-                    MethodDescCallSite toString(sigID, &(gc.throwable));
-
-                    // Make the call.
-                    ARG_SLOT arg[1] = { ObjToArgSlot(gc.throwable) };
-                    gc.exceptionString = toString.Call_RetSTRINGREF(arg);
-                    if (gc.exceptionString != NULL) 
+                    // If we can use Exception.ToString(), we will use that to maintain consistency with what gets printed on Console
+                    if (useManagedException)
                     {
-                        gc.exceptionString->GetSString(result);
-                        reporter.AddDescription(result);
+                        StackSString result;
+                        // Assume we're calling Exception.InternalToString() ...
+                        BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
+
+                        // Get the MethodDesc on which we'll call.
+                        MethodDescCallSite toString(sigID, &(gc.throwable));
+
+                        // Make the call.
+                        ARG_SLOT arg[1] = { ObjToArgSlot(gc.throwable) };
+                        gc.exceptionString = toString.Call_RetSTRINGREF(arg);
+                        if (gc.exceptionString != NULL)
+                        {
+                            gc.exceptionString->GetSString(result);
+                            reporter.AddDescription(result);
+                            doUnmanagedLogging = false;
+                        }
                     }
-                    else
+
+                    // Otherwise we fall back to native log
+                    if (doUnmanagedLogging)
                     {
                         SmallStackSString wordAt;
                         if (!wordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))

@@ -5234,10 +5234,6 @@ LONG InternalUnhandledExceptionFilter_Worker(
 #endif // DEBUGGING_SUPPORTED
 
 
-#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
-        DoReportForUnhandledException(pParam->pExceptionInfo);
-#endif // FEATURE_EVENT_TRACE    
-
         //
         // Except for notifying debugger, ignore exception if unmanaged, or
         // if it's a debugger-generated exception or user breakpoint exception.
@@ -5257,10 +5253,16 @@ LONG InternalUnhandledExceptionFilter_Worker(
 
         LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker: Calling DefaultCatchHandler\n"));
 
+        BOOL useManagedExceptionLog = false;
 
         // Call our default catch handler to do the managed unhandled exception work.
         DefaultCatchHandler(pParam->pExceptionInfo, NULL, useLastThrownObject,
-            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
+            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/, &useManagedExceptionLog);
+
+#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
+        DoReportForUnhandledException(pParam->pExceptionInfo, useManagedExceptionLog);
+#endif // FEATURE_EVENT_TRACE    
+
 
 lDone: ;
     }
@@ -5544,7 +5546,8 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     BOOL useLastThrownObject,
                     BOOL isTerminating,
                     BOOL isThreadBaseFilter,
-                    BOOL sendAppDomainEvents)
+                    BOOL sendAppDomainEvents,
+                    BOOL *useManagedExceptionLog)
 {
     CONTRACTL
     {
@@ -5725,6 +5728,12 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     // this is stack heavy because of the CQuickWSTRBase, so we break it out
                     // and don't have to carry the weight through our other code paths.
                     DefaultCatchHandlerExceptionMessageWorker(pThread, throwable, buf, buf_size);
+
+                    // If this parameter was passed in, set it to true to indicate it's okay to use managed exception
+                    if (useManagedExceptionLog) 
+                    {
+                        *useManagedExceptionLog = true;
+                    }
                 }
             }
             EX_CATCH
