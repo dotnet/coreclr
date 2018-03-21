@@ -9,6 +9,10 @@
 
 enum class EventPipeEventLevel;
 
+// Represents the type of an event parameter.
+// This enum is derived from the managed TypeCode type, though
+// not all of these values are available in TypeCode.
+// For example, Guid does not exist in TypeCode.
 enum class EventPipeParameterType
 {
     Empty = 0,          // Null reference
@@ -32,12 +36,14 @@ enum class EventPipeParameterType
     String = 18,        // Unicode character string
 };
 
+// Contains the metadata associated with an EventPipe event parameter.
 struct EventPipeParameterDesc
 {
     EventPipeParameterType Type;
     LPCWSTR Name;
 };
 
+// Generates metadata for an event emitted by the EventPipe.
 class EventPipeMetadataGenerator
 {
 public:
