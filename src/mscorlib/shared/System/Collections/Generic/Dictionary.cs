@@ -7,6 +7,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using System.Threading;
 
 namespace System.Collections.Generic
 {
@@ -214,7 +215,13 @@ namespace System.Collections.Generic
         {
             get
             {
+#if DEBUG
+                int version = Volatile.Read(ref _version);
+#endif
                 int i = FindEntry(key);
+#if DEBUG
+                DebugConcurrentAccessCheck(version);
+#endif
                 if (i >= 0) return _entries[i].value;
                 ThrowHelper.ThrowKeyNotFoundException(key);
                 return default(TValue);
@@ -239,27 +246,51 @@ namespace System.Collections.Generic
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             int i = FindEntry(keyValuePair.Key);
             if (i >= 0 && EqualityComparer<TValue>.Default.Equals(_entries[i].value, keyValuePair.Value))
             {
+#if DEBUG
+                DebugConcurrentAccessCheck(version);
+#endif
                 return true;
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             int i = FindEntry(keyValuePair.Key);
             if (i >= 0 && EqualityComparer<TValue>.Default.Equals(_entries[i].value, keyValuePair.Value))
             {
                 Remove(keyValuePair.Key);
+#if DEBUG
+                // Version should have gone up by 1
+                DebugConcurrentAccessCheck(version + 1);
+#endif
                 return true;
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
         public void Clear()
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             int count = _count;
             if (count > 0)
             {
@@ -268,37 +299,67 @@ namespace System.Collections.Generic
                 _count = 0;
                 _freeList = -1;
                 _freeCount = 0;
-                _version++;
                 Array.Clear(_entries, 0, count);
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         public bool ContainsKey(TKey key)
         {
-            return FindEntry(key) >= 0;
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
+            bool result = FindEntry(key) >= 0;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
+            return result;
         }
 
         public bool ContainsValue(TValue value)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (value == null)
             {
                 for (int i = 0; i < _count; i++)
                 {
-                    if (_entries[i].hashCode >= 0 && _entries[i].value == null) return true;
+                    if (_entries[i].hashCode >= 0 && _entries[i].value == null)
+                    {
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
+                        return true;
+                    }
                 }
             }
             else
             {
                 for (int i = 0; i < _count; i++)
                 {
-                    if (_entries[i].hashCode >= 0 && EqualityComparer<TValue>.Default.Equals(_entries[i].value, value)) return true;
+                    if (_entries[i].hashCode >= 0 && EqualityComparer<TValue>.Default.Equals(_entries[i].value, value))
+                    {
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
+                        return true;
+                    }
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
         private void CopyTo(KeyValuePair<TKey, TValue>[] array, int index)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (array == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -323,6 +384,9 @@ namespace System.Collections.Generic
                     array[index++] = new KeyValuePair<TKey, TValue>(entries[i].key, entries[i].value);
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         public Enumerator GetEnumerator()
@@ -356,6 +420,9 @@ namespace System.Collections.Generic
 
         private int FindEntry(TKey key)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
@@ -418,7 +485,9 @@ namespace System.Collections.Generic
                     } while (true);
                 }
             }
-
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return i;
         }
 
@@ -435,6 +504,11 @@ namespace System.Collections.Generic
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
@@ -471,15 +545,19 @@ namespace System.Collections.Generic
                         if (behavior == InsertionBehavior.OverwriteExisting)
                         {
                             entries[i].value = value;
-                            _version++;
+#if DEBUG
+                            DebugConcurrentAccessCheck(version);
+#endif
                             return true;
                         }
 
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
                         if (behavior == InsertionBehavior.ThrowOnExisting)
                         {
                             ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
                         }
-
                         return false;
                     }
 
@@ -509,10 +587,15 @@ namespace System.Collections.Generic
                         if (behavior == InsertionBehavior.OverwriteExisting)
                         {
                             entries[i].value = value;
-                            _version++;
+#if DEBUG
+                            DebugConcurrentAccessCheck(version);
+#endif
                             return true;
                         }
 
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
                         if (behavior == InsertionBehavior.ThrowOnExisting)
                         {
                             ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
@@ -571,7 +654,9 @@ namespace System.Collections.Generic
             entry.value = value;
             // Value in _buckets is 1-based
             targetBucket = index + 1;
-            _version++;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
 
             // Value types never rehash
             if (default(TKey) == null && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer)
@@ -681,6 +766,11 @@ namespace System.Collections.Generic
         // Code has been intentionally duplicated for performance reasons.
         public bool Remove(TKey key)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
@@ -721,7 +811,9 @@ namespace System.Collections.Generic
                         }
                         _freeList = i;
                         _freeCount++;
-                        _version++;
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
                         return true;
                     }
 
@@ -729,6 +821,9 @@ namespace System.Collections.Generic
                     i = entry.next;
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
@@ -737,6 +832,11 @@ namespace System.Collections.Generic
         // Code has been intentionally duplicated for performance reasons.
         public bool Remove(TKey key, out TValue value)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
@@ -780,7 +880,9 @@ namespace System.Collections.Generic
                         }
                         _freeList = i;
                         _freeCount++;
-                        _version++;
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
                         return true;
                     }
 
@@ -789,18 +891,30 @@ namespace System.Collections.Generic
                 }
             }
             value = default(TValue);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
         public bool TryGetValue(TKey key, out TValue value)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             int i = FindEntry(key);
             if (i >= 0)
             {
                 value = _entries[i].value;
+#if DEBUG
+                DebugConcurrentAccessCheck(version);
+#endif
                 return true;
             }
             value = default(TValue);
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
             return false;
         }
 
@@ -818,6 +932,9 @@ namespace System.Collections.Generic
 
         void ICollection.CopyTo(Array array, int index)
         {
+#if DEBUG
+            int version = Volatile.Read(ref _version);
+#endif
             if (array == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
@@ -885,6 +1002,9 @@ namespace System.Collections.Generic
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
                 }
             }
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -933,6 +1053,11 @@ namespace System.Collections.Generic
         /// </summary>
         public void TrimExcess(int capacity)
         {
+#if DEBUG
+            int version = DebugIncrementVersion();
+#else
+            _version++;
+#endif
             if (capacity < Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
             int newSize = HashHelpers.GetPrime(capacity);
@@ -964,6 +1089,9 @@ namespace System.Collections.Generic
             }
             _count = count;
             _freeCount = 0;
+#if DEBUG
+            DebugConcurrentAccessCheck(version);
+#endif
         }
 
         bool ICollection.IsSynchronized
@@ -1007,11 +1135,17 @@ namespace System.Collections.Generic
         {
             get
             {
+#if DEBUG
+                int version = Volatile.Read(ref _version);
+#endif
                 if (IsCompatibleKey(key))
                 {
                     int i = FindEntry((TKey)key);
                     if (i >= 0)
                     {
+#if DEBUG
+                        DebugConcurrentAccessCheck(version);
+#endif
                         return _entries[i].value;
                     }
                 }
@@ -1228,6 +1362,21 @@ namespace System.Collections.Generic
                 }
             }
         }
+
+#if DEBUG
+        private void DebugConcurrentAccessCheck(int version)
+        {
+            if (version != Volatile.Read(ref _version))
+            {
+                ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+            }
+        }
+
+        private int DebugIncrementVersion()
+        {
+            return Interlocked.Increment(ref _version);
+        }
+#endif
 
         [DebuggerTypeProxy(typeof(DictionaryKeyCollectionDebugView<,>))]
         [DebuggerDisplay("Count = {Count}")]
