@@ -478,24 +478,19 @@ namespace System.IO
         }
 
         public static bool TryGetTempPath(Span<char> destination, out int charsWritten)
-        {            
+        {                        
             charsWritten = 0;
+
             var tmpPath = Path.GetTempPath();
 
             if (tmpPath.Length > destination.Length)
-                return false;
-
-            charsWritten = tmpPath.Length;
+                return false;            
 
             tmpPath.AsSpan().CopyTo(destination);
 
-            return true;
+            charsWritten = tmpPath.Length;
 
-            //var builder = new ValueStringBuilder();
-            //GetTempPath(ref builder);
-            
-            //return builder.TryCopyTo(destination, out charsWritten);
-
+            return true;            
         }
 
         private static string CombineInternal(string first, string second)
