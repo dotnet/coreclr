@@ -26,6 +26,8 @@ if(CLR_CMAKE_PLATFORM_ARCH_ARM)
     add_compile_options(-Wno-absolute-value)
     # Disable warning due to incorrect format specifier in debugging printf via the Debug macro
     add_compile_options(-Wno-format)
+    # Disable warning for a bug in the libunwind source src/arm/Gtrace.c:529, but not in code that we exercise
+    add_compile_options(-Wno-implicit-function-declaration)
     # We compile code with -std=c99 and the asm keyword is not recognized as it is a gnu extension
     add_definitions(-Dasm=__asm__)
     # The arm sources include ex_tables.h from include/tdep-arm without going through a redirection
@@ -40,6 +42,8 @@ elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
 elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
     # Disable warning due to incorrect format specifier in debugging printf via the Debug macro
     add_compile_options(-Wno-format)
+    # Disable warning for a bug in the libunwind source src/x86/Gos-linux.c, but not in code that we exercise
+    add_compile_options(-Wno-incompatible-pointer-types)
 endif()
 
 SET(libunwind_ptrace_la_SOURCES
