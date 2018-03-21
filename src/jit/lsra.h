@@ -1654,9 +1654,11 @@ private:
 
     void BuildStoreLoc(GenTree* tree);
     void BuildReturn(GenTree* tree);
+#ifdef _TARGET_XARCH_
     // This method, unlike the others, returns the number of sources, since it may be called when
     // 'tree' is contained.
     int BuildShiftRotate(GenTree* tree);
+#endif // _TARGET_XARCH_
     void BuildPutArgReg(GenTreeUnOp* node);
     void BuildCall(GenTreeCall* call);
     void BuildCmp(GenTree* tree);

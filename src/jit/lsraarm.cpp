@@ -335,6 +335,12 @@ void LinearScan::BuildNode(GenTree* tree)
         case GT_AND:
         case GT_OR:
         case GT_XOR:
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+        case GT_ROR:
+        case GT_LSH_HI:
+        case GT_RSH_LO:
             assert(info->dstCount == 1);
             info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 1 : 2));
@@ -551,15 +557,6 @@ void LinearScan::BuildNode(GenTree* tree)
             info->srcCount = 1;
             assert(info->dstCount == 1);
             appendLocationInfoToList(tree->gtOp.gtOp1);
-            break;
-
-        case GT_LSH:
-        case GT_RSH:
-        case GT_RSZ:
-        case GT_ROR:
-        case GT_LSH_HI:
-        case GT_RSH_LO:
-            BuildShiftRotate(tree);
             break;
 
         case GT_EQ:
