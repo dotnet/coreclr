@@ -208,8 +208,6 @@ namespace System.Globalization
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
-            Debug.Assert(!string1.IsEmpty);
-            Debug.Assert(!string2.IsEmpty);
 
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
             fixed (char* pString2 = &MemoryMarshal.GetReference(string2))

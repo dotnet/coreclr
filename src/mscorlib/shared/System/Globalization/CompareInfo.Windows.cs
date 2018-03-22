@@ -217,8 +217,6 @@ namespace System.Globalization
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
-            Debug.Assert(!string1.IsEmpty);
-            Debug.Assert(!string2.IsEmpty);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
@@ -226,6 +224,8 @@ namespace System.Globalization
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
             fixed (char* pString2 = &MemoryMarshal.GetReference(string2))
             {
+                Debug.Assert(pString1 != null);
+                Debug.Assert(pString2 != null);
                 int result = Interop.Kernel32.CompareStringEx(
                                     pLocaleName,
                                     (uint)GetNativeCompareFlags(options),
