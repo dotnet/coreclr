@@ -17,32 +17,28 @@ namespace System.Text
 
         private IEnumerable<string> ShowChunksInOrder(int maxChunksToShow)
         {
-            (int count, StringBuilder head) chunksToShow = GetChunksToShow(maxChunksToShow);
-            string[] chunks = new string[chunksToShow.count];
-            StringBuilder current = chunksToShow.head;
-            for (int i = chunksToShow.count; i > 0; i--)
+            int count = 0;
+            StringBuilder head = this, current = this;
+            while (current != null)
+            {
+                if (count < maxChunksToShow)
+                {
+                    count++;
+                }
+                else
+                {
+                    head = head.m_ChunkPrevious;
+                }
+                current = current.m_ChunkPrevious;
+            }
+            current = head;
+            string[] chunks = new string[count];
+            for (int i = count; i > 0; i--)
             {
                 chunks[i - 1] = new string(current.m_ChunkChars).Replace('\0', '.');
                 current = current.m_ChunkPrevious;
             }
             return chunks;
-        }
-
-        private (int count, StringBuilder head) GetChunksToShow(int maxChunksToShow)
-        {
-            int numChunks = 0;
-            StringBuilder current = this;
-            while (current != null)
-            {
-                numChunks++;
-                current = current.m_ChunkPrevious;
-            }
-            current = this;
-            for (int skipCount = numChunks - maxChunksToShow; skipCount > 0; skipCount--)
-            {
-                current = current.m_ChunkPrevious;
-            }
-            return (maxChunksToShow < numChunks ? numChunks : maxChunksToShow, current);
         }
     }
 }
