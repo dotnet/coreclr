@@ -38,13 +38,11 @@ namespace System.Text
                 current = current.m_ChunkPrevious;
             }
             current = this;
-            int numChunksToShow = numChunks;
             for (int skipCount = numChunks - maxChunksToShow; skipCount > 0; skipCount--)
             {
                 current = current.m_ChunkPrevious;
-                numChunksToShow--;
             }
-            return (numChunksToShow, current);
+            return (maxChunksToShow < numChunks ? numChunks : maxChunksToShow, current);
         }
     }
 }
