@@ -181,6 +181,8 @@ namespace System.Globalization
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(string1 != null);
+            Debug.Assert(string2 != null);
 
             return Interop.Globalization.CompareStringOrdinalIgnoreCase(string1, count1, string2, count2);
         }
@@ -191,6 +193,7 @@ namespace System.Globalization
         private unsafe int CompareString(ReadOnlySpan<char> string1, string string2, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
+            Debug.Assert(!string1.IsEmpty);
             Debug.Assert(string2 != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
@@ -205,6 +208,8 @@ namespace System.Globalization
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+            Debug.Assert(!string1.IsEmpty);
+            Debug.Assert(!string2.IsEmpty);
 
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
             fixed (char* pString2 = &MemoryMarshal.GetReference(string2))

@@ -40,6 +40,8 @@ namespace System.Globalization
             bool bIgnoreCase)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(stringSource != null);
+            Debug.Assert(value != null);
 
             fixed (char* pSource = stringSource)
             fixed (char* pValue = value)
@@ -62,6 +64,8 @@ namespace System.Globalization
             bool bIgnoreCase)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
 
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (char* pValue = &MemoryMarshal.GetReference(value))
@@ -165,6 +169,8 @@ namespace System.Globalization
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(string1 != null);
+            Debug.Assert(string2 != null);
 
             // Use the OS to compare and then convert the result to expected value by subtracting 2 
             return Interop.Kernel32.CompareStringOrdinal(string1, count1, string2, count2, true) - 2;
@@ -175,6 +181,7 @@ namespace System.Globalization
         // that takes two spans.  But due to this issue, that's adding significant overhead.
         private unsafe int CompareString(ReadOnlySpan<char> string1, string string2, CompareOptions options)
         {
+            Debug.Assert(!string1.IsEmpty);
             Debug.Assert(string2 != null);
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -210,6 +217,8 @@ namespace System.Globalization
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
+            Debug.Assert(!string1.IsEmpty);
+            Debug.Assert(!string2.IsEmpty);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
@@ -245,6 +254,8 @@ namespace System.Globalization
                     int* pcchFound)
         {
             Debug.Assert(!_invariantMode);
+            Debug.Assert(!lpStringSource.IsEmpty);
+            Debug.Assert(!lpStringValue.IsEmpty);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
@@ -277,6 +288,8 @@ namespace System.Globalization
             int* pcchFound)
         {
             Debug.Assert(!_invariantMode);
+            Debug.Assert(lpStringSource != null);
+            Debug.Assert(lpStringValue != null);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
@@ -572,6 +585,7 @@ namespace System.Globalization
         private static unsafe bool IsSortable(char* text, int length)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(text != null);
 
             return Interop.Kernel32.IsNLSDefinedString(Interop.Kernel32.COMPARE_STRING, 0, IntPtr.Zero, text, length);
         }

@@ -393,6 +393,16 @@ namespace System.Globalization
 
         internal virtual int CompareOptionNone(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2)
         {
+            // Check for empty span or span from a null string
+            if (string1.IsEmpty)
+            {
+                if (string2.IsEmpty)
+                    return 0;
+                return -1;
+            }
+            if (string2.IsEmpty)
+                return 1;
+
             return _invariantMode ?
                 string.CompareOrdinal(string1, string2) :
                 CompareString(string1, string2, CompareOptions.None);
@@ -400,6 +410,16 @@ namespace System.Globalization
 
         internal virtual int CompareOptionIgnoreCase(ReadOnlySpan<char> string1, ReadOnlySpan<char> string2)
         {
+            // Check for empty span or span from a null string
+            if (string1.IsEmpty)
+            {
+                if (string2.IsEmpty)
+                    return 0;
+                return -1;
+            }
+            if (string2.IsEmpty)
+                return 1;
+
             return _invariantMode ?
                 CompareOrdinalIgnoreCase(string1, string2) :
                 CompareString(string1, string2, CompareOptions.IgnoreCase);
@@ -538,6 +558,8 @@ namespace System.Globalization
 
         internal static unsafe int CompareOrdinalIgnoreCase(ReadOnlySpan<char> strA, ReadOnlySpan<char> strB)
         {
+            Debug.Assert(!strA.IsEmpty);
+            Debug.Assert(!strB.IsEmpty);
             int length = Math.Min(strA.Length, strB.Length);
             int range = length;
 
@@ -895,12 +917,16 @@ namespace System.Globalization
         internal virtual int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
         {
             Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
             return IndexOfOrdinalCore(source, value, ignoreCase);
         }
 
         internal unsafe virtual int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
             return IndexOfCore(source, value, options, null);
         }
 
