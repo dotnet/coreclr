@@ -30,7 +30,7 @@ def static getOSGroup(def os) {
     ['Windows_NT'].each { os ->
         ['x64', 'x86'].each { arch ->
             ['ryujit'].each { jit ->
-                ['full_opt', 'min_opt'].each { opt_level ->
+                ['full_opt'].each { opt_level ->
 
                     def architecture = arch
                     def jobName = "perf_perflab_${os}_${arch}_${opt_level}_${jit}"
@@ -154,7 +154,7 @@ def static getOSGroup(def os) {
         ['x64', 'x86'].each { arch ->
             ['ryujit'].each { jit ->
                 [true, false].each { pgo_optimized ->
-                    ['full_opt', 'min_opt'].each { opt_level ->
+                    ['full_opt'].each { opt_level ->
                         def architecture = arch
 
                         pgo_build = ""
@@ -411,8 +411,8 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
     }
 
     // Actual perf testing on the following OSes
-    def throughputOSList = ['Ubuntu14.04']
-    def throughputOptLevelList = ['full_opt', 'min_opt']
+    def throughputOSList = ['Ubuntu16.04']
+    def throughputOptLevelList = ['full_opt']
 
     def throughputOSOptLevelList = []
 
@@ -537,7 +537,7 @@ parallel(
     ['Windows_NT'].each { os ->
         ['x64', 'x86'].each { arch ->
             ['ryujit'].each { jit ->
-                ['full_opt', 'min_opt', 'tiered'].each { opt_level ->
+                ['full_opt'].each { opt_level ->
                     def architecture = arch
                     def newJob = job(Utilities.getFullJobName(project, "perf_scenarios_${os}_${arch}_${opt_level}_${jit}", isPR)) {
 
