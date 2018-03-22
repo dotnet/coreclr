@@ -79,7 +79,7 @@ namespace System.IO
             while ((requiredSize = Microsoft.Win32.Win32Native.GetEnvironmentVariable(TempEnvVar, builder.Span)) > builder.Capacity)
             {
                 // Reported size is greater than the buffer size. Increase the capacity.
-                builder.EnsureCapacity(checked((int)requiredSize));
+                builder.EnsureCapacity(requiredSize);
             }
 
             if (requiredSize == 0 && Runtime.InteropServices.Marshal.GetLastWin32Error() == Interop.Errors.ERROR_ENVVAR_NOT_FOUND)
