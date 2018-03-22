@@ -339,11 +339,15 @@ void LinearScan::BuildNode(GenTree* tree)
         case GT_RSH:
         case GT_RSZ:
         case GT_ROR:
+            assert(info->dstCount == 1);
+            info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
+            assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 1 : 2));
+            break;
         case GT_LSH_HI:
         case GT_RSH_LO:
             assert(info->dstCount == 1);
             info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
-            assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 1 : 2));
+            assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 2 : 3));
             break;
 
         case GT_RETURNTRAP:
