@@ -87,12 +87,14 @@
 #ifdef _TARGET_ARM_
 #define ARM_FIRST_ARG(x)  x ,
 #define ARM_ARG(x)        , x
+#define ARM_ARG_OR_ZERO(x) , x
 #define ARM_ONLY(x)       x
 #define NOT_ARM(x)
 #define NOT_ARM_ARG(x)
 #else
 #define ARM_FIRST_ARG(x)
 #define ARM_ARG(x)
+#define ARM_ARG_OR_ZERO(x) , 0
 #define ARM_ONLY(x)
 #define NOT_ARM(x)        x
 #define NOT_ARM_ARG(x)    , x

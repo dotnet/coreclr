@@ -8735,6 +8735,29 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                     }
                     break;
 
+                case IAT_RELPVALUE:
+                {
+                    // Load the address into a register, load relative indirect and call through a register
+                    // We have to use R12 since we assume the argument registers are in use
+                    callType   = emitter::EC_INDIR_R;
+                    indCallReg = REG_R12;
+                    addr       = NULL;
+
+                    regNumber vptrReg1     = REG_R11;
+                    regMaskTP vptrReg1Mask = genRegMask(vptrReg1);
+                    inst_IV(INS_push, (int)vptrReg1Mask);
+
+                    instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, vptrReg1, indCallReg);
+                    getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+                    getEmitter()->emitIns_R_R(INS_add, EA_PTRSIZE, indCallReg, vptrReg1);
+
+                    inst_IV(INS_pop, (int)vptrReg1Mask);
+
+                    regSet.verifyRegUsed(indCallReg);
+                    break;
+                }
+
                 case IAT_PPVALUE:
                 default:
                     NO_WAY("Unsupported JMP indirection");

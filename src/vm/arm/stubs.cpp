@@ -1691,8 +1691,34 @@ void StubLinkerCPU::ThumbEmitCallManagedMethod(MethodDesc *pMD, bool fTailcall)
         // mov r12, #slotaddress
         ThumbEmitMovConstant(ThumbReg(12), (TADDR)pMD->GetAddrOfSlot());
 
+        bool isRelative = MethodTable::VTableIndir2_t::isRelative
+                          && pMD->IsVtableSlot();
+        if (isRelative)
+        {
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
+            // push r11
+            ThumbEmitPush(ThumbReg(11).Mask());
+            // mov r11, r12
+            ThumbEmitMovRegReg(ThumbReg(11), ThumbReg(12));
+#else
+            _ASSERTE(false);
+#endif
+        }
+
         // ldr r12, [r12]
         ThumbEmitLoadRegIndirect(ThumbReg(12), ThumbReg(12), 0);
+
+        if (isRelative)
+        {
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
+            // add r12, r11
+            ThumbEmitAddReg(ThumbReg(12), ThumbReg(11));
+            // pop r11
+            ThumbEmitPop(ThumbReg(11).Mask());
+#else
+            _ASSERTE(false);
+#endif
+        }
     }
 
     if (fTailcall)
