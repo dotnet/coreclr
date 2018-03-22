@@ -480,11 +480,11 @@ namespace System.Text
                     StringBuilder chunk = FindChunkForIndex(value);
                     if (chunk != this)
                     {
-                        // Avoid possible infinite capacity growth.  See https://github.com/dotnet/coreclr/pull/16926
-                        int capacityToPreserve = Math.Min(Capacity, Math.Max(Length * 6 / 5, m_ChunkChars.Length));
-                        
                         // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
                         // to ensure the original capacity is preserved.
+
+                        // Avoid possible infinite capacity growth.  See https://github.com/dotnet/coreclr/pull/16926
+                        int capacityToPreserve = Math.Min(Capacity, Math.Max(Length * 6 / 5, m_ChunkChars.Length));
                         int newLen = capacityToPreserve - chunk.m_ChunkOffset;
                         char[] newArray = new char[newLen];
 

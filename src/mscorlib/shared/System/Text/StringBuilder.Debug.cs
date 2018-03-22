@@ -8,7 +8,7 @@ using System.Runtime.Serialization;
 
 namespace System.Text
 {
-    public sealed partial class StringBuilder : ISerializable
+    public sealed partial class StringBuilder
     {
         private void ShowChunks(int maxChunksToShow = 10)
         {
@@ -17,42 +17,34 @@ namespace System.Text
 
         private IEnumerable<string> ShowChunksInOrder(int maxChunksToShow)
         {
-            int numChunksToShow = 0;
-            StringBuilder lastChunk = null;
-            // Gets numChunksToShow. If numChunksToShow is larger than maxChunksToShow, then returns last chunk
-            GetNumChunksToShow(this, ref numChunksToShow, maxChunksToShow, ref lastChunk);
-            Span<string> chunkChars = new string[numChunksToShow];
-            var sb = lastChunk ?? this;
-
-            while (numChunksToShow > 0)
+            (int count, StringBuilder head) chunksToShow = GetChunksToShow(maxChunksToShow);
+            string[] chunks = new string[chunksToShow.count];
+            StringBuilder current = chunksToShow.head;
+            for (int i = chunksToShow.count; i > 0; i--)
             {
-                chunkChars[numChunksToShow - 1] = string.Create(sb.m_ChunkChars.Length, sb.m_ChunkChars, (Span<char> chars, char[] curChunksChars) =>
-                {
-                    for (int i = 0; i < curChunksChars.Length; i++)
-                    {
-                        chars[i] = curChunksChars[i];
-                    }
-                    // Showing . for null chars
-                }).Replace('\0', '.');
-                sb = sb.m_ChunkPrevious;
+                chunks[i - 1] = new string(current.m_ChunkChars).Replace('\0', '.');
+                current = current.m_ChunkPrevious;
+            }
+            return chunks;
+        }
+
+        private (int count, StringBuilder head) GetChunksToShow(int maxChunksToShow)
+        {
+            int numChunks = 0;
+            StringBuilder current = this;
+            while (current != null)
+            {
+                numChunks++;
+                current = current.m_ChunkPrevious;
+            }
+            current = this;
+            int numChunksToShow = numChunks;
+            for (int skipCount = numChunks - maxChunksToShow; skipCount > 0; skipCount--)
+            {
+                current = current.m_ChunkPrevious;
                 numChunksToShow--;
             }
-            return chunkChars.ToArray();
-        }
-        
-        private void GetNumChunksToShow(StringBuilder sb, ref int numToShow, int maxChunksToShow, ref StringBuilder lastChunk)
-        {
-            if (sb.m_ChunkPrevious != null)
-                GetNumChunksToShow(sb.m_ChunkPrevious, ref numToShow, maxChunksToShow, ref lastChunk);
-
-            if (numToShow < maxChunksToShow)
-            {
-                numToShow++;
-                if (numToShow == maxChunksToShow)
-                {
-                    lastChunk = sb;
-                }
-            }
+            return (numChunksToShow, current);
         }
     }
 }
