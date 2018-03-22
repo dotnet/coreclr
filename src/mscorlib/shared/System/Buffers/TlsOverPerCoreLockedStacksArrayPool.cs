@@ -21,6 +21,10 @@ namespace System.Buffers
     /// </remarks>
     internal sealed partial class TlsOverPerCoreLockedStacksArrayPool<T> : ArrayPool<T>
     {
+        private const uint TlsTrimAfterTicks = 10 * 1000;       // Trim after 10 seconds
+        private const uint StackTrimAfterTicks = 10 * 1000;     // Trim after 10 seconds
+        private const uint StackRefreshTicks = 2 * 1000;        // Time bump after trimming (2 seconds)
+
         // TODO: #7747: "Investigate optimizing ArrayPool heuristics"
         // - Explore caching in TLS more than one array per size per thread, and moving stale buffers to the global queue.
         // - Explore dumping stale buffers from the global queue, similar to PinnableBufferCache (maybe merging them).
@@ -45,7 +49,9 @@ namespace System.Buffers
         private readonly PerCoreLockedStacks[] _buckets = new PerCoreLockedStacks[NumBuckets];
         /// <summary>A per-thread array of arrays, to cache one array per array size per thread.</summary>
         [ThreadStatic]
-        private static T[][] t_tlsBuckets;
+        private static Bucket[] t_tlsBuckets;
+
+        private static ConditionalWeakTable<Bucket[], object> s_allTlsBuckets = new ConditionalWeakTable<Bucket[], object>();
 
         /// <summary>Initialize the pool.</summary>
         public TlsOverPerCoreLockedStacksArrayPool()
@@ -94,13 +100,13 @@ namespace System.Buffers
             if (bucketIndex < _buckets.Length)
             {
                 // First try to get it from TLS if possible.
-                T[][] tlsBuckets = t_tlsBuckets;
+                Bucket[] tlsBuckets = t_tlsBuckets;
                 if (tlsBuckets != null)
                 {
-                    buffer = tlsBuckets[bucketIndex];
+                    buffer = tlsBuckets[bucketIndex].Buffer;
                     if (buffer != null)
                     {
-                        tlsBuckets[bucketIndex] = null;
+                        tlsBuckets[bucketIndex].Buffer = null;
                         if (log.IsEnabled())
                         {
                             log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, bucketIndex);
@@ -176,20 +182,23 @@ namespace System.Buffers
                 // if there was a previous one there, push that to the global stack.  This
                 // helps to keep LIFO access such that the most recently pushed stack will
                 // be in TLS and the first to be popped next.
-                T[][] tlsBuckets = t_tlsBuckets;
+                Bucket[] tlsBuckets = t_tlsBuckets;
                 if (tlsBuckets == null)
                 {
-                    t_tlsBuckets = tlsBuckets = new T[NumBuckets][];
-                    tlsBuckets[bucketIndex] = array;
+                    t_tlsBuckets = tlsBuckets = new Bucket[NumBuckets];
+                    s_allTlsBuckets.Add(tlsBuckets, null);
+                    tlsBuckets[bucketIndex].Buffer = array;
+                    Gen2GcCallback.Register(Gen2GcCallbackFunc, this);
                 }
                 else
                 {
-                    T[] prev = tlsBuckets[bucketIndex];
-                    tlsBuckets[bucketIndex] = array;
+                    T[] prev = tlsBuckets[bucketIndex].Buffer;
+                    tlsBuckets[bucketIndex].Buffer = array;
+                    tlsBuckets[bucketIndex].Ticks = (uint)Environment.TickCount;
                     if (prev != null)
                     {
-                        PerCoreLockedStacks bucket = _buckets[bucketIndex] ?? CreatePerCoreLockedStacks(bucketIndex);
-                        bucket.TryPush(prev);
+                        PerCoreLockedStacks stackBucket = _buckets[bucketIndex] ?? CreatePerCoreLockedStacks(bucketIndex);
+                        stackBucket.TryPush(prev);
                     }
                 }
             }
@@ -200,6 +209,47 @@ namespace System.Buffers
             {
                 log.BufferReturned(array.GetHashCode(), array.Length, Id);
             }
+        }
+
+        public bool Trim()
+        {
+            uint tickCount = (uint)Environment.TickCount;
+
+            foreach (PerCoreLockedStacks bucket in _buckets)
+            {
+                bucket?.Trim(tickCount);
+            }
+
+            foreach (var tlsBuckets in s_allTlsBuckets)
+            {
+                Bucket[] buckets = tlsBuckets.Key;
+                for (int i = 0; i < NumBuckets; i++)
+                {
+                    uint stockTicks = buckets[i].Ticks;
+                    if (stockTicks > tickCount || (tickCount - stockTicks) > TlsTrimAfterTicks)
+                    {
+                        // We've wrapped the tick count or elapsed enough time since the
+                        // first item went into this thread local bucket. Clear it.
+                        buckets[i].Buffer = null;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// This is the static function that is called from the gen2 GC callback.
+        /// The input object is the instance we want the callback on.
+        /// </summary>
+        /// <remarks>
+        /// The reason that we make this function static and take the instance as a parameter is that
+        /// we would otherwise root the instance to the Gen2GcCallback object, leaking the instance even when
+        /// the application no longer needs it.
+        /// </remarks>
+        private static bool Gen2GcCallbackFunc(object target)
+        {
+            return ((TlsOverPerCoreLockedStacksArrayPool<T>)(target)).Trim();
         }
 
         /// <summary>
@@ -220,7 +270,6 @@ namespace System.Buffers
                     stacks[i] = new LockedStack();
                 }
                 _perCoreStacks = stacks;
-                Gen2GcCallback.Register(Gen2GcCallbackFunc, this);
             }
 
             /// <summary>Try to push the array into the stacks. If each is full when it's tested, the array will be dropped.</summary>
@@ -255,28 +304,14 @@ namespace System.Buffers
                 return null;
             }
 
-            private bool Trim()
+            public bool Trim(uint tickCount)
             {
                 LockedStack[] stacks = _perCoreStacks;
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    stacks[i].Trim();
+                    stacks[i].Trim(tickCount);
                 }
                 return true;
-            }
-
-            /// <summary>
-            /// This is the static function that is called from the gen2 GC callback.
-            /// The input object is the instance we want the callback on.
-            /// </summary>
-            /// <remarks>
-            /// The reason that we make this function static and take the instance as a parameter is that
-            /// we would otherwise root the instance to the Gen2GcCallback object, leaking the instance even when
-            /// the application no longer needs it.
-            /// </remarks>
-            private static bool Gen2GcCallbackFunc(object target)
-            {
-                return ((PerCoreLockedStacks)(target)).Trim();
             }
         }
 
@@ -286,9 +321,6 @@ namespace System.Buffers
             private readonly T[][] _arrays = new T[MaxBuffersPerArraySizePerCore][];
             private int _count;
             private uint _stockTicks;
-
-            private const uint TrimAfterTicks = 10 * 1000;     // Trim after 10 seconds
-            private const uint RefreshTicks = 2 * 1000;        // Time bump after trimming (2 seconds)
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public bool TryPush(T[] array)
@@ -322,25 +354,30 @@ namespace System.Buffers
                 return arr;
             }
 
-            public void Trim()
+            public void Trim(uint tickCount)
             {
                 if (_count == 0)
                     return;
 
-                uint current = (uint)Environment.TickCount;
                 Monitor.Enter(this);
-                if (_count > 0 && _stockTicks > current || (current - _stockTicks) > TrimAfterTicks)
+                if (_count > 0 && _stockTicks > tickCount || (tickCount - _stockTicks) > StackTrimAfterTicks)
                 {
                     // We've wrapped the tick count or elapsed enough time since the
                     // first item went into the stack. Drop the top item so it can
                     // be collected and make the stack look a little newer.
 
                     _arrays[--_count] = null;
-                    if (_stockTicks < uint.MaxValue - RefreshTicks)
-                        _stockTicks += RefreshTicks;
+                    if (_stockTicks < uint.MaxValue - StackRefreshTicks)
+                        _stockTicks += StackRefreshTicks;
                 }
                 Monitor.Exit(this);
             }
+        }
+
+        private struct Bucket
+        {
+            public T[] Buffer;
+            public uint Ticks;
         }
     }
 }
