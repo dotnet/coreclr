@@ -181,7 +181,6 @@ namespace System.Globalization
         // that takes two spans.  But due to this issue, that's adding significant overhead.
         private unsafe int CompareString(ReadOnlySpan<char> string1, string string2, CompareOptions options)
         {
-            Debug.Assert(!string1.IsEmpty);
             Debug.Assert(string2 != null);
             Debug.Assert(!_invariantMode);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -192,6 +191,7 @@ namespace System.Globalization
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
             fixed (char* pString2 = &string2.GetRawStringData())
             {
+                Debug.Assert(pString1 != null);
                 int result = Interop.Kernel32.CompareStringEx(
                                     pLocaleName,
                                     (uint)GetNativeCompareFlags(options),

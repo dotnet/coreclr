@@ -193,7 +193,6 @@ namespace System.Globalization
         private unsafe int CompareString(ReadOnlySpan<char> string1, string string2, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
-            Debug.Assert(!string1.IsEmpty);
             Debug.Assert(string2 != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
