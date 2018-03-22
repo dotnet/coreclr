@@ -540,15 +540,13 @@ GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* last
 // Arguments:
 //    isa - Instruction set
 // Return Value:
-//    true - all the hardware intrinsics of "isa" are implemented in RyuJIT.
+//    true - all the hardware intrinsics of "isa" exposed in CoreFX
+//    System.Runtime.Intrinsics.Experimental assembly are implemented in RyuJIT.
 //
 bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
 {
     switch (isa)
     {
-        case InstructionSet_SSE42:
-        case InstructionSet_AVX:
-        case InstructionSet_AVX2:
         case InstructionSet_AES:
         case InstructionSet_BMI1:
         case InstructionSet_BMI2:
@@ -556,11 +554,14 @@ bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
         case InstructionSet_PCLMULQDQ:
             return false;
 
+        case InstructionSet_AVX:
+        case InstructionSet_AVX2:
         case InstructionSet_SSE:
         case InstructionSet_SSE2:
         case InstructionSet_SSE3:
         case InstructionSet_SSSE3:
         case InstructionSet_SSE41:
+        case InstructionSet_SSE42:
         case InstructionSet_LZCNT:
         case InstructionSet_POPCNT:
             return true;
