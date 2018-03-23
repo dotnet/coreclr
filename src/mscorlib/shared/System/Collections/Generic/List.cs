@@ -799,12 +799,24 @@ namespace System.Collections.Generic
             }
             else if (index < _size)
             {
-                // We're inserting a lazy enumerable. Call Insert on each of the constituent items.
-                using (IEnumerator<T> en = collection.GetEnumerator())
+                int initialSize = _size;
+
+                try
                 {
-                    while (en.MoveNext())
+                    // We're inserting a lazy enumerable. First, add items to the end of this list.
+                    AddEnumerable(collection);
+                }
+                finally
+                {
+                    if (_size != initialSize)
                     {
-                        Insert(index++, en.Current);
+                        // If items were added, move new items to the required position.
+                        // It needs to be done even if enumeration fails to maintain the clean state.
+
+                        // Swap [index, initialSize] and [initialSize, _size] segments.
+                        Array.Reverse(_items, index, initialSize - index);
+                        Array.Reverse(_items, initialSize, _size - initialSize);
+                        Array.Reverse(_items, index, _size - index);
                     }
                 }
             }
