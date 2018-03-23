@@ -12,11 +12,6 @@ namespace System.Text
     {
         private void ShowChunks(int maxChunksToShow = 10)
         {
-            Debug.WriteLine('|' + string.Join('|', ShowChunksInOrder(maxChunksToShow)) + '|');
-        }
-
-        private IEnumerable<string> ShowChunksInOrder(int maxChunksToShow)
-        {
             int count = 0;
             StringBuilder head = this, current = this;
             while (current != null)
@@ -38,7 +33,7 @@ namespace System.Text
                 chunks[i - 1] = new string(current.m_ChunkChars).Replace('\0', '.');
                 current = current.m_ChunkPrevious;
             }
-            return chunks;
+            Debug.WriteLine('|' + string.Join('|', chunks) + '|');
         }
     }
 }
