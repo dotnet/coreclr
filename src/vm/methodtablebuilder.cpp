@@ -3087,7 +3087,6 @@ MethodTableBuilder::EnumerateClassMethods()
                             type = METHOD_TYPE_FCALL;
                         }
                     }
-#endif // FEATURE_COMINTEROP
                 }
                 else if (dwMethodRVA == 0)
                 {
