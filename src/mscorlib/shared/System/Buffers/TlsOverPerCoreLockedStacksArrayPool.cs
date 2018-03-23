@@ -21,9 +21,14 @@ namespace System.Buffers
     /// </remarks>
     internal sealed partial class TlsOverPerCoreLockedStacksArrayPool<T> : ArrayPool<T>
     {
-        private const uint TlsTrimAfterTicks = 10 * 1000;       // Trim after 10 seconds
-        private const uint StackTrimAfterTicks = 10 * 1000;     // Trim after 10 seconds
-        private const uint StackRefreshTicks = 2 * 1000;        // Time bump after trimming (2 seconds)
+        private const uint TlsTrimAfterTicks = 60 * 1000;                           // Trim after 60 seconds for low/moderate pressure
+        private const uint TlsHighTrimAfterTicks = 10 * 1000;                       // Trim after 10 seconds for high pressure
+        private const uint StackTrimAfterTicks = 60 * 1000;                         // Trim after 60 seconds for low/moderate pressure
+        private const uint StackHighTrimAfterTicks = 10 * 1000;                     // Trim after 10 seconds for high pressure
+        private const uint StackRefreshTicks = StackTrimAfterTicks / 4;             // Time bump after trimming (1/4 trim time)
+        private const int StackLowTrimCount = 1;                                    // Trim one item when pressure is low
+        private const int StackMediumTrimCount = 2;                                 // Trim two items when pressure is moderate
+        private const int StackHighTrimCount = MaxBuffersPerArraySizePerCore;       // Trim all items when pressure is high
 
         // TODO: #7747: "Investigate optimizing ArrayPool heuristics"
         // - Explore caching in TLS more than one array per size per thread, and moving stale buffers to the global queue.
@@ -215,20 +220,21 @@ namespace System.Buffers
         {
             uint tickCount = (uint)Environment.TickCount;
 
+            MemoryPressure pressure = GetMemoryPressure();
             foreach (PerCoreLockedStacks bucket in _buckets)
             {
-                bucket?.Trim(tickCount, Id);
+                bucket?.Trim(tickCount, Id, pressure);
             }
 
             ArrayPoolEventSource log = ArrayPoolEventSource.Log;
-
+            uint trimTicks = pressure == MemoryPressure.High ? TlsHighTrimAfterTicks : TlsTrimAfterTicks;
             foreach (var tlsBuckets in s_allTlsBuckets)
             {
                 Bucket[] buckets = tlsBuckets.Key;
                 for (int i = 0; i < NumBuckets; i++)
                 {
                     uint stockTicks = buckets[i].Ticks;
-                    if (stockTicks > tickCount || (tickCount - stockTicks) > TlsTrimAfterTicks)
+                    if (stockTicks > tickCount || (tickCount - stockTicks) > trimTicks)
                     {
                         T[] buffer = buckets[i].Buffer;
 
@@ -313,12 +319,12 @@ namespace System.Buffers
                 return null;
             }
 
-            public bool Trim(uint tickCount, int id)
+            public bool Trim(uint tickCount, int id, MemoryPressure pressure)
             {
                 LockedStack[] stacks = _perCoreStacks;
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    stacks[i].Trim(tickCount, id);
+                    stacks[i].Trim(tickCount, id, pressure);
                 }
                 return true;
             }
@@ -363,32 +369,68 @@ namespace System.Buffers
                 return arr;
             }
 
-            public void Trim(uint tickCount, int id)
+            public void Trim(uint tickCount, int id, MemoryPressure pressure)
             {
                 if (_count == 0)
                     return;
 
                 Monitor.Enter(this);
-                if (_count > 0 && _stockTicks > tickCount || (tickCount - _stockTicks) > StackTrimAfterTicks)
+                uint trimTicks = pressure == MemoryPressure.High ? StackHighTrimAfterTicks : StackTrimAfterTicks;
+                if (_count > 0 && _stockTicks > tickCount || (tickCount - _stockTicks) > trimTicks)
                 {
                     // We've wrapped the tick count or elapsed enough time since the
                     // first item went into the stack. Drop the top item so it can
                     // be collected and make the stack look a little newer.
 
-                    T[] array = _arrays[--_count];
-                    _arrays[_count] = null;
-                    if (_stockTicks < uint.MaxValue - StackRefreshTicks)
-                        _stockTicks += StackRefreshTicks;
-
                     ArrayPoolEventSource log = ArrayPoolEventSource.Log;
-                    if (log.IsEnabled())
+                    int trimCount = StackLowTrimCount;
+                    switch (pressure)
                     {
-                        log.BufferTrimmed(array.GetHashCode(), array.Length, id);
+                        case MemoryPressure.High:
+                            trimCount = StackHighTrimCount;
+                            break;
+                        case MemoryPressure.Medium:
+                            trimCount = StackMediumTrimCount;
+                            break;
                     }
 
+                    while (_count > 0 && trimCount-- > 0)
+                    {
+                        T[] array = _arrays[--_count];
+                        _arrays[_count] = null;
+
+                        if (log.IsEnabled())
+                        {
+                            log.BufferTrimmed(array.GetHashCode(), array.Length, id);
+                        }
+                    }
+
+                    if (_count > 0 && _stockTicks < uint.MaxValue - StackRefreshTicks)
+                        _stockTicks += StackRefreshTicks;
                 }
                 Monitor.Exit(this);
             }
+        }
+
+        private enum MemoryPressure
+        {
+            Low,
+            Medium,
+            High
+        }
+
+        private static MemoryPressure GetMemoryPressure()
+        {
+            GC.GetMemoryInfo(out uint threshold, out _, out uint lastLoad, out _, out _);
+            if (lastLoad >= threshold * .90)
+            {
+                return MemoryPressure.High;
+            }
+            else if (lastLoad >= threshold * .80)
+            {
+                return MemoryPressure.Medium;
+            }
+            return MemoryPressure.Low;
         }
 
         private struct Bucket

@@ -70,9 +70,8 @@ namespace System
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
                                                   out uint lastRecordedMemLoad,
-                                                  // The next two are size_t
-                                                  out UIntPtr lastRecordedHeapSize,
-                                                  out UIntPtr lastRecordedFragmentation);
+                                                  out ulong lastRecordedHeapSize,
+                                                  out ulong lastRecordedFragmentation);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
