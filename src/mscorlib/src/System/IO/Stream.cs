@@ -692,7 +692,7 @@ namespace System.IO
             else
             {
                 byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
-                buffer.Span.CopyTo(buffer);
+                buffer.Span.CopyTo(sharedBuffer);
                 return new ValueTask(FinishWriteAsync(WriteAsync(sharedBuffer, 0, buffer.Length, cancellationToken), sharedBuffer));
             }
         }
