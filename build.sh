@@ -464,7 +464,7 @@ build_CoreLib()
            exit 1
        fi
     elif [ $__DoCrossArchBuild == 1 ]; then
-       if [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
+       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        fi
     fi
