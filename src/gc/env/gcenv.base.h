@@ -255,19 +255,16 @@ inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
     uint32_t fakeBitIndex = 0;
     
     uint8_t result = BitScanForward(bitIndex, lo);
-    if (result != 0)
+    if (result == 0)
     {
-        return result;
+        result = BitScanForward(&fakeBitIndex, hi);
+        if (result != 0)
+        {
+            *bitIndex = fakeBitIndex + 32;
+        }
     }
 
-    result = BitScanForward(&fakeBitIndex, hi);
-    if (result != 0)
-    {
-        *bitIndex = fakeBitIndex + 32;
-        return result;
-    }
-
-    return 0;
+    return result;
  #else
     return _BitScanForward64((unsigned long*)bitIndex, mask);
  #endif // _WIN32
