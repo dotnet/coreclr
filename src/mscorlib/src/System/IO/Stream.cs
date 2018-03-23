@@ -777,7 +777,7 @@ namespace System.IO
             try
             {
                 buffer.CopyTo(sharedBuffer);
-                Write(buffer, 0, buffer.Length);
+                Write(sharedBuffer, 0, buffer.Length);
             }
             finally { ArrayPool<byte>.Shared.Return(sharedBuffer); }
         }
