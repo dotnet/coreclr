@@ -79,13 +79,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_LE:
             case GT_GE:
             case GT_GT:
-                if (childNode->IsIntegralConst(0))
-                {
-                    // TODO-ARM-Cleanup: not tested yet.
-                    NYI_ARM("ARM IsContainableImmed for floating point type");
-
-                    return true;
-                }
+                assert(!childNode->IsIntegralConst(0));
                 break;
         }
     }
