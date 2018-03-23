@@ -1689,6 +1689,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     GCStress<cfg_any, EeconfigFastGcSPolicy, CoopGcModePolicy>::MaybeTrigger();
 
+
+#ifdef FEATURE_COMINTEROP 
     /**************************   INTEROP   *************************/
     /*-----------------------------------------------------------------
     // Some method descriptors are COMPLUS-to-COM call descriptors
@@ -1697,17 +1699,13 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     */
     if (IsComPlusCall() || IsGenericComPlusCall())
     {
-#ifdef FEATURE_COMINTEROP
         pCode = GetStubForInteropMethod(this);
         
         GetPrecode()->SetTargetInterlocked(pCode);
 
         RETURN GetStableEntryPoint();
-#else
-        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_COM);
-#endif // FEATURE_COMINTEROP
     }
-
+#endif // FEATURE_COMINTEROP
 
     // workaround: This is to handle a punted work item dealing with a skipped module constructor
     //       due to appdomain unload. Basically shared code was JITted in domain A, and then

@@ -108,6 +108,7 @@ enum MethodClassification
     mcInstantiated = 5, // Instantiated generic methods, including descriptors
                         // for both shared and unshared code (see InstantiatedMethodDesc)
 
+#ifdef FEATURE_COMINTEROP 
     // This needs a little explanation.  There are MethodDescs on MethodTables
     // which are Interfaces.  These have the mdcInterface bit set.  Then there
     // are MethodDescs on MethodTables that are Classes, where the method is
@@ -116,7 +117,9 @@ enum MethodClassification
     // So, today, a dispatch through an 'mdcInterface' MethodDesc is either an
     // error (someone forgot to look up the method in a class' VTable) or it is
     // a case of COM Interop.
+
     mcComInterop    = 6,
+#endif // FEATURE_COMINTEROP
     mcDynamic       = 7, // for method desc with no metadata behind
     mcCount,
 };
@@ -653,16 +656,21 @@ public:
     void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasNativeCallableAttribute();
 
+#ifdef FEATURE_COMINTEROP 
     inline DWORD IsComPlusCall()
     {
         WRAPPER_NO_CONTRACT;
         return mcComInterop == GetClassification();
     }
-#ifdef FEATURE_COMINTEROP 
     inline DWORD IsGenericComPlusCall();
     inline void SetupGenericComPlusCall();
 #else // !FEATURE_COMINTEROP
      // hardcoded to return FALSE to improve code readibility
+    inline DWORD IsComPlusCall()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return FALSE;
+    }
     inline DWORD IsGenericComPlusCall()
     {
         LIMITED_METHOD_CONTRACT;

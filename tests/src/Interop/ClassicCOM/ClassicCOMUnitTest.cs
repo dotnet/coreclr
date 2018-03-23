@@ -97,9 +97,9 @@ public class ClassicCOMUnitTest
 
             return true;
         }
-        catch (System.PlatformNotSupportedException e)
+        catch (System.Reflection.TargetInvocationException e)
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && e.InnerException is PlatformNotSupportedException)
             {
                 return true;
             }
@@ -137,6 +137,15 @@ public class ClassicCOMUnitTest
         {
             object o = new object();
             PassObjectToNative(o);
+        }
+        catch (System.Runtime.InteropServices.MarshalDirectiveException e) 
+        { 
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
+            { 
+                return true; 
+            } 
+            Console.WriteLine("Caught unexpected MarshalDirectiveException: " + e); 
+            return false; 
         }
         catch (Exception e)
         {

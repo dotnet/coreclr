@@ -1316,9 +1316,9 @@ private:
 
         // Com Interop, ComWrapper classes extend from ComObject
         bool fIsComObjectType;                  // whether this class is an instance of ComObject class
-        bool fComEventItfType;                  // Set to true if the class is a special COM event interface.
-#ifdef FEATURE_COMINTEROP        
+#ifdef FEATURE_COMINTEROP
         bool fIsMngStandardItf;                 // Set to true if the interface is a manages standard interface.
+        bool fComEventItfType;                  // Set to true if the class is a special COM event interface.
         bool fIsRedirectedInterface;            // Set to true if the class is an interface redirected for WinRT
         bool fNeedsRCWPerTypeData;              // Set to true if the class needs optional RCW data attached to the MethodTable
 #endif // FEATURE_COMINTEROP

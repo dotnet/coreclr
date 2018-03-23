@@ -338,7 +338,7 @@ PCODE ECall::GetFCallImpl(MethodDesc * pMD, BOOL * pfSharedOrDynamicFCallImpl /*
         // FCComCtor does not need to be in the fcall hashtable since it does not erect frame.
         return GetEEFuncEntryPoint(FCComCtor);
 #else
-    COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_COM);
+        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_COM);
 #endif // FEATURE_COMINTEROP
     }
 

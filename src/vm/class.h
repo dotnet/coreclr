@@ -1268,6 +1268,8 @@ public:
         m_dwAttrClass = dwAttrClass;
     }
 
+
+#ifdef FEATURE_COMINTEROP
     inline DWORD IsComClassInterface()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1290,6 +1292,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (m_VMFlags & VMFLAG_COMEVENTITFMASK);
     }
+#endif // FEATURE_COMINTEROP
 
 #ifdef _DEBUG
     inline DWORD IsDestroyed()
@@ -1678,13 +1681,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_cbNativeSize = nativeSize;
     }
-    void SetComInterfaceType(CorIfaceAttr ItfType)
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsInterface());
-        EnsureWritablePages(this);
-        m_ComInterfaceType = ItfType;
-    }
 #ifdef FEATURE_COMINTEROP
     OBJECTHANDLE GetOHDelegate()
     {
@@ -1702,6 +1698,15 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_ComInterfaceType;
     }
+
+    void SetComInterfaceType(CorIfaceAttr ItfType)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsInterface());
+        EnsureWritablePages(this);
+        m_ComInterfaceType = ItfType;
+    }
+
     inline ComCallWrapperTemplate *GetComCallWrapperTemplate()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1954,10 +1959,10 @@ public:
         // unused                              = 0x00400000,
 
         VMFLAG_SPARSE_FOR_COMINTEROP           = 0x00800000,
+#ifdef FEATURE_COMINTEROP
         // interfaces may have a coclass attribute
         VMFLAG_HASCOCLASSATTRIB                = 0x01000000,
         VMFLAG_COMEVENTITFMASK                 = 0x02000000, // class is a special COM event interface
-#ifdef FEATURE_COMINTEROP
         VMFLAG_PROJECTED_FROM_WINRT            = 0x04000000,
         VMFLAG_EXPORTED_TO_WINRT               = 0x08000000,
 #endif // FEATURE_COMINTEROP
@@ -2014,10 +2019,10 @@ private:
         // may contain a delegate to be called to allocate the aggregated
         // unmanaged class (instead of using CoCreateInstance).
         OBJECTHANDLE    m_ohDelegate;
-#endif // FEATURE_COMINTEROP
 
         // For interfaces this contains the COM interface type.
         CorIfaceAttr    m_ComInterfaceType;
+#endif // FEATURE_COMINTEROP
     };
 
 #ifdef FEATURE_COMINTEROP

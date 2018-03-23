@@ -512,7 +512,10 @@ MethodTableBuilder::GetMethodClassification(MethodTableBuilder::METHOD_TYPE type
     C_ASSERT((DWORD)METHOD_TYPE_NDIRECT      == (DWORD)mcNDirect);
     C_ASSERT((DWORD)METHOD_TYPE_EEIMPL       == (DWORD)mcEEImpl);
     C_ASSERT((DWORD)METHOD_TYPE_INSTANTIATED == (DWORD)mcInstantiated);
+#ifdef FEATURE_COMINTEROP
     C_ASSERT((DWORD)METHOD_TYPE_COMINTEROP   == (DWORD)mcComInterop);
+#endif
+
     return (DWORD)type;
 }
 

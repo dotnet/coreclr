@@ -1536,6 +1536,8 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 
+#ifdef FEATURE_COMINTEROP 
+
     // Com Import classes are special. These types must derive from System.Object,
     // and we then substitute the parent with System._ComObject.
     if (IsComImport() && !IsEnum() && !IsInterface() && !IsValueClass() && !IsDelegate())
@@ -1546,10 +1548,8 @@ MethodTableBuilder::BuildMethodTableThrowing(
         MethodTable* pMTParent = GetParentMethodTable();
         if ((pMTParent == NULL) || !(
                 // is the parent valid?
-                (pMTParent == g_pObjectClass) 
-#ifdef FEATURE_COMINTEROP
-                || (GetHalfBakedClass()->IsProjectedFromWinRT() && pMTParent->IsProjectedFromWinRT())
-#endif // FEATURE_COMINTEROP
+                (pMTParent == g_pObjectClass) ||
+                (GetHalfBakedClass()->IsProjectedFromWinRT() && pMTParent->IsProjectedFromWinRT())
                 ))
         {
             BuildMethodTableThrowException(IDS_CLASSLOAD_CANTEXTEND);
@@ -1561,7 +1561,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
             BuildMethodTableThrowException(IDS_CLASSLOAD_COMIMPCANNOTHAVELAYOUT);
         }
 
-#ifdef FEATURE_COMINTEROP
         if (pMTParent == g_pObjectClass)
         {                
             // ComImport classes ultimately extend from our __ComObject or RuntimeClass class
@@ -1580,12 +1579,11 @@ MethodTableBuilder::BuildMethodTableThrowing(
             bmtInternal->pType->SetParentType(CreateTypeChain(pCOMMT, Substitution()));
             bmtInternal->pParentMT = pCOMMT;
         }
-#endif // FEATURE_COMINTEROP
+
         // if the current class is imported
         bmtProp->fIsComObjectType = true;
     }
 
-#ifdef FEATURE_COMINTEROP
     if (GetHalfBakedClass()->IsProjectedFromWinRT() && IsValueClass() && !IsEnum())
     {
         // WinRT structures must have sequential layout
@@ -1594,14 +1592,11 @@ MethodTableBuilder::BuildMethodTableThrowing(
             BuildMethodTableThrowException(IDS_EE_STRUCTLAYOUT_WINRT);
         }
     }
-#endif // FEATURE_COMINTEROP
 
     // Check for special COM interop types.
     CheckForSpecialTypes();
 
-#ifdef FEATURE_TYPEEQUIVALENCE
     CheckForTypeEquivalence(cBuildingInterfaceList, pBuildingInterfaceList);
-#endif // FEATURE_TYPEEQUIVALENCE
 
     if (HasParent())
     {   // Types that inherit from com object types are themselves com object types.
@@ -1620,6 +1615,8 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
 #endif
     }
+
+#endif // FEATURE_COMINTEROP
 
     if (!HasParent() && !IsInterface())
     {
@@ -2975,8 +2972,10 @@ MethodTableBuilder::EnumerateClassMethods()
         // may not be part of a COM Import class (except for WinRT), PInvoke, internal call outside mscorlib.
         if ((bmtGenerics->GetNumGenericArgs() != 0 || numGenericMethodArgs != 0) &&
             (
+#ifdef FEATURE_COMINTEROP 
              fIsClassComImport ||
              bmtProp->fComEventItfType ||
+#endif // FEATURE_COMINTEROP
              IsMdPinvokeImpl(dwMemberAttrs) ||
              (IsMiInternalCall(dwImplFlags) && !GetModule()->IsSystem())))
         {
@@ -2995,6 +2994,7 @@ MethodTableBuilder::EnumerateClassMethods()
         {
             BuildMethodTableThrowException(BFA_GENERIC_METHOD_RUNTIME_IMPL);
         }
+
 
         // Signature validation
         if (FAILED(pMDInternalImport->GetSigOfMethodDef(tok, &cMemberSignature, &pMemberSignature)))
@@ -3065,16 +3065,15 @@ MethodTableBuilder::EnumerateClassMethods()
             if (hr == S_FALSE)
             {
                 if (fIsClassComImport
-                    || bmtProp->fComEventItfType
 #ifdef FEATURE_COMINTEROP 
                     || GetHalfBakedClass()->IsProjectedFromWinRT()
+                    || bmtProp->fComEventItfType
 #endif //FEATURE_COMINTEROP
                     )
                 {
                     // ComImport classes have methods which are just used
                     // for implementing all interfaces the class supports
                     type = METHOD_TYPE_COMINTEROP;
-
                     // constructor is special
                     if (IsMdRTSpecialName(dwMemberAttrs))
                     {
@@ -3082,12 +3081,13 @@ MethodTableBuilder::EnumerateClassMethods()
 #ifdef FEATURE_COMINTEROP
                         // WinRT ctors are interop calls via stubs
                         if (!GetHalfBakedClass()->IsProjectedFromWinRT())
-#endif // FEATURE_COMINTEROP
+#endif //FEATURE_COMINTEROP
                         {
                             // Ctor on a non-WinRT class
                             type = METHOD_TYPE_FCALL;
                         }
                     }
+#endif // FEATURE_COMINTEROP
                 }
                 else if (dwMethodRVA == 0)
                 {
@@ -3156,12 +3156,12 @@ MethodTableBuilder::EnumerateClassMethods()
         }
         else if (fIsClassInterface)
         {
+#ifdef FEATURE_COMINTEROP 
             if (IsMdStatic(dwMemberAttrs))
             {
                 // Static methods in interfaces need nothing special.
                 type = METHOD_TYPE_NORMAL;
             }
-#ifdef FEATURE_COMINTEROP 
             else if (bmtGenerics->GetNumGenericArgs() != 0 &&
                 (bmtGenerics->fSharedByGenericInstantiations || (!bmtProp->fIsRedirectedInterface && !GetHalfBakedClass()->IsProjectedFromWinRT())))
             {
@@ -3175,7 +3175,6 @@ MethodTableBuilder::EnumerateClassMethods()
                 // If the interface is a standard managed interface then allocate space for an FCall method desc.
                 type = METHOD_TYPE_FCALL;
             }
-#endif // FEATURE_COMINTEROP
             else if (IsMdAbstract(dwMemberAttrs))
             {
                 // If COM interop is supported then all other interface MDs may be
@@ -3185,6 +3184,7 @@ MethodTableBuilder::EnumerateClassMethods()
                 type = METHOD_TYPE_COMINTEROP;
             }
             else
+#endif // !FEATURE_COMINTEROP
             {
                 // This codepath is used by remoting
                 type = METHOD_TYPE_NORMAL;
@@ -6021,7 +6021,9 @@ MethodTableBuilder::InitMethodDesc(
         }
         break;
 
+#ifdef FEATURE_COMINTEROP
     case mcComInterop:
+#endif // FEATURE_COMINTEROP
     case mcIL:
         break;
 
@@ -10303,7 +10305,6 @@ MethodTableBuilder::SetupMethodTable2(
     }
 #endif // _DEBUG
 
-
     // Note that for value classes, the following calculation is only appropriate
     // when the instance is in its "boxed" state.
     if (!IsInterface())
@@ -10364,6 +10365,7 @@ MethodTableBuilder::SetupMethodTable2(
     }
     else
     {
+#ifdef FEATURE_COMINTEROP 
         // If this is an interface then we need to set the ComInterfaceType to
         // -1 to indicate we have not yet determined the interface type.
         pClass->SetComInterfaceType((CorIfaceAttr)-1);
@@ -10373,6 +10375,7 @@ MethodTableBuilder::SetupMethodTable2(
         {
             pClass->SetComEventItfType();
         }
+#endif // FEATURE_COMINTEROP
     }
     _ASSERTE((pMT->IsInterface() == 0) == (IsInterface() == 0));
 
@@ -10684,16 +10687,14 @@ MethodTableBuilder::SetupMethodTable2(
     }
 #endif // _DEBUG
 
+
+#ifdef FEATURE_COMINTEROP 
     // for ComObject types, i.e. if the class extends from a COM Imported
     // class
     // make sure any interface implementated by the COM Imported class
     // is overridden fully, (OR) not overridden at all..
     // We relax this for WinRT where we want to be able to override individual methods.
-    if (bmtProp->fIsComObjectType 
-#ifdef FEATURE_COMINTEROP 
-        && !pMT->IsWinRTObjectType()
-#endif // FEATURE_COMINTEROP
-    )
+    if (bmtProp->fIsComObjectType && !pMT->IsWinRTObjectType())
     {
         MethodTable::InterfaceMapIterator intIt = pMT->IterateInterfaceMap();
         while (intIt.Next())
@@ -10777,6 +10778,7 @@ MethodTableBuilder::SetupMethodTable2(
             }
         }
     }
+#endif // FEATURE_COMINTEROP
 
     // If this class uses any VTS (Version Tolerant Serialization) features
     // (event callbacks or OptionalField attributes) we've previously cached the
@@ -11018,11 +11020,13 @@ VOID MethodTableBuilder::CheckForRemotingProxyAttrib()
 
 VOID MethodTableBuilder::CheckForSpecialTypes()
 {
+#ifdef FEATURE_COMINTEROP
     STANDARD_VM_CONTRACT;
+
 
     Module *pModule = GetModule();
     IMDInternalImport *pMDImport = pModule->GetMDImport();
-#ifdef FEATURE_COMINTEROP 
+
     // Check to see if this type is a managed standard interface. All the managed
     // standard interfaces live in mscorlib.dll so checking for that first
     // makes the strcmp that comes afterwards acceptable.
@@ -11100,7 +11104,6 @@ VOID MethodTableBuilder::CheckForSpecialTypes()
                     }
                 }
             }
-
         }
         else if (IsDelegate() && bmtGenerics->HasInstantiation())
         {
@@ -11162,14 +11165,9 @@ VOID MethodTableBuilder::CheckForSpecialTypes()
             }
         }
     }
-#endif // !FEATURE_COMINTEROP
 
     // Check to see if the type is a COM event interface (classic COM interop only).
-    if (IsInterface() 
-#ifdef FEATURE_COMINTEROP
-        && !GetHalfBakedClass()->IsProjectedFromWinRT()
-#endif // !FEATURE_COMINTEROP
-        )
+    if (IsInterface() && !GetHalfBakedClass()->IsProjectedFromWinRT())
     {
         HRESULT hr = pMDImport->GetCustomAttributeByName(GetCl(), INTEROP_COMEVENTINTERFACE_TYPE, NULL, NULL);
         if (hr == S_OK)
@@ -11177,6 +11175,7 @@ VOID MethodTableBuilder::CheckForSpecialTypes()
             bmtProp->fComEventItfType = true;
         }
     }
+#endif // FEATURE_COMINTEROP
 }
 
 #ifdef FEATURE_READYTORUN
