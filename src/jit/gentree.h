@@ -5813,6 +5813,13 @@ public:
         }
     }
 
+    static genTreeOps LowerRelopOper(genTreeOps oper)
+    {
+        assert(GenTree::OperIsCompare(oper));
+
+        return ((oper == GT_TEST_EQ) || (oper == GT_TEST_NE)) ? GT_TEST : GT_CMP;
+    }
+
     static GenCondition FromFloatRelop(GenTree* relop)
     {
         assert(varTypeIsFloating(relop->gtGetOp1()) && varTypeIsFloating(relop->gtGetOp2()));

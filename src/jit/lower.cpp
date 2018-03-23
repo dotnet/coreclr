@@ -181,6 +181,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_JTRUE:
             return LowerJTrue(node->AsOp());
 
+        case GT_JCC:
+            return LowerJCC(node->AsCC());
+
         case GT_SELCC:
             return LowerSelCC(node->AsOpCC());
 
@@ -3358,8 +3361,8 @@ public:
 
     GenTreeOpCC* TryIfConversion(GenTreeOp* relop, GenTree* jtrue)
     {
-        assert(relop->OperIsCompare());
-        assert(jtrue->OperIs(GT_JTRUE));
+        assert(relop->OperIsCompare() || (relop->gtFlags & GTF_SET_FLAGS));
+        assert(jtrue->OperIs(GT_JTRUE, GT_JCC));
 
         HammockKind kind = MakeHammock();
 
@@ -3372,18 +3375,28 @@ public:
                 return nullptr;
             }
 
-            GenCondition condition = GenCondition::FromRelop(relop);
-            condition = GenCondition::Reverse(condition);
+            GenCondition condition;
 
-            relop->ChangeOper(GT_CMP);
-            relop->gtType = TYP_VOID;
+            if (relop->OperIsCompare())
+            {
+                condition = GenCondition::FromRelop(relop);
+                relop->ChangeOper(GenCondition::LowerRelopOper(relop->OperGet()));
+                relop->gtType = TYP_VOID;
+                relop->gtFlags |= GTF_SET_FLAGS;
+            }
+            else
+            {
+                condition = jtrue->AsCC()->gtCondition;
+            }
+
             jtrue->ChangeOper(GT_SELCC);
+            jtrue->gtFlags |= GTF_USE_FLAGS;
             GenTreeOpCC* selcc = jtrue->AsOpCC();
 
             GenTree* trueSrc  = summary.CloneOpSrc(m_comp, selcc);
             GenTree* falseSrc = summary.CloneOpAsLclVar(m_comp, selcc);
 
-            selcc->gtCondition    = condition;
+            selcc->gtCondition    = GenCondition::Reverse(condition);
             selcc->gtConditionDef = relop;
             selcc->gtType         = falseSrc->TypeGet();
             selcc->gtOp1          = falseSrc;
@@ -3413,11 +3426,23 @@ public:
                 return nullptr;
             }
 
-            GenCondition condition = GenCondition::FromRelop(relop);
+            GenCondition condition;
 
-            relop->ChangeOper(GT_CMP);
-            relop->gtType = TYP_VOID;
+            if (relop->OperIsCompare())
+            {
+                condition = GenCondition::FromRelop(relop);
+
+                relop->ChangeOper(GenCondition::LowerRelopOper(relop->OperGet()));
+                relop->gtType = TYP_VOID;
+                relop->gtFlags |= GTF_SET_FLAGS;
+            }
+            else
+            {
+                condition = jtrue->AsCC()->gtCondition;
+            }
+
             jtrue->ChangeOper(GT_SELCC);
+            jtrue->gtFlags |= GTF_USE_FLAGS;
             GenTreeOpCC* selcc = jtrue->AsOpCC();
 
             falseSummary.CloneCopies(m_comp, selcc);
@@ -3500,7 +3525,7 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
 
 #ifdef _TARGET_AMD64_
     GenTreeOp* relop = jtrue->gtGetOp1()->AsOp();
-    if (!relop->OperIs(GT_TEST_EQ, GT_TEST_NE))
+    // if (!relop->OperIs(GT_TEST_NE, GT_TEST_EQ))
     {
         IfConversion ifConversion(comp, m_block);
         GenTreeOpCC* selcc = ifConversion.TryIfConversion(relop, jtrue);
@@ -3513,14 +3538,14 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
                 {
                     // Prefer FGT and FGE to FLT and FLE, they generate a single CMOV.
                     std::swap(relop->gtOp1, relop->gtOp2);
-                    selcc->gtCondition.Swap();
+                    selcc->gtCondition = GenCondition::Swap(selcc->gtCondition);
                 }
                 else if (selcc->gtCondition.Is(GenCondition::FEQ))
                 {
                     // Prefer FNEU to FEQ, FEQ requires a branch for the unordered case
                     // but FNEU can be implemented with 2 CMOVs.
                     std::swap(selcc->gtOp1, selcc->gtOp2);
-                    selcc->gtCondition.Reverse();
+                    selcc->gtCondition = GenCondition::Reverse(selcc->gtCondition);
                 }
 
                 // Floating point CMP has different containment rules
@@ -3537,6 +3562,26 @@ GenTree* Lowering::LowerJTrue(GenTreeOp* jtrue)
     ContainCheckJTrue(jtrue);
 
     assert(jtrue->gtNext == nullptr);
+    return nullptr;
+}
+
+GenTree* Lowering::LowerJCC(GenTreeCC* jcc)
+{
+#ifdef _TARGET_AMD64_
+    GenTree* relop = jcc->gtPrev;
+    if ((relop->gtFlags & GTF_SET_FLAGS) != 0)
+    {
+        IfConversion ifConversion(comp, m_block);
+        GenTreeOpCC* selcc = ifConversion.TryIfConversion(relop->AsOp(), jcc);
+
+        if (selcc != nullptr)
+        {
+            return selcc;
+        }
+    }
+#endif
+
+    assert(jcc->gtNext == nullptr);
     return nullptr;
 }
 
@@ -6153,6 +6198,7 @@ void Lowering::ContainCheckNode(GenTree* node)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_TEST:
         case GT_JCMP:
             ContainCheckCompare(node->AsOp());
             break;

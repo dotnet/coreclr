@@ -430,6 +430,7 @@ int LinearScan::BuildNode(GenTree* tree)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_CMP:
+        case GT_TEST:
             srcCount = BuildCmp(tree);
             break;
 
@@ -748,7 +749,7 @@ bool LinearScan::isRMWRegOper(GenTree* tree)
     // For now, We assume that most binary operators are of the RMW form.
     assert(tree->OperIsBinary());
 
-    if (tree->OperIsCompare() || tree->OperIs(GT_CMP) || tree->OperIs(GT_BT))
+    if (tree->OperIsCompare() || tree->OperIs(GT_CMP, GT_TEST, GT_BT))
     {
         return false;
     }
