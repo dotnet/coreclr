@@ -383,6 +383,9 @@ DEFINE_METASIG(IM(RetBool, _, F))
 DEFINE_METASIG(IM(RetArrByte, _, a(b)))
 DEFINE_METASIG_T(IM(RetArrParameterInfo, _, a(C(PARAMETER))))
 DEFINE_METASIG_T(IM(RetCultureInfo, _, C(CULTURE_INFO)))
+#ifdef FEATURE_COMINTEROP
+DEFINE_METASIG_T(IM(RetCausalityTraceLevel, _, g(CAUSALITY_TRACE_LEVEL)))
+#endif // FEATURE_COMINTEROP
 
 DEFINE_METASIG_T(SM(RetThread, _, C(THREAD)))
 
@@ -406,6 +409,9 @@ DEFINE_METASIG(IM(Char_Int_RetStr, u i, s))
 DEFINE_METASIG(IM(PtrChar_RetStr, P(u), s))
 DEFINE_METASIG(IM(PtrChar_Int_Int_RetStr, P(u) i i, s))
 DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetStr, GI(g(READONLY_SPAN), 1, u), s))
+DEFINE_METASIG(IM(PtrSByt_RetStr, P(B), s))
+DEFINE_METASIG(IM(PtrSByt_Int_Int_RetStr, P(B) i i, s))
+DEFINE_METASIG_T(IM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
 DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
@@ -557,6 +563,7 @@ DEFINE_METASIG(SM(Obj_Bool_RetVoid, j F, v))
 DEFINE_METASIG(SM(Str_RetVoid, s, v))
 DEFINE_METASIG(SM(Str_Uint_RetVoid, s K, v))
 DEFINE_METASIG_T(SM(Str_Exception_RetVoid, s C(EXCEPTION), v))
+DEFINE_METASIG_T(SM(Str_Exception_Str_RetVoid, s C(EXCEPTION) s, v))
 
 // fields - e.g.:
 // DEFINE_METASIG(Fld(PtrVoid, P(v)))

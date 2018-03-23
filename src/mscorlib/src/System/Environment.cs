@@ -115,6 +115,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void FailFast(String message, Exception exception);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void FailFast(String message, Exception exception, String errorMessage);
+
 #if FEATURE_WIN32_REGISTRY
         // This is only used by RegistryKey on Windows.
         public static String ExpandEnvironmentVariables(String name)
@@ -200,7 +203,7 @@ namespace System
             s_CommandLineArgs = cmdLineArgs;
         }
 
-        private unsafe static char[] GetEnvironmentCharArray()
+        private static unsafe char[] GetEnvironmentCharArray()
         {
             char[] block = null;
 
@@ -364,55 +367,6 @@ namespace System
             }
         }
 
-        internal static extern int CurrentProcessorNumber
-        {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            get;
-        }
-
-        // The upper bits of t_executionIdCache are the executionId. The lower bits of
-        // the t_executionIdCache are counting down to get it periodically refreshed.
-        // TODO: Consider flushing the executionIdCache on Wait operations or similar 
-        // actions that are likely to result in changing the executing core
-        [ThreadStatic]
-        private static int t_executionIdCache;
-
-        private const int ExecutionIdCacheShift = 16;
-        private const int ExecutionIdCacheCountDownMask = (1 << ExecutionIdCacheShift) - 1;
-        private const int ExecutionIdRefreshRate = 5000;
-
-        private static int RefreshExecutionId()
-        {
-            int executionId = CurrentProcessorNumber;
-
-            // On Unix, CurrentProcessorNumber is implemented in terms of sched_getcpu, which
-            // doesn't exist on all platforms.  On those it doesn't exist on, GetCurrentProcessorNumber
-            // returns -1.  As a fallback in that case and to spread the threads across the buckets
-            // by default, we use the current managed thread ID as a proxy.
-            if (executionId < 0) executionId = Environment.CurrentManagedThreadId;
-
-            Debug.Assert(ExecutionIdRefreshRate <= ExecutionIdCacheCountDownMask);
-
-            // Mask with Int32.MaxValue to ensure the execution Id is not negative
-            t_executionIdCache = ((executionId << ExecutionIdCacheShift) & Int32.MaxValue) | ExecutionIdRefreshRate;
-
-            return executionId;
-        }
-
-        // Cached processor number used as a hint for which per-core stack to access. It is periodically
-        // refreshed to trail the actual thread core affinity.
-        internal static int CurrentExecutionId
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                int executionIdCache = t_executionIdCache--;
-                if ((executionIdCache & ExecutionIdCacheCountDownMask) == 0)
-                    return RefreshExecutionId();
-                return (executionIdCache >> ExecutionIdCacheShift);
-            }
-        }
-
         public static string GetEnvironmentVariable(string variable)
         {
             if (variable == null)
@@ -498,7 +452,7 @@ namespace System
         {
             int requiredSize = Win32Native.GetEnvironmentVariable(variable, buffer);
 
-            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
+            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Interop.Errors.ERROR_ENVVAR_NOT_FOUND)
             {
                 return null;
             }
@@ -664,15 +618,15 @@ namespace System
 
                 switch (errorCode)
                 {
-                    case Win32Native.ERROR_ENVVAR_NOT_FOUND:
+                    case Interop.Errors.ERROR_ENVVAR_NOT_FOUND:
                         // Allow user to try to clear a environment variable
                         return;
-                    case Win32Native.ERROR_FILENAME_EXCED_RANGE:
+                    case Interop.Errors.ERROR_FILENAME_EXCED_RANGE:
                         // The error message from Win32 is "The filename or extension is too long",
                         // which is not accurate.
                         throw new ArgumentException(SR.Format(SR.Argument_LongEnvVarValue));
-                    case Win32Native.ERROR_NOT_ENOUGH_MEMORY:
-                    case Win32Native.ERROR_NO_SYSTEM_RESOURCES:
+                    case Interop.Errors.ERROR_NOT_ENOUGH_MEMORY:
+                    case Interop.Errors.ERROR_NO_SYSTEM_RESOURCES:
                         throw new OutOfMemoryException(Interop.Kernel32.GetMessage(errorCode));
                     default:
                         throw new ArgumentException(Interop.Kernel32.GetMessage(errorCode));

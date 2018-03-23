@@ -8,12 +8,18 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
+#if !FEATURE_PORTABLE_SPAN
 using Internal.Runtime.CompilerServices;
+#endif // FEATURE_PORTABLE_SPAN
 
 namespace System
 {
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
+    /// <summary>
+    /// Memory represents a contiguous region of arbitrary memory similar to <see cref="Span{T}"/>.
+    /// Unlike <see cref="Span{T}"/>, it is not a byref-like type.
+    /// </summary>
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
+    [DebuggerDisplay("{ToString(),raw}")]
     public readonly struct Memory<T>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
@@ -34,20 +40,42 @@ namespace System
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
         /// <param name="array">The target array.</param>
-        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
-        /// reference (Nothing in Visual Basic).</exception>
+        /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Memory(T[] array)
         {
             if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            {
+                this = default;
+                return; // returns default
+            }
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
             _object = array;
             _index = 0;
             _length = array.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Memory(T[] array, int start)
+        {
+            if (array == null)
+            {
+                if (start != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                this = default;
+                return; // returns default
+            }
+            if (default(T) == null && array.GetType() != typeof(T[]))
+                ThrowHelper.ThrowArrayTypeMismatchException();
+            if ((uint)start > (uint)array.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+
+            _object = array;
+            _index = start;
+            _length = array.Length - start;
         }
 
         /// <summary>
@@ -57,8 +85,7 @@ namespace System
         /// <param name="array">The target array.</param>
         /// <param name="start">The index at which to begin the memory.</param>
         /// <param name="length">The number of items in the memory.</param>
-        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
-        /// reference (Nothing in Visual Basic).</exception>
+        /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
@@ -67,7 +94,12 @@ namespace System
         public Memory(T[] array, int start, int length)
         {
             if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            {
+                if (start != 0 || length != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                this = default;
+                return; // returns default
+            }
             if (default(T) == null && array.GetType() != typeof(T[]))
                 ThrowHelper.ThrowArrayTypeMismatchException();
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
@@ -77,16 +109,12 @@ namespace System
             _index = start;
             _length = length;
         }
-        
+
         // Constructor for internal use only.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Memory(OwnedMemory<T> owner, int index, int length)
         {
-            if (owner == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.ownedMemory);
-            if (index < 0 || length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
+            // No validation performed; caller must provide any necessary validation.
             _object = owner;
             _index = index | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with RemoveOwnedFlagBitMask
             _length = length;
@@ -105,20 +133,17 @@ namespace System
         /// Defines an implicit conversion of an array to a <see cref="Memory{T}"/>
         /// </summary>
         public static implicit operator Memory<T>(T[] array) => new Memory<T>(array);
-        
+
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Memory{T}"/>
         /// </summary>
-        public static implicit operator Memory<T>(ArraySegment<T> arraySegment) => new Memory<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+        public static implicit operator Memory<T>(ArraySegment<T> segment) => new Memory<T>(segment.Array, segment.Offset, segment.Count);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="Memory{T}"/> to a <see cref="ReadOnlyMemory{T}"/>
         /// </summary>
         public static implicit operator ReadOnlyMemory<T>(Memory<T> memory) =>
             Unsafe.As<Memory<T>, ReadOnlyMemory<T>>(ref memory);
-
-        //Debugger Display = {T[length]}
-        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
 
         /// <summary>
         /// Returns an empty <see cref="Memory{T}"/>
@@ -134,6 +159,19 @@ namespace System
         /// Returns true if Length is 0.
         /// </summary>
         public bool IsEmpty => _length == 0;
+
+        /// <summary>
+        /// For <see cref="Memory{Char}"/>, returns a new instance of string that represents the characters pointed to by the memory.
+        /// Otherwise, returns a <see cref="string"/> with the name of the type and the number of elements.
+        /// </summary>
+        public override string ToString()
+        {
+            if (typeof(T) == typeof(char))
+            {
+                return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
+            }
+            return string.Format("System.Memory<{0}>[{1}]", typeof(T).Name, _length);
+        }
 
         /// <summary>
         /// Forms a slice out of the given memory, beginning at 'start'.
@@ -168,7 +206,7 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             }
-            
+
             return new Memory<T>(_object, _index + start, length);
         }
 
@@ -191,7 +229,11 @@ namespace System
                     // and then cast to a Memory<T>. Such a cast can only be done with unsafe or marshaling code,
                     // in which case that's the dangerous operation performed by the dev, and we're just following
                     // suit here to make it work as best as possible.
+#if FEATURE_PORTABLE_SPAN
+                    return new Span<T>(Unsafe.As<Pinnable<T>>(s), MemoryExtensions.StringAdjustment, s.Length).Slice(_index, _length);
+#else
                     return new Span<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
+#endif // FEATURE_PORTABLE_SPAN
                 }
                 else if (_object != null)
                 {
@@ -227,6 +269,10 @@ namespace System
         /// <param name="destination">The span to copy items into.</param>
         public bool TryCopyTo(Memory<T> destination) => Span.TryCopyTo(destination.Span);
 
+        /// <summary>
+        /// Returns a handle for the array.
+        /// <param name="pin">If pin is true, the GC will not move the array and hence its address can be taken</param>
+        /// </summary>
         public unsafe MemoryHandle Retain(bool pin = false)
         {
             MemoryHandle memoryHandle = default;
@@ -234,8 +280,7 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    memoryHandle = ((OwnedMemory<T>)_object).Pin();
-                    memoryHandle.AddOffset((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
+                    memoryHandle = ((OwnedMemory<T>)_object).Pin((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {
@@ -245,13 +290,21 @@ namespace System
                     // a readable ReadOnlyMemory<char> or a writable Memory<char> can still be pinned and
                     // used for interop purposes.
                     GCHandle handle = GCHandle.Alloc(s, GCHandleType.Pinned);
+#if FEATURE_PORTABLE_SPAN
+                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+#else
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
+#endif // FEATURE_PORTABLE_SPAN
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
                 else if (_object is T[] array)
                 {
                     var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+#if FEATURE_PORTABLE_SPAN
+                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+#else
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
+#endif // FEATURE_PORTABLE_SPAN
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
             }
@@ -267,36 +320,16 @@ namespace System
         }
 
         /// <summary>
-        /// Get an array segment from the underlying memory. 
-        /// If unable to get the array segment, return false with a default array segment.
-        /// </summary>
-        public bool TryGetArray(out ArraySegment<T> arraySegment)
-        {
-            if (_index < 0)
-            {
-                if (((OwnedMemory<T>)_object).TryGetArray(out var segment))
-                {
-                    arraySegment = new ArraySegment<T>(segment.Array, segment.Offset + (_index & RemoveOwnedFlagBitMask), _length);
-                    return true;
-                }
-            }
-            else if (_object is T[] arr)
-            {
-                arraySegment = new ArraySegment<T>(arr, _index, _length);
-                return true;
-            }
-
-            arraySegment = default(ArraySegment<T>);
-            return false;
-        }
-
-        /// <summary>
         /// Copies the contents from the memory into a new array.  This heap
         /// allocates, so should generally be avoided, however it is sometimes
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
         public T[] ToArray() => Span.ToArray();
 
+        /// <summary>
+        /// Determines whether the specified object is equal to the current object.
+        /// Returns true if the object is Memory or ReadOnlyMemory and if both objects point to the same array and have the same length.
+        /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
@@ -326,6 +359,9 @@ namespace System
                 _length == other._length;
         }
 
+        /// <summary>
+        /// Serves as the default hash function.
+        /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {

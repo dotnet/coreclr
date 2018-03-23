@@ -9,59 +9,8 @@ echo %__MsgPrefix%Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
 set __ThisScriptDir="%~dp0"
 
-:: Default to highest Visual Studio version available
-::
-:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
-:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
-:: allows users to locate where the instance of VS2015 is installed.
-::
-:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
-:: is no longer set as a global environment variable and is instead only set if the user
-:: has launched the VS2017 Developer Command Prompt.
-::
-:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
-:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
-:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
-:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
-:: can be found.
-
-if defined VisualStudioVersion (
-    if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
-    goto :Run
-) 
-
-echo %__MsgPrefix%Searching ^for Visual Studio 2017 or 2015 installation
-set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist %_VSWHERE% (
-for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
-)
-if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
-if not exist "%_VSCOMNTOOLS%" (
-    echo %__MsgPrefix%Error: Visual Studio 2015 or 2017 required.
-    echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
-
-call "%_VSCOMNTOOLS%\VsDevCmd.bat"
-
-:Run
-
-REM Make the work-around to a bug in the microsoft.dotnet.buildtools.coreclr package until it is fixed.  
-reg query HKEY_CLASSES_ROOT\WOW6432Node\CLSID\{3BFCEA48-620F-4B6B-81F7-B9AF75454C7D}\InprocServer32 > NUL: 2>&1
-if NOT '%ERRORLEVEL%' == '0' (
-    echo.
-    echo.**********************************************************************************
-    echo.Error: We have detected that the msdia120.dll is not registered.   
-    echo.This is necessary for the build to complete without a Class_Not_Registered error.
-    echo.
-    echo.You can fix this by 
-    echo.  1. Launching the "Developer Command Prompt for VS2017" with Administrative privileges
-    echo.  2. Running  regsvr32.exe "%%VSINSTALLDIR%%\Common7\IDE\msdia120.dll"  
-    echo.
-    echo.This will only need to be done once for the lifetime of the machine.
-    echo.For more details see: https://github.com/dotnet/coreclr/issues/11305
-    exit /b 1
-)
+call "%__ThisScriptDir%"\setup_vs_tools.cmd
+if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
@@ -139,6 +88,7 @@ set __BuildTests=1
 set __BuildPackages=1
 set __BuildNativeCoreLib=1
 set __RestoreOptData=1
+set __GenerateLayout=0
 set __CrossgenAltJit=
 
 @REM CMD has a nasty habit of eating "=" on the argument list, so passing:
@@ -224,6 +174,7 @@ if /i "%1" == "skipnative"          (set __BuildNative=0&set processedArgs=!proc
 if /i "%1" == "skiptests"           (set __BuildTests=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipbuildpackages"   (set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "generatelayout"      (set __GenerateLayout=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "usenmakemakefiles"   (set __NMakeMakefiles=1&set __ConfigureOnly=1&set __BuildNative=1&set __BuildNativeCoreLib=0&set __BuildCoreLib=0&set __BuildTests=0&set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "pgoinstrument"       (set __PgoInstrument=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "nopgooptimize"       (set __PgoOptimize=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -293,6 +244,16 @@ if %__EnforcePgo%==1 (
         echo NOTICE: enforcepgo does nothing on arm64 architecture
     )
 )
+
+REM Determine if this is a cross-arch build
+
+if /i "%__BuildArch%"=="arm64" (
+    set __DoCrossArchBuild=1
+    )
+
+if /i "%__BuildArch%"=="arm" (
+    set __DoCrossArchBuild=1
+    )
 
 :: Set the remaining variables based upon the determined build configuration
 set "__BinDir=%__RootBinDir%\Product\%__BuildOS%.%__BuildArch%.%__BuildType%"
@@ -378,6 +339,56 @@ for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:Dum
 )
 for /f "tokens=*" %%s in ('%DotNetCli% msbuild "%OptDataProjectFilePath%" /t:DumpIbcDataPackageVersion /nologo') do @(
     set __IbcOptDataVersion=%%s
+)
+
+REM =========================================================================================
+REM ===
+REM === Generate source files for eventing
+REM ===
+REM =========================================================================================
+
+set __IntermediatesIncDir=%__IntermediatesDir%\src\inc
+set __IntermediatesEventingDir=%__IntermediatesDir%\eventing
+
+REM Find python and set it to the variable PYTHON
+echo import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
+set /p PYTHON=<%TEMP%\pythonlocation.txt
+
+if /i "%__BuildNative%"=="1" (
+    if NOT DEFINED PYTHON (
+        echo %__MsgPrefix%Error: Could not find a python installation
+        exit /b 1
+    )
+
+    echo %__MsgPrefix%Laying out dynamically generated files consumed by the native build system
+    echo %__MsgPrefix%Laying out dynamically generated Event test files and etmdummy stub functions
+    "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc %__IntermediatesIncDir% --dummy %__IntermediatesIncDir%\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern --noxplatheader|| exit /b 1
+
+    echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
+
+    echo %__MsgPrefix%Laying out ETW event logging interface
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+)
+
+if /i "%__DoCrossArchBuild%"=="1" (
+    if NOT DEFINED PYTHON (
+        echo %__MsgPrefix%Error: Could not find a python installation
+        exit /b 1
+    )
+
+    set __CrossCompIntermediatesIncDir=%__CrossCompIntermediatesDir%\src\inc
+    set __CrossCompIntermediatesEventingDir=%__CrossCompIntermediatesDir%\eventing
+
+    echo %__MsgPrefix%Laying out dynamically generated files consumed by the crossarch build system
+    echo %__MsgPrefix%Laying out dynamically generated Event test files and etmdummy stub functions
+    "!PYTHON!" -B -Wall  %__SourceDir%\scripts\genEventing.py --inc !__CrossCompIntermediatesIncDir! --dummy !__CrossCompIntermediatesIncDir!\etmdummy.h --man %__SourceDir%\vm\ClrEtwAll.man --nonextern || exit /b 1
+
+    echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
+
+    echo %__MsgPrefix%Laying out ETW event logging interface
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesIncDir! --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 )
 
 REM =========================================================================================
@@ -475,14 +486,6 @@ REM ===
 REM === Build Cross-Architecture Native Components (if applicable)
 REM ===
 REM =========================================================================================
-
-if /i "%__BuildArch%"=="arm64" (
-    set __DoCrossArchBuild=1
-    )
-
-if /i "%__BuildArch%"=="arm" (
-    set __DoCrossArchBuild=1
-    )
 
 if /i "%__DoCrossArchBuild%"=="1" (
     REM Scope environment changes start {
@@ -719,6 +722,23 @@ if %__BuildTests% EQU 1 (
 
     if not !errorlevel! == 0 (
         REM buildtest.cmd has already emitted an error message and mentioned the build log file to examine.
+        exit /b 1
+    )
+) else if %__GenerateLayout% EQU 1 (
+    echo %__MsgPrefix%Generating layout for %__BuildOS%.%__BuildArch%.%__BuildType%
+
+    REM Construct the arguments to pass to the runtest build script.
+
+    rem arm64 builds currently use private toolset which has not been released yet
+    REM TODO, remove once the toolset is open.
+    if not "%__ToolsetDir%" == "" call :PrivateToolSet
+
+    set NEXTCMD=call %__ProjectDir%\test\runtest.cmd %__BuildArch% %__BuildType% GenerateLayoutOnly %__UnprocessedBuildArgs%
+    echo %__MsgPrefix%!NEXTCMD!
+    !NEXTCMD!
+
+    if not !errorlevel! == 0 (
+        REM runtest.cmd has already emitted an error message and mentioned the build log file to examine.
         exit /b 1
     )
 )

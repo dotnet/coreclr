@@ -32,8 +32,6 @@
 #include "utilcode.h"
 #endif
 
-#include "newapis.h"
-
 // To include definition of CAPTURE_BUCKETS_AT_TRANSITION
 #include "exstate.h"
 
@@ -399,20 +397,20 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
 }
 
 
-FCIMPL2(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
+FCIMPL1(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
 
-    StartInner(pThisUNSAFE, pStackMark);
+    StartInner(pThisUNSAFE);
 
     HELPER_METHOD_FRAME_END_POLL();
 }
 FCIMPLEND
 
 // Start up a thread, which by now should be in the ThreadStore's Unstarted list.
-void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
+void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE)
 {
     CONTRACTL
     {
@@ -1109,13 +1107,10 @@ FCIMPL1(void, ThreadNative::StartupSetApartmentState, ThreadBaseObject* pThisUNS
     // Assert that the thread hasn't been started yet.
     _ASSERTE(Thread::TS_Unstarted & thread->GetSnapshotState());
 
-    if ((g_pConfig != NULL) && !g_pConfig->LegacyApartmentInitPolicy())
+    Thread::ApartmentState as = thread->GetExplicitApartment();
+    if (as == Thread::AS_Unknown)
     {
-        Thread::ApartmentState as = thread->GetExplicitApartment();
-        if (as == Thread::AS_Unknown)
-        {
-            thread->SetApartment(Thread::AS_InMTA, TRUE);
-        }
+        thread->SetApartment(Thread::AS_InMTA, TRUE);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -1771,3 +1766,10 @@ FCIMPL1(void, ThreadNative::ClearAbortReason, ThreadBaseObject* pThisUNSAFE)
 FCIMPLEND
 
 
+FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
+{
+    FCALL_CONTRACT;
+
+    return ::GetCurrentProcessorNumber();
+}
+FCIMPLEND;

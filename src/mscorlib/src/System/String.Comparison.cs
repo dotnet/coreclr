@@ -9,6 +9,14 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 
+using Internal.Runtime.CompilerServices;
+
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System
 {
     public partial class String
@@ -17,7 +25,7 @@ namespace System
         //Native Static Methods
         //
 
-        private unsafe static int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
+        private static unsafe int CompareOrdinalIgnoreCaseHelper(String strA, String strB)
         {
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
@@ -57,11 +65,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int CompareOrdinalHelper(String strA, int indexA, int countA, String strB, int indexB, int countB);
 
-        //This will not work in case-insensitive mode for any character greater than 0x80.  
-        //We'll throw an ArgumentException.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe internal static extern int nativeCompareOrdinalIgnoreCaseWC(String strA, sbyte* strBBytes);
-
         //
         //
         // NATIVE INSTANCE METHODS
@@ -72,64 +75,20 @@ namespace System
         // Search/Query methods
         //
 
-        private unsafe static bool EqualsHelper(String strA, String strB)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool EqualsHelper(String strA, String strB)
         {
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
             Debug.Assert(strA.Length == strB.Length);
 
-            int length = strA.Length;
-
-            fixed (char* ap = &strA._firstChar) fixed (char* bp = &strB._firstChar)
-            {
-                char* a = ap;
-                char* b = bp;
-
-#if BIT64
-                // Single int read aligns pointers for the following long reads
-                // PERF: No length check needed as there is always an int32 worth of string allocated
-                //       This read can also include the null terminator which both strings will have
-                if (*(int*)a != *(int*)b) return false;
-                length -= 2; a += 2; b += 2;
-
-                // for AMD64 bit platform we unroll by 12 and
-                // check 3 qword at a time. This is less code
-                // than the 32 bit case and is a shorter path length.
-
-                while (length >= 12)
-                {
-                    if (*(long*)a != *(long*)b) return false;
-                    if (*(long*)(a + 4) != *(long*)(b + 4)) return false;
-                    if (*(long*)(a + 8) != *(long*)(b + 8)) return false;
-                    length -= 12; a += 12; b += 12;
-                }
-#else
-                while (length >= 10)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    if (*(int*)(a + 2) != *(int*)(b + 2)) return false;
-                    if (*(int*)(a + 4) != *(int*)(b + 4)) return false;
-                    if (*(int*)(a + 6) != *(int*)(b + 6)) return false;
-                    if (*(int*)(a + 8) != *(int*)(b + 8)) return false;
-                    length -= 10; a += 10; b += 10;
-                }
-#endif
-
-                // This depends on the fact that the String objects are
-                // always zero terminated and that the terminating zero is not included
-                // in the length. For odd string sizes, the last compare will include
-                // the zero terminator.
-                while (length > 0)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    length -= 2; a += 2; b += 2;
-                }
-
-                return true;
-            }
+            return SpanHelpers.SequenceEqual(
+                    ref Unsafe.As<char, byte>(ref strA.GetRawStringData()),
+                    ref Unsafe.As<char, byte>(ref strB.GetRawStringData()),
+                    ((nuint)strA.Length) * 2);
         }
 
-        private unsafe static bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)
+        private static unsafe bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)
         {
             Debug.Assert(strA != null);
             Debug.Assert(strB != null);
@@ -164,58 +123,6 @@ namespace System
                 }
 
                 return true;
-            }
-        }
-
-        private unsafe static bool StartsWithOrdinalHelper(String str, String startsWith)
-        {
-            Debug.Assert(str != null);
-            Debug.Assert(startsWith != null);
-            Debug.Assert(str.Length >= startsWith.Length);
-
-            int length = startsWith.Length;
-
-            fixed (char* ap = &str._firstChar) fixed (char* bp = &startsWith._firstChar)
-            {
-                char* a = ap;
-                char* b = bp;
-
-#if BIT64
-                // Single int read aligns pointers for the following long reads
-                // No length check needed as this method is called when length >= 2
-                Debug.Assert(length >= 2);
-                if (*(int*)a != *(int*)b) return false;
-                length -= 2; a += 2; b += 2;
-
-                while (length >= 12)
-                {
-                    if (*(long*)a != *(long*)b) return false;
-                    if (*(long*)(a + 4) != *(long*)(b + 4)) return false;
-                    if (*(long*)(a + 8) != *(long*)(b + 8)) return false;
-                    length -= 12; a += 12; b += 12;
-                }
-#else
-                while (length >= 10)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    if (*(int*)(a+2) != *(int*)(b+2)) return false;
-                    if (*(int*)(a+4) != *(int*)(b+4)) return false;
-                    if (*(int*)(a+6) != *(int*)(b+6)) return false;
-                    if (*(int*)(a+8) != *(int*)(b+8)) return false;
-                    length -= 10; a += 10; b += 10;
-                }
-#endif
-
-                while (length >= 2)
-                {
-                    if (*(int*)a != *(int*)b) return false;
-                    length -= 2; a += 2; b += 2;
-                }
-
-                // PERF: This depends on the fact that the String objects are always zero terminated 
-                // and that the terminating zero is not included in the length. For even string sizes
-                // this compare can include the zero terminator. Bitwise OR avoids a branch.
-                return length == 0 | *a == *b;
             }
         }
 
@@ -365,24 +272,21 @@ namespace System
         // for meaning of different comparisonType.
         public static int Compare(String strA, String strB, StringComparison comparisonType)
         {
-            // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (uint)(StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if (object.ReferenceEquals(strA, strB))
             {
+                CheckStringComparison(comparisonType);
                 return 0;
             }
 
             // They can't both be null at this point.
             if (strA == null)
             {
+                CheckStringComparison(comparisonType);
                 return -1;
             }
             if (strB == null)
             {
+                CheckStringComparison(comparisonType);
                 return 1;
             }
 
@@ -395,10 +299,10 @@ namespace System
                     return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
 
                 case StringComparison.InvariantCulture:
-                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, strB, CompareOptions.None);
+                    return CompareInfo.Invariant.Compare(strA, strB, CompareOptions.None);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, strB, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.Compare(strA, strB, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
                     // Most common case: first character is different.
@@ -420,7 +324,7 @@ namespace System
                     return CompareInfo.CompareOrdinalIgnoreCase(strA, 0, strA.Length, strB, 0, strB.Length);
 
                 default:
-                    throw new NotSupportedException(SR.NotSupported_StringComparison);
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
@@ -542,13 +446,11 @@ namespace System
 
         public static int Compare(String strA, int indexA, String strB, int indexB, int length, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
+            CheckStringComparison(comparisonType);
 
             if (strA == null || strB == null)
             {
+
                 if (object.ReferenceEquals(strA, strB))
                 {
                     // They're both null
@@ -592,10 +494,10 @@ namespace System
                     return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
 
                 case StringComparison.InvariantCulture:
-                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
+                    return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.None);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CultureInfo.InvariantCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.Compare(strA, indexA, lengthA, strB, indexB, lengthB, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
                     return CompareOrdinalHelper(strA, indexA, lengthA, strB, indexB, lengthB);
@@ -604,7 +506,7 @@ namespace System
                     return (CompareInfo.CompareOrdinalIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB));
 
                 default:
-                    throw new ArgumentException(SR.NotSupported_StringComparison);
+                    throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
         }
 
@@ -637,22 +539,38 @@ namespace System
             return CompareOrdinalHelper(strA, strB);
         }
 
-        // TODO https://github.com/dotnet/corefx/issues/21395: Expose this publicly?
         internal static int CompareOrdinal(ReadOnlySpan<char> strA, ReadOnlySpan<char> strB)
         {
-            // TODO: This needs to be optimized / unrolled.  It can't just use CompareOrdinalHelper(str, str)
-            // (changed to accept spans) because its implementation is based on a string layout,
-            // in a way that doesn't work when there isn't guaranteed to be a null terminator.
+            // TODO: Add a vectorized code path, similar to SequenceEqual
+            // https://github.com/dotnet/corefx/blob/master/src/System.Memory/src/System/SpanHelpers.byte.cs#L900
 
             int minLength = Math.Min(strA.Length, strB.Length);
-            for (int i = 0; i < minLength; i++)
+            ref char first = ref MemoryMarshal.GetReference(strA);
+            ref char second = ref MemoryMarshal.GetReference(strB);
+
+            int i = 0;
+            if (minLength >= sizeof(nuint) / sizeof(char))
             {
-                if (strA[i] != strB[i])
+                while (i < minLength - sizeof(nuint) / sizeof(char))
                 {
-                    return strA[i] - strB[i];
+                    if (Unsafe.ReadUnaligned<nuint>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref first, i))) !=
+                        Unsafe.ReadUnaligned<nuint>(ref Unsafe.As<char, byte>(ref Unsafe.Add(ref second, i))))
+                    {
+                        break;
+                    }
+                    i += sizeof(nuint) / sizeof(char);
                 }
             }
-
+            while (i < minLength)
+            {
+                char a = Unsafe.Add(ref first, i);
+                char b = Unsafe.Add(ref second, i);
+                if (a != b)
+                {
+                    return a - b;
+                }
+                i++;
+            }
             return strA.Length - strB.Length;
         }
 
@@ -746,19 +664,16 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(value));
             }
-
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
+            
             if ((Object)this == (Object)value)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -771,16 +686,17 @@ namespace System
                     return CultureInfo.CurrentCulture.CompareInfo.IsSuffix(this, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.InvariantCulture:
-                    return CultureInfo.InvariantCulture.CompareInfo.IsSuffix(this, value, CompareOptions.None);
+                    return CompareInfo.Invariant.IsSuffix(this, value, CompareOptions.None);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CultureInfo.InvariantCulture.CompareInfo.IsSuffix(this, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IsSuffix(this, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
                     return this.Length < value.Length ? false : (CompareOrdinalHelper(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
 
                 case StringComparison.OrdinalIgnoreCase:
                     return this.Length < value.Length ? false : (CompareInfo.CompareOrdinalIgnoreCase(this, this.Length - value.Length, value.Length, value, 0, value.Length) == 0);
+
                 default:
                     throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
             }
@@ -845,16 +761,15 @@ namespace System
 
         public bool Equals(String value, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-
             if ((Object)this == (Object)value)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
             if ((Object)value == null)
             {
+                CheckStringComparison(comparisonType);
                 return false;
             }
 
@@ -867,10 +782,10 @@ namespace System
                     return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.InvariantCulture:
-                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(this, value, CompareOptions.None) == 0);
+                    return (CompareInfo.Invariant.Compare(this, value, CompareOptions.None) == 0);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(this, value, CompareOptions.IgnoreCase) == 0);
+                    return (CompareInfo.Invariant.Compare(this, value, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.Ordinal:
                     if (this.Length != value.Length)
@@ -913,16 +828,15 @@ namespace System
 
         public static bool Equals(String a, String b, StringComparison comparisonType)
         {
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-
             if ((Object)a == (Object)b)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
             if ((Object)a == null || (Object)b == null)
             {
+                CheckStringComparison(comparisonType);
                 return false;
             }
 
@@ -935,10 +849,10 @@ namespace System
                     return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.InvariantCulture:
-                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.None) == 0);
+                    return (CompareInfo.Invariant.Compare(a, b, CompareOptions.None) == 0);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CultureInfo.InvariantCulture.CompareInfo.Compare(a, b, CompareOptions.IgnoreCase) == 0);
+                    return (CompareInfo.Invariant.Compare(a, b, CompareOptions.IgnoreCase) == 0);
 
                 case StringComparison.Ordinal:
                     if (a.Length != b.Length)
@@ -976,17 +890,14 @@ namespace System
             return !String.Equals(a, b);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern int InternalMarvin32HashString(string s);
-
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
         public override int GetHashCode()
         {
-            return InternalMarvin32HashString(this);
+            return Marvin.ComputeHash32(ref Unsafe.As<char, byte>(ref _firstChar), _stringLength * 2, Marvin.DefaultSeed);
         }
 
-        // Gets a hash code for this string and this comparison. If strings A and B and comparition C are such
+        // Gets a hash code for this string and this comparison. If strings A and B and comparison C are such
         // that String.Equals(A, B, C), then they will return the same hash code with this comparison C.
         public int GetHashCode(StringComparison comparisonType) => StringComparer.FromComparison(comparisonType).GetHashCode(this);
 
@@ -1066,18 +977,15 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
 
-            if (comparisonType < StringComparison.CurrentCulture || comparisonType > StringComparison.OrdinalIgnoreCase)
-            {
-                throw new ArgumentException(SR.NotSupported_StringComparison, nameof(comparisonType));
-            }
-
             if ((Object)this == (Object)value)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
             if (value.Length == 0)
             {
+                CheckStringComparison(comparisonType);
                 return true;
             }
 
@@ -1090,10 +998,10 @@ namespace System
                     return CultureInfo.CurrentCulture.CompareInfo.IsPrefix(this, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.InvariantCulture:
-                    return CultureInfo.InvariantCulture.CompareInfo.IsPrefix(this, value, CompareOptions.None);
+                    return CompareInfo.Invariant.IsPrefix(this, value, CompareOptions.None);
 
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CultureInfo.InvariantCulture.CompareInfo.IsPrefix(this, value, CompareOptions.IgnoreCase);
+                    return CompareInfo.Invariant.IsPrefix(this, value, CompareOptions.IgnoreCase);
 
                 case StringComparison.Ordinal:
                     if (this.Length < value.Length || _firstChar != value._firstChar)
@@ -1102,14 +1010,16 @@ namespace System
                     }
                     return (value.Length == 1) ?
                             true :                 // First char is the same and thats all there is to compare
-                            StartsWithOrdinalHelper(this, value);
+                            SpanHelpers.SequenceEqual(
+                                ref Unsafe.As<char, byte>(ref this.GetRawStringData()),
+                                ref Unsafe.As<char, byte>(ref value.GetRawStringData()),
+                                ((nuint)value.Length) * 2);
 
                 case StringComparison.OrdinalIgnoreCase:
                     if (this.Length < value.Length)
                     {
                         return false;
                     }
-
                     return (CompareInfo.CompareOrdinalIgnoreCase(this, 0, value.Length, value, 0, value.Length) == 0);
 
                 default:
@@ -1134,5 +1044,14 @@ namespace System
         }
 
         public bool StartsWith(char value) => Length != 0 && _firstChar == value;
+
+        internal static void CheckStringComparison(StringComparison comparisonType)
+        {
+            // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
+            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            {
+                ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
+            }
+        }
     }
 }

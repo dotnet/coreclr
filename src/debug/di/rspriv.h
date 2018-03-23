@@ -2316,7 +2316,7 @@ public:
     CorDebugInterfaceVersion    GetDebuggerVersion() const;
 
 #ifdef FEATURE_CORESYSTEM
-	HMODULE GetTargetCLR() { return m_targetCLR; }
+    HMODULE GetTargetCLR() { return m_targetCLR; }
 #endif
 
 private:
@@ -2338,7 +2338,7 @@ private:
 //Note - this code could be useful outside coresystem, but keeping the change localized
 // because we are late in the win8 release
 #ifdef FEATURE_CORESYSTEM
-	HMODULE m_targetCLR;
+    HMODULE m_targetCLR;
 #endif
 };
 
@@ -2480,12 +2480,12 @@ public:
     // ICorDebugAppDomain3 APIs
     //-----------------------------------------------------------
     COM_METHOD GetCachedWinRTTypesForIIDs(
-					    ULONG32               cGuids,
-    					GUID                * guids,
-	    				ICorDebugTypeEnum * * ppTypesEnum);
+                        ULONG32               cGuids,
+                        GUID                * guids,
+                        ICorDebugTypeEnum * * ppTypesEnum);
 
     COM_METHOD GetCachedWinRTTypes(
-						ICorDebugGuidToTypeEnum * * ppType);
+                        ICorDebugGuidToTypeEnum * * ppType);
 
     //-----------------------------------------------------------
     // ICorDebugAppDomain4
@@ -2730,6 +2730,7 @@ public:
         {
             case cInband: return "cInband";
             case cInband_NotNewEvent: return "cInband_NotNewEvent";
+            case cFirstChanceHijackStarted: return "cFirstChanceHijackStarted";
             case cInbandHijackComplete: return "cInbandHijackComplete";
             case cInbandExceptionRetrigger: return "cInbandExceptionRetrigger";
             case cBreakpointRequiringHijack: return "cBreakpointRequiringHijack";
@@ -5338,7 +5339,11 @@ const BOOL bILCode = TRUE;
 // B/C of generics, a single IL function may get jitted multiple times and
 // be associated w/ multiple native code blobs (CordbNativeCode).
 //
-class CordbFunction : public CordbBase, public ICorDebugFunction, public ICorDebugFunction2, public ICorDebugFunction3
+class CordbFunction : public CordbBase, 
+                      public ICorDebugFunction, 
+                      public ICorDebugFunction2, 
+                      public ICorDebugFunction3, 
+                      public ICorDebugFunction4
 {
 public:
     //-----------------------------------------------------------
@@ -5395,6 +5400,11 @@ public:
     // ICorDebugFunction3
     //-----------------------------------------------------------
     COM_METHOD GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedILCode);
+
+    //-----------------------------------------------------------
+    // ICorDebugFunction4
+    //-----------------------------------------------------------
+    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
 
     //-----------------------------------------------------------
     // Internal members
@@ -5740,6 +5750,8 @@ public:
     HRESULT GetLocalVariableType(DWORD dwIndex, const Instantiation * pInst, CordbType ** ppResultType);
     mdSignature GetLocalVarSigToken();
 
+    COM_METHOD CreateNativeBreakpoint(ICorDebugFunctionBreakpoint **ppBreakpoint);
+
 private:
     // Read the actual bytes of IL code into the data member m_rgbCode.
     // Helper routine for GetCode
@@ -5771,7 +5783,9 @@ protected:
 * rejitID. Thus it is 1:N with a given instantiation of CordbFunction.
 * ------------------------------------------------------------------------- */
 
-class CordbReJitILCode : public CordbILCode, public ICorDebugILCode, public ICorDebugILCode2
+class CordbReJitILCode : public CordbILCode, 
+                         public ICorDebugILCode, 
+                         public ICorDebugILCode2
 {
 public:
     // Initialize a new CordbILCode instance
@@ -5796,7 +5810,7 @@ public:
     //-----------------------------------------------------------
     COM_METHOD GetLocalVarSigToken(mdSignature *pmdSig);
     COM_METHOD GetInstrumentedILMap(ULONG32 cMap, ULONG32 *pcMap, COR_IL_MAP map[]);
-
+    
 private:
     HRESULT Init(DacSharedReJitInfo* pSharedReJitInfo);
 
@@ -7560,7 +7574,7 @@ class CordbFunctionBreakpoint : public CordbBreakpoint,
                                 public ICorDebugFunctionBreakpoint
 {
 public:
-    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset);
+    CordbFunctionBreakpoint(CordbCode *code, SIZE_T offset, BOOL offsetIsIl);
     ~CordbFunctionBreakpoint();
 
     virtual void Neuter();
@@ -7621,6 +7635,7 @@ public:
     // leaked.
     RSExtSmartPtr<CordbCode> m_code;
     SIZE_T          m_offset;
+    BOOL            m_offsetIsIl;
 };
 
 /* ------------------------------------------------------------------------- *
@@ -10576,43 +10591,17 @@ private:
     HRESULT EnableSSAfterBP();
     bool GetEEThreadCantStopHelper();
 
-    DWORD_PTR GetTlsSlot(SIZE_T slot);
+    HRESULT GetTlsSlot(DWORD slot, REMOTE_PTR *pValue);
+    HRESULT SetTlsSlot(DWORD slot, REMOTE_PTR value);
     REMOTE_PTR GetPreDefTlsSlot(SIZE_T slot, bool * pRead);
 
     void * m_pPatchSkipAddress;
 
-
-
-    /* 
-     * This abstracts away an overload of the OS thread's TLS slot. In 
-     * particular the runtime may or may not have created a thread object for
-     * a particular OS thread at any point.
-     *
-     * If the runtime has created a thread object, then it stores a pointer to
-     * that thread object in the thread's TLS slot.
-     *
-     * If not, then interop-debugging uses that TLS slot to store temporary 
-     * information.
-     *
-     * To determine this, interop-debugging will set the low bit.  Thus when
-     * we read the TLS slot, if it is non-NULL, anything w/o the low bit set
-     * is an EE thread object ptr.  Anything with the low bit set is an 
-     * interop-debugging value.  Any NULL is null, and an indicator that 
-     * there does not exist a runtime thread object for this thread yet.
-     *
-     */
-    REMOTE_PTR m_pEEThread;
-    REMOTE_PTR m_pdwTlsValue;
-    BOOL m_fValidTlsData;
-
     UINT m_continueCountCached;
 
-    void CacheEEDebuggerWord();
-    HRESULT SetEEThreadValue(REMOTE_PTR EETlsValue);
-
     DWORD_PTR GetEEThreadValue();
-    REMOTE_PTR GetClrModuleTlsDataAddress();
     REMOTE_PTR GetEETlsDataBlock();
+    HRESULT GetClrModuleTlsDataAddress(REMOTE_PTR* pAddress);
 
 public:
     HRESULT GetEEDebuggerWord(REMOTE_PTR *pValue);

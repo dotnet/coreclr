@@ -22,27 +22,6 @@ namespace System
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public T[] Items
-        {
-            // This is a work around since we cannot use _memory.ToArray() due to
-            // https://devdiv.visualstudio.com/DevDiv/_workitems?id=286592
-            get
-            {
-                if (MemoryMarshal.TryGetArray(_memory, out ArraySegment<T> segment))
-                {
-                    T[] array = new T[_memory.Length];
-                    Array.Copy(segment.Array, segment.Offset, array, 0, array.Length);
-                    return array;
-                }
-
-                if (typeof(T) == typeof(char) &&
-                    ((ReadOnlyMemory<char>)(object)_memory).TryGetString(out string text, out int start, out int length))
-                {
-                    return (T[])(object)text.Substring(start, length).ToCharArray();
-                }
-
-                return Array.Empty<T>();
-            }
-        }
+        public T[] Items => _memory.ToArray();
     }
 }

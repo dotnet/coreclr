@@ -48,12 +48,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pal.h"
 #include <dlfcn.h>
 
-#if HAVE_LIBUNWIND_H
-#ifndef __linux__
 #define UNW_LOCAL_ONLY
-#endif // !__linux__       
 #include <libunwind.h>
-#endif // HAVE_LIBUNWIND_H
 
 SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
@@ -63,6 +59,9 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 #include <elf.h>
 #include <link.h>
 
+#ifndef ElfW
+#define ElfW(foo) Elf_ ## foo
+#endif
 #define Ehdr   ElfW(Ehdr)
 #define Phdr   ElfW(Phdr)
 #define Shdr   ElfW(Shdr)

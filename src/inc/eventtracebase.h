@@ -38,22 +38,6 @@ void InitializeEventTracing();
 // These flags need to be defined either when FEATURE_EVENT_TRACE is enabled or the 
 // PROFILING_SUPPORTED is set, since they are used both by event tracing and profiling.
 
-enum EtwGCRootFlags
-{
-    kEtwGCRootFlagsPinning =            0x1,
-    kEtwGCRootFlagsWeakRef =            0x2,
-    kEtwGCRootFlagsInterior =           0x4,
-    kEtwGCRootFlagsRefCounted =         0x8,
-};
-
-enum EtwGCRootKind
-{
-    kEtwGCRootKindStack =               0,
-    kEtwGCRootKindFinalizer =           1,
-    kEtwGCRootKindHandle =              2,
-    kEtwGCRootKindOther =               3,
-};
-
 enum EtwTypeFlags
 {
     kEtwTypeFlagsDelegate =                         0x1,
@@ -72,6 +56,13 @@ enum EtwThreadFlags
 #ifndef FEATURE_REDHAWK
 
 #if defined(FEATURE_EVENT_TRACE)
+
+#if defined(FEATURE_PERFTRACING)
+#define EVENT_PIPE_ENABLED() (EventPipeHelper::Enabled())
+#else
+#define EVENT_PIPE_ENABLED() (FALSE)
+#endif
+
 #if  !defined(FEATURE_PAL)
 
 //
@@ -79,27 +70,27 @@ enum EtwThreadFlags
 //
 
 #define ETW_TRACING_INITIALIZED(RegHandle) \
-    (g_pEtwTracer && RegHandle)
+    ((g_pEtwTracer && RegHandle) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if an event is enabled
 // if the fields in the event are not cheap to calculate
 //
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) \
-    (MCGEN_ENABLE_CHECK(Context, EventDescriptor))
+    ((MCGEN_ENABLE_CHECK(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if a category of events is enabled
 //
 
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) \
-    (Context.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword))
+    ((Context.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
 
 
 // This macro only checks if a provider is enabled
 // It does not check the flags and keywords for which it is enabled
 #define ETW_PROVIDER_ENABLED(ProviderSymbol)                 \
-        ProviderSymbol##_Context.IsEnabled
+        ((ProviderSymbol##_Context.IsEnabled) || EVENT_PIPE_ENABLED())
 
 
 #else //defined(FEATURE_PAL)
@@ -183,7 +174,7 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the event is enabled
 //
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) \
-    (Context.IsEnabled && ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor))
+    ((Context.IsEnabled && ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
 
 //
 // Using KEYWORDZERO means when checking the events category ignore the keyword
@@ -194,7 +185,7 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the category is enabled
 //
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) \
-    (ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword))
+    ((ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
 
     #define ETWOnStartup(StartEventName, EndEventName) \
         ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
@@ -250,6 +241,42 @@ public:
 #endif //defined(FEATURE_EVENT_TRACE)
 
 #if defined(FEATURE_EVENT_TRACE)
+
+VOID EventPipeEtwCallbackDotNETRuntimeStress(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext);
+
+VOID EventPipeEtwCallbackDotNETRuntime(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext);
+
+VOID EventPipeEtwCallbackDotNETRuntimeRundown(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext);
+
+VOID EventPipeEtwCallbackDotNETRuntimePrivate(
+    _In_ LPCGUID SourceId,
+    _In_ ULONG ControlCode,
+    _In_ UCHAR Level,
+    _In_ ULONGLONG MatchAnyKeyword,
+    _In_ ULONGLONG MatchAllKeyword,
+    _In_opt_ PVOID FilterData,
+    _Inout_opt_ PVOID CallbackContext);
 
 #ifndef  FEATURE_PAL
 // Callback and stack support
@@ -491,6 +518,7 @@ namespace ETW
                 DynamicAssembly=0x2,
                 NativeAssembly=0x4,
                 CollectibleAssembly=0x8,
+                ReadyToRunAssembly=0x10,
             }AssemblyFlags;
 
             typedef enum _ModuleFlags
@@ -499,7 +527,8 @@ namespace ETW
                 NativeModule=0x2,
                 DynamicModule=0x4,
                 ManifestModule=0x8,
-                IbcOptimized=0x10
+                IbcOptimized=0x10,
+                ReadyToRunModule=0x20,
             }ModuleFlags;
 
             typedef enum _RangeFlags
@@ -548,7 +577,7 @@ namespace ETW
         static VOID SendEventsForNgenMethods(Module *pModule, DWORD dwEventOptions);
         static VOID SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, SIZE_T pCode, ReJITID rejitID);
-        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0);
+        static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHelperSize, LPCWSTR pHelperName);
     public:
         typedef union _MethodStructs
@@ -559,7 +588,9 @@ namespace ETW
                 GenericMethod=0x2,
                 SharedGenericCode=0x4,
                 JittedMethod=0x8,
-                JitHelperMethod=0x10
+                JitHelperMethod=0x10,
+                ProfilerRejectedPrecompiledCode=0x20,
+                ReadyToRunRejectedPrecompiledCode=0x40,
             }MethodFlags;
 
             typedef enum _MethodExtent
@@ -571,7 +602,7 @@ namespace ETW
         }MethodStructs;
 
         static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL);
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0);
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE);
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName);
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers);
         static VOID MethodRestored(MethodDesc * pMethodDesc);

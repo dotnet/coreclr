@@ -7091,7 +7091,7 @@ HRESULT ProfToEEInterfaceImpl::GetClassLayout(ClassID classID,
     // running into - attempting to get the class layout for all types at module load time.
     // If we don't detect this the runtime will AV during the field iteration below. Feel
     // free to eliminate this check when a more complete solution is available.
-    if (typeHandle.AsMethodTable()->GetParentMethodTablePlainOrRelativePointerPtr()->IsTagged())
+    if (MethodTable::IsParentMethodTableTagged(typeHandle.AsMethodTable()))
     {
         return CORPROF_E_DATAINCOMPLETE;
     }

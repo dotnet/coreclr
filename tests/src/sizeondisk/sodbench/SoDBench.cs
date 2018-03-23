@@ -157,7 +157,7 @@ namespace SoDBench
         <packageSources>
             <add key='nuget.org' value='https://api.nuget.org/v3/index.json' protocolVersion='3' />
             <add key='myget.org/dotnet-core' value='https://dotnet.myget.org/F/dotnet-core/api/v3/index.json' protocolVersion='3' />
-            <add key='myget.org/aspnet-core' value='https://dotnet.myget.org/F/aspnetcore-ci-dev/api/v3/index.json' protocolVersion='3' />
+            <add key='myget.org/aspnet-core' value='https://dotnet.myget.org/F/aspnetcore-dev/api/v3/index.json' protocolVersion='3' />
         </packageSources>
         </configuration>";
 
@@ -223,7 +223,7 @@ namespace SoDBench
                         Console.WriteLine($"** Using core libraries found at {options.CoreLibariesDirectory}");
                         s_corelibsDir = new DirectoryInfo(options.CoreLibariesDirectory);
                     }
-                    else 
+                    else
                     {
                         var coreroot = Environment.GetEnvironmentVariable("CORE_ROOT");
                         if (!String.IsNullOrEmpty(coreroot) && Directory.Exists(coreroot))
@@ -237,7 +237,7 @@ namespace SoDBench
                         }
                     }
 
-                    PrintHeader("Installing Dotnet CLI");
+                    PrintHeader("** Installing Dotnet CLI");
                     s_dotnetExe = SetupDotnet();
                 }
 
@@ -248,11 +248,11 @@ namespace SoDBench
                 }
 
                 Console.WriteLine($"** Path to dotnet executable: {s_dotnetExe.FullName}");
-                
-                PrintHeader("Starting acquisition size test");
+
+                PrintHeader("** Starting acquisition size test");
                 var acquisition = GetAcquisitionSize();
 
-                PrintHeader("Running deployment size test");
+                PrintHeader("** Running deployment size test");
                 var deployment = GetDeploymentSize();
 
                 var root = new SizeReportingNode("Dotnet Total");
@@ -260,7 +260,7 @@ namespace SoDBench
                 root.AddChild(deployment);
 
                 var formattedStr = root.FormatAsCsv();
-               
+
                 File.WriteAllText(options.OutputFilename, formattedStr);
 
                 if (options.Verbose)
@@ -270,8 +270,8 @@ namespace SoDBench
             {
                 if (!s_keepArtifacts && s_sandboxDir != null)
                 {
-                    PrintHeader("Cleaning up sandbox directory");
-                    s_sandboxDir.Delete(true);
+                    PrintHeader("** Cleaning up sandbox directory");
+                    DeleteDirectory(s_sandboxDir);
                     s_sandboxDir = null;
                 }
             }
@@ -328,7 +328,7 @@ namespace SoDBench
 
             return result;
         }
-        
+
         private static SizeReportingNode GetDeploymentSize()
         {
             // Write the NuGet.Config file
@@ -370,7 +370,8 @@ namespace SoDBench
                     ProcessStartInfo dotnetPublish = new ProcessStartInfo()
                     {
                         FileName = s_dotnetExe.FullName,
-                        Arguments = $"publish -c Release --runtime {os} --output {publishDir.FullName}", // "out" is an arbitrary project name
+                        // The UserSharedCompiler flag is set to false to prevent handles from being held that will later cause deletion of the installed SDK to fail.
+                        Arguments = $"publish -c Release --runtime {os} --output {publishDir.FullName} /p:UseSharedCompilation=false",
                         UseShellExecute = false,
                         WorkingDirectory = deploymentSandbox.FullName
                     };
@@ -395,12 +396,16 @@ namespace SoDBench
                         continue;
                     }
 
-                    // If we published this project, only report published it's size
+                    // If we published this project, only report it's published size
                     if (publishDir.Exists)
                     {
                         var publishNode = new SizeReportingNode(publishDir, 0);
                         publishNode.Name = deploymentSandbox.Name;
                         templateNode.AddChild(publishNode);
+
+                        if (publishNode.Size <= 0) {
+                            throw new InvalidOperationException($"{publishNode.Name} reports as invalid size {publishNode.Size}");
+                        }
                     }
                     else
                     {
@@ -426,7 +431,7 @@ namespace SoDBench
             var psi = new ProcessStartInfo() {
                 WorkingDirectory = s_sandboxDir.FullName,
                 FileName = @"powershell.exe",
-                Arguments = $"-NoProfile .\\Dotnet-Install.ps1 -SharedRuntime -InstallDir .dotnet -Channel {s_dotnetChannel} -Architecture {s_targetArchitecture}"
+                Arguments = $"-NoProfile .\\Dotnet-Install.ps1 -Runtime dotnet -InstallDir .dotnet -Channel {s_dotnetChannel} -Architecture {s_targetArchitecture}"
             };
             LaunchProcess(psi, 180000);
         }
@@ -676,6 +681,56 @@ namespace SoDBench
             private string _dotnetExe;
             private string _corelibsDir;
             private string _outputFilename = "measurement.csv";
+        }
+
+        private static void DeleteDirectory(DirectoryInfo dir, uint maxWait=10000)
+        {
+            foreach (var subdir in dir.GetDirectories())
+            {
+                DeleteDirectory(subdir);
+            }
+
+            // Give it time to actually delete all the files
+            var files = dir.GetFiles();
+            bool wait = true;
+            uint waitTime = 0;
+            while (wait)
+            {
+                wait = false;
+
+                foreach (var f in files)
+                {
+                    if (File.Exists(f.FullName))
+                    {
+                        try
+                        {
+                            File.Delete(f.FullName);
+                        }
+                        catch (IOException) { if (waitTime > maxWait) throw; }
+                        catch (UnauthorizedAccessException) { if (waitTime > maxWait) throw; }
+
+                        if (File.Exists(f.FullName))
+                        {
+                            wait = true;
+
+                            // Print a message every 3 seconds if the thread is stuck
+                            if (waitTime != 0 && waitTime % 3000 == 0)
+                            {
+                                Console.WriteLine($"Waiting to delete {f.FullName}");
+                            }
+                        }
+                    }
+                }
+
+                // Try again in 100ms
+                if (wait)
+                {
+                    Thread.Sleep(100);
+                    waitTime += 100;
+                }
+            }
+
+            Directory.Delete(dir.FullName);
         }
     }
 

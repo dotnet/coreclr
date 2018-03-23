@@ -2178,9 +2178,11 @@ public:
     //
 
 #if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#define PARENT_MT_FIXUP_OFFSET (-FIXUP_POINTER_INDIRECTION)
     typedef RelativeFixupPointer<PTR_MethodTable> ParentMT_t;
 #else
-    typedef PlainPointer<PTR_MethodTable> ParentMT_t;
+#define PARENT_MT_FIXUP_OFFSET ((SSIZE_T)offsetof(MethodTable, m_pParentMethodTable))
+    typedef IndirectPointer<PTR_MethodTable> ParentMT_t;
 #endif
 
     BOOL HasApproxParent()
@@ -2201,22 +2203,60 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 
         PRECONDITION(IsParentMethodTablePointerValid());
-        return ReadPointerMaybeNull(this, &MethodTable::m_pParentMethodTable);
+        return ReadPointerMaybeNull(this, &MethodTable::m_pParentMethodTable, GetFlagHasIndirectParent());
     }
 
-    inline static PTR_VOID GetParentMethodTable(PTR_VOID pMT)
+    inline static PTR_VOID GetParentMethodTableOrIndirection(PTR_VOID pMT)
     {
-      LIMITED_METHOD_DAC_CONTRACT;
+        WRAPPER_NO_CONTRACT;
+#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+        PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
+        PTR_MethodTable pParentMT = ReadPointerMaybeNull((MethodTable*) pMethodTable, &MethodTable::m_pParentMethodTable);
+        return dac_cast<PTR_VOID>(pParentMT);
+#else
+        return PTR_VOID(*PTR_TADDR(dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable)));
+#endif
+    }
 
-      PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
-      return pMethodTable->GetParentMethodTable();
+    inline static BOOL IsParentMethodTableTagged(PTR_MethodTable pMT)
+    {
+        LIMITED_METHOD_CONTRACT;
+        TADDR base = dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable);
+        return pMT->m_pParentMethodTable.IsTaggedIndirect(base, pMT->GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    bool GetFlagHasIndirectParent()
+    {
+#ifdef FEATURE_PREJIT
+        return !!GetFlag(enum_flag_HasIndirectParent);
+#else
+        return false;
+#endif
     }
 
 #ifndef DACCESS_COMPILE
-    inline ParentMT_t * GetParentMethodTablePlainOrRelativePointerPtr()
+    inline ParentMT_t * GetParentMethodTablePointerPtr()
     {
-      LIMITED_METHOD_CONTRACT;
-      return &m_pParentMethodTable;
+        LIMITED_METHOD_CONTRACT;
+        return &m_pParentMethodTable;
+    }
+
+    inline bool IsParentMethodTableIndirectPointerMaybeNull()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.IsIndirectPtrMaybeNullIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    inline bool IsParentMethodTableIndirectPointer()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.IsIndirectPtrIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    inline MethodTable ** GetParentMethodTableValuePtr()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.GetValuePtrIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
     }
 #endif // !DACCESS_COMPILE
 
@@ -2237,7 +2277,7 @@ public:
     void SetParentMethodTable (MethodTable *pParentMethodTable)
     {
         LIMITED_METHOD_CONTRACT;
-        PRECONDITION(!m_pParentMethodTable.IsIndirectPtrMaybeNull());
+        PRECONDITION(!IsParentMethodTableIndirectPointerMaybeNull());
         m_pParentMethodTable.SetValueMaybeNull(pParentMethodTable);
 #ifdef _DEBUG
         GetWriteableDataForWrite_NoLogging()->SetParentMethodTablePointerValid();
@@ -4137,6 +4177,7 @@ private:
     LPCUTF8         debug_m_szClassName;
 #endif //_DEBUG
     
+    // On Linux ARM is a RelativeFixupPointer. Otherwise,
     // Parent PTR_MethodTable if enum_flag_HasIndirectParent is not set. Pointer to indirection cell
     // if enum_flag_enum_flag_HasIndirectParent is set. The indirection is offset by offsetof(MethodTable, m_pParentMethodTable).
     // It allows casting helpers to go through parent chain natually. Casting helper do not need need the explicit check

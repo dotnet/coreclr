@@ -39,16 +39,16 @@ public:
 
     #endif // !defined(_TARGET_X86_)
 
+        JIT_FLAG_UNUSED6                 = 13,
+
     #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-        JIT_FLAG_USE_SSE3_4              = 13,
         JIT_FLAG_USE_AVX                 = 14,
         JIT_FLAG_USE_AVX2                = 15,
         JIT_FLAG_USE_AVX_512             = 16,
 
     #else // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
 
-        JIT_FLAG_UNUSED6                 = 13,
         JIT_FLAG_UNUSED7                 = 14,
         JIT_FLAG_UNUSED8                 = 15,
         JIT_FLAG_UNUSED9                 = 16,
@@ -107,7 +107,7 @@ public:
         JIT_FLAG_HAS_ARM64_LRCPC         = 52, // ID_AA64ISAR1_EL1.LRCPC is 1 or better
         JIT_FLAG_HAS_ARM64_PMULL         = 53, // ID_AA64ISAR0_EL1.AES is 2 or better
         JIT_FLAG_HAS_ARM64_SHA1          = 54, // ID_AA64ISAR0_EL1.SHA1 is 1 or better
-        JIT_FLAG_HAS_ARM64_SHA2          = 55, // ID_AA64ISAR0_EL1.SHA2 is 1 or better
+        JIT_FLAG_HAS_ARM64_SHA256        = 55, // ID_AA64ISAR0_EL1.SHA2 is 1 or better
         JIT_FLAG_HAS_ARM64_SHA512        = 56, // ID_AA64ISAR0_EL1.SHA2 is 2 or better
         JIT_FLAG_HAS_ARM64_SHA3          = 57, // ID_AA64ISAR0_EL1.SHA3 is 1 or better
         JIT_FLAG_HAS_ARM64_SIMD          = 58, // ID_AA64PFR0_EL1.AdvSIMD is 0 or better
@@ -248,7 +248,6 @@ public:
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-        FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE3_4, JIT_FLAG_USE_SSE3_4);
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_AVX, JIT_FLAG_USE_AVX);
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_AVX2, JIT_FLAG_USE_AVX2);
         FLAGS_EQUAL(CORJIT_FLAGS::CORJIT_FLAG_USE_AVX_512, JIT_FLAG_USE_AVX_512);

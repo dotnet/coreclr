@@ -593,7 +593,7 @@ namespace System.Globalization
             {
                 // this comparison should use the InvariantCulture.  The English name could have linguistically
                 // interesting characters.
-                if (CultureInfo.InvariantCulture.CompareInfo.Compare(eraName, m_abbrevEnglishEraNames[i], CompareOptions.IgnoreCase) == 0)
+                if (CompareInfo.Invariant.Compare(eraName, m_abbrevEnglishEraNames[i], CompareOptions.IgnoreCase) == 0)
                 {
                     return (i + 1);
                 }
@@ -1463,7 +1463,7 @@ namespace System.Globalization
         //
         //  Actions: Retrieve the month names used in a leap year.
         //      If this culture does not have different month names in a leap year, the normal month name is returned.
-        //  Agruments: None. (can use abbreviated later if needed)
+        //  Arguments: None. (can use abbreviated later if needed)
         //
         internal String[] internalGetLeapYearMonthNames(/*bool abbreviated*/)
         {
@@ -1602,7 +1602,7 @@ namespace System.Globalization
                     result = this.AllYearMonthPatterns;
                     break;
                 default:
-                    throw new ArgumentException(SR.Format_BadFormatSpecifier, nameof(format));
+                    throw new ArgumentException(SR.Format(SR.Format_BadFormatSpecifier, format), nameof(format));
             }
             return (result);
         }
@@ -1950,7 +1950,7 @@ namespace System.Globalization
                     break;
 
                 default:
-                    throw new ArgumentException(SR.Format_BadFormatSpecifier, nameof(format));
+                    throw new ArgumentException(SR.Format(SR.Format_BadFormatSpecifier, format), nameof(format));
             }
 
             // Clear the token hash table, note that even short dates could require this

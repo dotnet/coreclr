@@ -8,7 +8,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
+#if !FEATURE_PORTABLE_SPAN
 using Internal.Runtime.CompilerServices;
+#endif // FEATURE_PORTABLE_SPAN
 
 namespace System
 {
@@ -16,8 +18,8 @@ namespace System
     /// Represents a contiguous region of memory, similar to <see cref="ReadOnlySpan{T}"/>.
     /// Unlike <see cref="ReadOnlySpan{T}"/>, it is not a byref-like type.
     /// </summary>
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     [DebuggerTypeProxy(typeof(MemoryDebugView<>))]
+    [DebuggerDisplay("{ToString(),raw}")]
     public readonly struct ReadOnlyMemory<T>
     {
         // NOTE: With the current implementation, Memory<T> and ReadOnlyMemory<T> must have the same layout,
@@ -36,14 +38,16 @@ namespace System
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
         /// <param name="array">The target array.</param>
-        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
-        /// reference (Nothing in Visual Basic).</exception>
+        /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlyMemory(T[] array)
         {
             if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            {
+                this = default;
+                return; // returns default
+            }
 
             _object = array;
             _index = 0;
@@ -57,8 +61,7 @@ namespace System
         /// <param name="array">The target array.</param>
         /// <param name="start">The index at which to begin the memory.</param>
         /// <param name="length">The number of items in the memory.</param>
-        /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
-        /// reference (Nothing in Visual Basic).</exception>
+        /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
@@ -67,7 +70,12 @@ namespace System
         public ReadOnlyMemory(T[] array, int start, int length)
         {
             if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            {
+                if (start != 0 || length != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                this = default;
+                return; // returns default
+            }
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -89,18 +97,15 @@ namespace System
             _length = length;
         }
 
-        //Debugger Display = {T[length]}
-        private string DebuggerDisplay => string.Format("{{{0}[{1}]}}", typeof(T).Name, _length);
-
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="ReadOnlyMemory{T}"/>
         /// </summary>
         public static implicit operator ReadOnlyMemory<T>(T[] array) => new ReadOnlyMemory<T>(array);
-        
+
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="ReadOnlyMemory{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlyMemory<T>(ArraySegment<T> arraySegment) => new ReadOnlyMemory<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
+        public static implicit operator ReadOnlyMemory<T>(ArraySegment<T> segment) => new ReadOnlyMemory<T>(segment.Array, segment.Offset, segment.Count);
 
         /// <summary>
         /// Returns an empty <see cref="ReadOnlyMemory{T}"/>
@@ -116,6 +121,19 @@ namespace System
         /// Returns true if Length is 0.
         /// </summary>
         public bool IsEmpty => _length == 0;
+
+        /// <summary>
+        /// For <see cref="ReadOnlyMemory{Char}"/>, returns a new instance of string that represents the characters pointed to by the memory.
+        /// Otherwise, returns a <see cref="string"/> with the name of the type and the number of elements.
+        /// </summary>
+        public override string ToString()
+        {
+            if (typeof(T) == typeof(char))
+            {
+                return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
+            }
+            return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
+        }
 
         /// <summary>
         /// Forms a slice out of the given memory, beginning at 'start'.
@@ -168,7 +186,11 @@ namespace System
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {
+#if FEATURE_PORTABLE_SPAN
+                    return new ReadOnlySpan<T>(Unsafe.As<Pinnable<T>>(s), MemoryExtensions.StringAdjustment, s.Length).Slice(_index, _length);
+#else
                     return new ReadOnlySpan<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
+#endif // FEATURE_PORTABLE_SPAN
                 }
                 else if (_object != null)
                 {
@@ -216,19 +238,26 @@ namespace System
             {
                 if (_index < 0)
                 {
-                    memoryHandle = ((OwnedMemory<T>)_object).Pin();
-                    memoryHandle.AddOffset((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
+                    memoryHandle = ((OwnedMemory<T>)_object).Pin((_index & RemoveOwnedFlagBitMask) * Unsafe.SizeOf<T>());
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {
                     GCHandle handle = GCHandle.Alloc(s, GCHandleType.Pinned);
+#if FEATURE_PORTABLE_SPAN
+                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+#else
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
+#endif // FEATURE_PORTABLE_SPAN
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
                 else if (_object is T[] array)
                 {
                     var handle = GCHandle.Alloc(array, GCHandleType.Pinned);
+#if FEATURE_PORTABLE_SPAN
+                    void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
+#else
                     void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
+#endif // FEATURE_PORTABLE_SPAN
                     memoryHandle = new MemoryHandle(null, pointer, handle);
                 }
             }
@@ -286,7 +315,7 @@ namespace System
         {
             return _object != null ? CombineHashCodes(_object.GetHashCode(), _index.GetHashCode(), _length.GetHashCode()) : 0;
         }
-        
+
         private static int CombineHashCodes(int left, int right)
         {
             return ((left << 5) + left) ^ right;

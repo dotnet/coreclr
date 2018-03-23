@@ -1245,6 +1245,9 @@ public:
     // Special version with profiler hook
     static BOOL IsManagedCode(PCODE currentPC, HostCallPreference hostCallPreference, BOOL *pfFailedReaderLock);
 
+    // Returns method's start address for a given PC
+    static PCODE GetCodeStartAddress(PCODE currentPC);
+
     // Returns methodDesc for given PC
     static MethodDesc * GetCodeMethodDesc(PCODE currentPC);
 
@@ -1274,7 +1277,7 @@ public:
         BOOL Acquired();
     };
 
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
     static ULONG          GetCLRPersonalityRoutineValue()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1282,7 +1285,7 @@ public:
             (size_t)((ULONG)offsetof(HeapList, CLRPersonalityRoutine)));
         return offsetof(HeapList, CLRPersonalityRoutine);
     }
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 
     static EEJitManager * GetEEJitManager()
     {

@@ -223,7 +223,6 @@ HRESULT EEConfig::Init()
 
     fLegacyNullReferenceExceptionPolicy = false;
     fLegacyUnhandledExceptionPolicy = false;
-    fLegacyApartmentInitPolicy = false;
     fLegacyComHierarchyVisibility = false;
     fLegacyComVTableLayout = false;
     fNewComVTableLayout = false;
@@ -330,8 +329,6 @@ HRESULT EEConfig::Init()
     dwADURetryCount=1000;
 
 #ifdef _DEBUG
-    fAppDomainLeaks = DEFAULT_APP_DOMAIN_LEAKS;
-
     // interop logging
     m_pTraceIUnknown = NULL;
     m_TraceWrapper = 0;
@@ -379,6 +376,8 @@ HRESULT EEConfig::Init()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
+    tieredCompilation_tier1CallCountThreshold = 1;
+    tieredCompilation_tier1CallCountingDelayMs = 0;
 #endif
     
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -760,10 +759,6 @@ HRESULT EEConfig::sync()
     if (IsCompilationProcess())
         iGCconcurrent = FALSE;
     
-#ifdef _DEBUG
-    fAppDomainLeaks = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AppDomainAgilityChecked, DEFAULT_APP_DOMAIN_LEAKS) == 1;
-#endif
-
 #if defined(STRESS_HEAP) || defined(_DEBUG)
     iGCStress           =  CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStress);
 #endif
@@ -785,11 +780,6 @@ HRESULT EEConfig::sync()
     if (iGCStress)
     {
         LPWSTR pszGCStressExe = NULL;
-
-#ifdef _DEBUG
-        // If GCStress is turned on, then perform AppDomain agility checks in debug builds
-        fAppDomainLeaks = 1;
-#endif
 
         IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_RestrictedGCStressExe, &pszGCStressExe));
         if (pszGCStressExe != NULL)
@@ -1251,6 +1241,14 @@ HRESULT EEConfig::sync()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation) != 0;
+    tieredCompilation_tier1CallCountThreshold =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold);
+    if (tieredCompilation_tier1CallCountThreshold < 1)
+    {
+        tieredCompilation_tier1CallCountThreshold = 1;
+    }
+    tieredCompilation_tier1CallCountingDelayMs =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs);
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

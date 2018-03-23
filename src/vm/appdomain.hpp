@@ -1290,10 +1290,6 @@ public:
     OBJECTHANDLE CreatePinningHandle(OBJECTREF object)
     {
         WRAPPER_NO_CONTRACT;
-#if CHECK_APP_DOMAIN_LEAKS
-        if(IsAppDomain())
-            object->TryAssignAppDomain((AppDomain*)this,TRUE);
-#endif
         return ::CreatePinningHandle(m_handleStore, object);
     }
 
@@ -4267,7 +4263,7 @@ public:
 
 #if defined(FEATURE_COMINTEROP_APARTMENT_SUPPORT) && !defined(CROSSGEN_COMPILE)
     static Thread::ApartmentState GetEntryPointThreadAptState(IMDInternalImport* pScope, mdMethodDef mdMethod);
-    static void SetThreadAptState(IMDInternalImport* pScope, Thread::ApartmentState state);
+    static void SetThreadAptState(Thread::ApartmentState state);
 #endif
     static BOOL SetGlobalSharePolicyUsingAttribute(IMDInternalImport* pScope, mdMethodDef mdMethod);
 

@@ -18,34 +18,40 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview1</PreReleaseLabel>
+    <PreReleaseLabel>preview3</PreReleaseLabel>
   </PropertyGroup>
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>a8f2e7c982e54e29288e14f81eb9de1bf7a87d59</CoreFxCurrentRef>
-    <CoreClrCurrentRef>a8f2e7c982e54e29288e14f81eb9de1bf7a87d59</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>e6d960434acc3e2852242f5c404f1bc35c09068c</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>c2ca1a1f9adb12a1b8a5a5f322bc13b1a0d1ed23</PgoDataCurrentRef>
+    <CoreFxCurrentRef>1528e3f1252194b0b3274c34882887dc014257c2</CoreFxCurrentRef>
+    <CoreClrCurrentRef>1eb5fa130d6a2015126f406d5833f5f230b10e74</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>1eb5fa130d6a2015126f406d5833f5f230b10e74</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>553f30357d08df4ed6d32f70f3478a76f5db79c2</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview1-26026-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview1-26026-01</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20171215-0045</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview1-26026-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview3-26319-04</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview3-26319-04</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20180228-0037</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-preview3-26322-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
-    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0012</XunitPerformanceApiPackageVersion>
-    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
+    <CommandLineParserVersion>2.1.1</CommandLineParserVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
+    
+    <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
+         updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
+         as we do with many of the package versions above -->
+    <BaselineMicrosoftNetCoreAppPackageVersion>2.1.0-preview2-26131-06</BaselineMicrosoftNetCoreAppPackageVersion>
   </PropertyGroup>
 
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.1.0-prerelease-02322-02</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.1.0-preview3-02622-01</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -53,6 +59,12 @@
     <BaseDotNetBuildInfo>build-info/dotnet/</BaseDotNetBuildInfo>
     <DependencyBranch>master</DependencyBranch>
     <CurrentRefXmlPath>$(MSBuildThisFileFullPath)</CurrentRefXmlPath>
+  </PropertyGroup>
+
+  <!-- ILLinik.Tasks package version -->
+  <PropertyGroup>
+    <ILLinkTasksPackage>ILLink.Tasks</ILLinkTasksPackage>
+    <ILLinkTasksPackageVersion>0.1.5-preview-1461378</ILLinkTasksPackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

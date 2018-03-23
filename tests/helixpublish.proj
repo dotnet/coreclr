@@ -32,6 +32,8 @@
 
     <HelixJobType Condition="'$(HelixJobType)'==''">test/functional/cli/</HelixJobType>
 
+    <!-- Detect whether we are on a product construction build via ProductBuildId. If so, set source appropriately -->
+    <HelixSource Condition="'$(HelixSource)'=='' And '$(IsOfficial)'!='' And '$(TestProduct)'!='' And '$(Branch)'!='' And '$(ProductBuildId)'!=''">prodcon/$(TestProduct)/$(Branch)/</HelixSource>
     <HelixSource Condition="'$(HelixSource)'=='' And '$(IsOfficial)'!='' And '$(TestProduct)'!='' And '$(Branch)'!=''">official/$(TestProduct)/$(Branch)/</HelixSource>
     <HelixSource Condition="'$(HelixSource)'=='' And '$(IsOfficial)'=='' And '$(TestProduct)'!='' And '$(Branch)'!=''">pr/$(TestProduct)/$(Branch)/</HelixSource>
     <HelixSource Condition="'$(HelixSource)'==''">pr/unknown/</HelixSource>
@@ -41,7 +43,8 @@
 
     <!-- Properties used for submission by CloudTest.Helix.Targets-->
     <BuildMoniker>$(CurrentDate)</BuildMoniker>
-    <BuildMoniker Condition="'$(IsOfficial)'=='true'">$(OfficialBuildId)</BuildMoniker>
+    <BuildMoniker Condition="'$(IsOfficial)'=='true' And '$(ProductBuildId)'==''">$(OfficialBuildId)</BuildMoniker>
+    <BuildMoniker Condition="'$(IsOfficial)'=='true' And '$(ProductBuildId)'!=''">$(ProductBuildId)</BuildMoniker>
     <HelixArchLabel>$(Platform)</HelixArchLabel>
     <HelixConfigLabel>$(BuildType)</HelixConfigLabel>
   </PropertyGroup>
@@ -76,7 +79,7 @@
 
     <ItemGroup>      
       <HelixCorrelationPayloadFile Include="$(ArchivesRoot)Core_Root*/*.zip">
-        <RelativeBlobPath>$(Platform)$(ConfigurationGroup)/%(Identity)</RelativeBlobPath>
+        <RelativeBlobPath>$(Platform)$(BuildType)/%(Identity)</RelativeBlobPath>
       </HelixCorrelationPayloadFile>
       <HelixWorkItem>
         <Command Condition="'$(TargetsWindows)' == 'true'">$(HelixPythonPath) $(RunnerScript) --script %HELIX_WORKITEM_PAYLOAD%\runtests.cmd</Command>
@@ -84,7 +87,7 @@
         <PayloadFile>%(Identity)</PayloadFile>
         <WorkItemId>%(Filename)</WorkItemId>
         <TimeoutInSeconds>$(TimeoutInSeconds)</TimeoutInSeconds>
-        <RelativeBlobPath>$(Platform)-$(ConfigurationGroup)/Tests/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)</RelativeBlobPath>
+        <RelativeBlobPath>$(Platform)-$(BuildType)-$(Rid)/Tests/$([System.String]::Copy('%(RecursiveDir)').Replace('\', '/'))%(Filename)%(Extension)</RelativeBlobPath>
       </HelixWorkItem>      
     </ItemGroup>
   </Target>

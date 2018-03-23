@@ -5,27 +5,6 @@
       "enabled": true,
       "continueOnError": false,
       "alwaysRun": false,
-      "displayName": "Run script $(VS140COMNTOOLS)\\VsDevCmd.bat",
-      "timeoutInMinutes": 0,
-      "refName": "Task1",
-      "task": {
-        "id": "bfc8bf76-e7ac-4a8c-9a55-a944a9f632fd",
-        "versionSpec": "1.*",
-        "definitionType": "task"
-      },
-      "inputs": {
-        "filename": "$(VS140COMNTOOLS)\\VsDevCmd.bat",
-        "arguments": "",
-        "modifyEnvironment": "true",
-        "workingFolder": "",
-        "failOnStandardError": "false"
-      }
-    },
-    {
-      "environment": {},
-      "enabled": true,
-      "continueOnError": false,
-      "alwaysRun": false,
       "displayName": "Install Signing Plugin",
       "timeoutInMinutes": 0,
       "condition": "and(succeeded(), in(variables.PB_SignType, 'real', 'test'))",
@@ -91,6 +70,27 @@
       "enabled": true,
       "continueOnError": false,
       "alwaysRun": false,
+      "displayName": "Setup vs dev env",
+      "timeoutInMinutes": 0,
+      "refName": "Task1",
+      "task": {
+        "id": "bfc8bf76-e7ac-4a8c-9a55-a944a9f632fd",
+        "versionSpec": "1.*",
+        "definitionType": "task"
+      },
+      "inputs": {
+        "filename": "$(Pipeline.SourcesDirectory)\\setup_vs_tools.cmd",
+        "arguments": "",
+        "modifyEnvironment": "true",
+        "workingFolder": "",
+        "failOnStandardError": "false"
+      }
+    },
+    {
+      "environment": {},
+      "enabled": true,
+      "continueOnError": false,
+      "alwaysRun": false,
       "displayName": "Sync packages",
       "timeoutInMinutes": 0,
       "refName": "Task5",
@@ -124,27 +124,6 @@
         "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg/ -- /p:DownloadFlatFiles=true /p:BlobNameExtension=\".nupkg\" /p:DownloadDirectory=$(Pipeline.SourcesDirectory)\\packages\\AzureTransfer\\$(ConfigurationGroup)\\symbolpkg",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
-      }
-    },
-    {
-      "environment": {},
-      "enabled": true,
-      "continueOnError": false,
-      "alwaysRun": false,
-      "displayName": "Inject signed symbol catalogs",
-      "timeoutInMinutes": 0,
-      "condition": "and(succeeded(), ne(variables['PB_SignType'], 'oss'))",
-      "refName": "Task7",
-      "task": {
-        "id": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
-        "versionSpec": "1.*",
-        "definitionType": "task"
-      },
-      "inputs": {
-        "filename": "msbuild",
-        "arguments": "/t:InjectSignedSymbolCatalogIntoSymbolPackages /p:SymbolPackagesToPublishGlob=$(Pipeline.SourcesDirectory)\\packages\\AzureTransfer\\$(ConfigurationGroup)\\$(AzureContainerSymbolPackageGlob) /p:SymbolCatalogCertificateId=$(PB_SymbolCatalogCertificateId)",
-        "workingFolder": "$(Pipeline.SourcesDirectory)",
-        "failOnStandardError": "true"
       }
     },
     {
@@ -273,7 +252,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishPackages /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:CloudDropAccessToken=$(PB_PublishBlobFeedKey) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishPackages=true /p:OverwriteOnPublish=true /p:PackagesPattern=../packages/AzureTransfer/Release/pkg/*.nupkg /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=false /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishPackages /p:__PublishPackages=true $(FeedPublishArguments) /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -294,7 +273,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:CloudDropAccessToken=$(PB_PublishBlobFeedKey) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:__PublishSymbols=true /p:OverwriteOnPublish=true /p:SymbolsPackagesPattern=../packages/AzureTransfer/Release/symbolpkg/*.nupkg /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=false /fileloggerparameters:Verbosity=diag;LogFile=publishpkg.log",
+        "arguments": "src\\publish.proj /t:PublishSymbolPackages /p:__PublishSymbols=true $(FeedPublishArguments) /fileloggerparameters:Verbosity=diag;LogFile=publishsympkg.log",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -469,7 +448,7 @@
       "displayName": "Publish Artifact: DebugLogs",
       "timeoutInMinutes": 0,
       "condition": "succeededOrFailed()",
-      "refName": "PublishBuildArtifacts1",
+      "refName": "PublishBuildArtifacts3",
       "task": {
         "id": "2ff763a7-ce83-4e1f-bc89-0ae63477cebe",
         "versionSpec": "1.*",
@@ -606,7 +585,7 @@
       "allowOverride": true
     },
     "BuildConfiguration": {
-      "value": "release"
+      "value": "Release"
     },
     "BuildPlatform": {
       "value": "any cpu"
@@ -693,6 +672,9 @@
       "value": "false",
       "allowOverride": true
     },
+    "FeedPublishArguments": {
+      "value": "$(PB_BuildOutputManifestArguments) /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:CloudDropAccessToken=$(PB_PublishBlobFeedKey) /p:CloudDropAccountName=$(AzureBlobFeedAccountName) /p:ContainerName=$(AzureBlobFeedContainerName) /p:OverwriteOnPublish=true /p:PackagesPatternDir=../packages/AzureTransfer/Release/ /p:__BuildType=$(ConfigurationGroup) /p:OfficialPublish=true /p:PublishFlatContainer=false"
+    },
     "PB_SymbolCatalogCertificateId": {
       "value": "400"
     },
@@ -707,6 +689,9 @@
     "PB_PublishBlobFeedKey": {
       "value": "",
       "allowOverride": true
+    },
+    "PB_BuildOutputManifestArguments": {
+      "value": "/p:ManifestBuildId=$(OfficialBuildId) /p:ManifestBranch=$(SourceBranch) /p:ManifestCommit=$(SourceVersion)"
     }
   },
   "retentionRules": [
@@ -752,11 +737,17 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "id": 36,
-    "name": "DotNet-Build",
+    "_links": {
+      "self": {
+        "href": "https://devdiv.visualstudio.com/DefaultCollection/_apis/build/Queues/330"
+      }
+    },
+    "id": 330,
+    "name": "DotNetCore-Build",
+    "url": "https://devdiv.visualstudio.com/DefaultCollection/_apis/build/Queues/330",
     "pool": {
-      "id": 39,
-      "name": "DotNet-Build"
+      "id": 97,
+      "name": "DotNetCore-Build"
     }
   },
   "id": 2943,

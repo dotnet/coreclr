@@ -1333,6 +1333,7 @@ private:
         bool fDynamicStatics;                   // Set to true if the statics will be allocated in the dynamic
         bool fGenericsStatics;                  // Set to true if the there are per-instantiation statics
 
+        bool fIsIntrinsicType;                  // Set to true if the type has an [Intrinsic] attribute on it
         bool fIsHardwareIntrinsic;              // Set to true if the class is a hardware intrinsic
 
         DWORD dwNonGCRegularStaticFieldBytes;
@@ -2874,8 +2875,6 @@ private:
 #endif // FEATURE_COMINTEROP
 
     VOID CheckForSpecialTypes();
-
-    VOID SetContextfulOrByRef();
 
 #ifdef FEATURE_READYTORUN
 

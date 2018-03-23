@@ -289,8 +289,8 @@ do                                                      \
         }
         else if (corElemType == ELEMENT_TYPE_PTR)
         {
-            pfwalk->m_managedSize = sizeof(LPVOID);
-            pfwalk->m_managedAlignmentReq = sizeof(LPVOID);
+            pfwalk->m_managedSize = TARGET_POINTER_SIZE;
+            pfwalk->m_managedAlignmentReq = TARGET_POINTER_SIZE;
         }
         else if (corElemType == ELEMENT_TYPE_VALUETYPE)
         {
@@ -496,14 +496,11 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
             if (fDefault || ntype == NATIVE_TYPE_INT || ntype == NATIVE_TYPE_UINT)
             {
-                if (sizeof(LPVOID)==4)
-                {
-                    INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
-                }
-                else
-                {
-                    INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
-                }
+#ifdef _TARGET_64BIT_
+                INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
+#else // !_TARGET_64BIT_
+                INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
+#endif // !_TARGET_64BIT_
             }
             else
             {
@@ -543,20 +540,11 @@ do                                                      \
 #endif // FEATURE_COMINTEROP
             if (fDefault)
             {
-                switch (sizeof(LPVOID))
-                {
-                    case 4:
-                        INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
-                        break;
-                        
-                    case 8:
-                        INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
-                        break;
-
-                    default:
-                        INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
-                        break;
-                }
+#ifdef _TARGET_64BIT_
+                INITFIELDMARSHALER(NFT_COPY8, FieldMarshaler_Copy8, ());
+#else // !_TARGET_64BIT_
+                INITFIELDMARSHALER(NFT_COPY4, FieldMarshaler_Copy4, ());
+#endif // !_TARGET_64BIT_
             }
             else
             {
@@ -1669,7 +1657,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             if (!(alignmentRequirement == 1 ||
                      alignmentRequirement == 2 ||
                      alignmentRequirement == 4 ||
-                  alignmentRequirement == 8))
+                  alignmentRequirement == 8 ||
+                  alignmentRequirement == 16 ||
+                  alignmentRequirement == 32))
             {
                 COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
             }
@@ -1680,7 +1670,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     
             // This assert means I forgot to special-case some NFT in the
             // above switch.
-            _ASSERTE(alignmentRequirement <= 8);
+            _ASSERTE(alignmentRequirement <= 32);
     
             // Check if this field is overlapped with other(s)
             pfwalk->m_fIsOverlapped = FALSE;
@@ -1806,7 +1796,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             if (!(alignmentRequirement == 1 ||
                      alignmentRequirement == 2 ||
                      alignmentRequirement == 4 ||
-                  alignmentRequirement == 8))
+                  alignmentRequirement == 8 ||
+                  alignmentRequirement == 16 ||
+                  alignmentRequirement == 32))
             {
                 COMPlusThrowHR(COR_E_INVALIDPROGRAM, BFA_METADATA_CORRUPT);
             }
@@ -1815,7 +1807,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             
             LargestAlignmentRequirement = max(LargestAlignmentRequirement, alignmentRequirement);
             
-            _ASSERTE(alignmentRequirement <= 8);
+            _ASSERTE(alignmentRequirement <= 32);
             
             // Insert enough padding to align the current data member.
             while (cbCurOffset % alignmentRequirement)

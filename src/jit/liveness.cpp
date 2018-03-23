@@ -294,7 +294,7 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
             {
                 GenTreeLclVarCommon* dummyLclVarTree = nullptr;
                 bool                 dummyIsEntire   = false;
-                GenTreePtr           addrArg         = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
+                GenTree*             addrArg         = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
                 if (!addrArg->DefinesLocalAddr(this, /*width doesn't matter*/ 0, &dummyLclVarTree, &dummyIsEntire))
                 {
                     fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
@@ -1516,11 +1516,11 @@ bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
  * For updating liveset during traversal AFTER fgComputeLife has completed
  */
 
-VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTreePtr tree)
+VARSET_VALRET_TP Compiler::fgUpdateLiveSet(VARSET_VALARG_TP liveSet, GenTree* tree)
 {
     VARSET_TP newLiveSet(VarSetOps::MakeCopy(this, liveSet));
     assert(fgLocalVarLivenessDone == true);
-    GenTreePtr lclVarTree = tree; // After the tests below, "lclVarTree" will be the local variable.
+    GenTree* lclVarTree = tree; // After the tests below, "lclVarTree" will be the local variable.
     if (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_REG_VAR ||
         (lclVarTree = fgIsIndirOfAddrOfLocal(tree)) != nullptr)
     {
@@ -1929,12 +1929,12 @@ bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVar
 
 #ifndef LEGACY_BACKEND
 void Compiler::fgComputeLife(VARSET_TP&       life,
-                             GenTreePtr       startNode,
-                             GenTreePtr       endNode,
+                             GenTree*         startNode,
+                             GenTree*         endNode,
                              VARSET_VALARG_TP volatileVars,
                              bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
 {
-    GenTreePtr tree;
+    GenTree* tree;
 
     // Don't kill vars in scope
     VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope));
@@ -1977,45 +1977,6 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     }
 }
 
-static bool HasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, jitstd::vector<GenTree*>& disabledNodes)
-{
-
-    LIR::Range& blockRange  = LIR::AsRange(block);
-    GenTree*    currentNode = blockRange.LastNode();
-    GenTree*    endNode     = blockRange.FirstNonPhiNode()->gtPrev;
-
-    size_t left = disabledNodes.size();
-
-    while (currentNode != endNode)
-    {
-        for (size_t i = 0; i < disabledNodes.size(); ++i)
-        {
-            if (disabledNodes[i] == currentNode)
-            {
-                --left;
-                disabledNodes[i] = nullptr;
-                break;
-            }
-        }
-
-        if (currentNode->OperMayThrow(compiler))
-        {
-            return true;
-        }
-
-        if (left == 0)
-        {
-            return false;
-        }
-
-        currentNode = currentNode->gtPrev;
-    }
-
-    // If we reach here that means that there is an affecting node outside the current block
-    // so return true
-    return true;
-}
-
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
     // Don't kill volatile vars and vars in scope.
@@ -2045,9 +2006,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     JITDUMP("Removing dead call:\n");
                     DISPNODE(call);
 
-                    jitstd::vector<GenTree*> disabledNodes(getAllocator());
-
-                    node->VisitOperands([&disabledNodes](GenTree* operand) -> GenTree::VisitResult {
+                    node->VisitOperands([](GenTree* operand) -> GenTree::VisitResult {
                         if (operand->IsValue())
                         {
                             operand->SetUnusedValue();
@@ -2057,9 +2016,6 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         // these nodes.
                         if (operand->OperIs(GT_PUTARG_STK))
                         {
-
-                            // collect stack-affecting nodes
-                            disabledNodes.push_back(operand);
                             operand->AsPutArgStk()->gtOp1->SetUnusedValue();
                             operand->gtBashToNOP();
                         }
@@ -2067,21 +2023,16 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         return GenTree::VisitResult::Continue;
                     });
 
-                    if (!disabledNodes.empty())
-                    {
-                        if (HasAnyThrowableNodes(this, block, disabledNodes))
-                        {
-                            codeGen->setFramePointerRequired(true);
-                        }
-                    }
-
                     blockRange.Remove(node);
 
                     // Removing a call does not affect liveness unless it is a tail call in a nethod with P/Invokes or
                     // is itself a P/Invoke, in which case it may affect the liveness of the frame root variable.
-                    fgStmtRemoved = !opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
-                                    ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
-                                    lvaTable[info.compLvFrameListRoot].lvTracked;
+                    if (!opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
+                        ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
+                        lvaTable[info.compLvFrameListRoot].lvTracked)
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else
                 {
@@ -2102,7 +2053,10 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     DISPNODE(lclVarNode);
 
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = varDsc.lvTracked && !opts.MinOpts();
+                    if (varDsc.lvTracked && !opts.MinOpts())
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else if (varDsc.lvTracked)
                 {
@@ -2124,7 +2078,10 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 
                     const bool isTracked = lvaTable[node->AsLclVarCommon()->gtLclNum].lvTracked;
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = isTracked && !opts.MinOpts();
+                    if (isTracked && !opts.MinOpts())
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else
                 {
@@ -2233,6 +2190,9 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 #if defined(FEATURE_SIMD)
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             case GT_JCMP:
             case GT_CMP:
             case GT_JCC:
@@ -2251,6 +2211,9 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
             case GT_RETURNTRAP:
             case GT_PUTARG_STK:
             case GT_IL_OFFSET:
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HWIntrinsic:
+#endif // FEATURE_HW_INTRINSICS
                 // Never remove these nodes, as they are always side-effecting.
                 //
                 // NOTE: the only side-effect of some of these nodes (GT_CMP, GT_SUB_HI) is a write to the flags
@@ -2271,8 +2234,11 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                 assert(!node->OperIsLocal());
                 if (!node->IsValue() || node->IsUnusedValue())
                 {
-                    unsigned sideEffects = node->gtFlags & (GTF_SIDE_EFFECT | GTF_SET_FLAGS);
-                    if ((sideEffects == 0) || ((sideEffects == GTF_EXCEPT) && !node->OperMayThrow(this)))
+                    // We are only interested in avoiding the removal of nodes with direct side-effects
+                    // (as opposed to side effects of their children).
+                    // This default case should never include calls or assignments.
+                    assert(!node->OperRequiresAsgFlag() && !node->OperIs(GT_CALL));
+                    if (!node->gtSetFlags() && !node->OperMayThrow(this))
                     {
                         JITDUMP("Removing dead node:\n");
                         DISPNODE(node);
@@ -2298,22 +2264,22 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 #endif
 
 void Compiler::fgComputeLife(VARSET_TP&       life,
-                             GenTreePtr       startNode,
-                             GenTreePtr       endNode,
+                             GenTree*         startNode,
+                             GenTree*         endNode,
                              VARSET_VALARG_TP volatileVars,
                              bool* pStmtInfoDirty DEBUGARG(bool* treeModf))
 {
-    GenTreePtr tree;
-    unsigned   lclNum;
+    GenTree* tree;
+    unsigned lclNum;
 
-    GenTreePtr gtQMark       = NULL; // current GT_QMARK node (walking the trees backwards)
-    GenTreePtr nextColonExit = 0;    // gtQMark->gtOp.gtOp2 while walking the 'else' branch.
-                                     // gtQMark->gtOp.gtOp1 while walking the 'then' branch
+    GenTree* gtQMark       = NULL; // current GT_QMARK node (walking the trees backwards)
+    GenTree* nextColonExit = 0;    // gtQMark->gtOp.gtOp2 while walking the 'else' branch.
+                                   // gtQMark->gtOp.gtOp1 while walking the 'then' branch
 
     // TBD: This used to be an initialization to VARSET_NOT_ACCEPTABLE.  Try to figure out what's going on here.
-    VARSET_TP  entryLiveSet(VarSetOps::MakeFull(this));   // liveness when we see gtQMark
-    VARSET_TP  gtColonLiveSet(VarSetOps::MakeFull(this)); // liveness when we see gtColon
-    GenTreePtr gtColon = NULL;
+    VARSET_TP entryLiveSet(VarSetOps::MakeFull(this));   // liveness when we see gtQMark
+    VARSET_TP gtColonLiveSet(VarSetOps::MakeFull(this)); // liveness when we see gtColon
+    GenTree*  gtColon = NULL;
 
     VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope)); /* Dont kill vars in scope */
 
@@ -2343,8 +2309,8 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
             noway_assert(tree->gtFlags & GTF_RELOP_QMARK);
             noway_assert(gtQMark->gtOp.gtOp2->gtOper == GT_COLON);
 
-            GenTreePtr thenNode = gtColon->AsColon()->ThenNode();
-            GenTreePtr elseNode = gtColon->AsColon()->ElseNode();
+            GenTree* thenNode = gtColon->AsColon()->ThenNode();
+            GenTree* elseNode = gtColon->AsColon()->ElseNode();
 
             noway_assert(thenNode && elseNode);
 
@@ -2383,7 +2349,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
 
                     if (tree->gtFlags & GTF_SIDE_EFFECT)
                     {
-                        GenTreePtr sideEffList = NULL;
+                        GenTree* sideEffList = NULL;
 
                         gtExtractSideEffList(tree, &sideEffList);
 
@@ -2460,7 +2426,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
                     // so swap the two branches and reverse the condition.  If one is
                     // non-empty, we want it to be the 'else'
 
-                    GenTreePtr tmp = thenNode;
+                    GenTree* tmp = thenNode;
 
                     gtColon->AsColon()->ThenNode() = thenNode = elseNode;
                     gtColon->AsColon()->ElseNode() = elseNode = tmp;
@@ -2508,7 +2474,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
         // so the variable(s) should stay live until the end of the LDOBJ.
         // Note that for promoted structs lvTracked is false.
 
-        GenTreePtr lclVarTree = nullptr;
+        GenTree* lclVarTree = nullptr;
         if (tree->gtOper == GT_OBJ)
         {
             // fgIsIndirOfAddrOfLocal returns nullptr if the tree is
@@ -2846,7 +2812,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
             EXTRACT_SIDE_EFFECTS:
                 /* Extract the side effects */
 
-                GenTreePtr sideEffList = nullptr;
+                GenTree* sideEffList = nullptr;
 #ifdef DEBUG
                 if (verbose)
                 {
@@ -2945,7 +2911,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
             {
                 /* :-( we have side effects */
 
-                GenTreePtr sideEffList = nullptr;
+                GenTree* sideEffList = nullptr;
 #ifdef DEBUG
                 if (verbose)
                 {
@@ -3237,7 +3203,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
         {
             /* Get the first statement in the block */
 
-            GenTreePtr firstStmt = block->FirstNonPhiDef();
+            GenTree* firstStmt = block->FirstNonPhiDef();
 
             if (!firstStmt)
             {
@@ -3246,7 +3212,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
             /* Walk all the statements of the block backwards - Get the LAST stmt */
 
-            GenTreePtr nextStmt = block->bbTreeList->gtPrev;
+            GenTree* nextStmt = block->bbTreeList->gtPrev;
 
             do
             {

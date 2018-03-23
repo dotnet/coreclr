@@ -357,11 +357,10 @@ namespace System.Resources
             sb.Append(name);
 
             String givenName = sb.ToString();
-            CompareInfo comparer = CultureInfo.InvariantCulture.CompareInfo;
             String canonicalName = null;
             foreach (String existingName in satellite.GetManifestResourceNames())
             {
-                if (comparer.Compare(existingName, givenName, CompareOptions.IgnoreCase) == 0)
+                if (String.Equals(existingName, givenName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     if (canonicalName == null)
                     {
@@ -415,7 +414,7 @@ namespace System.Resources
                 // denied back from the OS.  This showed up for
                 // href-run exe's at one point.  
                 int hr = fle._HResult;
-                if (hr != Win32Marshal.MakeHRFromErrorCode(Win32Native.ERROR_ACCESS_DENIED))
+                if (hr != Win32Marshal.MakeHRFromErrorCode(Interop.Errors.ERROR_ACCESS_DENIED))
                 {
                     Debug.Fail("[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetVersion().ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetSimpleName() + " with error code 0x" + hr.ToString("X", CultureInfo.InvariantCulture) + Environment.NewLine + "Exception: " + fle);
                 }

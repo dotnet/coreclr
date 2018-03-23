@@ -97,6 +97,10 @@ GTNODE(SIMD_CHK         , GenTreeBoundsChk   ,0,GTK_SPECIAL|GTK_NOVALUE)// Compa
                                                                         // does the compare, so that it can be more easily optimized.  But that involves generating qmarks at import time...
 #endif // FEATURE_SIMD
 
+#ifdef FEATURE_HW_INTRINSICS
+GTNODE(HW_INTRINSIC_CHK  , GenTreeBoundsChk   ,0,GTK_SPECIAL|GTK_NOVALUE)// Compare whether an imm8 argument is in the valid range, and throw ArgumentOutOfRangeException if not.
+#endif
+
 GTNODE(ALLOCOBJ         , GenTreeAllocObj    ,0,GTK_UNOP|GTK_EXOP)      // object allocator
 
 GTNODE(INIT_VAL         , GenTreeOp          ,0,GTK_UNOP)               // Initialization value for an initBlk
@@ -224,7 +228,7 @@ GTNODE(RSH_LO           , GenTreeOp          ,0,GTK_BINOP)
 GTNODE(SIMD             , GenTreeSIMD        ,0,GTK_BINOP|GTK_EXOP)     // SIMD functions/operators/intrinsics
 #endif // FEATURE_SIMD
 
-#if FEATURE_HW_INTRINSICS
+#ifdef FEATURE_HW_INTRINSICS
 GTNODE(HWIntrinsic      , GenTreeHWIntrinsic ,0,GTK_BINOP|GTK_EXOP)               // hardware intrinsics
 #endif // FEATURE_HW_INTRINSICS
 

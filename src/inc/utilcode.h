@@ -595,7 +595,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
+#ifdef FEATURE_USE_LCID
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 
@@ -1106,7 +1106,7 @@ inline HRESULT DecimalCanonicalize(DECIMAL* dec)
 //
 //*****************************************************************************
 // secure version! Specify the size of the each buffer in count of elements
-void    SplitPath(register const WCHAR *path,
+void    SplitPath(const WCHAR *path,
                   __inout_z __inout_ecount_opt(driveSizeInWords) WCHAR *drive, int driveSizeInWords,
                   __inout_z __inout_ecount_opt(dirSizeInWords) WCHAR *dir, int dirSizeInWords,
                   __inout_z __inout_ecount_opt(fnameSizeInWords) WCHAR *fname, size_t fnameSizeInWords,

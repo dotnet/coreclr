@@ -113,7 +113,7 @@ namespace System.Globalization
         // Get in touch with the diagnostics team if you have questions.
 
         //The Invariant culture;
-        private static volatile CultureInfo s_InvariantCultureInfo;
+        private static readonly CultureInfo s_InvariantCultureInfo = new CultureInfo(CultureData.Invariant, isReadOnly: true);
 
         //These are defaults that we use if a thread has not opted into having an explicit culture
         private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
@@ -148,24 +148,16 @@ namespace System.Globalization
         internal const int LOCALE_CUSTOM_DEFAULT  = 0x0c00;
         internal const int LOCALE_INVARIANT       = 0x007F;
 
-        //
-        // The CultureData  instance that reads the data provided by our CultureData class.
-        //
-        // Using a field initializer rather than a static constructor so that the whole class can be lazy
-        // init.
-        private static readonly bool init = Init();
-        private static bool Init()
+        private static CultureInfo InitializeUserDefaultCulture()
         {
-            if (s_InvariantCultureInfo == null)
-            {
-                CultureInfo temp = new CultureInfo("", false);
-                temp._isReadOnly = true;
-                s_InvariantCultureInfo = temp;
-            }
+            Interlocked.CompareExchange(ref s_userDefaultCulture, GetUserDefaultCulture(), null);
+            return s_userDefaultCulture;
+        }
 
-            s_userDefaultCulture = GetUserDefaultCulture();
-            s_userDefaultUICulture = GetUserDefaultUILanguage();
-            return true;
+        private static CultureInfo InitializeUserDefaultUICulture()
+        {
+            Interlocked.CompareExchange(ref s_userDefaultUICulture, GetUserDefaultUICulture(), null);
+            return s_userDefaultUICulture;
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -173,7 +165,6 @@ namespace System.Globalization
         //  CultureInfo Constructors
         //
         ////////////////////////////////////////////////////////////////////////
-
 
         public CultureInfo(String name)
             : this(name, true)
@@ -192,12 +183,13 @@ namespace System.Globalization
             InitializeFromName(name, useUserOverride);
         }
 
-        private CultureInfo(CultureData cultureData)
+        private CultureInfo(CultureData cultureData, bool isReadOnly = false)
         {
             Debug.Assert(cultureData != null);
             _cultureData = cultureData;
             _name = cultureData.CultureName;
             _isInherited = false;
+            _isReadOnly = isReadOnly;
         }
 
         private static CultureInfo CreateCultureInfoNoThrow(string name, bool useUserOverride)
@@ -429,34 +421,9 @@ namespace System.Globalization
             return UserDefaultUICulture;
         }
 
-        internal static CultureInfo UserDefaultUICulture
-        {
-            get
-            {
-                // if s_userDefaultUICulture == null means CultureInfo statics didn't get initialized yet. this can happen if there early static
-                // method get executed which eventually hit the cultureInfo code while CultureInfo statics didn’t get chance to initialize
-                if (s_userDefaultUICulture == null)
-                {
-                    Init();
-                }
+        internal static CultureInfo UserDefaultUICulture => s_userDefaultUICulture ?? InitializeUserDefaultUICulture();
 
-                Debug.Assert(s_userDefaultUICulture != null);
-                return s_userDefaultUICulture;
-            }
-        }
-
-        public static CultureInfo InstalledUICulture
-        {
-            get
-            {
-                if (s_userDefaultCulture == null)
-                {
-                    Init();
-                }
-                Debug.Assert(s_userDefaultCulture != null, "[CultureInfo.InstalledUICulture] s_userDefaultCulture != null");
-                return s_userDefaultCulture;
-            }
-        }
+        public static CultureInfo InstalledUICulture => s_userDefaultCulture ?? InitializeUserDefaultCulture();
 
         public static CultureInfo DefaultThreadCurrentCulture
         {
@@ -508,6 +475,7 @@ namespace System.Globalization
         {
             get
             {
+                Debug.Assert(s_InvariantCultureInfo != null);
                 return (s_InvariantCultureInfo);
             }
         }
@@ -734,27 +702,11 @@ namespace System.Globalization
                 {
                     // Since CompareInfo's don't have any overrideable properties, get the CompareInfo from
                     // the Non-Overridden CultureInfo so that we only create one CompareInfo per culture
-                    CompareInfo temp = UseUserOverride
+                    this.compareInfo = UseUserOverride
                                         ? GetCultureInfo(this._name).CompareInfo
                                         : new CompareInfo(this);
-                    if (OkayToCacheClassWithCompatibilityBehavior)
-                    {
-                        this.compareInfo = temp;
-                    }
-                    else
-                    {
-                        return temp;
-                    }
                 }
                 return (compareInfo);
-            }
-        }
-
-        private static bool OkayToCacheClassWithCompatibilityBehavior
-        {
-            get
-            {
-                return true;
             }
         }
 
@@ -774,15 +726,7 @@ namespace System.Globalization
                     // Make a new textInfo
                     TextInfo tempTextInfo = new TextInfo(_cultureData);
                     tempTextInfo.SetReadOnlyState(_isReadOnly);
-
-                    if (OkayToCacheClassWithCompatibilityBehavior)
-                    {
-                        textInfo = tempTextInfo;
-                    }
-                    else
-                    {
-                        return tempTextInfo;
-                    }
+                    textInfo = tempTextInfo;
                 }
                 return (textInfo);
             }
@@ -949,7 +893,9 @@ namespace System.Globalization
 
         public void ClearCachedData()
         {
-            Init(); // reset the default culture values
+            // reset the default culture values
+            s_userDefaultCulture = GetUserDefaultCulture();
+            s_userDefaultUICulture = GetUserDefaultUICulture();
 
             RegionInfo.s_currentRegionInfo = null;
             #pragma warning disable 0618 // disable the obsolete warning 
@@ -1079,7 +1025,7 @@ namespace System.Globalization
             if (temp == null)
             {
                 temp = CreateSpecificCulture(_cultureData.SCONSOLEFALLBACKNAME);
-                _isReadOnly = true;
+                temp._isReadOnly = true;
                 _consoleFallbackCulture = temp;
             }
             return (temp);

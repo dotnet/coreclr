@@ -883,14 +883,14 @@ ClassLoader::LoadExactParentAndInterfacesTransitively(MethodTable *pMT)
             LOG((LF_CLASSLOADER, LL_INFO1000, "GENERICS: Replaced approximate parent %s with exact parent %s from token %x\n", pParentMT->GetDebugClassName(), pNewParentMT->GetDebugClassName(), crExtends));
 
             // SetParentMethodTable is not used here since we want to update the indirection cell in the NGen case
-            if (pMT->GetParentMethodTablePlainOrRelativePointerPtr()->IsIndirectPtrMaybeNull())
+            if (pMT->IsParentMethodTableIndirectPointerMaybeNull())
             {
-                *EnsureWritablePages(pMT->GetParentMethodTablePlainOrRelativePointerPtr()->GetValuePtr()) = pNewParentMT;
+                *EnsureWritablePages(pMT->GetParentMethodTableValuePtr()) = pNewParentMT;
             }
             else
             {
-                EnsureWritablePages(pMT->GetParentMethodTablePlainOrRelativePointerPtr());
-                pMT->GetParentMethodTablePlainOrRelativePointerPtr()->SetValueMaybeNull(pNewParentMT);
+                EnsureWritablePages(pMT->GetParentMethodTablePointerPtr());
+                pMT->GetParentMethodTablePointerPtr()->SetValueMaybeNull(pNewParentMT);
             }
 
             pParentMT = pNewParentMT;
@@ -991,9 +991,9 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
 
     if (pMT->GetNumInstanceFields() == 1 && (!pMT->HasLayout()
         || pMT->GetNumInstanceFieldBytes() == 4
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
         || pMT->GetNumInstanceFieldBytes() == 8
-#endif // _WIN64
+#endif // _TARGET_64BIT_
         )) // Don't do the optimization if we're getting specified anything but the trivial layout.
     {
         FieldDesc * pFD = pMT->GetApproxFieldDescListRaw();
@@ -1025,10 +1025,10 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
             case ELEMENT_TYPE_U:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-#ifdef _WIN64 
+#ifdef _TARGET_64BIT_
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
-#endif // _WIN64
+#endif // _TARGET_64BIT_
             
             {
                 return type;
@@ -1042,7 +1042,7 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
     return ELEMENT_TYPE_VALUETYPE;
 }
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
 //*******************************************************************************
 void EEClass::GetPredefinedAgility(Module *pModule, mdTypeDef td,
                                    BOOL *pfIsAgile, BOOL *pfCheckAgile)
@@ -1514,7 +1514,7 @@ exit:
     LOG((LF_CLASSLOADER, LL_INFO1000, "CLASSLOADER: AppDomainAgileAttribute for %s is %d\n", pClass->GetDebugClassName(), pClass->IsAppDomainAgile()));
     pClass->SetAppDomainAgilityDone();
 }
-#endif // defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#endif // defined(_DEBUG)
 
 //*******************************************************************************
 //
@@ -1729,6 +1729,20 @@ EEClass::CheckForHFA()
     // unconditionally disable HFAs for explicit layout.
     if (HasExplicitFieldOffsetLayout())
         return false;
+
+    // The SIMD Intrinsic types are meant to be handled specially and should not be treated as HFA
+    if (GetMethodTable()->IsIntrinsicType())
+    {
+        LPCUTF8 namespaceName;
+        LPCUTF8 className = GetMethodTable()->GetFullyQualifiedNameInfo(&namespaceName);
+
+        if ((strcmp(className, "Vector256`1") == 0) || (strcmp(className, "Vector128`1") == 0) ||
+            (strcmp(className, "Vector64`1") == 0))
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+            return false;
+        }
+    }
 
     CorElementType hfaType = ELEMENT_TYPE_END;
 

@@ -208,8 +208,6 @@
 #include "profilinghelper.h"
 #endif // PROFILING_SUPPORTED
 
-#include "newapis.h"
-
 #ifdef FEATURE_COMINTEROP
 #include "synchronizationcontextnative.h"       // For SynchronizationContextNative::Cleanup
 #endif
@@ -1102,7 +1100,16 @@ void EEStartupHelper(COINITIEE fFlags)
         hr = S_OK;
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
 
-#if defined(_DEBUG) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
+
+#ifdef FEATURE_TIERED_COMPILATION
+        if (g_pConfig->TieredCompilation())
+        {
+            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
+        }
+#endif
+
+#ifdef _DEBUG
 
         //if g_fEEStarted was false when we loaded the System Module, we did not run ExpandAll on it.  In
         //this case, make sure we run ExpandAll here.  The rationale is that if we Jit before g_fEEStarted
@@ -1120,7 +1127,9 @@ void EEStartupHelper(COINITIEE fFlags)
         // Perform mscorlib consistency check if requested
         g_Mscorlib.CheckExtended();
 
-#endif // _DEBUG && !CROSSGEN_COMPILE
+#endif // _DEBUG
+
+#endif // !CROSSGEN_COMPILE
 
 ErrExit: ;
     }
@@ -1630,13 +1639,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Indicate the EE is the shut down phase.
         g_fEEShutDown |= ShutDown_Start;
 
-#ifdef FEATURE_TIERED_COMPILATION
-        {
-            GCX_PREEMP();
-            TieredCompilationManager::ShutdownAllDomains();
-        }
-#endif
-
         fFinalizeOK = TRUE;
 
         // Terminate the BBSweep thread
@@ -2037,8 +2039,6 @@ BOOL IsThreadInSTA()
 }
 #endif
 
-BOOL g_fWeOwnProcess = FALSE;
-
 static LONG s_ActiveShutdownThreadCount = 0;
 
 // ---------------------------------------------------------------------------
@@ -2074,15 +2074,8 @@ DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
     {
         action = eRudeExitProcess;
     }
-    UINT exitCode;
-    if (g_fWeOwnProcess)
-    {
-        exitCode = GetLatchedExitCode();
-    }
-    else
-    {
-        exitCode = HOST_E_EXITPROCESS_TIMEOUT;
-    }
+
+    UINT exitCode = GetLatchedExitCode();
     EEPolicy::HandleExitProcessFromEscalation(action, exitCode);
 
     return 0;
@@ -2176,7 +2169,7 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_COMINTEROP
-    if (!fIsDllUnloading && IsThreadInSTA())
+    if (!fIsDllUnloading && CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) && IsThreadInSTA())
     {
         // #STAShutDown
         // 
@@ -2999,7 +2992,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             SIZE_T cchParentCultureName=LOCALE_NAME_MAX_LENGTH;
 #ifdef FEATURE_USE_LCID 
             SIZE_T cchCultureName=LOCALE_NAME_MAX_LENGTH;
-            if (!NewApis::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
+            if (!::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3009,7 +3002,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
 #endif
 
 #ifndef FEATURE_PAL
-            if (!NewApis::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
+            if (!::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3099,7 +3092,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
                 STRINGREF cultureName = pCurrentCulture->GetName();
                 _ASSERT(cultureName != NULL);
 
-                if ((Result = NewApis::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
+                if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
                     Result = (int)UICULTUREID_DONTCARE;
             }
         }
@@ -3177,7 +3170,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // This thread isn't set up to use a non-default culture. Let's grab the default
         // one and return that.
 
-        Result = NewApis::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
+        Result = ::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
 
         _ASSERTE(Result != 0);
 #else // !FEATURE_PAL

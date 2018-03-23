@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Security;
@@ -498,12 +499,25 @@ namespace System.Diagnostics
 
                     sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
 
-                    Type t = mb.DeclaringType;
+                    bool isAsync = false;
+                    Type declaringType = mb.DeclaringType;
+                    string methodName = mb.Name;
+                    bool methodChanged = false;
+                    if (declaringType != null && declaringType.IsDefined(typeof(CompilerGeneratedAttribute)))
+                    {
+                        isAsync = typeof(IAsyncStateMachine).IsAssignableFrom(declaringType);
+                        if (isAsync || typeof(IEnumerator).IsAssignableFrom(declaringType))
+                        {
+                            methodChanged = TryResolveStateMachineMethod(ref mb, out declaringType);
+                        }
+                    }
+
                     // if there is a type (non global method) print it
-                    if (t != null)
+                    // ResolveStateMachineMethod may have set declaringType to null
+                    if (declaringType != null)
                     {
                         // Append t.FullName, replacing '+' with '.'
-                        string fullName = t.FullName;
+                        string fullName = declaringType.FullName;
                         for (int i = 0; i < fullName.Length; i++)
                         {
                             char ch = fullName[i];
@@ -565,6 +579,14 @@ namespace System.Diagnostics
                         sb.Append(')');
                     }
 
+                    if (methodChanged)
+                    {
+                        // Append original method name e.g. +MoveNext()
+                        sb.Append("+");
+                        sb.Append(methodName);
+                        sb.Append("()");
+                    }
+
                     // source location printing
                     if (displayFilenames && (sf.GetILOffset() != -1))
                     {
@@ -594,7 +616,8 @@ namespace System.Diagnostics
                         }
                     }
 
-                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
+                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace() &&
+                        !isAsync) // Skip EDI boundary for async
                     {
                         sb.Append(Environment.NewLine);
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
@@ -612,6 +635,49 @@ namespace System.Diagnostics
         {
             Debug.Assert(mb != null);
             return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
+        }
+
+        private static bool TryResolveStateMachineMethod(ref MethodBase method, out Type declaringType)
+        {
+            Debug.Assert(method != null);
+            Debug.Assert(method.DeclaringType != null);
+
+            declaringType = method.DeclaringType;
+
+            Type parentType = declaringType.DeclaringType;
+            if (parentType == null)
+            {
+                return false;
+            }
+
+            MethodInfo[] methods = parentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            if (methods == null)
+            {
+                return false;
+            }
+
+            foreach (MethodInfo candidateMethod in methods)
+            {
+                IEnumerable<StateMachineAttribute> attributes = candidateMethod.GetCustomAttributes<StateMachineAttribute>();
+                if (attributes == null)
+                {
+                    continue;
+                }
+
+                foreach (StateMachineAttribute asma in attributes)
+                {
+                    if (asma.StateMachineType == declaringType)
+                    {
+                        method = candidateMethod;
+                        declaringType = candidateMethod.DeclaringType;
+                        // Mark the iterator as changed; so it gets the + annotation of the original method
+                        // async statemachines resolve directly to their builder methods so aren't marked as changed
+                        return asma is IteratorStateMachineAttribute;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

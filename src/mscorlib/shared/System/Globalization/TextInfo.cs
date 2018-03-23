@@ -80,39 +80,6 @@ namespace System.Globalization
             throw new PlatformNotSupportedException();
         }
 
-        //
-        // Internal ordinal comparison functions
-        //
-
-        internal static int GetHashCodeOrdinalIgnoreCase(string s)
-        {
-            // This is the same as an case insensitive hash for Invariant
-            // (not necessarily true for sorting, but OK for casing & then we apply normal hash code rules)
-            return Invariant.GetCaseInsensitiveHashCode(s);
-        }
-
-        // Currently we don't have native functions to do this, so we do it the hard way
-        internal static int IndexOfStringOrdinalIgnoreCase(string source, string value, int startIndex, int count)
-        {
-            if (count > source.Length || count < 0 || startIndex < 0 || startIndex > source.Length - count)
-            {
-                return -1;
-            }
-
-            return CultureInfo.InvariantCulture.CompareInfo.IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
-        }
-
-        // Currently we don't have native functions to do this, so we do it the hard way
-        internal static int LastIndexOfStringOrdinalIgnoreCase(string source, string value, int startIndex, int count)
-        {
-            if (count > source.Length || count < 0 || startIndex < 0 || startIndex > source.Length - 1 || (startIndex - count + 1 < 0))
-            {
-                return -1;
-            }
-
-            return CultureInfo.InvariantCulture.CompareInfo.LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
-        }
-
         public virtual int ANSICodePage => _cultureData.IDEFAULTANSICODEPAGE;
 
         public virtual int OEMCodePage => _cultureData.IDEFAULTOEMCODEPAGE;
@@ -280,6 +247,16 @@ namespace System.Globalization
             }
         }
 
+        internal void ToLowerAsciiInvariant(ReadOnlySpan<char> source, Span<char> destination)
+        {
+            Debug.Assert(destination.Length >= source.Length);
+
+            for (int i = 0; i < source.Length; i++)
+            {
+                destination[i] = ToLowerAsciiInvariant(source[i]);
+            }
+        }
+
         private unsafe string ToUpperAsciiInvariant(string s)
         {
             if (s.Length == 0)
@@ -323,6 +300,16 @@ namespace System.Globalization
                 }
 
                 return result;
+            }
+        }
+
+        internal void ToUpperAsciiInvariant(ReadOnlySpan<char> source, Span<char> destination)
+        {
+            Debug.Assert(destination.Length >= source.Length);
+
+            for (int i = 0; i < source.Length; i++)
+            {
+                destination[i] = ToUpperAsciiInvariant(source[i]);
             }
         }
 
@@ -694,65 +681,6 @@ namespace System.Globalization
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
                  || uc == UnicodeCategory.OtherLetter);
-        }
-
-        //
-        // Get case-insensitive hash code for the specified string.
-        //
-        internal unsafe int GetCaseInsensitiveHashCode(string str)
-        {
-            // Validate inputs
-            if (str == null)
-            {
-                throw new ArgumentNullException(nameof(str));
-            }
-
-            // This code assumes that ASCII casing is safe for whatever context is passed in.
-            // this is true today, because we only ever call these methods on Invariant.  It would be ideal to refactor
-            // these methods so they were correct by construction and we could only ever use Invariant.
-
-            uint hash = 5381;
-            uint c;
-
-            // Note: We assume that str contains only ASCII characters until
-            // we hit a non-ASCII character to optimize the common case.
-            for (int i = 0; i < str.Length; i++)
-            {
-                c = str[i];
-                if (c >= 0x80)
-                {
-                    return GetCaseInsensitiveHashCodeSlow(str);
-                }
-
-                // If we have a lowercase character, ANDing off 0x20
-                // will make it an uppercase character.
-                if ((c - 'a') <= ('z' - 'a'))
-                {
-                    c = (uint)((int)c & ~0x20);
-                }
-
-                hash = ((hash << 5) + hash) ^ c;
-            }
-
-            return (int)hash;
-        }
-
-        private unsafe int GetCaseInsensitiveHashCodeSlow(string str)
-        {
-            Debug.Assert(str != null);
-
-            string upper = ToUpper(str);
-
-            uint hash = 5381;
-            uint c;
-
-            for (int i = 0; i < upper.Length; i++)
-            {
-                c = upper[i];
-                hash = ((hash << 5) + hash) ^ c;
-            }
-
-            return (int)hash;
         }
     }
 }

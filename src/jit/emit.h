@@ -938,6 +938,7 @@ protected:
             struct
             {
                 regNumber _idReg3 : REGNUM_BITS;
+                regNumber _idReg4 : REGNUM_BITS;
             };
 #endif // defined(_TARGET_XARCH_)
 
@@ -1118,6 +1119,19 @@ protected:
             assert(!idIsSmallDsc());
             idAddr()->_idReg3 = reg;
             assert(reg == idAddr()->_idReg3);
+        }
+        regNumber idReg4() const
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            return idAddr()->_idReg4;
+        }
+        void idReg4(regNumber reg)
+        {
+            assert(!idIsTiny());
+            assert(!idIsSmallDsc());
+            idAddr()->_idReg4 = reg;
+            assert(reg == idAddr()->_idReg4);
         }
 #endif // defined(_TARGET_XARCH_)
 #ifdef _TARGET_ARMARCH_
@@ -1886,11 +1900,6 @@ private:
     static void emitGenerateUnwindNop(instrDesc* id, void* context);
 
 #endif // _TARGET_ARMARCH_
-
-#if defined(_TARGET_ARM_)
-    emitter::insFormat emitInsFormat(instruction ins);
-    size_t emitInsCode(instruction ins, insFormat fmt);
-#endif
 
 #ifdef _TARGET_X86_
     void emitMarkStackLvl(unsigned stackLevel);

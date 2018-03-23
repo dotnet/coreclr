@@ -97,12 +97,12 @@ struct MarkPtrsInfo
  * or indirection node.  It starts a new tree walk for it's subtrees when the state
  * changes.
  */
-Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTreePtr* pTree, fgWalkData* data)
+Compiler::fgWalkResult Compiler::gsMarkPtrsAndAssignGroups(GenTree** pTree, fgWalkData* data)
 {
     struct MarkPtrsInfo* pState        = (MarkPtrsInfo*)data->pCallbackData;
     struct MarkPtrsInfo  newState      = *pState;
     Compiler*            comp          = data->compiler;
-    GenTreePtr           tree          = *pTree;
+    GenTree*             tree          = *pTree;
     ShadowParamVarInfo*  shadowVarInfo = pState->comp->gsShadowVarInfo;
     assert(shadowVarInfo);
     bool     fIsBlk = false;
@@ -399,6 +399,9 @@ void Compiler::gsParamsToShadows()
         }
 
         int shadowVar = lvaGrabTemp(false DEBUGARG("shadowVar"));
+        // reload varDsc as lvaGrabTemp may realloc the lvaTable[]
+        varDsc = &lvaTable[lclNum];
+
         // Copy some info
 
         var_types type             = varTypeIsSmall(varDsc->TypeGet()) ? TYP_INT : varDsc->TypeGet();
@@ -454,13 +457,13 @@ void Compiler::gsParamsToShadows()
 
         var_types type = lvaTable[shadowVar].TypeGet();
 
-        GenTreePtr src = gtNewLclvNode(lclNum, varDsc->TypeGet());
-        GenTreePtr dst = gtNewLclvNode(shadowVar, type);
+        GenTree* src = gtNewLclvNode(lclNum, varDsc->TypeGet());
+        GenTree* dst = gtNewLclvNode(shadowVar, type);
 
         src->gtFlags |= GTF_DONT_CSE;
         dst->gtFlags |= GTF_DONT_CSE;
 
-        GenTreePtr opAssign = nullptr;
+        GenTree* opAssign = nullptr;
         if (type == TYP_STRUCT)
         {
             CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandle();
@@ -512,13 +515,13 @@ void Compiler::gsParamsToShadows()
                     continue;
                 }
 
-                GenTreePtr src = gtNewLclvNode(shadowVar, lvaTable[shadowVar].TypeGet());
-                GenTreePtr dst = gtNewLclvNode(lclNum, varDsc->TypeGet());
+                GenTree* src = gtNewLclvNode(shadowVar, lvaTable[shadowVar].TypeGet());
+                GenTree* dst = gtNewLclvNode(lclNum, varDsc->TypeGet());
 
                 src->gtFlags |= GTF_DONT_CSE;
                 dst->gtFlags |= GTF_DONT_CSE;
 
-                GenTreePtr opAssign = nullptr;
+                GenTree* opAssign = nullptr;
                 if (varDsc->TypeGet() == TYP_STRUCT)
                 {
                     CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandle();
@@ -543,11 +546,11 @@ void Compiler::gsParamsToShadows()
  * Replace all vulnerable param uses by it's shadow copy.
  */
 
-Compiler::fgWalkResult Compiler::gsReplaceShadowParams(GenTreePtr* pTree, fgWalkData* data)
+Compiler::fgWalkResult Compiler::gsReplaceShadowParams(GenTree** pTree, fgWalkData* data)
 {
-    Compiler*  comp = data->compiler;
-    GenTreePtr tree = *pTree;
-    GenTreePtr asg  = nullptr;
+    Compiler* comp = data->compiler;
+    GenTree*  tree = *pTree;
+    GenTree*  asg  = nullptr;
 
     if (tree->gtOper == GT_ASG)
     {

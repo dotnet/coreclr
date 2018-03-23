@@ -189,91 +189,59 @@ restore_optdata()
 
 generate_event_logging_sources()
 {
-    if [ $__SkipCoreCLR == 1 ]; then
-        return
-    fi
+    __OutputDir=$1
+    __ConsumingBuildSystem=$2
 
-# Event Logging Infrastructure
-   __GeneratedIntermediate="$__IntermediatesDir/Generated"
-   __GeneratedIntermediateEventProvider="$__GeneratedIntermediate/eventprovider_new"
-   __GeneratedIntermediateEventPipe="$__GeneratedIntermediate/eventpipe_new"
+    __OutputIncDir="$__OutputDir/src/inc"
+    __OutputEventingDir="$__OutputDir/eventing"
+    __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
 
-    if [[ -d "$__GeneratedIntermediateEventProvider" ]]; then
-        rm -rf  "$__GeneratedIntermediateEventProvider"
-    fi
-
-    if [[ -d "$__GeneratedIntermediateEventPipe" ]]; then
-        rm -rf  "$__GeneratedIntermediateEventPipe"
-    fi
-
-    if [[ ! -d "$__GeneratedIntermediate/eventprovider" ]]; then
-        mkdir -p "$__GeneratedIntermediate/eventprovider"
-    fi
-
-    if [[ ! -d "$__GeneratedIntermediate/eventpipe" ]]; then
-        mkdir -p "$__GeneratedIntermediate/eventpipe"
-    fi
-
-    mkdir -p "$__GeneratedIntermediateEventProvider"
-    mkdir -p "$__GeneratedIntermediateEventPipe"
+    echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"
+    echo "Laying out dynamically generated Event test files, etmdummy stub functions, and external linkages"
 
     __PythonWarningFlags="-Wall"
     if [[ $__IgnoreWarnings == 0 ]]; then
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-
-    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
-        echo "Laying out dynamically generated files consumed by the build system "
-        echo "Laying out dynamically generated Event Logging Test files"
-        $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatEventing.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --testdir "$__GeneratedIntermediateEventProvider/tests"
-
-        if  [[ $? != 0 ]]; then
-            exit
-        fi
-
-        case $__BuildOS in
-            Linux|FreeBSD)
-                echo "Laying out dynamically generated EventPipe Implementation"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-            *)
-                ;;
-        esac
-
-        #determine the logging system
-        case $__BuildOS in
-            Linux|FreeBSD)
-                echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genXplatLttng.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-            *)
-                ;;
-        esac
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventing.py" --inc $__OutputIncDir --dummy $__OutputIncDir/etmdummy.h --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --testdir "$__OutputEventProviderDir/tests"
+    if [[ $? != 0 ]]; then
+        exit 1
     fi
 
-    echo "Cleaning the temp folder of dynamically generated Event Logging files"
-    $PYTHON -B $__PythonWarningFlags -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventprovider\",\"$__GeneratedIntermediateEventProvider\")"
-    if  [[ $? != 0 ]]; then
-        exit
-    fi
+    echo "Laying out dynamically generated EventPipe Implementation"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
 
-    rm -rf "$__GeneratedIntermediateEventProvider"
-
-    echo "Cleaning the temp folder of dynamically generated EventPipe files"
-    $PYTHON -B $__PythonWarningFlags -c "import sys;sys.path.insert(0,\"$__ProjectRoot/src/scripts\"); from Utilities import *;UpdateDirectory(\"$__GeneratedIntermediate/eventpipe\",\"$__GeneratedIntermediateEventPipe\")"
-    if  [[ $? != 0 ]]; then
-        exit
-    fi
-
-    rm -rf "$__GeneratedIntermediateEventPipe"
+    # determine the logging system
+    case $__BuildOS in
+        Linux|FreeBSD)
+            echo "Laying out dynamically generated Event Logging Implementation of Lttng"
+            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genLttngProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
+            if [[ $? != 0 ]]; then
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Laying out dummy event logging provider"
+            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genDummyProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
+            if [[ $? != 0 ]]; then
+                exit 1
+            fi
+            ;;
+    esac
 }
+
+generate_event_logging()
+{
+    # Event Logging Infrastructure
+    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
+        generate_event_logging_sources "$__IntermediatesDir" "the native build system"
+    fi
+
+    if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
+        generate_event_logging_sources "$__CrossCompIntermediatesDir" "the crossarch build system"
+    fi
+ }
 
 build_native()
 {
@@ -310,7 +278,7 @@ build_native()
         __versionSourceFile="$intermediatesForBuild/version.cpp"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            "$__ProjectRoot/run.sh" build -Project=$__ProjectDir/build.proj -generateHeaderUnix -NativeVersionSourceFile=$__versionSourceFile $__RunArgs $__UnprocessedBuildArgs
+            "$__ProjectRoot/run.sh" build -Project=$__ProjectDir/build.proj -generateHeaderUnix -NativeVersionSourceFile=$__versionSourceFile -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"  $__RunArgs $__UnprocessedBuildArgs
         else
             # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -472,7 +440,7 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs -OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data/\""
         __ExtraBuildArgs="$__ExtraBuildArgs -EnableProfileGuidedOptimization=true"
     fi
-    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to build managed components."
@@ -512,7 +480,7 @@ generate_NugetPackages()
     echo "DistroRid is "$__DistroRid
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
-    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false -__DoCrossArchBuild=$__DoCrossArchBuild $__RunArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -760,6 +728,16 @@ while :; do
             __ClangMinorVersion=0
             ;;
 
+        clang5.0|-clang5.0)
+            __ClangMajorVersion=5
+            __ClangMinorVersion=0
+            ;;
+
+        clang6.0|-clang6.0)
+            __ClangMajorVersion=6
+            __ClangMinorVersion=0
+            ;;
+
         ninja|-ninja)
             __UseNinja=1
             ;;
@@ -976,7 +954,7 @@ check_prereqs
 restore_optdata
 
 # Generate event logging infrastructure sources
-generate_event_logging_sources
+generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"

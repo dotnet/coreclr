@@ -270,7 +270,7 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
     return 0;
 }
 
-INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr)
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr, bool emitJump)
 {
     // crossgen does not have jump stubs
     return 0;
@@ -384,7 +384,7 @@ extern "C" UINT_PTR STDCALL GetCurrentIP()
     return 0;
 }
 
-void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, const WCHAR * argExceptionString)
 { 
     fprintf(stderr, "Fatal error: %08x\n", exitCode);
     ExitProcess(exitCode);

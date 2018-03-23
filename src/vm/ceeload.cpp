@@ -86,13 +86,13 @@
 #pragma warning(disable:4244)
 #endif // _MSC_VER
 
-#ifdef _WIN64 
+#ifdef _TARGET_64BIT_
 #define COR_VTABLE_PTRSIZED     COR_VTABLE_64BIT
 #define COR_VTABLE_NOT_PTRSIZED COR_VTABLE_32BIT
-#else // !_WIN64
+#else // !_TARGET_64BIT_
 #define COR_VTABLE_PTRSIZED     COR_VTABLE_32BIT
 #define COR_VTABLE_NOT_PTRSIZED COR_VTABLE_64BIT
-#endif // !_WIN64
+#endif // !_TARGET_64BIT_
 
 #define CEE_FILE_GEN_GROWTH_COLLECTIBLE 2048
 
@@ -10105,32 +10105,6 @@ void Module::RestoreMethodTablePointer(RelativeFixupPointer<PTR_MethodTable> * p
         return;
 
     if (ppMT->IsTagged((TADDR)ppMT))
-    {
-        RestoreMethodTablePointerRaw(ppMT->GetValuePtr(), pContainingModule, level);
-    }
-    else
-    {
-        ClassLoader::EnsureLoaded(ppMT->GetValue(), level);
-    }
-}
-
-/*static*/
-void Module::RestoreMethodTablePointer(PlainPointer<PTR_MethodTable> * ppMT,
-                                       Module *pContainingModule,
-                                       ClassLoadLevel level)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (ppMT->IsNull())
-        return;
-
-    if (ppMT->IsTagged())
     {
         RestoreMethodTablePointerRaw(ppMT->GetValuePtr(), pContainingModule, level);
     }

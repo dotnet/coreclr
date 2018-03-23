@@ -8,9 +8,10 @@
   <UsingTask TaskName="UploadToAzure" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.CloudTestTasks.dll"/>
 
   <PropertyGroup>
-    <PackagesPattern Condition="'$(PackagesPattern)' == ''">$(PackagesBinDir)pkg\*.nupkg</PackagesPattern>
+    <PackagesPatternDir Condition="'$(PackagesPatternDir)' == ''">$(PackagesBinDir)</PackagesPatternDir>
+    <PackagesPattern Condition="'$(PackagesPattern)' == ''">$(PackagesPatternDir)pkg\*.nupkg</PackagesPattern>
     <TestNativeBinariesPattern Condition="'$(TestNativeBinariesPattern)' == ''">$(OutputPath)\bin\**</TestNativeBinariesPattern>
-    <SymbolsPackagesPattern Condition="'$(SymbolPackagesPattern)' == ''">$(PackagesBinDir)symbolpkg\*.nupkg</SymbolsPackagesPattern>
+    <SymbolsPackagesPattern Condition="'$(SymbolPackagesPattern)' == ''">$(PackagesPatternDir)symbolpkg\*.nupkg</SymbolsPackagesPattern>
     <PublishFlatContainer Condition="'$(PublishFlatContainer)' == ''">true</PublishFlatContainer>
     <RelativePathWithSlash>$(RelativePath)</RelativePathWithSlash>
     <RelativePathWithSlash Condition="'$(RelativePathWithSlash)' != '' and !HasTrailingSlash('$(RelativePathWithSlash)')">$(RelativePathWithSlash)/</RelativePathWithSlash>
@@ -28,7 +29,9 @@
     </PropertyGroup>
     <ItemGroup>
       <ItemsToPush Remove="*.nupkg" />
-      <ItemsToPush Include="$(PackagesPattern)" Exclude="$(SymbolsPackagesPattern)"/>
+      <ItemsToPush Include="$(PackagesPattern)" Exclude="$(SymbolsPackagesPattern)">
+        <ManifestArtifactData>NonShipping=true</ManifestArtifactData>
+      </ItemsToPush>
       <ItemsToPush>
         <RelativeBlobPath>$(RelativePathWithSlash)$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\' ,'/'))</RelativeBlobPath>
       </ItemsToPush>
@@ -44,7 +47,11 @@
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
-                    Overwrite="$(OverwriteOnPublish)" />
+                    Overwrite="$(OverwriteOnPublish)"
+                    ManifestName="$(GitHubRepositoryName)"
+                    ManifestBuildId="$(ManifestBuildId)"
+                    ManifestBranch="$(ManifestBranch)"
+                    ManifestCommit="$(ManifestCommit)" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -77,7 +84,11 @@
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
-                    Overwrite="$(OverwriteOnPublish)" />
+                    Overwrite="$(OverwriteOnPublish)"
+                    ManifestName="$(GitHubRepositoryName)"
+                    ManifestBuildId="$(ManifestBuildId)"
+                    ManifestBranch="$(ManifestBranch)"
+                    ManifestCommit="$(ManifestCommit)" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
