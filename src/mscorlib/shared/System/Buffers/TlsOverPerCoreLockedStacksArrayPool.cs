@@ -217,8 +217,10 @@ namespace System.Buffers
 
             foreach (PerCoreLockedStacks bucket in _buckets)
             {
-                bucket?.Trim(tickCount);
+                bucket?.Trim(tickCount, Id);
             }
+
+            ArrayPoolEventSource log = ArrayPoolEventSource.Log;
 
             foreach (var tlsBuckets in s_allTlsBuckets)
             {
@@ -228,9 +230,16 @@ namespace System.Buffers
                     uint stockTicks = buckets[i].Ticks;
                     if (stockTicks > tickCount || (tickCount - stockTicks) > TlsTrimAfterTicks)
                     {
+                        T[] buffer = buckets[i].Buffer;
+
                         // We've wrapped the tick count or elapsed enough time since the
                         // first item went into this thread local bucket. Clear it.
                         buckets[i].Buffer = null;
+
+                        if (log.IsEnabled() && buffer != null)
+                        {
+                            log.BufferTrimmed(buffer.GetHashCode(), buffer.Length, Id);
+                        }
                     }
                 }
             }
@@ -304,12 +313,12 @@ namespace System.Buffers
                 return null;
             }
 
-            public bool Trim(uint tickCount)
+            public bool Trim(uint tickCount, int id)
             {
                 LockedStack[] stacks = _perCoreStacks;
                 for (int i = 0; i < stacks.Length; i++)
                 {
-                    stacks[i].Trim(tickCount);
+                    stacks[i].Trim(tickCount, id);
                 }
                 return true;
             }
@@ -354,7 +363,7 @@ namespace System.Buffers
                 return arr;
             }
 
-            public void Trim(uint tickCount)
+            public void Trim(uint tickCount, int id)
             {
                 if (_count == 0)
                     return;
@@ -366,9 +375,17 @@ namespace System.Buffers
                     // first item went into the stack. Drop the top item so it can
                     // be collected and make the stack look a little newer.
 
-                    _arrays[--_count] = null;
+                    T[] array = _arrays[--_count];
+                    _arrays[_count] = null;
                     if (_stockTicks < uint.MaxValue - StackRefreshTicks)
                         _stockTicks += StackRefreshTicks;
+
+                    ArrayPoolEventSource log = ArrayPoolEventSource.Log;
+                    if (log.IsEnabled())
+                    {
+                        log.BufferTrimmed(array.GetHashCode(), array.Length, id);
+                    }
+
                 }
                 Monitor.Exit(this);
             }

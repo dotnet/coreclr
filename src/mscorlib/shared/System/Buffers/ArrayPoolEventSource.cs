@@ -86,5 +86,8 @@ namespace System.Buffers
         /// </summary>
         [Event(3, Level = EventLevel.Verbose)]
         internal void BufferReturned(int bufferId, int bufferSize, int poolId) => WriteEvent(3, bufferId, bufferSize, poolId);
+
+        [Event(4, Level = EventLevel.Informational)]
+        internal void BufferTrimmed(int bufferId, int bufferSize, int poolId) => WriteEvent(4, bufferId, bufferSize, poolId);
     }
 }
