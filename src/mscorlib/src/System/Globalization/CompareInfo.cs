@@ -57,6 +57,9 @@ namespace System.Globalization
             ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace |
               CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
 
+        // We cache the invariant compareinfo as we need it for OrdinalIgnoreCase hashing
+        internal static readonly CompareInfo Invariant = CultureInfo.InvariantCulture.CompareInfo;
+
         //
         // CompareInfos have an interesting identity.  They are attached to the locale that created them,
         // ie: en-US would have an en-US sort.  For haw-US (custom), then we serialize it as haw-US.
@@ -1181,11 +1184,55 @@ namespace System.Globalization
             return GetHashCodeOfStringCore(source, options);
         }
 
+        private unsafe int GetSmallAsciiStringHash(string source)
+        {
+            Debug.Assert(source.Length <= 250, "Input string is too long");
+
+            // Do not allocate on the stack if string is empty
+            if (source.Length == 0)
+            {
+                return source.GetHashCode();
+            }
+
+            char* charArr = stackalloc char[source.Length];
+            char c;
+            for (int i = 0; i < source.Length; i++)
+            {
+                c = source[i];
+
+                // If we have a lowercase character, ANDing off 0x20
+                // will make it an uppercase character.
+                if ((c - 'a') <= ('z' - 'a'))
+                {
+                    c = (char)(c & ~0x20);
+                }
+
+                charArr[i] = c;
+            }
+
+            return String.InternalMarvin32HashPtr(charArr, source.Length);
+        }
+
         public virtual int GetHashCode(string source, CompareOptions options)
         {
             if (source == null)
             {
                 throw new ArgumentNullException(nameof(source));
+            }
+
+            if (_invariantMode)
+            {
+                // If invariant mode enabled we ignore all compare options except *IgnoreCase.
+                if ((options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0)
+                {
+                    // For small strings we allocate on the stack
+                    if (source.Length <= 250)
+                        return GetSmallAsciiStringHash(source);
+                    else
+                        return TextInfo.Invariant.ToUpper(source).GetHashCode();
+                }
+
+                return source.GetHashCode();
             }
 
             if (options == CompareOptions.Ordinal)
@@ -1195,7 +1242,9 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return TextInfo.GetHashCodeOrdinalIgnoreCase(source);
+                // We use native marvin hashing to avoid hash collisions. We are passing
+                // IgnoreCase as GetHashCodeOfStringCore can't handle OrdinalIgnoreCase.
+                return Invariant.GetHashCodeOfStringCore(source, CompareOptions.IgnoreCase);
             }
 
             //

@@ -11,7 +11,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimePropertyInfo : PropertyInfo
+    internal unsafe sealed class RuntimePropertyInfo : PropertyInfo, ISerializable
     {
         #region Private Data Members
         private int m_token;
@@ -446,6 +446,18 @@ namespace System.Reflection
         }
         #endregion
 
+        #endregion
+
+        #region ISerializable Implementation
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        internal string SerializationToString()
+        {
+            return FormatNameAndSig(true);
+        }
         #endregion
     }
 }

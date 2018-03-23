@@ -416,7 +416,7 @@ CrashInfo::GetDSOInfo()
     {
         Phdr ph;
         if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
-            fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
+            fprintf(stderr, "ReadMemory(%p, %lx) phdr FAILED\n", phdrAddr, sizeof(ph));
             return false;
         }
         TRACE("DSO: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " offset %" PRIxA "\n",
@@ -444,7 +444,7 @@ CrashInfo::GetDSOInfo()
     for (;;) {
         ElfW(Dyn) dyn;
         if (!ReadMemory(dynamicAddr, &dyn, sizeof(dyn))) {
-            fprintf(stderr, "ReadMemory(%p, %" PRIx ") dyn FAILED\n", dynamicAddr, sizeof(dyn));
+            fprintf(stderr, "ReadMemory(%p, %lx) dyn FAILED\n", dynamicAddr, sizeof(dyn));
             return false;
         }
         TRACE("DSO: dyn %p tag %" PRId " (%" PRIx ") d_ptr %" PRIxA "\n", dynamicAddr, dyn.d_tag, dyn.d_tag, dyn.d_un.d_ptr);
@@ -461,7 +461,7 @@ CrashInfo::GetDSOInfo()
     TRACE("DSO: rdebugAddr %p\n", rdebugAddr);
     struct r_debug debugEntry;
     if (!ReadMemory(rdebugAddr, &debugEntry, sizeof(debugEntry))) {
-        fprintf(stderr, "ReadMemory(%p, %" PRIx ") r_debug FAILED\n", rdebugAddr, sizeof(debugEntry));
+        fprintf(stderr, "ReadMemory(%p, %lx) r_debug FAILED\n", rdebugAddr, sizeof(debugEntry));
         return false;
     }
 
@@ -470,7 +470,7 @@ CrashInfo::GetDSOInfo()
     for (struct link_map* linkMapAddr = debugEntry.r_map; linkMapAddr != nullptr;) {
         struct link_map map;
         if (!ReadMemory(linkMapAddr, &map, sizeof(map))) {
-            fprintf(stderr, "ReadMemory(%p, %" PRIx ") link_map FAILED\n", linkMapAddr, sizeof(map));
+            fprintf(stderr, "ReadMemory(%p, %lx) link_map FAILED\n", linkMapAddr, sizeof(map));
             return false;
         }
         // Read the module's name and make sure the memory is added to the core dump
@@ -488,7 +488,7 @@ CrashInfo::GetDSOInfo()
             }
         }
         moduleName[i] = '\0';
-        TRACE("\nDSO: link_map entry %p l_ld %p l_addr (Ehdr) %" PRIx " %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
+        TRACE("\nDSO: link_map entry %p l_ld %p l_addr (Ehdr) %lx %s\n", linkMapAddr, map.l_ld, map.l_addr, (char*)moduleName);
 
         // Read the ELF header and info adding it to the core dump
         if (!GetELFInfo(map.l_addr)) {
@@ -498,6 +498,12 @@ CrashInfo::GetDSOInfo()
     }
 
     return true;
+}
+
+inline bool
+NameCompare(const char* name, const char* sectionName)
+{
+    return strncmp(name, sectionName, strlen(sectionName) + 1) == 0;
 }
 
 //
@@ -511,20 +517,16 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
     }
     Ehdr ehdr;
     if (!ReadMemory((void*)baseAddress, &ehdr, sizeof(ehdr))) {
-        fprintf(stderr, "ReadMemory(%p, %" PRIx ") ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
+        fprintf(stderr, "ReadMemory(%p, %lx) ehdr FAILED\n", (void*)baseAddress, sizeof(ehdr));
         return false;
     }
     int phnum = ehdr.e_phnum;
     assert(phnum != PN_XNUM);
     assert(ehdr.e_phentsize == sizeof(Phdr));
-#ifdef BIT64
     assert(ehdr.e_ident[EI_CLASS] == ELFCLASS64);
-#else
-    assert(ehdr.e_ident[EI_CLASS] == ELFCLASS32);
-#endif
     assert(ehdr.e_ident[EI_DATA] == ELFDATA2LSB);
 
-    TRACE("ELF: type %d mach 0x%x ver %d flags 0x%x phnum %d phoff %" PRIxA " phentsize 0x%02x shnum %d shoff %" PRIxA " shentsize 0x%02x shstrndx %d\n",
+    TRACE("ELF: type %d mach 0x%x ver %d flags 0x%x phnum %d phoff %016lx phentsize 0x%02x shnum %d shoff %016lx shentsize 0x%02x shstrndx %d\n",
         ehdr.e_type, ehdr.e_machine, ehdr.e_version, ehdr.e_flags, phnum, ehdr.e_phoff, ehdr.e_phentsize, ehdr.e_shnum, ehdr.e_shoff, ehdr.e_shentsize, ehdr.e_shstrndx);
 
     if (ehdr.e_phoff != 0 && phnum > 0)
@@ -536,10 +538,10 @@ CrashInfo::GetELFInfo(uint64_t baseAddress)
         {
             Phdr ph;
             if (!ReadMemory(phdrAddr, &ph, sizeof(ph))) {
-                fprintf(stderr, "ReadMemory(%p, %" PRIx ") phdr FAILED\n", phdrAddr, sizeof(ph));
+                fprintf(stderr, "ReadMemory(%p, %lx) phdr FAILED\n", phdrAddr, sizeof(ph));
                 return false;
             }
-            TRACE("ELF: phdr %p type %d (%x) vaddr %" PRIxA " memsz %" PRIxA " paddr %" PRIxA " filesz %" PRIxA " offset %" PRIxA " align %" PRIxA "\n",
+            TRACE("ELF: phdr %p type %d (%x) vaddr %016lx memsz %016lx paddr %016lx filesz %016lx offset %016lx align %016lx\n",
                 phdrAddr, ph.p_type, ph.p_type, ph.p_vaddr, ph.p_memsz, ph.p_paddr, ph.p_filesz, ph.p_offset, ph.p_align);
 
             if (ph.p_type == PT_DYNAMIC || ph.p_type == PT_NOTE || ph.p_type == PT_GNU_EH_FRAME)
@@ -650,7 +652,7 @@ CrashInfo::EnumerateManagedModules(IXCLRDataProcess* clrDataProcess)
         DacpGetModuleData moduleData;
         if (SUCCEEDED(hr = moduleData.Request(clrDataModule)))
         {
-            TRACE("MODULE: %" PRIA PRIx64 " dyn %d inmem %d file %d pe %" PRIA PRIx64 " pdb %" PRIA PRIx64, moduleData.LoadedPEAddress, moduleData.IsDynamic, 
+            TRACE("MODULE: %016lx dyn %d inmem %d file %d pe %016lx pdb %016lx", moduleData.LoadedPEAddress, moduleData.IsDynamic, 
                 moduleData.IsInMemory, moduleData.IsFileLayout, moduleData.PEFile, moduleData.InMemoryPdbAddress);
 
             if (!moduleData.IsDynamic && moduleData.LoadedPEAddress != 0)
@@ -698,7 +700,7 @@ CrashInfo::ReplaceModuleMapping(CLRDATA_ADDRESS baseAddress, const char* pszName
 {
     // Add or change the module mapping for this PE image. The managed assembly images are
     // already in the module mappings list but in .NET 2.0 they have the name "/dev/zero".
-    MemoryRegion region(PF_R | PF_W | PF_X, (ULONG_PTR)baseAddress, (ULONG_PTR)(baseAddress + PAGE_SIZE), 0, pszName);
+    MemoryRegion region(PF_R | PF_W | PF_X, baseAddress, baseAddress + PAGE_SIZE, 0, pszName);
     const auto& found = m_moduleMappings.find(region);
     if (found == m_moduleMappings.end())
     {
@@ -802,7 +804,7 @@ CrashInfo::InsertMemoryRegion(const MemoryRegion& region)
 
     // The region overlaps/conflicts with one already in the set so add one page at a 
     // time to avoid the overlapping pages.
-    uint64_t numberPages = region.Size() / PAGE_SIZE;
+    uint64_t numberPages = region.Size() >> PAGE_SHIFT;
 
     for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
     {
@@ -835,6 +837,7 @@ CrashInfo::GetMemoryRegionFlags(uint64_t start)
     region = SearchMemoryRegions(m_otherMappings, start);
     if (region != nullptr) {
         return region->Flags();
+>>>>>>> upstream/release/2.0.0
     }
     TRACE("GetMemoryRegionFlags: FAILED\n");
     return PF_R | PF_W | PF_X;
@@ -849,8 +852,8 @@ CrashInfo::ValidRegion(const MemoryRegion& region)
     if (region.IsBackedByMemory())
     {
         uint64_t start = region.StartAddress();
+        uint64_t numberPages = region.Size() >> PAGE_SHIFT;
 
-        uint64_t numberPages = region.Size() / PAGE_SIZE;
         for (int p = 0; p < numberPages; p++, start += PAGE_SIZE)
         {
             BYTE buffer[1];

@@ -64,11 +64,10 @@ namespace System.Text
         /// The default capacity of a <see cref="StringBuilder"/>.
         /// </summary>
         internal const int DefaultCapacity = 16;
-
-        private const string CapacityField = "Capacity"; // Do not rename (binary serialization)
-        private const string MaxCapacityField = "m_MaxCapacity"; // Do not rename (binary serialization)
-        private const string StringValueField = "m_StringValue"; // Do not rename (binary serialization)
-        private const string ThreadIDField = "m_currentThread"; // Do not rename (binary serialization)
+        private const String CapacityField = "Capacity"; // Do not rename (binary serialization)
+        private const String MaxCapacityField = "m_MaxCapacity"; // Do not rename (binary serialization)
+        private const String StringValueField = "m_StringValue"; // Do not rename (binary serialization)
+        private const String ThreadIDField = "m_currentThread"; // Do not rename (binary serialization)
 
         // We want to keep chunk arrays out of large object heap (< 85K bytes ~ 40K chars) to be sure.
         // Making the maximum chunk size big means less allocation code called, but also more waste

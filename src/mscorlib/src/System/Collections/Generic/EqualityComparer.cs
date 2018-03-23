@@ -280,9 +280,14 @@ namespace System.Collections.Generic
     // randomized string hashing GenericEqualityComparer<string>
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
-    internal class NonRandomizedStringEqualityComparer : GenericEqualityComparer<string>
+    internal class NonRandomizedStringEqualityComparer : GenericEqualityComparer<string>, ISerializable
     {
         private static IEqualityComparer<string> s_nonRandomizedComparer;
+
+        private NonRandomizedStringEqualityComparer() { }
+
+        // This is used by the serialization engine.
+        private NonRandomizedStringEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
         internal static new IEqualityComparer<string> Default
         {
@@ -296,11 +301,28 @@ namespace System.Collections.Generic
             }
         }
 
+        public override bool Equals(string x, string y)
+        {
+            if (x != null)
+            {
+                if (y != null) return x.Equals(y);
+                return false;
+            }
+            if (y != null) return false;
+            return true;
+        }
+
         [Pure]
         public override int GetHashCode(string obj)
         {
             if (obj == null) return 0;
             return obj.GetLegacyNonRandomizedHashCode();
+        }
+
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            // We are doing this to stay compatible with .NET Framework.
+            info.SetType(typeof(GenericEqualityComparer<string>));
         }
     }
 

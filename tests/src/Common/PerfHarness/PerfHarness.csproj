@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="..\..\..\..\dependencies.props" />
+
   <PropertyGroup>
     <OutputType>exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.performance.api" Version="1.0.0-beta-build0007" />
+    <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
   </ItemGroup>
 
 </Project>

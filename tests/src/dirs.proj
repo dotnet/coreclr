@@ -1,15 +1,15 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" InitialTargets="VerifyBuildTools" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="dir.props" />
 
-  <Target Name="VerifyBuildTools" 
+  <Target Name="VerifyBuildTools"
     Inputs="$(BuildToolsTargetInputs)"
     Outputs="$(BuildToolsTargetOutputs)"
     >
-    <Error Condition="!Exists('$(BuildToolsInstallSemaphore)')" 
+    <Error Condition="!Exists('$(BuildToolsInstallSemaphore)')"
       Text="The build tools have not been installed. Please run buildtest.cmd from the root of the repo at least once to get the tools installed." />
 
     <!-- If we enter this target at all then the inputs are newer then the outputs so give a warning. -->
-    <Warning Text="Looks like there may be an update to the build tools. Please run buildtest.cmd from the root of the repo to refresh the build tools." /> 
+    <Warning Text="Looks like there may be an update to the build tools. Please run buildtest.cmd from the root of the repo to refresh the build tools." />
   </Target>
 
   <Target Name="ResolveDisabledProjects" BeforeTargets="BuildAllProjects" >
@@ -140,7 +140,7 @@
       <DisabledProjects Include="JIT\jit64\opt\cse\hugeSimpleExpr1.csproj" Condition="'$(BuildOS)' == 'OSX'" />
       <DisabledProjects Include="Loader\classloader\generics\Instantiation\Nesting\NestedGenericStructs.csproj" Condition="'$(BuildOS)' == 'OSX'" />
     </ItemGroup>
-    
+
     <ItemGroup>
       <Project Include="*\**\*.csproj" Exclude="@(DisabledProjects)">
         <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
@@ -152,7 +152,7 @@
   </Target>
 
   <Import Project="..\dir.traversal.targets" />
-  
+
   <!-- Override clean from dir.traversal.targets and just remove the full BinDir -->
   <Target Name="Clean">
     <RemoveDir Directories="$(BinDir)" />

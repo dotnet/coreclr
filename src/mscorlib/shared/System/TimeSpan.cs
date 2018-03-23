@@ -68,6 +68,10 @@ namespace System
         // method for some arithmetic operations.
         internal long _ticks; // Do not rename (binary serialization)
 
+        //public TimeSpan() {
+        //    _ticks = 0;
+        //}
+
         public TimeSpan(long ticks)
         {
             this._ticks = ticks;

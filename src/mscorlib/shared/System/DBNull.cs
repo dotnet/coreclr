@@ -16,7 +16,7 @@ namespace System
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            throw new PlatformNotSupportedException();
+            UnitySerializationHolder.GetUnitySerializationInfo(info, UnitySerializationHolder.NullUnity);
         }
 
         public override string ToString()

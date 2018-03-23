@@ -20,14 +20,26 @@ namespace System.Text
     // of Encoding objects.
     //
 
-    internal class EncoderNLS : Encoder
+    internal class EncoderNLS : Encoder, ISerializable
     {
         // Need a place for the last left over character, most of our encodings use this
-        internal char _charLeftOver;
-        private Encoding _encoding;
-        private bool _mustFlush;
-        internal bool _throwOnOverflow;
-        internal int _charsUsed;
+        internal char charLeftOver;
+
+        protected Encoding m_encoding;
+
+        [NonSerialized] protected bool m_mustFlush;
+        [NonSerialized] internal bool m_throwOnOverflow;
+        [NonSerialized] internal int m_charsUsed;
+
+        #region Serialization
+
+        // ISerializable implementation.
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        #endregion Serialization 
 
         internal EncoderNLS(Encoding encoding)
         {

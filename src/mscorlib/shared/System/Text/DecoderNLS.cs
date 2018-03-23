@@ -20,13 +20,23 @@ namespace System.Text
     // class are typically obtained through calls to the GetDecoder method
     // of Encoding objects.
 
-    internal class DecoderNLS : Decoder
+    internal class DecoderNLS : Decoder, ISerializable
     {
         // Remember our encoding
-        private Encoding _encoding;
-        private bool _mustFlush;
-        internal bool _throwOnOverflow;
-        internal int _bytesUsed;
+        protected Encoding m_encoding;
+        [NonSerialized] protected bool m_mustFlush;
+        [NonSerialized] internal bool m_throwOnOverflow;
+        [NonSerialized] internal int m_bytesUsed;
+
+        #region Serialization
+
+        // ISerializable implementation.
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        #endregion Serialization 
 
         internal DecoderNLS(Encoding encoding)
         {

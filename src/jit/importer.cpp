@@ -5260,7 +5260,7 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
                                       gtNewArgList(op2));
         }
 
-        /* Remember that this basic block contains 'new' of an array */
+        /* Remember that this basic block contains 'new' of an object */
         compCurBB->bbFlags |= BBF_HAS_NEWOBJ;
 
         GenTreePtr asg = gtNewTempAssign(impBoxTemp, op1);
@@ -5302,11 +5302,16 @@ void Compiler::impImportAndPushBox(CORINFO_RESOLVED_TOKEN* pResolvedToken)
             op1 = gtNewAssignNode(gtNewOperNode(GT_IND, lclTyp, op1), exprToBox);
         }
 
-        op2 = gtNewLclvNode(impBoxTemp, TYP_REF);
-        op1 = gtNewOperNode(GT_COMMA, TYP_REF, op1, op2);
+        // Spill eval stack to flush out any pending side effects.
+        impSpillSideEffects(true, (unsigned)CHECK_SPILL_ALL DEBUGARG("impImportAndPushBox"));
 
-        // Record that this is a "box" node.
-        op1 = new (this, GT_BOX) GenTreeBox(TYP_REF, op1, asgStmt);
+        // Set up this copy as a second assignment.
+        GenTreePtr copyStmt = impAppendTree(op1, (unsigned)CHECK_SPILL_NONE, impCurStmtOffs);
+
+        op1 = gtNewLclvNode(impBoxTemp, TYP_REF);
+
+        // Record that this is a "box" node and keep track of the matching parts.
+        op1 = new (this, GT_BOX) GenTreeBox(TYP_REF, op1, asgStmt, copyStmt);
 
         // If it is a value class, mark the "box" node.  We can use this information
         // to optimise several cases:
@@ -10271,13 +10276,14 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 op2 = gtNewLclvNode(lclNum, lclTyp, opcodeOffs + sz + 1);
 
-                /* If the local is aliased, we need to spill calls and
+                /* If the local is aliased or pinned, we need to spill calls and
                    indirections from the stack. */
 
-                if ((lvaTable[lclNum].lvAddrExposed || lvaTable[lclNum].lvHasLdAddrOp) &&
-                    verCurrentState.esStackDepth > 0)
+                if ((lvaTable[lclNum].lvAddrExposed || lvaTable[lclNum].lvHasLdAddrOp || lvaTable[lclNum].lvPinned) &&
+                    (verCurrentState.esStackDepth > 0))
                 {
-                    impSpillSideEffects(false, (unsigned)CHECK_SPILL_ALL DEBUGARG("Local could be aliased"));
+                    impSpillSideEffects(false,
+                                        (unsigned)CHECK_SPILL_ALL DEBUGARG("Local could be aliased or is pinned"));
                 }
 
                 /* Spill any refs to the local from the stack */

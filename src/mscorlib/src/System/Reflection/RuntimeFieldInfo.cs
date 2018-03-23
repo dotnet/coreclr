@@ -8,7 +8,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal abstract class RuntimeFieldInfo : FieldInfo
+    internal abstract class RuntimeFieldInfo : FieldInfo, ISerializable
     {
         #region Private Data Members
         private BindingFlags m_bindingFlags;
@@ -120,6 +120,13 @@ namespace System.Reflection
 
         #region FieldInfo Overrides
         // All implemented on derived classes
+        #endregion
+
+        #region ISerializable Implementation
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
         #endregion
     }
 }

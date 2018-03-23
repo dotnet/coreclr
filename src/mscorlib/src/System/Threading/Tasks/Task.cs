@@ -2981,7 +2981,7 @@ namespace System.Threading.Tasks
                 }
                 else
                 {
-                    Thread.SpinWait(PlatformHelper.ProcessorCount * (4 << i));
+                    Thread.SpinWait(4 << i);
                 }
             }
 

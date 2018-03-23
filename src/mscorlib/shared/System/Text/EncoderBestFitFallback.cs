@@ -13,7 +13,7 @@ using System.Threading;
 
 namespace System.Text
 {
-    internal class InternalEncoderBestFitFallback : EncoderFallback
+    internal sealed class InternalEncoderBestFitFallback : EncoderFallback
     {
         // Our variables
         internal Encoding _encoding = null;

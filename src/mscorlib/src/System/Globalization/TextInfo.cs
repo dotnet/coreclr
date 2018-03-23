@@ -101,13 +101,6 @@ namespace System.Globalization
         // Internal ordinal comparison functions
         //
 
-        internal static int GetHashCodeOrdinalIgnoreCase(String s)
-        {
-            // This is the same as an case insensitive hash for Invariant
-            // (not necessarily true for sorting, but OK for casing & then we apply normal hash code rules)
-            return (Invariant.GetCaseInsensitiveHashCode(s));
-        }
-
         // Currently we don't have native functions to do this, so we do it the hard way
         internal static int IndexOfStringOrdinalIgnoreCase(String source, String value, int startIndex, int count)
         {
@@ -788,65 +781,6 @@ namespace System.Globalization
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
                  || uc == UnicodeCategory.OtherLetter);
-        }
-
-        //
-        // Get case-insensitive hash code for the specified string.
-        //
-        internal unsafe int GetCaseInsensitiveHashCode(String str)
-        {
-            // Validate inputs
-            if (str == null)
-            {
-                throw new ArgumentNullException(nameof(str));
-            }
-
-            // This code assumes that ASCII casing is safe for whatever context is passed in.
-            // this is true today, because we only ever call these methods on Invariant.  It would be ideal to refactor
-            // these methods so they were correct by construction and we could only ever use Invariant.
-
-            uint hash = 5381;
-            uint c;
-
-            // Note: We assume that str contains only ASCII characters until
-            // we hit a non-ASCII character to optimize the common case.
-            for (int i = 0; i < str.Length; i++)
-            {
-                c = str[i];
-                if (c >= 0x80)
-                {
-                    return GetCaseInsensitiveHashCodeSlow(str);
-                }
-
-                // If we have a lowercase character, ANDing off 0x20
-                // will make it an uppercase character.
-                if ((c - 'a') <= ('z' - 'a'))
-                {
-                    c = (uint)((int)c & ~0x20);
-                }
-
-                hash = ((hash << 5) + hash) ^ c;
-            }
-
-            return (int)hash;
-        }
-
-        private unsafe int GetCaseInsensitiveHashCodeSlow(String str)
-        {
-            Debug.Assert(str != null);
-
-            string upper = ToUpper(str);
-
-            uint hash = 5381;
-            uint c;
-
-            for (int i = 0; i < upper.Length; i++)
-            {
-                c = upper[i];
-                hash = ((hash << 5) + hash) ^ c;
-            }
-
-            return (int)hash;
         }
     }
 }

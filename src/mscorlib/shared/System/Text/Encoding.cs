@@ -1322,7 +1322,7 @@ namespace System.Text
             decoder.ClearMustFlush();
         }
 
-        internal sealed class DefaultEncoder : Encoder, IObjectReference
+        internal sealed class DefaultEncoder : Encoder, IObjectReference, ISerializable
         {
             private Encoding _encoding;
 
@@ -1332,6 +1332,12 @@ namespace System.Text
             }
             
             public Object GetRealObject(StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
+            // ISerializable implementation, get data for this object
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
             }
@@ -1389,7 +1395,7 @@ namespace System.Text
             }
         }
 
-        internal sealed class DefaultDecoder : Decoder, IObjectReference
+        internal sealed class DefaultDecoder : Decoder, IObjectReference, ISerializable
         {
             private Encoding _encoding;
 
@@ -1399,6 +1405,12 @@ namespace System.Text
             }
 
             public Object GetRealObject(StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
+            // ISerializable implementation
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
             }
