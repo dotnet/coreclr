@@ -246,7 +246,7 @@ DumpWriter::WriteDump()
                 uint32_t read = 0;
 
                 if (FAILED(m_crashInfo.DataTarget()->ReadVirtual(address, m_tempBuffer, bytesToRead, &read))) {
-                    fprintf(stderr, "ReadVirtual(%" PRIA PRIx64 ", %08x) FAILED\n", address, bytesToRead);
+                    fprintf(stderr, "ReadVirtual(%016lx, %08x) FAILED\n", address, bytesToRead);
                     return false;
                 }
 

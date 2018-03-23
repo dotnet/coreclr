@@ -32,7 +32,6 @@
 
   <ItemGroup>
     <CrossGenFiles Include="..\packages\runtime.$(TargetRid).Microsoft.NETCore.Runtime.CoreCLR\$(DesiredPackageVersionArg)\tools\crossgen*"/>
-    <VCRuntimeFiles Include="..\packages\vc-runtime\$(VCRuntimeVersion)\lib\netcoreapp1.1\*.dll"/>
   </ItemGroup>
 
   <PropertyGroup>

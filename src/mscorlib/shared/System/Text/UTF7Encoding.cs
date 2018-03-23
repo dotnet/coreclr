@@ -821,6 +821,12 @@ namespace System.Text
                 // base calls reset
             }
 
+            // ISerializable implementation, get data for this object
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
             public override void Reset()
             {
                 this.bits = 0;
@@ -854,6 +860,12 @@ namespace System.Text
             public Encoder(UTF7Encoding encoding) : base(encoding)
             {
                 // base calls reset
+            }
+
+            // ISerializable implementation
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
             }
 
             public override void Reset()

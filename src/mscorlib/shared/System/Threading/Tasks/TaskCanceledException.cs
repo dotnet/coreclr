@@ -19,6 +19,8 @@ namespace System.Threading.Tasks
     /// <summary>
     /// Represents an exception used to communicate task cancellation.
     /// </summary>
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class TaskCanceledException : OperationCanceledException
     {
         [NonSerialized]

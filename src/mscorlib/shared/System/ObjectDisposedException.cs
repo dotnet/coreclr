@@ -11,6 +11,8 @@ namespace System
     ///    <para> The exception that is thrown when accessing an object that was
     ///       disposed.</para>
     /// </devdoc>
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class ObjectDisposedException : InvalidOperationException
     {
         private String _objectName;
@@ -47,6 +49,7 @@ namespace System
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("ObjectName", ObjectName, typeof(string));
         }
 
         /// <devdoc>

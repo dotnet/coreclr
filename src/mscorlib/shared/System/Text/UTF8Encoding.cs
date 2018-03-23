@@ -50,7 +50,7 @@ namespace System.Text
 
         private const int UTF8_CODEPAGE = 65001;
 
-        // Allow for de-virtualization (see https://github.com/dotnet/coreclr/pull/9230)
+        // Allow for devirtualization (see https://github.com/dotnet/coreclr/pull/9230)
         internal sealed class UTF8EncodingSealed : UTF8Encoding
         {
             public UTF8EncodingSealed(bool encoderShouldEmitUTF8Identifier) : base(encoderShouldEmitUTF8Identifier) { }
@@ -2518,7 +2518,7 @@ namespace System.Text
                    UTF8_CODEPAGE + (_emitUTF8Identifier ? 1 : 0);
         }
 
-        private sealed class UTF8Encoder : EncoderNLS
+        private sealed class UTF8Encoder : EncoderNLS, ISerializable
         {
             // We must save a high surrogate value until the next call, looking
             // for a low surrogate value.
@@ -2527,6 +2527,12 @@ namespace System.Text
             public UTF8Encoder(UTF8Encoding encoding) : base(encoding)
             {
                 // base calls reset
+            }
+
+            // ISerializable implementation
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
             }
 
             public override void Reset()
@@ -2547,7 +2553,7 @@ namespace System.Text
             }
         }
 
-        private sealed class UTF8Decoder : DecoderNLS
+        private sealed class UTF8Decoder : DecoderNLS, ISerializable
         {
             // We'll need to remember the previous information. See the comments around definition
             // of FinalByte for details.
@@ -2556,6 +2562,18 @@ namespace System.Text
             public UTF8Decoder(UTF8Encoding encoding) : base(encoding)
             {
                 // base calls reset
+            }
+
+            // Constructor called by serialization, have to handle deserializing from Everett
+            internal UTF8Decoder(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
+            // ISerializable implementation, get data for this object
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
             }
 
             public override void Reset()

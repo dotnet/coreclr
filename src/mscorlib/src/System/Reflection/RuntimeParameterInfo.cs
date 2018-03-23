@@ -10,7 +10,7 @@ using MdToken = System.Reflection.MetadataToken;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeParameterInfo : ParameterInfo
+    internal unsafe sealed class RuntimeParameterInfo : ParameterInfo, ISerializable
     {
         #region Static Members
         internal unsafe static ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
@@ -156,6 +156,13 @@ namespace System.Reflection
         internal void SetAttributes(ParameterAttributes attributes)
         {
             AttrsImpl = attributes;
+        }
+        #endregion
+
+        #region VTS magic to serialize/deserialized to/from pre-Whidbey endpoints.
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
         }
         #endregion
 

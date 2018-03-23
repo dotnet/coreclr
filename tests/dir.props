@@ -7,25 +7,20 @@
     <OsEnvironment Condition="'$(OsEnvironment)'=='' and '$(OS)'=='OSX'">Unix</OsEnvironment>
     <OsEnvironment Condition="'$(OsEnvironment)'==''">$(OS)</OsEnvironment>
   </PropertyGroup>
-  
+
   <!-- Build Tools Versions -->
   <PropertyGroup>
     <RoslynVersion>1.0.0-rc3-20150510-01</RoslynVersion>
     <RoslynPackageName>Microsoft.Net.ToolsetCompilers</RoslynPackageName>
   </PropertyGroup>
 
-  <!--   
-    Switching to the .NET Core version of the BuildTools tasks seems to break numerous scenarios, such as VS intellisense and resource designer   
-    as well as runnning the build on mono. Until we can get these sorted out we will continue using the .NET 4.6 version of the tasks.   
-   -->   
-  <PropertyGroup>  
-    <RunningOnCore>false</RunningOnCore>
-    <RunningOnCore Condition="'$(MSBuildRuntimeType)' == 'Core'">true</RunningOnCore>
-    <BuildToolsTargetsDesktop>false</BuildToolsTargetsDesktop>
-    <BuildToolsTargetsDesktop Condition="'$(RunningOnCore)' != 'true'">true</BuildToolsTargetsDesktop>
-    <BuildToolsTargets45>$(BuildToolsTargetsDesktop)</BuildToolsTargets45>
-    <RunningOnUnix Condition="('$(RunningOnUnix)' == '') And ('$(MSBuildRuntimeType)' == 'Core')">true</RunningOnUnix>
-  </PropertyGroup>  
+  <!--
+    Switching to the .NET Core version of the BuildTools tasks seems to break numerous scenarios, such as VS intellisense and resource designer
+    as well as runnning the build on mono. Until we can get these sorted out we will continue using the .NET 4.6 version of the tasks.
+   -->
+  <PropertyGroup>
+    <BuildToolsTargets45>true</BuildToolsTargets45>
+  </PropertyGroup>
 
   <!-- Common repo directories -->
   <PropertyGroup>
@@ -83,19 +78,22 @@
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)..\dependencies.props" />
 
-  <!-- Use Roslyn Compilers to build -->
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
+  <!-- Add test-specific package restore sources. -->
+  <PropertyGroup>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
+      $(RestoreSources)
+    </RestoreSources>
+    <RestoreSources Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'">
+      $(RestoreSources)
+      $(PackagesDir)AzureTransfer\;
+    </RestoreSources>
+  </PropertyGroup>
 
-   <ItemGroup> 
-     <!-- Need to escape double forward slash (%2F) or MSBuild will normalize to one slash on Unix. -->
-     <DotnetSourceList Include="$(PackagesDir)AzureTransfer\" Condition="'$(OverwriteCoreClrPackageVersion)' == 'true'" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-core/api/v3/index.json" />
-     <DotnetSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-buildtools/api/v3/index.json" /> 
-     <DotnetSourceList Include="https:%2F%2Fapi.nuget.org/v3/index.json" />
-   </ItemGroup> 
-  
+  <!-- Use Roslyn Compilers to build -->
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false' and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)') and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
+
   <PropertyGroup Condition="'$(BuildAllProjects)'=='true'">
     <!-- When we do a traversal build we get all packages up front, don't restore them again -->
     <RestorePackages>false</RestorePackages>
@@ -116,17 +114,17 @@
 
   <!-- Which tests shall we build? Default: Priority 0 tests.
     At the command-line, the user can specify /p:CLRTestPriorityToBuild=666 (for example), and
-    all tests with CLRTestPriority 666,..., 1 AND 0 will build. 
-    
+    all tests with CLRTestPriority 666,..., 1 AND 0 will build.
+
     Consequently, specifying CLRTestPriorityToBuild=1 will build all tests with CLRTestPriority 1 and 0.
-    
-    CLRTestPriority = 0 will build only priority 0 cases. 
-  
+
+    CLRTestPriority = 0 will build only priority 0 cases.
+
     In other words, the CLRTestPriority cases of 0 are *essential* testcases. The higher the value,
     the less priority we give them.
    -->
   <PropertyGroup>
     <CLRTestPriorityToBuild>0</CLRTestPriorityToBuild>
   </PropertyGroup>
-  
+
 </Project>

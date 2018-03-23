@@ -9,7 +9,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeEventInfo : EventInfo
+    internal unsafe sealed class RuntimeEventInfo : EventInfo, ISerializable
     {
         #region Private Data Members
         private int m_token;
@@ -153,6 +153,13 @@ namespace System.Reflection
         public override int MetadataToken { get { return m_token; } }
         public override Module Module { get { return GetRuntimeModule(); } }
         internal RuntimeModule GetRuntimeModule() { return m_declaringType.GetRuntimeModule(); }
+        #endregion
+
+        #region ISerializable
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
         #endregion
 
         #region EventInfo Overrides

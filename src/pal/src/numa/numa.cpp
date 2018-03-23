@@ -239,14 +239,13 @@ FOR_ALL_NUMA_FUNCTIONS
     if (!g_numaAvailable)
     {
         // No NUMA
-        g_possibleCpuCount = PAL_GetLogicalCpuCountFromOS();
         g_cpuCount = PAL_GetLogicalCpuCountFromOS();
         g_groupCount = 1;
         g_highestNumaNode = 0;
 
         AllocateLookupArrays();
 
-        for (int i = 0; i < g_possibleCpuCount; i++)
+        for (int i = 0; i < g_cpuCount; i++)
         {
             g_cpuToAffinity[i].Number = i;
             g_cpuToAffinity[i].Group = 0;

@@ -92,7 +92,8 @@ jit_list = {
 
 os_group_list = {
     'Windows_NT': 'Windows_NT',
-    'Ubuntu14.04': 'Linux'
+    'Ubuntu14.04': 'Linux',
+    'Ubuntu16.04': 'Linux'
 }
 
 python_exe_list = {
@@ -116,6 +117,7 @@ parser.add_argument('-clr_root', dest='clr_root', default=None)
 parser.add_argument('-assembly_root', dest='assembly_root', default=None)
 parser.add_argument('-benchview_path', dest='benchview_path', default=None)
 parser.add_argument('-iterations', dest='iterations', default=5, type=int)
+parser.add_argument('-opt_level', dest='opt_level', default='full_opt')
 
 ##########################################################################
 # Helper Functions
@@ -141,6 +143,7 @@ def validate_args(args):
     assembly_root = args.assembly_root
     benchview_path = args.benchview_path
     iterations = args.iterations
+    opt_level = args.opt_level.lower()
 
     def validate_arg(arg, check):
         """ Validate an individual arg
@@ -161,7 +164,8 @@ def validate_args(args):
     valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
-    valid_os = ['Windows_NT', 'Ubuntu14.04']
+    valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
+    valid_opt_levels = ['full_opt', 'min_opt']
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
     build_type = next((b for b in valid_build_types if b.lower() == build_type.lower()), build_type)
@@ -174,6 +178,7 @@ def validate_args(args):
     validate_arg(build_type, lambda item: item in valid_build_types)
     validate_arg(run_type, lambda item: item in valid_run_types)
     validate_arg(iterations, lambda item: item > 0)
+    validate_arg(opt_level, lambda item: item in valid_opt_levels)
 
     if clr_root is None:
         raise Exception('--clr_root must be set')
@@ -191,7 +196,7 @@ def validate_args(args):
         benchview_path = os.path.normpath(benchview_path)
         validate_arg(benchview_path, lambda item: os.path.isdir(benchview_path))
 
-    args = (arch, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations)
+    args = (arch, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level)
 
     # Log configuration
     log('Configuration:')
@@ -199,6 +204,7 @@ def validate_args(args):
     log(' os: %s' % operating_system)
     log(' os_group: %s' % os_group)
     log(' build_type: %s' % build_type)
+    log(' opt_level: %s' % opt_level)
     log(' run_type: %s' % run_type)
     log(' iterations: %d' % iterations)
     log(' clr_root: %s' % clr_root)
@@ -256,7 +262,7 @@ def generateCSV(dll_name, dll_runtimes):
 
     return csv_file_name
 
-def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assemblies_path):
+def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assemblies_path, opt_level):
     """ Run throughput testing for a given dll
     Args:
         dll_name: the name of the dll
@@ -280,13 +286,18 @@ def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assem
             dll_path
             ]
 
+    my_env = os.environ
+
+    if opt_level == 'min_opt':
+        my_env['COMPlus_JITMinOpts'] = '1'
+
     log(" ".join(run_args))
 
     # Time.clock() returns seconds, with a resolution of 0.4 microseconds, so multiply by the multiplier to get milliseconds
     multiplier = 1000
 
     for iteration in range(0,iterations + 1):
-        proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(run_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=my_env)
 
         start_time = timeit.default_timer()
         (out, err) = proc.communicate()
@@ -312,7 +323,7 @@ def main(args):
     global os_group_list
     global python_exe_list
 
-    architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations = validate_args(args)
+    architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level = validate_args(args)
     arch = architecture
 
     current_dir = os.getcwd()
@@ -351,7 +362,7 @@ def main(args):
                 (not dll_file_name in dll_exclude_list["All"])):
             dll_name = dll_file_name.replace(".dll", "")
             dll_path = os.path.join(assembly_root, dll_file_name)
-            dll_elapsed_times = runIterations(dll_file_name, dll_path, iterations, crossgen_path, jit_path, assembly_root)
+            dll_elapsed_times = runIterations(dll_file_name, dll_path, iterations, crossgen_path, jit_path, assembly_root, opt_level)
 
             if len(dll_elapsed_times) != 0:
                 if not benchview_path is None:
@@ -404,7 +415,10 @@ def main(args):
                 "--config",
                 "OS",
                 operating_system,
-                "--arch",
+                "--config",
+                "OptLevel",
+                opt_level,
+                "--architecture",
                 architecture,
                 "--machinepool",
                 "PerfSnake"
@@ -412,6 +426,9 @@ def main(args):
         log(" ".join(submission_args))
         proc = subprocess.Popen(submission_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
         # Call upload.py
         upload_args = [python_exe,
@@ -423,6 +440,9 @@ def main(args):
         log(" ".join(upload_args))
         proc = subprocess.Popen(upload_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
     os.chdir(current_dir)
 

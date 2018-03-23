@@ -1014,6 +1014,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int InternalMarvin32HashString(string s, int strLen, long additionalEntropy);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal unsafe static extern int InternalMarvin32HashPtr(char* s, int strLen);
+
         internal static bool UseRandomizedHashing()
         {
             return InternalUseRandomizedHashing();

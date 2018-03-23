@@ -39,7 +39,6 @@ usage()
     echo "skiptests - skip the tests in the 'tests' subdirectory."
     echo "skipnuget - skip building nuget packages."
     echo "skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
-    echo "skipcrossgen - skip native image generation"
     echo "verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
 	echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
@@ -60,14 +59,25 @@ usage()
 
 initHostDistroRid()
 {
+    __HostDistroRid=""
     if [ "$__HostOS" == "Linux" ]; then
-        if [ ! -e /etc/os-release ]; then
-            echo "WARNING: Can not determine runtime id for current distro."
-            __HostDistroRid=""
-        else
+        if [ -e /etc/os-release ]; then
             source /etc/os-release
+            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
+                # remove the last version digit
+                VERSION_ID=${VERSION_ID%.*}
+            fi
             __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+        elif [ -e /etc/redhat-release ]; then
+            local redhatRelease=$(</etc/redhat-release)
+            if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
+               __HostDistroRid="rhel.6-$__HostArch"
+            fi
         fi
+    fi
+
+    if [ "$__HostDistroRid" == "" ]; then
+        echo "WARNING: Can not determine runtime id for current distro."
     fi
 }
 
@@ -151,6 +161,16 @@ restore_optdata()
             echo "Failed to restore the optimization data package."
             exit 1
         fi
+
+        # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
+        local DotNetCli="$__ProjectRoot/Tools/dotnetcli/dotnet"
+        if [ ! -f $DotNetCli ]; then
+            echo "Assertion failed: dotnet CLI not found at '$DotNetCli'"
+            exit 1
+        fi
+        local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
+        __PgoOptDataVersion=$($DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo | sed 's/^\s*//')
+        __IbcOptDataVersion=$($DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo | sed 's/^\s*//')
     fi
 
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
@@ -204,7 +224,6 @@ generate_event_logging_sources()
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-    
     if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
         echo "Laying out dynamically generated files consumed by the build system "
         echo "Laying out dynamically generated Event Logging Test files"
@@ -316,7 +335,18 @@ build_native()
         echo "Failed to generate $message build project!"
         exit 1
     fi
-    
+
+    # Get the number of processors available to the scheduler
+    # Other techniques such as `nproc` only get the number of
+    # processors available to a single process.
+    if [ `uname` = "FreeBSD" ]; then
+        NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
+    elif [ `uname` = "NetBSD" ]; then
+        NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
+    else
+        NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
+    fi
+
     # Build
     if [ $__ConfigureOnly == 1 ]; then
         echo "Finish configuration & skipping $message build."
@@ -353,8 +383,8 @@ build_cross_arch_component()
     else
         # not supported
         return
-    fi    
-    
+    fi
+
     export __CMakeBinDir="$__CrossComponentBinDir"
     export CROSSCOMPONENT=1
     __IncludeTests=
@@ -370,8 +400,8 @@ build_cross_arch_component()
 
     __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
-   
-    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
+
+    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE
     if [ -n "$TARGET_ROOTFS" ]; then
         export ROOTFS_DIR="$TARGET_ROOTFS"
     fi
@@ -389,15 +419,44 @@ isMSBuildOnNETCoreSupported()
 
     if [ "$__HostArch" == "x64" ]; then
         if [ "$__HostOS" == "Linux" ]; then
-            __isMSBuildOnNETCoreSupported=1
-            UNSUPPORTED_RIDS=("debian.9-x64" "ubuntu.17.04-x64")
-            for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
-            do
-                if [ "$__HostDistroRid" == "$UNSUPPORTED_RID" ]; then
-                    __isMSBuildOnNETCoreSupported=0
-                    break
-                fi
-            done
+            case "$__HostDistroRid" in
+                "centos.7-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "debian.8-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "fedora.24-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "fedora.25-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "opensuse.42.1-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "rhel.6-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "rhel.7"*"-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.14.04-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.16.04-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.16.10-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "alpine.3.4.3-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                *)
+                __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
+            esac
+>>>>>>> upstream/release/2.0.0
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         fi
@@ -468,10 +527,10 @@ build_CoreLib()
            build_CoreLib_ni
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
            build_CoreLib_ni
-       else 
+       else
            exit 1
        fi
-    fi 
+    fi
 }
 
 generate_NugetPackages()
@@ -597,7 +656,7 @@ __IgnoreWarnings=0
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/packages"
+__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
 __RunArgs=
@@ -691,7 +750,6 @@ while :; do
         cross)
             __CrossBuild=1
             ;;
-            
         -portablebuild=false)
             __PortableBuild=0
             ;;
@@ -874,15 +932,20 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
             __ClangMinorVersion=6
         fi
 
+        if [[ "$__BuildArch" == "armel" ]]; then
+            # Armel cross build is Tizen specific and does not support Portable RID build
+            __PortableBuild=0
+        fi
+
+    elif [[ "$__HostOS" == "Linux" && \
+        "$(lsb_release --id --short)" == "Ubuntu" && \
+        "$(lsb_release --release --short)" == "16.04" ]]; then
+        __ClangMajorVersion=3
+        __ClangMinorVersion=9
     else
         __ClangMajorVersion=3
         __ClangMinorVersion=5
     fi
-fi
-
-if [[ "$__BuildArch" == "armel" ]]; then
-    # Armel cross build is Tizen specific and does not support Portable RID build
-    __PortableBuild=0
 fi
 
 if [ $__PortableBuild == 0 ]; then

@@ -4,6 +4,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace System.Text
 {
@@ -98,6 +99,8 @@ namespace System.Text
     }
 
     // Exception for decoding unknown byte sequences.
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class DecoderFallbackException : ArgumentException
     {
         private byte[] _bytesUnknown = null;
@@ -121,11 +124,16 @@ namespace System.Text
             HResult = __HResults.COR_E_ARGUMENT;
         }
 
-        public DecoderFallbackException(String message, byte[] bytesUnknown, int index)
-            : base(message)
+        public DecoderFallbackException(
+            String message, byte[] bytesUnknown, int index) : base(message)
         {
             _bytesUnknown = bytesUnknown;
             _index = index;
+        }
+
+        private DecoderFallbackException(SerializationInfo serializationInfo, StreamingContext streamingContext)
+            : base(serializationInfo, streamingContext)
+        {
         }
 
         public byte[] BytesUnknown

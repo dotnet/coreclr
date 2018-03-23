@@ -201,7 +201,7 @@ ThreadInfo::GetThreadStack(const CrashInfo& crashInfo, uint64_t* startAddress, s
 
         if (g_diagnostics)
         {
-            TRACE("Thread %04x stack found in other mapping (size %08zx): ", m_tid, *size);
+            TRACE("Thread %04x stack found in other mapping (size %08lx): ", m_tid, *size);
             region->Trace();
         }
     }

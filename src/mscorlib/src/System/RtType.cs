@@ -4443,6 +4443,13 @@ namespace System
         }
         #endregion
 
+        #region ISerializable
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            throw new PlatformNotSupportedException();
+        }
+        #endregion
+
         #region ICustomAttributeProvider
         public override Object[] GetCustomAttributes(bool inherit)
         {

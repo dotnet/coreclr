@@ -1971,7 +1971,7 @@ namespace System.Text
                    (byteOrderMark ? 4 : 0) + (bigEndian ? 8 : 0);
         }
 
-        private sealed class Decoder : System.Text.DecoderNLS
+        private sealed class Decoder : System.Text.DecoderNLS, ISerializable
         {
             internal int lastByte = -1;
             internal char lastChar = '\0';
@@ -1981,6 +1981,17 @@ namespace System.Text
                 // base calls reset
             }
             
+            internal Decoder(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
+            // ISerializable implementation
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+            {
+                throw new PlatformNotSupportedException();
+            }
+
             public override void Reset()
             {
                 lastByte = -1;

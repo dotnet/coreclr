@@ -1,36 +1,44 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
+  <!-- NuGet package restore sources. -->
+  <PropertyGroup>
+    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
+      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
+      https://dotnet.myget.org/F/dotnet-core/api/v3/index.json;
+      https://api.nuget.org/v3/index.json;
+      $(RestoreSources)
+    </RestoreSources>
+  </PropertyGroup>
+
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
     <PackageVersion Condition="'$(PackageVersion)' == ''">2.1.0</PackageVersion>
-    
+
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
     <PreReleaseLabel>b-uwp6</PreReleaseLabel>
   </PropertyGroup>
-  
+
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
     <CoreFxCurrentRef>431d8ad2f1b7fd1e7753ca42589035ea36492842</CoreFxCurrentRef>
     <CoreClrCurrentRef>40697681be31dff83b6c3b75a6de0d3adbc790a7</CoreClrCurrentRef>
   </PropertyGroup>
 
-  <!-- Auto-upgraded properties for each build info dependency. -->
+  <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <CoreFxPackageVersion>4.5.0-preview1-25531-01</CoreFxPackageVersion>
-    <PlatformPackageVersion>2.1.0-preview1-25631-01</PlatformPackageVersion>
-  </PropertyGroup>
-
-  <!-- Full package version strings that are used in other parts of the build. -->
-  <PropertyGroup>
-    <CoreClrPackageVersion>2.1.0-b-uwp6-25707-02</CoreClrPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-preview1-25531-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-preview1-25631-01</MicrosoftNETCorePlatformsPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-b-uwp6-25707-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <SystemMemoryPackageVersion>4.4.0-preview3-25526-01</SystemMemoryPackageVersion>
+    <SystemRuntimeCompilerServicesUnsafePackageVersion>4.4.0</SystemRuntimeCompilerServicesUnsafePackageVersion>
+    <SystemSecurityPermissionsPackageVersion>4.4.1</SystemSecurityPermissionsPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
-    <XUnitConsoleNetCoreVersion>1.0.2-prerelease-00177</XUnitConsoleNetCoreVersion>
-    <XUnitPerformanceApiVersion>1.0.0-beta-build0007</XUnitPerformanceApiVersion>
-    <MicrosoftDiagnosticsTracingLibraryVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingLibraryVersion>
-    <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
+    <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
+    <XunitPerformanceApiPackageVersion>1.0.0-beta-build0007</XunitPerformanceApiPackageVersion>
+    <MicrosoftDiagnosticsTracingTraceEventPackageVersion>1.0.3-alpha-experimental</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
   </PropertyGroup>
 
   <!-- Package dependency verification/auto-upgrade configuration. -->
@@ -56,17 +64,32 @@
 
     <XmlUpdateStep Include="CoreFx">
       <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>CoreFxPackageVersion</ElementName>
+      <ElementName>MicrosoftPrivateCoreFxNETCoreAppPackageVersion</ElementName>
       <PackageId>Microsoft.Private.CoreFx.NETCoreApp</PackageId>
     </XmlUpdateStep>
     <XmlUpdateStep Include="CoreFx">
       <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>PlatformPackageVersion</ElementName>
+      <ElementName>MicrosoftNETCorePlatformsPackageVersion</ElementName>
       <PackageId>Microsoft.NETCore.Platforms</PackageId>
+    </XmlUpdateStep>
+    <XmlUpdateStep Include="CoreFx">
+      <Path>$(MSBuildThisFileFullPath)</Path>
+      <ElementName>SystemMemoryPackageVersion</ElementName>
+      <PackageId>System.Memory</PackageId>
+    </XmlUpdateStep>
+    <XmlUpdateStep Include="CoreFx">
+      <Path>$(MSBuildThisFileFullPath)</Path>
+      <ElementName>SystemRuntimeCompilerServicesUnsafePackageVersion</ElementName>
+      <PackageId>System.Runtime.CompilerServices.Unsafe</PackageId>
+    </XmlUpdateStep>
+    <XmlUpdateStep Include="CoreFx">
+      <Path>$(MSBuildThisFileFullPath)</Path>
+      <ElementName>SystemSecurityPermissionsPackageVersion</ElementName>
+      <PackageId>System.Security.Permissions</PackageId>
     </XmlUpdateStep>
     <XmlUpdateStep Include="CoreClr">
       <Path>$(MSBuildThisFileFullPath)</Path>
-      <ElementName>CoreClrPackageVersion</ElementName>
+      <ElementName>MicrosoftNETCoreRuntimeCoreCLRPackageVersion</ElementName>
       <PackageId>Microsoft.NETCore.Runtime.CoreCLR</PackageId>
     </XmlUpdateStep>
   </ItemGroup>
@@ -99,11 +122,11 @@
     <XUnitPerformanceApiDependency Include="xunit.performance.execution" />
     <XUnitPerformanceApiDependency Include="xunit.performance.metrics" />
     <StaticDependency Include="@(XUnitPerformanceApiDependency)">
-      <Version>$(XUnitPerformanceApiVersion)</Version>
+      <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </StaticDependency>
 
     <StaticDependency Include="xunit.console.netcore">
-      <Version>$(XUnitConsoleNetCoreVersion)</Version>
+      <Version>$(XunitConsoleNetcorePackageVersion)</Version>
     </StaticDependency>
 
     <DependencyBuildInfo Include="@(StaticDependency)">
@@ -111,4 +134,9 @@
       <UpdateStableVersions>true</UpdateStableVersions>
     </DependencyBuildInfo>
   </ItemGroup>
+
+  <!-- Override isolated build dependency versions with versions from Repo API. -->
+  <Import Project="$(DotNetPackageVersionPropsPath)"
+          Condition="'$(DotNetPackageVersionPropsPath)' != ''" />
+
 </Project>

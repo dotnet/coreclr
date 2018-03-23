@@ -976,8 +976,18 @@ public:
 
 #define GTF_ADDR_ONSTACK            0x80000000 // GT_ADDR    -- this expression is guaranteed to be on the stack
 
-#define GTF_ADDRMODE_NO_CSE         0x80000000 // GT_ADD/GT_MUL/GT_LSH -- Do not CSE this node only, forms complex
-                                               //                         addressing mode
+#define GTF_ICON_INITCLASS 0x02000000 // GT_CNS_INT -- Constant is used to access a static that requires preceding
+                                      //               class/static init helper.  In some cases, the constant is
+                                      //               the address of the static field itself, and in other cases
+                                      //               there's an extra layer of indirection and it is the address
+                                      //               of the cell that the runtime will fill in with the address
+                                      //               of the static field; in both of those cases, the constant
+                                      //               is what gets flagged.
+
+#define GTF_BLK_VOLATILE 0x40000000  // GT_ASG, GT_STORE_BLK, GT_STORE_OBJ, GT_STORE_DYNBLK
+                                     // -- is a volatile block operation
+#define GTF_BLK_UNALIGNED 0x02000000 // GT_ASG, GT_STORE_BLK, GT_STORE_OBJ, GT_STORE_DYNBLK
+                                     // -- is an unaligned block operation
 
 #define GTF_MUL_64RSLT              0x40000000 // GT_MUL     -- produce 64-bit result
 
@@ -2965,9 +2975,16 @@ struct GenTreeBox : public GenTreeUnOp
     // This is the statement that contains the assignment tree when the node is an inlined GT_BOX on a value
     // type
     GenTreePtr gtAsgStmtWhenInlinedBoxValue;
+    // And this is the statement that copies from the value being boxed to the box payload
+    GenTreePtr gtCopyStmtWhenInlinedBoxValue;
 
-    GenTreeBox(var_types type, GenTreePtr boxOp, GenTreePtr asgStmtWhenInlinedBoxValue)
-        : GenTreeUnOp(GT_BOX, type, boxOp), gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
+    GenTreeBox(var_types  type,
+               GenTreePtr boxOp,
+               GenTreePtr asgStmtWhenInlinedBoxValue,
+               GenTreePtr copyStmtWhenInlinedBoxValue)
+        : GenTreeUnOp(GT_BOX, type, boxOp)
+        , gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
+        , gtCopyStmtWhenInlinedBoxValue(copyStmtWhenInlinedBoxValue)
     {
     }
 #if DEBUGGABLE_GENTREE

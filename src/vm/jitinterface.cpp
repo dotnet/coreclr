@@ -1378,11 +1378,6 @@ static CORINFO_FIELD_ACCESSOR getFieldIntrinsic(FieldDesc * field)
     {
         return CORINFO_FIELD_INTRINSIC_ZERO;
     }
-    else
-    if (MscorlibBinder::GetField(FIELD__BITCONVERTER__ISLITTLEENDIAN) == field)
-    {
-        return CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN;
-    }
 
     return (CORINFO_FIELD_ACCESSOR)-1;
 }

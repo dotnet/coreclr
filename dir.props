@@ -61,15 +61,16 @@
     <SourceDir>$(__SourceDir)\</SourceDir>
     <SourceDir Condition="'$(__SourceDir)'==''">$(ProjectDir)src\</SourceDir>
 
-    <PackagesDir>$(__PackagesDir)\</PackagesDir>
-    <PackagesDir Condition="'$(__PackagesDir)'==''">$(ProjectDir)packages\</PackagesDir>
+    <PackagesDir>$(DotNetRestorePackagesPath)</PackagesDir>
+    <PackagesDir Condition="'$(PackagesDir)'=='' and '$(__PackagesDir)'!=''">$(__PackagesDir)\</PackagesDir>
+    <PackagesDir Condition="'$(PackagesDir)'==''">$(ProjectDir)packages\</PackagesDir>
 
     <RootBinDir>$(__RootBinDir)\</RootBinDir>
     <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
 
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
-    
+
     <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
@@ -99,6 +100,11 @@
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
     <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\$(MSBuildProjectName)</IntermediateOutputPath>
     <OutputPath Condition="'$(OutputPath)' == ''">$(BinDir)</OutputPath>
+  </PropertyGroup>
+
+  <!-- Explicitly set BuildVersionFile before importing common. This is used by BuildVersion.targets. -->
+  <PropertyGroup Condition="'$(OfficialBuildId)' != ''">
+    <BuildVersionFile>$(BaseIntermediateOutputPath)BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
   </PropertyGroup>
 
   <!-- Import Build tools common props file where repo-independent properties are found -->
@@ -138,12 +144,10 @@
     <ReleaseNotes>https://go.microsoft.com/fwlink/?LinkID=799421</ReleaseNotes>
 
     <ProjectUrl>https://dot.net</ProjectUrl>
-    
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
          pulling in different packaging dependencies.
      -->
     <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net46/</PackagingTaskDir>
-    <BuildNumberMajor Condition="'$(BuildNumberMajor)' == ''">00001</BuildNumberMajor>
     <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
     <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(Platform)</PackagePlatform>
     <PackagePlatform Condition="'$(PackagePlatform)' == 'amd64'">x64</PackagePlatform>
@@ -158,8 +162,8 @@
     <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm64'">x64</CrossTargetComponentFolder>
     <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm'">x86</CrossTargetComponentFolder>
 
-    <PackageOutputPath>$(PackagesBinDir)/pkg/</PackageOutputPath>
-    <SymbolPackageOutputPath>$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
+    <PackageOutputPath Condition="'$(PackageOutputPath)' == ''">$(PackagesBinDir)/pkg/</PackageOutputPath>
+    <SymbolPackageOutputPath Condition="'$(SymbolPackageOutputPath)' == ''">$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
     <PackageIndexFile>$(MSBuildThisFileDirectory)/src/.nuget/packageIndex.json</PackageIndexFile>
 
     <!-- coreclr doesn't currently use the index so don't force it to be in sync -->
@@ -184,6 +188,6 @@
   </PropertyGroup>
 
   <!-- Use Roslyn Compilers to build -->
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false'" />
-  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)')" />
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'!='true' and Exists('$(RoslynPropsFile)') and '$(UseRoslynCompilers)'!='false' and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
+  <Import Project="$(RoslynPropsFile)" Condition="'$(RunningOnUnix)'=='true' and Exists('$(RoslynPropsFile)') and '$(RoslynIncompatibleMsbuildVersion)' != 'true'" />
 </Project>
