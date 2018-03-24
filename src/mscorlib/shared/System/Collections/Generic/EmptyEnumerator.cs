@@ -16,14 +16,14 @@ namespace System.Collections.Generic
             [MethodImpl(MethodImplOptions.NoInlining)]
             get
             {
-                return s_shared ?? InitalizeShared();
+                return s_shared ?? InitializeShared();
             }
         }
 
         private EmptyEnumerator() { }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static EmptyEnumerator<T> InitalizeShared()
+        private static EmptyEnumerator<T> InitializeShared()
         {
             var newEnumerator = new EmptyEnumerator<T>();
             Interlocked.CompareExchange(ref s_shared, newEnumerator, null); // failure is benign. Someone else set the value.
