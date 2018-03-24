@@ -673,6 +673,51 @@ void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallS
 }
 
 
+//---------------------------------------------------------------------------------------
+//
+// Generate an EventLog entry for unhandled exceptions that are not sent to DefaultCatchHandler.
+//
+// Arguments:
+//    pExceptionInfo - Exception information
+//
+// Return Value:
+//    None
+//
+void DoReportForIgnoredUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (ShouldLogInEventLog())
+    {
+        Thread *pThread = GetThread();
+        EventReporter reporter(EventReporter::ERT_UnhandledException);
+        EX_TRY
+        {
+            StackSString s;
+        InlineSString<80> ssErrorFormat;
+        if (!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_ER_UNHANDLEDEXCEPTIONINFO))
+            ssErrorFormat.Set(W("exception code %1, exception address %2"));
+        SmallStackSString exceptionCodeString;
+        exceptionCodeString.Printf(W("%x"), pExceptionInfo->ExceptionRecord->ExceptionCode);
+        SmallStackSString addressString;
+        addressString.Printf(W("%p"), (UINT_PTR)pExceptionInfo->ExceptionRecord->ExceptionAddress);
+        s.FormatMessage(FORMAT_MESSAGE_FROM_STRING, (LPCWSTR)ssErrorFormat, 0, 0, exceptionCodeString, addressString);
+        reporter.AddDescription(s);
+        if (pThread)
+        {
+            LogCallstackForEventReporter(reporter);
+        }
+        }
+            EX_CATCH
+        {
+            // We are reporting an exception.  If we throw while working on this, it is not fatal.
+        }
+        EX_END_CATCH(SwallowAllExceptions);
+
+        reporter.Report();
+    }
+}
+
 // This function will return the product version of CoreCLR
 // instance we are executing in.
 void EventReporter::GetCoreCLRInstanceProductVersion(DWORD * pdwMajor, DWORD * pdwMinor, DWORD * pdwBuild, DWORD * pdwRevision)
