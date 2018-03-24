@@ -332,7 +332,14 @@ namespace System.Collections.Generic
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
-            return new Enumerator(this, Enumerator.KeyValuePair);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<KeyValuePair<TKey, TValue>>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this, Enumerator.KeyValuePair);
+            }
         }
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
