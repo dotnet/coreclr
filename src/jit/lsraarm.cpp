@@ -115,10 +115,10 @@ void LinearScan::BuildLclHeap(GenTree* tree)
 //------------------------------------------------------------------------
 // BuildShiftLongCarry: Set the node info for GT_LSH_HI or GT_RSH_LO.
 //
-// Note: these operands have interfering uses and need the special handling.
-//
 // Arguments:
 //    tree      - The node of interest
+//
+// Note: these operands have uses that interfere with the def and need the special handling.
 //
 void LinearScan::BuildShiftLongCarry(GenTree* tree)
 {
