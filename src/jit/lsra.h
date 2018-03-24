@@ -1659,6 +1659,9 @@ private:
     // 'tree' is contained.
     int BuildShiftRotate(GenTree* tree);
 #endif // _TARGET_XARCH_
+#ifdef _TARGET_ARM_
+    void BuildShiftLongCarry(GenTree* tree);
+#endif
     void BuildPutArgReg(GenTreeUnOp* node);
     void BuildCall(GenTreeCall* call);
     void BuildCmp(GenTree* tree);
