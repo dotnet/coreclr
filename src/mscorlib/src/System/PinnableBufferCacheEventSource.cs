@@ -63,7 +63,6 @@ namespace System
             return 0;
         }
 
-        [System.Security.SecuritySafeCritical]
         static internal unsafe long AddressOfByteArray(byte[] array)
         {
             if (array == null)

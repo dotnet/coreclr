@@ -927,9 +927,9 @@ FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* 
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
-    
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
-                                                       lastRecordedMemLoad, 
+
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem,
+                                                       lastRecordedMemLoad,
                                                        lastRecordedHeapSize, lastRecordedFragmentation);
 }
 FCIMPLEND
