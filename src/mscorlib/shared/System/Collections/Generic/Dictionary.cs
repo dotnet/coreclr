@@ -332,7 +332,14 @@ namespace System.Collections.Generic
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
-            return new Enumerator(this, Enumerator.KeyValuePair);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<KeyValuePair<TKey, TValue>>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this, Enumerator.KeyValuePair);
+            }
         }
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -887,7 +894,14 @@ namespace System.Collections.Generic
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return new Enumerator(this, Enumerator.KeyValuePair);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<object>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this, Enumerator.KeyValuePair);
+            }
         }
 
         /// <summary>
@@ -1090,7 +1104,14 @@ namespace System.Collections.Generic
 
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
-            return new Enumerator(this, Enumerator.DictEntry);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<object>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this, Enumerator.DictEntry);
+            }
         }
 
         void IDictionary.Remove(object key)
@@ -1305,12 +1326,26 @@ namespace System.Collections.Generic
 
             IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator()
             {
-                return new Enumerator(_dictionary);
+                if (Count == 0)
+                {
+                    return EmptyEnumerator<TKey>.Shared;
+                }
+                else
+                {
+                    return new Enumerator(_dictionary);
+                }
             }
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                return new Enumerator(_dictionary);
+                if (Count == 0)
+                {
+                    return EmptyEnumerator<object>.Shared;
+                }
+                else
+                {
+                    return new Enumerator(_dictionary);
+                }
             }
 
             void ICollection.CopyTo(Array array, int index)
@@ -1533,12 +1568,26 @@ namespace System.Collections.Generic
 
             IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator()
             {
-                return new Enumerator(_dictionary);
+                if (Count == 0)
+                {
+                    return EmptyEnumerator<TValue>.Shared;
+                }
+                else
+                {
+                    return new Enumerator(_dictionary);
+                }
             }
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                return new Enumerator(_dictionary);
+                if (Count == 0)
+                {
+                    return EmptyEnumerator<object>.Shared;
+                }
+                else
+                {
+                    return new Enumerator(_dictionary);
+                }
             }
 
             void ICollection.CopyTo(Array array, int index)

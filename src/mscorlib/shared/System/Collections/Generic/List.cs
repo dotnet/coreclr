@@ -628,12 +628,27 @@ namespace System.Collections.Generic
 
         IEnumerator<T> IEnumerable<T>.GetEnumerator()
         {
-            return new Enumerator(this);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<T>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this);
+            }
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return new Enumerator(this);
+            if (Count == 0)
+            {
+                return EmptyEnumerator<object>.Shared;
+            }
+            else
+            {
+                return new Enumerator(this);
+            }
+            
         }
 
         public List<T> GetRange(int index, int count)
