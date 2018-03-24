@@ -6,7 +6,7 @@ using System.Diagnostics.Tracing;
 
 namespace System
 {
-    [EventSource(Name = "Microsoft-DotNETRuntime-PinnableBufferCache-System")]
+    [EventSource(Guid = "38ed3633-5e3f-5989-bf25-f0b1b3318c9b", Name = "Microsoft -DotNETRuntime-PinnableBufferCache-System")]
     internal sealed class PinnableBufferCacheEventSource : EventSource
     {
         public static readonly PinnableBufferCacheEventSource Log = new PinnableBufferCacheEventSource();
