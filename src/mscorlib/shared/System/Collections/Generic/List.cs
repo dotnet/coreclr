@@ -640,15 +640,7 @@ namespace System.Collections.Generic
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            if (Count == 0)
-            {
-                return EmptyEnumerator<object>.Shared;
-            }
-            else
-            {
-                return new Enumerator(this);
-            }
-            
+            return new Enumerator(this);
         }
 
         public List<T> GetRange(int index, int count)

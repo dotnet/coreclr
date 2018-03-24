@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace System.Collections.Generic
 {
-    internal class EmptyEnumerator<T> : IEnumerator<T>, IDictionaryEnumerator
+    internal class EmptyEnumerator<T> : IEnumerator<T>
     {
         private static EmptyEnumerator<T> s_shared;
 
@@ -35,12 +35,6 @@ namespace System.Collections.Generic
         public bool MoveNext() => false;
 
         public void Dispose() { }
-
-        DictionaryEntry IDictionaryEnumerator.Entry => default(DictionaryEntry);
-
-        object IDictionaryEnumerator.Key => null;
-
-        object IDictionaryEnumerator.Value => null;
 
         object IEnumerator.Current => null;
 

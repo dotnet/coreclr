@@ -894,14 +894,7 @@ namespace System.Collections.Generic
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            if (Count == 0)
-            {
-                return EmptyEnumerator<object>.Shared;
-            }
-            else
-            {
-                return new Enumerator(this, Enumerator.KeyValuePair);
-            }
+            return new Enumerator(this, Enumerator.KeyValuePair);
         }
 
         /// <summary>
@@ -1104,14 +1097,7 @@ namespace System.Collections.Generic
 
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
-            if (Count == 0)
-            {
-                return EmptyEnumerator<object>.Shared;
-            }
-            else
-            {
-                return new Enumerator(this, Enumerator.DictEntry);
-            }
+            return new Enumerator(this, Enumerator.DictEntry);
         }
 
         void IDictionary.Remove(object key)
@@ -1326,26 +1312,12 @@ namespace System.Collections.Generic
 
             IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator()
             {
-                if (Count == 0)
-                {
-                    return EmptyEnumerator<TKey>.Shared;
-                }
-                else
-                {
-                    return new Enumerator(_dictionary);
-                }
+                return new Enumerator(_dictionary);
             }
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                if (Count == 0)
-                {
-                    return EmptyEnumerator<object>.Shared;
-                }
-                else
-                {
-                    return new Enumerator(_dictionary);
-                }
+                return new Enumerator(_dictionary);
             }
 
             void ICollection.CopyTo(Array array, int index)
@@ -1568,26 +1540,12 @@ namespace System.Collections.Generic
 
             IEnumerator<TValue> IEnumerable<TValue>.GetEnumerator()
             {
-                if (Count == 0)
-                {
-                    return EmptyEnumerator<TValue>.Shared;
-                }
-                else
-                {
-                    return new Enumerator(_dictionary);
-                }
+                return new Enumerator(_dictionary);
             }
 
             IEnumerator IEnumerable.GetEnumerator()
             {
-                if (Count == 0)
-                {
-                    return EmptyEnumerator<object>.Shared;
-                }
-                else
-                {
-                    return new Enumerator(_dictionary);
-                }
+                return new Enumerator(_dictionary);
             }
 
             void ICollection.CopyTo(Array array, int index)
