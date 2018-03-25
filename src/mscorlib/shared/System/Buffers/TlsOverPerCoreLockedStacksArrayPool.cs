@@ -32,10 +32,17 @@ namespace System.Buffers
 
         /// <summary>The number of buckets (array sizes) in the pool, one for each array length, starting from length 16.</summary>
         private const int NumBuckets = 17; // Utilities.SelectBucketIndex(2*1024*1024)
+#if BIT64
         /// <summary>Maximum number of per-core stacks to use per array size.</summary>
         private const int MaxPerCorePerArraySizeStacks = 64; // selected to avoid needing to worry about processor groups
         /// <summary>The maximum number of buffers to store in a bucket's global queue.</summary>
         private const int MaxBuffersPerArraySizePerCore = 8;
+#else
+        /// <summary>Maximum number of per-core stacks to use per array size.</summary>
+        private const int MaxPerCorePerArraySizeStacks = 16;
+        /// <summary>The maximum number of buffers to store in a bucket's global queue.</summary>
+        private const int MaxBuffersPerArraySizePerCore = 4;
+#endif
 
         /// <summary>The length of arrays stored in the corresponding indices in <see cref="_buckets"/> and <see cref="t_tlsBuckets"/>.</summary>
         private readonly int[] _bucketArraySizes;
