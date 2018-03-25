@@ -2410,20 +2410,25 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
 // Determine if we should generate a job for the given parameters. This is for non-flow jobs: either build and test, or build only.
 // Returns true if the job should be generated.
-def static shouldGenerateJob(def scenario, def architecture, def configuration, def os, def isBuildOnly)
+def static shouldGenerateJob(def scenario, def isPR, def architecture, def configuration, def os, def isBuildOnly)
 {
+    // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
+    // All other scenarios do Pri-1 testing.
+    if (scenario == 'innerloop' && !isPR) {
+        return false
+    }
+
     // Tizen is only supported for armem architecture
     if (os == 'Tizen' && architecture != 'armem') {
         return false
     }
 
-    // Skip totally unimplemented (in CI) configurations.
+    // Filter based on architecture.
+
     switch (architecture) {
         case 'arm64':
+        case 'arm':
             if ((os != 'Windows_NT') && (os != 'Ubuntu')) {
-                return false
-            }
-            if (isBuildOnly) {
                 return false
             }
             break
@@ -2439,7 +2444,6 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
                 return false
             }
             break
-        case 'arm':
         case 'x86':
             if ((os != 'Windows_NT') && (os != 'Ubuntu')) {
                 return false
@@ -2454,8 +2458,31 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
             break
     }
 
-    // Skip scenarios (blanket skipping for jit stress modes, which are good most everywhere
-    // with checked builds)
+    // Which (Windows) build only jobs are required?
+
+    def isNormalOrInnerloop = (scenario == 'innerloop' || scenario == 'normal')
+
+    if (isBuildOnly) {
+        switch (architecture) {
+            case 'arm':
+                // We use build only jobs for Windows arm cross-compilation corefx testing, so we need to generate builds for that.
+                if (!isCoreFxScenario(scenario)) {
+                    return false
+                }
+                break
+            case 'x64':
+            case 'x86':
+                if (!isNormalOrInnerloop) {
+                    return false
+                }
+                break
+            default:
+                return false
+        }
+    }
+
+    // Filter based on scenario.
+
     if (isJitStressScenario(scenario)) {
         if (configuration != 'Checked') {
             return false
@@ -2468,7 +2495,8 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
 
         switch (architecture) {
             case 'x64':
-                // Everything implemented
+            case 'x86_arm_altjit':
+            case 'x64_arm64_altjit':
                 break
 
             case 'x86':
@@ -2478,26 +2506,16 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
                 }
                 break
 
-            case 'x86_arm_altjit':
-            case 'x64_arm64_altjit':
-                if (isBuildOnly) {
-                    return false
-                }
-                break
-
-            case 'armem':
-                // No stress jobs for ARM emulator.
-                return false
-
             case 'arm':
                 // We use build only jobs for Windows arm cross-compilation corefx testing, so we need to generate builds for that.
-                if (!isBuildOnly || !isCoreFxScenario(scenario)) {
+                if (! (isBuildOnly && isCoreFxScenario(scenario)) ) {
                     return false
                 }
                 break
 
             default:
                 // arm64, armlb: stress is handled through flow jobs.
+                // armem: no stress jobs for ARM emulator.
                 return false
         }
     }
@@ -2576,18 +2594,12 @@ def static shouldGenerateJob(def scenario, def architecture, def configuration, 
                 if (configuration != 'Checked') {
                     return false
                 }
-                if (isBuildOnly) {
-                    return false
-                }
                 break
             case 'illink':
                 if (os != 'Windows_NT' && (os != 'Ubuntu' || architecture != 'x64')) {
                     return false
                 }
                 if (architecture != 'x64' && architecture != 'x86') {
-                    return false
-                }
-                if (isBuildOnly) {
                     return false
                 }
                 break
@@ -2636,7 +2648,7 @@ Constants.allScenarios.each { scenario ->
                         os = 'Windows_NT'
                     }
 
-                    if (!shouldGenerateJob(scenario, architecture, configuration, os, isBuildOnly)) {
+                    if (!shouldGenerateJob(scenario, isPR, architecture, configuration, os, isBuildOnly)) {
                         return
                     }
 
@@ -3259,8 +3271,16 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 
 // Determine if we should generate a flow job for the given parameters.
 // Returns true if the job should be generated.
-def static shouldGenerateFlowJob(def scenario, def architecture, def configuration, def os)
+def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def configuration, def os)
 {
+    // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
+    // All other scenarios do Pri-1 testing.
+    if (scenario == 'innerloop' && !isPR) {
+        return false
+    }
+
+    // Filter based on architecture.
+
     switch (architecture) {
         case 'arm64':
             if (os != "Ubuntu" && os != "Windows_NT") {
@@ -3283,7 +3303,9 @@ def static shouldGenerateFlowJob(def scenario, def architecture, def configurati
             }
             break
         case 'x64':
-            // Everything implemented
+            if (os != "Ubuntu") {
+                return false
+            }
             break
         case 'armem':
         case 'x86_arm_altjit':
@@ -3298,7 +3320,11 @@ def static shouldGenerateFlowJob(def scenario, def architecture, def configurati
 
     def isNormalOrInnerloop = (scenario == 'innerloop' || scenario == 'normal')
 
-    // First, filter based on OS.
+    // Filter based on OS.
+
+    if (!(os in Constants.crossList)) {
+        return false
+    }
 
     if (os == 'Windows_NT') {
         if (!isArmWindowsScenario(scenario)) {
@@ -3429,9 +3455,9 @@ Constants.allScenarios.each { scenario ->
     [true, false].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
-                Constants.crossList.each { os ->
+                Constants.osList.each { os ->
 
-                    if (!shouldGenerateFlowJob(scenario, architecture, configuration, os)) {
+                    if (!shouldGenerateFlowJob(scenario, isPR, architecture, configuration, os)) {
                         return
                     }
 
@@ -3448,7 +3474,7 @@ Constants.allScenarios.each { scenario ->
                     def inputCoreCLRBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, inputCoreCLRBuildIsBuildOnly), isPR, inputCoreCLRFolderName)
 
-                    // Figure out the name of the job that builds that tests that the build will depend on.
+                    // Figure out the name of the build job that the test job will depend on.
                     // For Windows ARM tests, this is not used, as the CoreCLR build creates the tests. For other
                     // tests (e.g., Linux ARM), we depend on a Windows build to get the tests.
 
