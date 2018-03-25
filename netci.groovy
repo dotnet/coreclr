@@ -3285,7 +3285,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         return false
     }
 
-    // Filter based on architecture.
+    // Filter based on OS and architecture.
 
     switch (architecture) {
         case 'arm64':
@@ -3309,7 +3309,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
             }
             break
         case 'x64':
-            if (os != "Ubuntu") {
+            if (!(os in Constants.crossList)) {
                 return false
             }
             break
@@ -3326,11 +3326,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 
     def isNormalOrInnerloop = (scenario == 'innerloop' || scenario == 'normal')
 
-    // Filter based on OS.
-
-    if (!(os in Constants.crossList)) {
-        return false
-    }
+    // Filter based on scenario in OS.
 
     if (os == 'Windows_NT') {
         if (!isArmWindowsScenario(scenario)) {
