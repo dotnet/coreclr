@@ -3312,6 +3312,9 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
             if (!(os in Constants.crossList)) {
                 return false
             }
+            if (os == "Windows_NT") {
+                return false
+            }
             break
         case 'armem':
         case 'x86_arm_altjit':
