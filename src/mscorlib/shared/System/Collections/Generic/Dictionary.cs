@@ -672,7 +672,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            _version++;
             if (_buckets != null)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
@@ -708,6 +707,7 @@ namespace System.Collections.Generic
                         }
                         _freeList = i;
                         _freeCount++;
+                        _version++;
                         return true;
                     }
 
@@ -728,7 +728,6 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            _version++;
             if (_buckets != null)
             {
                 int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
@@ -767,6 +766,7 @@ namespace System.Collections.Generic
                         }
                         _freeList = i;
                         _freeCount++;
+                        _version++;
                         return true;
                     }
 

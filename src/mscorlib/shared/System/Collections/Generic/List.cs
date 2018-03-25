@@ -676,7 +676,6 @@ namespace System.Collections.Generic
         // 
         public void Insert(int index, T item)
         {
-            _version++;
             // Note that insertions at the end are legal.
             if ((uint)index > (uint)_size)
             {
@@ -689,6 +688,7 @@ namespace System.Collections.Generic
             }
             _items[index] = item;
             _size++;
+            _version++;
         }
 
         void IList.Insert(int index, object item)
@@ -868,7 +868,6 @@ namespace System.Collections.Generic
         // The complexity is O(n).
         public int RemoveAll(Predicate<T> match)
         {
-            _version++;
             if (match == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
@@ -900,6 +899,7 @@ namespace System.Collections.Generic
 
             int result = _size - freeIndex;
             _size = freeIndex;
+            _version++;
             return result;
         }
 
@@ -947,12 +947,13 @@ namespace System.Collections.Generic
                 {
                     Array.Copy(_items, index + count, _items, index, _size - index);
                 }
+
+                _version++;
                 if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 {
                     Array.Clear(_items, _size, count);
                 }
             }
-            _version++;
         }
 
         // Reverses the elements in this list.
@@ -1091,10 +1092,10 @@ namespace System.Collections.Generic
 
         private void AddEnumerable(IEnumerable<T> enumerable)
         {
-            _version++; // Even if the enumerable has no items, we can update _version.
             Debug.Assert(enumerable != null);
             Debug.Assert(!(enumerable is ICollection<T>), "We should have optimized for this beforehand.");
 
+            _version++; // Even if the enumerable has no items, we can update _version.
             using (IEnumerator<T> en = enumerable.GetEnumerator())
             {
 
