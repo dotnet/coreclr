@@ -419,14 +419,15 @@ LPVOID QCALLTYPE SystemNative::GetRuntimeInterfaceImpl(
     LPVOID pUnk = NULL;
 
     BEGIN_QCALL;
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < processorCount)
-        processorCount = cpuLimit;
-#endif
+
+    IfFailThrow(E_NOINTERFACE);
 
     END_QCALL;
 
-    return processorCount;
+    return pUnk;
 }
+
+#endif
 
 FCIMPL0(FC_BOOL_RET, SystemNative::HasShutdownStarted)
 {

@@ -976,6 +976,8 @@ public:
 
 #define GTF_ADDR_ONSTACK            0x80000000 // GT_ADDR    -- this expression is guaranteed to be on the stack
 
+#define GTF_ADDRMODE_NO_CSE         0x80000000 // GT_ADD/GT_MUL/GT_LSH -- Do not CSE this node only, forms complex
+
 #define GTF_ICON_INITCLASS 0x02000000 // GT_CNS_INT -- Constant is used to access a static that requires preceding
                                       //               class/static init helper.  In some cases, the constant is
                                       //               the address of the static field itself, and in other cases
