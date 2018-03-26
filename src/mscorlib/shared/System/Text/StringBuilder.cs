@@ -480,20 +480,21 @@ namespace System.Text
                     StringBuilder chunk = FindChunkForIndex(value);
                     if (chunk != this)
                     {
-                        // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
-                        // to ensure the original capacity is preserved.
-
                         // Avoid possible infinite capacity growth.  See https://github.com/dotnet/coreclr/pull/16926
                         int capacityToPreserve = Math.Min(Capacity, Math.Max(Length * 6 / 5, m_ChunkChars.Length));
                         int newLen = capacityToPreserve - chunk.m_ChunkOffset;
                         if (newLen > chunk.m_ChunkChars.Length)
                         {
+                            // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
+                            // to ensure the original capacity is preserved.
                             char[] newArray = new char[newLen];
                             Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
                             m_ChunkChars = newArray;
                         }
                         else
                         {
+                            // Special case where the capacity we want to keep corresponds exactly to the size of the content.
+                            // Just take ownership of the array.
                             Debug.Assert(newLen == chunk.m_ChunkChars.Length, "The new chunk should be larger or equal to the one it is replacing.");
                             m_ChunkChars = chunk.m_ChunkChars;
                         }
@@ -504,6 +505,7 @@ namespace System.Text
                     m_ChunkLength = value - chunk.m_ChunkOffset;
                     AssertInvariants();
                 }
+                Debug.Assert(Length == value, "Something went wrong setting Length.");
             }
         }
 
