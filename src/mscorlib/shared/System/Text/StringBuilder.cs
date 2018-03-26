@@ -486,12 +486,18 @@ namespace System.Text
                         // Avoid possible infinite capacity growth.  See https://github.com/dotnet/coreclr/pull/16926
                         int capacityToPreserve = Math.Min(Capacity, Math.Max(Length * 6 / 5, m_ChunkChars.Length));
                         int newLen = capacityToPreserve - chunk.m_ChunkOffset;
-                        char[] newArray = new char[newLen];
+                        if (newLen > chunk.m_ChunkChars.Length)
+                        {
+                            char[] newArray = new char[newLen];
+                            Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
+                            m_ChunkChars = newArray;
+                        }
+                        else
+                        {
+                            Debug.Assert(newLen == chunk.m_ChunkChars.Length, "The new chunk should be larger or equal to the one it is replacing.");
+                            m_ChunkChars = chunk.m_ChunkChars;
+                        }
 
-                        Debug.Assert(newLen > chunk.m_ChunkChars.Length, "The new chunk should be larger than the one it is replacing.");
-                        Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
-
-                        m_ChunkChars = newArray;
                         m_ChunkPrevious = chunk.m_ChunkPrevious;
                         m_ChunkOffset = chunk.m_ChunkOffset;
                     }
