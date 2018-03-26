@@ -50,6 +50,7 @@ set __RuntimeId=
 set __ZipTests=
 set __TargetsWindows=1
 set __DoCrossgen=
+set __Use64BitHostTools=0
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -75,6 +76,7 @@ if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!pro
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "use64BitHostTools"     (set __Use64BitHostTools=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
@@ -177,7 +179,7 @@ if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 :GenVSSolution
 
 pushd "%__NativeTestIntermediatesDir%"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch%
+call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% %__Use64BitHostTools%
 @if defined _echo @echo on
 popd
 
