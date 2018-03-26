@@ -5241,7 +5241,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
         if (tore.GetType() == TypeOfReportedError::NativeThreadUnhandledException)
         {
             pParam->retval = EXCEPTION_CONTINUE_SEARCH;
-#ifdef defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
             DoReportForIgnoredUnhandledException(pParam->pExceptionInfo);
 #endif
             goto lDone;
@@ -5251,7 +5251,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
         {
             LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker, ignoring the exception\n"));
             pParam->retval = EXCEPTION_CONTINUE_SEARCH;
-#ifdef defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
+#if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
             DoReportForIgnoredUnhandledException(pParam->pExceptionInfo);
 #endif
             goto lDone;
