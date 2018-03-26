@@ -5412,7 +5412,16 @@ PrecodeType MethodDesc::GetPrecodeType()
     if (!RequiresMethodDescCallingConvention())
     {
         // Use the more efficient fixup precode if possible
-        precodeType = PRECODE_FIXUP;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        if (IsZapped())
+        {
+            precodeType = PRECODE_RELATIVE_FIXUP;
+        }
+        else
+#endif
+        {
+            precodeType = PRECODE_FIXUP;
+        }
     }
     else
 #endif // HAS_FIXUP_PRECODE

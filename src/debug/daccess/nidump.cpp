@@ -3526,6 +3526,10 @@ size_t NativeImageDumper::TranslateSymbol(IXCLRDisassemblySupport *dis,
 #ifdef HAS_FIXUP_PRECODE
                 case PRECODE_FIXUP:
                     precodeName = "FixupPrecode"; break;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+                case PRECODE_RELATIVE_FIXUP:
+                    precodeName = "RelativeFixupPrecode"; break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
                 case PRECODE_THISPTR_RETBUF:
@@ -7603,6 +7607,58 @@ void NativeImageDumper::DumpPrecode( PTR_Precode precode, PTR_Module module )
             DisplayEndStructure( ALWAYS ); //FixupPrecode
         }
         break;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        IF_OPT_AND(PRECODES, METHODDESCS)
+        {
+            PTR_RelativeFixupPrecode p( precode->AsRelativeFixupPrecode() );
+            DisplayStartStructure( "RelativeFixupPrecode",
+                                   DPtrToPreferredAddr(p),
+                                   sizeof(*p),
+                                   ALWAYS );
+            PTR_MethodDesc precodeMD(p->GetMethodDesc());
+#ifdef HAS_FIXUP_PRECODE_CHUNKS
+            {
+                DisplayWriteFieldInt( m_MethodDescChunkIndex,
+                                      p->m_MethodDescChunkIndex, RelativeFixupPrecode,
+                                      ALWAYS );
+                DisplayWriteFieldInt( m_PrecodeChunkIndex,
+                                      p->m_PrecodeChunkIndex, RelativeFixupPrecode,
+                                      ALWAYS );
+                if( p->m_PrecodeChunkIndex == 0 )
+                {
+                    //dump the location of the Base
+                    DisplayWriteElementAddress( "PrecodeChunkBase",
+                                                DataPtrToDisplay(p->GetBase()),
+                                                sizeof(void*), ALWAYS );
+                }
+                //Make sure I align up if there is no code slot to make
+                //sure that I get the padding
+                TADDR mdPtrStart = p->GetBase()
+                    + (p->m_MethodDescChunkIndex * MethodDesc::ALIGNMENT);
+                TADDR mdPtrEnd = ALIGN_UP( mdPtrStart + sizeof(MethodDesc*),
+                                           8 );
+                CoverageRead( mdPtrStart, (ULONG32)(mdPtrEnd - mdPtrStart) );
+                TADDR precodeMDSlot = p->GetBase()
+                    + p->m_MethodDescChunkIndex * MethodDesc::ALIGNMENT;
+                DoWriteFieldMethodDesc( "MethodDesc",
+                                        (DWORD)(precodeMDSlot - PTR_TO_TADDR(p)),
+                                        sizeof(TADDR), precodeMD );
+            }
+#else //HAS_FIXUP_PRECODE_CHUNKS
+            _ASSERTE( !"Unsupported precode without FixupPrecode chunks" );
+#endif //HAS_FIXUP_PRECODE_CHUNKS
+            TADDR target = p->GetTarget();
+            DisplayWriteElementPointer("Target",
+                                        DataPtrToDisplay(target),
+                                        ALWAYS );
+            /* REVISIT_TODO Thu 01/05/2006
+             * dump slot with offset if it is here
+             */
+            DisplayEndStructure( ALWAYS ); //RelativeFixupPrecode
+        }
+        break;
+#endif
 #endif
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     case PRECODE_THISPTR_RETBUF:

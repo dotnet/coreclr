@@ -583,6 +583,31 @@ ThePreStubPatchLabel:
         NESTED_END PrecodeFixupThunk, _TEXT
 
 // ------------------------------------------------------------------
+// The call in fixup precode initally points to this function.
+// The pupose of this function is to load the MethodDesc and forward the call the prestub.
+        NESTED_ENTRY PrecodeRelativeFixupThunk, _TEXT, NoHandler
+
+        // r12 = RelativeFixupPrecode *
+
+        PROLOG_PUSH     "{r0-r1}"
+
+        // Inline computation done by RelativeFixupPrecode::GetMethodDesc()
+        ldrb    r0, [r12, #1]           // m_PrecodeChunkIndex
+        ldrb    r1, [r12, #0]           // m_MethodDescChunkIndex
+
+        add     r12,r12,r0,lsl #4
+        add     r0,r12,r0,lsl #2        // r0  = addr in the last precode in chunk (closest to MethodDescOffset)
+        ldr     r12, [r0,#6]            // r12 = MethodDescOffset
+        add     r0, r12
+        add     r0, #6
+        add     r12,r0,r1,lsl #2
+
+        EPILOG_POP      "{r0-r1}"
+        b C_FUNC(ThePreStub)
+
+        NESTED_END PrecodeRelativeFixupThunk, _TEXT
+
+// ------------------------------------------------------------------
 // void ResolveWorkerAsmStub(r0, r1, r2, r3, r4:IndirectionCellAndFlags, r12:DispatchToken)
 //
 // The stub dispatch thunk which transfers control to VSD_ResolveWorker.

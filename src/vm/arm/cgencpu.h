@@ -73,6 +73,8 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
 
+#define HAS_RELATIVE_FIXUP_PRECODE              1
+
 // ThisPtrRetBufPrecode one is necessary for closed delegates over static methods with return buffer
 #define HAS_THISPTR_RETBUF_PRECODE              1
 
@@ -1080,6 +1082,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 //       update PrecodeStubManager::CheckIsStub_Internal to account for it.
 
 EXTERN_C VOID STDCALL PrecodeFixupThunk();
+EXTERN_C VOID STDCALL PrecodeRelativeFixupThunk();
 
 #define PRECODE_ALIGNMENT           CODE_SIZE_ALIGN
 #define SIZEOF_PRECODE_BASE         CODE_SIZE_ALIGN
@@ -1271,6 +1274,107 @@ struct FixupPrecode {
 #endif
 };
 typedef DPTR(FixupPrecode) PTR_FixupPrecode;
+
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+struct RelativeFixupPrecode {
+
+    static const int Type = 0xe1;
+
+    // ldr r12, [pc, #12]   ; =m_pTargetOffset
+    // add r12, pc
+    // push {r12}
+    // mov r12, pc
+    // pop {pc}
+    // dcb m_MethodDescChunkIndex
+    // dcb m_PrecodeChunkIndex
+    // dcd m_pTargetOffset
+    WORD    m_InstrLdr[2];
+    WORD    m_InstrAdd[1];
+    WORD    m_InstrPush[2];
+    WORD    m_InstrMov[1];
+    WORD    m_InstrPop[1];
+
+    BYTE    m_MethodDescChunkIndex;
+    BYTE    m_PrecodeChunkIndex;
+    TADDR   m_pTargetOffset;
+
+    TADDR GetBase()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SUPPORTS_DAC;
+
+        return dac_cast<TADDR>(this) + (m_PrecodeChunkIndex + 1) * sizeof(RelativeFixupPrecode);
+    }
+
+    TADDR GetMethodDesc();
+
+    static TADDR GetTargetOffset()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return offsetof(RelativeFixupPrecode, m_InstrPush) + 2;
+    }
+
+    PCODE GetTarget()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return dac_cast<TADDR>(this) + GetTargetOffset() + m_pTargetOffset;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTargetOffset);
+        TADDR addr = (TADDR)GetEEFuncEntryPoint(PrecodeRelativeFixupThunk) - (TADDR)(this) - GetTargetOffset();
+        InterlockedExchange((LONG*)&m_pTargetOffset, (LONG)addr);
+    }
+
+    BOOL SetTargetInterlocked(TADDR target, TADDR expected)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTargetOffset);
+        TADDR addrExpected = expected - (TADDR)(this) - GetTargetOffset();
+        TADDR addrTarget = target - (TADDR)(this) - GetTargetOffset();
+        return (TADDR)InterlockedCompareExchange(
+            (LONG*)&m_pTargetOffset, (LONG)addrTarget, (LONG)addrExpected) == addrExpected;
+    }
+
+    static BOOL IsRelativeFixupPrecodeByASM(PCODE addr)
+    {
+        // Check for ldr and add
+        PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(addr));
+
+        return
+           (pInstr[0] == 0xf8df) &&
+           (pInstr[1] == 0xc00c) &&
+           (pInstr[2] == 0x44fc);
+    }
+
+#ifdef FEATURE_PREJIT
+    // Partial initialization. Used to save regrouped chunks.
+    void InitForSave(int iPrecodeChunkIndex);
+
+    void Fixup(DataImage *image, MethodDesc * pMD);
+#endif
+
+#ifdef DACCESS_COMPILE
+    void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
+#endif
+};
+typedef DPTR(RelativeFixupPrecode) PTR_RelativeFixupPrecode;
+#endif
 
 
 // Precode to shuffle this and retbuf for closed delegates over static methods with return buffer

@@ -37,6 +37,9 @@ BOOL Precode::IsValidType(PrecodeType t)
 #endif // HAS_REMOTING_PRECODE
 #ifdef HAS_FIXUP_PRECODE
     case PRECODE_FIXUP:
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     case PRECODE_THISPTR_RETBUF:
@@ -67,6 +70,10 @@ SIZE_T Precode::SizeOf(PrecodeType t)
 #ifdef HAS_FIXUP_PRECODE
     case PRECODE_FIXUP:
         return sizeof(FixupPrecode);
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        return sizeof(RelativeFixupPrecode);
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     case PRECODE_THISPTR_RETBUF:
@@ -103,6 +110,11 @@ PCODE Precode::GetTarget()
     case PRECODE_FIXUP:
         target = AsFixupPrecode()->GetTarget();
         break;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        target = AsRelativeFixupPrecode()->GetTarget();
+        break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     case PRECODE_THISPTR_RETBUF:
@@ -148,6 +160,11 @@ MethodDesc* Precode::GetMethodDesc(BOOL fSpeculative /*= FALSE*/)
     case PRECODE_FIXUP:
         pMD = AsFixupPrecode()->GetMethodDesc();
         break;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        pMD = AsRelativeFixupPrecode()->GetMethodDesc();
+        break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     case PRECODE_THISPTR_RETBUF:
@@ -166,6 +183,15 @@ MethodDesc* Precode::GetMethodDesc(BOOL fSpeculative /*= FALSE*/)
         else
             UnexpectedPrecodeType("Precode::GetMethodDesc", precodeType);
     }
+
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    if (precodeType == PRECODE_RELATIVE_FIXUP)
+    {
+        _ASSERTE(dac_cast<PTR_MethodDesc>(pMD)->IsZapped());
+    }
+#endif
+#endif // HAS_FIXUP_PRECODE
 
     // GetMethodDesc() on platform specific precode types returns TADDR. It should return 
     // PTR_MethodDesc instead. It is a workaround to resolve cyclic dependency between headers. 
@@ -198,10 +224,14 @@ BOOL Precode::IsCorrectMethodDesc(MethodDesc *  pMD)
     {
         PrecodeType precodeType = GetType();
 
-#ifdef HAS_FIXUP_PRECODE_CHUNKS
         // We do not keep track of the MethodDesc in every kind of fixup precode
         if (precodeType == PRECODE_FIXUP)
             return TRUE;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        if (precodeType == PRECODE_RELATIVE_FIXUP)
+        {
+            return TRUE;
+        }
 #endif
     }
 #endif // HAS_FIXUP_PRECODE_CHUNKS
@@ -226,6 +256,11 @@ BOOL Precode::IsPointingToPrestub(PCODE target)
 #ifdef HAS_FIXUP_PRECODE
     if (IsPointingTo(target, GetEEFuncEntryPoint(PrecodeFixupThunk)))
         return TRUE;
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    if (IsPointingTo(target, GetEEFuncEntryPoint(PrecodeRelativeFixupThunk)))
+        return TRUE;
+#endif
 #endif
 
 #ifdef FEATURE_PREJIT
@@ -258,8 +293,15 @@ PCODE Precode::TryToSkipFixupPrecode(PCODE addr)
 
 #if defined(FEATURE_PREJIT) && defined(HAS_FIXUP_PRECODE)
     // Early out for common cases
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(!FixupPrecode::IsFixupPrecodeByASM(addr));
+
+    if (!RelativeFixupPrecode::IsRelativeFixupPrecodeByASM(addr))
+        return NULL;
+#else
     if (!FixupPrecode::IsFixupPrecodeByASM(addr))
         return NULL;
+#endif
 
     // This optimization makes sense in NGened code only.
     Module * pModule = ExecutionManager::FindZapModule(addr);
@@ -300,6 +342,13 @@ Precode* Precode::GetPrecodeForTemporaryEntryPoint(TADDR temporaryEntryPoints, i
         return PTR_Precode(temporaryEntryPoints + index * sizeof(FixupPrecode));
     }
 #endif
+
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(t != PRECODE_RELATIVE_FIXUP);
+#endif
+#endif // HAS_FIXUP_PRECODE
+
     SIZE_T oneSize = SizeOfTemporaryEntryPoint(t);
     return PTR_Precode(temporaryEntryPoints + index * oneSize);
 }
@@ -334,6 +383,13 @@ SIZE_T Precode::SizeOfTemporaryEntryPoints(PrecodeType t, bool preallocateJumpSt
         _ASSERTE(!preallocateJumpStubs);
     }
 #endif
+
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(t != PRECODE_RELATIVE_FIXUP);
+#endif
+#endif // HAS_FIXUP_PRECODE
+
     SIZE_T oneSize = SizeOfTemporaryEntryPoint(t);
     return count * oneSize;
 }
@@ -369,6 +425,12 @@ Precode* Precode::Allocate(PrecodeType t, MethodDesc* pMD,
     CONTRACTL_END;
 
     SIZE_T size;
+
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(t != PRECODE_RELATIVE_FIXUP);
+#endif
+#endif
 
 #ifdef HAS_FIXUP_PRECODE_CHUNKS
     if (t == PRECODE_FIXUP)
@@ -442,6 +504,12 @@ void Precode::ResetTargetInterlocked()
         case PRECODE_FIXUP:
             AsFixupPrecode()->ResetTargetInterlocked();
             break;
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        case PRECODE_RELATIVE_FIXUP:
+            AsRelativeFixupPrecode()->ResetTargetInterlocked();
+            break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 
         default:
@@ -479,6 +547,12 @@ BOOL Precode::SetTargetInterlocked(PCODE target, BOOL fOnlyRedirectFromPrestub)
     case PRECODE_FIXUP:
         ret = AsFixupPrecode()->SetTargetInterlocked(target, expected);
         break;
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        ret = AsRelativeFixupPrecode()->SetTargetInterlocked(target, expected);
+        break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 
 #ifdef HAS_THISPTR_RETBUF_PRECODE
@@ -682,6 +756,12 @@ void Precode::Save(DataImage *image)
     _ASSERTE(GetType() != PRECODE_FIXUP);
 #endif
 
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(GetType() != PRECODE_RELATIVE_FIXUP);
+#endif
+#endif // HAS_FIXUP_PRECODE
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     // StubPrecode and RemotingPrecode may have straddlers (relocations crossing pages) on x86 and x64. We need 
     // to insert padding to eliminate it. To do that, we need to save these using custom ZapNode that can only
@@ -740,6 +820,11 @@ void Precode::Fixup(DataImage *image, MethodDesc * pMD)
     case PRECODE_FIXUP:
         AsFixupPrecode()->Fixup(image, pMD);
         break;
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    case PRECODE_RELATIVE_FIXUP:
+        AsRelativeFixupPrecode()->Fixup(image, pMD);
+        break;
+#endif
 #endif // HAS_FIXUP_PRECODE
     default:
         UnexpectedPrecodeType("Precode::Save", precodeType);
@@ -781,6 +866,12 @@ void Precode::SaveChunk::Save(DataImage* image, MethodDesc * pMD)
     }
 #endif // HAS_FIXUP_PRECODE_CHUNKS
 
+#ifdef HAS_FIXUP_PRECODE
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    _ASSERTE(precodeType != PRECODE_RELATIVE_FIXUP);
+#endif
+#endif // HAS_FIXUP_PRECODE
+
     SIZE_T size = Precode::SizeOf(precodeType);
     Precode* pPrecode = (Precode *)new (image->GetHeap()) BYTE[size];
     pPrecode->Init(precodeType, pMD, NULL);
@@ -795,20 +886,38 @@ static void SaveFixupPrecodeChunk(DataImage * image, MethodDesc ** rgMD, COUNT_T
 {
     STANDARD_VM_CONTRACT;
 
-    ULONG size = sizeof(FixupPrecode) * count + sizeof(PTR_MethodDesc);
-    FixupPrecode * pBase = (FixupPrecode *)new (image->GetHeap()) BYTE[size];
+    ULONG sizeSinglePrecode;
+    PrecodeType type;
 
-    ZapStoredStructure * pNode = image->StoreStructure(NULL, size, kind,
-        Precode::AlignOf(PRECODE_FIXUP));
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    sizeSinglePrecode = sizeof(RelativeFixupPrecode);
+    type = PRECODE_RELATIVE_FIXUP;
+#else
+    sizeSinglePrecode = sizeof(FixupPrecode);
+    type = PRECODE_FIXUP;
+#endif
+
+    ULONG size = sizeSinglePrecode * count + sizeof(PTR_MethodDesc);
+    ZapStoredStructure * pNode = image->StoreStructure(NULL, size, kind, Precode::AlignOf(type));
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    RelativeFixupPrecode * pBase = (RelativeFixupPrecode *)new (image->GetHeap()) BYTE[size];
+#else
+    FixupPrecode * pBase = (FixupPrecode *)new (image->GetHeap()) BYTE[size];
+#endif
 
     for (COUNT_T i = 0; i < count; i++)
     {
         MethodDesc * pMD = rgMD[i];
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        RelativeFixupPrecode * pPrecode = pBase + i;
+#else
         FixupPrecode * pPrecode = pBase + i;
+#endif
 
         pPrecode->InitForSave((count - 1) - i);
 
-        image->BindPointer(pPrecode, pNode, i * sizeof(FixupPrecode));
+        image->BindPointer(pPrecode, pNode, i * sizeSinglePrecode);
 
         // Alias the temporary entrypoint
         image->RegisterSurrogate(pMD, pPrecode);
@@ -896,6 +1005,14 @@ void Precode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
         AsFixupPrecode()->EnumMemoryRegions(flags);
         return;
     }
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    if (t == PRECODE_RELATIVE_FIXUP)
+    {
+        AsRelativeFixupPrecode()->EnumMemoryRegions(flags);
+        return;
+    }
+#endif
 #endif
 
     DacEnumMemoryRegion(GetStart(), SizeOf(t));
