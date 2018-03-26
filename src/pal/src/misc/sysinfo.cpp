@@ -500,8 +500,44 @@ size_t
 PALAPI
 PAL_GetMemAvailableFromOS()
 {
+    size_t value = PAL_GetRestrictedPhysicalMemoryLimit();
+
+    if (value != SIZE_T_MAX)
+    {
+        return value;
+    }
+
+    static int indocker = -1;
+    if (indocker == -1)
+    {
+        FILE* file = fopen("/proc/1/cgroup", "r");
+        if (file != nullptr)
+        {
+            char *line = nullptr;
+            size_t lineLen = 0;
+
+            if (getline(&line, &lineLen, file) != -1)
+            {
+                std::string str(line);
+                std::size_t found = str.find(std::string("docker"));
+                if (found != std::string::npos)
+                {
+                    indocker = 1;
+                }
+                else
+                {
+                    indocker = 0;
+                }
+            }
+            fclose(file);
+        }
+    }
+    else if (indocker == 1)
+    {
+        return value;
+    }
+
     FILE* file = fopen("/proc/meminfo", "r");
-    size_t value = (size_t)-1;
     if (file != nullptr)
     {
         bool result = false;
