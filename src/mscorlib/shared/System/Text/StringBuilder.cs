@@ -486,7 +486,7 @@ namespace System.Text
                         if (newLen > chunk.m_ChunkChars.Length)
                         {
                             // We crossed a chunk boundary when reducing the Length. We must replace this middle-chunk with a new larger chunk,
-                            // to ensure the original capacity is preserved.
+                            // to ensure the capacity we want is preserved.
                             char[] newArray = new char[newLen];
                             Array.Copy(chunk.m_ChunkChars, 0, newArray, 0, chunk.m_ChunkLength);
                             m_ChunkChars = newArray;
