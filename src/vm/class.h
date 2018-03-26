@@ -1958,8 +1958,8 @@ public:
         VMFLAG_PREFER_ALIGN8                   = 0x00200000, // Would like to have 8-byte alignment
         // unused                              = 0x00400000,
 
-        VMFLAG_SPARSE_FOR_COMINTEROP           = 0x00800000,
 #ifdef FEATURE_COMINTEROP
+        VMFLAG_SPARSE_FOR_COMINTEROP           = 0x00800000,
         // interfaces may have a coclass attribute
         VMFLAG_HASCOCLASSATTRIB                = 0x01000000,
         VMFLAG_COMEVENTITFMASK                 = 0x02000000, // class is a special COM event interface

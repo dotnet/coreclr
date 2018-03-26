@@ -850,7 +850,6 @@ public:
     BOOL IsWinRTDelegate();
     BOOL IsWinRTRedirectedInterface(TypeHandle::InteropKind interopKind);
     BOOL IsWinRTRedirectedDelegate();
-    void SetComInterfaceType(CorIfaceAttr ItfType);
 
 #ifdef FEATURE_COMINTEROP
     TypeHandle GetCoClassForInterface();
@@ -863,7 +862,8 @@ public:
 
     // Retrieves the COM interface type.
     CorIfaceAttr    GetComInterfaceType();
-
+    void SetComInterfaceType(CorIfaceAttr ItfType);
+    
     // Determines whether this is a WinRT-legal type
     BOOL IsLegalWinRTType(OBJECTREF *poref);
 
