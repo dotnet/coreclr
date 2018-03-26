@@ -1998,7 +1998,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // For 'armlb' (the JIT LEGACY_BACKEND architecture for arm), tell build.cmd to use legacy backend for crossgen compilation.
                     // Legacy backend is not the default JIT; it is an aljit. So, this is a special case.
                     if (architecture == 'armlb') {
-                        buildOpts += ' -crossgenaltjit legacyjit.dll'
+                        buildOpts += ' -skipmscorlib -skipbuildpackages'
                     }
 
                     if (enableCorefxTesting) {
@@ -2014,6 +2014,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     // This is now a build only job. Do not run tests. Use the flow job.
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${buildArchitecture} ${buildOpts}"
+
+                    if (architecture == 'armlb') {
+                        buildCommands += "build.cmd ${lowerConfiguration} ${buildArchitecture} -skipnative -windowsmscorlib"
+                    }
 
                     if (enableCorefxTesting) {
                         assert isBuildOnly
