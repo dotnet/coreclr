@@ -71,8 +71,8 @@ public:
 BOOL ShouldLogInEventLog();
 // Record managed callstack in EventReporter.
 void LogCallstackForEventReporter(EventReporter& reporter);
-// Record unhandled exceptions that are not handled by DefaultCatchHandler.
-void DoReportForIgnoredUnhandledException(PEXCEPTION_POINTERS pExceptionInfo);
+// Record unhandled native exceptions.
+void DoReportForUnhandledNativeException(PEXCEPTION_POINTERS pExceptionInfo);
 // Helper method for logging stack trace in EventReporter
 void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallStackSString& wordAt, int recursionLimit);
 #endif // _eventreporter_h_

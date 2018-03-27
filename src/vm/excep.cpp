@@ -28,6 +28,7 @@
 #include "shimload.h"
 #include "eeconfig.h"
 #include "virtualcallstub.h"
+#include "typestring.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -5242,7 +5243,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
         {
             pParam->retval = EXCEPTION_CONTINUE_SEARCH;
 #if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
-            DoReportForIgnoredUnhandledException(pParam->pExceptionInfo);
+            DoReportForUnhandledNativeException(pParam->pExceptionInfo);
 #endif
             goto lDone;
         }
@@ -5252,7 +5253,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
             LOG((LF_EH, LL_INFO100, "InternalUnhandledExceptionFilter_Worker, ignoring the exception\n"));
             pParam->retval = EXCEPTION_CONTINUE_SEARCH;
 #if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
-            DoReportForIgnoredUnhandledException(pParam->pExceptionInfo);
+            DoReportForUnhandledNativeException(pParam->pExceptionInfo);
 #endif
             goto lDone;
         }
@@ -5261,7 +5262,7 @@ LONG InternalUnhandledExceptionFilter_Worker(
 
         // Call our default catch handler to do the managed unhandled exception work.
         DefaultCatchHandler(pParam->pExceptionInfo, NULL, useLastThrownObject,
-            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/);
+            TRUE /*isTerminating*/, FALSE /*isThreadBaseFIlter*/, FALSE /*sendAppDomainEvents*/, TRUE /* sendWindowsEventLog */);
 
 lDone: ;
     }
@@ -5514,6 +5515,7 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
                                           const int buf_size,
                                           BOOL sendWindowsEventLog)
 {
+    GCPROTECT_BEGIN(throwable);
     if (throwable != NULL)
     {
         PrintToStdErrA("\n");
@@ -5537,24 +5539,36 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
 
 #if defined(FEATURE_EVENT_TRACE) && !defined(FEATURE_PAL)
         // Send the log to Windows Event Log
-        if (sendWindowsEventLog)
+        if (sendWindowsEventLog && ShouldLogInEventLog())
         {
             EX_TRY
             {
                 EventReporter reporter(EventReporter::ERT_UnhandledException);
-                if (!message.IsEmpty())
+
+                if (IsException(throwable->GetMethodTable()))
                 {
-                    reporter.AddDescription(message);
+                    if (!message.IsEmpty())
+                    {
+                        reporter.AddDescription(message);
+                    }
+                    reporter.Report();
                 }
-                reporter.Report();
+                else
+                {
+                    StackSString s;
+                    TypeString::AppendType(s, TypeHandle(throwable->GetMethodTable()), TypeString::FormatNamespace | TypeString::FormatFullInst);
+                    reporter.AddDescription(s);
+                    LogCallstackForEventReporter(reporter);
+                }
             }
-                EX_CATCH
+            EX_CATCH
             {
             }
             EX_END_CATCH(SwallowAllExceptions);
         }
 #endif
     }
+    GCPROTECT_END();
 }
 
 //******************************************************************************

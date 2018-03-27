@@ -683,7 +683,7 @@ void ReportExceptionStackHelper(OBJECTREF exObj, EventReporter& reporter, SmallS
 // Return Value:
 //    None
 //
-void DoReportForIgnoredUnhandledException(PEXCEPTION_POINTERS pExceptionInfo)
+void DoReportForUnhandledNativeException(PEXCEPTION_POINTERS pExceptionInfo)
 {
     WRAPPER_NO_CONTRACT;
 
