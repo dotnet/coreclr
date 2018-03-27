@@ -75,15 +75,76 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 return basePath;
 
-            int length = path.Length;
-            string combinedPath = null;
+            var builder = new ValueStringBuilder();
+            GetCombinedString(path.AsSpan(), basePath.AsSpan(), ref builder);
 
+            // Device paths are normalized by definition, so passing something of this format (i.e. \\?\C:\.\tmp, \\.\C:\foo)
+            // to Windows APIs won't do anything by design. Additionally, GetFullPathName() in Windows doesn't root
+            // them properly. As such we need to manually remove segments and not use GetFullPath().
+            return PathInternal.IsDevice(builder.AsSpan(terminate: true))
+                ? PathInternal.RemoveRelativeSegments(builder.ToString(), PathInternal.GetRootLength(builder.AsSpan(terminate: true)))
+                : GetFullPath(builder.ToString());
+        }
+
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+            if (path.IsWhiteSpace() || (path.IndexOf('\0') != -1))
+                return false;
+
+            if (PathInternal.IsExtended(path))
+            {
+                bool returnValue = path.TryCopyTo(destination);
+                charsWritten = returnValue ? path.Length : 0;
+                return returnValue;
+            }
+
+            var builder = new ValueStringBuilder();
+            PathHelper.GetFullPathName(path, ref builder);
+            return builder.TryCopyTo(destination, out charsWritten);
+        }
+
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, ReadOnlySpan<char> basePath, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            if (!IsPathFullyQualified(basePath) || basePath.Contains('\0') || path.Contains('\0'))
+                return false;
+
+            if (IsPathFullyQualified(path))
+                return TryGetFullPath(path, destination, out charsWritten);
+
+            if (PathInternal.IsEffectivelyEmpty(path))
+            {
+                bool returnValue = basePath.TryCopyTo(destination);
+                charsWritten = returnValue ? basePath.Length : 0;
+                return returnValue;
+            }
+
+            var builder = new ValueStringBuilder();
+            GetCombinedString(path, basePath, ref builder);
+
+            if (PathInternal.IsDevice(builder.AsSpan(terminate: true)))
+            {
+                PathInternal.RemoveRelativeSegments(builder.ToString(), PathInternal.GetRootLength(builder.AsSpan(terminate: true)), ref builder);
+                return builder.TryCopyTo(destination, out charsWritten);
+            }
+            else
+            {
+                return TryGetFullPath(builder.AsSpan(terminate: true), destination, out charsWritten);
+            }
+        }
+
+        private static void GetCombinedString(ReadOnlySpan<char> path, ReadOnlySpan<char> basePath, ref ValueStringBuilder builder)
+        {
+            int length = path.Length;
             if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
             {
                 // Path is current drive rooted i.e. starts with \:
                 // "\Foo" and "C:\Bar" => "C:\Foo"
                 // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
-                combinedPath = Join(GetPathRoot(basePath.AsSpan()), path.AsSpan(1)); // Cut the separator to ensure we don't end up with two separators when joining with the root.
+                builder.Append(GetPathRoot(basePath));
+                builder.Append(path.Slice(1));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
             {
@@ -95,18 +156,38 @@ namespace System.IO
                     // Matching root
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
                     // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                    combinedPath = Join(basePath, path.AsSpan(2));
+                    builder.Append(basePath);
+                    builder.Append(path.Slice(2));
                 }
                 else
                 {
                     // No matching root, root to specified drive
                     // "D:Foo" and "C:\Bar" => "D:Foo"
                     // "D:Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
-                    combinedPath = !PathInternal.IsDevice(basePath)
-                        ? path.Insert(2, @"\")
-                        : length == 2
-                            ? JoinInternal(basePath.AsSpan(0, 4), path, @"\")
-                            : JoinInternal(basePath.AsSpan(0, 4), path.AsSpan(0, 2), @"\", path.AsSpan(2));
+
+                    if (!PathInternal.IsDevice(basePath))
+                    {
+                        builder.Append(path);
+                        builder.Insert(2, '\\', 1);
+                    }
+                    else
+                    {
+                        if (length == 2)
+                        {
+                            builder.Append(basePath.Slice(0, 4));
+                            builder.Append(path);
+                            builder.Append('\\');
+
+                        }
+                        else
+                        {
+                            builder.Append(basePath.Slice(0, 4));
+                            builder.Append(path.Slice(0, 2));
+                            builder.Append('\\');
+                            builder.Append(path.Slice(2, 0));
+                        }
+
+                    }
                 }
             }
             else
@@ -114,16 +195,9 @@ namespace System.IO
                 // "Simple" relative path
                 // "Foo" and "C:\Bar" => "C:\Bar\Foo"
                 // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
-                combinedPath = JoinInternal(basePath, path);
+                builder.Append(basePath);
+                builder.Append(path);
             }
-
-            // Device paths are normalized by definition, so passing something of this format (i.e. \\?\C:\.\tmp, \\.\C:\foo)
-            // to Windows APIs won't do anything by design. Additionally, GetFullPathName() in Windows doesn't root
-            // them properly. As such we need to manually remove segments and not use GetFullPath().
-
-            return PathInternal.IsDevice(combinedPath)
-                ? PathInternal.RemoveRelativeSegments(combinedPath, PathInternal.GetRootLength(combinedPath))
-                : GetFullPath(combinedPath);
         }
 
         public static string GetTempPath()
@@ -273,7 +347,7 @@ namespace System.IO
         {
             bool isDevice = PathInternal.IsDevice(path);
 
-            if (!isDevice && path.Slice(0, 2).EqualsOrdinal(@"\\") )
+            if (!isDevice && path.Slice(0, 2).EqualsOrdinal(@"\\"))
                 return 2;
             else if (isDevice && path.Length >= 8
                 && (path.Slice(0, 8).EqualsOrdinal(PathInternal.UncExtendedPathPrefix)
