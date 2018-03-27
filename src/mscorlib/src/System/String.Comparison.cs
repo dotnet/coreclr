@@ -83,7 +83,7 @@ namespace System
             Debug.Assert(countA >= 0 && countB >= 0);
             Debug.Assert(indexA + countA <= strA.Length && indexB + countB <= strB.Length);
 
-            return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), indexA), strA.Length, ref Unsafe.Add(ref strB.GetRawStringData(), indexB), strB.Length);
+            return SpanHelpers.SequenceCompareTo(ref Unsafe.Add(ref strA.GetRawStringData(), indexA), countA, ref Unsafe.Add(ref strB.GetRawStringData(), indexB), countB);
         }
 
         private static unsafe bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)

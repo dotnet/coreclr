@@ -27,7 +27,7 @@ namespace System
             if (Unsafe.AreSame(ref first, ref second))
                 goto Equal;
 
-            IntPtr minLength = (IntPtr)((lengthDelta >= 0) ? firstLength : secondLength);
+            IntPtr minLength = (IntPtr)((firstLength < secondLength) ? firstLength : secondLength);
             IntPtr i = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
 
             if ((byte*)minLength >= (byte*)(sizeof(UIntPtr) / sizeof(char)))
