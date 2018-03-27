@@ -231,7 +231,7 @@ namespace System
         /// The GC will not move the array until the returned <see cref="MemoryHandle"/>
         /// is disposed, enabling taking and using the memory's address.
         /// </summary>
-        public unsafe MemoryHandle Retain(bool pin = false)
+        public unsafe MemoryHandle Pin()
         {
             if (_index < 0)
             {
@@ -257,6 +257,7 @@ namespace System
 #endif // FEATURE_PORTABLE_SPAN
                 return new MemoryHandle(null, pointer, handle);
             }
+            return default;
         }
 
         /// <summary>[Obsolete, use Pin()] Creates a handle for the memory.</summary>

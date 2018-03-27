@@ -305,6 +305,7 @@ namespace System
 #endif // FEATURE_PORTABLE_SPAN
                 return new MemoryHandle(null, pointer, handle);
             }
+            return default;
         }
 
         /// <summary>
