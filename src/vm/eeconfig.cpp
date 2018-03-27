@@ -168,7 +168,7 @@ void *EEConfig::operator new(size_t size)
 
 BOOL CtrlHandler(DWORD dwEvent)
 {
-#ifndef CROSSGEN_COMPILE
+#if !CROSSGEN_COMPILE && !FEATURE_PAL
     if (dwEvent == CTRL_CLOSE_EVENT)
     {
         ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
