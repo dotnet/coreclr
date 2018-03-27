@@ -540,9 +540,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int CompareOrdinal(ReadOnlySpan<char> strA, ReadOnlySpan<char> strB)
-        {
-            return SpanHelpers.SequenceCompareTo(ref MemoryMarshal.GetReference(strA), strA.Length, ref MemoryMarshal.GetReference(strB), strB.Length);
-        }
+            => SpanHelpers.SequenceCompareTo(ref MemoryMarshal.GetReference(strA), strA.Length, ref MemoryMarshal.GetReference(strB), strB.Length);
 
         // Compares strA and strB using an ordinal (code-point) comparison.
         //
