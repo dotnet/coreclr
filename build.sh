@@ -456,7 +456,6 @@ isMSBuildOnNETCoreSupported()
                 *)
                 __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
             esac
->>>>>>> upstream/release/2.0.0
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         fi
