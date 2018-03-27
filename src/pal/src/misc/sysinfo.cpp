@@ -26,6 +26,10 @@ Revision History:
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <string>
+#include <sstream>
+#include <iostream>
+
 #if HAVE_SYSCTL
 #include <sys/sysctl.h>
 #elif !HAVE_SYSCONF
