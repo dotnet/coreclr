@@ -326,11 +326,13 @@ namespace System.IO
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(char[] buffer)
         {
             WriteSpan(buffer, appendNewLine: false);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(char[] buffer, int index, int count)
         {
             if (buffer == null)
@@ -353,6 +355,7 @@ namespace System.IO
             WriteSpan(buffer.AsSpan(index, count), appendNewLine: false);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(ReadOnlySpan<char> buffer)
         {
             if (GetType() == typeof(StreamWriter))
@@ -444,17 +447,20 @@ namespace System.IO
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(string value)
         {
             WriteSpan(value, appendNewLine: false);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void WriteLine(string value)
         {
             CheckAsyncTaskInProgress();
             WriteSpan(value, appendNewLine: true);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void WriteLine(ReadOnlySpan<char> value)
         {
             if (GetType() == typeof(StreamWriter))
