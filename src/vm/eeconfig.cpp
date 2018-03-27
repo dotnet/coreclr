@@ -168,7 +168,7 @@ void *EEConfig::operator new(size_t size)
 
 BOOL CtrlHandler(DWORD dwEvent)
 {
-#if !CROSSGEN_COMPILE && !FEATURE_PAL
+#ifndef CROSSGEN_COMPILE
     if (dwEvent == CTRL_CLOSE_EVENT)
     {
         ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
@@ -405,7 +405,9 @@ HRESULT EEConfig::Init()
     // statically link to EEConfig.
     CLRConfig::RegisterGetConfigValueCallback(&GetConfigValueCallback);
 
+#ifndef FEATURE_PAL
     SetConsoleCtrlHandler(CtrlHandler, TRUE);
+#endif
 
     return S_OK;
 }
