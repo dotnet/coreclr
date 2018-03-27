@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -327,10 +328,7 @@ namespace System.IO
 
         public override void Write(char[] buffer)
         {
-            if (buffer != null)
-            {
-                WriteCore(buffer, _autoFlush);
-            }
+            WriteSpan(buffer, appendNewLine: false);
         }
 
         public override void Write(char[] buffer, int index, int count)
@@ -352,14 +350,14 @@ namespace System.IO
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
 
-            WriteCore(new ReadOnlySpan<char>(buffer, index, count), _autoFlush);
+            WriteSpan(buffer.AsSpan(index, count), appendNewLine: false);
         }
 
         public override void Write(ReadOnlySpan<char> buffer)
         {
             if (GetType() == typeof(StreamWriter))
             {
-                WriteCore(buffer, _autoFlush);
+                WriteSpan(buffer, appendNewLine: false);
             }
             else
             {
@@ -369,7 +367,8 @@ namespace System.IO
             }
         }
 
-        private unsafe void WriteCore(ReadOnlySpan<char> buffer, bool autoFlush)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe void WriteSpan(ReadOnlySpan<char> buffer, bool appendNewLine)
         {
             CheckAsyncTaskInProgress();
 
@@ -424,7 +423,22 @@ namespace System.IO
                 }
             }
 
-            if (autoFlush)
+            if (appendNewLine)
+            {
+                char[] coreNewLine = CoreNewLine;
+                for (int i = 0; i < coreNewLine.Length; i++) // Generally 1 (\n) or 2 (\r\n) iterations
+                {
+                    if (_charPos == _charLen)
+                    {
+                        Flush(false, false);
+                    }
+
+                    _charBuffer[_charPos] = coreNewLine[i];
+                    _charPos++;
+                }
+            }
+
+            if (_autoFlush)
             {
                 Flush(true, false);
             }
@@ -432,24 +446,13 @@ namespace System.IO
 
         public override void Write(string value)
         {
-            if (value != null)
-            {
-                WriteCore(value.AsSpan(), _autoFlush);
-            }
+            WriteSpan(value, appendNewLine: false);
         }
 
-        //
-        // Optimize the most commonly used WriteLine overload. This optimization is important for System.Console in particular
-        // because of it will make one WriteLine equal to one call to the OS instead of two in the common case.
-        //
         public override void WriteLine(string value)
         {
             CheckAsyncTaskInProgress();
-            if (value != null)
-            {
-                WriteCore(value.AsSpan(), autoFlush: false);
-            }
-            WriteCore(new ReadOnlySpan<char>(CoreNewLine), autoFlush: true);
+            WriteSpan(value, appendNewLine: true);
         }
 
         public override void WriteLine(ReadOnlySpan<char> value)
@@ -457,8 +460,7 @@ namespace System.IO
             if (GetType() == typeof(StreamWriter))
             {
                 CheckAsyncTaskInProgress();
-                WriteCore(value, autoFlush: false);
-                WriteCore(new ReadOnlySpan<char>(CoreNewLine), autoFlush: true);
+                WriteSpan(value, appendNewLine: true);
             }
             else
             {
