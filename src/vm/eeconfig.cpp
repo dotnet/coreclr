@@ -23,6 +23,7 @@
 #include "regex_util.h"
 #include "clr/fs/path.h"
 #include "configuration.h"
+#include "appdomain.hpp"
 
 using namespace clr;
 
@@ -166,6 +167,18 @@ void *EEConfig::operator new(size_t size)
     RETURN g_EEConfigMemory;
 }
 
+BOOL CtrlHandler(DWORD dwEvent)
+{
+#if !CROSSGEN_COMPILE && !FEATURE_PAL
+    if (dwEvent == CTRL_CLOSE_EVENT)
+    {
+        ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
+    }
+#endif
+
+    // Returning false here allows other handlers to run
+    return FALSE;
+}
 
 /**************************************************************/
 HRESULT EEConfig::Init()
@@ -393,6 +406,7 @@ HRESULT EEConfig::Init()
     // statically link to EEConfig.
     CLRConfig::RegisterGetConfigValueCallback(&GetConfigValueCallback);
 
+    SetConsoleCtrlHandler(CtrlHandler, TRUE);
 
     return S_OK;
 }
