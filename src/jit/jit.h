@@ -7,11 +7,9 @@
 #define _JIT_H_
 /*****************************************************************************/
 
-//
 // clr.sln only defines _DEBUG
 // The jit uses DEBUG rather than _DEBUG
 // So we make sure that _DEBUG implies DEBUG
-//
 #ifdef _DEBUG
 #ifndef DEBUG
 #define DEBUG 1
