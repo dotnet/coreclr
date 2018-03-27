@@ -26,24 +26,24 @@
     <Delete Files="$(BinDir)System.Private.CoreLib.*" />
   </Target>
 
-  <Target Name="RestoreOptData">
-    <PropertyGroup>
-      <OptDataRestoreCommand>"$(DotnetToolCommand)"</OptDataRestoreCommand>
-      <OptDataRestoreCommand>$(OptDataRestoreCommand) restore</OptDataRestoreCommand>
-      <OptDataRestoreCommand>$(OptDataRestoreCommand) --packages "$(PackagesDir.TrimEnd('/').TrimEnd('\'))"</OptDataRestoreCommand>
-    </PropertyGroup>
-    <Exec Command="$(OptDataRestoreCommand) $(SourceDir).nuget/optdata/optdata.csproj" 
-	  StandardOutputImportance="Low" />
-  </Target>
-
   <!--
     BuildTools will conditionally restore additional packages, including IBC tools, using the "RestoreOptionalToolingPackages"
     target, which runs automatically before "Sync". Since no "Sync" target actually exists, go ahead and define one now so that
     the tools are fetched before "Build".
   -->
-  <Target Name="Sync" BeforeTargets="Build" />
+  <Target Name="Sync" BeforeTargets="Build"
+    DependsOnTargets="RestoreOptData;RestoreNETCorePlatforms" />
 
-  <Target Name="RestoreNETCorePlatforms" AfterTargets="Build" Condition="'$(RestoreDuringBuild)'=='true'">
+  <Target Name="RestoreOptData" Condition="'$(RestoreDuringBuild)'=='true' and '$(BuildType)'=='Release'">
+    <PropertyGroup>
+      <_OptimizationDataFeed Condition="'$(DotNetBuildOffline)' != 'true'">--source https://dotnet.myget.org/F/dotnet-core-optimization-data/api/v3/index.json</_OptimizationDataFeed>
+    </PropertyGroup>
+
+    <Exec Command="$(DotnetRestoreCommand) $(_OptimizationDataFeed) $(SourceDir).nuget/optdata/optdata.csproj"
+          StandardOutputImportance="Low" />
+  </Target>
+
+  <Target Name="RestoreNETCorePlatforms" Condition="'$(RestoreDuringBuild)'=='true'">
     <Exec Command="$(DotnetRestoreCommand) $(SourceDir).nuget/init/init.csproj"
           StandardOutputImportance="Low" />
   </Target>
@@ -52,5 +52,5 @@
     <Message Condition="Exists($(RootBinDir))" Importance="High" Text="Removing $(RootBinDir)"/>
     <RemoveDir Directories="$(RootBinDir)" />
   </Target>
-  
+
 </Project>
