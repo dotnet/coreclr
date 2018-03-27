@@ -44,18 +44,20 @@ namespace System.IO
         // We don't guarantee thread safety on StreamWriter, but we should at 
         // least prevent users from trying to write anything while an Async
         // write from the same thread is in progress.
-        private volatile Task _asyncWriteTask;
+        private Task _asyncWriteTask = Task.CompletedTask;
 
         private void CheckAsyncTaskInProgress()
         {
             // We are not locking the access to _asyncWriteTask because this is not meant to guarantee thread safety. 
             // We are simply trying to deter calling any Write APIs while an async Write from the same thread is in progress.
-
-            Task t = _asyncWriteTask;
-
-            if (t != null && !t.IsCompleted)
-                throw new InvalidOperationException(SR.InvalidOperation_AsyncIOInProgress);
+            if (!_asyncWriteTask.IsCompleted)
+            {
+                ThrowAsyncIOInProgress();
+            }
         }
+
+        private static void ThrowAsyncIOInProgress() =>
+            throw new InvalidOperationException(SR.InvalidOperation_AsyncIOInProgress);
 
         // The high level goal is to be tolerant of encoding errors when we read and very strict 
         // when we write. Hence, default StreamWriter encoding will throw on encoding error.   
