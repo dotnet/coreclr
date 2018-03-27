@@ -75,15 +75,105 @@ namespace System.IO
             if (PathInternal.IsEffectivelyEmpty(path))
                 return basePath;
 
+            int length = path.Length;
+            string combinedPath = null;
             var builder = new ValueStringBuilder();
-            GetCombinedString(path.AsSpan(), basePath.AsSpan(), ref builder);
+            if ((length >= 1 && PathInternal.IsDirectorySeparator(path[0])))
+            {
+                // Path is current drive rooted i.e. starts with \:
+                // "\Foo" and "C:\Bar" => "C:\Foo"
+                // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
+
+         //       var builder = new ValueStringBuilder();
+                builder.Append(GetPathRoot(basePath));
+                if (!PathInternal.EndsInDirectorySeparator(GetPathRoot(basePath)))
+                    builder.Append('\\');
+                builder.Append(path.AsSpan().Slice(1));
+                combinedPath = builder.ToString();
+
+                //combinedPath = Join(GetPathRoot(basePath.AsSpan()), path.AsSpan(1)); // Cut the separator to ensure we don't end up with two separators when joining with the root.
+            }
+            else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
+            {
+                // Drive relative paths
+                Debug.Assert(length == 2 || !PathInternal.IsDirectorySeparator(path[2]));
+
+                if (GetVolumeName(path).EqualsOrdinal(GetVolumeName(basePath)))
+                {
+                    // Matching root
+                    // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
+                    // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
+
+        //            var builder = new ValueStringBuilder();
+                    builder.Append(basePath);
+                    if (!PathInternal.EndsInDirectorySeparator(basePath) && path.Length > 2)
+                        builder.Append('\\');
+                    builder.Append(path.AsSpan().Slice(2));
+                    combinedPath = builder.ToString();
+
+                    //combinedPath = Join(basePath, path.AsSpan(2));
+                }
+                else
+                {
+                    // No matching root, root to specified drive
+                    // "D:Foo" and "C:\Bar" => "D:Foo"
+                    // "D:Foo" and "\\?\C:\Bar" => "\\?\D:\Foo"
+
+                    if (!PathInternal.IsDevice(basePath))
+                    {
+      //                  var builder = new ValueStringBuilder();
+                        builder.Append(path);
+                        builder.Insert(2, '\\', 1);
+                        combinedPath = builder.ToString();
+
+                        //combinedPath = path.Insert(2, @"\");
+                    }
+                    else if (length == 2)
+                    {
+    //                    var builder = new ValueStringBuilder();
+                        builder.Append(basePath.AsSpan(0, 4));
+                        builder.Append(path.AsSpan());
+                        if (!PathInternal.EndsInDirectorySeparator(path))
+                            builder.Append('\\');
+                        combinedPath = builder.ToString();
+                        //combinedPath = JoinInternal(basePath.AsSpan(0, 4), path, @"\");
+                    }
+                    else
+                    {
+  //                      var builder = new ValueStringBuilder();
+                        builder.Append(basePath.AsSpan(0, 4));
+                        builder.Append(path.AsSpan(0, 2));
+                        builder.Append('\\');
+                        builder.Append(path.AsSpan(2));
+                        combinedPath = builder.ToString();
+
+                        //combinedPath = JoinInternal(basePath.AsSpan(0, 4), path.AsSpan(0, 2), @"\", path.AsSpan(2));
+                    }
+                } 
+            }
+            else
+            {
+                // "Simple" relative path
+                // "Foo" and "C:\Bar" => "C:\Bar\Foo"
+                // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
+
+                //var builder = new ValueStringBuilder();
+                builder.Append(basePath);
+                if (!PathInternal.EndsInDirectorySeparator(basePath))
+                    builder.Append('\\');
+                builder.Append(path);
+                combinedPath = builder.ToString();
+
+                //combinedPath = JoinInternal(basePath, path);
+            }
 
             // Device paths are normalized by definition, so passing something of this format (i.e. \\?\C:\.\tmp, \\.\C:\foo)
             // to Windows APIs won't do anything by design. Additionally, GetFullPathName() in Windows doesn't root
             // them properly. As such we need to manually remove segments and not use GetFullPath().
-            return PathInternal.IsDevice(builder.AsSpan(terminate: true))
-                ? PathInternal.RemoveRelativeSegments(builder.ToString(), PathInternal.GetRootLength(builder.AsSpan(terminate: true)))
-                : GetFullPath(builder.ToString());
+
+            return PathInternal.IsDevice(builder.ToString())
+                ? PathInternal.RemoveRelativeSegments(builder.ToString(), PathInternal.GetRootLength(builder.ToString().AsSpan()))
+                : GetFullPath(combinedPath);
         }
 
         public static bool TryGetFullPath(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
@@ -144,6 +234,7 @@ namespace System.IO
                 // "\Foo" and "C:\Bar" => "C:\Foo"
                 // "\Foo" and "\\?\C:\Bar" => "\\?\C:\Foo"
                 builder.Append(GetPathRoot(basePath));
+                builder.Append('\\');
                 builder.Append(path.Slice(1));
             }
             else if (length >= 2 && PathInternal.IsValidDriveChar(path[0]) && path[1] == PathInternal.VolumeSeparatorChar)
@@ -157,6 +248,7 @@ namespace System.IO
                     // "C:Foo" and "C:\Bar" => "C:\Bar\Foo"
                     // "C:Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
                     builder.Append(basePath);
+                    builder.Append('\\');
                     builder.Append(path.Slice(2));
                 }
                 else
@@ -175,6 +267,7 @@ namespace System.IO
                         if (length == 2)
                         {
                             builder.Append(basePath.Slice(0, 4));
+                            builder.Append('\\');
                             builder.Append(path);
                             builder.Append('\\');
 
@@ -196,6 +289,7 @@ namespace System.IO
                 // "Foo" and "C:\Bar" => "C:\Bar\Foo"
                 // "Foo" and "\\?\C:\Bar" => "\\?\C:\Bar\Foo"
                 builder.Append(basePath);
+                builder.Append('\\');
                 builder.Append(path);
             }
         }
