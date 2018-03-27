@@ -138,7 +138,7 @@ namespace System.IO
         /// Try to remove relative segments from the given path (without combining with a root).
         /// </summary>
         /// <param name="rootLength">The length of the root of the given path</param>
-        internal static void RemoveRelativeSegments(ReadOnlySpan<char> path, int rootLength, ref ValueStringBuilder sb)
+        internal static string RemoveRelativeSegments(ReadOnlySpan<char> path, int rootLength, ref ValueStringBuilder sb)
         {
             Debug.Assert(rootLength > 0);
             bool flippedSeparator = false;
@@ -148,6 +148,7 @@ namespace System.IO
             {
                 sb.Length = rootLength;
             }
+            return sb.ToString();
         }
 
         private static void RemoveRelativeSegmentsHelper(ReadOnlySpan<char> path, int rootLength, ref ValueStringBuilder sb, ref bool flippedSeparator)
