@@ -39,11 +39,19 @@
       <OSGroup>Linux</OSGroup>
       <Platform>amd64</Platform>
     </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'fedora.27-x64'" Include="fedora/27/Microsoft.NETCore.Jit.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
     <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'opensuse.13.2-x64'" Include="opensuse/13.2/Microsoft.NETCore.Jit.pkgproj">
       <OSGroup>Linux</OSGroup>
       <Platform>amd64</Platform>
     </Project>
     <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'opensuse.42.1-x64'" Include="opensuse/42.1/Microsoft.NETCore.Jit.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'opensuse.42.3-x64'" Include="opensuse/42.3/Microsoft.NETCore.Jit.pkgproj">
       <OSGroup>Linux</OSGroup>
       <Platform>amd64</Platform>
     </Project>
@@ -60,6 +68,10 @@
       <Platform>amd64</Platform>
     </Project>
     <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'ubuntu.16.10-x64'" Include="ubuntu/16.10/Microsoft.NETCore.Jit.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'ubuntu.18.04-x64'" Include="ubuntu/18.04/Microsoft.NETCore.Jit.pkgproj">
       <OSGroup>Linux</OSGroup>
       <Platform>amd64</Platform>
     </Project>
