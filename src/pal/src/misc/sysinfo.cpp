@@ -532,7 +532,8 @@ PAL_GetMemAvailableFromOS()
             fclose(file);
         }
     }
-    else if (indocker == 1)
+
+    if (indocker == 1)
     {
         return value;
     }
