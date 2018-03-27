@@ -1165,7 +1165,8 @@ VIRTUALCommitMemory(
 
 #if defined(LINUX_OOM_KILL)
 #define LINUX_OOM_KILL_THRESHOLD (32 * 1024)
-            if ((PAL_GetMemAvailableFromOS() - MemSize) < LINUX_OOM_KILL_THRESHOLD)
+            size_t availMem = PAL_GetMemAvailableFromOS();
+            if ((availMem <= MemSize) || ((availMem - MemSize) < LINUX_OOM_KILL_THRESHOLD))
             {
                 pRetVal = NULL;
                 goto done;
