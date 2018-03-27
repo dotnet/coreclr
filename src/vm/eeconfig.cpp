@@ -23,7 +23,6 @@
 #include "regex_util.h"
 #include "clr/fs/path.h"
 #include "configuration.h"
-#include "appdomain.hpp"
 
 using namespace clr;
 
