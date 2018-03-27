@@ -2,10 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
 using Internal.Runtime.Augments;
+using Microsoft.Win32;
 
 namespace System.Buffers
 {
@@ -191,15 +193,21 @@ namespace System.Buffers
                 if (tlsBuckets == null)
                 {
                     t_tlsBuckets = tlsBuckets = new Bucket[NumBuckets];
-                    s_allTlsBuckets.Add(tlsBuckets, null);
                     tlsBuckets[bucketIndex].Buffer = array;
-                    Gen2GcCallback.Register(Gen2GcCallbackFunc, this);
+                    if (TrimBuffers)
+                    {
+                        s_allTlsBuckets.Add(tlsBuckets, null);
+                        Gen2GcCallback.Register(Gen2GcCallbackFunc, this);
+                    }
                 }
                 else
                 {
                     T[] prev = tlsBuckets[bucketIndex].Buffer;
                     tlsBuckets[bucketIndex].Buffer = array;
-                    tlsBuckets[bucketIndex].Ticks = (uint)Environment.TickCount;
+                    if (TrimBuffers)
+                    {
+                        tlsBuckets[bucketIndex].Ticks = (uint)Environment.TickCount;
+                    }
                     if (prev != null)
                     {
                         PerCoreLockedStacks stackBucket = _buckets[bucketIndex] ?? CreatePerCoreLockedStacks(bucketIndex);
@@ -265,6 +273,61 @@ namespace System.Buffers
         private static bool Gen2GcCallbackFunc(object target)
         {
             return ((TlsOverPerCoreLockedStacksArrayPool<T>)(target)).Trim();
+        }
+
+        private enum MemoryPressure
+        {
+            Low,
+            Medium,
+            High
+        }
+
+        private static MemoryPressure GetMemoryPressure()
+        {
+            GC.GetMemoryInfo(out uint threshold, out _, out uint lastLoad, out _, out _);
+            if (lastLoad >= threshold * .90)
+            {
+                return MemoryPressure.High;
+            }
+            else if (lastLoad >= threshold * .80)
+            {
+                return MemoryPressure.Medium;
+            }
+            return MemoryPressure.Low;
+        }
+
+        private static bool TrimBuffers { get; } = GetTrimBuffers();
+
+        private static bool GetTrimBuffers()
+        {
+            // Environment uses ArrayPool, so we have to hit the API directly.
+#if !CORECLR
+            // P/Invokes are different for CoreCLR/RT- for RT we'll not allow
+            // enabling/disabling for now.
+            return true;
+#else
+            Span<char> buffer = stackalloc char[32];
+            int result = Win32Native.GetEnvironmentVariable(@"DOTNET_SYSTEM_BUFFERS_TRIMBUFFERS", buffer);
+            switch (result)
+            {
+                case 1:
+                    if (buffer[0] == '0')
+                        return false;
+                    if (buffer[0] == '1')
+                        return true;
+                    break;
+                case 4:
+                    if ("true".AsSpan().EqualsOrdinalIgnoreCase(buffer.Slice(0, 4)))
+                        return true;
+                    break;
+                case 5:
+                    if ("false".AsSpan().EqualsOrdinalIgnoreCase(buffer.Slice(0, 4)))
+                        return false;
+                    break;
+            }
+
+            return true;
+#endif
         }
 
         /// <summary>
@@ -344,9 +407,11 @@ namespace System.Buffers
                 Monitor.Enter(this);
                 if (_count < MaxBuffersPerArraySizePerCore)
                 {
-                    // Stash the time the bottom of the stack was filled
-                    if (_count == 0)
+                    if (TrimBuffers && _count == 0)
+                    {
+                        // Stash the time the bottom of the stack was filled
                         _stockTicks = (uint)Environment.TickCount;
+                    }
 
                     _arrays[_count++] = array;
                     enqueued = true;
@@ -410,27 +475,6 @@ namespace System.Buffers
                 }
                 Monitor.Exit(this);
             }
-        }
-
-        private enum MemoryPressure
-        {
-            Low,
-            Medium,
-            High
-        }
-
-        private static MemoryPressure GetMemoryPressure()
-        {
-            GC.GetMemoryInfo(out uint threshold, out _, out uint lastLoad, out _, out _);
-            if (lastLoad >= threshold * .90)
-            {
-                return MemoryPressure.High;
-            }
-            else if (lastLoad >= threshold * .80)
-            {
-                return MemoryPressure.Medium;
-            }
-            return MemoryPressure.Low;
         }
 
         private struct Bucket
