@@ -700,6 +700,7 @@ while :; do
             ;;
 
         -portablebuild=false)
+            __cmakeargs="$__cmakeargs -DCLR_CMAKE_USE_SYSTEM_LIBUNWIND=1"
             __PortableBuild=0
             ;;
 
