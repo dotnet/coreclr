@@ -336,7 +336,6 @@ class Constants {
                'gcstress0xc'
     ]
 
-    // Note: no GCStress-related scenario is enabled currently.
     def static validLinuxArmScenarios = [
                'innerloop',
                'normal',
@@ -353,7 +352,7 @@ class Constants {
                'r2r_jitstressregs0x1000',
                'r2r_jitminopts',
                'r2r_jitforcerelocs',
-               // 'r2r_gcstress15',
+               'r2r_gcstress15',
                'minopts',
                'forcerelocs',
                'jitstress1',
@@ -374,17 +373,17 @@ class Constants {
                'jitstress2_jitstressregs0x10',
                'jitstress2_jitstressregs0x80',
                'jitstress2_jitstressregs0x1000',
-               'tailcallstress'
-               // 'gcstress0x3',
-               // 'gcstress0xc',
-               // 'zapdisable',
-               // 'heapverify1',
-               // 'gcstress0xc_zapdisable',
-               // 'gcstress0xc_zapdisable_jitstress2',
-               // 'gcstress0xc_zapdisable_heapverify1',
-               // 'gcstress0xc_jitstress1',
-               // 'gcstress0xc_jitstress2',
-               // 'gcstress0xc_minopts_heapverify1'
+               'tailcallstress',
+               'gcstress0x3',
+               'gcstress0xc',
+               'zapdisable',
+               'heapverify1',
+               'gcstress0xc_zapdisable',
+               'gcstress0xc_zapdisable_jitstress2',
+               'gcstress0xc_zapdisable_heapverify1',
+               'gcstress0xc_jitstress1',
+               'gcstress0xc_jitstress2',
+               'gcstress0xc_minopts_heapverify1'
     ]
 
     def static configurationList = ['Debug', 'Checked', 'Release']
@@ -3163,9 +3162,14 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 testOpts += " --test-env=${scriptFileName}"
             }
 
-            // TODO: how to handle GCStress-related testing for Ubuntu/arm?
+            // setup-stress-dependencies.sh, invoked by runtest.sh to download the coredistools package, depends on the "dotnet"
+            // tool downloaded by the "init-tools.sh" script. However, it only invokes setup-stress-dependencies.sh for x64. The
+            // coredistools package is used by GCStress on x86 and x64 to disassemble code to determine instruction boundaries.
+            // On arm/arm64, it is not required as determining instruction boundaries is trivial.
             if (isGCStressRelatedTesting(scenario)) {
-                shell('./init-tools.sh')
+                if (architecture == 'x64') {
+                    shell('./init-tools.sh')
+                }
             }
 
             def runScript = ""
