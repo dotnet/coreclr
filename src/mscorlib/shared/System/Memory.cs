@@ -308,8 +308,7 @@ namespace System
             return default;
         }
 
-        /// <summary>
-        /// [Obsolete, use Pin()] Creates a handle for the memory.
+        /// <summary>[Obsolete, use Pin()] Creates a handle for the memory.</summary>
         /// <param name="pin">
         /// If pin is true, the GC will not move the array until the returned <see cref="MemoryHandle"/>
         /// is disposed, enabling taking and using the memory's address.
