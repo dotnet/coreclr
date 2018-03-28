@@ -124,6 +124,8 @@ namespace System
                     pCh += 1;
                 }
 #if !netstandard11
+                // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
+                // the JIT to see that the code is unreachable and eliminate it when the platform does not have hardware accelerated.
                 if (Vector.IsHardwareAccelerated && pCh < pEndCh)
                 {
                     length = (int)((pEndCh - pCh) & ~(Vector<ushort>.Count - 1));
@@ -133,7 +135,9 @@ namespace System
 
                     while (length > 0)
                     {
-                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pCh));
+                        // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always word aligned
+                        Debug.Assert(((int)pCh % IntPtr.Size) == 0);
+                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pCh));
                         if (Vector<ushort>.Zero.Equals(vMatches))
                         {
                             pCh += Vector<ushort>.Count;
