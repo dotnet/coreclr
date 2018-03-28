@@ -64,17 +64,12 @@ namespace System.Buffers
 
         private int _callbackCreated;
 
+        private readonly static bool s_TrimBuffers = GetTrimBuffers();
+
         /// <summary>
         /// Used to keep track of all thread local buckets for trimming if needed
         /// </summary>
-        private static readonly ConditionalWeakTable<Bucket[], object> s_AllTlsBuckets;
-
-        private unsafe static int s_typeSize = Unsafe.SizeOf<T>();
-
-        static TlsOverPerCoreLockedStacksArrayPool()
-        {
-            s_AllTlsBuckets = TrimBuffers ? new ConditionalWeakTable<Bucket[], object>() : null;
-        }
+        private static readonly ConditionalWeakTable<Bucket[], object> s_AllTlsBuckets = s_TrimBuffers? new ConditionalWeakTable<Bucket[], object>() : null;
 
         /// <summary>Initialize the pool.</summary>
         public TlsOverPerCoreLockedStacksArrayPool()
@@ -210,7 +205,7 @@ namespace System.Buffers
                 {
                     t_tlsBuckets = tlsBuckets = new Bucket[NumBuckets];
                     tlsBuckets[bucketIndex].Buffer = array;
-                    if (TrimBuffers)
+                    if (s_TrimBuffers)
                     {
                         s_AllTlsBuckets.Add(tlsBuckets, null);
                         if (Interlocked.Exchange(ref _callbackCreated, 1) != 1)
@@ -231,7 +226,7 @@ namespace System.Buffers
                     }
                 }
 
-                if (TrimBuffers)
+                if (s_TrimBuffers)
                 {
                     tlsBuckets[bucketIndex].Milliseconds = (uint)Environment.TickCount;
                 }
@@ -316,8 +311,6 @@ namespace System.Buffers
             }
             return MemoryPressure.Low;
         }
-
-        private static bool TrimBuffers { get; } = GetTrimBuffers();
 
         private static bool GetTrimBuffers()
         {
@@ -408,7 +401,7 @@ namespace System.Buffers
                 Monitor.Enter(this);
                 if (_count < MaxBuffersPerArraySizePerCore)
                 {
-                    if (TrimBuffers && _count == 0)
+                    if (s_TrimBuffers && _count == 0)
                     {
                         // Stash the time the bottom of the stack was filled
                         _firstStackItemMS = (uint)Environment.TickCount;
@@ -461,11 +454,11 @@ namespace System.Buffers
                                 {
                                     trimCount++;
                                 }
-                                if (s_typeSize > StackModerateTypeSize)
+                                if (Unsafe.SizeOf<T>() > StackModerateTypeSize)
                                 {
                                     trimCount++;
                                 }
-                                if (s_typeSize > StackLargeTypeSize)
+                                if (Unsafe.SizeOf<T>() > StackLargeTypeSize)
                                 {
                                     trimCount++;
                                 }
