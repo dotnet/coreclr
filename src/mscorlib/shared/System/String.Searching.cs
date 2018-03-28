@@ -79,9 +79,6 @@ namespace System
             if ((uint)count > (uint)(Length - startIndex))
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (count == 0)
-                return -1;
-            
             int result = SpanHelpers.IndexOf(ref Unsafe.Add(ref _firstChar, startIndex), value, count);
 
             return result == -1 ? result : result + startIndex;
