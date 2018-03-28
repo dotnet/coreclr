@@ -35,7 +35,7 @@ namespace System
         // Returns the index of the first occurrence of a specified character in the current instance.
         // The search starts at startIndex and runs thorough the next count characters.
         //
-        public int IndexOf(char value) => this.AsSpan().IndexOf(value);
+        public int IndexOf(char value) => SpanHelpers.IndexOf(ref _firstChar, value, Length);
 
         public int IndexOf(char value, int startIndex)
         {
@@ -82,7 +82,7 @@ namespace System
             if (count == 0)
                 return -1;
             
-            int result = this.AsSpan(startIndex, count).IndexOf(value);
+            int result = SpanHelpers.IndexOf(ref Unsafe.Add(ref _firstChar, startIndex), value, count);
 
             return result == -1 ? result : result + startIndex;
         }

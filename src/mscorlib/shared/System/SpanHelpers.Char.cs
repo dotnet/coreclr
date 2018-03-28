@@ -93,7 +93,7 @@ namespace System
                 if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
                 {
                     const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)Unsafe.AsPointer(ref searchSpace) & (Vector<byte>.Count - 1)) / elementsPerByte;
+                    int unaligned = ((int)pCh & (Vector<byte>.Count - 1)) / elementsPerByte;
                     length = ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
                 }
             SequentialScan:
@@ -146,10 +146,7 @@ namespace System
 
                     if (pCh < pEndCh)
                     {
-                        unchecked
-                        {
-                            length = (int)(pEndCh - pCh);
-                        }
+                        length = (int)(pEndCh - pCh);
                         goto SequentialScan;
                     }
                 }
