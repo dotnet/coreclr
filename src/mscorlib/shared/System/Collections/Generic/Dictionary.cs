@@ -275,11 +275,12 @@ namespace System.Collections.Generic
 
         public bool ContainsValue(TValue value)
         {
+            Entry[] entries = _entries;
             if (value == null)
             {
                 for (int i = 0; i < _count; i++)
                 {
-                    if (_entries[i].hashCode >= 0 && _entries[i].value == null) return true;
+                    if (entries[i].hashCode >= 0 && entries[i].value == null) return true;
                 }
             }
             else
@@ -289,8 +290,7 @@ namespace System.Collections.Generic
                     // ValueType: Devirtualize with EqualityComparer<TValue>.Default intrinsic
                     for (int i = 0; i < _count; i++)
                     {
-                        ref var entry = ref _entries[i];
-                        if (entry.hashCode >= 0 && EqualityComparer<TValue>.Default.Equals(entry.value, value)) return true;
+                        if (entries[i].hashCode >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, value)) return true;
                     }
                 }
                 else
@@ -301,8 +301,7 @@ namespace System.Collections.Generic
                     EqualityComparer<TValue> defaultComparer = EqualityComparer<TValue>.Default;
                     for (int i = 0; i < _count; i++)
                     {
-                        ref var entry = ref _entries[i];
-                        if (entry.hashCode >= 0 && defaultComparer.Equals(entry.value, value)) return true;
+                        if (entries[i].hashCode >= 0 && defaultComparer.Equals(entries[i].value, value)) return true;
                     }
                 }
             }
