@@ -6,9 +6,13 @@ using System.Diagnostics.Tracing;
 
 namespace System
 {
-    [EventSource(Guid = "38ed3633-5e3f-5989-bf25-f0b1b3318c9b", Name = "Microsoft -DotNETRuntime-PinnableBufferCache-System")]
+    [EventSource(Guid = "38ed3633-5e3f-5989-bf25-f0b1b3318c9b", Name = "Microsoft-DotNETRuntime-PinnableBufferCache-System")]
     internal sealed class PinnableBufferCacheEventSource : EventSource
     {
+        private PinnableBufferCacheEventSource() 
+            : base(new Guid(0x38ed3633, 0x5e3f, 0x5989, 0xbf, 0x25, 0xf0, 0xb1, 0xb3, 0x31, 0x8c, 0x9b), "Microsoft-DotNETRuntime-PinnableBufferCache-System")
+        { }
+
         public static readonly PinnableBufferCacheEventSource Log = new PinnableBufferCacheEventSource();
 
         [Event(1, Level = EventLevel.Verbose)]

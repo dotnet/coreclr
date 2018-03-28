@@ -13,7 +13,7 @@ namespace System
     /// </summary>
     internal sealed class Gen2GcCallback : CriticalFinalizerObject
     {
-        public Gen2GcCallback()
+        private Gen2GcCallback()
             : base()
         {
         }
