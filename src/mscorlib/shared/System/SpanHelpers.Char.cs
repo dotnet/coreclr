@@ -93,7 +93,7 @@ namespace System
                 if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
                 {
                     const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    int unaligned = ((int)pCh & (Vector<byte>.Count - 1)) / elementsPerByte;
+                    int unaligned = ((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte;
                     length = ((Vector<ushort>.Count - unaligned) & (Vector<ushort>.Count - 1));
                 }
             SequentialScan:
@@ -136,7 +136,7 @@ namespace System
                     while (length > 0)
                     {
                         // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always vector aligned
-                        Debug.Assert(((int)pCh & (Vector<byte>.Count - 1)) == 0);
+                        Debug.Assert(((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) == 0);
                         Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pCh));
                         if (Vector<ushort>.Zero.Equals(vMatches))
                         {
