@@ -135,8 +135,8 @@ namespace System
 
                     while (length > 0)
                     {
-                        // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always word aligned
-                        Debug.Assert(((int)pCh % IntPtr.Size) == 0);
+                        // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh is always vector aligned
+                        Debug.Assert(((int)pCh & (Vector<byte>.Count - 1)) == 0);
                         Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pCh));
                         if (Vector<ushort>.Zero.Equals(vMatches))
                         {
