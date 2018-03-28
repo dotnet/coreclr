@@ -23,15 +23,15 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>919d6f0dba5fea7ec0f4c68cbb9707ad098fd7da</CoreFxCurrentRef>
-    <CoreClrCurrentRef>919d6f0dba5fea7ec0f4c68cbb9707ad098fd7da</CoreClrCurrentRef>
+    <CoreFxCurrentRef>bf7e5dc53ea4dc9d7bcfcb1122af6d3b08441fac</CoreFxCurrentRef>
+    <CoreClrCurrentRef>bf7e5dc53ea4dc9d7bcfcb1122af6d3b08441fac</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.4.4-servicing-26308-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.0.1</MicrosoftNETCorePlatformsPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.0.7-servicing-26309-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.4.4-servicing-26328-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.0.2</MicrosoftNETCorePlatformsPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.0.7</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <SystemMemoryPackageVersion>4.4.0-preview3-25526-01</SystemMemoryPackageVersion>
     <SystemRuntimeCompilerServicesUnsafePackageVersion>4.4.0</SystemRuntimeCompilerServicesUnsafePackageVersion>
     <SystemSecurityPermissionsPackageVersion>4.4.1</SystemSecurityPermissionsPackageVersion>
