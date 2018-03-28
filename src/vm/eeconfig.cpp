@@ -166,19 +166,6 @@ void *EEConfig::operator new(size_t size)
     RETURN g_EEConfigMemory;
 }
 
-BOOL CtrlHandler(DWORD dwEvent)
-{
-#if !CROSSGEN_COMPILE && !FEATURE_PAL
-    if (dwEvent == CTRL_CLOSE_EVENT)
-    {
-        ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
-    }
-#endif
-
-    // Returning false here allows other handlers to run
-    return FALSE;
-}
-
 /**************************************************************/
 HRESULT EEConfig::Init()
 {
@@ -404,10 +391,6 @@ HRESULT EEConfig::Init()
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
     CLRConfig::RegisterGetConfigValueCallback(&GetConfigValueCallback);
-
-#ifndef FEATURE_PAL
-    SetConsoleCtrlHandler(CtrlHandler, TRUE);
-#endif
 
     return S_OK;
 }
