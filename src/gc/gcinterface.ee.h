@@ -243,6 +243,16 @@ public:
     virtual
     Thread* GetThread() = 0;
 
+    // The pause intrinsics can vary quite a bit depending on processor generation.
+    // This method provides a way to pause for the same amount of time independent of
+    // architecture.
+    virtual
+    void YieldProcessorNormalized() = 0;
+
+    // Allow the vm to do any initialization for YieldProcessorNormalized
+    virtual
+    void EnsureYieldProcessorNormalizedInitialized() = 0;
+
     // Retrieves the alloc context associated with the current thread.
     virtual
     gc_alloc_context * GetAllocContext() = 0;

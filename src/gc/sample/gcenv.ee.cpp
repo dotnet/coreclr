@@ -175,6 +175,16 @@ bool GCToEEInterface::IsPreemptiveGCDisabled()
     return pThread->PreemptiveGCDisabled();
 }
 
+void GCToEEInterface::YieldProcessorNormalized()
+{
+    YieldProcessor();
+}
+
+void GCToEEInterface::EnsureYieldProcessorNormalizedInitialized()
+{
+
+}
+
 bool GCToEEInterface::EnablePreemptiveGC()
 {
     bool bToggleGC = false;

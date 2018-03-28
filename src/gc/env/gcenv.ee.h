@@ -51,6 +51,8 @@ public:
     static bool EnablePreemptiveGC();
     static void DisablePreemptiveGC();
     static Thread* GetThread();
+    static void YieldProcessorNormalized();
+    static void EnsureYieldProcessorNormalizedInitialized();
 
     static gc_alloc_context * GetAllocContext();
 

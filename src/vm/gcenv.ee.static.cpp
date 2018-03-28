@@ -7,6 +7,7 @@
 #include "../gc/env/gcenv.ee.h"
 #include "threadsuspend.h"
 #include "nativeoverlapped.h"
+#include "yieldprocessornormalized.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
