@@ -208,19 +208,6 @@ void ShutdownEEAndExitProcess()
     ForceEEShutdown(SCA_ExitProcessWhenShutdownComplete);
 }
 
-BOOL CtrlHandler(DWORD dwEvent)
-{
-#if !CROSSGEN_COMPILE && !FEATURE_PAL
-    if (dwEvent == CTRL_CLOSE_EVENT)
-    {
-        ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
-    }
-#endif
-
-    // Returning false here allows other handlers to run
-    return FALSE;
-}
-
 void InitializeExceptionHandling()
 {
     EH_LOG((LL_INFO100, "InitializeExceptionHandling(): ExceptionTracker size: 0x%x bytes\n", sizeof(ExceptionTracker)));
@@ -243,8 +230,6 @@ void InitializeExceptionHandling()
 
     // Register handler for termination requests (e.g. SIGTERM)
     PAL_SetTerminationRequestHandler(ShutdownEEAndExitProcess);
-#else
-    SetConsoleCtrlHandler(CtrlHandler, TRUE);
 #endif // FEATURE_PAL
 }
 
