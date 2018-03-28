@@ -1088,6 +1088,12 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         }
     }
 
+    if ((architecture == 'arm') && (os != 'Windows_NT') && isGCStressRelatedTesting(scenario)) {
+        // Non-Windows Arm GCStress jobs currently don't get cron or push triggers (until they are functional).
+        // See https://github.com/dotnet/coreclr/issues/17241.
+        return
+    }
+
     // Check scenario.
     switch (scenario) {
         case 'innerloop':
