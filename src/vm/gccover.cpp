@@ -144,69 +144,11 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     }
 #endif
 
-    if (pMD->m_GcCover)
-        return;
-
-    //
-    // In the gcstress=4 case, we can easily piggy-back onto the JITLock because we
-    // have a JIT operation that needs to take that lock already.  But in the case of
-    // gcstress=8, we cannot do this because the code already exists, and if gccoverage
-    // were not in the picture, we're happy to race to do the prestub work because all
-    // threads end up with the same answer and don't leak any resources in the process.
-    // 
-    // However, with gccoverage, we need to exclude all other threads from mucking with
-    // the code while we fill in the breakpoints and make our shadow copy of the code.
-    //
-    {
-        BaseDomain* pDomain = pMD->GetDomain();
-        // Enter the global lock which protects the list of all functions being JITd
-        JitListLock::LockHolder pJitLock(pDomain->GetJitLock());
-
-
-        // It is possible that another thread stepped in before we entered the global lock for the first time.
-        if (pMD->m_GcCover)
-        {
-            // We came in to jit but someone beat us so return the jitted method!
-            return;
-        }
-        else
-        {
-            const char *description = "jit lock (gc cover)";
-#ifdef _DEBUG 
-            description = pMD->m_pszDebugMethodName;
-#endif
-            ReleaseHolder<JitListLockEntry> pEntry(JitListLockEntry::Find(pJitLock, pMD->GetInitialCodeVersion(), description));
-
-            // We have an entry now, we can release the global lock
-            pJitLock.Release();
-
-            // Take the entry lock
-            {
-                JitListLockEntry::LockHolder pEntryLock(pEntry, FALSE);
-
-                if (pEntryLock.DeadlockAwareAcquire())
-                {
-                    // we have the lock...
-                }
-                else
-                {
-                    // Note that at this point we don't have the lock, but that's OK because the
-                    // thread which does have the lock is blocked waiting for us.
-                }
-
-                if (pMD->m_GcCover)
-                {
-                    return;
-                }
-
-                PCODE codeStart = (PCODE) methodStartPtr;
-
-                SetupAndSprinkleBreakpointsForJittedMethod(pMD, 
-                                                           codeStart
-                                                          );
-            }
-        }
-    }
+    // We should be the first and only thread to instrument this
+    // method for gc coverage.
+    _ASSERTE(!pMD->m_GcCover);
+    PCODE codeStart = (PCODE) methodStartPtr;
+    SetupAndSprinkleBreakpointsForJittedMethod(pMD, codeStart);
 }
 
 #ifdef FEATURE_PREJIT
@@ -1305,6 +1247,8 @@ void RemoveGcCoverageInterrupt(TADDR instrPtr, BYTE * savedInstrPtr)
 #else
         *(BYTE *)instrPtr = *savedInstrPtr;
 #endif
+
+        FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 4);
 }
 
 BOOL OnGcCoverageInterrupt(PCONTEXT regs)
@@ -1677,7 +1621,8 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         }
 
         // Must flush instruction cache before returning as instruction has been modified.
-        FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 6);
+        // Note this needs to reach beyond the call by up to 4 bytes.
+        FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 10);
 
         // It's not GC safe point, the GC Stress instruction is 
         // already commited and interrupt is already put at next instruction so we just return.
