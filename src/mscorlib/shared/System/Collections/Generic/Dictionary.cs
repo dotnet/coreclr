@@ -61,6 +61,9 @@ namespace System.Collections.Generic
         private const string KeyValuePairsName = "KeyValuePairs"; // Do not rename (binary serialization)
         private const string ComparerName = "Comparer"; // Do not rename (binary serialization)
 
+        private static ConditionalWeakTable<object, SerializationInfo> s_serializationInfoTable;
+        private static ConditionalWeakTable<object, SerializationInfo> SerializationInfoTable => LazyInitializer.EnsureInitialized(ref s_serializationInfoTable);
+
         public Dictionary() : this(0, null) { }
 
         public Dictionary(int capacity) : this(capacity, null) { }
@@ -139,7 +142,7 @@ namespace System.Collections.Generic
             // We can't do anything with the keys and values until the entire graph has been deserialized
             // and we have a resonable estimate that GetHashCode is not going to fail.  For the time being,
             // we'll just cache this.  The graph is not valid until OnDeserialization has been called.
-            HashHelpers.SerializationInfoTable.Add(this, info);
+            SerializationInfoTable.Add(this, info);
         }
 
         public IEqualityComparer<TKey> Comparer
@@ -576,7 +579,8 @@ namespace System.Collections.Generic
 
         public virtual void OnDeserialization(object sender)
         {
-            HashHelpers.SerializationInfoTable.TryGetValue(this, out SerializationInfo siInfo);
+            SerializationInfo siInfo;
+            SerializationInfoTable.TryGetValue(this, out siInfo);
 
             if (siInfo == null)
             {
@@ -616,7 +620,7 @@ namespace System.Collections.Generic
             }
 
             _version = realVersion;
-            HashHelpers.SerializationInfoTable.Remove(this);
+            SerializationInfoTable.Remove(this);
         }
 
         private void Resize()
