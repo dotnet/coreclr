@@ -1083,9 +1083,9 @@ class UTF8Encoding
         return ptr1 - ptr2;
     }
 
-    size_t PtrDiff(void* ptr1, void* ptr2)
+    size_t PtrDiff(BYTE* ptr1, BYTE* ptr2)
     {
-        return (BYTE*)ptr1 - (BYTE*)ptr2;
+        return ptr1 - ptr2;
     }
 
     void ThrowBytesOverflow()
