@@ -455,6 +455,12 @@
       "valueType": "passThrough",
       "values": [],
       "defaultValue": ""
+    },
+    "ExtraTestParameters": {
+      "description": "Extra parameters will be passed to the selected test build command.",
+      "valueType": "passThrough",
+      "values": [],
+      "defaultValue": ""
     }
   },
   "commands": {

@@ -1,0 +1,73 @@
+<!--
+***********************************************************************************************
+
+WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
+          created a backup copy.  Incorrect changes to this file will make it
+          impossible to load or build coreclr test projects from the command-line or the IDE.
+
+dirs.proj.xml file contains template used for generating coreclr/tests/src/dir.proj project and
+any changes made in this file require running generatedirsproj command in this directory to regenerate
+dirs.proj project
+
+Copyright (C) Microsoft Corporation. All rights reserved.
+***********************************************************************************************
+-->
+<Project ToolsVersion="15.0" DefaultTargets="Build" InitialTargets="VerifyBuildTools" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="dir.props" />
+
+  <Target Name="VerifyBuildTools" 
+    Inputs="$(BuildToolsTargetInputs)"
+    Outputs="$(BuildToolsTargetOutputs)"
+    >
+    <Error Condition="!Exists('$(BuildToolsInstallSemaphore)')" 
+      Text="The build tools have not been installed. Please run buildtest.cmd from the root of the repo at least once to get the tools installed." />
+
+    <!-- If we enter this target at all then the inputs are newer then the outputs so give a warning. -->
+    <Warning Text="Looks like there may be an update to the build tools. Please run buildtest.cmd from the root of the repo to refresh the build tools." /> 
+  </Target>
+
+  <Target Name="ResolveDisabledProjects" BeforeTargets="BuildAllProjects" >
+    <ItemGroup Label="DisabledProjectsItemGroup">
+      <DisabledProjects Include="TestWrappers*\**\*.csproj" />
+      <DisabledProjects Include="*\**\cs_template.csproj" />
+      <DisabledProjects Include="Common\Coreclr.TestWrapper\Coreclr.TestWrapper.csproj" Condition="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')" />
+      <DisabledProjects Include="Common\Desktop.Coreclr.TestWrapper\Desktop.Coreclr.TestWrapper.csproj" Condition="('$(BuildTestsAgainstPackages)' == 'true') Or ('$(BuildOS)' != 'Windows_NT')" />
+      <DisabledProjects Include="Common\test_runtime\test_runtime.csproj" />
+      <DisabledProjects Include="Common\test_dependencies\test_dependencies.csproj" />
+      <DisabledProjects Include="Common\build_against_pkg_dependencies\build_against_pkg_dependencies.csproj" />
+      <DisabledProjects Include="Common\targeting_pack_ref\targeting_pack_ref.csproj" />
+      <DisabledProjects Include="Common\external\external.csproj" />
+      <DisabledProjects Include="Common\PerfHarness\PerfHarness.csproj" />
+      <DisabledProjects Include="GC\Performance\Framework\GCPerfTestFramework.csproj" />
+      <DisabledProjects Include="JIT\superpmi\superpmicollect.csproj" Condition="('$(BuildTestsAgainstPackages)' == 'true') Or ('$(BuildOS)' != 'Windows_NT')" />
+      <DisabledProjects Include="JIT\config\**" />
+      <DisabledProjects Include="Performance\performance.csproj" />
+      <DisabledProjects Include="Performance\Scenario\JitBench\unofficial_dotnet\JitBench.csproj" /> <!-- no official build support for SDK-style netcoreapp2.0 projects -->
+      <DisabledProjects Include="Loader\classloader\generics\regressions\DD117522\Test.csproj" />
+      <DisabledProjects Include="Loader\classloader\generics\GenericMethods\VSW491668.csproj" /> <!-- issue 5501 -->
+    </ItemGroup>
+
+    <!-- Unix builds do not support groups and slices -->
+    <ItemGroup Condition="$(__BuildOS) != 'Windows_NT'">
+      <Project Include="*\**\*.csproj" Exclude="@(DisabledProjects)">
+        <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
+      </Project>
+      <Project Include="*\**\*.ilproj" Exclude="@(DisabledProjects)">
+        <AdditionalProperties>OSGroup=$(OSGroup)</AdditionalProperties>
+      </Project>
+    </ItemGroup>
+
+    <!-- Test build is divided in slices which can be created within Test Group
+         Priority 0 tests are build using Test Group 1 with 2 subgroups or slices -->    
+
+<!--{{{TestGroupProjects}}}-->
+
+  </Target>
+
+  <Import Project="..\dir.traversal.targets" />
+  
+  <!-- Override clean from dir.traversal.targets and just remove the full BinDir -->
+  <Target Name="Clean">
+    <RemoveDir Directories="$(BinDir)" />
+  </Target>
+</Project>

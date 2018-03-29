@@ -288,7 +288,7 @@ REM See https://github.com/Microsoft/msbuild/issues/2993
 
 set __SkipPackageRestore=false
 set __SkipTargetingPackBuild=false
-set __BuildLoopCount=2
+set __BuildLoopCount=3
 set __TestGroupToBuild=1
 
 if %__Priority% GTR 0 (set __BuildLoopCount=16&set __TestGroupToBuild=2)
@@ -301,7 +301,8 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
 
     set TestBuildSlice=%%G
-    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
+    set "__ExtraTestParameters=/p:TestBuildSlice=!TestBuildSlice! /p:__SkipPackageRestore=!__SkipPackageRestore! /p:__SkipTargetingPackBuild=!__SkipTargetingPackBuild!"
+    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% !__unprocessedBuildArgs! -ExtraTestParameters="!__ExtraTestParameters!"
 
     if errorlevel 1 (
         echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
@@ -315,6 +316,8 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __SkipTargetingPackBuild=true
     set __AppendToLog=true
 )
+
+set  __unprocessedBuildArgs=!__LocalUnprocessedBuildArgs!
 
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
