@@ -69,7 +69,7 @@ namespace System.Buffers
         /// <summary>
         /// Used to keep track of all thread local buckets for trimming if needed
         /// </summary>
-        private static readonly ConditionalWeakTable<Bucket[], object> s_AllTlsBuckets = s_TrimBuffers? new ConditionalWeakTable<Bucket[], object>() : null;
+        private static readonly ConditionalWeakTable<Bucket[], object> s_AllTlsBuckets = s_TrimBuffers ? new ConditionalWeakTable<Bucket[], object>() : null;
 
         /// <summary>Initialize the pool.</summary>
         public TlsOverPerCoreLockedStacksArrayPool()
