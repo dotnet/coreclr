@@ -1,3 +1,37 @@
+From 3b5285b0e7888270dc04c29dc2aa2c26381c68a8 Mon Sep 17 00:00:00 2001
+From: Michelle McDaniel <adiaaida@gmail.com>
+Date: Thu, 15 Mar 2018 14:54:25 -0700
+Subject: [PATCH] whatever
+
+---
+ .gitignore                               |   1 -
+ Dotnet-Install.ps1                       | 486 +++++++++++++++++++
+ NuGet.config                             |   8 +
+ Word2LibConsole/Word2LibConsole.vcxproj  |   8 +-
+ Word2Vec.Net/Distance.cs                 |   4 +-
+ Word2Vec.Net/Properties/AssemblyInfo.cs  |  36 --
+ Word2Vec.Net/Word2Vec.Net.csproj         |  78 +--
+ Word2Vec.Net/Word2Vec.cs                 |  80 ++--
+ Word2Vec.Net/WordAnalogy.cs              |   2 +-
+ Word2VecScenario/App.config              |  12 +
+ Word2VecScenario/Corpus.txt.ReadMe.txt   |   5 +
+ Word2VecScenario/Program.cs              | 161 +++++++
+ Word2VecScenario/Word2VecScenario.csproj |  34 ++
+ build/common.props                       |   5 +
+ build/dependencies.props                 |   5 +
+ dotnet-install.sh                        | 794 +++++++++++++++++++++++++++++++
+ 16 files changed, 1574 insertions(+), 145 deletions(-)
+ create mode 100644 Dotnet-Install.ps1
+ create mode 100644 NuGet.config
+ delete mode 100644 Word2Vec.Net/Properties/AssemblyInfo.cs
+ create mode 100644 Word2VecScenario/App.config
+ create mode 100644 Word2VecScenario/Corpus.txt.ReadMe.txt
+ create mode 100644 Word2VecScenario/Program.cs
+ create mode 100644 Word2VecScenario/Word2VecScenario.csproj
+ create mode 100644 build/common.props
+ create mode 100644 build/dependencies.props
+ create mode 100644 dotnet-install.sh
+
 diff --git a/.gitignore b/.gitignore
 index 8098fe2..7c82f99 100644
 --- a/.gitignore
@@ -1897,3 +1931,6 @@ index 0000000..549a0c7
 +
 +say "Installation finished successfully."
 \ No newline at end of file
+-- 
+2.15.1.windows.2
+
