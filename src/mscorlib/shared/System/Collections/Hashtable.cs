@@ -153,9 +153,6 @@ namespace System.Collections
         private IEqualityComparer _keycomparer;
         private Object _syncRoot;
 
-        private static ConditionalWeakTable<object, SerializationInfo> s_serializationInfoTable;
-        private static ConditionalWeakTable<object, SerializationInfo> SerializationInfoTable => LazyInitializer.EnsureInitialized(ref s_serializationInfoTable);
-
         [Obsolete("Please use EqualityComparer property.")]
         protected IHashCodeProvider hcp
         {
@@ -385,7 +382,7 @@ namespace System.Collections
             //We can't do anything with the keys and values until the entire graph has been deserialized
             //and we have a reasonable estimate that GetHashCode is not going to fail.  For the time being,
             //we'll just cache this.  The graph is not valid until OnDeserialization has been called.
-            SerializationInfoTable.Add(this, info);
+            HashHelpers.SerializationInfoTable.Add(this, info);
         }
 
         // ?InitHash? is basically an implementation of classic DoubleHashing (see http://en.wikipedia.org/wiki/Double_hashing)  
@@ -1180,7 +1177,7 @@ namespace System.Collections
             }
 
             SerializationInfo siInfo;
-            SerializationInfoTable.TryGetValue(this, out siInfo);
+            HashHelpers.SerializationInfoTable.TryGetValue(this, out siInfo);
 
             if (siInfo == null)
             {
@@ -1262,7 +1259,7 @@ namespace System.Collections
 
             _version = siInfo.GetInt32(VersionName);
 
-            SerializationInfoTable.Remove(this);
+            HashHelpers.SerializationInfoTable.Remove(this);
         }
 
         // Implements a Collection for the keys of a hashtable. An instance of this
