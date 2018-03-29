@@ -1083,9 +1083,9 @@ class UTF8Encoding
         return ptr1 - ptr2;
     }
 
-    size_t PtrDiff(void* ptr1, void* ptr2)
+    size_t PtrDiff(BYTE* ptr1, BYTE* ptr2)
     {
-        return (BYTE*)ptr1 - (BYTE*)ptr2;
+        return ptr1 - ptr2;
     }
 
     void ThrowBytesOverflow()
@@ -1123,12 +1123,11 @@ class UTF8Encoding
     // During GetChars we had an invalid byte sequence
     // pSrc is backed up to the start of the bad sequence if we didn't have room to
     // fall it back.  Otherwise pSrc remains where it is.
-    bool FallbackInvalidByteSequence(
-        BYTE** pSrc, int ch, DecoderFallbackBuffer* fallback, WCHAR** pTarget)
+    bool FallbackInvalidByteSequence(BYTE** pSrc, int ch, DecoderFallbackBuffer* fallback, WCHAR** pTarget)
     {
         // Get our byte[]
         BYTE * pStart = *pSrc;
-        BYTE *bytesUnknown;        
+        BYTE * bytesUnknown;        
         int size = GetBytesUnknown(pStart, ch,  &bytesUnknown);
 
         // Do the actual fallback
