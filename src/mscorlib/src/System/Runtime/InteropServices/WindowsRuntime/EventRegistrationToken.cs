@@ -52,7 +52,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         bool IEquatable<EventRegistrationToken>.Equals(EventRegistrationToken other)
         {
-            return other.Equals(m_value);
+            return Equals(other);
         }
 
         private bool Equals(EventRegistrationToken other)
