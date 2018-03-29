@@ -1126,8 +1126,8 @@ class UTF8Encoding
     bool FallbackInvalidByteSequence(BYTE** pSrc, int ch, DecoderFallbackBuffer* fallback, WCHAR** pTarget)
     {
         // Get our byte[]
-        BYTE * pStart = *pSrc;
-        BYTE * bytesUnknown;        
+        BYTE* pStart = *pSrc;
+        BYTE* bytesUnknown;        
         int size = GetBytesUnknown(pStart, ch,  &bytesUnknown);
 
         // Do the actual fallback
