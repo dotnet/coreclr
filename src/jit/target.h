@@ -1439,9 +1439,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
-  #define RBM_PROFILER_ENTER_TRASH     RBM_CALLEE_TRASH
-  #define RBM_PROFILER_LEAVE_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
-  #define RBM_PROFILER_TAILCALL_TRASH  RBM_PROFILER_LEAVE_TRASH
+  #define RBM_PROFILER_ENTER_TRASH     RBM_NONE
+  #define RBM_PROFILER_LEAVE_TRASH     RBM_NONE
+  #define RBM_PROFILER_TAILCALL_TRASH  RBM_NONE
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_R0
