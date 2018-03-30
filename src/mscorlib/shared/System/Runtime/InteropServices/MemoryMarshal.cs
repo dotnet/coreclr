@@ -41,7 +41,7 @@ namespace System.Runtime.InteropServices
                 return true;
             }
 
-            if (length == 0)
+            if ((length & ReadOnlyMemory<T>.RemoveFlagsBitMask) == 0)
             {
 #if FEATURE_PORTABLE_SPAN
                 segment = new ArraySegment<T>(SpanHelpers.PerTypeValues<T>.EmptyArray);
