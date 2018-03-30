@@ -27,7 +27,9 @@ Abstract:
 #include "pal.h"
 #include <dlfcn.h>
  
+#ifndef __linux__
 #define UNW_LOCAL_ONLY
+#endif // !__linux__ 
 // Sub-headers included from the libunwind.h contain an empty struct
 // and clang issues a warning. Until the libunwind is fixed, disable
 // the warning.
