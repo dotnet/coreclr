@@ -89,8 +89,16 @@ namespace System.Runtime.InteropServices
             TOwner localOwner; // Use register for null comparison rather than byref
             owner = localOwner = memory.GetObjectStartLength(out start, out length) as TOwner;
             start &= ReadOnlyMemory<T>.RemoveFlagsBitMask;
+
             Debug.Assert(length >= 0);
-            return !ReferenceEquals(owner, null);
+            
+            if (ReferenceEquals(owner, null))
+            {
+                start = default;
+                length = default;
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
