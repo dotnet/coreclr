@@ -114,7 +114,7 @@ namespace System
         }
 
         /// <summary>
-        /// Creates a new memory from a memory manager beginning
+        /// Creates a new memory from a memory manager that provides specific method implementations beginning
         /// at 'start' index and ending at 'end' index (exclusive).
         /// </summary>
         /// <param name="manager">The memory manager.</param>

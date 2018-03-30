@@ -31,7 +31,7 @@ namespace System.Buffers
         }
 
         /// <summary>
-        /// Returns the pointer to memory, or null if a pointer was not provided when the handle was created.
+        /// Returns the pointer to memory, where the memory is assumed to be pinned and hence the address won't change.
         /// </summary>
         [CLSCompliant(false)]
         public void* Pointer => _pointer;

@@ -5,7 +5,7 @@
 namespace System.Buffers
 {
     /// <summary>
-    /// Owner of Memory<typeparamref name="T"/> that provides appropriate lifetime management mechanisms for it.
+    /// Owner of Memory<typeparamref name="T"/> that is responsible for disposing the underlying memory appropriately.
     /// </summary>
     public interface IMemoryOwner<T> : IDisposable
     {

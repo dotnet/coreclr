@@ -5,6 +5,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 #if !netstandard
 using Internal.Runtime.CompilerServices;
@@ -27,6 +28,7 @@ namespace System.Runtime.InteropServices
             object obj = memory.GetObjectStartLength(out int index, out int length);
             if (index < 0)
             {
+                Debug.Assert(length >= 0);
                 if (((MemoryManager<T>)obj).TryGetArray(out ArraySegment<T> arraySegment))
                 {
                     segment = new ArraySegment<T>(arraySegment.Array, arraySegment.Offset + (index & ReadOnlyMemory<T>.RemoveFlagsBitMask), length);
@@ -35,7 +37,7 @@ namespace System.Runtime.InteropServices
             }
             else if (obj is T[] arr)
             {
-                segment = new ArraySegment<T>(arr, index, length);
+                segment = new ArraySegment<T>(arr, index, length & ReadOnlyMemory<T>.RemoveFlagsBitMask);
                 return true;
             }
 
@@ -66,7 +68,7 @@ namespace System.Runtime.InteropServices
             where TOwner : MemoryManager<T>
         {
             TOwner localOwner; // Use register for null comparison rather than byref
-            owner = localOwner = memory.GetObjectStartLength(out int index, out int length) as TOwner;
+            owner = localOwner = memory.GetObjectStartLength(out _, out _) as TOwner;
             return !ReferenceEquals(owner, null);
         }
 
@@ -87,6 +89,7 @@ namespace System.Runtime.InteropServices
             TOwner localOwner; // Use register for null comparison rather than byref
             owner = localOwner = memory.GetObjectStartLength(out start, out length) as TOwner;
             start &= ReadOnlyMemory<T>.RemoveFlagsBitMask;
+            Debug.Assert(length >= 0);
             return !ReferenceEquals(owner, null);
         }
 
@@ -113,6 +116,8 @@ namespace System.Runtime.InteropServices
         {
             if (memory.GetObjectStartLength(out int offset, out int count) is string s)
             {
+                Debug.Assert(offset >= 0);
+                Debug.Assert(count >= 0);
                 text = s;
                 start = offset;
                 length = count;

@@ -18,7 +18,7 @@ namespace System.Buffers
         public virtual int Length => GetSpan().Length;
 
         /// <summary>
-        /// Returns a Memory<typeparamref name="T"/> if the underlying memory has not been freed.
+        /// Returns a Memory<typeparamref name="T"/>.
         /// </summary>
         public virtual Memory<T> Memory => new Memory<T>(this, 0, Length);
 
@@ -28,14 +28,19 @@ namespace System.Buffers
         public abstract Span<T> GetSpan();
 
         /// <summary>
-        /// Returns a handle for the array that has been pinned and hence its address can be taken
+        /// Returns a handle to the memory that has been pinned and hence its address can be taken.
+        /// <param name="elementIndex">The offset to the element within the memory at which the returned <see cref="MemoryHandle"/> points to. (default = 0)</param>
         /// </summary>
         public abstract MemoryHandle Pin(int elementIndex = 0);
 
+        /// <summary>
+        /// Lets the garbage collector know that the object is free to be moved now.
+        /// </summary>
         public abstract void Unpin();
 
         /// <summary>
         /// Returns an array segment.
+        /// <remarks>Returns the default array segment if not overriden.</remarks>
         /// </summary>
         protected internal virtual bool TryGetArray(out ArraySegment<T> segment)
         {
