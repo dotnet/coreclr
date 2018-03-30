@@ -340,6 +340,10 @@
       "value": "test",
       "allowOverride": true
     },
+    "PB_UseLegacySigning": {
+      "value": "false",
+      "allowOverride": true
+    },
     "TeamName": {
       "value": "DotNetCore"
     },

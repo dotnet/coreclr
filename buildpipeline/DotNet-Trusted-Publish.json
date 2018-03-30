@@ -693,6 +693,10 @@
     },
     "PB_BuildOutputManifestArguments": {
       "value": "/p:ManifestBuildId=$(OfficialBuildId) /p:ManifestBranch=$(SourceBranch) /p:ManifestCommit=$(SourceVersion)"
+    },
+    "PB_UseLegacySigning": {
+      "value": "false",
+      "allowOverride": true
     }
   },
   "retentionRules": [
