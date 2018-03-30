@@ -229,11 +229,6 @@ namespace System
             throw new ObjectDisposedException(null, GetResourceString(resource));
         }
 
-        internal static void ThrowObjectDisposedException_MemoryDisposed()
-        {
-            throw new ObjectDisposedException("MemoryManager<T>", GetResourceString(ExceptionResource.MemoryDisposed));
-        }
-
         internal static void ThrowNotSupportedException()
         {
             throw new NotSupportedException();
