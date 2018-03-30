@@ -6325,7 +6325,9 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         }
 #endif // !_TARGET_XARCH_
 
+#if CPU_LOAD_STORE_ARCH || !defined(_TARGET_UNIX_)
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
+#endif
 
         //
         // Can't have a label inside the ReJIT padding area
