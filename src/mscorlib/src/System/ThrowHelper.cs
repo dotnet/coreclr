@@ -231,7 +231,7 @@ namespace System
 
         internal static void ThrowObjectDisposedException_MemoryDisposed()
         {
-            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.MemoryDisposed));
+            throw new ObjectDisposedException("MemoryManager<T>", GetResourceString(ExceptionResource.MemoryDisposed));
         }
 
         internal static void ThrowNotSupportedException()
@@ -477,7 +477,6 @@ namespace System
         s,
         keyValuePair,
         input,
-        ownedMemory,
         pointer,
         start,
         format,

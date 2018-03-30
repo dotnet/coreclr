@@ -27,9 +27,9 @@ namespace System.Runtime.InteropServices
             object obj = memory.GetObjectStartLength(out int index, out int length);
             if (index < 0)
             {
-                if (((OwnedMemory<T>)obj).TryGetArray(out ArraySegment<T> arraySegment))
+                if (((MemoryManager<T>)obj).TryGetArray(out ArraySegment<T> arraySegment))
                 {
-                    segment = new ArraySegment<T>(arraySegment.Array, arraySegment.Offset + (index & ReadOnlyMemory<T>.RemoveOwnedFlagBitMask), length);
+                    segment = new ArraySegment<T>(arraySegment.Array, arraySegment.Offset + (index & ReadOnlyMemory<T>.RemoveFlagsBitMask), length);
                     return true;
                 }
             }
@@ -54,16 +54,16 @@ namespace System.Runtime.InteropServices
         }
 
         /// <summary>
-        /// Gets an <see cref="OwnedMemory{T}"/> from the underlying read-only memory.
+        /// Gets an <see cref="MemoryManager{T}"/> from the underlying read-only memory.
         /// If unable to get the <typeparamref name="TOwner"/> type, returns false.
         /// </summary>
         /// <typeparam name="T">The element type of the <paramref name="memory" />.</typeparam>
-        /// <typeparam name="TOwner">The type of <see cref="OwnedMemory{T}"/> to try and retrive.</typeparam>
+        /// <typeparam name="TOwner">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
         /// <param name="memory">The memory to get the owner for.</param>
         /// <param name="owner">The returned owner of the <see cref="ReadOnlyMemory{T}"/>.</param>
         /// <returns>A <see cref="bool"/> indicating if it was successful.</returns>
-        public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner)
-            where TOwner : OwnedMemory<T>
+        public static bool TryGetMemoryManager<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner)
+            where TOwner : MemoryManager<T>
         {
             TOwner localOwner; // Use register for null comparison rather than byref
             owner = localOwner = memory.GetObjectStartLength(out int index, out int length) as TOwner;
@@ -71,22 +71,22 @@ namespace System.Runtime.InteropServices
         }
 
         /// <summary>
-        /// Gets an <see cref="OwnedMemory{T}"/> and <paramref name="start" />, <paramref name="length" /> from the underlying read-only memory.
+        /// Gets an <see cref="MemoryManager{T}"/> and <paramref name="start" />, <paramref name="length" /> from the underlying read-only memory.
         /// If unable to get the <typeparamref name="TOwner"/> type, returns false.
         /// </summary>
         /// <typeparam name="T">The element type of the <paramref name="memory" />.</typeparam>
-        /// <typeparam name="TOwner">The type of <see cref="OwnedMemory{T}"/> to try and retrive.</typeparam>
+        /// <typeparam name="TOwner">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
         /// <param name="memory">The memory to get the owner for.</param>
         /// <param name="owner">The returned owner of the <see cref="ReadOnlyMemory{T}"/>.</param>
         /// <param name="start">The offset from the start of the <paramref name="owner" /> that the <paramref name="memory" /> represents.</param>
         /// <param name="length">The length of the <paramref name="owner" /> that the <paramref name="memory" /> represents.</param>
         /// <returns>A <see cref="bool"/> indicating if it was successful.</returns>
-        public static bool TryGetOwnedMemory<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner, out int start, out int length)
-           where TOwner : OwnedMemory<T>
+        public static bool TryGetMemoryManager<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner, out int start, out int length)
+           where TOwner : MemoryManager<T>
         {
             TOwner localOwner; // Use register for null comparison rather than byref
             owner = localOwner = memory.GetObjectStartLength(out start, out length) as TOwner;
-            start &= ReadOnlyMemory<T>.RemoveOwnedFlagBitMask;
+            start &= ReadOnlyMemory<T>.RemoveFlagsBitMask;
             return !ReferenceEquals(owner, null);
         }
 

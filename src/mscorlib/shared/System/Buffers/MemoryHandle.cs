@@ -12,20 +12,20 @@ namespace System.Buffers
     /// </summary>
     public unsafe struct MemoryHandle : IDisposable
     {
-        private IRetainable _retainable;
+        private IPinnable _pinnable;
         private void* _pointer;
         private GCHandle _handle;
 
         /// <summary>
         /// Creates a new memory handle for the memory.
         /// </summary>
-        /// <param name="retainable">reference to manually managed object</param>
-        /// <param name="pointer">pointer to memory, or null if a pointer was not provided when the handle was created</param>
+        /// <param name="pointer">pointer to memory</param>
+        /// <param name="pinnable">reference to manually managed object, or default if there is no memory manager</param>
         /// <param name="handle">handle used to pin array buffers</param>
         [CLSCompliant(false)]
-        public MemoryHandle(IRetainable retainable, void* pointer = null, GCHandle handle = default(GCHandle))
+        public MemoryHandle(void* pointer, IPinnable pinnable = default, GCHandle handle = default)
         {
-            _retainable = retainable;
+            _pinnable = pinnable;
             _pointer = pointer;
             _handle = handle;
         }
@@ -37,12 +37,7 @@ namespace System.Buffers
         public void* Pointer => _pointer;
 
         /// <summary>
-        /// Returns false if the pointer to memory is null.
-        /// </summary>
-        public bool HasPointer => _pointer != null;
-
-        /// <summary>
-        /// Frees the pinned handle and releases IRetainable.
+        /// Frees the pinned handle and releases IPinnable.
         /// </summary>
        public void Dispose()
         {
@@ -51,10 +46,10 @@ namespace System.Buffers
                 _handle.Free();
             }
 
-            if (_retainable != null)
+            if (_pinnable != null)
             {
-                _retainable.Release();
-                _retainable = null;
+                _pinnable.Unpin();
+                _pinnable = null;
             }
 
             _pointer = null;
