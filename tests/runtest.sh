@@ -59,7 +59,7 @@ function print_usage {
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
     echo '  --long-gc                        : Runs the long GC tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
-    echo '  --tieredcompilation              : Runs the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1'
+    echo '  --tieredcompilation              : Runs the tests with COMPlus_TieredCompilation=1'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --show-time                      : Print execution sequence and running time for each test'
     echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
@@ -99,6 +99,12 @@ countSkippedTests=0
 # Variables for xUnit-style XML output. XML format: https://xunit.github.io/docs/format-xml-v2.html
 xunitOutputPath=
 xunitTestOutputPath=
+
+# Variables for text file output. These can be passed back to runtest.sh using the "--playlist" argument
+# to rerun specific tests.
+testsPassOutputPath=
+testsFailOutputPath=
+testsSkipOutputPath=
 
 # libExtension determines extension for dynamic library files
 # runtimeName determines where CoreFX Runtime files will be located
@@ -299,6 +305,49 @@ function xunit_output_end {
 
     # </assemblies>
     echo '</assemblies>' >>"$xunitOutputPath"
+}
+
+function text_file_output_begin {
+    if [ -z "$testsPassOutputPath" ]; then
+        testsPassOutputPath=$testRootDir/coreclrtests.pass.txt
+    fi
+    if ! [ -e $(basename "$testsPassOutputPath") ]; then
+        testsPassOutputPath=$testRootDir/coreclrtests.pass.txt
+    fi
+    if [ -e "$testsPassOutputPath" ]; then
+        rm -f "$testsPassOutputPath"
+    fi
+    if [ -z "$testsFailOutputPath" ]; then
+        testsFailOutputPath=$testRootDir/coreclrtests.fail.txt
+    fi
+    if ! [ -e $(basename "$testsFailOutputPath") ]; then
+        testsFailOutputPath=$testRootDir/coreclrtests.fail.txt
+    fi
+    if [ -e "$testsFailOutputPath" ]; then
+        rm -f "$testsFailOutputPath"
+    fi
+    if [ -z "$testsSkipOutputPath" ]; then
+        testsSkipOutputPath=$testRootDir/coreclrtests.skip.txt
+    fi
+    if ! [ -e $(basename "$testsSkipOutputPath") ]; then
+        testsSkipOutputPath=$testRootDir/coreclrtests.skip.txt
+    fi
+    if [ -e "$testsSkipOutputPath" ]; then
+        rm -f "$testsSkipOutputPath"
+    fi
+}
+
+function text_file_output_add_test {
+    local scriptFilePath=$1
+    local testResult=$2 # Pass, Fail, or Skip
+
+    if [ "$testResult" == "Pass" ]; then
+        echo "$scriptFilePath" >>"$testsPassOutputPath"
+    elif [ "$testResult" == "Skip" ]; then
+        echo "$scriptFilePath" >>"$testsSkipOutputPath"
+    else
+        echo "$scriptFilePath" >>"$testsFailOutputPath"
+    fi
 }
 
 function exit_with_error {
@@ -820,11 +869,11 @@ function finish_test {
         header=$header$(printf "[%4ds]" $testRunningTime)
     fi
 
-    local xunitTestResult
+    local testResult
     case $testScriptExitCode in
         0)
             let countPassedTests++
-            xunitTestResult='Pass'
+            testResult='Pass'
             if ((verbose == 1 || runFailingTestsOnly == 1)); then
                 echo "PASSED   - ${header}${scriptFilePath}"
             else
@@ -833,12 +882,12 @@ function finish_test {
             ;;
         2)
             let countSkippedTests++
-            xunitTestResult='Skip'
+            testResult='Skip'
             echo "SKIPPED  - ${header}${scriptFilePath}"
             ;;
         *)
             let countFailedTests++
-            xunitTestResult='Fail'
+            testResult='Fail'
             echo "FAILED   - ${header}${scriptFilePath}"
             ;;
     esac
@@ -850,7 +899,8 @@ function finish_test {
         done <"$outputFilePath"
     fi
 
-    xunit_output_add_test "$scriptFilePath" "$outputFilePath" "$xunitTestResult" "$testScriptExitCode" "$testRunningTime"
+    xunit_output_add_test "$scriptFilePath" "$outputFilePath" "$testResult" "$testScriptExitCode" "$testRunningTime"
+    text_file_output_add_test "$scriptFilePath" "$testResult"
 }
 
 function finish_remaining_tests {
@@ -1077,7 +1127,7 @@ do
             export DoLink=true
             ;;
         --tieredcompilation)
-            export COMPlus_EXPERIMENTAL_TieredCompilation=1
+            export COMPlus_TieredCompilation=1
             ;;
         --jitdisasm)
             jitdisasm=1
@@ -1258,6 +1308,7 @@ then
 fi
 
 xunit_output_begin
+text_file_output_begin
 create_core_overlay
 precompile_overlay_assemblies
 
@@ -1282,11 +1333,8 @@ if [ "$ARCH" == "x64" ]
 then
     scriptPath=$(dirname $0)
     ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
-else
-    if [ "$ARCH" != "arm64" ]
-    then
-        echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
-    fi
+elif [ "$ARCH" != "arm64" ] && [ "$ARCH" != "arm" ]; then
+    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
 fi
 
 export __TestEnv=$testEnv

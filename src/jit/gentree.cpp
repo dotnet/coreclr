@@ -6648,7 +6648,8 @@ GenTreeCall* Compiler::gtNewCallNode(
 #endif // LEGACY_BACKEND
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    node->gtEntryPoint.addr = nullptr;
+    node->gtEntryPoint.addr       = nullptr;
+    node->gtEntryPoint.accessType = IAT_VALUE;
 #endif
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -7819,8 +7820,9 @@ GenTree* Compiler::gtCloneExpr(
                 break;
 
             case GT_CAST:
-                copy = new (this, LargeOpOpcode()) GenTreeCast(tree->TypeGet(), tree->gtCast.CastOp(),
-                                                               tree->gtCast.gtCastType DEBUGARG(/*largeNode*/ TRUE));
+                copy =
+                    new (this, LargeOpOpcode()) GenTreeCast(tree->TypeGet(), tree->gtCast.CastOp(), tree->IsUnsigned(),
+                                                            tree->gtCast.gtCastType DEBUGARG(/*largeNode*/ TRUE));
                 break;
 
             // The nodes below this are not bashed, so they can be allocated at their individual sizes.
@@ -7991,10 +7993,6 @@ GenTree* Compiler::gtCloneExpr(
         if (tree->gtOverflowEx())
         {
             copy->gtFlags |= GTF_OVERFLOW;
-        }
-        if (copy->OperGet() == GT_CAST)
-        {
-            copy->gtFlags |= (tree->gtFlags & GTF_UNSIGNED);
         }
 
         if (tree->gtOp.gtOp1)
@@ -13468,7 +13466,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
 
     // If we're eventually going to return the type handle, remember it now.
     GenTree* boxTypeHandle = nullptr;
-    if (options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
+    if ((options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE) || (options == BR_DONT_REMOVE_WANT_TYPE_HANDLE))
     {
         GenTree*   asgSrc     = asg->gtOp.gtOp2;
         genTreeOps asgSrcOper = asgSrc->OperGet();
@@ -13630,6 +13628,11 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     if (options == BR_DONT_REMOVE)
     {
         return copySrc;
+    }
+
+    if (options == BR_DONT_REMOVE_WANT_TYPE_HANDLE)
+    {
+        return boxTypeHandle;
     }
 
     // Otherwise, proceed with the optimization.
@@ -13994,15 +13997,22 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                                 goto CNS_INT;
 
                             case TYP_ULONG:
-                                if (!(tree->gtFlags & GTF_UNSIGNED) && tree->gtOverflow() && i1 < 0)
+                                if (tree->IsUnsigned())
                                 {
-                                    goto LNG_OVF;
+                                    lval1 = UINT64(UINT32(i1));
                                 }
-                                lval1 = UINT64(UINT32(i1));
+                                else
+                                {
+                                    if (tree->gtOverflow() && (i1 < 0))
+                                    {
+                                        goto LNG_OVF;
+                                    }
+                                    lval1 = UINT64(INT32(i1));
+                                }
                                 goto CNS_LONG;
 
                             case TYP_LONG:
-                                if (tree->gtFlags & GTF_UNSIGNED)
+                                if (tree->IsUnsigned())
                                 {
                                     lval1 = INT64(UINT32(i1));
                                 }
@@ -15425,11 +15435,11 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
             }
             else if (lclTyp == TYP_DOUBLE && assg->TypeGet() == TYP_FLOAT)
             {
-                assg = gtNewCastNode(TYP_DOUBLE, assg, TYP_DOUBLE);
+                assg = gtNewCastNode(TYP_DOUBLE, assg, false, TYP_DOUBLE);
             }
             else if (lclTyp == TYP_FLOAT && assg->TypeGet() == TYP_DOUBLE)
             {
-                assg = gtNewCastNode(TYP_FLOAT, assg, TYP_FLOAT);
+                assg = gtNewCastNode(TYP_FLOAT, assg, false, TYP_FLOAT);
             }
 
             args       = gtNewArgList(assg);
@@ -15489,7 +15499,7 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
             else if (varTypeIsIntegral(lclTyp) && genTypeSize(lclTyp) < genTypeSize(TYP_INT))
             {
                 // The helper does not extend the small return types.
-                tree = gtNewCastNode(genActualType(lclTyp), tree, lclTyp);
+                tree = gtNewCastNode(genActualType(lclTyp), tree, false, lclTyp);
             }
         }
     }

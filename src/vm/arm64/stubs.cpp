@@ -10,7 +10,6 @@
 #include "common.h"
 #include "dllimportcallback.h"
 #include "comdelegate.h"
-#include "tls.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 #include "jitinterface.h"
@@ -1275,7 +1274,7 @@ void UMEntryThunkCode::Poison()
     m_pTargetCode = (TADDR)UMEntryThunk::ReportViolation;
 
     // ldp x16, x0, [x12]
-    m_code[1] = 0xd42017c0;
+    m_code[1] = 0xa9400190;
 
     ClrFlushInstructionCache(&m_code,sizeof(m_code));
 }

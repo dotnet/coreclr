@@ -63,33 +63,13 @@ bool Lowering::IsCallTargetInRange(void* addr)
 // Return Value:
 //    True if the immediate can be folded into an instruction,
 //    for example small enough and non-relocatable.
+//
+// TODO-CQ: we can contain a floating point 0.0 constant in a compare instruction
+// (vcmp on arm, fcmp on arm64).
+//
 bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 {
-    if (varTypeIsFloating(parentNode->TypeGet()))
-    {
-        // We can contain a floating point 0.0 constant in a compare instruction
-        switch (parentNode->OperGet())
-        {
-            default:
-                return false;
-
-            case GT_EQ:
-            case GT_NE:
-            case GT_LT:
-            case GT_LE:
-            case GT_GE:
-            case GT_GT:
-                if (childNode->IsIntegralConst(0))
-                {
-                    // TODO-ARM-Cleanup: not tested yet.
-                    NYI_ARM("ARM IsContainableImmed for floating point type");
-
-                    return true;
-                }
-                break;
-        }
-    }
-    else
+    if (!varTypeIsFloating(parentNode->TypeGet()))
     {
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
@@ -106,9 +86,6 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 
         switch (parentNode->OperGet())
         {
-            default:
-                return false;
-
             case GT_ADD:
             case GT_SUB:
 #ifdef _TARGET_ARM64_
@@ -129,18 +106,15 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_GE:
             case GT_GT:
                 return emitter::emitIns_valid_imm_for_cmp(immVal, size);
-                break;
             case GT_AND:
             case GT_OR:
             case GT_XOR:
             case GT_TEST_EQ:
             case GT_TEST_NE:
                 return emitter::emitIns_valid_imm_for_alu(immVal, size);
-                break;
             case GT_JCMP:
                 assert(((parentNode->gtFlags & GTF_JCMP_TST) == 0) ? (immVal == 0) : isPow2(immVal));
                 return true;
-                break;
 #elif defined(_TARGET_ARM_)
             case GT_EQ:
             case GT_NE:
@@ -153,15 +127,18 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_OR:
             case GT_XOR:
                 return emitter::emitIns_valid_imm_for_alu(immVal);
-                break;
 #endif // _TARGET_ARM_
 
 #ifdef _TARGET_ARM64_
+            case GT_STORE_LCL_FLD:
             case GT_STORE_LCL_VAR:
                 if (immVal == 0)
                     return true;
                 break;
 #endif
+
+            default:
+                break;
         }
     }
 
@@ -445,8 +422,8 @@ void Lowering::LowerCast(GenTree* tree)
 
     if (tmpType != TYP_UNDEF)
     {
-        GenTree* tmp = comp->gtNewCastNode(tmpType, op1, tmpType);
-        tmp->gtFlags |= (tree->gtFlags & (GTF_UNSIGNED | GTF_OVERFLOW | GTF_EXCEPT));
+        GenTree* tmp = comp->gtNewCastNode(tmpType, op1, tree->IsUnsigned(), tmpType);
+        tmp->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
 
         tree->gtFlags &= ~GTF_UNSIGNED;
         tree->gtOp.gtOp1 = tmp;

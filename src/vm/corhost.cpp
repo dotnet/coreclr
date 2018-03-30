@@ -43,6 +43,9 @@
 #endif // !FEATURE_PAL
 
 #include "stringarraylist.h"
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_COMINTEROP
 #include "winrttypenameconverter.h"
@@ -368,6 +371,12 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     }
     CONTRACTL_END;
 
+    // Send the command line to EventPipe.
+#ifdef FEATURE_PERFTRACING
+    EventPipe::SaveCommandLine(pwzAssemblyPath, argc, argv);
+#endif // FEATURE_PERFTRACING
+
+    // Send the command line to System.Environment.
     struct _gc
     {
         PTRARRAYREF cmdLineArgs;
@@ -2943,14 +2952,6 @@ void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX)
     pMSEX->dwLength = sizeof(MEMORYSTATUSEX);
     BOOL fRet = GlobalMemoryStatusEx(pMSEX);
     _ASSERTE (fRet);
-
-
-    // If the machine has more RAM than virtual address limit, let us cap it.
-    // Our GC can never use more than virtual address limit.
-    if (pMSEX->ullAvailPhys > pMSEX->ullTotalVirtual)
-    {
-        pMSEX->ullAvailPhys = pMSEX->ullAvailVirtual;
-    }
 }
 
 // This is the instance that exposes interfaces out to all the other DLLs of the CLR

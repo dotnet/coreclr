@@ -748,8 +748,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
             {
                 // SWITCH_TABLE expects the switch value (the index into the jump table) to be TYP_I_IMPL.
                 // Note that the switch value is unsigned so the cast should be unsigned as well.
-                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, TYP_U_IMPL);
-                switchValue->gtFlags |= GTF_UNSIGNED;
+                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, true, TYP_U_IMPL);
                 switchBlockRange.InsertAtEnd(switchValue);
             }
 #endif
@@ -3965,7 +3964,8 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
                     // stash the address for codegen
                     call->gtDirectCallAddress = addr;
 #ifdef FEATURE_READYTORUN_COMPILER
-                    call->gtEntryPoint.addr = nullptr;
+                    call->gtEntryPoint.addr       = nullptr;
+                    call->gtEntryPoint.accessType = IAT_VALUE;
 #endif
                 }
                 break;
