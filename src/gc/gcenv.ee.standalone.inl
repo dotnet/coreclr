@@ -113,18 +113,6 @@ inline Thread* GCToEEInterface::GetThread()
     return g_theGCToCLR->GetThread();
 }
 
-inline void GCToEEInterface::YieldProcessorNormalized()
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->YieldProcessorNormalized();
-}
-
-inline void GCToEEInterface::EnsureYieldProcessorNormalizedInitialized()
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->EnsureYieldProcessorNormalizedInitialized();
-}
-
 inline gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
     assert(g_theGCToCLR != nullptr);

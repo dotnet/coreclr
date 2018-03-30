@@ -397,16 +397,6 @@ Thread* GCToEEInterface::GetThread()
     return ::GetThread();
 }
 
-void GCToEEInterface::YieldProcessorNormalized()
-{
-    ::YieldProcessorNormalized(YieldProcessorNormalizationInfo());
-}
-
-void GCToEEInterface::EnsureYieldProcessorNormalizedInitialized()
-{
-    ::EnsureYieldProcessorNormalizedInitialized();
-}
-
 struct BackgroundThreadStubArgs
 {
     Thread* thread;

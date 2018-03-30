@@ -33,8 +33,6 @@ public:
     bool EnablePreemptiveGC();
     void DisablePreemptiveGC();
     Thread* GetThread();
-    void YieldProcessorNormalized();
-    void EnsureYieldProcessorNormalizedInitialized();
     gc_alloc_context * GetAllocContext();
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
 

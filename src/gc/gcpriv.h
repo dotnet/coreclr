@@ -4333,3 +4333,13 @@ size_t gcard_of (uint8_t* object)
     return (size_t)(object) / card_size;
 }
 
+inline
+void YieldProcessorNormalized()
+{
+    unsigned int n = g_yieldProcessorNormalizationInfo;
+    _ASSERTE(n != 0);
+    do
+    {
+        YieldProcessor();
+    } while (--n != 0);
+}
