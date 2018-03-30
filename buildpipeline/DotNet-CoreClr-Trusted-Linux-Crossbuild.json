@@ -155,7 +155,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm -e ROOTFS_DIR $(DockerCommonRunArgs) ./build.sh $(PB_BuildType) $(Architecture) skipnuget cross -skiprestore stripSymbols -OfficialBuildId=$(OfficialBuildId) -- /flp:\"v=diag\"",
+        "arguments": "run --rm -e ROOTFS_DIR=$(ROOTFS_DIR) -e CAC_ROOTFS_DIR=$(CAC_ROOTFS_DIR) $(DockerCommonRunArgs) ./build.sh $(PB_BuildType) $(Architecture) skipnuget cross $(CrossArchBuildArgs) -skiprestore stripSymbols -OfficialBuildId=$(OfficialBuildId) -- /flp:\"v=diag\"",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -175,7 +175,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./build-packages.sh -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -- /p:OfficialBuildId=$(OfficialBuildId)",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./build-packages.sh -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) $(CrossArchBuildPackagesArgs) -- /p:OfficialBuildId=$(OfficialBuildId)",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -367,27 +367,6 @@
         "workingFolder": "",
         "failOnStandardError": "false"
       }
-    },
-    {
-      "environment": {},
-      "enabled": true,
-      "continueOnError": true,
-      "alwaysRun": false,
-      "displayName": "Cleanup VSTS Agent",
-      "timeoutInMinutes": 0,
-      "condition": "always()",
-      "refName": "Task17",
-      "task": {
-        "id": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
-        "versionSpec": "1.*",
-        "definitionType": "task"
-      },
-      "inputs": {
-        "filename": "$(Build.SourcesDirectory)/Tools/msbuild.sh",
-        "arguments": "cleanupagent.proj /p:AgentDirectory=$(Agent.HomeDirectory) /p:DoClean=$(PB_CleanAgent)",
-        "workingFolder": "$(Build.SourcesDirectory)/Tools/scripts/vstsagent/",
-        "failOnStandardError": "false"
-      }
     }
   ],
   "options": [
@@ -479,6 +458,14 @@
     "Architecture": {
       "value": "arm"
     },
+    "CrossArchBuildArgs": {
+      "value": "",
+      "allowOverride": true
+    },
+    "CrossArchBuildPackagesArgs": {
+       "value": "",
+       "allowOverride": true
+    },
     "CommitToCheckout": {
       "value": "HEAD",
       "allowOverride": true
@@ -488,6 +475,10 @@
     },
     "ROOTFS_DIR": {
       "value": "/crossrootfs/$(Architecture)"
+    },
+    "CAC_ROOTFS_DIR": {
+      "value": "",
+      "allowOverride": true
     },
     "DockerVolumeName": {
       "value": "coreclr-cross-$(Build.BuildId)"

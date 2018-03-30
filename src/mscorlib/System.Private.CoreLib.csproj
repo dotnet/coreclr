@@ -322,7 +322,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Array.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
@@ -460,8 +459,12 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' != 'true'">
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true'">
+    <Compile Include="$(BclSourcesRoot)\System\Text\CodePageDataItem.Unix.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Text\EncodingTable.Unix.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.cs" />
@@ -586,10 +589,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
@@ -597,7 +597,6 @@
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Windows.cs" />
@@ -625,13 +624,11 @@
   </ItemGroup>
   <!-- Include additional sources shared files in the compilation -->
   <ItemGroup>
-    <!-- These are files are preprocessed  -->
-    <Compile Include="$(CommonPath)\Preprocessed\AssemblyRefs.g.cs" />
     <!-- These files are shared with other framework components and don't live the same folder as the rest of them-->
     <Compile Include="$(CommonPath)\NotImplemented.cs" />
     <Compile Include="$(CommonPath)\System\SR.cs" />
     <!-- Include Internals visible to file in the compilation -->
-    <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" />
+    <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" Condition="'$(FeatureCominterop)' == 'true'" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />

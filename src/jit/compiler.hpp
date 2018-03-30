@@ -1436,6 +1436,15 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL || GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_LARGE);
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL || (gtDebugFlags & GTF_DEBUG_NODE_LARGE));
 
+#if defined(_HOST_64BIT_) && !defined(_TARGET_64BIT_)
+    if (gtOper == GT_CNS_LNG && oper == GT_CNS_INT)
+    {
+        // When casting from LONG to INT, we need to force cast of the value,
+        // if the host architecture represents INT and LONG with the same data size.
+        gtLngCon.gtLconVal = (INT64)(INT32)gtLngCon.gtLconVal;
+    }
+#endif // defined(_HOST_64BIT_) && !defined(_TARGET_64BIT_)
+
     SetOperRaw(oper);
 
 #ifdef DEBUG
@@ -1476,13 +1485,13 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     }
 }
 
-inline GenTree* Compiler::gtNewCastNode(var_types typ, GenTree* op1, var_types castType)
+inline GenTreeCast* Compiler::gtNewCastNode(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType)
 {
-    GenTree* res = new (this, GT_CAST) GenTreeCast(typ, op1, castType);
+    GenTreeCast* res = new (this, GT_CAST) GenTreeCast(typ, op1, fromUnsigned, castType);
     return res;
 }
 
-inline GenTree* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, var_types castType)
+inline GenTreeCast* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType)
 {
     /* Some casts get transformed into 'GT_CALL' or 'GT_IND' nodes */
 
@@ -1491,7 +1500,8 @@ inline GenTree* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, var_types 
 
     /* Make a big node first and then change it to be GT_CAST */
 
-    GenTree* res = new (this, LargeOpOpcode()) GenTreeCast(typ, op1, castType DEBUGARG(/*largeNode*/ true));
+    GenTreeCast* res =
+        new (this, LargeOpOpcode()) GenTreeCast(typ, op1, fromUnsigned, castType DEBUGARG(/*largeNode*/ true));
     return res;
 }
 
@@ -2325,7 +2335,7 @@ inline bool Compiler::lvaReportParamTypeArg()
 
 //*****************************************************************************
 
-inline unsigned Compiler::lvaCachedGenericContextArgOffset()
+inline int Compiler::lvaCachedGenericContextArgOffset()
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
 
@@ -3589,7 +3599,7 @@ inline void Compiler::compUpdateLife(VARSET_VALARG_TP newLife)
 {
     if (!VarSetOps::Equal(this, compCurLife, newLife))
     {
-        compChangeLife<ForCodeGen>(newLife DEBUGARG(nullptr));
+        compChangeLife<ForCodeGen>(newLife);
     }
 #ifdef DEBUG
     else
@@ -4355,7 +4365,13 @@ inline GenTree* Compiler::impCheckForNullPointer(GenTree* obj)
     if (obj->gtOper == GT_CNS_INT)
     {
         assert(obj->gtType == TYP_REF || obj->gtType == TYP_BYREF);
-        assert(obj->gtIntCon.gtIconVal == 0);
+
+        // We can see non-zero byrefs for RVA statics.
+        if (obj->gtIntCon.gtIconVal != 0)
+        {
+            assert(obj->gtType == TYP_BYREF);
+            return obj;
+        }
 
         unsigned tmp = lvaGrabTemp(true DEBUGARG("CheckForNullPointer"));
 

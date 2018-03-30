@@ -166,7 +166,6 @@ void *EEConfig::operator new(size_t size)
     RETURN g_EEConfigMemory;
 }
 
-
 /**************************************************************/
 HRESULT EEConfig::Init()
 {
@@ -392,7 +391,6 @@ HRESULT EEConfig::Init()
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
     CLRConfig::RegisterGetConfigValueCallback(&GetConfigValueCallback);
-
 
     return S_OK;
 }
@@ -1240,7 +1238,10 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation) != 0;
+    fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_TieredCompilation) != 0 ||
+        //this older name is deprecated, but still accepted for a time. Preserving it is a very small overhead not to needlessly break things.
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_LEGACY_TieredCompilation) != 0;
+
     tieredCompilation_tier1CallCountThreshold =
         CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold);
     if (tieredCompilation_tier1CallCountThreshold < 1)

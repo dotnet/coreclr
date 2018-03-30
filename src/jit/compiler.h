@@ -2128,9 +2128,9 @@ public:
 
     GenTree* gtUnusedValNode(GenTree* expr);
 
-    GenTree* gtNewCastNode(var_types typ, GenTree* op1, var_types castType);
+    GenTreeCast* gtNewCastNode(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTree* gtNewCastNodeL(var_types typ, GenTree* op1, var_types castType);
+    GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
     GenTree* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
 
@@ -2270,7 +2270,8 @@ public:
         BR_REMOVE_AND_NARROW, // remove effects, minimize remaining work, return possibly narrowed source tree
         BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE, // remove effects and minimize remaining work, return type handle tree
         BR_REMOVE_BUT_NOT_NARROW,              // remove effects, return original source tree
-        BR_DONT_REMOVE,                        // just check if removal is possible
+        BR_DONT_REMOVE,                        // check if removal is possible, return copy source tree
+        BR_DONT_REMOVE_WANT_TYPE_HANDLE,       // check if removal is possible, return type handle tree
         BR_MAKE_LOCAL_COPY                     // revise box to copy to temp local and return local's address
     };
 
@@ -2555,9 +2556,9 @@ public:
     unsigned lvaShadowSPslotsVar; // TYP_BLK variable for all the shadow SP slots
 #endif                            // FEATURE_EH_FUNCLETS
 
-    unsigned lvaCachedGenericContextArgOffs;
-    unsigned lvaCachedGenericContextArgOffset(); // For CORINFO_CALLCONV_PARAMTYPE and if generic context is passed as
-                                                 // THIS pointer
+    int lvaCachedGenericContextArgOffs;
+    int lvaCachedGenericContextArgOffset(); // For CORINFO_CALLCONV_PARAMTYPE and if generic context is passed as
+                                            // THIS pointer
 
     unsigned lvaLocAllocSPvar; // variable which has the result of the last alloca/localloc
 
@@ -7249,11 +7250,11 @@ public:
     GenTree*  compCurLifeTree; // node after which compCurLife has been computed
 
     template <bool ForCodeGen>
-    void compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree));
+    void compChangeLife(VARSET_VALARG_TP newLife);
 
-    void genChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
+    void genChangeLife(VARSET_VALARG_TP newLife)
     {
-        compChangeLife</*ForCodeGen*/ true>(newLife DEBUGARG(tree));
+        compChangeLife</*ForCodeGen*/ true>(newLife);
     }
 
     template <bool ForCodeGen>

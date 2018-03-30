@@ -174,6 +174,7 @@ CONFIG_DWORD_INFO_EX(INTERNAL_BreakOnUncaughtException, W("BreakOnUncaughtExcept
 
 /// Debugger
 ///
+RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_EnableDiagnostics, W("EnableDiagnostics"), 1, "Allows the debugger and profiler diagnostics to be disabled", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_D__FCE, W("D::FCE"), 0, "Allows an assert when crawling the managed stack for an exception handler", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_DbgBreakIfLocksUnavailable, W("DbgBreakIfLocksUnavailable"), 0, "Allows an assert when the debugger can't take a lock ", CLRConfig::REGUTIL_default)
 CONFIG_DWORD_INFO_EX(INTERNAL_DbgBreakOnErr, W("DbgBreakOnErr"), 0, "Allows an assert when we get a failing hresult", CLRConfig::REGUTIL_default)
@@ -380,7 +381,7 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TailCallLoopOpt, W("TailCallLoopOpt"), 1, "Con
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_Jit_NetFx40PInvokeStackResilience, W("NetFx40_PInvokeStackResilience"), (DWORD)-1, "Makes P/Invoke resilient against mismatched signature and calling convention (significant perf penalty).")
 
 // AltJitAssertOnNYI should be 0 on targets where JIT is under development or bring up stage, so as to facilitate fallback to main JIT on hitting a NYI.
-#if defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_AltJitAssertOnNYI, W("AltJitAssertOnNYI"), 0, "Controls the AltJit behavior of NYI stuff")
 #else
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_AltJitAssertOnNYI, W("AltJitAssertOnNYI"), 1, "Controls the AltJit behavior of NYI stuff")
@@ -649,7 +650,8 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                    
 /// Tiered Compilation
 ///
 #ifdef FEATURE_TIERED_COMPILATION
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation, W("EXPERIMENTAL_TieredCompilation"), 0, "Enables tiered compilation")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 0, "Enables tiered compilation")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_LEGACY_TieredCompilation, W("EXPERIMENTAL_TieredCompilation"), 0, "Deprecated - Use COMPLUS_TieredCompilation")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold, W("TieredCompilation_Tier1CallCountThreshold"), 30, "Number of times a method must be called after which it is promoted to tier 1.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs, W("TieredCompilation_Tier1CallCountingDelayMs"), 100, "Delay in milliseconds since process startup or the last tier 0 JIT before call counting begins for tier 1 promotion.")
 #endif

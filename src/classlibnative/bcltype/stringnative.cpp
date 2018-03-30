@@ -31,31 +31,6 @@
 #pragma optimize("tgy", on)
 #endif
 
-inline COMNlsHashProvider * GetCurrentNlsHashProvider()
-{
-    LIMITED_METHOD_CONTRACT;
-    return &COMNlsHashProvider::s_NlsHashProvider;
-}
-
-FCIMPL1(INT32, COMString::Marvin32HashString, StringObject* thisRefUNSAFE) {
-    FCALL_CONTRACT;
-
-    int iReturnHash = 0;
-
-    if (thisRefUNSAFE == NULL) {
-        FCThrow(kNullReferenceException);
-    }
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    iReturnHash = GetCurrentNlsHashProvider()->HashString(thisRefUNSAFE->GetBuffer(), thisRefUNSAFE->GetStringLength());
-    END_SO_INTOLERANT_CODE;
-
-    FC_GC_POLL_RET();
-
-    return iReturnHash;
-}
-FCIMPLEND
-
 /*===============================IsFastSort===============================
 **Action: Call the helper to walk the string and see if we have any high chars.
 **Returns: void.  The appropriate bits are set on the String.
@@ -133,44 +108,6 @@ FCIMPL2(INT32, COMString::FCCompareOrdinalIgnoreCaseWC, StringObject* strA, __in
     return ret;
 }
 FCIMPLEND
-
-/*================================CompareOrdinalEx===============================
-**Args: typedef struct {STRINGREF thisRef; INT32 options; INT32 length; INT32 valueOffset;\
-        STRINGREF value; INT32 thisOffset;} _compareOrdinalArgsEx;
-==============================================================================*/
-
-FCIMPL6(INT32, COMString::CompareOrdinalEx, StringObject* strA, INT32 indexA, INT32 countA, StringObject* strB, INT32 indexB, INT32 countB)
-{
-    FCALL_CONTRACT;
-
-    VALIDATEOBJECT(strA);
-    VALIDATEOBJECT(strB);
-    DWORD *strAChars, *strBChars;
-    int strALength, strBLength;
-
-    // These runtime tests are handled in the managed wrapper.
-    _ASSERTE(strA != NULL && strB != NULL);
-    _ASSERTE(indexA >= 0 && indexB >= 0);
-    _ASSERTE(countA >= 0 && countB >= 0);
-
-    strA->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strAChars, &strALength);
-    strB->RefInterpretGetStringValuesDangerousForGC((WCHAR **) &strBChars, &strBLength);
-
-    _ASSERTE(countA <= strALength - indexA);
-    _ASSERTE(countB <= strBLength - indexB);
-
-    // Set up the loop variables.
-    strAChars = (DWORD *) ((WCHAR *) strAChars + indexA);
-    strBChars = (DWORD *) ((WCHAR *) strBChars + indexB);
-
-    INT32 result = StringObject::FastCompareStringHelper(strAChars, countA, strBChars, countB);
-
-    FC_GC_POLL_RET();
-    return result;
-
-}
-FCIMPLEND
-
 
 /*==================================GETCHARAT===================================
 **Returns the character at position index.  Thows IndexOutOfRangeException as
