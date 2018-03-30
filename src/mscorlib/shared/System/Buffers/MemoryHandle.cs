@@ -12,9 +12,9 @@ namespace System.Buffers
     /// </summary>
     public unsafe struct MemoryHandle : IDisposable
     {
-        private IPinnable _pinnable;
         private void* _pointer;
         private GCHandle _handle;
+        private IPinnable _pinnable;
 
         /// <summary>
         /// Creates a new memory handle for the memory.
@@ -23,11 +23,11 @@ namespace System.Buffers
         /// <param name="pinnable">reference to manually managed object, or default if there is no memory manager</param>
         /// <param name="handle">handle used to pin array buffers</param>
         [CLSCompliant(false)]
-        public MemoryHandle(void* pointer, IPinnable pinnable = default, GCHandle handle = default)
+        public MemoryHandle(void* pointer, GCHandle handle = default, IPinnable pinnable = default)
         {
-            _pinnable = pinnable;
             _pointer = pointer;
             _handle = handle;
+            _pinnable = pinnable;
         }
 
         /// <summary>

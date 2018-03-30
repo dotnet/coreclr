@@ -350,7 +350,7 @@ namespace System
 #else
                 void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref s.GetRawStringData()), _index);
 #endif // FEATURE_PORTABLE_SPAN
-                return new MemoryHandle(pointer, null, handle);
+                return new MemoryHandle(pointer, handle);
             }
             else if (_object is T[] array)
             {
@@ -360,7 +360,7 @@ namespace System
 #else
                 void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
 #endif // FEATURE_PORTABLE_SPAN
-                return new MemoryHandle(pointer, null, handle);
+                return new MemoryHandle(pointer, handle);
             }
             return default;
         }

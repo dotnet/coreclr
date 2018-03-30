@@ -57,42 +57,42 @@ namespace System.Runtime.InteropServices
 
         /// <summary>
         /// Gets an <see cref="MemoryManager{T}"/> from the underlying read-only memory.
-        /// If unable to get the <typeparamref name="TOwner"/> type, returns false.
+        /// If unable to get the <typeparamref name="TManager"/> type, returns false.
         /// </summary>
         /// <typeparam name="T">The element type of the <paramref name="memory" />.</typeparam>
-        /// <typeparam name="TOwner">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
-        /// <param name="memory">The memory to get the owner for.</param>
-        /// <param name="owner">The returned owner of the <see cref="ReadOnlyMemory{T}"/>.</param>
+        /// <typeparam name="TManager">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
+        /// <param name="memory">The memory to get the manager for.</param>
+        /// <param name="manager">The returned manager of the <see cref="ReadOnlyMemory{T}"/>.</param>
         /// <returns>A <see cref="bool"/> indicating if it was successful.</returns>
-        public static bool TryGetMemoryManager<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner)
-            where TOwner : MemoryManager<T>
+        public static bool TryGetMemoryManager<T, TManager>(ReadOnlyMemory<T> memory, out TManager manager)
+            where TManager : MemoryManager<T>
         {
-            TOwner localOwner; // Use register for null comparison rather than byref
-            owner = localOwner = memory.GetObjectStartLength(out _, out _) as TOwner;
-            return !ReferenceEquals(owner, null);
+            TManager localManager; // Use register for null comparison rather than byref
+            manager = localManager = memory.GetObjectStartLength(out _, out _) as TManager;
+            return !ReferenceEquals(manager, null);
         }
 
         /// <summary>
         /// Gets an <see cref="MemoryManager{T}"/> and <paramref name="start" />, <paramref name="length" /> from the underlying read-only memory.
-        /// If unable to get the <typeparamref name="TOwner"/> type, returns false.
+        /// If unable to get the <typeparamref name="TManager"/> type, returns false.
         /// </summary>
         /// <typeparam name="T">The element type of the <paramref name="memory" />.</typeparam>
-        /// <typeparam name="TOwner">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
-        /// <param name="memory">The memory to get the owner for.</param>
-        /// <param name="owner">The returned owner of the <see cref="ReadOnlyMemory{T}"/>.</param>
-        /// <param name="start">The offset from the start of the <paramref name="owner" /> that the <paramref name="memory" /> represents.</param>
-        /// <param name="length">The length of the <paramref name="owner" /> that the <paramref name="memory" /> represents.</param>
+        /// <typeparam name="TManager">The type of <see cref="MemoryManager{T}"/> to try and retrive.</typeparam>
+        /// <param name="memory">The memory to get the manager for.</param>
+        /// <param name="manager">The returned manager of the <see cref="ReadOnlyMemory{T}"/>.</param>
+        /// <param name="start">The offset from the start of the <paramref name="manager" /> that the <paramref name="memory" /> represents.</param>
+        /// <param name="length">The length of the <paramref name="manager" /> that the <paramref name="memory" /> represents.</param>
         /// <returns>A <see cref="bool"/> indicating if it was successful.</returns>
-        public static bool TryGetMemoryManager<T, TOwner>(ReadOnlyMemory<T> memory, out TOwner owner, out int start, out int length)
-           where TOwner : MemoryManager<T>
+        public static bool TryGetMemoryManager<T, TManager>(ReadOnlyMemory<T> memory, out TManager manager, out int start, out int length)
+           where TManager : MemoryManager<T>
         {
-            TOwner localOwner; // Use register for null comparison rather than byref
-            owner = localOwner = memory.GetObjectStartLength(out start, out length) as TOwner;
+            TManager localManager; // Use register for null comparison rather than byref
+            manager = localManager = memory.GetObjectStartLength(out start, out length) as TManager;
             start &= ReadOnlyMemory<T>.RemoveFlagsBitMask;
 
             Debug.Assert(length >= 0);
             
-            if (ReferenceEquals(owner, null))
+            if (ReferenceEquals(manager, null))
             {
                 start = default;
                 length = default;
