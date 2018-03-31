@@ -121,12 +121,6 @@ public:
     {
         return true;
     }
-
-    uint8_t* GetLoaderAllocatorObjectForGC()
-    {
-        // [LOCALGC TODO] this is not correct
-        return nullptr;
-    }
 };
 
 class Object
