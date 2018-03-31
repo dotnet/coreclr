@@ -359,6 +359,7 @@ namespace System
         /// <summary>
         /// Creates a new span over the portion of the target array.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this T[] array, int start)
         {
             if (array == null)
@@ -380,6 +381,7 @@ namespace System
         /// </summary>
         /// <param name="text">The target string.</param>
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this string text)
         {
             if (text == null)
