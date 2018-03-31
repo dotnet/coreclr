@@ -1652,7 +1652,7 @@ DoWrite
 ; over the lifetime of the CLR. Specifically ARM has real problems reading the values of external globals (we
 ; need two memory indirections to do this) so we'd like to be able to directly set the current values of
 ; various GC globals (e.g. g_lowest_address and g_card_table) into the barrier code itself and then reset them
-; every time they change (the GC already calls the VM to inform it of these changes). The handle this without
+; every time they change (the GC already calls the VM to inform it of these changes). To handle this without
 ; creating too much fragility such as hardcoding instruction offsets in the VM update code, we wrap write
 ; barrier creation and GC globals access in a set of macros that create a table of descriptors describing each
 ; offset that must be patched.
@@ -2005,7 +2005,7 @@ tempReg     SETS "$tmpReg"
 ;
 ; Finally define the write barrier functions themselves. Currently we don't provide variations that use
 ; different input registers. If the JIT wants this at a later stage in order to improve code quality it would
-; be a relatively simply change to implement via an additional macro parameter to WRITE_BARRIER_ENTRY.
+; be a relatively simple change to implement via an additional macro parameter to WRITE_BARRIER_ENTRY.
 ;
 ; The calling convention for the first batch of write barriers is:
 ;
