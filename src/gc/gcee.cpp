@@ -615,9 +615,9 @@ void GCHeap::SetSuspensionPending(bool fSuspensionPending)
     }
 }
 
-void GCHeap::SetYieldProcessorNormalizationInfo(uint32_t yieldProcessorNormalizationInfo)
+void GCHeap::SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor)
 {
-    g_yieldProcessorNormalizationInfo = yieldProcessorNormalizationInfo;
+    g_yieldProcessorScalingFactor = yieldProcessorScalingFactor;
 }
 
 void GCHeap::ControlEvents(GCEventKeyword keyword, GCEventLevel level)

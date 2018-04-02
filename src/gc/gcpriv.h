@@ -4334,9 +4334,9 @@ size_t gcard_of (uint8_t* object)
 }
 
 inline
-void YieldProcessorNormalized()
+void YieldProcessorScalingFactor()
 {
-    unsigned int n = g_yieldProcessorNormalizationInfo;
+    unsigned int n = g_yieldProcessorScalingFactor;
     _ASSERTE(n != 0);
     do
     {

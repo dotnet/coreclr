@@ -94,7 +94,7 @@ static void InitializeYieldProcessorNormalized()
     s_isYieldProcessorNormalizedInitialized = true;
 
 
-    GCHeapUtilities::GetGCHeap()->SetYieldProcessorNormalizationInfo(yieldsPerNormalizedYield);
+    GCHeapUtilities::GetGCHeap()->SetYieldProcessorScalingFactor(yieldsPerNormalizedYield);
 }
 
 void EnsureYieldProcessorNormalizedInitialized()

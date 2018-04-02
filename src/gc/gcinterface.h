@@ -720,8 +720,8 @@ public:
     // Tells the GC when the VM is suspending threads.
     virtual void SetSuspensionPending(bool fSuspensionPending) = 0;
 
-    // Tells the GC how many YieldProcessor calls are equal to one normalized yield processor call.
-    virtual void SetYieldProcessorNormalizationInfo(uint32_t yieldProcessorNormalizationInfo) = 0;
+    // Tells the GC how many YieldProcessor calls are equal to one scaled yield processor call.
+    virtual void SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor) = 0;
 
     /*
     ============================================================================

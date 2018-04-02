@@ -138,7 +138,7 @@ extern "C" uint32_t g_num_processors;
 
 extern VOLATILE(int32_t) g_fSuspensionPending;
 
-extern uint32_t g_yieldProcessorNormalizationInfo;
+extern uint32_t g_yieldProcessorScalingFactor;
 
 ::IGCHandleManager*  CreateGCHandleManager();
 

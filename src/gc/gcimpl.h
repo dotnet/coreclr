@@ -93,7 +93,7 @@ public:
 
     void SetSuspensionPending(bool fSuspensionPending);
     
-    void SetYieldProcessorNormalizationInfo(uint32_t yieldProcessorNormalizationInfo);
+    void SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor);
 
     void SetWaitForGCEvent();
     void ResetWaitForGCEvent();
