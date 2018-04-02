@@ -331,7 +331,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
         case GT_PUTARG_SPLIT:
             genPutArgSplit(treeNode->AsPutArgSplit());
             break;
-#endif
+#endif // _TARGET_ARM_
 
         case GT_CALL:
             genCallInstruction(treeNode->AsCall());
@@ -351,7 +351,7 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
         case GT_CMPXCHG:
             genCodeForCmpXchg(treeNode->AsCmpXchg());
             break;
-#endif
+#endif // _TARGET_ARM64_
 
         case GT_RELOAD:
             // do nothing - reload is just a marker.
@@ -518,7 +518,7 @@ void CodeGen::genIntrinsic(GenTree* treeNode)
             genConsumeOperands(treeNode->AsOp());
             getEmitter()->emitInsBinary(INS_frintn, emitActualTypeSize(treeNode), treeNode, srcNode);
             break;
-#endif
+#endif // _TARGET_ARM64_
 
         case CORINFO_INTRINSIC_Sqrt:
             genConsumeOperands(treeNode->AsOp());
