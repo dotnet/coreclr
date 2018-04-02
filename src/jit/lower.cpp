@@ -4719,6 +4719,10 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     const var_types type = divMod->TypeGet();
     assert((type == TYP_INT) || (type == TYP_LONG));
 
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    assert(!"unreachable: GT_DIV/GT_MOD should get morphed into helper calls");
+#endif // USE_HELPERS_FOR_INT_DIV
+
     if (dividend->IsCnsIntOrI())
     {
         // We shouldn't see a divmod with constant operands here but if we do then it's likely
@@ -4778,9 +4782,9 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         {
 #ifdef _TARGET_64BIT_
             magic = MagicDivide::GetSigned64Magic(static_cast<int64_t>(divisorValue), &shift);
-#else
+#else  // !_TARGET_64BIT_
             unreached();
-#endif
+#endif // !_TARGET_64BIT_
         }
 
         divisor->gtIntConCommon.SetIconValue(magic);
@@ -4872,9 +4876,11 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         }
 
         return mulhi;
-#else
+#elif defined(_TARGET_ARM_)
         // Currently there's no GT_MULHI for ARM32
         return nullptr;
+#else
+#error Unsupported or unset target architecture
 #endif
     }
 
