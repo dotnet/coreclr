@@ -7,7 +7,7 @@ using Microsoft.Xunit.Performance.Api;
 
 namespace JitBench
 {
-    class Word2VecBenchmark : Word2VecNetBenchmark
+    class Word2VecBenchmark : MLBenchmark
     {
         public Word2VecBenchmark() : base("Word2Vec") { }
 
@@ -19,11 +19,11 @@ namespace JitBench
         }
     }
 
-    abstract class Word2VecNetBenchmark : Benchmark
+    abstract class MLBenchmark : Benchmark
     {
         private static readonly HashSet<int> DefaultExitCodes = new HashSet<int>(new[] { 0 });
 
-        public Word2VecNetBenchmark(string name) : base(name)
+        public MLBenchmark(string name) : base(name)
         {
             ExePath = ExecutableName;
         }
@@ -73,6 +73,7 @@ namespace JitBench
             string tfm = DotNetSetup.GetTargetFrameworkMonikerForFrameworkVersion(dotNetInstall.FrameworkVersion);
             string word2VecNetPublishDir = GetWord2VecNetPublishDirectory(dotNetInstall, outputDir, tfm);
 
+            // Download the corpus of text. This is a zip file that contains a text file of 100M of text from Wikipedia
             var url = "http://mattmahoney.net/dc/text8.zip";
             await FileTasks.DownloadAndUnzip(url, word2VecNetRepoRootDir + "_temp", output);
 
@@ -149,14 +150,6 @@ namespace JitBench
                         continue;
                     }
 
-                    //the steady state output chart looks like:
-                    //   Requests    Aggregate Time(ms)    Req/s   Req Min(ms)   Req Mean(ms)   Req Median(ms)   Req Max(ms)   SEM(%)
-                    // ----------    ------------------    -----   -----------   ------------   --------------   -----------   ------
-                    //    2-  100                 5729   252.60          3.01           3.96             3.79          9.81     1.86
-                    //  101-  250                 6321   253.76          3.40           3.94             3.84          5.25     0.85
-                    //  ... many more rows ...
-
-                    //                              Requests       Agg     req/s        min          mean           median         max          SEM
                     match = Regex.Match(line, @"^Steadystate median search time: \s*(\d+\.\d+)ms$");
                     if (match.Success && match.Groups.Count == 2)
                     {
@@ -236,11 +229,6 @@ namespace JitBench
             return null;
         }
 
-        string GetLocalWord2VecNetRepoDirectory()
-        {
-            return Environment.GetEnvironmentVariable("MUSICSTORE_PRIVATE_REPO");
-        }
-
         string GetCoreClrRoot()
         {
             string currentDirectory = Directory.GetCurrentDirectory();
@@ -257,11 +245,9 @@ namespace JitBench
         private const string Word2VecNetCommitSha1Id = "6012a2b5b886926918d51b1b56387d785115f448";
         private const string Word2VecNetPatch = "word2vecnet.patch";
         private const string EnvironmentFileName = "Word2VecNetEnvironment.txt";
-        private const string StoreDirName = ".store";
         private readonly Metric TrainingMetric = new Metric("Training", "ms");
         private readonly Metric FirstSearchMetric = new Metric("First Search", "ms");
         private readonly Metric MedianSearchMetric = new Metric("Median Search", "ms");
-        private readonly Metric MeanSearchMetric = new Metric("Mean Search", "ms");
     }
 }
 

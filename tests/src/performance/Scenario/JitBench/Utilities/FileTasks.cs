@@ -178,6 +178,8 @@ namespace JitBench
                 }
                 try
                 {
+                    // On some systems, directories/files created programmatically are created with attributes
+                    // that prevent them from being deleted. Set those attributes to be normal
                     SetAttributesNormal(path);
                     Directory.Delete(path, true);
                     return;
