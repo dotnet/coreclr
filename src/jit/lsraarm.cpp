@@ -756,14 +756,6 @@ void LinearScan::BuildNode(GenTree* tree)
         }
         break;
 
-        default:
-#ifdef DEBUG
-            char message[256];
-            _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
-                        GenTree::OpName(tree->OperGet()));
-            NYIRAW(message);
-#endif
-
         case GT_LCL_FLD:
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR:
@@ -787,6 +779,15 @@ void LinearScan::BuildNode(GenTree* tree)
             info->srcCount         = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->srcCount == 2);
             break;
+
+        default:
+#ifdef DEBUG
+            char message[256];
+            _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
+                        GenTree::OpName(tree->OperGet()));
+            NYIRAW(message);
+#endif
+            unreached();
     } // end switch (tree->OperGet())
 
     if (tree->IsUnusedValue() && (info->dstCount != 0))
