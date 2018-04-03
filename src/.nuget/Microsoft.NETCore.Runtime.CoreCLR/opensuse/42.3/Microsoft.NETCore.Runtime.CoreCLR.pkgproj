@@ -14,7 +14,6 @@
     <NativeSplittableBinary Include="$(BinDir)libmscordaccore.so" />
     <NativeSplittableBinary Include="$(BinDir)libmscordbi.so" />
     <NativeSplittableBinary Include="$(BinDir)libsos.so" />
-    <NativeSplittableBinary Include="$(BinDir)libsosplugin.so" />
     <NativeSplittableBinary Include="$(BinDir)System.Globalization.Native.so" />
     <ArchitectureSpecificNativeFile Include="$(BinDir)sosdocsunix.txt" />
     <ArchitectureSpecificNativeFile Include="$(BinDir)mscorlib.ni.dll" />
