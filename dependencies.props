@@ -23,13 +23,13 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>bf7e5dc53ea4dc9d7bcfcb1122af6d3b08441fac</CoreFxCurrentRef>
+    <CoreFxCurrentRef>1329252b9b4e7b5baa657c52feca3cb9253281b7</CoreFxCurrentRef>
     <CoreClrCurrentRef>bf7e5dc53ea4dc9d7bcfcb1122af6d3b08441fac</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.4.4-servicing-26328-01</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.4.4-servicing-26403-03</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
     <MicrosoftNETCorePlatformsPackageVersion>2.0.2</MicrosoftNETCorePlatformsPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.0.7</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <SystemMemoryPackageVersion>4.4.0-preview3-25526-01</SystemMemoryPackageVersion>
