@@ -172,6 +172,16 @@ namespace System.Collections.Generic
             }
         }
 
+        // Returns reference to element at the given index.
+        public ref T ItemRef(int index)
+        {
+            if ((uint)index >= (uint)_size)
+            {
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+            }
+            return ref _items[index];
+        }
+
         private static bool IsCompatibleObject(object value)
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.

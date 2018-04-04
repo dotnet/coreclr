@@ -44,6 +44,7 @@ namespace System.Collections.Generic
             public TValue value;         // Value of entry
         }
 
+        private static TValue s_emptyValue;
         private int[] _buckets;
         private Entry[] _entries;
         private int _count;
@@ -223,6 +224,21 @@ namespace System.Collections.Generic
                 bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
                 Debug.Assert(modified);
             }
+        }
+
+        // Returns reference to value with given key.
+        public ref TValue ValueRef(TKey key)
+        {
+            int i = FindEntry(key);
+            if (i >= 0) return ref _entries[i].value;
+            ThrowHelper.ThrowKeyNotFoundException(key);
+            return ref EmptyValue;
+        }
+
+        private static ref TValue EmptyValue
+        {
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            get => ref s_emptyValue;
         }
 
         public void Add(TKey key, TValue value)
