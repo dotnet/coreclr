@@ -353,13 +353,7 @@ namespace System
         // The character at position startIndex is included in the search.  startIndex is the larger
         // index within the string.
         //
-        public int LastIndexOf(char value)
-        {
-            if (Length == 0)
-                return -1;
-
-            return SpanHelpers.LastIndexOf(ref _firstChar, Length - 1, value, Length);
-        }
+        public int LastIndexOf(char value) => SpanHelpers.LastIndexOf(ref _firstChar, value, Length);
 
         public int LastIndexOf(char value, int startIndex)
         {
@@ -377,7 +371,10 @@ namespace System
             if ((uint)count > (uint)startIndex + 1)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            return SpanHelpers.LastIndexOf(ref _firstChar, startIndex, value, count);
+            int startSearchAt = startIndex + 1 - count;
+            int result = SpanHelpers.LastIndexOf(ref Unsafe.Add(ref _firstChar, startSearchAt), value, count);
+
+            return result == -1 ? result : result + startSearchAt;
         }
 
         // Returns the index of the last occurrence of any specified character in the current instance.

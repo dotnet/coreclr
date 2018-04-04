@@ -168,14 +168,14 @@ namespace System
             }
         }
 
-        public static unsafe int LastIndexOf(ref char firstChar, int startIndex, char value, int length)
+        public static unsafe int LastIndexOf(ref char searchSpace, char value, int length)
         {
             Debug.Assert(length >= 0);
-            
-            fixed (char* pChars = &firstChar)
+
+            fixed (char* pChars = &searchSpace)
             {
-                char* pCh = pChars + startIndex;
-                char* pEndCh = pCh - length;
+                char* pCh = pChars + length;
+                char* pEndCh = pChars;
 
 #if !netstandard11
                 if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
@@ -188,27 +188,25 @@ namespace System
                 while (length >= 4)
                 {
                     length -= 4;
+                    pCh -= 4;
 
+                    if (*(pCh + 3) == value)
+                        goto Found3;
+                    if (*(pCh + 2) == value)
+                        goto Found2;
+                    if (*(pCh + 1) == value)
+                        goto Found1;
                     if (*pCh == value)
                         goto Found;
-                    if (*(pCh - 1) == value)
-                        goto Found1;
-                    if (*(pCh - 2) == value)
-                        goto Found2;
-                    if (*(pCh - 3) == value)
-                        goto Found3;
-
-                    pCh -= 4;
                 }
 
                 while (length > 0)
                 {
                     length -= 1;
+                    pCh -= 1;
 
                     if (*pCh == value)
                         goto Found;
-
-                    pCh -= 1;
                 }
 #if !netstandard11
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -220,9 +218,10 @@ namespace System
                     // Get comparison Vector
                     Vector<ushort> vComparison = new Vector<ushort>(value);
 
-                    while (length > 0)
+                    while (length > Vector<ushort>.Count - 1)
                     {
-                        char* pStart = pCh - Vector<ushort>.Count + 1;
+                        char* pStart = pCh - Vector<ushort>.Count;
+                        // Using Unsafe.ReadUnaligned instead of Read since it isn't gauranteed that pStart is vector aligned
                         Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pStart));
                         if (Vector<ushort>.Zero.Equals(vMatches))
                         {
@@ -231,7 +230,7 @@ namespace System
                             continue;
                         }
                         // Find offset of last match
-                        return (int)(pStart - pChars) + LocateLastFoundChar(vMatches);
+                        return (int)(pStart - pEndCh) + LocateLastFoundChar(vMatches);
                     }
 
                     if (pCh > pEndCh)
@@ -242,14 +241,14 @@ namespace System
                 }
 #endif
                 return -1;
-            Found3:
-                pCh--;
-            Found2:
-                pCh--;
-            Found1:
-                pCh--;
             Found:
-                return (int)(pCh - pChars);
+                return (int)(pCh - pEndCh);
+            Found1:
+                return (int)(pCh - pEndCh) + 1;
+            Found2:
+                return (int)(pCh - pEndCh) + 2;
+            Found3:
+                return (int)(pCh - pEndCh) + 3;
             }
         }
 
