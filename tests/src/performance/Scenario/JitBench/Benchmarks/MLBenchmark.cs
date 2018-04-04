@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Reflection;
 using Microsoft.Xunit.Performance.Api;
 
 namespace JitBench
@@ -51,7 +52,7 @@ namespace JitBench
             string word2VecNetRepoRootDir = GetWord2VecNetRepoRootDir(outputDir);
             FileTasks.DeleteDirectory(word2VecNetRepoRootDir, output);
 
-            string word2VecPatchFullPath = Path.Combine(GetCoreClrRoot(), "tests", "scripts", Word2VecNetPatch);
+            string word2VecPatchFullPath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), Word2VecNetPatch);
 
             await ExecuteGitCommand($"clone {Word2VecNetRepoUrl} {word2VecNetRepoRootDir}", output);
             await ExecuteGitCommand($"checkout {Word2VecNetCommitSha1Id}", output, workingDirectory: word2VecNetRepoRootDir);
@@ -245,9 +246,11 @@ namespace JitBench
         private const string Word2VecNetCommitSha1Id = "6012a2b5b886926918d51b1b56387d785115f448";
         private const string Word2VecNetPatch = "word2vecnet.patch";
         private const string EnvironmentFileName = "Word2VecNetEnvironment.txt";
+        private const string StoreDirName = ".store";
         private readonly Metric TrainingMetric = new Metric("Training", "ms");
         private readonly Metric FirstSearchMetric = new Metric("First Search", "ms");
         private readonly Metric MedianSearchMetric = new Metric("Median Search", "ms");
+        private readonly Metric MeanSearchMetric = new Metric("Mean Search", "ms");
     }
 }
 
