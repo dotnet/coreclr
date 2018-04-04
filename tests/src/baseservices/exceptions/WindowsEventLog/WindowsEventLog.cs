@@ -66,6 +66,11 @@ class Program
 
                 if (source.Contains(".NET Runtime") && checkCount == logEntriesToCheck.Length)
                     return true;
+                else if (source.Contains(".NET Runtime")
+                {
+                    Console.WriteLine("***      Event Log       ***);
+                    Console.WriteLine(message);
+                }
             }
         }
         return false;
