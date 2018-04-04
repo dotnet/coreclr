@@ -113,6 +113,11 @@
   <!-- Import Build tools common props file where repo-independent properties are found -->
   <Import Condition="Exists('$(ToolsDir)Build.Common.props')" Project="$(ToolsDir)Build.Common.props" />
 
+  <!-- Where to store the build host's info if needed -->
+  <PropertyGroup>
+    <HostMachineInfoPropsFile>$(BaseIntermediateOutputPath)HostMachineInfo.props</HostMachineInfoPropsFile>
+  </PropertyGroup>
+
   <!-- Setup common target properties that we use to conditionally include sources -->
   <PropertyGroup>
     <TargetsFreeBSD Condition="'$(BuildOS)' == 'FreeBSD'">true</TargetsFreeBSD>

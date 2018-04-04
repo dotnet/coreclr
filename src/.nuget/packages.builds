@@ -1,5 +1,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
+  <UsingTask TaskName="GetTargetMachineInfo" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll" />
 
   <PropertyGroup>
     <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->
@@ -28,6 +29,26 @@
   <Import Project="$(ToolsDir)versioning.targets" />
   <!-- Make sure we create version.txt file since it will be packaged -->
   <Target Name="EnsureVersionInfoFileExists" BeforeTargets="Build" DependsOnTargets="CreateVersionInfoFile" />
+
+  <Target Name="CreateHostMachineInfoFile" BeforeTargets="Build">
+    <GetTargetMachineInfo>
+      <Output PropertyName="HostMachineRid" TaskParameter="RuntimeIdentifier" />
+    </GetTargetMachineInfo>
+
+    <PropertyGroup>
+      <HostMachineInfoPropsContent>
+&lt;Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"&gt;
+  &lt;PropertyGroup&gt;
+    &lt;HostMachineRid&gt;$(HostMachineRid)&lt;/HostMachineRid&gt;
+  &lt;/PropertyGroup&gt;
+&lt;/Project&gt;
+      </HostMachineInfoPropsContent>
+    </PropertyGroup>
+
+    <WriteLinesToFile File="$(HostMachineInfoPropsFile)"
+                      Lines="$(HostMachineInfoPropsContent)"
+                      Overwrite="True" />
+  </Target>
 
   <Import Project="$(MSBuildThisFileDirectory)..\..\dir.traversal.targets" />
 </Project>
