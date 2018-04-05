@@ -130,6 +130,149 @@ CreateProcessForLaunch(
     return S_OK;
 }
 
+// Create pipes to use as stdin, stdout, stderr in CreateProcessW()
+static HRESULT CreateProcessPipes(HANDLE *hInR, HANDLE *hInW,
+                                  HANDLE *hOutR, HANDLE *hOutW,
+                                  HANDLE *hErrR, HANDLE *hErrW)
+{
+    SECURITY_ATTRIBUTES saPipeAttr;
+
+    saPipeAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saPipeAttr.lpSecurityDescriptor = NULL;
+    saPipeAttr.bInheritHandle = TRUE;
+
+    if (!CreatePipe(hInR, hInW, &saPipeAttr, 0)) {
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    if (!CreatePipe(hOutR, hOutW, &saPipeAttr, 0)) {
+        const HRESULT res = HRESULT_FROM_WIN32(GetLastError());
+        CloseHandle(hInR);
+        CloseHandle(hInW);
+        return res;
+    }
+
+    if (!CreatePipe(hErrR, hErrW, &saPipeAttr, 0)) {
+        const HRESULT res = HRESULT_FROM_WIN32(GetLastError());
+        CloseHandle(hInR);
+        CloseHandle(hInW);
+        CloseHandle(hOutR);
+        CloseHandle(hOutW);
+        return res;
+    }
+
+#ifndef FEATURE_PAL
+    // Ensure write handle for stdin, read handles for stdout and stderr are not inheritable by the child
+    if (!SetHandleInformation(hInW, HANDLE_FLAG_INHERIT, 0) ||
+        !SetHandleInformation(hOutR, HANDLE_FLAG_INHERIT, 0) ||
+        !SetHandleInformation(hErrR, HANDLE_FLAG_INHERIT, 0)) {
+        const HRESULT res = HRESULT_FROM_WIN32(GetLastError());
+        CloseHandle(hInR);
+        CloseHandle(hInW);
+        CloseHandle(hOutR);
+        CloseHandle(hOutW);
+        CloseHandle(hErrR);
+        CloseHandle(hErrW);
+        return res;
+    }
+#endif
+
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// Public API.
+//
+// CreateProcessForLaunchEx - an extended version of the CreateProcessForLaunch
+// that can redirect input/output of the created process.
+//
+//-----------------------------------------------------------------------------
+HRESULT
+CreateProcessForLaunchEx(
+    __in LPWSTR lpCommandLine,
+    __in BOOL bSuspendProcess,
+    __in LPVOID lpEnvironment,
+    __in LPCWSTR lpCurrentDirectory,
+    __out PDWORD pProcessId,
+    __out HANDLE *pResumeHandle,
+    __out HANDLE *pStdInHandle,
+    __out HANDLE *pStdOutHandle,
+    __out HANDLE *pStdErrHandle)
+{
+    PUBLIC_CONTRACT;
+
+    PROCESS_INFORMATION processInfo;
+    STARTUPINFOW startupInfo;
+    DWORD dwCreationFlags = 0;
+    HRESULT hr = S_OK;
+
+    // Create pipes
+    HANDLE hInR, hInW, hOutR, hOutW, hErrR, hErrW;
+    hr = CreateProcessPipes(&hInR, &hInW, &hOutR, &hOutW, &hErrR, &hErrW);
+    if (FAILED(hr)) {
+        *pProcessId = 0;
+        *pResumeHandle = NULL;
+        *pStdInHandle = NULL;
+        *pStdOutHandle = NULL;
+        *pStdErrHandle = NULL;
+        return hr;
+    }
+
+    ZeroMemory(&processInfo, sizeof(processInfo));
+    ZeroMemory(&startupInfo, sizeof(startupInfo));
+    startupInfo.cb = sizeof(startupInfo);
+    startupInfo.hStdInput = hInR;
+    startupInfo.hStdOutput = hOutW;
+    startupInfo.hStdError = hErrW;
+    startupInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+    if (bSuspendProcess)
+        dwCreationFlags |= CREATE_SUSPENDED;
+
+    BOOL result = CreateProcessW(
+        NULL,
+        lpCommandLine,
+        NULL,
+        NULL,
+        TRUE,
+        dwCreationFlags,
+        lpEnvironment,
+        lpCurrentDirectory,
+        &startupInfo,
+        &processInfo);
+    if (!result)
+        hr = HRESULT_FROM_WIN32(GetLastError());
+
+    // Close unused pipes
+    CloseHandle(hInR);
+    CloseHandle(hOutW);
+    CloseHandle(hErrW);
+
+    if (!result) {
+        CloseHandle(hInW);
+        CloseHandle(hOutR);
+        CloseHandle(hErrR);
+        *pProcessId = 0;
+        *pResumeHandle = NULL;
+        *pStdInHandle = NULL;
+        *pStdOutHandle = NULL;
+        *pStdErrHandle = NULL;
+        return hr;
+    }
+
+    if (processInfo.hProcess != NULL)
+        CloseHandle(processInfo.hProcess);
+
+    *pProcessId = processInfo.dwProcessId;
+    *pResumeHandle = processInfo.hThread;
+
+    *pStdInHandle = hInW;
+    *pStdOutHandle = hOutR;
+    *pStdErrHandle = hErrR;
+
+    return hr;
+}
+
 //-----------------------------------------------------------------------------
 // Public API.
 //
@@ -164,6 +307,41 @@ CloseResumeHandle(
         return HRESULT_FROM_WIN32(GetLastError());
     }
     return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// Public API.
+//
+// WriteStandardHandle - write data to stdin `hStdInHandle` handle created with
+// CreateProcessForLaunchEx.
+//
+//-----------------------------------------------------------------------------
+HRESULT
+WriteStandardHandle(
+    __in HANDLE hStdInHandle,
+    __in LPCVOID lpBuffer,
+    __in DWORD dwNumberOfBytesToWrite,
+    __out DWORD *pdwNumberOfBytesWritten
+)
+{
+    PUBLIC_CONTRACT;
+    if (!WriteFile(hStdInHandle, lpBuffer, dwNumberOfBytesToWrite, pdwNumberOfBytesWritten, NULL))
+        return HRESULT_FROM_WIN32(GetLastError());
+    return S_OK;
+}
+
+//-----------------------------------------------------------------------------
+// Public API.
+//
+// CloseStandardHandle - to be used with the CreateProcessForLaunchEx standard
+// handle.
+//
+//-----------------------------------------------------------------------------
+HRESULT
+CloseStandardHandle(
+    __in HANDLE hStandardHandle)
+{
+    return CloseResumeHandle(hStandardHandle);
 }
 
 #ifdef FEATURE_PAL
