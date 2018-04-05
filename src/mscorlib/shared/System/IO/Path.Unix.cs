@@ -95,6 +95,7 @@ namespace System.IO
 
         private static bool TryGetFullPathHelper(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
         {
+            charsWritten = 0;
             var builder = new ValueStringBuilder();
             // We would ideally use realpath to do this, but it resolves symlinks, requires that the file actually exist,
             // and turns it into a full path, which we only want if fullCheck is true.
@@ -110,7 +111,7 @@ namespace System.IO
 
             if (destination.Length > 0)
             {
-                destination[0] = PathInternal.DirectorySeparatorCharAsString;
+                destination[0] = PathInternal.DirectorySeparatorChar;
                 charsWritten = 1;
                 return true;
             }
