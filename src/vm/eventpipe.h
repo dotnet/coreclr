@@ -316,9 +316,12 @@ struct EventPipeProviderConfiguration
 
 private:
 
+    // We should use following field order to avoid align mismatches with corresponding managed
+    // structure on x86/Linux, where 4-byte alignment is used by default instead of 8-byte one
+    // that is used during marshalling in this case.
     LPCWSTR m_pProviderName;
-    UINT64 m_keywords;
     UINT32 m_loggingLevel;
+    UINT64 m_keywords;
 
 public:
 

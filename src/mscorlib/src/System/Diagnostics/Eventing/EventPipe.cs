@@ -14,8 +14,8 @@ namespace System.Diagnostics.Tracing
     {
         [MarshalAs(UnmanagedType.LPWStr)]
         private string m_providerName;
-        private ulong m_keywords;
         private uint m_loggingLevel;
+        private ulong m_keywords;
 
         internal EventPipeProviderConfiguration(
             string providerName,
