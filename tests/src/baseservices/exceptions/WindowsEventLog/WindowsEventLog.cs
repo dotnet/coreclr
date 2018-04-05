@@ -93,6 +93,11 @@ class Program
     {
         if (args.Length == 0) // When invoked with no args, launch itself with appropriate args to cause various exceptions
         {
+            if (!System.Runtime.InteropServices.RuntimeInformation.OSDescription.Contains("Windows"))
+            {
+                return 100;
+            }
+
             if (!RunUnhandledExceptionTest())
             {
                 Console.WriteLine("WindowsEventLog Test: UnhandledExceptionTest failed.");
