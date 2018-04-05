@@ -54,7 +54,7 @@ namespace System.IO
             // Expand with current directory if necessary
             if (!IsPathRooted(path))
             {
-                path = Combine(Interop.Sys.GetCwd(), path);
+                path = Join(Interop.Sys.GetCwd(), path);
             }
 
             return TryGetFullPathHelper(path, destination, out charsWritten);
@@ -88,9 +88,9 @@ namespace System.IO
                 return false;
 
             if (IsPathFullyQualified(path))
-                return TryGetFullPath(path, destination, charsWritten);
+                return TryGetFullPath(path, destination, out charsWritten);
 
-            return TryGetFullPathHelper(CombineInternal(basePath, path), destination, out charsWritten);
+            return TryGetFullPathHelper(JoinInternal(basePath, path), destination, out charsWritten);
         }
 
         private static bool TryGetFullPathHelper(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
@@ -103,12 +103,19 @@ namespace System.IO
             Debug.Assert(builder.Length < path.Length || builder.ToString() == path,
                 "Either we've removed characters, or the string should be unmodified from the input path.");
 
-            if (builder.Length == 0)
+            if (builder.Length != 0)
             {
                 return builder.TryCopyTo(destination, out charsWritten);
             }
 
-            return builder.TryCopyTo(PathInternal.DirectorySeparatorCharAsString, out charsWritten);
+            if (destination.Length > 0)
+            {
+                destination[0] = PathInternal.DirectorySeparatorCharAsString;
+                charsWritten = 1;
+                return true;
+            }
+
+            return false;
         }
 
         private static string RemoveLongPathPrefix(string path)
