@@ -152,7 +152,7 @@ check_prereqs()
 
     # Minimum required version of clang is version 4.0 for arm/armel cross build
     if [[ $__CrossBuild == 1 && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-        if ! [[ "$__ClangMajorVersion" -ge "4"]]; then
+        if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
             echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
         fi
     fi
