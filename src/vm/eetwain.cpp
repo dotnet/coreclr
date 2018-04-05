@@ -2658,9 +2658,8 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
                 }
                 while (argOfs);
 
-                _ASSERTE(!hasPartialArgInfo    ||
-                         isZero(argHigh)       ||
-                        (argHigh == CONSTRUCT_ptrArgTP(1, (argCnt-1))));
+                // At this point, either we have no more args, or the next arg is in the position corresponding to argCnt.
+                _ASSERTE(isZero(argHigh) || (argHigh == CONSTRUCT_ptrArgTP(1, (argCnt-1))));
 
                 if (hasPartialArgInfo)
                 {
