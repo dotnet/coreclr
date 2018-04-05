@@ -979,7 +979,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180323032140"
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180405193556"
             }
         }
     }
@@ -2399,7 +2399,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     def dockerImage = getDockerImageName(architecture, os, true)
                     def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} "
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent clang5.0"
 
                     // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                     // download the appropriate CoreFX packages.
