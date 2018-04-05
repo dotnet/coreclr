@@ -44,6 +44,22 @@ namespace System.IO
             return result;
         }
 
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            if (path.Length == 0 || path.IndexOf('\0') != -1)
+                return false;
+
+            // Expand with current directory if necessary
+            if (!IsPathRooted(path))
+            {
+                path = Combine(Interop.Sys.GetCwd(), path);
+            }
+
+            return TryGetFullPathHelper(path, destination, out charsWritten);
+        }
+
         public static string GetFullPath(string path, string basePath)
         {
             if (path == null)
@@ -62,6 +78,37 @@ namespace System.IO
                 return GetFullPath(path);
 
             return GetFullPath(CombineInternal(basePath, path));
+        }
+
+        public static bool TryGetFullPath(ReadOnlySpan<char> path, ReadOnlySpan<char> basePath, Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            if (!IsPathFullyQualified(basePath) || basePath.Contains('\0') || path.Contains('\0') || !IsPathFullyQualified(basePath))
+                return false;
+
+            if (IsPathFullyQualified(path))
+                return TryGetFullPath(path, destination, charsWritten);
+
+            return TryGetFullPathHelper(CombineInternal(basePath, path), destination, out charsWritten);
+        }
+
+        private bool TryGetFullPathHelper(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        {
+            var builder = new ValueStringBuilder();
+            // We would ideally use realpath to do this, but it resolves symlinks, requires that the file actually exist,
+            // and turns it into a full path, which we only want if fullCheck is true.
+            PathInternal.RemoveRelativeSegments(path, PathInternal.GetRootLength(path), ref builder);
+
+            Debug.Assert(builder.Length < path.Length || builder.ToString() == path,
+                "Either we've removed characters, or the string should be unmodified from the input path.");
+
+            if (builder.Length == 0)
+            {
+                return builder.TryCopyTo(destination, out charsWritten);
+            }
+
+            return builder.TryCopyTo(PathInternal.DirectorySeparatorCharAsString, out charsWritten);
         }
 
         private static string RemoveLongPathPrefix(string path)
