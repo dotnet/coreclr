@@ -894,8 +894,13 @@ fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
-    __ClangMajorVersion=3
-    __ClangMinorVersion=9
+	if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+		__ClangMajorVersion=5
+		__ClangMinorVersion=0
+	else
+		__ClangMajorVersion=3
+		__ClangMinorVersion=9
+	fi
 fi
 
 if [[ "$__BuildArch" == "armel" ]]; then
