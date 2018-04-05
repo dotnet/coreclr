@@ -93,7 +93,7 @@ namespace System.IO
             return TryGetFullPathHelper(CombineInternal(basePath, path), destination, out charsWritten);
         }
 
-        private bool TryGetFullPathHelper(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
+        private static bool TryGetFullPathHelper(ReadOnlySpan<char> path, Span<char> destination, out int charsWritten)
         {
             var builder = new ValueStringBuilder();
             // We would ideally use realpath to do this, but it resolves symlinks, requires that the file actually exist,
