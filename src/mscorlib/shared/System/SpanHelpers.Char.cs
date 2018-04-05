@@ -181,7 +181,7 @@ namespace System
                 if (Vector.IsHardwareAccelerated && length >= Vector<ushort>.Count * 2)
                 {
                     const int elementsPerByte = sizeof(ushort) / sizeof(byte);
-                    length = (((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte) + 1;
+                    length = (((int)pCh & (Unsafe.SizeOf<Vector<ushort>>() - 1)) / elementsPerByte);
                 }
             SequentialScan:
 #endif
@@ -218,11 +218,12 @@ namespace System
                     // Get comparison Vector
                     Vector<ushort> vComparison = new Vector<ushort>(value);
 
-                    while (length > Vector<ushort>.Count - 1)
+                    while (length > 0)
                     {
                         char* pStart = pCh - Vector<ushort>.Count;
-                        // Using Unsafe.ReadUnaligned instead of Read since it isn't gauranteed that pStart is vector aligned
-                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<ushort>>(pStart));
+                        // Using Unsafe.Read instead of ReadUnaligned since the search space is pinned and pCh (and hence pSart) is always vector aligned
+                        Debug.Assert(((int)pStart & (Unsafe.SizeOf<Vector<ushort>>() - 1)) == 0);
+                        Vector<ushort> vMatches = Vector.Equals(vComparison, Unsafe.Read<Vector<ushort>>(pStart));
                         if (Vector<ushort>.Zero.Equals(vMatches))
                         {
                             pCh -= Vector<ushort>.Count;
