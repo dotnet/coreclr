@@ -602,8 +602,6 @@ void MethodTable::SetIsRestored()
 #endif
 }
 
-#ifdef FEATURE_COMINTEROP
-
 //==========================================================================================
 // mark as COM object type (System.__ComObject and types deriving from it)
 void MethodTable::SetComObjectType()
@@ -611,8 +609,6 @@ void MethodTable::SetComObjectType()
     LIMITED_METHOD_CONTRACT;
     SetFlag(enum_flag_ComObject);
 }
-
-#endif // FEATURE_COMINTEROP
 
 #if defined(FEATURE_TYPEEQUIVALENCE)
 void MethodTable::SetHasTypeEquivalence()
@@ -4816,7 +4812,17 @@ void MethodTable::Fixup(DataImage *image)
 #endif // _DEBUG
 
     MethodTable * pParentMT = GetParentMethodTable();
-    _ASSERTE(!pNewMT->GetFlag(enum_flag_HasIndirectParent));
+    _ASSERTE(!pNewMT->IsParentMethodTableIndirectPointerMaybeNull());
+
+    ZapRelocationType relocType;
+    if (decltype(MethodTable::m_pParentMethodTable)::isRelative)
+    {
+        relocType = IMAGE_REL_BASED_RELPTR;
+    }
+    else
+    {
+        relocType = IMAGE_REL_BASED_PTR;
+    }
 
     if (pParentMT != NULL)
     {
@@ -4828,7 +4834,8 @@ void MethodTable::Fixup(DataImage *image)
         {
             if (image->CanHardBindToZapModule(pParentMT->GetLoaderModule()))
             {
-                image->FixupPointerField(this, offsetof(MethodTable, m_pParentMethodTable));
+                _ASSERTE(!IsParentMethodTableIndirectPointer());
+                image->FixupField(this, offsetof(MethodTable, m_pParentMethodTable), pParentMT, 0, relocType);
             }
             else
             {
@@ -4864,7 +4871,7 @@ void MethodTable::Fixup(DataImage *image)
 
         if (pImport != NULL)
         {
-            image->FixupFieldToNode(this, offsetof(MethodTable, m_pParentMethodTable), pImport, -(SSIZE_T)offsetof(MethodTable, m_pParentMethodTable));
+            image->FixupFieldToNode(this, offsetof(MethodTable, m_pParentMethodTable), pImport, -PARENT_MT_FIXUP_OFFSET, relocType);
             pNewMT->SetFlag(enum_flag_HasIndirectParent);
         }
     }
@@ -6128,7 +6135,15 @@ void MethodTable::Restore()
     //
     // Restore parent method table
     //
-    Module::RestoreMethodTablePointerRaw(GetParentMethodTablePtr(), GetLoaderModule(), CLASS_LOAD_APPROXPARENTS);
+    if (IsParentMethodTableIndirectPointerMaybeNull())
+    {
+        Module::RestoreMethodTablePointerRaw(GetParentMethodTableValuePtr(), GetLoaderModule(), CLASS_LOAD_APPROXPARENTS);
+    }
+    else
+    {
+        ClassLoader::EnsureLoaded(ReadPointer(this, &MethodTable::m_pParentMethodTable, GetFlagHasIndirectParent()),
+                                  CLASS_LOAD_APPROXPARENTS);
+    }
 
     //
     // Restore interface classes
@@ -8183,13 +8198,7 @@ BOOL MethodTable::IsParentMethodTablePointerValid()
     if (!GetWriteableData_NoLogging()->IsParentMethodTablePointerValid())
         return FALSE;
 
-    if (!GetFlag(enum_flag_HasIndirectParent))
-    {
-        return TRUE;
-    }
-    TADDR pMT;
-    pMT = *PTR_TADDR(m_pParentMethodTable + offsetof(MethodTable, m_pParentMethodTable));
-    return !CORCOMPILE_IS_POINTER_TAGGED(pMT);
+    return !IsParentMethodTableTagged(dac_cast<PTR_MethodTable>(this));
 }
 #endif
 

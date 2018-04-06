@@ -208,8 +208,6 @@
 #include "profilinghelper.h"
 #endif // PROFILING_SUPPORTED
 
-#include "newapis.h"
-
 #ifdef FEATURE_COMINTEROP
 #include "synchronizationcontextnative.h"       // For SynchronizationContextNative::Cleanup
 #endif
@@ -448,7 +446,13 @@ static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
     }
     else
 #endif // DEBUGGING_SUPPORTED
-    {         
+    {
+        if (dwCtrlType == CTRL_CLOSE_EVENT)
+        {
+            // Initiate shutdown so the ProcessExit handlers run
+            ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
+        }
+
         g_fInControlC = true;     // only for weakening assertions in checked build.
         return FALSE;             // keep looking for a real handler.
     }
@@ -906,19 +910,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifndef FEATURE_PAL
-        // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
-        // because on CoreCLR when Waston is enabled, debugging service needs to be enabled and UEF will be used.
-        if (!InitializeWatson(fFlags))
-        {
-            IfFailGo(E_FAIL);
-        }
-       
-        // Note: In Windows 7, the OS will take over the job of error reporting, and so most 
-        // of our watson code should not be used.  In such cases, we will however still need 
-        // to provide some services to windows error reporting, such as computing bucket 
-        // parameters for a managed unhandled exception.  
-        if (RunningOnWin7() && IsWatsonEnabled() && !RegisterOutOfProcessWatsonCallbacks())
+#ifndef FEATURE_PAL      
+        if (!RegisterOutOfProcessWatsonCallbacks())
         {
             IfFailGo(E_FAIL);
         }
@@ -1640,13 +1633,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
         // Indicate the EE is the shut down phase.
         g_fEEShutDown |= ShutDown_Start;
-
-#ifdef FEATURE_TIERED_COMPILATION
-        {
-            GCX_PREEMP();
-            TieredCompilationManager::ShutdownAllDomains();
-        }
-#endif
 
         fFinalizeOK = TRUE;
 
@@ -3001,7 +2987,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             SIZE_T cchParentCultureName=LOCALE_NAME_MAX_LENGTH;
 #ifdef FEATURE_USE_LCID 
             SIZE_T cchCultureName=LOCALE_NAME_MAX_LENGTH;
-            if (!NewApis::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
+            if (!::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3011,7 +2997,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
 #endif
 
 #ifndef FEATURE_PAL
-            if (!NewApis::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
+            if (!::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3101,7 +3087,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
                 STRINGREF cultureName = pCurrentCulture->GetName();
                 _ASSERT(cultureName != NULL);
 
-                if ((Result = NewApis::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
+                if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
                     Result = (int)UICULTUREID_DONTCARE;
             }
         }
@@ -3179,7 +3165,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // This thread isn't set up to use a non-default culture. Let's grab the default
         // one and return that.
 
-        Result = NewApis::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
+        Result = ::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
 
         _ASSERTE(Result != 0);
 #else // !FEATURE_PAL

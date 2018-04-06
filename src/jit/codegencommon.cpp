@@ -152,7 +152,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     genTrnslLocalVarCount = 0;
 
     // Shouldn't be used before it is set in genFnProlog()
-    compiler->compCalleeRegsPushed = UninitializedWord<unsigned>();
+    compiler->compCalleeRegsPushed = UninitializedWord<unsigned>(compiler);
 
 #if defined(_TARGET_XARCH_) && !FEATURE_STACK_FP_X87
     // Shouldn't be used before it is set in genFnProlog()
@@ -635,7 +635,7 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
 //   helper - The helper being inquired about
 //
 // Return Value:
-//   Mask of register kills -- registers whose value is no longer guaranteed to be the same.
+//   Mask of register kills -- registers whose values are no longer guaranteed to be the same.
 //
 regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 {
@@ -645,12 +645,18 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 #if defined(_TARGET_AMD64_)
             return RBM_RSI | RBM_RDI | RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_ARMARCH_)
-            return RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF | RBM_CALLEE_TRASH_NOGC;
+            return RBM_CALLEE_TRASH_WRITEBARRIER_BYREF;
 #elif defined(_TARGET_X86_)
             return RBM_ESI | RBM_EDI | RBM_ECX;
 #else
             NYI("Model kill set for CORINFO_HELP_ASSIGN_BYREF on target arch");
             return RBM_CALLEE_TRASH;
+#endif
+
+#if defined(_TARGET_ARMARCH_)
+        case CORINFO_HELP_ASSIGN_REF:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF:
+            return RBM_CALLEE_TRASH_WRITEBARRIER;
 #endif
 
         case CORINFO_HELP_PROF_FCN_ENTER:
@@ -742,15 +748,25 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
             return RBM_PROFILER_TAILCALL_TRASH;
 #endif // defined(_TARGET_XARCH_)
 
+#if defined(_TARGET_X86_)
         case CORINFO_HELP_ASSIGN_BYREF:
-#if defined(_TARGET_AMD64_)
-            return RBM_CALLEE_TRASH_NOGC;
-#elif defined(_TARGET_X86_)
             // This helper only trashes ECX.
             return RBM_ECX;
-#elif defined(_TARGET_ARMARCH_)
-            return RBM_CALLEE_TRASH_NOGC;
-#endif // defined(_TARGET_AMD64_)
+#endif // defined(_TARGET_X86_)
+
+#if defined(_TARGET_ARMARCH_)
+        case CORINFO_HELP_ASSIGN_BYREF:
+            return RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
+
+        case CORINFO_HELP_ASSIGN_REF:
+        case CORINFO_HELP_CHECKED_ASSIGN_REF:
+            return RBM_CALLEE_GCTRASH_WRITEBARRIER;
+#endif
+
+#if defined(_TARGET_X86_)
+        case CORINFO_HELP_INIT_PINVOKE_FRAME:
+            return RBM_INIT_PINVOKE_FRAME_TRASH;
+#endif // defined(_TARGET_X86_)
 
         default:
             return RBM_CALLEE_TRASH_NOGC;
@@ -1082,17 +1098,13 @@ void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
 template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
-void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
+void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 {
     LclVarDsc* varDsc;
 
 #ifdef DEBUG
     if (verbose)
     {
-        if (tree != nullptr)
-        {
-            Compiler::printTreeID(tree);
-        }
         printf("Change life %s ", VarSetOps::ToString(this, compCurLife));
         dumpConvertedVarSet(this, compCurLife);
         printf(" -> %s ", VarSetOps::ToString(this, newLife));
@@ -1163,7 +1175,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
             {
                 codeGen->gcInfo.gcRegByrefSetCur &= ~regMask;
             }
-            codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(tree));
+            codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
         }
 #ifndef LEGACY_BACKEND
         // This isn't in a register, so update the gcVarPtrSetCur.
@@ -1197,7 +1209,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
 #endif // DEBUG
             VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
 #endif // !LEGACY_BACKEND
-            codeGen->genUpdateRegLife(varDsc, true /*isBorn*/, false /*isDying*/ DEBUGARG(tree));
+            codeGen->genUpdateRegLife(varDsc, true /*isBorn*/, false /*isDying*/ DEBUGARG(nullptr));
             regMaskTP regMask = varDsc->lvRegMask();
             if (isGCRef)
             {
@@ -1222,7 +1234,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree))
 }
 
 // Need an explicit instantiation.
-template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife DEBUGARG(GenTree* tree));
+template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife);
 
 #ifdef LEGACY_BACKEND
 
@@ -3973,8 +3985,8 @@ void CodeGen::genReportEH()
 //
 // Return Value:
 //   true if an optimized write barrier helper should be used, false otherwise.
-//   Note: only x86 implements (register-specific source) optimized write
-//   barriers currently).
+//   Note: only x86 implements register-specific source optimized write
+//   barriers currently.
 //
 bool CodeGenInterface::genUseOptimizedWriteBarriers(GCInfo::WriteBarrierForm wbf)
 {
@@ -4003,8 +4015,8 @@ bool CodeGenInterface::genUseOptimizedWriteBarriers(GCInfo::WriteBarrierForm wbf
 //
 // Return Value:
 //   true if an optimized write barrier helper should be used, false otherwise.
-//   Note: only x86 implements (register-specific source) optimized write
-//   barriers currently).
+//   Note: only x86 implements register-specific source optimized write
+//   barriers currently.
 //
 bool CodeGenInterface::genUseOptimizedWriteBarriers(GenTree* tgt, GenTree* assignVal)
 {
@@ -5689,7 +5701,8 @@ void CodeGen::genCheckUseBlockInit()
                             {
                                 // Var is completely on the stack, in the legacy JIT case, or
                                 // on the stack at entry, in the RyuJIT case.
-                                initStkLclCnt += (unsigned)roundUp(compiler->lvaLclSize(varNum)) / sizeof(int);
+                                initStkLclCnt +=
+                                    (unsigned)roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
                             }
                         }
                         else
@@ -5720,7 +5733,7 @@ void CodeGen::genCheckUseBlockInit()
             {
                 varDsc->lvMustInit = true;
 
-                initStkLclCnt += (unsigned)roundUp(compiler->lvaLclSize(varNum)) / sizeof(int);
+                initStkLclCnt += (unsigned)roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
             }
 
             continue;
@@ -6328,9 +6341,9 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         }
 #endif // !_TARGET_XARCH_
 
-#if CPU_LOAD_STORE_ARCH
+#if CPU_LOAD_STORE_ARCH || !defined(_TARGET_UNIX_)
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-#endif // CPU_LOAD_STORE_ARCH
+#endif
 
         //
         // Can't have a label inside the ReJIT padding area
@@ -6386,6 +6399,46 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
 #else // !CPU_LOAD_STORE_ARCH
 
+#ifndef _TARGET_UNIX_
+        // Code size for each instruction. We need this because the
+        // backward branch is hard-coded with the number of bytes to branch.
+        // The encoding differs based on the architecture and what register is
+        // used (namely, using RAX has a smaller encoding).
+        //
+        // loop:
+        // For x86
+        //      test [esp + eax], eax       3
+        //      sub eax, 0x1000             5
+        //      cmp EAX, -frameSize         5
+        //      jge loop                    2
+        //
+        // For AMD64 using RAX
+        //      test [rsp + rax], rax       4
+        //      sub rax, 0x1000             6
+        //      cmp rax, -frameSize         6
+        //      jge loop                    2
+        //
+        // For AMD64 using RBP
+        //      test [rsp + rbp], rbp       4
+        //      sub rbp, 0x1000             7
+        //      cmp rbp, -frameSize         7
+        //      jge loop                    2
+
+        getEmitter()->emitIns_R_ARR(INS_TEST, EA_PTRSIZE, initReg, REG_SPBASE, initReg, 0);
+        inst_RV_IV(INS_sub, initReg, pageSize, EA_PTRSIZE);
+        inst_RV_IV(INS_cmp, initReg, -((ssize_t)frameSize), EA_PTRSIZE);
+
+        int bytesForBackwardJump;
+#ifdef _TARGET_AMD64_
+        assert((initReg == REG_EAX) || (initReg == REG_EBP)); // We use RBP as initReg for EH funclets.
+        bytesForBackwardJump = ((initReg == REG_EAX) ? -18 : -20);
+#else  // !_TARGET_AMD64_
+        assert(initReg == REG_EAX);
+        bytesForBackwardJump = -15;
+#endif // !_TARGET_AMD64_
+
+        inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
+#else  // _TARGET_UNIX_
         // Code size for each instruction. We need this because the
         // backward branch is hard-coded with the number of bytes to branch.
         // The encoding differs based on the architecture and what register is
@@ -6438,6 +6491,8 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         inst_IV(INS_jge, bytesForBackwardJump); // Branch backwards to start of loop
 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_SPBASE, initReg, frameSize); // restore stack pointer
+#endif // _TARGET_UNIX_
+
 #endif // !CPU_LOAD_STORE_ARCH
 
         *pInitRegZeroed = false; // The initReg does not contain zero
@@ -6640,7 +6695,7 @@ void CodeGen::genMov32RelocatableDataLabel(unsigned value, regNumber reg)
  *
  * Move of relocatable immediate to register
  */
-void CodeGen::genMov32RelocatableImmediate(emitAttr size, unsigned value, regNumber reg)
+void CodeGen::genMov32RelocatableImmediate(emitAttr size, size_t value, regNumber reg)
 {
     _ASSERTE(EA_IS_RELOC(size));
 
@@ -7891,7 +7946,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
 #endif // !defined(UNIX_AMD64_ABI)
 
-#elif defined(_TARGET_X86_) || (defined(_TARGET_ARM_) && defined(LEGACY_BACKEND))
+#elif defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
     unsigned saveStackLvl2 = genStackLevel;
 
@@ -7909,12 +7964,19 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         inst_IV(INS_push, (size_t)compiler->compProfilerMethHnd);
     }
 #elif defined(_TARGET_ARM_)
-    // On Arm arguments are prespilled on stack, which frees r0-r3.
-    // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
-    // The call target register could be any free register.
+// On Arm arguments are prespilled on stack, which frees r0-r3.
+// For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
+// The call target register could be any free register.
+#ifdef LEGACY_BACKEND
     regNumber argReg = regSet.rsGrabReg(RBM_PROFILER_ENTER_ARG);
     noway_assert(argReg == REG_PROFILER_ENTER_ARG);
     regSet.rsLockReg(RBM_PROFILER_ENTER_ARG);
+#else  // !LEGACY_BACKEND
+    regNumber argReg = REG_PROFILER_ENTER_ARG;
+#endif // !LEGACY_BACKEND
+
+    regMaskTP argRegMask = genRegMask(argReg);
+    assert((regSet.rsMaskPreSpillRegArg & argRegMask) != 0);
 
     if (compiler->compProfilerMethHndIndirected)
     {
@@ -7951,8 +8013,10 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         compiler->fgPtrArgCntMax = 1;
     }
 #elif defined(_TARGET_ARM_)
+#ifdef LEGACY_BACKEND
     // Unlock registers
     regSet.rsUnlockReg(RBM_PROFILER_ENTER_ARG);
+#endif // LEGACY_BACKEND
 
     if (initReg == argReg)
     {
@@ -8154,17 +8218,18 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         compiler->fgPtrArgCntMax = 1;
     }
 
-#elif defined(LEGACY_BACKEND) && defined(_TARGET_ARM_)
+#elif defined(_TARGET_ARM_)
+//
+// Push the profilerHandle
+//
 
-    //
-    // Push the profilerHandle
-    //
-
-    // We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
-    // RBM_PROFILER_RET_USED always.
+// We could optimize register usage based on return value is int/long/void. But to keep it simple we will lock
+// RBM_PROFILER_RET_USED always.
+#ifdef LEGACY_BACKEND
     regNumber scratchReg = regSet.rsGrabReg(RBM_PROFILER_RET_SCRATCH);
     noway_assert(scratchReg == REG_PROFILER_RET_SCRATCH);
     regSet.rsLockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
     // Contract between JIT and Profiler Leave callout on arm:
     // Return size <= 4 bytes: REG_PROFILER_RET_SCRATCH will contain return value
@@ -8230,7 +8295,9 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
     }
 
+#ifdef LEGACY_BACKEND
     regSet.rsUnlockReg(RBM_PROFILER_RET_USED);
+#endif // LEGACY_BACKEND
 
 #else  // target
     NYI("Emit Profiler Leave callback");
@@ -12769,6 +12836,205 @@ GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
     GenTreeIntCon i(type, value);
     i.gtRegNum = REG_NA;
     return i;
+}
+
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+//------------------------------------------------------------------------
+// genLongReturn: Generates code for long return statement for x86 and arm.
+//
+// Note: treeNode's and op1's registers are already consumed.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node with LONG return type.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genLongReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    assert(treeNode->TypeGet() == TYP_LONG);
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
+
+    assert(op1 != nullptr);
+    assert(op1->OperGet() == GT_LONG);
+    GenTree* loRetVal = op1->gtGetOp1();
+    GenTree* hiRetVal = op1->gtGetOp2();
+    assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
+
+    genConsumeReg(loRetVal);
+    genConsumeReg(hiRetVal);
+    if (loRetVal->gtRegNum != REG_LNGRET_LO)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
+    }
+    if (hiRetVal->gtRegNum != REG_LNGRET_HI)
+    {
+        inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
+    }
+}
+#endif // _TARGET_X86_ || _TARGET_ARM_
+
+//------------------------------------------------------------------------
+// genReturn: Generates code for return statement.
+//            In case of struct return, delegates to the genStructReturn method.
+//
+// Arguments:
+//    treeNode - The GT_RETURN or GT_RETFILT tree node.
+//
+// Return Value:
+//    None
+//
+void CodeGen::genReturn(GenTree* treeNode)
+{
+    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
+    GenTree*  op1        = treeNode->gtGetOp1();
+    var_types targetType = treeNode->TypeGet();
+
+    // A void GT_RETFILT is the end of a finally. For non-void filter returns we need to load the result in the return
+    // register, if it's not already there. The processing is the same as GT_RETURN. For filters, the IL spec says the
+    // result is type int32. Further, the only legal values are 0 or 1; the use of other values is "undefined".
+    assert(!treeNode->OperIs(GT_RETFILT) || (targetType == TYP_VOID) || (targetType == TYP_INT));
+
+#ifdef DEBUG
+    if (targetType == TYP_VOID)
+    {
+        assert(op1 == nullptr);
+    }
+#endif // DEBUG
+
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+    if (targetType == TYP_LONG)
+    {
+        genLongReturn(treeNode);
+    }
+    else
+#endif // _TARGET_X86_ || _TARGET_ARM_
+    {
+        if (isStructReturn(treeNode))
+        {
+            genStructReturn(treeNode);
+        }
+        else if (targetType != TYP_VOID)
+        {
+            assert(op1 != nullptr);
+            noway_assert(op1->gtRegNum != REG_NA);
+
+            // !! NOTE !! genConsumeReg will clear op1 as GC ref after it has
+            // consumed a reg for the operand. This is because the variable
+            // is dead after return. But we are issuing more instructions
+            // like "profiler leave callback" after this consumption. So
+            // if you are issuing more instructions after this point,
+            // remember to keep the variable live up until the new method
+            // exit point where it is actually dead.
+            genConsumeReg(op1);
+
+#if defined(_TARGET_ARM64_)
+            genSimpleReturn(treeNode);
+#else // !_TARGET_ARM64_
+#if defined(_TARGET_X86_)
+            if (varTypeIsFloating(treeNode))
+            {
+                genFloatReturn(treeNode);
+            }
+            else
+#elif defined(_TARGET_ARM_)
+            if (varTypeIsFloating(treeNode) && (compiler->opts.compUseSoftFP || compiler->info.compIsVarArgs))
+            {
+                if (targetType == TYP_FLOAT)
+                {
+                    getEmitter()->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, REG_INTRET, op1->gtRegNum);
+                }
+                else
+                {
+                    assert(targetType == TYP_DOUBLE);
+                    getEmitter()->emitIns_R_R_R(INS_vmov_d2i, EA_8BYTE, REG_INTRET, REG_NEXT(REG_INTRET),
+                                                op1->gtRegNum);
+                }
+            }
+            else
+#endif // _TARGET_ARM_
+            {
+                regNumber retReg = varTypeIsFloating(treeNode) ? REG_FLOATRET : REG_INTRET;
+                if (op1->gtRegNum != retReg)
+                {
+                    inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->gtRegNum, targetType);
+                }
+            }
+#endif // !_TARGET_ARM64_
+        }
+    }
+
+#ifdef PROFILING_SUPPORTED
+    // !! Note !!
+    // TODO-AMD64-Unix: If the profiler hook is implemented on *nix, make sure for 2 register returned structs
+    //                  the RAX and RDX needs to be kept alive. Make the necessary changes in lowerxarch.cpp
+    //                  in the handling of the GT_RETURN statement.
+    //                  Such structs containing GC pointers need to be handled by calling gcInfo.gcMarkRegSetNpt
+    //                  for the return registers containing GC refs.
+
+    // There will be a single return block while generating profiler ELT callbacks.
+    //
+    // Reason for not materializing Leave callback as a GT_PROF_HOOK node after GT_RETURN:
+    // In flowgraph and other places assert that the last node of a block marked as
+    // BBJ_RETURN is either a GT_RETURN or GT_JMP or a tail call.  It would be nice to
+    // maintain such an invariant irrespective of whether profiler hook needed or not.
+    // Also, there is not much to be gained by materializing it as an explicit node.
+    if (compiler->compCurBB == compiler->genReturnBB)
+    {
+        // !! NOTE !!
+        // Since we are invalidating the assumption that we would slip into the epilog
+        // right after the "return", we need to preserve the return reg's GC state
+        // across the call until actual method return.
+        ReturnTypeDesc retTypeDesc;
+        unsigned       regCount = 0;
+        if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            if (varTypeIsLong(compiler->info.compRetNativeType))
+            {
+                retTypeDesc.InitializeLongReturnType(compiler);
+            }
+            else // we must have a struct return type
+            {
+                retTypeDesc.InitializeStructReturnType(compiler, compiler->info.compMethodInfo->args.retTypeClass);
+            }
+            regCount = retTypeDesc.GetReturnRegCount();
+        }
+
+        if (varTypeIsGC(compiler->info.compRetType))
+        {
+            gcInfo.gcMarkRegPtrVal(REG_INTRET, compiler->info.compRetType);
+        }
+        else if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                if (varTypeIsGC(retTypeDesc.GetReturnRegType(i)))
+                {
+                    gcInfo.gcMarkRegPtrVal(retTypeDesc.GetABIReturnReg(i), retTypeDesc.GetReturnRegType(i));
+                }
+            }
+        }
+
+        genProfilingLeaveCallback();
+
+        if (varTypeIsGC(compiler->info.compRetType))
+        {
+            gcInfo.gcMarkRegSetNpt(genRegMask(REG_INTRET));
+        }
+        else if (compiler->compMethodReturnsMultiRegRetType())
+        {
+            for (unsigned i = 0; i < regCount; ++i)
+            {
+                if (varTypeIsGC(retTypeDesc.GetReturnRegType(i)))
+                {
+                    gcInfo.gcMarkRegSetNpt(genRegMask(retTypeDesc.GetABIReturnReg(i)));
+                }
+            }
+        }
+    }
+#endif // PROFILING_SUPPORTED
 }
 
 #endif // !LEGACY_BACKEND

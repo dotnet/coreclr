@@ -108,7 +108,7 @@ namespace System.Threading
 
         public virtual void Post(SendOrPostCallback d, Object state)
         {
-            ThreadPool.QueueUserWorkItem(new WaitCallback(d), state);
+            ThreadPool.QueueUserWorkItem(s => s.d(s.state), (d, state), preferLocal: false);
         }
 
 
@@ -206,7 +206,7 @@ namespace System.Threading
             WinRTSynchronizationContextFactoryBase factory = s_winRTContextFactory;
             if (factory == null)
             {
-                Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, " + AssemblyRef.SystemRuntimeWindowsRuntime, true);
+                Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, System.Runtime.WindowsRuntime", throwOnError: true);
                 s_winRTContextFactory = factory = (WinRTSynchronizationContextFactoryBase)Activator.CreateInstance(factoryType, true);
             }
             return factory;

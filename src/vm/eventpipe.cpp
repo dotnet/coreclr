@@ -9,10 +9,12 @@
 #include "eventpipebuffermanager.h"
 #include "eventpipeconfiguration.h"
 #include "eventpipeevent.h"
+#include "eventpipeeventsource.h"
 #include "eventpipefile.h"
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
 #include "eventpipejsonfile.h"
+#include "eventtracebase.h"
 #include "sampleprofiler.h"
 
 #ifdef FEATURE_PAL
@@ -27,6 +29,8 @@ EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeSession* EventPipe::s_pSession = NULL;
 EventPipeBufferManager* EventPipe::s_pBufferManager = NULL;
 EventPipeFile* EventPipe::s_pFile = NULL;
+EventPipeEventSource* EventPipe::s_pEventSource = NULL;
+LPCWSTR EventPipe::s_pCommandLine = NULL;
 #ifdef _DEBUG
 EventPipeFile* EventPipe::s_pSyncFile = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
@@ -57,7 +61,7 @@ EventPipeEventPayload::EventPipeEventPayload(BYTE *pData, unsigned int length)
     m_size = length;
 }
 
-EventPipeEventPayload::EventPipeEventPayload(EventData **pEventData, unsigned int eventDataCount)
+EventPipeEventPayload::EventPipeEventPayload(EventData *pEventData, unsigned int eventDataCount)
 {
     CONTRACTL
     {
@@ -75,7 +79,7 @@ EventPipeEventPayload::EventPipeEventPayload(EventData **pEventData, unsigned in
     S_UINT32 tmp_size = S_UINT32(0);
     for (unsigned int i=0; i<m_eventDataCount; i++)
     {
-        tmp_size += S_UINT32((*m_pEventData)[i].Size);
+        tmp_size += S_UINT32(m_pEventData[i].Size);
     }
 
     if (tmp_size.IsOverflow())
@@ -155,8 +159,8 @@ void EventPipeEventPayload::CopyData(BYTE *pDst)
             unsigned int offset = 0;
             for(unsigned int i=0; i<m_eventDataCount; i++)
             {
-                memcpy(pDst + offset, (BYTE*)(*m_pEventData)[i].Ptr, (*m_pEventData)[i].Size);
-                offset += (*m_pEventData)[i].Size;
+                memcpy(pDst + offset, (BYTE*) m_pEventData[i].Ptr, m_pEventData[i].Size);
+                offset += m_pEventData[i].Size;
             }
         }
     }
@@ -191,6 +195,8 @@ void EventPipe::Initialize()
     s_pConfig->Initialize();
 
     s_pBufferManager = new EventPipeBufferManager();
+
+    s_pEventSource = new EventPipeEventSource();
 
     // This calls into auto-generated code to initialize the runtime providers
     // and events so that the EventPipe configuration lock isn't taken at runtime
@@ -237,7 +243,10 @@ void EventPipe::Shutdown()
     }
     CONTRACTL_END;
 
-    // We are shutting down, so if diasabling EventPipe throws, we need to move along anyway
+    // Mark tracing as no longer initialized.
+    s_tracingInitialized = false;
+
+    // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
         Disable();
@@ -245,16 +254,28 @@ void EventPipe::Shutdown()
     EX_CATCH { }
     EX_END_CATCH(SwallowAllExceptions);
 
-    if(s_pConfig != NULL)
-    {
-        delete(s_pConfig);
-        s_pConfig = NULL;
-    }
-    if(s_pBufferManager != NULL)
-    {
-        delete(s_pBufferManager);
-        s_pBufferManager = NULL;
-    }
+    // Save pointers to the configuration and buffer manager.
+    EventPipeConfiguration *pConfig = s_pConfig;
+    EventPipeBufferManager *pBufferManager = s_pBufferManager;
+
+    // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
+    // Flush process write buffers to make sure other threads can see the change.
+    s_pConfig = NULL;
+    s_pBufferManager = NULL;
+    FlushProcessWriteBuffers();
+
+    // Free resources.
+    delete(pConfig);
+    delete(pBufferManager);
+    delete(s_pEventSource);
+    s_pEventSource = NULL;
+
+    // On Windows, this is just a pointer to the return value from
+    // GetCommandLineW(), so don't attempt to free it.
+#ifdef FEATURE_PAL
+    delete[](s_pCommandLine);
+    s_pCommandLine = NULL;
+#endif
 }
 
 void EventPipe::Enable(
@@ -300,6 +321,9 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
     {
         return;
     }
+
+    // Enable the EventPipe EventSource.
+    s_pEventSource->Enable(pSession);
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(GetLock());
@@ -353,6 +377,12 @@ void EventPipe::Disable()
     {
         // Disable the profiler.
         SampleProfiler::Disable();
+
+        // Log the process information event.
+        s_pEventSource->SendProcessInfo(s_pCommandLine);
+
+        // Log the runtime information event.
+        ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
 
         // Disable tracing.
         s_pConfig->Disable(s_pSession);
@@ -441,7 +471,7 @@ EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventP
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -503,7 +533,7 @@ void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, unsigned int leng
     EventPipe::WriteEventInternal(event, payload, pActivityId, pRelatedActivityId);
 }
 
-void EventPipe::WriteEvent(EventPipeEvent &event, EventData **pEventData, unsigned int eventDataCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
+void EventPipe::WriteEvent(EventPipeEvent &event, EventData *pEventData, unsigned int eventDataCount, LPCGUID pActivityId, LPCGUID pRelatedActivityId)
 {
     CONTRACTL
     {
@@ -564,6 +594,15 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     else if(s_pConfig->RundownEnabled())
     {
+        // It is possible that some events that are enabled on rundown can be emitted from other threads.
+        // We're not interested in these events and they can cause corrupted trace files because rundown
+        // events are written synchronously and not under lock.
+        // If we encounter an event that did not originate on the thread that is doing rundown, ignore it.
+        if(!s_pConfig->IsRundownThread(pThread))
+        {
+            return;
+        }
+
         BYTE *pData = payload.GetFlatData();
         if (pData != NULL)
         {
@@ -707,6 +746,10 @@ bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackC
         PRECONDITION(pThread != NULL);
     }
     CONTRACTL_END;
+
+    // Calling into StackWalkFrames in preemptive mode violates the host contract,
+    // but this contract is not used on CoreCLR.
+    CONTRACT_VIOLATION( HostViolation );
 
     stackContents.Reset();
 
@@ -891,6 +934,47 @@ void EventPipe::GetConfigurationFromEnvironment(SString &outputPath, EventPipeSe
     }
 }
 
+void EventPipe::SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(pwzAssemblyPath != NULL);
+        PRECONDITION(argc <= 0 || argv != NULL);
+    }
+    CONTRACTL_END;
+
+    // Get the command line.
+    LPCWSTR osCommandLine = GetCommandLineW();
+
+#ifndef FEATURE_PAL
+    // On Windows, osCommandLine contains the executable and all arguments.
+    s_pCommandLine = osCommandLine;
+#else
+    // On UNIX, the PAL doesn't have the command line arguments, so we must build the command line.
+    // osCommandLine contains the full path to the executable.
+    SString commandLine(osCommandLine);
+    commandLine.Append((WCHAR)' ');
+    commandLine.Append(pwzAssemblyPath);
+
+    for(int i=0; i<argc; i++)
+    {
+        commandLine.Append((WCHAR)' ');
+        commandLine.Append(argv[i]);
+    }
+
+    // Allocate a new string for the command line.
+    SIZE_T commandLineLen = commandLine.GetCount();
+    WCHAR *pCommandLine = new WCHAR[commandLineLen + 1];
+    wcsncpy(pCommandLine, commandLine.GetUnicode(), commandLineLen);
+    pCommandLine[commandLineLen] = '\0';
+
+    s_pCommandLine = pCommandLine;
+#endif
+}
+
 void QCALLTYPE EventPipeInternal::Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
@@ -948,7 +1032,6 @@ INT_PTR QCALLTYPE EventPipeInternal::DefineEvent(
     BEGIN_QCALL;
 
     _ASSERTE(provHandle != NULL);
-    _ASSERTE(pMetadata != NULL);
     EventPipeProvider *pProvider = reinterpret_cast<EventPipeProvider *>(provHandle);
     pEvent = pProvider->AddEvent(eventID, keywords, eventVersion, (EventPipeEventLevel)level, (BYTE *)pMetadata, metadataLength);
     _ASSERTE(pEvent != NULL);
@@ -1055,7 +1138,7 @@ void QCALLTYPE EventPipeInternal::WriteEvent(
 void QCALLTYPE EventPipeInternal::WriteEventData(
     INT_PTR eventHandle,
     UINT32 eventID,
-    EventData **pEventData,
+    EventData *pEventData,
     UINT32 eventDataCount,
     LPCGUID pActivityId,
     LPCGUID pRelatedActivityId)

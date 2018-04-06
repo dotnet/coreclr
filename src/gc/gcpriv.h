@@ -489,7 +489,9 @@ public:
     BOOL stress_induced;
 #endif // STRESS_HEAP
 
+    // These are opportunistically set
     uint32_t entry_memory_load;
+    uint32_t exit_memory_load;
 
     void init_mechanisms(); //for each GC
     void first_init(); // for the life of the EE
@@ -2479,6 +2481,8 @@ protected:
     size_t get_total_heap_size ();
     PER_HEAP_ISOLATED
     size_t get_total_committed_size();
+    PER_HEAP_ISOLATED
+    size_t get_total_fragmentation();
 
     PER_HEAP_ISOLATED
     void get_memory_info (uint32_t* memory_load, 
@@ -2797,12 +2801,12 @@ public:
     PER_HEAP_ISOLATED
     uint32_t wait_for_gc_done(int32_t timeOut = INFINITE);
 
-    // Returns TRUE if the thread used to be in cooperative mode 
+    // Returns TRUE if the current thread used to be in cooperative mode 
     // before calling this function.
     PER_HEAP_ISOLATED
-    BOOL enable_preemptive (Thread* current_thread);
+    bool enable_preemptive ();
     PER_HEAP_ISOLATED
-    void disable_preemptive (Thread* current_thread, BOOL restore_cooperative);
+    void disable_preemptive (bool restore_cooperative);
 
     /* ------------------- per heap members --------------------------*/
 
@@ -2967,6 +2971,15 @@ public:
     PER_HEAP_ISOLATED
     size_t youngest_gen_desired_th;
 #endif //BIT64
+
+    PER_HEAP_ISOLATED
+    uint32_t last_gc_memory_load;
+
+    PER_HEAP_ISOLATED
+    size_t last_gc_heap_size;
+
+    PER_HEAP_ISOLATED
+    size_t last_gc_fragmentation;
 
     PER_HEAP_ISOLATED
     uint32_t high_memory_load_th;
@@ -4333,3 +4346,13 @@ size_t gcard_of (uint8_t* object)
     return (size_t)(object) / card_size;
 }
 
+inline
+void YieldProcessorScalingFactor()
+{
+    unsigned int n = g_yieldProcessorScalingFactor;
+    _ASSERTE(n != 0);
+    do
+    {
+        YieldProcessor();
+    } while (--n != 0);
+}

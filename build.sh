@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Work around Jenkins CI + msbuild problem: Jenkins sometimes creates very large environment
+# variables, and msbuild can't handle environment blocks with such large variables. So clear
+# out the variables that might be too large.
+export ghprbCommentBody=
+
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
     if ! PYTHON=$(command -v python2.7 || command -v python2 || command -v python)
@@ -145,10 +150,10 @@ check_prereqs()
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
 
-    # Minimum required version of clang is version 3.9 for arm/armel cross build
+    # Minimum required version of clang is version 4.0 for arm/armel cross build
     if [[ $__CrossBuild == 1 && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-        if ! [[ "$__ClangMajorVersion" -gt "3" || ( $__ClangMajorVersion == 3 && $__ClangMinorVersion == 9 ) ]]; then
-            echo "Please install clang3.9 or latest for arm/armel cross build"; exit 1;
+        if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
+            echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
         fi
     fi
 
@@ -164,7 +169,7 @@ restore_optdata()
 
     if [[ ( $__SkipRestoreOptData == 0 ) && ( $__isMSBuildOnNETCoreSupported == 1 ) ]]; then
         echo "Restoring the OptimizationData package"
-        "$__ProjectRoot/run.sh" sync -optdata
+        "$__ProjectRoot/run.sh" build -optdata $__RunArgs $__UnprocessedBuildArgs
         if [ $? != 0 ]; then
             echo "Failed to restore the optimization data package."
             exit 1
@@ -189,56 +194,59 @@ restore_optdata()
 
 generate_event_logging_sources()
 {
-    if [ $__SkipCoreCLR == 1 ]; then
-        return
-    fi
+    __OutputDir=$1
+    __ConsumingBuildSystem=$2
 
-# Event Logging Infrastructure
-    __GeneratedIntermediate="$__IntermediatesDir/eventing"
-    __GeneratedIntermediateEventProvider="$__GeneratedIntermediate/eventprovider"
-    __GeneratedIntermediateEventPipe="$__GeneratedIntermediate/eventpipe"
+    __OutputIncDir="$__OutputDir/src/inc"
+    __OutputEventingDir="$__OutputDir/eventing"
+    __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
+
+    echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"
+    echo "Laying out dynamically generated Event test files, etmdummy stub functions, and external linkages"
 
     __PythonWarningFlags="-Wall"
     if [[ $__IgnoreWarnings == 0 ]]; then
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-
-    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
-        echo "Laying out dynamically generated files consumed by the build system "
-        echo "Laying out dynamically generated Event test files, etmdummy stub functions, and external linkages"
-        $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventing.py" --inc $__IntermediatesDir/src/inc --dummy $__IntermediatesDir/src/inc/etmdummy.h --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --testdir "$__GeneratedIntermediateEventProvider/tests"
-
-        if  [[ $? != 0 ]]; then
-            exit
-        fi
-
-        echo "Laying out dynamically generated EventPipe Implementation"
-        $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventPipe"
-
-        #determine the logging system
-        case $__BuildOS in
-            Linux|FreeBSD)
-                echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genLttngProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-            *)
-                echo "Laying out dummy event logging provider"
-                $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genDummyProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__GeneratedIntermediateEventProvider"
-                if  [[ $? != 0 ]]; then
-                    exit
-                fi
-                ;;
-        esac
-
-        if [[ $__CrossBuild == 1 ]]; then
-            cp -r $__GeneratedIntermediate $__CrossCompIntermediatesDir
-        fi
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventing.py" --inc $__OutputIncDir --dummy $__OutputIncDir/etmdummy.h --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --testdir "$__OutputEventProviderDir/tests"
+    if [[ $? != 0 ]]; then
+        exit 1
     fi
+
+    echo "Laying out dynamically generated EventPipe Implementation"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
+
+    # determine the logging system
+    case $__BuildOS in
+        Linux|FreeBSD)
+            echo "Laying out dynamically generated Event Logging Implementation of Lttng"
+            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genLttngProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
+            if [[ $? != 0 ]]; then
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Laying out dummy event logging provider"
+            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genDummyProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
+            if [[ $? != 0 ]]; then
+                exit 1
+            fi
+            ;;
+    esac
 }
+
+generate_event_logging()
+{
+    # Event Logging Infrastructure
+    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
+        generate_event_logging_sources "$__IntermediatesDir" "the native build system"
+    fi
+
+    if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
+        generate_event_logging_sources "$__CrossCompIntermediatesDir" "the crossarch build system"
+    fi
+ }
 
 build_native()
 {
@@ -333,6 +341,9 @@ build_cross_arch_component()
         if [ "$__HostArch" == "x64" ]; then
             export CROSSCOMPILE=1
         fi
+    elif [[ ("$__BuildArch" == "arm64") && "$__CrossArch" == "x64" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
     else
         # not supported
         return
@@ -391,34 +402,29 @@ isMSBuildOnNETCoreSupported()
 
 build_CoreLib_ni()
 {
-    if [ $__SkipCrossgen == 1 ]; then
-        echo "Skipping generating native image"
-        return
+    local __CrossGenExec=$1
+
+    echo "Generating native image for System.Private.CoreLib.dll"
+    echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
+    $__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
+    if [ $? -ne 0 ]; then
+        echo "Failed to generate native image for System.Private.CoreLib."
+        exit 1
     fi
 
-    if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
-        echo "Generating native image for System.Private.CoreLib."
-        echo "$__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
-        $__BinDir/crossgen /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll
+    if [ "$__BuildOS" == "Linux" ]; then
+        echo "Generating symbol file for System.Private.CoreLib.dll"
+        echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll"
+        $__CrossGenExec /Platform_Assemblies_Paths $__BinDir /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
         if [ $? -ne 0 ]; then
-            echo "Failed to generate native image for System.Private.CoreLib."
+            echo "Failed to generate symbol file for System.Private.CoreLib."
             exit 1
-        fi
-
-        if [ "$__BuildOS" == "Linux" ]; then
-            echo "Generating symbol file for System.Private.CoreLib."
-            $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.dll
-            if [ $? -ne 0 ]; then
-                echo "Failed to generate symbol file for System.Private.CoreLib."
-                exit 1
-            fi
         fi
     fi
 }
 
 build_CoreLib()
 {
-
     if [ $__isMSBuildOnNETCoreSupported == 0 ]; then
         echo "System.Private.CoreLib.dll build unsupported."
         return
@@ -444,17 +450,32 @@ build_CoreLib()
         exit 1
     fi
 
+    if [ $__SkipCrossgen == 1 ]; then
+        echo "Skipping generating native image"
+        return
+    fi
+
     # The cross build generates a crossgen with the target architecture.
-    if [ $__CrossBuild != 1 ]; then
+    if [ $__CrossBuild == 0 ]; then
+       if [ $__SkipCoreCLR == 1 ]; then
+           return
+       fi
+
        # The architecture of host pc must be same architecture with target.
        if [[ ( "$__HostArch" == "$__BuildArch" ) ]]; then
-           build_CoreLib_ni
+           build_CoreLib_ni "$__BinDir/crossgen"
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "x86" ) ]]; then
-           build_CoreLib_ni
+           build_CoreLib_ni "$__BinDir/crossgen"
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni
+           build_CoreLib_ni "$__BinDir/crossgen"
        else
            exit 1
+       fi
+    elif [ $__DoCrossArchBuild == 1 ]; then
+       if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+       elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        fi
     fi
 }
@@ -477,7 +498,7 @@ generate_NugetPackages()
     echo "DistroRid is "$__DistroRid
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
-    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
+    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false -__DoCrossArchBuild=$__DoCrossArchBuild $__RunArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -725,6 +746,16 @@ while :; do
             __ClangMinorVersion=0
             ;;
 
+        clang5.0|-clang5.0)
+            __ClangMajorVersion=5
+            __ClangMinorVersion=0
+            ;;
+
+        clang6.0|-clang6.0)
+            __ClangMajorVersion=6
+            __ClangMinorVersion=0
+            ;;
+
         ninja|-ninja)
             __UseNinja=1
             ;;
@@ -863,8 +894,13 @@ fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
-    __ClangMajorVersion=3
-    __ClangMinorVersion=9
+	if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+		__ClangMajorVersion=5
+		__ClangMinorVersion=0
+	else
+		__ClangMajorVersion=3
+		__ClangMinorVersion=9
+	fi
 fi
 
 if [[ "$__BuildArch" == "armel" ]]; then
@@ -941,7 +977,7 @@ check_prereqs
 restore_optdata
 
 # Generate event logging infrastructure sources
-generate_event_logging_sources
+generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"

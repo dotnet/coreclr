@@ -2194,6 +2194,44 @@ void Compiler::compDoComponentUnitTestsOnce()
         BitSetSupport::TestSuite(getAllocatorDebugOnly());
     }
 }
+
+//------------------------------------------------------------------------
+// compGetJitDefaultFill:
+//
+// Return Value:
+//    An unsigned char value used to initizalize memory allocated by the JIT.
+//    The default value is taken from COMPLUS_JitDefaultFill,  if is not set
+//    the value will be 0xdd.  When JitStress is active a random value based
+//    on the method hash is used.
+//
+// Notes:
+//    Note that we can't use small values like zero, because we have some
+//    asserts that can fire for such values.
+//
+unsigned char Compiler::compGetJitDefaultFill()
+{
+    unsigned char defaultFill = (unsigned char)JitConfig.JitDefaultFill();
+
+    if ((this != nullptr) && (compStressCompile(STRESS_GENERIC_VARN, 50)))
+    {
+        unsigned temp;
+        temp = info.compMethodHash();
+        temp = (temp >> 16) ^ temp;
+        temp = (temp >> 8) ^ temp;
+        temp = temp & 0xff;
+        // asserts like this: assert(!IsUninitialized(stkLvl));
+        // mean that small values for defaultFill are problematic
+        // so we make the value larger in that case.
+        if (temp < 0x20)
+        {
+            temp |= 0x80;
+        }
+        defaultFill = (unsigned char)temp;
+    }
+
+    return defaultFill;
+}
+
 #endif // DEBUG
 
 /*****************************************************************************
@@ -2666,44 +2704,41 @@ void Compiler::compSetProcessor()
                     opts.setSupportedISA(InstructionSet_POPCNT);
                 }
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
-            {
-                if (configEnableISA(InstructionSet_SSE3))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE3);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
-            {
-                if (configEnableISA(InstructionSet_SSE41))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE41);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
-            {
-                if (configEnableISA(InstructionSet_SSE42))
-                {
-                    opts.setSupportedISA(InstructionSet_SSE42);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
-            {
-                if (configEnableISA(InstructionSet_SSSE3))
-                {
-                    opts.setSupportedISA(InstructionSet_SSSE3);
-                }
-            }
-        }
-    }
 
-    opts.compCanUseSSE4 = false;
-    if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41) &&
-        jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
-    {
-        if (JitConfig.EnableSSE3_4() != 0)
-        {
-            opts.compCanUseSSE4 = true;
+            // There are currently two sets of flags that control SSE3 through SSE4.2 support
+            // This is the general EnableSSE3_4 flag and the individual ISA flags. We need to
+            // check both for any given ISA.
+            if (JitConfig.EnableSSE3_4())
+            {
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
+                {
+                    if (configEnableISA(InstructionSet_SSE3))
+                    {
+                        opts.setSupportedISA(InstructionSet_SSE3);
+                    }
+                }
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
+                {
+                    if (configEnableISA(InstructionSet_SSE41))
+                    {
+                        opts.setSupportedISA(InstructionSet_SSE41);
+                    }
+                }
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
+                {
+                    if (configEnableISA(InstructionSet_SSE42))
+                    {
+                        opts.setSupportedISA(InstructionSet_SSE42);
+                    }
+                }
+                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
+                {
+                    if (configEnableISA(InstructionSet_SSSE3))
+                    {
+                        opts.setSupportedISA(InstructionSet_SSSE3);
+                    }
+                }
+            }
         }
     }
 
@@ -2716,8 +2751,12 @@ void Compiler::compSetProcessor()
             codeGen->getEmitter()->SetContainsAVX(false);
             codeGen->getEmitter()->SetContains256bitAVX(false);
         }
-        else if (CanUseSSE4())
+        else if (compSupports(InstructionSet_SSSE3) || compSupports(InstructionSet_SSE41) ||
+                 compSupports(InstructionSet_SSE42))
         {
+            // Emitter::UseSSE4 controls whether we support the 4-byte encoding for certain
+            // instructions. We need to check if either is supported independently, since
+            // it is currently possible to enable/disable them separately.
             codeGen->getEmitter()->SetUseSSE4(true);
         }
     }
@@ -4371,12 +4410,14 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     // Always do the layout even if returning early. Callers might
     // depend on us to do the layout.
     unsigned frameSize = lvaFrameSize(curState);
+    JITDUMP("\ncompRsvdRegCheck\n  frame size     = %6d\n  compArgSize    = %6d\n", frameSize, compArgSize);
 
     if (opts.MinOpts())
     {
         // Have a recovery path in case we fail to reserve REG_OPT_RSVD and go
         // over the limit of SP and FP offset ranges due to large
         // temps.
+        JITDUMP(" Returning true (MinOpts)\n\n");
         return true;
     }
 
@@ -4391,6 +4432,7 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 #if defined(_TARGET_ARM64_)
 
     // TODO-ARM64-CQ: update this!
+    JITDUMP(" Returning true (ARM64)\n\n");
     return true; // just always assume we'll need it, for now
 
 #else  // _TARGET_ARM_
@@ -4423,13 +4465,21 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     //
     unsigned maxR11ArgLimit = (compFloatingPointUsed ? 0x03FC : 0x0FFC);
     unsigned maxR11LclLimit = 0x0078;
+    JITDUMP("  maxR11ArgLimit = %6d\n  maxR11LclLimit = %6d\n", maxR11ArgLimit, maxR11LclLimit);
 
     if (codeGen->isFramePointerRequired())
     {
         unsigned maxR11LclOffs = frameSize;
         unsigned maxR11ArgOffs = compArgSize + (2 * REGSIZE_BYTES);
-        if (maxR11LclOffs > maxR11LclLimit || maxR11ArgOffs > maxR11ArgLimit)
+        JITDUMP("  maxR11LclOffs  = %6d\n  maxR11ArgOffs  = %6d\n", maxR11LclOffs, maxR11ArgOffs)
+        if (maxR11LclOffs > maxR11LclLimit)
         {
+            JITDUMP(" Returning true (frame reqd and maxR11LclOffs)\n\n");
+            return true;
+        }
+        if (maxR11ArgOffs > maxR11ArgLimit)
+        {
+            JITDUMP(" Returning true (frame reqd and maxR11ArgOffs)\n\n");
             return true;
         }
     }
@@ -4440,19 +4490,23 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 
     // Check local coverage first. If vldr/vstr will be used the limit can be +/-imm8.
     unsigned maxSPLclLimit = (compFloatingPointUsed ? 0x03F8 : 0x0FF8);
+    JITDUMP("  maxSPLclLimit  = %6d\n", maxSPLclLimit);
     if (frameSize > (codeGen->isFramePointerUsed() ? (maxR11LclLimit + maxSPLclLimit) : maxSPLclLimit))
     {
+        JITDUMP(" Returning true (frame reqd; local coverage)\n\n");
         return true;
     }
 
     // Check arguments coverage.
     if ((!codeGen->isFramePointerUsed() || (compArgSize > maxR11ArgLimit)) && (compArgSize + frameSize) > maxSPLclLimit)
     {
+        JITDUMP(" Returning true (no frame; arg coverage)\n\n");
         return true;
     }
 
     // We won't need to reserve REG_OPT_RSVD.
     //
+    JITDUMP(" Returning false\n\n");
     return false;
 #endif // _TARGET_ARM_
 }
@@ -4717,6 +4771,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
         // Compute reachability sets and dominators.
         fgComputeReachability();
+        EndPhase(PHASE_COMPUTE_REACHABILITY);
     }
 
     // Transform each GT_ALLOCOBJ node into either an allocation helper call or
@@ -4965,12 +5020,20 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         codeGen->regSet.rsMaskResvd |= RBM_SAVED_LOCALLOC_SP;
     }
 #endif // _TARGET_ARM_
-#ifdef _TARGET_ARMARCH_
+#if defined(_TARGET_ARMARCH_) && defined(LEGACY_BACKEND)
+    // Determine whether we need to reserve a register for large lclVar offsets.
+    // The determination depends heavily on the number of locals, which changes for RyuJIT backend
+    // due to the introduction of new temps during Rationalizer and Lowering.
+    // In LEGACY_BACKEND we do that here even though the decision to have a frame pointer or not may
+    // change during register allocation, changing the computation somewhat.
+    // In RyuJIT backend we do this after determining the frame type, and before beginning
+    // register allocation.
     if (compRsvdRegCheck(PRE_REGALLOC_FRAME_LAYOUT))
     {
         // We reserve R10/IP1 in this case to hold the offsets in load/store instructions
         codeGen->regSet.rsMaskResvd |= RBM_OPT_RSVD;
         assert(REG_OPT_RSVD != REG_FP);
+        JITDUMP("  Reserved REG_OPT_RSVD (%s) due to large frame\n", getRegName(REG_OPT_RSVD));
     }
     // compRsvdRegCheck() has read out the FramePointerUsed property, but doLinearScan()
     // tries to overwrite it later. This violates the PhasedVar rule and triggers an assertion.
@@ -7270,6 +7333,9 @@ void Compiler::CopyTestDataToCloneTree(GenTree* from, GenTree* to)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             CopyTestDataToCloneTree(from->gtBoundsChk.gtIndex, to->gtBoundsChk.gtIndex);
             CopyTestDataToCloneTree(from->gtBoundsChk.gtArrLen, to->gtBoundsChk.gtArrLen);
             return;
@@ -9503,10 +9569,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
 
             case GT_INDEX:
 
-                if (tree->gtFlags & GTF_INX_RNGCHK)
-                {
-                    chars += printf("[INX_RNGCHK]");
-                }
                 if (tree->gtFlags & GTF_INX_REFARR_LAYOUT)
                 {
                     chars += printf("[INX_REFARR_LAYOUT]");
@@ -9514,6 +9576,12 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 if (tree->gtFlags & GTF_INX_STRING_LAYOUT)
                 {
                     chars += printf("[INX_STRING_LAYOUT]");
+                }
+                __fallthrough;
+            case GT_INDEX_ADDR:
+                if (tree->gtFlags & GTF_INX_RNGCHK)
+                {
+                    chars += printf("[INX_RNGCHK]");
                 }
                 break;
 

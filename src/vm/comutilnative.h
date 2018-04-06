@@ -26,15 +26,6 @@
 #include "windows.h"
 #undef GetCurrentTime
 
-
-#pragma warning(push)
-#pragma warning(disable:4324)
-#if !defined(CROSS_COMPILE) && defined(_TARGET_ARM_) && !defined(PLATFORM_UNIX)
-#include "arm_neon.h"
-#endif
-#include "marvin32.h"
-#pragma warning(pop)
-
 //
 //
 // EXCEPTION NATIVE
@@ -120,6 +111,7 @@ public:
     static FORCEINLINE UINT64 InterlockedAdd(UINT64 *pAugend, UINT64 addend);
     static FORCEINLINE UINT64 InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend);
 
+    static FCDECL5(void,    GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation);
     static FCDECL0(int,     GetGcLatencyMode);
     static FCDECL1(int,     SetGcLatencyMode, int newLatencyMode);
     static FCDECL0(int,     GetLOHCompactionMode);
@@ -205,34 +197,6 @@ public:
     static FCDECL1(INT32, GetHashCode, Object* objRef);
     static FCDECL1(INT32, GetHashCodeOfPtr, LPVOID ptr);
 };
-
-
-typedef const BYTE  * PCBYTE;
-
-class COMNlsHashProvider {
-public:
-    COMNlsHashProvider();
-
-    INT32 HashString(LPCWSTR szStr, SIZE_T strLen);
-    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc);
-
-    static COMNlsHashProvider s_NlsHashProvider;
-
-private:
-    PBYTE pEntropy;
-    PCSYMCRYPT_MARVIN32_EXPANDED_SEED pDefaultSeed;
-
-    PCBYTE GetEntropy();
-    PCSYMCRYPT_MARVIN32_EXPANDED_SEED GetDefaultSeed();
-    void InitializeDefaultSeed();
-};
-
-#ifdef FEATURE_COREFX_GLOBALIZATION
-class CoreFxGlobalization {
-public:
-  static INT32 QCALLTYPE HashSortKey(PCBYTE pSortKey, INT32 cbSortKey);
-};
-#endif // FEATURE_COREFX_GLOBALIZATION
 
 class StreamNative {
 public:

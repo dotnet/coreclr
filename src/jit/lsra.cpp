@@ -708,7 +708,12 @@ LinearScan::LinearScan(Compiler* theCompiler)
 #endif // 0
 #endif // DEBUG
 
-    enregisterLocalVars = ((compiler->opts.compFlags & CLFLG_REGVAR) != 0) && compiler->lvaTrackedCount > 0;
+    // Assume that we will enregister local variables if it's not disabled. We'll reset it if we
+    // have no tracked locals when we start allocating. Note that new tracked lclVars may be added
+    // after the first liveness analysis - either by optimizations or by Lowering, and the tracked
+    // set won't be recomputed until after Lowering (and this constructor is called prior to Lowering),
+    // so we don't want to check that yet.
+    enregisterLocalVars = ((compiler->opts.compFlags & CLFLG_REGVAR) != 0);
 #ifdef _TARGET_ARM64_
     availableIntRegs = (RBM_ALLINT & ~(RBM_PR | RBM_FP | RBM_LR) & ~compiler->codeGen->regSet.rsMaskResvd);
 #else
@@ -819,19 +824,24 @@ LinearScan::RegMaskIndex LinearScan::GetIndexForRegMask(regMaskTP mask)
     return result;
 }
 
-// We've decided that we can't use a register during register allocation (probably FPBASE),
+// We've decided that we can't use one or more registers during register allocation (probably FPBASE),
 // but we've already added it to the register masks. Go through the masks and remove it.
-void LinearScan::RemoveRegisterFromMasks(regNumber reg)
+void LinearScan::RemoveRegistersFromMasks(regMaskTP removeMask)
 {
-    JITDUMP("Removing register %s from LSRA register masks\n", getRegName(reg));
+    if (VERBOSE)
+    {
+        JITDUMP("Removing registers from LSRA register masks: ");
+        INDEBUG(dumpRegMask(removeMask));
+        JITDUMP("\n");
+    }
 
-    regMaskTP mask = ~genRegMask(reg);
+    regMaskTP mask = ~removeMask;
     for (int i = 0; i < nextFreeMask; i++)
     {
         regMaskTable[i] &= mask;
     }
 
-    JITDUMP("After removing register:\n");
+    JITDUMP("After removing registers:\n");
     DBEXEC(VERBOSE, dspRegisterMaskTable());
 }
 
@@ -1308,6 +1318,15 @@ BasicBlock* LinearScan::getNextBlock()
 
 void LinearScan::doLinearScan()
 {
+    // Check to see whether we have any local variables to enregister.
+    // We initialize this in the constructor based on opt settings,
+    // but we don't want to spend time on the lclVar parts of LinearScan
+    // if we have no tracked locals.
+    if (enregisterLocalVars && (compiler->lvaTrackedCount == 0))
+    {
+        enregisterLocalVars = false;
+    }
+
     unsigned lsraBlockEpoch = compiler->GetCurBasicBlockEpoch();
 
     splitBBNumToTargetBBNumMap = nullptr;
@@ -1944,7 +1963,7 @@ void LinearScan::identifyCandidates()
     {
         // Frame layout is only pre-computed for ARM
         printf("\nlvaTable after IdentifyCandidates\n");
-        compiler->lvaTableDump();
+        compiler->lvaTableDump(Compiler::FrameLayoutState::PRE_REGALLOC_FRAME_LAYOUT);
     }
 #endif // DEBUG
 #endif // _TARGET_ARM_
@@ -2479,22 +2498,36 @@ void LinearScan::setFrameType()
     // used during lowering. Luckily, the TreeNodeInfo only stores an index to
     // the masks stored in the LinearScan class, so we only need to walk the
     // unique masks and remove FPBASE.
+    regMaskTP removeMask = RBM_NONE;
     if (frameType == FT_EBP_FRAME)
     {
-        if ((availableIntRegs & RBM_FPBASE) != 0)
-        {
-            RemoveRegisterFromMasks(REG_FPBASE);
-
-            // We know that we're already in "read mode" for availableIntRegs. However,
-            // we need to remove the FPBASE register, so subsequent users (like callers
-            // to allRegs()) get the right thing. The RemoveRegisterFromMasks() code
-            // fixes up everything that already took a dependency on the value that was
-            // previously read, so this completes the picture.
-            availableIntRegs.OverrideAssign(availableIntRegs & ~RBM_FPBASE);
-        }
+        removeMask |= RBM_FPBASE;
     }
 
     compiler->rpFrameType = frameType;
+
+#ifdef _TARGET_ARMARCH_
+    // Determine whether we need to reserve a register for large lclVar offsets.
+    if (compiler->compRsvdRegCheck(Compiler::REGALLOC_FRAME_LAYOUT))
+    {
+        // We reserve R10/IP1 in this case to hold the offsets in load/store instructions
+        compiler->codeGen->regSet.rsMaskResvd |= RBM_OPT_RSVD;
+        assert(REG_OPT_RSVD != REG_FP);
+        JITDUMP("  Reserved REG_OPT_RSVD (%s) due to large frame\n", getRegName(REG_OPT_RSVD));
+        removeMask |= RBM_OPT_RSVD;
+    }
+#endif // _TARGET_ARMARCH_
+
+    if ((removeMask != RBM_NONE) && ((availableIntRegs & removeMask) != 0))
+    {
+        RemoveRegistersFromMasks(removeMask);
+        // We know that we're already in "read mode" for availableIntRegs. However,
+        // we need to remove these registers, so subsequent users (like callers
+        // to allRegs()) get the right thing. The RemoveRegistersFromMasks() code
+        // fixes up everything that already took a dependency on the value that was
+        // previously read, so this completes the picture.
+        availableIntRegs.OverrideAssign(availableIntRegs & ~removeMask);
+    }
 }
 
 //------------------------------------------------------------------------
@@ -3358,8 +3391,10 @@ bool LinearScan::isRefPositionActive(RefPosition* refPosition, LsraLocation refL
 //    False - otherwise
 //
 // Notes:
-//    This helper is designed to be used only from allocateBusyReg().
-//    The caller must have already checked for the case where 'refPosition' is a fixed ref.
+//    This helper is designed to be used only from allocateBusyReg(), where:
+//    - This register was *not* found when looking for a free register, and
+//    - The caller must have already checked for the case where 'refPosition' is a fixed ref
+//      (asserted at the beginning of this method).
 //
 bool LinearScan::isRegInUse(RegRecord* regRec, RefPosition* refPosition)
 {
@@ -3370,27 +3405,43 @@ bool LinearScan::isRegInUse(RegRecord* regRec, RefPosition* refPosition)
     {
         if (!assignedInterval->isActive)
         {
-            // This can only happen if we have a recentRefPosition active at this location that hasn't yet been freed
-            // (Or, in the case of ARM, the other half of a double is either active or has an active recentRefPosition).
+            // This can only happen if we have a recentRefPosition active at this location that hasn't yet been freed.
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_ARM_
-            if (refPosition->getInterval()->registerType == TYP_DOUBLE)
+            if (isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation))
             {
-                if (!isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation))
-                {
-                    RegRecord* otherHalfRegRec = findAnotherHalfRegRec(regRec);
-                    assert(otherHalfRegRec->assignedInterval->isActive ||
-                           isRefPositionActive(otherHalfRegRec->assignedInterval->recentRefPosition,
-                                               refPosition->nodeLocation));
-                }
+                return true;
             }
             else
-#endif
             {
-                assert(isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation));
+#ifdef _TARGET_ARM_
+                // In the case of TYP_DOUBLE, we may have the case where 'assignedInterval' is inactive,
+                // but the other half register is active. If so, it must be have an active recentRefPosition,
+                // as above.
+                if (refPosition->getInterval()->registerType == TYP_DOUBLE)
+                {
+                    RegRecord* otherHalfRegRec = findAnotherHalfRegRec(regRec);
+                    if (!otherHalfRegRec->assignedInterval->isActive)
+                    {
+                        if (isRefPositionActive(otherHalfRegRec->assignedInterval->recentRefPosition,
+                                                refPosition->nodeLocation))
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            assert(!"Unexpected inactive assigned interval in isRegInUse");
+                            return true;
+                        }
+                    }
+                }
+                else
+#endif
+                {
+                    assert(!"Unexpected inactive assigned interval in isRegInUse");
+                    return true;
+                }
             }
-            return true;
         }
         RefPosition* nextAssignedRef = assignedInterval->getNextRefPosition();
 
@@ -4939,6 +4990,12 @@ void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool alloc
                 }
 
 #ifdef _TARGET_ARM_
+                // unassignPhysReg, above, may have restored a 'previousInterval', in which case we need to
+                // get the value of 'physRegRecord->assignedInterval' rather than using 'assignedInterval'.
+                if (physRegRecord->assignedInterval != nullptr)
+                {
+                    assignedInterval = physRegRecord->assignedInterval;
+                }
                 if (assignedInterval->registerType == TYP_DOUBLE)
                 {
                     // Skip next float register, because we already addressed a double register
@@ -5230,16 +5287,23 @@ void LinearScan::allocateRegisters()
 
         if ((regsToFree | delayRegsToFree) != RBM_NONE)
         {
-            bool doFreeRegs = false;
             // Free at a new location, or at a basic block boundary
-            if (currentLocation > prevLocation || refType == RefTypeBB)
+            if (refType == RefTypeBB)
             {
-                doFreeRegs = true;
+                assert(currentLocation > prevLocation);
             }
-
-            if (doFreeRegs)
+            if (currentLocation > prevLocation)
             {
                 freeRegisters(regsToFree);
+                if ((currentLocation > (prevLocation + 1)) && (delayRegsToFree != RBM_NONE))
+                {
+                    // We should never see a delayReg that is delayed until a Location that has no RefPosition
+                    // (that would be the RefPosition that it was supposed to interfere with).
+                    assert(!"Found a delayRegFree associated with Location with no reference");
+                    // However, to be cautious for the Release build case, we will free them.
+                    freeRegisters(delayRegsToFree);
+                    delayRegsToFree = RBM_NONE;
+                }
                 regsToFree      = delayRegsToFree;
                 delayRegsToFree = RBM_NONE;
             }
@@ -5314,10 +5378,8 @@ void LinearScan::allocateRegisters()
                 // Update overlapping floating point register for TYP_DOUBLE
                 if (assignedInterval->registerType == TYP_DOUBLE)
                 {
-                    regRecord        = getSecondHalfRegRec(regRecord);
-                    assignedInterval = regRecord->assignedInterval;
-
-                    assert(assignedInterval != nullptr && !assignedInterval->isActive && assignedInterval->isConstant);
+                    regRecord = findAnotherHalfRegRec(regRecord);
+                    assert(regRecord->assignedInterval == assignedInterval);
                     regRecord->assignedInterval = nullptr;
                 }
 #endif
@@ -6315,14 +6377,14 @@ void LinearScan::insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned m
     }
 
     // If the parent is a reload/copy node, then tree must be a multi-reg call node
-    // that has already had one of its registers spilled. This is Because multi-reg
+    // that has already had one of its registers spilled. This is because multi-reg
     // call node is the only node whose RefTypeDef positions get independently
     // spilled or reloaded.  It is possible that one of its RefTypeDef position got
     // spilled and the next use of it requires it to be in a different register.
     //
-    // In this case set the ith position reg of reload/copy node to the reg allocated
+    // In this case set the i'th position reg of reload/copy node to the reg allocated
     // for copy/reload refPosition.  Essentially a copy/reload node will have a reg
-    // for each multi-reg position of its child. If there is a valid reg in ith
+    // for each multi-reg position of its child. If there is a valid reg in i'th
     // position of GT_COPY or GT_RELOAD node then the corresponding result of its
     // child needs to be copied or reloaded to that reg.
     if (parent->IsCopyOrReload())
@@ -8215,10 +8277,51 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
             location[sourceReg]        = REG_NA;
 
             // Do we have a free targetReg?
-            if (fromReg == sourceReg && source[fromReg] != REG_NA)
+            if (fromReg == sourceReg)
             {
-                regMaskTP fromRegMask = genRegMask(fromReg);
-                targetRegsReady |= fromRegMask;
+                if (source[fromReg] != REG_NA)
+                {
+                    regMaskTP fromRegMask = genRegMask(fromReg);
+                    targetRegsReady |= fromRegMask;
+#ifdef _TARGET_ARM_
+                    if (genIsValidDoubleReg(fromReg))
+                    {
+                        // Ensure that either:
+                        // - the Interval targetting fromReg is not double, or
+                        // - the other half of the double is free.
+                        Interval* otherInterval = sourceIntervals[source[fromReg]];
+                        regNumber upperHalfReg  = REG_NEXT(fromReg);
+                        if ((otherInterval->registerType == TYP_DOUBLE) && (location[upperHalfReg] != REG_NA))
+                        {
+                            targetRegsReady &= ~fromRegMask;
+                        }
+                    }
+                }
+                else if (genIsValidFloatReg(fromReg) && !genIsValidDoubleReg(fromReg))
+                {
+                    // We may have freed up the other half of a double where the lower half
+                    // was already free.
+                    regNumber lowerHalfReg    = REG_PREV(fromReg);
+                    regNumber lowerHalfSrcReg = (regNumber)source[lowerHalfReg];
+                    regNumber lowerHalfSrcLoc = (regNumber)location[lowerHalfReg];
+                    // Necessary conditions:
+                    // - There is a source register for this reg (lowerHalfSrcReg != REG_NA)
+                    // - It is currently free                    (lowerHalfSrcLoc == REG_NA)
+                    // - The source interval isn't yet completed (sourceIntervals[lowerHalfSrcReg] != nullptr)
+                    // - It's not in the ready set               ((targetRegsReady & genRegMask(lowerHalfReg)) ==
+                    //                                            RBM_NONE)
+                    //
+                    if ((lowerHalfSrcReg != REG_NA) && (lowerHalfSrcLoc == REG_NA) &&
+                        (sourceIntervals[lowerHalfSrcReg] != nullptr) &&
+                        ((targetRegsReady & genRegMask(lowerHalfReg)) == RBM_NONE))
+                    {
+                        // This must be a double interval, otherwise it would be in targetRegsReady, or already
+                        // completed.
+                        assert(sourceIntervals[lowerHalfSrcReg]->registerType == TYP_DOUBLE);
+                        targetRegsReady |= genRegMask(lowerHalfReg);
+                    }
+#endif // _TARGET_ARM_
+                }
             }
         }
         if (targetRegsToDo != RBM_NONE)

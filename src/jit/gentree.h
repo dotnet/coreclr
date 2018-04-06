@@ -893,7 +893,7 @@ public:
 #define GTF_FLD_VOLATILE            0x40000000 // GT_FIELD/GT_CLS_VAR -- same as GTF_IND_VOLATILE
 #define GTF_FLD_INITCLASS           0x20000000 // GT_FIELD/GT_CLS_VAR -- field access requires preceding class/static init helper
 
-#define GTF_INX_RNGCHK              0x80000000 // GT_INDEX -- the array reference should be range-checked.
+#define GTF_INX_RNGCHK              0x80000000 // GT_INDEX/GT_INDEX_ADDR -- the array reference should be range-checked.
 #define GTF_INX_REFARR_LAYOUT       0x20000000 // GT_INDEX
 #define GTF_INX_STRING_LAYOUT       0x40000000 // GT_INDEX -- this uses the special string array layout
 
@@ -1471,6 +1471,27 @@ public:
     }
 #endif // FEATURE_SIMD
 
+#ifdef FEATURE_HW_INTRINSICS
+    bool isCommutativeHWIntrinsic() const;
+    bool isContainableHWIntrinsic() const;
+    bool isRMWHWIntrinsic(Compiler* comp);
+#else
+    bool isCommutativeHWIntrinsic() const
+    {
+        return false;
+    }
+
+    bool isContainableHWIntrinsic() const
+    {
+        return false;
+    }
+
+    bool isRMWHWIntrinsic(Compiler* comp)
+    {
+        return false;
+    }
+#endif // FEATURE_HW_INTRINSICS
+
     static bool OperIsCommutative(genTreeOps gtOper)
     {
         return (OperKind(gtOper) & GTK_COMMUTE) != 0;
@@ -1478,7 +1499,8 @@ public:
 
     bool OperIsCommutative()
     {
-        return OperIsCommutative(gtOper) || (OperIsSIMD(gtOper) && isCommutativeSIMDIntrinsic());
+        return OperIsCommutative(gtOper) || (OperIsSIMD(gtOper) && isCommutativeSIMDIntrinsic()) ||
+               (OperIsHWIntrinsic(gtOper) && isCommutativeHWIntrinsic());
     }
 
     static bool OperIsAssignment(genTreeOps gtOper)
@@ -1661,6 +1683,12 @@ public:
             return true;
         }
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        if (op == GT_HW_INTRINSIC_CHK)
+        {
+            return true;
+        }
+#endif // FEATURE_HW_INTRINSICS
         return false;
     }
 
@@ -3003,9 +3031,10 @@ struct GenTreeCast : public GenTreeOp
     }
     var_types gtCastType;
 
-    GenTreeCast(var_types type, GenTree* op, var_types castType DEBUGARG(bool largeNode = false))
+    GenTreeCast(var_types type, GenTree* op, bool fromUnsigned, var_types castType DEBUGARG(bool largeNode = false))
         : GenTreeOp(GT_CAST, type, op, nullptr DEBUGARG(largeNode)), gtCastType(castType)
     {
+        gtFlags |= fromUnsigned ? GTF_UNSIGNED : 0;
     }
 #if DEBUGGABLE_GENTREE
     GenTreeCast() : GenTreeOp()

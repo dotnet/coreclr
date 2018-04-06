@@ -5573,7 +5573,7 @@ void Compiler::optEnsureUniqueHead(unsigned loopInd, unsigned ambientWeight)
 
             return CALLINT_SCL_INDIRS;
 
-        case CORINFO_HELP_ASSIGN_STRUCT: // Not strictly needed as we don't use this in Jit32
+        case CORINFO_HELP_ASSIGN_STRUCT: // Not strictly needed as we don't use this
         case CORINFO_HELP_MEMSET:        // Not strictly needed as we don't make a GT_CALL with this
         case CORINFO_HELP_MEMCPY:        // Not strictly needed as we don't make a GT_CALL with this
         case CORINFO_HELP_SETFIELDSTRUCT:
@@ -5790,7 +5790,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                         if (srcSize == 8)
                         {
                             assert(tree->gtType == TYP_INT);
-                            op1 = gtNewCastNode(TYP_INT, op1, TYP_INT);
+                            op1 = gtNewCastNode(TYP_INT, op1, false, TYP_INT);
 #ifdef DEBUG
                             op1->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
 #endif

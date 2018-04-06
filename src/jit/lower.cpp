@@ -204,6 +204,9 @@ GenTree* Lowering::LowerNode(GenTree* node)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             ContainCheckBoundsChk(node->AsBoundsChk());
             break;
 #endif // _TARGET_XARCH_
@@ -273,8 +276,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_STORE_LCL_VAR:
-#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
+            WidenSIMD12IfNecessary(node->AsLclVarCommon());
+            __fallthrough;
+
+        case GT_STORE_LCL_FLD:
         {
+#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
             GenTreeLclVarCommon* const store = node->AsLclVarCommon();
             if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
             {
@@ -283,12 +290,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 store->gtOp1 = bitcast;
                 BlockRange().InsertBefore(store, bitcast);
             }
-        }
 #endif // _TARGET_AMD64_
-            WidenSIMD12IfNecessary(node->AsLclVarCommon());
-            __fallthrough;
-
-        case GT_STORE_LCL_FLD:
             // TODO-1stClassStructs: Once we remove the requirement that all struct stores
             // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
             // store under a block store if codegen will require it.
@@ -303,6 +305,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             }
             LowerStoreLoc(node->AsLclVarCommon());
             break;
+        }
 
 #ifdef _TARGET_ARM64_
         case GT_CMPXCHG:
@@ -745,8 +748,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
             {
                 // SWITCH_TABLE expects the switch value (the index into the jump table) to be TYP_I_IMPL.
                 // Note that the switch value is unsigned so the cast should be unsigned as well.
-                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, TYP_U_IMPL);
-                switchValue->gtFlags |= GTF_UNSIGNED;
+                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, true, TYP_U_IMPL);
                 switchBlockRange.InsertAtEnd(switchValue);
             }
 #endif
@@ -2146,10 +2148,12 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                     // Create tmp and use it in place of callerArgDsc
                     if (tmpLclNum == BAD_VAR_NUM)
                     {
+                        // Set tmpType first before calling lvaGrabTemp, as that call invalidates callerArgDsc
+                        tmpType   = genActualType(callerArgDsc->lvaArgType());
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
+
                         comp->lvaSortAgain                          = true;
-                        tmpType                                     = genActualType(callerArgDsc->lvaArgType());
                         comp->lvaTable[tmpLclNum].lvType            = tmpType;
                         comp->lvaTable[tmpLclNum].lvRefCnt          = 1;
                         comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
@@ -3170,19 +3174,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
             // a single indirection.
             GenTree* cellAddr = AddrGen(addr);
             GenTree* indir    = Ind(cellAddr);
-
-#ifdef FEATURE_READYTORUN_COMPILER
-#if defined(_TARGET_ARMARCH_)
-            // For arm64, we dispatch code same as VSD using X11 for indirection cell address,
-            // which ZapIndirectHelperThunk expects.
-            if (call->IsR2RRelativeIndir())
-            {
-                cellAddr->gtRegNum = REG_R2R_INDIRECT_PARAM;
-                indir->gtRegNum    = REG_JUMP_THUNK_PARAM;
-            }
-#endif
-#endif
-            result = indir;
+            result            = indir;
             break;
         }
 
@@ -3972,7 +3964,8 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
                     // stash the address for codegen
                     call->gtDirectCallAddress = addr;
 #ifdef FEATURE_READYTORUN_COMPILER
-                    call->gtEntryPoint.addr = nullptr;
+                    call->gtEntryPoint.addr       = nullptr;
+                    call->gtEntryPoint.accessType = IAT_VALUE;
 #endif
                 }
                 break;
@@ -4726,6 +4719,10 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     const var_types type = divMod->TypeGet();
     assert((type == TYP_INT) || (type == TYP_LONG));
 
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    assert(!"unreachable: GT_DIV/GT_MOD should get morphed into helper calls");
+#endif // USE_HELPERS_FOR_INT_DIV
+
     if (dividend->IsCnsIntOrI())
     {
         // We shouldn't see a divmod with constant operands here but if we do then it's likely
@@ -4785,9 +4782,9 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         {
 #ifdef _TARGET_64BIT_
             magic = MagicDivide::GetSigned64Magic(static_cast<int64_t>(divisorValue), &shift);
-#else
+#else  // !_TARGET_64BIT_
             unreached();
-#endif
+#endif // !_TARGET_64BIT_
         }
 
         divisor->gtIntConCommon.SetIconValue(magic);
@@ -4879,9 +4876,11 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         }
 
         return mulhi;
-#else
+#elif defined(_TARGET_ARM_)
         // Currently there's no GT_MULHI for ARM32
         return nullptr;
+#else
+#error Unsupported or unset target architecture
 #endif
     }
 

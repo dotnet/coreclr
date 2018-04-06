@@ -3,22 +3,25 @@
     {
       "environment": {},
       "enabled": true,
-      "continueOnError": false,
+      "continueOnError": true,
       "alwaysRun": false,
-      "displayName": "Run script $(VS140COMNTOOLS)\\VsDevCmd.bat",
+      "displayName": "Run AgentTools/Begin.ps1",
       "timeoutInMinutes": 0,
-      "refName": "Task1",
+      "condition": "succeededOrFailed()",
       "task": {
-        "id": "bfc8bf76-e7ac-4a8c-9a55-a944a9f632fd",
-        "versionSpec": "1.*",
+        "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
+        "versionSpec": "2.*",
         "definitionType": "task"
       },
       "inputs": {
-        "filename": "$(VS140COMNTOOLS)\\VsDevCmd.bat",
+        "targetType": "inline",
+        "filePath": "",
         "arguments": "",
-        "modifyEnvironment": "true",
-        "workingFolder": "",
-        "failOnStandardError": "false"
+        "script": "if (Test-Path \"$(AgentToolsPath)\\Begin.ps1\") {\n   \"Begin.ps1 script found. Executing...\"\n   cd $(AgentToolsPath)\n   & $(AgentToolsPath)\\Begin.ps1\n} else {\n   \"Begin.ps1 script does not exist. Moving on...\"\n}",
+        "errorActionPreference": "continue",
+        "failOnStderr": "false",
+        "ignoreLASTEXITCODE": "true",
+        "workingDirectory": ""
       }
     },
     {
@@ -39,7 +42,8 @@
         "signType": "real",
         "zipSources": "true",
         "version": "",
-        "feedSource": "https://devdiv.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json"
+        "feedSource": "https://devdiv.pkgs.visualstudio.com/DefaultCollection/_packaging/MicroBuildToolset/nuget/v3/index.json",
+        "legacySigning": "$(PB_UseLegacySigning)"
       }
     },
     {
@@ -84,6 +88,27 @@
         "workingFolder": "",
         "inlineScript": "param($gitUrl, $root)\n\nif (Test-Path $root)\n{\n  Remove-Item -Recurse -Force $root\n}\ngit clone $gitUrl $root 2>&1 | Write-Host\ncd $root\ngit checkout $env:SourceVersion 2>&1 | Write-Host\n\nWrite-Host (\"##vso[task.setvariable variable=Pipeline.SourcesDirectory;]$root\")",
         "failOnStandardError": "true"
+      }
+    },
+    {
+      "environment": {},
+      "enabled": true,
+      "continueOnError": false,
+      "alwaysRun": false,
+      "displayName": "Setup vs dev env",
+      "timeoutInMinutes": 0,
+      "refName": "Task1",
+      "task": {
+        "id": "bfc8bf76-e7ac-4a8c-9a55-a944a9f632fd",
+        "versionSpec": "1.*",
+        "definitionType": "task"
+      },
+      "inputs": {
+        "filename": "$(Pipeline.SourcesDirectory)\\setup_vs_tools.cmd",
+        "arguments": "",
+        "modifyEnvironment": "true",
+        "workingFolder": "",
+        "failOnStandardError": "false"
       }
     },
     {
@@ -478,6 +503,30 @@
         "definitionType": "task"
       },
       "inputs": {}
+    },
+    {
+      "environment": {},
+      "enabled": true,
+      "continueOnError": true,
+      "alwaysRun": true,
+      "displayName": "Run AgentTools/End.ps1",
+      "timeoutInMinutes": 0,
+      "condition": "succeededOrFailed()",
+      "task": {
+        "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
+        "versionSpec": "2.*",
+        "definitionType": "task"
+      },
+      "inputs": {
+        "targetType": "inline",
+        "filePath": "",
+        "arguments": "",
+        "script": "if (Test-Path \"$(AgentToolsPath)\\End.ps1\") {\n   \"End.ps1 script found. Executing...\"\n   cd $(AgentToolsPath)\n   & $(AgentToolsPath)\\End.ps1\n} else {\n   \"End.ps1 script does not exist. Moving on...\"\n}",
+        "errorActionPreference": "continue",
+        "failOnStderr": "false",
+        "ignoreLASTEXITCODE": "true",
+        "workingDirectory": ""
+      }
     }
   ],
   "options": [
@@ -585,7 +634,7 @@
       "allowOverride": true
     },
     "BuildConfiguration": {
-      "value": "release"
+      "value": "Release"
     },
     "BuildPlatform": {
       "value": "any cpu"
@@ -692,6 +741,10 @@
     },
     "PB_BuildOutputManifestArguments": {
       "value": "/p:ManifestBuildId=$(OfficialBuildId) /p:ManifestBranch=$(SourceBranch) /p:ManifestCommit=$(SourceVersion)"
+    },
+    "PB_UseLegacySigning": {
+      "value": "false",
+      "allowOverride": true
     }
   },
   "retentionRules": [
@@ -737,11 +790,17 @@
   "quality": "definition",
   "drafts": [],
   "queue": {
-    "id": 36,
-    "name": "DotNet-Build",
+    "_links": {
+      "self": {
+        "href": "https://devdiv.visualstudio.com/DefaultCollection/_apis/build/Queues/330"
+      }
+    },
+    "id": 330,
+    "name": "DotNetCore-Build",
+    "url": "https://devdiv.visualstudio.com/DefaultCollection/_apis/build/Queues/330",
     "pool": {
-      "id": 39,
-      "name": "DotNet-Build"
+      "id": 97,
+      "name": "DotNetCore-Build"
     }
   },
   "id": 2943,

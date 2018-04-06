@@ -31,7 +31,6 @@ check_include_files(sys/time.h HAVE_SYS_TIME_H)
 check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
 check_include_files(sys/lwp.h HAVE_SYS_LWP_H)
 check_include_files(lwp.h HAVE_LWP_H)
-check_include_files(libunwind.h HAVE_LIBUNWIND_H)
 check_include_files(runetype.h HAVE_RUNETYPE_H)
 check_include_files(semaphore.h HAVE_SEMAPHORE_H)
 check_include_files(sys/prctl.h HAVE_PRCTL_H)
@@ -48,7 +47,6 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL Net
   unset(CMAKE_REQUIRED_FLAGS)
 endif()
 
-check_include_files(uuid/uuid.h HAVE_LIBUUID_H)
 check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
 check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
 
@@ -102,28 +100,6 @@ check_function_exists(semget HAS_SYSV_SEMAPHORES)
 check_function_exists(pthread_mutex_init HAS_PTHREAD_MUTEXES)
 check_function_exists(ttrace HAVE_TTRACE)
 check_function_exists(pipe2 HAVE_PIPE2)
-set(CMAKE_REQUIRED_LIBRARIES unwind unwind-generic)
-check_cxx_source_compiles("
-#include <libunwind.h>
-
-int main(int argc, char **argv) {
-  unw_cursor_t cursor;
-  unw_save_loc_t saveLoc;
-  int reg = UNW_REG_IP;
-  unw_get_save_loc(&cursor, reg, &saveLoc);
-
-  return 0;
-}" HAVE_UNW_GET_SAVE_LOC)
-check_cxx_source_compiles("
-#include <libunwind.h>
-
-int main(int argc, char **argv) {
-  unw_addr_space_t as;
-  unw_get_accessors(as);
-
-  return 0;
-}" HAVE_UNW_GET_ACCESSORS)
-set(CMAKE_REQUIRED_LIBRARIES)
 
 check_cxx_source_compiles("
 #include <pthread_np.h>
@@ -168,16 +144,6 @@ check_cxx_symbol_exists(CHAR_BIT limits.h HAVE_CHAR_BIT)
 check_cxx_symbol_exists(_DEBUG sys/user.h USER_H_DEFINES_DEBUG)
 check_cxx_symbol_exists(_SC_PHYS_PAGES unistd.h HAVE__SC_PHYS_PAGES)
 check_cxx_symbol_exists(_SC_AVPHYS_PAGES unistd.h HAVE__SC_AVPHYS_PAGES)
-
-check_cxx_source_runs("
-#include <uuid.h>
-
-int main(void) {
-  uuid_t uuid;
-  uint32_t status;
-  uuid_create(&uuid, &status);
-  return 0;
-}" HAVE_BSD_UUID_H)
 
 check_cxx_source_runs("
 #include <sys/param.h>
@@ -986,23 +952,53 @@ int main()
 
   return 1;
 }" FILE_OPS_CHECK_FERROR_OF_PREVIOUS_CALL)
-set(CMAKE_REQUIRED_DEFINITIONS)
 
 set(SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING 1)
 set(ERROR_FUNC_FOR_GLOB_HAS_FIXED_PARAMS 1)
 
-check_cxx_source_compiles("
+if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+  list(INSERT CMAKE_REQUIRED_INCLUDES 0 ${CMAKE_CURRENT_SOURCE_DIR}/libunwind/include ${CMAKE_CURRENT_BINARY_DIR}/libunwind/include)
+endif()
+
+set(CMAKE_REQUIRED_FLAGS "-c -Werror=implicit-function-declaration")
+
+check_c_source_compiles("
 #include <libunwind.h>
 #include <ucontext.h>
-
 int main(int argc, char **argv)
 {
         unw_context_t libUnwindContext;
         ucontext_t uContext;
-
         libUnwindContext = uContext;
         return 0;
 }" UNWIND_CONTEXT_IS_UCONTEXT_T)
+
+check_c_source_compiles("
+#include <libunwind.h>
+
+int main(int argc, char **argv) {
+  unw_cursor_t cursor;
+  unw_save_loc_t saveLoc;
+  int reg = UNW_REG_IP;
+  unw_get_save_loc(&cursor, reg, &saveLoc);
+
+  return 0;
+}" HAVE_UNW_GET_SAVE_LOC)
+
+check_c_source_compiles("
+#include <libunwind.h>
+
+int main(int argc, char **argv) {
+  unw_addr_space_t as;
+  unw_get_accessors(as);
+
+  return 0;
+}" HAVE_UNW_GET_ACCESSORS)
+
+set(CMAKE_REQUIRED_FLAGS)
+if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+  list(REMOVE_AT CMAKE_REQUIRED_INCLUDES 0 1)
+endif()
 
 check_cxx_source_compiles("
 #include <sys/param.h>
@@ -1271,10 +1267,6 @@ if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  if(NOT HAVE_LIBUUID_H)
-    unset(HAVE_LIBUUID_H CACHE)
-    message(FATAL_ERROR "Cannot find libuuid. Try installing uuid-dev or the appropriate packages for your platform")
-  endif()
   set(HAVE_COREFOUNDATION 1)
   set(HAVE__NSGETENVIRON 1)
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 1)
@@ -1287,14 +1279,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
 
 elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  if(NOT HAVE_LIBUNWIND_H)
-    unset(HAVE_LIBUNWIND_H CACHE)
-    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
-  endif()
-  if(NOT HAVE_BSD_UUID_H)
-    unset(HAVE_BSD_UUID_H CACHE)
-    message(FATAL_ERROR "Cannot find uuid.h")
-  endif()
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
   set(PAL_PTRACE "ptrace((cmd), (pid), (caddr_t)(addr), (data))")
   set(PAL_PT_ATTACH PT_ATTACH)
@@ -1305,14 +1289,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(BSD_REGS_STYLE "((reg).r_##rr)")
   set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
 elseif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-  if(NOT HAVE_LIBUNWIND_H)
-    unset(HAVE_LIBUNWIND_H CACHE)
-    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
-  endif()
-  if(NOT HAVE_BSD_UUID_H)
-    unset(HAVE_BSD_UUID_H CACHE)
-    message(FATAL_ERROR "Cannot find uuid.h")
-  endif()
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
   set(PAL_PTRACE "ptrace((cmd), (pid), (void*)(addr), (data))")
   set(PAL_PT_ATTACH PT_ATTACH)
@@ -1324,14 +1300,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   set(HAVE_SCHED_OTHER_ASSIGNABLE 0)
 
 elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
-  if(NOT HAVE_LIBUNWIND_H)
-    unset(HAVE_LIBUNWIND_H CACHE)
-    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
-  endif()
-  if(NOT HAVE_LIBUUID_H)
-    unset(HAVE_LIBUUID_H CACHE)
-    message(FATAL_ERROR "Cannot find libuuid. Try installing uuid-dev or the appropriate packages for your platform")
-  endif()
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
   set(PAL_PTRACE "ptrace((cmd), (pid), (caddr_t)(addr), (data))")
   set(PAL_PT_ATTACH PT_ATTACH)
@@ -1340,17 +1308,9 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   set(PAL_PT_WRITE_D PT_WRITE_D)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
 else() # Anything else is Linux
-  if(NOT HAVE_LIBUNWIND_H)
-    unset(HAVE_LIBUNWIND_H CACHE)
-    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8 and libunwind8-dev (or the appropriate packages for your platform)")
-  endif()
   if(NOT HAVE_LTTNG_TRACEPOINT_H AND FEATURE_EVENT_TRACE)
     unset(HAVE_LTTNG_TRACEPOINT_H CACHE)
     message(FATAL_ERROR "Cannot find liblttng-ust-dev. Try installing liblttng-ust-dev  (or the appropriate packages for your platform)")
-  endif()
-  if(NOT HAVE_LIBUUID_H)
-    unset(HAVE_LIBUUID_H CACHE)
-    message(FATAL_ERROR "Cannot find libuuid. Try installing uuid-dev or the appropriate packages for your platform")
   endif()
   set(DEADLOCK_WHEN_THREAD_IS_SUSPENDED_WHILE_BLOCKED_ON_MUTEX 0)
   set(PAL_PTRACE "ptrace((cmd), (pid), (void*)(addr), (data))")

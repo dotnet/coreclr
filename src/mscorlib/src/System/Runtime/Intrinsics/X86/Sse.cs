@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace System.Runtime.Intrinsics.X86
@@ -465,9 +466,17 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<float> ReciprocalSqrtScalar(Vector128<float> upper, Vector128<float> value) => ReciprocalSqrtScalar(upper, value);
 
         /// <summary>
-        /// __m128 _mm_set_ps (float e3, float e2, float e1, float e0)
+        /// __m128 _mm_set1_ps (float a)
+        ///   HELPER
         /// </summary>
-        public static Vector128<float> SetVector128(float e3, float e2, float e1, float e0) => SetVector128(e3, e2, e1, e0);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<float> SetAllVector128(float value)
+        {
+            // Zero vector and load value et index 0
+            Vector128<float> vector = SetScalarVector128(value);
+            // Create { vl vl vl vl } and return result
+            return Shuffle(vector, vector, 0);
+        }
 
         /// <summary>
         /// __m128 _mm_set_ss (float a)
@@ -476,10 +485,24 @@ namespace System.Runtime.Intrinsics.X86
         public static Vector128<float> SetScalarVector128(float value) => SetScalarVector128(value);
 
         /// <summary>
-        /// __m128 _mm_set1_ps (float a)
-        ///   HELPER
+        /// __m128 _mm_set_ps (float e3, float e2, float e1, float e0)
         /// </summary>
-        public static Vector128<float> SetAllVector128(float value) => SetAllVector128(value);
+        public static unsafe Vector128<float> SetVector128(float e3, float e2, float e1, float e0)
+        {
+            // TODO-CQ Optimize algorithm choice based on benchmarks
+
+            // Zero vector and load e2 et index 0
+            Vector128<float> e2Vector = SetScalarVector128(e2);
+            Vector128<float> e1Vector = SetScalarVector128(e1);
+            Vector128<float> e0Vector = SetScalarVector128(e0);
+            // Create { -- -- e2 e0 }
+            e0Vector = UnpackLow(e0Vector, e2Vector);
+            e2Vector = SetScalarVector128(e3);
+            // Create { -- -- e3 e1 }
+            e1Vector = UnpackLow(e1Vector, e2Vector);
+            // Create { e3 e2 e1 e0 } and return result
+            return UnpackLow(e0Vector, e1Vector);
+        }
 
         /// <summary>
         /// __m128d _mm_setzero_ps (void)
@@ -503,8 +526,6 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static Vector128<U> StaticCast<T, U>(Vector128<T> value) where T : struct where U : struct
         {
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<T>();
-            ThrowHelper.ThrowNotSupportedExceptionIfNonNumericType<U>();
             return StaticCast<T, U>(value);
         }
 

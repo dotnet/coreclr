@@ -47,16 +47,17 @@ public:
     static uint32_t GetActiveSyncBlockCount();
 
     // Thread functions
-    static bool IsPreemptiveGCDisabled(Thread * pThread);
-    static void EnablePreemptiveGC(Thread * pThread);
-    static void DisablePreemptiveGC(Thread * pThread);
-    static bool TrapReturningThreads();
+    static bool IsPreemptiveGCDisabled();
+    static bool EnablePreemptiveGC();
+    static void DisablePreemptiveGC();
     static Thread* GetThread();
 
-    static gc_alloc_context * GetAllocContext(Thread * pThread);
-    static bool CatchAtSafePoint(Thread * pThread);
+    static gc_alloc_context * GetAllocContext();
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
+
+    static uint8_t* GetLoaderAllocatorObjectForGC(Object* pObject);
+
     // Diagnostics methods.
     static void DiagGCStart(int gen, bool isInduced);
     static void DiagUpdateGenerationBounds();

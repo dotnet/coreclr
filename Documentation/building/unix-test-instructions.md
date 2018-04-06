@@ -82,7 +82,7 @@ Options:
 Now download the coreclr armhf dependencies.
 
 ```
-sudo apt-get install libunwind8:armhf libunwind8-dev:armhf libicu-dev:armhf liblttng-ust-dev:armhf libcurl4-openssl-dev:armhf libicu-dev:armhf libssl-dev uuid-dev:armhf libkrb5-dev:armhf
+sudo apt-get install libunwind8:armhf libunwind8-dev:armhf libicu-dev:armhf liblttng-ust-dev:armhf libcurl4-openssl-dev:armhf libicu-dev:armhf libssl-dev libkrb5-dev:armhf
 ```
 
 **Running tests**
@@ -108,7 +108,7 @@ To run the tests run with the --coreOverlayDir path
 > ~/coreclr$ tests/runtest.sh
 >     --testRootDir=/mnt/coreclr/bin/tests/Linux.x64.Debug
 >     --testNativeBinDir=/mnt/coreclr/bin/obj/Linux.x64.Debug/tests
->     --coreOverlayDir=/mnt/coreclr/bin/tests/Tests/Core_Root
+>     --coreOverlayDir=/mnt/coreclr/bin/tests/Linux.x64.Debug/Tests/Core_Root
 >     --copyNativeTestBin
 > ```
 

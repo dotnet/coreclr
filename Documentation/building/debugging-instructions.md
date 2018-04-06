@@ -1,13 +1,13 @@
 Debugging CoreCLR
 =================
 
-These instructions will lead you through debugging CoreCLR on Windows and Linux. They will be expanded to support OS X when we have good instructions for that.
+These instructions will lead you through debugging CoreCLR on Windows and Linux. They will be expanded to support macOS when we have good instructions for that.
 
 Debugging CoreCLR on Windows
 ============================
 
 1. Perform a build of the repo.
-2. Open Solution \<reporoot\>\bin\obj\Windows_NT.\<platform\>.\<configuration\>\CoreCLR.sln in VS. \<platform\> and \<configuration\> are based
+2. Open solution \<reporoot\>\bin\obj\Windows_NT.\<platform\>.\<configuration\>\CoreCLR.sln in Visual Studio. \<platform\> and \<configuration\> are based
     on type of build you did. By default they are 'x64' and 'Debug'.
 3. Right click the INSTALL project and choose ‘Set as StartUp Project’
 4. Bring up the properties page for the INSTALL project
@@ -51,6 +51,8 @@ Only lldb is supported by the SOS plugin. gdb can be used to debug the coreclr c
 You can combine steps 4-8 and pass everything on the lldb command line:
 
 `lldb-3.9 -o "plugin load libsosplugin.so" -o "process launch -s" -o "process handle -s false SIGUSR1 SIGUSR2" -o "breakpoint set -n LoadLibraryExW" corerun HelloWorld.exe linux`
+
+For .NET Core version 1.x and 2.0.x, libsosplugin.so is built for and will only work with version 3.6 of lldb. For .NET Core 2.1, the plugin is built for 3.9 lldb and will work with 3.8 and 3.9 lldb.
 
 ### SOS commands ###
 
@@ -164,6 +166,13 @@ lldb should start debugging successfully at this point. You should see stacktrac
 ```
 lldb-3.9 -O "settings set target.exec-search-paths /home/parallels/Downloads/System.Drawing.Common.Tests/home/helixbot/dotnetbuild/work/2a74cf82-3018-4e08-9e9a-744bb492869e/Payload/shared/Microsoft.NETCore.App/9.9.9/" -o "plugin load /home/parallels/Downloads/System.Drawing.Common.Tests/home/helixbot/dotnetbuild/work/2a74cf82-3018-4e08-9e9a-744bb492869e/Payload/shared/Microsoft.NETCore.App/9.9.9/libsosplugin.so" --core /home/parallels/Downloads/System.Drawing.Common.Tests/home/helixbot/dotnetbuild/work/2a74cf82-3018-4e08-9e9a-744bb492869e/Work/f6414a62-9b41-4144-baed-756321e3e075/Unzip/core /home/parallels/Downloads/System.Drawing.Common.Tests/home/helixbot/dotnetbuild/work/2a74cf82-3018-4e08-9e9a-744bb492869e/Payload/shared/Microsoft.NETCore.App/9.9.9/dotnet
 ```
+Disabling Managed Attach/Debugging
+==================================
+
+The "COMPlus_EnableDiagnostics" environment variable can be used to disable managed debugging. This prevents the various OS artifacts used for debugging like the named pipes and semaphores on Linux/MacOS and shared memory on Windows from being created.
+
+    export COMPlus_EnableDiagnostics=0
+
 
 Using Visual Studio Code
 ========================

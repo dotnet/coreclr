@@ -9,59 +9,8 @@ echo %__MsgPrefix%Starting Build at %TIME%
 set __ThisScriptFull="%~f0"
 set __ThisScriptDir="%~dp0"
 
-:: Default to highest Visual Studio version available
-::
-:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
-:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
-:: allows users to locate where the instance of VS2015 is installed.
-::
-:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
-:: is no longer set as a global environment variable and is instead only set if the user
-:: has launched the VS2017 Developer Command Prompt.
-::
-:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
-:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
-:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
-:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
-:: can be found.
-
-if defined VisualStudioVersion (
-    if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
-    goto :Run
-)
-
-echo %__MsgPrefix%Searching ^for Visual Studio 2017 or 2015 installation
-set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist %_VSWHERE% (
-for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
-)
-if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
-if not exist "%_VSCOMNTOOLS%" (
-    echo %__MsgPrefix%Error: Visual Studio 2015 or 2017 required.
-    echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-    exit /b 1
-)
-
-call "%_VSCOMNTOOLS%\VsDevCmd.bat"
-
-:Run
-
-REM Make the work-around to a bug in the microsoft.dotnet.buildtools.coreclr package until it is fixed.  
-reg query HKEY_CLASSES_ROOT\WOW6432Node\CLSID\{3BFCEA48-620F-4B6B-81F7-B9AF75454C7D}\InprocServer32 > NUL: 2>&1
-if NOT '%ERRORLEVEL%' == '0' (
-    echo.
-    echo.**********************************************************************************
-    echo.Error: We have detected that the msdia120.dll is not registered.   
-    echo.This is necessary for the build to complete without a Class_Not_Registered error.
-    echo.
-    echo.You can fix this by 
-    echo.  1. Launching the "Developer Command Prompt for VS2017" with Administrative privileges
-    echo.  2. Running  regsvr32.exe "%%VSINSTALLDIR%%\Common7\IDE\msdia120.dll"  
-    echo.
-    echo.This will only need to be done once for the lifetime of the machine.
-    echo.For more details see: https://github.com/dotnet/coreclr/issues/11305
-    exit /b 1
-)
+call "%__ThisScriptDir%"\setup_vs_tools.cmd
+if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
@@ -72,6 +21,11 @@ if defined VS150COMNTOOLS (
   set "__VCToolsRoot=%VS140COMNTOOLS%\..\..\VC"
   set __VSVersion=vs2015
 )
+
+:: Work around Jenkins CI + msbuild problem: Jenkins sometimes creates very large environment
+:: variables, and msbuild can't handle environment blocks with such large variables. So clear
+:: out the variables that might be too large.
+set ghprbCommentBody=
 
 :: Note that the msbuild project files (specifically, dir.proj) will use the following variables, if set:
 ::      __BuildArch         -- default: x64
@@ -371,7 +325,7 @@ REM ============================================================================
 
 if %__RestoreOptData% EQU 1 if %__BuildTypeRelease% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
-    @call %__ProjectDir%\run.cmd sync -optdata
+    @call %__ProjectDir%\run.cmd build -optdata %__RunArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: Failed to restore the optimization data package.
         exit /b 1

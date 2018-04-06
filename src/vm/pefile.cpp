@@ -11,13 +11,11 @@
 #include "common.h"
 #include "pefile.h"
 #include "strongname.h"
-#include "corperm.h"
 #include "eecontract.h"
 #include "apithreadstress.h"
 #include "eeconfig.h"
 #include "product_version.h"
 #include "eventtrace.h"
-#include "corperm.h"
 #include "dbginterface.h"
 #include "peimagelayout.inl"
 #include "dlwrap.h"
@@ -286,7 +284,7 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         RETURN;
     }
 
-#if !defined(_WIN64)
+#if !defined(_TARGET_64BIT_)
     if (!HasNativeImage() && (!GetILimage()->Has32BitNTHeaders()) && !IsIntrospectionOnly())
     {
         // Tried to load 64-bit assembly on 32-bit platform.
@@ -1263,10 +1261,10 @@ BOOL RuntimeVerifyNativeImageVersion(const CORCOMPILE_VERSION_INFO *info, Loggab
     // Check that the EE version numbers are the same.
     //
  
-    if (info->wVersionMajor != VER_MAJORVERSION
-        || info->wVersionMinor != VER_MINORVERSION
-        || info->wVersionBuildNumber != VER_PRODUCTBUILD
-        || info->wVersionPrivateBuildNumber != VER_PRODUCTBUILD_QFE)
+    if (info->wVersionMajor != CLR_MAJOR_VERSION
+        || info->wVersionMinor != CLR_MINOR_VERSION
+        || info->wVersionBuildNumber != CLR_BUILD_VERSION
+        || info->wVersionPrivateBuildNumber != CLR_BUILD_VERSION_QFE)
     {
         RuntimeVerifyLog(LL_ERROR, pLogAsm, W("CLR version recorded in native image doesn't match the current CLR."));
         return FALSE;

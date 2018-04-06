@@ -1436,6 +1436,15 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL || GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_LARGE);
     assert(GenTree::s_gtNodeSizes[oper] == TREE_NODE_SZ_SMALL || (gtDebugFlags & GTF_DEBUG_NODE_LARGE));
 
+#if defined(_HOST_64BIT_) && !defined(_TARGET_64BIT_)
+    if (gtOper == GT_CNS_LNG && oper == GT_CNS_INT)
+    {
+        // When casting from LONG to INT, we need to force cast of the value,
+        // if the host architecture represents INT and LONG with the same data size.
+        gtLngCon.gtLconVal = (INT64)(INT32)gtLngCon.gtLconVal;
+    }
+#endif // defined(_HOST_64BIT_) && !defined(_TARGET_64BIT_)
+
     SetOperRaw(oper);
 
 #ifdef DEBUG
@@ -1476,13 +1485,13 @@ inline void GenTree::SetOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     }
 }
 
-inline GenTree* Compiler::gtNewCastNode(var_types typ, GenTree* op1, var_types castType)
+inline GenTreeCast* Compiler::gtNewCastNode(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType)
 {
-    GenTree* res = new (this, GT_CAST) GenTreeCast(typ, op1, castType);
+    GenTreeCast* res = new (this, GT_CAST) GenTreeCast(typ, op1, fromUnsigned, castType);
     return res;
 }
 
-inline GenTree* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, var_types castType)
+inline GenTreeCast* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType)
 {
     /* Some casts get transformed into 'GT_CALL' or 'GT_IND' nodes */
 
@@ -1491,7 +1500,8 @@ inline GenTree* Compiler::gtNewCastNodeL(var_types typ, GenTree* op1, var_types 
 
     /* Make a big node first and then change it to be GT_CAST */
 
-    GenTree* res = new (this, LargeOpOpcode()) GenTreeCast(typ, op1, castType DEBUGARG(/*largeNode*/ true));
+    GenTreeCast* res =
+        new (this, LargeOpOpcode()) GenTreeCast(typ, op1, fromUnsigned, castType DEBUGARG(/*largeNode*/ true));
     return res;
 }
 
@@ -1715,12 +1725,9 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
             new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
         }
 
-#if 0
-        // TODO-Cleanup: Enable this and test.
 #ifdef DEBUG
         // Fill the old table with junks. So to detect the un-intended use.
-        memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
-#endif
+        memset(lvaTable, JitConfig.JitDefaultFill(), lvaCount * sizeof(*lvaTable));
 #endif
 
         lvaTableCnt = newLvaTableCnt;
@@ -1792,12 +1799,9 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
             new (&newLvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
         }
 
-#if 0
 #ifdef DEBUG
-        // TODO-Cleanup: Enable this and test.
         // Fill the old table with junks. So to detect the un-intended use.
-        memset(lvaTable, fDefaultFill2.val_DontUse_(CLRConfig::INTERNAL_JitDefaultFill, 0xFF), lvaCount * sizeof(*lvaTable));
-#endif
+        memset(lvaTable, JitConfig.JitDefaultFill(), lvaCount * sizeof(*lvaTable));
 #endif
 
         lvaTableCnt = newLvaTableCnt;
@@ -2331,7 +2335,7 @@ inline bool Compiler::lvaReportParamTypeArg()
 
 //*****************************************************************************
 
-inline unsigned Compiler::lvaCachedGenericContextArgOffset()
+inline int Compiler::lvaCachedGenericContextArgOffset()
 {
     assert(lvaDoneFrameLayout == FINAL_FRAME_LAYOUT);
 
@@ -3130,6 +3134,8 @@ inline bool Compiler::fgIsBigOffset(size_t offset)
     return (offset > compMaxUncheckedOffsetForNullObject);
 }
 
+#if defined(LEGACY_BACKEND)
+
 /***********************************************************************************
 *
 *  Returns true if back-end will do other than integer division which currently occurs only
@@ -3213,6 +3219,8 @@ inline bool Compiler::fgIsUnsignedModOptimizable(GenTree* divisor)
 
     return false;
 }
+
+#endif // LEGACY_BACKEND
 
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3595,7 +3603,7 @@ inline void Compiler::compUpdateLife(VARSET_VALARG_TP newLife)
 {
     if (!VarSetOps::Equal(this, compCurLife, newLife))
     {
-        compChangeLife<ForCodeGen>(newLife DEBUGARG(nullptr));
+        compChangeLife<ForCodeGen>(newLife);
     }
 #ifdef DEBUG
     else
@@ -4361,7 +4369,13 @@ inline GenTree* Compiler::impCheckForNullPointer(GenTree* obj)
     if (obj->gtOper == GT_CNS_INT)
     {
         assert(obj->gtType == TYP_REF || obj->gtType == TYP_BYREF);
-        assert(obj->gtIntCon.gtIconVal == 0);
+
+        // We can see non-zero byrefs for RVA statics.
+        if (obj->gtIntCon.gtIconVal != 0)
+        {
+            assert(obj->gtType == TYP_BYREF);
+            return obj;
+        }
 
         unsigned tmp = lvaGrabTemp(true DEBUGARG("CheckForNullPointer"));
 
@@ -4929,6 +4943,9 @@ void GenTree::VisitOperands(TVisitor visitor)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             GenTreeBoundsChk* const boundsChk = this->AsBoundsChk();
             if (visitor(boundsChk->gtIndex) == VisitResult::Abort)

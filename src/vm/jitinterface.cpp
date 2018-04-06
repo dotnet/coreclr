@@ -37,7 +37,6 @@
 #include "eetoprofinterfaceimpl.inl"
 #include "profilepriv.h"
 #endif
-#include "tls.h"
 #include "ecall.h"
 #include "generics.h"
 #include "typestring.h"
@@ -1942,7 +1941,7 @@ unsigned CEEInfo::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE type, BOOL f
     } CONTRACTL_END;
 
     // Default alignment is sizeof(void*)
-    unsigned result = sizeof(void*);
+    unsigned result = TARGET_POINTER_SIZE;
 
     JIT_TO_EE_TRANSITION_LEAF();
 
@@ -1976,7 +1975,7 @@ unsigned CEEInfo::getClassAlignmentRequirementStatic(TypeHandle clsHnd)
     LIMITED_METHOD_CONTRACT;
 
     // Default alignment is sizeof(void*)
-    unsigned result = sizeof(void*);
+    unsigned result = TARGET_POINTER_SIZE;
 
     MethodTable * pMT = clsHnd.GetMethodTable();
     if (pMT == NULL)
@@ -2137,7 +2136,7 @@ static unsigned ComputeGCLayout(MethodTable * pMT, BYTE* gcPtrs)
     ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
     for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
     {
-        int fieldStartIndex = pFD->GetOffset() / sizeof(void*);
+        int fieldStartIndex = pFD->GetOffset() / TARGET_POINTER_SIZE;
 
         if (pFD->GetFieldType() != ELEMENT_TYPE_VALUETYPE)
         {
@@ -2185,7 +2184,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         // native value types have no GC pointers
         result = 0;
         memset(gcPtrs, TYPE_GC_NONE,
-               (VMClsHnd.GetSize() + sizeof(void*) -1)/ sizeof(void*));
+               (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
     }
     else if (pMT->IsByRefLike())
     {
@@ -2200,7 +2199,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         else
         {
             memset(gcPtrs, TYPE_GC_NONE,
-                (VMClsHnd.GetSize() + sizeof(void*) - 1) / sizeof(void*));
+                (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
             // Note: This case is more complicated than the TypedReference case
             // due to ByRefLike structs being included as fields in other value 
             // types (TypedReference can not be.)
@@ -2215,7 +2214,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         // assume no GC pointers at first
         result = 0;
         memset(gcPtrs, TYPE_GC_NONE,
-               (VMClsHnd.GetSize() + sizeof(void*) -1)/ sizeof(void*));
+               (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
 
         // walk the GC descriptors, turning on the correct bits
         if (pMT->ContainsPointers())
@@ -2229,11 +2228,11 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
                 size_t cbOffset = pByValueSeries->GetSeriesOffset() - sizeof(Object);
 
-                _ASSERTE (cbOffset % sizeof(void*) == 0);
-                _ASSERTE (cbSeriesSize % sizeof(void*) == 0);
+                _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
+                _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
 
-                result += (unsigned) (cbSeriesSize / sizeof(void*));
-                memset(&gcPtrs[cbOffset/sizeof(void*)], TYPE_GC_REF, cbSeriesSize / sizeof(void*));
+                result += (unsigned) (cbSeriesSize / TARGET_POINTER_SIZE);
+                memset(&gcPtrs[cbOffset / TARGET_POINTER_SIZE], TYPE_GC_REF, cbSeriesSize / TARGET_POINTER_SIZE);
 
                 pByValueSeries++;
             }
@@ -7467,13 +7466,6 @@ getMethodInfoHelper(
         if (!fILIntrinsic)
         {
             getMethodInfoILMethodHeaderHelper(header, methInfo);
-
-            // Workaround for https://github.com/dotnet/coreclr/issues/1279
-            // Set init locals bit to zero for system module unless profiler may have overrided it. Remove once we have
-            // better solution for this issue.
-            if (pMT->GetModule()->IsSystem() && !(CORProfilerDisableAllNGenImages() || CORProfilerUseProfileImages()))
-                methInfo->options = (CorInfoOptions)0;
-
             pLocalSig = header->LocalVarSig;
             cbLocalSig = header->cbLocalVarSig;
         }
@@ -11379,7 +11371,7 @@ void CEEJitInfo::recordRelocation(void * location,
                     // When m_fAllowRel32 == TRUE, the JIT will use REL32s for both data addresses and direct code targets.
                     // Since we cannot tell what the relocation is for, we have to defensively retry.
                     //
-                    m_fRel32Overflow = TRUE;
+                    m_fJumpStubOverflow = TRUE;
                     delta = 0;
                 }
                 else
@@ -11393,7 +11385,7 @@ void CEEJitInfo::recordRelocation(void * location,
                     {
                         // This forces the JIT to retry the method, which allows us to reserve more space for jump stubs and have a higher chance that
                         // we will find space for them.
-                        m_fRel32Overflow = TRUE;
+                        m_fJumpStubOverflow = TRUE;
                     }
 
                     // Keep track of conservative estimate of how much memory may be needed by jump stubs. We will use it to reserve extra memory 
@@ -11437,12 +11429,12 @@ void CEEJitInfo::recordRelocation(void * location,
             if (!FitsInRel28(delta))
             {
                 // Use jump stub.
-                // 
+                //
                 TADDR baseAddr = (TADDR)fixupLocation;
                 TADDR loAddr   = baseAddr - 0x08000000;   // -2^27
                 TADDR hiAddr   = baseAddr + 0x07FFFFFF;   // +2^27-1
 
-                // Check for the wrap around cases  
+                // Check for the wrap around cases
                 if (loAddr > baseAddr)
                     loAddr = UINT64_MIN; // overflow
                 if (hiAddr < baseAddr)
@@ -11451,7 +11443,21 @@ void CEEJitInfo::recordRelocation(void * location,
                 PCODE jumpStubAddr = ExecutionManager::jumpStub(m_pMethodBeingCompiled,
                                                                 (PCODE)  target,
                                                                 (BYTE *) loAddr,
-                                                                (BYTE *) hiAddr);
+                                                                (BYTE *) hiAddr,
+                                                                NULL,
+                                                                false);
+
+                // Keep track of conservative estimate of how much memory may be needed by jump stubs. We will use it to reserve extra memory
+                // on retry to increase chances that the retry succeeds.
+                m_reserveForJumpStubs = max(0x400, m_reserveForJumpStubs + 2*BACK_TO_BACK_JUMP_ALLOCATE_SIZE);
+
+                if (jumpStubAddr == 0)
+                {
+                    // This forces the JIT to retry the method, which allows us to reserve more space for jump stubs and have a higher chance that
+                    // we will find space for them.
+                    m_fJumpStubOverflow = TRUE;
+                    break;
+                }
 
                 delta = (INT64)(jumpStubAddr - fixupLocation);
 
@@ -12682,25 +12688,22 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
     }
 #endif //_DEBUG
 
-#ifdef _TARGET_AMD64_
-    BOOL fForceRel32Overflow = FALSE;
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    BOOL fForceJumpStubOverflow = FALSE;
 
 #ifdef _DEBUG
     // Always exercise the overflow codepath with force relocs
     if (PEDecoder::GetForceRelocs())
-        fForceRel32Overflow = TRUE;
+        fForceJumpStubOverflow = TRUE;
 #endif
 
-    BOOL fAllowRel32 = g_fAllowRel32 | fForceRel32Overflow;
+#if defined(_TARGET_AMD64_)
+    BOOL fAllowRel32 = (g_fAllowRel32 | fForceJumpStubOverflow);
+#endif
+
     size_t reserveForJumpStubs = 0;
 
-    // For determinism, never try to use the REL32 in compilation process
-    if (IsCompilationProcess())
-    {
-        fForceRel32Overflow = FALSE;
-        fAllowRel32 = FALSE;
-    }
-#endif // _TARGET_AMD64_
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
     for (;;)
     {
@@ -12714,10 +12717,15 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
         EEJitManager *jitMgr = NULL;
 #endif
 
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
-        if (fForceRel32Overflow)
-            jitInfo.SetRel32Overflow(fAllowRel32);
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && !defined(CROSSGEN_COMPILE)
+#ifdef _TARGET_AMD64_
+        if (fForceJumpStubOverflow)
+            jitInfo.SetJumpStubOverflow(fAllowRel32);
         jitInfo.SetAllowRel32(fAllowRel32);
+#else
+        if (fForceJumpStubOverflow)
+            jitInfo.SetJumpStubOverflow(fForceJumpStubOverflow);
+#endif
         jitInfo.SetReserveForJumpStubs(reserveForJumpStubs);
 #endif
 
@@ -12866,21 +12874,26 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
         if (!nativeEntry)
             COMPlusThrow(kInvalidProgramException);
 
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
-        if (jitInfo.IsRel32Overflow())
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && !defined(CROSSGEN_COMPILE)
+        if (jitInfo.IsJumpStubOverflow())
         {
             // Backout and try again with fAllowRel32 == FALSE.
             jitInfo.BackoutJitData(jitMgr);
 
+#ifdef _TARGET_AMD64_
             // Disallow rel32 relocs in future.
             g_fAllowRel32 = FALSE;
 
             fAllowRel32 = FALSE;
+#endif // _TARGET_AMD64_
+#ifdef _TARGET_ARM64_
+            fForceJumpStubOverflow = FALSE;
+#endif // _TARGET_ARM64_
 
             reserveForJumpStubs = jitInfo.GetReserveForJumpStubs();
             continue;
         }
-#endif // _TARGET_AMD64_ && !CROSSGEN_COMPILE
+#endif // (_TARGET_AMD64_ || _TARGET_ARM64_) && !CROSSGEN_COMPILE
 
         LOG((LF_JIT, LL_INFO10000,
             "Jitted Entry at" FMT_ADDR "method %s::%s %s\n", DBG_ADDR(nativeEntry),
@@ -13079,17 +13092,17 @@ void ComputeGCRefMap(MethodTable * pMT, BYTE * pGCRefMap, size_t cbGCRefMap)
     {
         // offset to embedded references in this series must be
         // adjusted by the VTable pointer, when in the unboxed state.
-        size_t offset = cur->GetSeriesOffset() - sizeof(void*);
+        size_t offset = cur->GetSeriesOffset() - TARGET_POINTER_SIZE;
         size_t offsetStop = offset + cur->GetSeriesSize() + size;
         while (offset < offsetStop)
         {
-            size_t bit = offset / sizeof(void *);
+            size_t bit = offset / TARGET_POINTER_SIZE;
 
             size_t index = bit / 8;
             _ASSERTE(index < cbGCRefMap);
             pGCRefMap[index] |= (1 << (bit & 7));
 
-            offset += sizeof(void *);
+            offset += TARGET_POINTER_SIZE;
         }
         cur--;
     } while (cur >= last);
@@ -13145,7 +13158,7 @@ BOOL TypeLayoutCheck(MethodTable * pMT, PCCOR_SIGNATURE pBlob)
 
     if (dwFlags & READYTORUN_LAYOUT_Alignment)
     {
-        DWORD dwExpectedAlignment = sizeof(void *);
+        DWORD dwExpectedAlignment = TARGET_POINTER_SIZE;
         if (!(dwFlags & READYTORUN_LAYOUT_Alignment_Native))
         {
             IfFailThrow(p.GetData(&dwExpectedAlignment));
@@ -13166,7 +13179,7 @@ BOOL TypeLayoutCheck(MethodTable * pMT, PCCOR_SIGNATURE pBlob)
         }
         else
         {
-            size_t cbGCRefMap = (dwActualSize / sizeof(TADDR) + 7) / 8;
+            size_t cbGCRefMap = (dwActualSize / TARGET_POINTER_SIZE + 7) / 8;
             _ASSERTE(cbGCRefMap > 0);
 
             BYTE * pGCRefMap = (BYTE *)_alloca(cbGCRefMap);

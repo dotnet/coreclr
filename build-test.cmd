@@ -7,44 +7,16 @@ set __VCBuildArch=x86_amd64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
+set "__ProjectDir=%~dp0"
+
 :: Define a prefix for most output progress messages that come from this script. That makes
 :: it easier to see where these are coming from. Note that there is a trailing space here.
 set "__MsgPrefix=BUILDTEST: "
 
-:: Default to highest Visual Studio version available
-::
-:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
-:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
-:: allows users to locate where the instance of VS2015 is installed.
-::
-:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
-:: is no longer set as a global environment variable and is instead only set if the user
-:: has launched the VS2017 Developer Command Prompt.
-::
-:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
-:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
-:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
-:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
-:: can be found.
-if defined VisualStudioVersion ( 
-    if not defined __VSVersion echo %__MsgPrefix%Detected Visual Studio %VisualStudioVersion% developer command ^prompt environment
-    goto Run
-)
+call "%__ProjectDir%"\setup_vs_tools.cmd
 
-set _VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-if exist %_VSWHERE% (
-  for /f "usebackq tokens=*" %%i in (`%_VSWHERE% -latest -prerelease -property installationPath`) do set _VSCOMNTOOLS=%%i\Common7\Tools
-)
-if not exist "%_VSCOMNTOOLS%" set _VSCOMNTOOLS=%VS140COMNTOOLS%
-if not exist "%_VSCOMNTOOLS%" (
-  echo %__MsgPrefix%Error: Visual Studio 2015 or 2017 required.
-  echo        Please see https://github.com/dotnet/corefx/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
-  exit /b 1
-)
-
-call "%_VSCOMNTOOLS%\VsDevCmd.bat"
-
-:Run
+REM setup_vs_tools.cmd will correctly echo error message.
+if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
@@ -56,7 +28,6 @@ if defined VS150COMNTOOLS (
   set __VSVersion=vs2015
 )
 
-set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
@@ -79,6 +50,12 @@ set __RuntimeId=
 set __ZipTests=
 set __TargetsWindows=1
 set __DoCrossgen=
+
+@REM CMD has a nasty habit of eating "=" on the argument list, so passing:
+@REM    -priority=1
+@REM appears to CMD parsing as "-priority 1". Handle -priority specially to avoid problems,
+@REM and allow the "-priority=1" syntax.
+set __Priority=0
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -104,6 +81,7 @@ if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!pro
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
@@ -115,6 +93,9 @@ if [!processedArgs!]==[] (
 )
 
 :ArgsDone
+
+@REM Special handling for -priority=N argument.
+if %__Priority% GTR 0 (set "__UnprocessedBuildArgs=!__UnprocessedBuildArgs! -priority=%__Priority%")
 
 if defined __BuildAgainstPackagesArg (
     if not defined __RuntimeID (
@@ -296,22 +277,43 @@ if not defined VSINSTALLDIR (
     echo %__MsgPrefix%Error: build-test.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
     exit /b 1
 )
-
+set __AppendToLog=false
 set __BuildLogRootName=Tests_Managed
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
 set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
-if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
-    echo     %__BuildLog%
-    echo     %__BuildWrn%
-    echo     %__BuildErr%
-    exit /b 1
+REM Execute msbuild test build in stages - workaround for excessive data retention in MSBuild ConfigCache
+REM See https://github.com/Microsoft/msbuild/issues/2993
+
+set __SkipPackageRestore=false
+set __SkipTargetingPackBuild=false
+set __BuildLoopCount=2
+set __TestGroupToBuild=1
+
+if %__Priority% GTR 0 (set __BuildLoopCount=16&set __TestGroupToBuild=2)
+echo %__MsgPrefix%Building tests group %__TestGroupToBuild% with %__BuildLoopCount% subgroups
+
+for /l %%G in (1, 1, %__BuildLoopCount%) do (
+
+    set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%";Append=!__AppendToLog!
+    set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%";Append=!__AppendToLog!
+    set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
+
+    set TestBuildSlice=%%G
+    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
+
+    if errorlevel 1 (
+        echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
+        echo     %__BuildLog%
+        echo     %__BuildWrn%
+        echo     %__BuildErr%
+        exit /b 1
+    )
+
+    set __SkipPackageRestore=true
+    set __SkipTargetingPackBuild=true
+    set __AppendToLog=true
 )
 
 REM Prepare the Test Drop

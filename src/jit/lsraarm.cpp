@@ -113,6 +113,46 @@ void LinearScan::BuildLclHeap(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
+// BuildShiftLongCarry: Set the node info for GT_LSH_HI or GT_RSH_LO.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Note: these operands have uses that interfere with the def and need the special handling.
+//
+void LinearScan::BuildShiftLongCarry(GenTree* tree)
+{
+    assert(tree->OperGet() == GT_LSH_HI || tree->OperGet() == GT_RSH_LO);
+
+    GenTree* source = tree->gtOp.gtOp1;
+    assert((source->OperGet() == GT_LONG) && source->isContained());
+
+    TreeNodeInfo* info = currentNodeInfo;
+    info->srcCount     = 2;
+
+    LocationInfoListNode* sourceLoInfo = getLocationInfo(source->gtOp.gtOp1);
+    LocationInfoListNode* sourceHiInfo = getLocationInfo(source->gtOp.gtOp2);
+    if (tree->OperGet() == GT_LSH_HI)
+    {
+        sourceLoInfo->info.isDelayFree = true;
+    }
+    else
+    {
+        sourceHiInfo->info.isDelayFree = true;
+    }
+    useList.Append(sourceLoInfo);
+    useList.Append(sourceHiInfo);
+    info->hasDelayFreeSrc = true;
+
+    GenTree* shiftBy = tree->gtOp.gtOp2;
+    if (!shiftBy->isContained())
+    {
+        appendLocationInfoToList(shiftBy);
+        info->srcCount += 1;
+    }
+}
+
+//------------------------------------------------------------------------
 // BuildNode: Set the register requirements for RA.
 //
 // Notes:
@@ -197,7 +237,7 @@ void LinearScan::BuildNode(GenTree* tree)
                     assert(info->dstCount == 1);
                     break;
                 default:
-                    NYI_ARM("LinearScan::Build for GT_INTRINSIC");
+                    unreached();
                     break;
             }
         }
@@ -335,9 +375,20 @@ void LinearScan::BuildNode(GenTree* tree)
         case GT_AND:
         case GT_OR:
         case GT_XOR:
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+        case GT_ROR:
             assert(info->dstCount == 1);
             info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 1 : 2));
+            break;
+
+        case GT_LSH_HI:
+        case GT_RSH_LO:
+            assert(info->dstCount == 1);
+            BuildShiftLongCarry(tree);
+            assert(info->srcCount == (tree->gtOp.gtOp2->isContained() ? 2 : 3));
             break;
 
         case GT_RETURNTRAP:
@@ -373,8 +424,13 @@ void LinearScan::BuildNode(GenTree* tree)
             assert(info->srcCount == 2);
             break;
 
-        case GT_LIST:
         case GT_FIELD_LIST:
+            // These should always be contained. We don't correctly allocate or
+            // generate code for a non-contained GT_FIELD_LIST.
+            noway_assert(!"Non-contained GT_FIELD_LIST");
+            break;
+
+        case GT_LIST:
         case GT_ARGPLACE:
         case GT_NO_OP:
         case GT_START_NONGC:
@@ -548,15 +604,6 @@ void LinearScan::BuildNode(GenTree* tree)
             appendLocationInfoToList(tree->gtOp.gtOp1);
             break;
 
-        case GT_LSH:
-        case GT_RSH:
-        case GT_RSZ:
-        case GT_ROR:
-        case GT_LSH_HI:
-        case GT_RSH_LO:
-            BuildShiftRotate(tree);
-            break;
-
         case GT_EQ:
         case GT_NE:
         case GT_LT:
@@ -709,15 +756,6 @@ void LinearScan::BuildNode(GenTree* tree)
         }
         break;
 
-        default:
-#ifdef DEBUG
-            char message[256];
-            _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
-                        GenTree::OpName(tree->OperGet()));
-            NYIRAW(message);
-#else
-            NYI_ARM("BuildNode default case");
-#endif
         case GT_LCL_FLD:
         case GT_LCL_FLD_ADDR:
         case GT_LCL_VAR:
@@ -741,6 +779,15 @@ void LinearScan::BuildNode(GenTree* tree)
             info->srcCount         = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->srcCount == 2);
             break;
+
+        default:
+#ifdef DEBUG
+            char message[256];
+            _snprintf_s(message, _countof(message), _TRUNCATE, "NYI: Unimplemented node type %s",
+                        GenTree::OpName(tree->OperGet()));
+            NYIRAW(message);
+#endif
+            unreached();
     } // end switch (tree->OperGet())
 
     if (tree->IsUnusedValue() && (info->dstCount != 0))

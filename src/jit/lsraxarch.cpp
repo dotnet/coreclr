@@ -111,8 +111,13 @@ void LinearScan::BuildNode(GenTree* tree)
             BuildStoreLoc(tree->AsLclVarCommon());
             break;
 
-        case GT_LIST:
         case GT_FIELD_LIST:
+            // These should always be contained. We don't correctly allocate or
+            // generate code for a non-contained GT_FIELD_LIST.
+            noway_assert(!"Non-contained GT_FIELD_LIST");
+            break;
+
+        case GT_LIST:
         case GT_ARGPLACE:
         case GT_NO_OP:
         case GT_START_NONGC:
@@ -449,6 +454,9 @@ void LinearScan::BuildNode(GenTree* tree)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             // Consumes arrLen & index - has no result
             info->srcCount = 2;
             assert(info->dstCount == 0);
@@ -607,7 +615,7 @@ void LinearScan::BuildNode(GenTree* tree)
 
             // Is this a non-commutative operator, or is op2 a contained memory op?
             // In either case, we need to make op2 remain live until the op is complete, by marking
-            // the source(s) associated with op2 as "delayFree".
+            // the source(s) associated with op2 as "delayFree" if this node defines a register.
             // Note that if op2 of a binary RMW operator is a memory op, even if the operator
             // is commutative, codegen cannot reverse them.
             // TODO-XArch-CQ: This is not actually the case for all RMW binary operators, but there's
@@ -650,7 +658,8 @@ void LinearScan::BuildNode(GenTree* tree)
 
                 delayUseSrc = op1;
             }
-            else if ((op2 != nullptr) && (!tree->OperIsCommutative() || (op2->isContained() && !op2->IsCnsIntOrI())))
+            else if ((info->dstCount != 0) && (op2 != nullptr) &&
+                     (!tree->OperIsCommutative() || (op2->isContained() && !op2->IsCnsIntOrI())))
             {
                 delayUseSrc = op2;
             }
@@ -750,7 +759,9 @@ void LinearScan::BuildCheckByteable(GenTree* tree)
         if (tree->OperIsSimple())
         {
             GenTree* op = tree->gtOp.gtOp1;
-            if (op != nullptr)
+            // We need byte registers on the operands of most simple operators that produce a byte result.
+            // However, indirections are simple operators but do not require their address in a byte register.
+            if ((op != nullptr) && !tree->OperIsIndir())
             {
                 // No need to set src candidates on a contained child operand.
                 if (!op->isContained())
@@ -814,6 +825,11 @@ bool LinearScan::isRMWRegOper(GenTree* tree)
         // x86/x64 does support a three op multiply when op2|op1 is a contained immediate
         case GT_MUL:
             return (!tree->gtOp.gtOp2->isContainedIntOrIImmed() && !tree->gtOp.gtOp1->isContainedIntOrIImmed());
+
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            return tree->isRMWHWIntrinsic(compiler);
+#endif // FEATURE_HW_INTRINSICS
 
         default:
             return true;
@@ -2249,13 +2265,19 @@ void LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 
 void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 {
-    TreeNodeInfo*  info        = currentNodeInfo;
-    NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
-    InstructionSet isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
+    TreeNodeInfo*       info        = currentNodeInfo;
+    NamedIntrinsic      intrinsicID = intrinsicTree->gtHWIntrinsicId;
+    var_types           baseType    = intrinsicTree->gtSIMDBaseType;
+    InstructionSet      isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
+    HWIntrinsicCategory category    = Compiler::categoryOfHWIntrinsic(intrinsicID);
+    HWIntrinsicFlag     flags       = Compiler::flagsOfHWIntrinsic(intrinsicID);
+    int                 numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicTree);
+
     if (isa == InstructionSet_AVX || isa == InstructionSet_AVX2)
     {
         SetContainsAVXFlags(true, 32);
     }
+
     GenTree* op1   = intrinsicTree->gtOp.gtOp1;
     GenTree* op2   = intrinsicTree->gtOp.gtOp2;
     info->srcCount = 0;
@@ -2280,6 +2302,36 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         info->srcCount += GetOperandInfo(op2);
     }
 
+    if ((category == HW_Category_IMM) && ((flags & HW_Flag_NoJmpTableIMM) == 0))
+    {
+        GenTree* lastOp = Compiler::lastOpOfHWIntrinsic(intrinsicTree, numArgs);
+        assert(lastOp != nullptr);
+        if (Compiler::isImmHWIntrinsic(intrinsicID, lastOp) && !lastOp->isContainedIntOrIImmed())
+        {
+            assert(!lastOp->IsCnsIntOrI());
+
+            // We need two extra reg when lastOp isn't a constant so
+            // the offset into the jump table for the fallback path
+            // can be computed.
+
+            info->internalIntCount = 2;
+            info->setInternalCandidates(this, allRegs(TYP_INT));
+        }
+    }
+
+    // Check for "srcCount >= 2" to match against 3+ operand nodes where one is constant
+    if ((op2 == nullptr) && (info->srcCount >= 2) && intrinsicTree->isRMWHWIntrinsic(compiler))
+    {
+        // TODO-XArch-CQ: This is currently done in order to handle intrinsics which have more than
+        // two arguments but which still have RMW semantics (such as NI_SSE41_Insert). We should make
+        // this handling more general and move it back out to LinearScan::BuildNode.
+
+        assert(numArgs > 2);
+        LocationInfoListNode* op2Info = useList.Begin()->Next();
+        op2Info->info.isDelayFree     = true;
+        info->hasDelayFreeSrc         = true;
+    }
+
     switch (intrinsicID)
     {
         case NI_SSE_CompareEqualOrderedScalar:
@@ -2292,40 +2344,51 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         case NI_SSE2_CompareNotEqualUnorderedScalar:
             info->internalIntCount = 1;
             info->setInternalCandidates(this, RBM_BYTE_REGS);
+            info->isInternalRegDelayFree = true;
             break;
 
         case NI_SSE_SetScalarVector128:
+        case NI_SSE2_SetScalarVector128:
             // Need an internal register to stitch together all the values into a single vector in a SIMD reg.
             info->internalFloatCount = 1;
             info->setInternalCandidates(this, allSIMDRegs());
+            info->isInternalRegDelayFree = true;
             break;
-
-        case NI_SSE_Shuffle:
-        {
-            assert(op1->OperIsList());
-            GenTree* op3 = op1->AsArgList()->Rest()->Rest()->Current();
-
-            if (!op3->isContainedIntOrIImmed())
-            {
-                assert(!op3->IsCnsIntOrI());
-
-                // We need two extra reg when op3 isn't a constant so
-                // the offset into the jump table for the fallback path
-                // can be computed.
-
-                info->internalIntCount = 2;
-                info->setInternalCandidates(this, allRegs(TYP_INT));
-            }
-            break;
-        }
 
         case NI_SSE_ConvertToSingle:
         case NI_SSE_StaticCast:
         case NI_SSE2_ConvertToDouble:
+        case NI_AVX_ExtendToVector256:
+        case NI_AVX_GetLowerHalf:
+        case NI_AVX_StaticCast:
+        {
             assert(info->srcCount == 1);
             assert(info->dstCount == 1);
             useList.Last()->info.isTgtPref = true;
             break;
+        }
+
+        case NI_AVX_SetAllVector256:
+        {
+            if (varTypeIsIntegral(baseType))
+            {
+                info->internalFloatCount = 1;
+                if (!compiler->compSupports(InstructionSet_AVX2) && varTypeIsByte(baseType))
+                {
+                    info->internalFloatCount += 1;
+                }
+                info->setInternalCandidates(this, allSIMDRegs());
+            }
+            break;
+        }
+
+        case NI_SSE2_MaskMove:
+        {
+            // SSE2 MaskMove hardcodes the destination (op3) in DI/EDI/RDI
+            LocationInfoListNode* op3Info = useList.Begin()->Next()->Next();
+            op3Info->info.setSrcCandidates(this, RBM_EDI);
+            break;
+        }
 
         case NI_SSE41_BlendVariable:
             if (!compiler->canUseVexEncoding())
@@ -2338,6 +2401,26 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 op3Info->info.setSrcCandidates(this, RBM_XMM0);
                 info->hasDelayFreeSrc = true;
             }
+            break;
+
+        case NI_SSE41_TestAllOnes:
+        {
+            info->internalFloatCount = 1;
+            info->setInternalCandidates(this, allSIMDRegs());
+            break;
+        }
+
+        case NI_SSE41_Extract:
+            if (baseType == TYP_FLOAT)
+            {
+                info->internalIntCount += 1;
+            }
+#ifdef _TARGET_X86_
+            else if (varTypeIsByte(baseType))
+            {
+                info->setDstCandidates(this, RBM_BYTE_REGS);
+            }
+#endif
             break;
 
 #ifdef _TARGET_X86_

@@ -5990,6 +5990,21 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                 }
 #endif // !LEGACY_BACKEND
             }
+
+            // Is the type being stored different from the type computed by the rhs?
+            if (rhs->TypeGet() != lhs->TypeGet())
+            {
+                // This means that there is an implicit cast on the rhs value
+                //
+                // We will add a cast function to reflect the possible narrowing of the rhs value
+                //
+                var_types castToType   = lhs->TypeGet();
+                var_types castFromType = rhs->TypeGet();
+                bool      isUnsigned   = varTypeIsUnsigned(castFromType);
+
+                rhsVNPair = vnStore->VNPairForCast(rhsVNPair, castToType, castFromType, isUnsigned);
+            }
+
             if (tree->TypeGet() != TYP_VOID)
             {
                 // Assignment operators, as expressions, return the value of the RHS.
@@ -7119,6 +7134,9 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 #ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             {
                 // A bounds check node has no value, but may throw exceptions.
                 ValueNumPair excSet = vnStore->VNPExcSetSingleton(
@@ -7408,6 +7426,22 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
         vnpUniq.SetBoth(vnStore->VNForExpr(compCurBB, call->TypeGet()));
     }
 
+#if defined(FEATURE_READYTORUN_COMPILER) && defined(_TARGET_ARMARCH_)
+    if (call->IsR2RRelativeIndir())
+    {
+#ifdef DEBUG
+        assert(args->Current()->OperGet() == GT_ARGPLACE);
+
+        // Find the corresponding late arg.
+        GenTree* indirectCellAddress = call->fgArgInfo->GetLateArg(0);
+        assert(indirectCellAddress->IsCnsIntOrI() && indirectCellAddress->gtRegNum == REG_R2R_INDIRECT_PARAM);
+#endif // DEBUG
+        // For ARM indirectCellAddress is consumed by the call itself, so it should have added as an implicit argument
+        // in morph. So we do not need to use EntryPointAddrAsArg0, because arg0 is already an entry point addr.
+        useEntryPointAddrAsArg0 = false;
+    }
+#endif // FEATURE_READYTORUN_COMPILER && _TARGET_ARMARCH_
+
     if (nArgs == 0)
     {
         if (generateUniqueVN)
@@ -7449,7 +7483,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
             vnp0                = ValueNumPair(callAddrVN, callAddrVN);
         }
         else
-#endif
+#endif // FEATURE_READYTORUN_COMPILER
         {
             assert(!useEntryPointAddrAsArg0);
             ValueNumPair vnp0wx = getCurrentArg(0)->gtVNPair;
@@ -7516,6 +7550,8 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
         // Add the accumulated exceptions.
         call->gtVNPair = vnStore->VNPWithExc(call->gtVNPair, vnpExc);
     }
+    assert(args == nullptr ||
+           generateUniqueVN); // All arguments should be processed or we generate unique VN and do not care.
 }
 
 void Compiler::fgValueNumberCall(GenTreeCall* call)

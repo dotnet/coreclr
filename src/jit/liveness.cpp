@@ -1977,45 +1977,6 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     }
 }
 
-static bool HasAnyThrowableNodes(Compiler* compiler, BasicBlock* block, jitstd::vector<GenTree*>& disabledNodes)
-{
-
-    LIR::Range& blockRange  = LIR::AsRange(block);
-    GenTree*    currentNode = blockRange.LastNode();
-    GenTree*    endNode     = blockRange.FirstNonPhiNode()->gtPrev;
-
-    size_t left = disabledNodes.size();
-
-    while (currentNode != endNode)
-    {
-        for (size_t i = 0; i < disabledNodes.size(); ++i)
-        {
-            if (disabledNodes[i] == currentNode)
-            {
-                --left;
-                disabledNodes[i] = nullptr;
-                break;
-            }
-        }
-
-        if (currentNode->OperMayThrow(compiler))
-        {
-            return true;
-        }
-
-        if (left == 0)
-        {
-            return false;
-        }
-
-        currentNode = currentNode->gtPrev;
-    }
-
-    // If we reach here that means that there is an affecting node outside the current block
-    // so return true
-    return true;
-}
-
 void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALARG_TP volatileVars)
 {
     // Don't kill volatile vars and vars in scope.
@@ -2045,9 +2006,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     JITDUMP("Removing dead call:\n");
                     DISPNODE(call);
 
-                    jitstd::vector<GenTree*> disabledNodes(getAllocator());
-
-                    node->VisitOperands([&disabledNodes](GenTree* operand) -> GenTree::VisitResult {
+                    node->VisitOperands([](GenTree* operand) -> GenTree::VisitResult {
                         if (operand->IsValue())
                         {
                             operand->SetUnusedValue();
@@ -2057,9 +2016,6 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         // these nodes.
                         if (operand->OperIs(GT_PUTARG_STK))
                         {
-
-                            // collect stack-affecting nodes
-                            disabledNodes.push_back(operand);
                             operand->AsPutArgStk()->gtOp1->SetUnusedValue();
                             operand->gtBashToNOP();
                         }
@@ -2067,21 +2023,16 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         return GenTree::VisitResult::Continue;
                     });
 
-                    if (!disabledNodes.empty())
-                    {
-                        if (HasAnyThrowableNodes(this, block, disabledNodes))
-                        {
-                            codeGen->setFramePointerRequired(true);
-                        }
-                    }
-
                     blockRange.Remove(node);
 
                     // Removing a call does not affect liveness unless it is a tail call in a nethod with P/Invokes or
                     // is itself a P/Invoke, in which case it may affect the liveness of the frame root variable.
-                    fgStmtRemoved = !opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
-                                    ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
-                                    lvaTable[info.compLvFrameListRoot].lvTracked;
+                    if (!opts.MinOpts() && !opts.ShouldUsePInvokeHelpers() &&
+                        ((call->IsTailCall() && info.compCallUnmanaged) || call->IsUnmanaged()) &&
+                        lvaTable[info.compLvFrameListRoot].lvTracked)
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else
                 {
@@ -2102,7 +2053,10 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                     DISPNODE(lclVarNode);
 
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = varDsc.lvTracked && !opts.MinOpts();
+                    if (varDsc.lvTracked && !opts.MinOpts())
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else if (varDsc.lvTracked)
                 {
@@ -2124,7 +2078,10 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 
                     const bool isTracked = lvaTable[node->AsLclVarCommon()->gtLclNum].lvTracked;
                     blockRange.Delete(this, block, node);
-                    fgStmtRemoved = isTracked && !opts.MinOpts();
+                    if (isTracked && !opts.MinOpts())
+                    {
+                        fgStmtRemoved = true;
+                    }
                 }
                 else
                 {
@@ -2233,6 +2190,9 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
 #if defined(FEATURE_SIMD)
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             case GT_JCMP:
             case GT_CMP:
             case GT_JCC:
@@ -2274,8 +2234,11 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                 assert(!node->OperIsLocal());
                 if (!node->IsValue() || node->IsUnusedValue())
                 {
-                    unsigned sideEffects = node->gtFlags & (GTF_SIDE_EFFECT | GTF_SET_FLAGS);
-                    if ((sideEffects == 0) || ((sideEffects == GTF_EXCEPT) && !node->OperMayThrow(this)))
+                    // We are only interested in avoiding the removal of nodes with direct side-effects
+                    // (as opposed to side effects of their children).
+                    // This default case should never include calls or assignments.
+                    assert(!node->OperRequiresAsgFlag() && !node->OperIs(GT_CALL));
+                    if (!node->gtSetFlags() && !node->OperMayThrow(this))
                     {
                         JITDUMP("Removing dead node:\n");
                         DISPNODE(node);

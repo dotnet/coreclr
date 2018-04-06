@@ -1536,12 +1536,11 @@ MethodTableBuilder::BuildMethodTableThrowing(
         }
     }
 
-#ifdef FEATURE_COMINTEROP 
-
     // Com Import classes are special. These types must derive from System.Object,
     // and we then substitute the parent with System._ComObject.
     if (IsComImport() && !IsEnum() && !IsInterface() && !IsValueClass() && !IsDelegate())
     {
+#ifdef FEATURE_COMINTEROP        
         // ComImport classes must either extend from Object or be a WinRT class
         // that extends from another WinRT class (and so form a chain of WinRT classes
         // that ultimately extend from object).
@@ -1579,11 +1578,12 @@ MethodTableBuilder::BuildMethodTableThrowing(
             bmtInternal->pType->SetParentType(CreateTypeChain(pCOMMT, Substitution()));
             bmtInternal->pParentMT = pCOMMT;
         }
-
+#endif
         // if the current class is imported
         bmtProp->fIsComObjectType = true;
     }
 
+#ifdef FEATURE_COMINTEROP
     if (GetHalfBakedClass()->IsProjectedFromWinRT() && IsValueClass() && !IsEnum())
     {
         // WinRT structures must have sequential layout
@@ -1959,7 +1959,7 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     // Check for the RemotingProxy Attribute
     // structs with GC pointers MUST be pointer sized aligned because the GC assumes it
-    if (IsValueClass() && pMT->ContainsPointers() && (bmtFP->NumInstanceFieldBytes % sizeof(void*) != 0))
+    if (IsValueClass() && pMT->ContainsPointers() && (bmtFP->NumInstanceFieldBytes % TARGET_POINTER_SIZE != 0))
     {
         BuildMethodTableThrowException(IDS_CLASSLOAD_BADFORMAT);
     }
@@ -2865,12 +2865,10 @@ MethodTableBuilder::EnumerateClassMethods()
         // RVA : 0
         if (dwMethodRVA != 0)
         {
-#ifdef FEATURE_COMINTEROP 
             if(fIsClassComImport)
             {
                 BuildMethodTableThrowException(BFA_METHOD_WITH_NONZERO_RVA);
             }
-#endif // FEATURE_COMINTEROP
             if(IsMdAbstract(dwMemberAttrs))
             {
                 BuildMethodTableThrowException(BFA_ABSTRACT_METHOD_WITH_RVA);
@@ -3066,14 +3064,12 @@ MethodTableBuilder::EnumerateClassMethods()
             // The attribute is not present
             if (hr == S_FALSE)
             {
+#ifdef FEATURE_COMINTEROP
                 if (fIsClassComImport
-#ifdef FEATURE_COMINTEROP 
                     || GetHalfBakedClass()->IsProjectedFromWinRT()
                     || bmtProp->fComEventItfType
-#endif //FEATURE_COMINTEROP
                     )
                 {
-#ifdef FEATURE_COMINTEROP
                     // ComImport classes have methods which are just used
                     // for implementing all interfaces the class supports
                     type = METHOD_TYPE_COMINTEROP;
@@ -3090,13 +3086,10 @@ MethodTableBuilder::EnumerateClassMethods()
                             type = METHOD_TYPE_FCALL;
                         }
                     }
-#else
-                    //If we don't support com interop, refuse to load interop methods.  Otherwise we fail to
-                    //jit calls to them since the constuctor has no intrinsic ID.
-                    BuildMethodTableThrowException(hr, IDS_CLASSLOAD_GENERAL, tok);
-#endif // FEATURE_COMINTEROP
                 }
-                else if (dwMethodRVA == 0)
+                else 
+#endif //FEATURE_COMINTEROP
+                if (dwMethodRVA == 0)
                 {
                     type = METHOD_TYPE_FCALL;
                 }
@@ -7908,7 +7901,7 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
         // value types can never get large enough to allocate on the LOH). 
         if (!IsValueClass())
         {
-            dwOffsetBias = sizeof(MethodTable*);
+            dwOffsetBias = TARGET_POINTER_SIZE;
             dwCumulativeInstanceFieldPos += dwOffsetBias;
         }
 #endif // FEATURE_64BIT_ALIGNMENT
@@ -8087,17 +8080,17 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
                     // value classes could have GC pointers in them, which need to be pointer-size aligned
                     // so do this if it has not been done already
 
-#if !defined(_WIN64) && (DATA_ALIGNMENT > 4) 
+#if !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4) 
                 dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos,
-                    (pByValueMT->GetNumInstanceFieldBytes() >= DATA_ALIGNMENT) ? DATA_ALIGNMENT : sizeof(void*));
-#else // !(!defined(_WIN64) && (DATA_ALIGNMENT > 4))
+                    (pByValueMT->GetNumInstanceFieldBytes() >= DATA_ALIGNMENT) ? DATA_ALIGNMENT : TARGET_POINTER_SIZE);
+#else // !(!defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4))
 #ifdef FEATURE_64BIT_ALIGNMENT
                 if (pByValueMT->RequiresAlign8())
                     dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, 8);
                 else
 #endif // FEATURE_64BIT_ALIGNMENT
-                    dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, sizeof(void*));
-#endif // !(!defined(_WIN64) && (DATA_ALIGNMENT > 4))
+                    dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, TARGET_POINTER_SIZE);
+#endif // !(!defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4))
 
                 pFieldDescList[i].SetOffset(dwCumulativeInstanceFieldPos - dwOffsetBias);
                 dwCumulativeInstanceFieldPos += pByValueMT->GetAlignedNumInstanceFieldBytes();
@@ -8129,8 +8122,8 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
             }
             else
 #endif // FEATURE_64BIT_ALIGNMENT
-            if (dwNumInstanceFieldBytes > sizeof(void*)) {
-                minAlign = sizeof(void*);
+            if (dwNumInstanceFieldBytes > TARGET_POINTER_SIZE) {
+                minAlign = TARGET_POINTER_SIZE;
             }
             else {
                 minAlign = 1;
@@ -8319,9 +8312,9 @@ MethodTableBuilder::HandleExplicitLayout(
     // 3. If an OREF does overlap with another OREF, the class is marked unverifiable.
     // 4. If an overlap of any kind occurs, the class will be marked NotTightlyPacked (affects ValueType.Equals()).
     //
-    char emptyObject[sizeof(void*)];
-    char isObject[sizeof(void*)];
-    for (i = 0; i < sizeof(void*); i++)
+    char emptyObject[TARGET_POINTER_SIZE];
+    char isObject[TARGET_POINTER_SIZE];
+    for (i = 0; i < TARGET_POINTER_SIZE; i++)
     {
         emptyObject[i] = empty;
         isObject[i]    = oref;
@@ -8409,7 +8402,7 @@ MethodTableBuilder::HandleExplicitLayout(
                 MethodTable *pByValueMT = pByValueClassCache[valueClassCacheIndex];
                 if (pByValueMT->ContainsPointers())
                 {
-                    if ((pFD->GetOffset_NoLogging() & ((ULONG)sizeof(void*) - 1)) == 0)
+                    if ((pFD->GetOffset_NoLogging() & ((ULONG)TARGET_POINTER_SIZE - 1)) == 0)
                     {
                         ExplicitFieldTrust::TrustLevel trust;
                         DWORD firstObjectOverlapOffsetInsideValueClass = ((DWORD)(-1));
@@ -8518,7 +8511,7 @@ MethodTableBuilder::HandleExplicitLayout(
     S_UINT32 dwInstanceSliceOffset = S_UINT32(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0);
     if (bmtGCSeries->numSeries != 0)
     {
-        dwInstanceSliceOffset.AlignUp(sizeof(void*));
+        dwInstanceSliceOffset.AlignUp(TARGET_POINTER_SIZE);
     }
     if (dwInstanceSliceOffset.IsOverflow())
     {
@@ -8546,10 +8539,10 @@ MethodTableBuilder::HandleExplicitLayout(
         }
     }
     
-    // The GC requires that all valuetypes containing orefs be sized to a multiple of sizeof(void*).
+    // The GC requires that all valuetypes containing orefs be sized to a multiple of TARGET_POINTER_SIZE.
     if (bmtGCSeries->numSeries != 0)
     {
-        numInstanceFieldBytes.AlignUp(sizeof(void*));
+        numInstanceFieldBytes.AlignUp(TARGET_POINTER_SIZE);
     }
     if (numInstanceFieldBytes.IsOverflow())
     {
@@ -8711,7 +8704,7 @@ void MethodTableBuilder::FindPointerSeriesExplicit(UINT instanceSliceSize,
         bmtGCSeries->pSeries[bmtGCSeries->numSeries].offset = (DWORD)(loc - pFieldLayout);
         bmtGCSeries->pSeries[bmtGCSeries->numSeries].len = (DWORD)(cur - loc);
 
-        CONSISTENCY_CHECK(IS_ALIGNED(cur - loc, sizeof(size_t)));
+        CONSISTENCY_CHECK(IS_ALIGNED(cur - loc, TARGET_POINTER_SIZE));
 
         bmtGCSeries->numSeries++;
         loc = cur;
@@ -8757,7 +8750,7 @@ MethodTableBuilder::HandleGCForExplicitLayout()
 
         }
 
-        UINT32 dwInstanceSliceOffset = AlignUp(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0, sizeof(void*));
+        UINT32 dwInstanceSliceOffset = AlignUp(HasParent() ? GetParentMethodTable()->GetNumInstanceFieldBytes() : 0, TARGET_POINTER_SIZE);
 
         // Build the pointer series map for this pointers in this instance
         CGCDescSeries *pSeries = ((CGCDesc*)pMT)->GetLowestSeries();
@@ -9929,7 +9922,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
 
     BYTE *pData = (BYTE *)pamTracker->Track(pAllocator->GetHighFrequencyHeap()->AllocMem(cbTotalSize));
 
-    _ASSERTE(IS_ALIGNED(pData, sizeof(size_t)));
+    _ASSERTE(IS_ALIGNED(pData, TARGET_POINTER_SIZE));
     
     // There should be no overflows if we have allocated the memory succesfully
     _ASSERTE(!cbTotalSize.IsOverflow());
@@ -10322,16 +10315,17 @@ MethodTableBuilder::SetupMethodTable2(
 
         GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);
 
-#ifdef FEATURE_COMINTEROP 
         if (bmtProp->fIsComObjectType)
         {   // Propagate the com specific info
             pMT->SetComObjectType();
-
+#ifdef FEATURE_COMINTEROP 
             // COM objects need an optional field on the EEClass, so ensure this class instance has allocated
             // the optional field descriptor.
             EnsureOptionalFieldsAreAllocated(pClass, m_pAllocMemTracker, GetLoaderAllocator()->GetLowFrequencyHeap());
+#endif // FEATURE_COMINTEROP
         }
 
+#ifdef FEATURE_COMINTEROP 
         if (pMT->GetAssembly()->IsManagedWinMD())
         {
             // We need to mark classes that are implementations of managed WinRT runtime classes with

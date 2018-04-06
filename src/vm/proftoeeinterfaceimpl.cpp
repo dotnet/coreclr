@@ -7091,7 +7091,7 @@ HRESULT ProfToEEInterfaceImpl::GetClassLayout(ClassID classID,
     // running into - attempting to get the class layout for all types at module load time.
     // If we don't detect this the runtime will AV during the field iteration below. Feel
     // free to eliminate this check when a more complete solution is available.
-    if (CORCOMPILE_IS_POINTER_TAGGED(*(typeHandle.AsMethodTable()->GetParentMethodTablePtr())))
+    if (MethodTable::IsParentMethodTableTagged(typeHandle.AsMethodTable()))
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -8849,16 +8849,16 @@ HRESULT ProfToEEInterfaceImpl::GetRuntimeInformation(USHORT * pClrInstanceId,
     }
 
     if (pMajorVersion != NULL)
-        *pMajorVersion = VER_MAJORVERSION;
+        *pMajorVersion = CLR_MAJOR_VERSION;
 
     if (pMinorVersion != NULL)
-        *pMinorVersion = VER_MINORVERSION;
+        *pMinorVersion = CLR_MINOR_VERSION;
 
     if (pBuildNumber != NULL)
-        *pBuildNumber = VER_PRODUCTBUILD;
+        *pBuildNumber = CLR_BUILD_VERSION;
 
     if (pQFEVersion != NULL)
-        *pQFEVersion = VER_PRODUCTBUILD_QFE;
+        *pQFEVersion = CLR_BUILD_VERSION_QFE;
 
     return S_OK;
 }

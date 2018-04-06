@@ -29,7 +29,6 @@ Install the following packages for the toolchain:
 - liblttng-ust-dev
 - libcurl4-openssl-dev
 - libssl-dev
-- uuid-dev
 - libkrb5-dev
 - libnuma-dev (optional, enables numa support)
 
@@ -38,12 +37,14 @@ In order to get clang-3.9, llvm-3.9 and lldb-3.9 on Ubuntu 14.04, we need to add
     ~$ echo "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.9 main" | sudo tee /etc/apt/sources.list.d/llvm.list
     ~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
     ~$ sudo apt-get update
+
+Note: arm clang has a known issue with CompareExchange (#15074), so for arm you have to use clang-4.0 or higher, the official build uses clang-5.0.
     
 For other version of Debian/Ubuntu, please visit http://apt.llvm.org/.
 
 Then install the packages you need:
 
-    ~$ sudo apt-get install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev uuid-dev libnuma-dev libkrb5-dev
+    ~$ sudo apt-get install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libnuma-dev libkrb5-dev
 
 The lldb 3.9 package needs a lib file symbolic link fixed:
 
@@ -54,7 +55,7 @@ You now have all the required components.
 
 If you are using Fedora, then you will need to install the following packages:
 
-    ~$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libuuid-devel libicu-devel numactl-devel
+    ~$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libicu-devel numactl-devel
 
 Git Setup
 ---------

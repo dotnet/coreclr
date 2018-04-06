@@ -661,6 +661,12 @@ DEFINE_METHOD(OBJECT,               EQUALS,                 Equals,             
 DEFINE_METHOD(OBJECT,               FIELD_SETTER,           FieldSetter,                IM_Str_Str_Obj_RetVoid)
 DEFINE_METHOD(OBJECT,               FIELD_GETTER,           FieldGetter,                IM_Str_Str_RefObj_RetVoid)
 
+// DEFINE_CLASS(DOUBLE,                System,                 Double)
+DEFINE_METHOD(DOUBLE,               GET_HASH_CODE,          GetHashCode, IM_RetInt)
+
+// DEFINE_CLASS(SINGLE,                System,                 Single)
+DEFINE_METHOD(SINGLE,               GET_HASH_CODE,          GetHashCode, IM_RetInt)
+
 DEFINE_CLASS(__CANON,              System,                 __Canon)
 
 
@@ -860,18 +866,21 @@ DEFINE_FIELD(UINTPTR,               ZERO,                   Zero)
 
 DEFINE_CLASS(BITCONVERTER,          System,                 BitConverter)
 DEFINE_FIELD(BITCONVERTER,          ISLITTLEENDIAN,         IsLittleEndian)
+
 // Defined as element type alias
 // DEFINE_CLASS(STRING,                System,                 String)
 DEFINE_FIELD(STRING,                M_FIRST_CHAR,           _firstChar)
 DEFINE_FIELD(STRING,                EMPTY,                  Empty)
-DEFINE_METHOD(STRING,               CREATE_STRING,          CreateString,               SM_PtrSByt_Int_Int_Encoding_RetStr)
 DEFINE_METHOD(STRING,               CTOR_CHARPTR,           .ctor,                      IM_PtrChar_RetVoid)
-DEFINE_METHOD(STRING,               CTORF_CHARARRAY,        CtorCharArray,              IM_ArrChar_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARARRAY_START_LEN,CtorCharArrayStartLength, IM_ArrChar_Int_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHAR_COUNT,       CtorCharCount,              IM_Char_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARPTR,          CtorCharPtr,                IM_PtrChar_RetStr)
-DEFINE_METHOD(STRING,               CTORF_CHARPTR_START_LEN,CtorCharPtrStartLength,     IM_PtrChar_Int_Int_RetStr)
-DEFINE_METHOD(STRING,               CTORF_READONLYSPANOFCHAR,CtorReadOnlySpanOfChar,    IM_ReadOnlySpanOfChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARARRAY,        Ctor,                       IM_ArrChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARARRAY_START_LEN,Ctor,                     IM_ArrChar_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHAR_COUNT,       Ctor,                       IM_Char_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARPTR,          Ctor,                       IM_PtrChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_CHARPTR_START_LEN,Ctor,                       IM_PtrChar_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_READONLYSPANOFCHAR,Ctor,                      IM_ReadOnlySpanOfChar_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR,         Ctor,                       IM_PtrSByt_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR_START_LEN, Ctor,                     IM_PtrSByt_Int_Int_RetStr)
+DEFINE_METHOD(STRING,               CTORF_SBYTEPTR_START_LEN_ENCODING, Ctor,            IM_PtrSByt_Int_Int_Encoding_RetStr)
 DEFINE_METHOD(STRING,               INTERNAL_COPY,          InternalCopy,               SM_Str_IntPtr_Int_RetVoid)
 DEFINE_METHOD(STRING,               WCSLEN,                 wcslen,                     SM_PtrChar_RetInt)
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
@@ -1052,9 +1061,9 @@ DEFINE_METHOD(STUBHELPERS,          VALIDATE_OBJECT,                    Validate
 DEFINE_METHOD(STUBHELPERS,          VALIDATE_BYREF,                     ValidateByref,                  SM_IntPtr_IntPtr_Obj_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          GET_STUB_CONTEXT,                   GetStubContext,                 SM_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          LOG_PINNED_ARGUMENT,                LogPinnedArgument,              SM_IntPtr_IntPtr_RetVoid)
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
 DEFINE_METHOD(STUBHELPERS,          GET_STUB_CONTEXT_ADDR,              GetStubContextAddr,             SM_RetIntPtr)
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 #ifdef MDA_SUPPORTED
 DEFINE_METHOD(STUBHELPERS,          TRIGGER_GC_FOR_MDA,                 TriggerGCForMDA,                SM_RetVoid)
 #endif

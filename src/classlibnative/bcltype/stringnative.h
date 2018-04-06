@@ -41,16 +41,6 @@
 
 class COMString {
 public:
-
-    //
-    // Constructors
-    //
-    static FCDECL5(Object *, StringInitSBytPtrPartialEx, StringObject *thisString,
-                   I1 *ptr, INT32 startIndex, INT32 length, Object* encoding);
-    static FCDECL2(Object *, StringInitCharPtr, StringObject *stringThis, INT8 *ptr);
-    static FCDECL4(Object *, StringInitCharPtrPartial, StringObject *stringThis, INT8 *value,
-                   INT32 startIndex, INT32 length);
-
     //
     // Search/Query Methods
     //
@@ -71,9 +61,6 @@ public:
     static FCDECL2(FC_BOOL_RET, FCTryGetTrailByte, StringObject* thisRefUNSAFE, UINT8 *pbData);
     static FCDECL2(VOID,        FCSetTrailByte,    StringObject* thisRefUNSAFE, UINT8 bData);
 #endif // FEATURE_COMINTEROP
-
-    static FCDECL1(INT32, Marvin32HashString, StringObject* thisRefUNSAFE);
-
 };
 
 // Revert to command line compilation flags

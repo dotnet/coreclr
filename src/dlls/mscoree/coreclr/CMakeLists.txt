@@ -139,11 +139,6 @@ if(FEATURE_EVENT_TRACE)
             eventprovider # On Windows this library contains only macros
         )
     endif(CLR_CMAKE_PLATFORM_UNIX)
-    if(CLR_CMAKE_PLATFORM_LINUX)
-        list(APPEND CORECLR_LIBRARIES
-            tracepointprovider
-        )
-    endif(CLR_CMAKE_PLATFORM_LINUX)
 endif(FEATURE_EVENT_TRACE)
 
 target_link_libraries(coreclr ${CORECLR_LIBRARIES})
@@ -167,11 +162,18 @@ if(WIN32)
         clr_unknown_arch()
     endif()
 
+    set(DACTABLEGEN_EXE ${CMAKE_BINARY_DIR}/src/ToolBox/SOS/DacTableGen/dactablegen.exe)
+    # The DactTableGen executable that we build needs an msdia140.dll supplied by Visual Studio.
+    # however VS2015 may not have this, so fall back to the DactTableGen in the tools package (which is old)
+    if($ENV{__VSVersion} STREQUAL "vs2015")
+        set(DACTABLEGEN_EXE ${BuildToolsDir}/dactablegen.exe)
+    endif()
+
     add_custom_command(
         DEPENDS coreclr mscordaccore mscordbi ${CLR_DIR}/src/debug/daccess/daccess.cpp
         OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp
         COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TP ${PREPROCESS_DEFINITIONS} ${INC_DIR} /Fi${CMAKE_CURRENT_BINARY_DIR}/daccess.i  ${CLR_DIR}/src/debug/daccess/daccess.cpp
-        COMMAND ${BuildToolsDir}/dactablegen.exe /dac:${CMAKE_CURRENT_BINARY_DIR}/daccess.i /pdb:${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb /dll:$<TARGET_FILE:coreclr> /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin
+        COMMAND ${DACTABLEGEN_EXE} /dac:${CMAKE_CURRENT_BINARY_DIR}/daccess.i /pdb:${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/coreclr.pdb /dll:$<TARGET_FILE:coreclr> /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin
         COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_BINARY_DIR}/wks.bin /dll:$<TARGET_FILE:coreclr>
         COMMAND ${BuildToolsDir}/GenClrDebugResource.exe /dac:$<TARGET_FILE:mscordaccore> /dbi:$<TARGET_FILE:mscordbi> /sku:onecoreclr /out:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin
         COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin /dll:$<TARGET_FILE:coreclr> /name:CLRDEBUGINFO

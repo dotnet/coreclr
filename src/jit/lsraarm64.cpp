@@ -87,8 +87,13 @@ void LinearScan::BuildNode(GenTree* tree)
             BuildStoreLoc(tree->AsLclVarCommon());
             break;
 
-        case GT_LIST:
         case GT_FIELD_LIST:
+            // These should always be contained. We don't correctly allocate or
+            // generate code for a non-contained GT_FIELD_LIST.
+            noway_assert(!"Non-contained GT_FIELD_LIST");
+            break;
+
+        case GT_LIST:
         case GT_ARGPLACE:
         case GT_NO_OP:
         case GT_START_NONGC:
@@ -214,6 +219,10 @@ void LinearScan::BuildNode(GenTree* tree)
         case GT_AND:
         case GT_OR:
         case GT_XOR:
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+        case GT_ROR:
             info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->dstCount == 1);
             break;
@@ -336,13 +345,6 @@ void LinearScan::BuildNode(GenTree* tree)
             assert(info->dstCount == 1);
             break;
 
-        case GT_LSH:
-        case GT_RSH:
-        case GT_RSZ:
-        case GT_ROR:
-            BuildShiftRotate(tree);
-            break;
-
         case GT_EQ:
         case GT_NE:
         case GT_LT:
@@ -403,18 +405,24 @@ void LinearScan::BuildNode(GenTree* tree)
             // it may be used used multiple during retries
             assert(!tree->gtOp.gtOp1->isContained());
             LocationInfoListNode* op1Info = getLocationInfo(tree->gtOp.gtOp1);
-            op1Info->info.isDelayFree     = true;
             useList.Append(op1Info);
+            LocationInfoListNode* op2Info = nullptr;
             if (!tree->gtOp.gtOp2->isContained())
             {
-                LocationInfoListNode* op2Info = getLocationInfo(tree->gtOp.gtOp2);
-                op2Info->info.isDelayFree     = true;
+                op2Info = getLocationInfo(tree->gtOp.gtOp2);
                 useList.Append(op2Info);
             }
-            info->hasDelayFreeSrc = true;
-
-            // Internals may not collide with target
-            info->isInternalRegDelayFree = true;
+            if (info->dstCount != 0)
+            {
+                op1Info->info.isDelayFree = true;
+                if (op2Info != nullptr)
+                {
+                    op2Info->info.isDelayFree = true;
+                }
+                // Internals may not collide with target
+                info->isInternalRegDelayFree = true;
+                info->hasDelayFreeSrc        = true;
+            }
         }
         break;
 
@@ -951,6 +959,38 @@ void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
     switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
     {
+        case HWIntrinsicInfo::Sha1HashOp:
+            info->setInternalCandidates(this, RBM_ALLFLOAT);
+            info->internalFloatCount = 1;
+            if (!op2->isContained())
+            {
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                op2Info->info.isDelayFree     = true;
+                GenTree* op3                  = intrinsicTree->gtOp.gtOp1->AsArgList()->Rest()->Rest()->Current();
+                assert(!op3->isContained());
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op3Info->info.isDelayFree     = true;
+                info->hasDelayFreeSrc         = true;
+                info->isInternalRegDelayFree  = true;
+            }
+            break;
+        case HWIntrinsicInfo::SimdTernaryRMWOp:
+            if (!op2->isContained())
+            {
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                op2Info->info.isDelayFree     = true;
+                GenTree* op3                  = intrinsicTree->gtOp.gtOp1->AsArgList()->Rest()->Rest()->Current();
+                assert(!op3->isContained());
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op3Info->info.isDelayFree     = true;
+                info->hasDelayFreeSrc         = true;
+            }
+            break;
+        case HWIntrinsicInfo::Sha1RotateOp:
+            info->setInternalCandidates(this, RBM_ALLFLOAT);
+            info->internalFloatCount = 1;
+            break;
+
         case HWIntrinsicInfo::SimdExtractOp:
         case HWIntrinsicInfo::SimdInsertOp:
             if (!op2->isContained())

@@ -100,7 +100,7 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || EventEnabled##EventDescriptor())
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
@@ -111,7 +111,7 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
@@ -611,7 +611,7 @@ namespace ETW
 #else // FEATURE_EVENT_TRACE
     public:
         static VOID MethodJitting(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL) {};
-        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0) {};
+        static VOID MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, SIZE_T pCode = 0, ReJITID rejitID = 0, BOOL bProfilerRejectedPrecompiledCode = FALSE, BOOL bReadyToRunRejectedPrecompiledCode = FALSE) {};
         static VOID StubInitialized(ULONGLONG ullHelperStartAddress, LPCWSTR pHelperName) {};
         static VOID StubsInitialized(PVOID *pHelperStartAddresss, PVOID *pHelperNames, LONG ulNoOfHelpers) {};
         static VOID MethodRestored(MethodDesc * pMethodDesc) {};

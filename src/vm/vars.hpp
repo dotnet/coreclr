@@ -405,6 +405,9 @@ GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_DECL(DWORD,            g_debuggerWordTLSIndex);
+#endif
 GVAL_DECL(DWORD,            g_TlsIndex);
 
 // Global System Information
@@ -576,10 +579,6 @@ EXTERN const char g_psBaseLibrary[];
 EXTERN const char g_psBaseLibraryName[];
 EXTERN const char g_psBaseLibrarySatelliteAssemblyName[];
 
-#ifdef FEATURE_COMINTEROP
-EXTERN const WCHAR g_pwBaseLibraryTLB[];
-EXTERN const char g_psBaseLibraryTLB[];
-#endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
 
 //

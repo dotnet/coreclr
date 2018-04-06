@@ -306,6 +306,10 @@ void GenTree::InitNodeSize()
 #ifdef FEATURE_SIMD
     GenTree::s_gtNodeSizes[GT_SIMD_CHK] = TREE_NODE_SZ_LARGE;
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+    GenTree::s_gtNodeSizes[GT_HW_INTRINSIC_CHK] = TREE_NODE_SZ_LARGE;
+#endif // FEATURE_HW_INTRINSICS
+
     GenTree::s_gtNodeSizes[GT_ARR_ELEM]         = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_ARR_INDEX]        = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_ARR_OFFSET]       = TREE_NODE_SZ_LARGE;
@@ -1592,6 +1596,9 @@ AGAIN:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             return Compare(op1->gtBoundsChk.gtIndex, op2->gtBoundsChk.gtIndex) &&
                    Compare(op1->gtBoundsChk.gtArrLen, op2->gtBoundsChk.gtArrLen) &&
                    (op1->gtBoundsChk.gtThrowKind == op2->gtBoundsChk.gtThrowKind);
@@ -1818,6 +1825,9 @@ AGAIN:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             if (gtHasRef(tree->gtBoundsChk.gtIndex, lclNum, defOnly))
             {
                 return true;
@@ -2236,6 +2246,9 @@ AGAIN:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             hash = genTreeHashAdd(hash, gtHashValue(tree->gtBoundsChk.gtIndex));
             hash = genTreeHashAdd(hash, gtHashValue(tree->gtBoundsChk.gtArrLen));
             hash = genTreeHashAdd(hash, tree->gtBoundsChk.gtThrowKind);
@@ -2501,6 +2514,9 @@ AGAIN:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             if (!lvaLclVarRefsAccum(tree->gtBoundsChk.gtIndex, findPtr, refsPtr, &allVars, &trkdVars))
             {
@@ -4911,7 +4927,11 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         case GT_ARR_BOUNDS_CHECK:
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
-#endif                  // FEATURE_SIMD
+#endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
+
             costEx = 4; // cmp reg,reg and jae throw (not taken)
             costSz = 7; // jump to cold section
 
@@ -5444,6 +5464,9 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             if (this == parent->gtBoundsChk.gtIndex)
             {
                 return &(parent->gtBoundsChk.gtIndex);
@@ -5709,6 +5732,9 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             GenTreeBoundsChk* const boundsChk = this->AsBoundsChk();
             if (def == boundsChk->gtIndex)
@@ -6048,6 +6074,9 @@ bool GenTree::OperMayThrow(Compiler* comp)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         case GT_INDEX_ADDR:
             return true;
         default:
@@ -6619,7 +6648,8 @@ GenTreeCall* Compiler::gtNewCallNode(
 #endif // LEGACY_BACKEND
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    node->gtEntryPoint.addr = nullptr;
+    node->gtEntryPoint.addr       = nullptr;
+    node->gtEntryPoint.accessType = IAT_VALUE;
 #endif
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -7426,7 +7456,7 @@ GenTree* Compiler::gtNewPutArgReg(var_types type, GenTree* arg, regNumber argReg
 //    Returns the newly created BitCast node.
 //
 // Notes:
-//    The node is generated as GenTreeMultiRegOp on RyuJIT/armel, as GenTreeOp on all the other archs.
+//    The node is generated as GenTreeMultiRegOp on RyuJIT/arm, as GenTreeOp on all the other archs.
 //
 GenTree* Compiler::gtNewBitCastNode(var_types type, GenTree* arg)
 {
@@ -7790,8 +7820,9 @@ GenTree* Compiler::gtCloneExpr(
                 break;
 
             case GT_CAST:
-                copy = new (this, LargeOpOpcode()) GenTreeCast(tree->TypeGet(), tree->gtCast.CastOp(),
-                                                               tree->gtCast.gtCastType DEBUGARG(/*largeNode*/ TRUE));
+                copy =
+                    new (this, LargeOpOpcode()) GenTreeCast(tree->TypeGet(), tree->gtCast.CastOp(), tree->IsUnsigned(),
+                                                            tree->gtCast.gtCastType DEBUGARG(/*largeNode*/ TRUE));
                 break;
 
             // The nodes below this are not bashed, so they can be allocated at their individual sizes.
@@ -7962,10 +7993,6 @@ GenTree* Compiler::gtCloneExpr(
         if (tree->gtOverflowEx())
         {
             copy->gtFlags |= GTF_OVERFLOW;
-        }
-        if (copy->OperGet() == GT_CAST)
-        {
-            copy->gtFlags |= (tree->gtFlags & GTF_UNSIGNED);
         }
 
         if (tree->gtOp.gtOp1)
@@ -8192,6 +8219,9 @@ GenTree* Compiler::gtCloneExpr(
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             copy = new (this, oper)
                 GenTreeBoundsChk(oper, tree->TypeGet(),
                                  gtCloneExpr(tree->gtBoundsChk.gtIndex, addFlags, deepVarNum, deepVarVal),
@@ -8667,7 +8697,7 @@ bool GenTree::gtSetFlags() const
     //
     // Precondition we have a GTK_SMPOP
     //
-    if (!varTypeIsIntegralOrI(TypeGet()))
+    if (!varTypeIsIntegralOrI(TypeGet()) && (TypeGet() != TYP_VOID))
     {
         return false;
     }
@@ -8690,7 +8720,7 @@ bool GenTree::gtSetFlags() const
     }
 #else // !(defined(LEGACY_BACKEND) && !FEATURE_SET_FLAGS && defined(_TARGET_XARCH_))
 
-#if FEATURE_SET_FLAGS
+#if FEATURE_SET_FLAGS && defined(LEGACY_BACKEND)
     assert(OperIsSimple());
 #endif
     if (((gtFlags & GTF_SET_FLAGS) != 0) && (gtOper != GT_IND))
@@ -8877,6 +8907,9 @@ unsigned GenTree::NumChildren()
 #ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
                 return 2;
 
             case GT_FIELD:
@@ -9007,6 +9040,9 @@ GenTree* GenTree::GetChild(unsigned childNum)
 #ifdef FEATURE_SIMD
             case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
                 switch (childNum)
                 {
                     case 0:
@@ -9306,6 +9342,9 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             m_edge = &m_node->AsBoundsChk()->gtIndex;
             assert(*m_edge != nullptr);
             m_advance = &GenTreeUseEdgeIterator::AdvanceBoundsChk;
@@ -11855,6 +11894,9 @@ void Compiler::gtDispTree(GenTree*     tree,
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
             gtDispVN(tree);
             printf("\n");
             if (!topOnly)
@@ -13424,7 +13466,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
 
     // If we're eventually going to return the type handle, remember it now.
     GenTree* boxTypeHandle = nullptr;
-    if (options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
+    if ((options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE) || (options == BR_DONT_REMOVE_WANT_TYPE_HANDLE))
     {
         GenTree*   asgSrc     = asg->gtOp.gtOp2;
         genTreeOps asgSrcOper = asgSrc->OperGet();
@@ -13586,6 +13628,11 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     if (options == BR_DONT_REMOVE)
     {
         return copySrc;
+    }
+
+    if (options == BR_DONT_REMOVE_WANT_TYPE_HANDLE)
+    {
+        return boxTypeHandle;
     }
 
     // Otherwise, proceed with the optimization.
@@ -13950,15 +13997,22 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                                 goto CNS_INT;
 
                             case TYP_ULONG:
-                                if (!(tree->gtFlags & GTF_UNSIGNED) && tree->gtOverflow() && i1 < 0)
+                                if (tree->IsUnsigned())
                                 {
-                                    goto LNG_OVF;
+                                    lval1 = UINT64(UINT32(i1));
                                 }
-                                lval1 = UINT64(UINT32(i1));
+                                else
+                                {
+                                    if (tree->gtOverflow() && (i1 < 0))
+                                    {
+                                        goto LNG_OVF;
+                                    }
+                                    lval1 = UINT64(INT32(i1));
+                                }
                                 goto CNS_LONG;
 
                             case TYP_LONG:
-                                if (tree->gtFlags & GTF_UNSIGNED)
+                                if (tree->IsUnsigned())
                                 {
                                     lval1 = INT64(UINT32(i1));
                                 }
@@ -15381,11 +15435,11 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
             }
             else if (lclTyp == TYP_DOUBLE && assg->TypeGet() == TYP_FLOAT)
             {
-                assg = gtNewCastNode(TYP_DOUBLE, assg, TYP_DOUBLE);
+                assg = gtNewCastNode(TYP_DOUBLE, assg, false, TYP_DOUBLE);
             }
             else if (lclTyp == TYP_FLOAT && assg->TypeGet() == TYP_DOUBLE)
             {
-                assg = gtNewCastNode(TYP_FLOAT, assg, TYP_FLOAT);
+                assg = gtNewCastNode(TYP_FLOAT, assg, false, TYP_FLOAT);
             }
 
             args       = gtNewArgList(assg);
@@ -15445,7 +15499,7 @@ GenTree* Compiler::gtNewRefCOMfield(GenTree*                objPtr,
             else if (varTypeIsIntegral(lclTyp) && genTypeSize(lclTyp) < genTypeSize(TYP_INT))
             {
                 // The helper does not extend the small return types.
-                tree = gtNewCastNode(genActualType(lclTyp), tree, lclTyp);
+                tree = gtNewCastNode(genActualType(lclTyp), tree, false, lclTyp);
             }
         }
     }
@@ -15804,6 +15858,9 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
 #ifdef FEATURE_SIMD
         || expr->OperGet() == GT_SIMD_CHK
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        || expr->OperGet() == GT_HW_INTRINSIC_CHK
+#endif // FEATURE_HW_INTRINSICS
         )
     {
         gtExtractSideEffList(expr->AsBoundsChk()->gtIndex, pList, flags);
@@ -16593,7 +16650,7 @@ bool GenTree::canBeContained() const
 
     // It is not possible for nodes that do not produce values or that are not containable values
     // to be contained.
-    if ((OperKind() & (GTK_NOVALUE | GTK_NOCONTAIN)) != 0)
+    if (((OperKind() & (GTK_NOVALUE | GTK_NOCONTAIN)) != 0) || (OperIsHWIntrinsic() && !isContainableHWIntrinsic()))
     {
         return false;
     }
@@ -17935,6 +17992,55 @@ bool GenTree::isCommutativeSIMDIntrinsic()
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
+bool GenTree::isCommutativeHWIntrinsic() const
+{
+    assert(gtOper == GT_HWIntrinsic);
+
+#ifdef _TARGET_XARCH_
+    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
+    return ((flags & HW_Flag_Commutative) != 0);
+#else
+    return false;
+#endif // _TARGET_XARCH_
+}
+
+bool GenTree::isContainableHWIntrinsic() const
+{
+    assert(gtOper == GT_HWIntrinsic);
+
+#ifdef _TARGET_XARCH_
+    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
+    return ((flags & HW_Flag_NoContainment) == 0);
+#else
+    return false;
+#endif // _TARGET_XARCH_
+}
+
+bool GenTree::isRMWHWIntrinsic(Compiler* comp)
+{
+    assert(gtOper == GT_HWIntrinsic);
+    assert(comp != nullptr);
+
+#ifdef _TARGET_XARCH_
+    if (!comp->canUseVexEncoding())
+    {
+        HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
+        return ((flags & HW_Flag_NoRMWSemantics) == 0);
+    }
+
+    switch (AsHWIntrinsic()->gtHWIntrinsicId)
+    {
+        case NI_SSE42_Crc32:
+            return true;
+
+        default:
+            return false;
+    }
+#else
+    return false;
+#endif // _TARGET_XARCH_
+}
+
 GenTreeHWIntrinsic* Compiler::gtNewSimdHWIntrinsicNode(var_types      type,
                                                        NamedIntrinsic hwIntrinsicID,
                                                        var_types      baseType,

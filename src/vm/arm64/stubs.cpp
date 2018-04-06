@@ -10,7 +10,6 @@
 #include "common.h"
 #include "dllimportcallback.h"
 #include "comdelegate.h"
-#include "tls.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 #include "jitinterface.h"
@@ -1275,7 +1274,7 @@ void UMEntryThunkCode::Poison()
     m_pTargetCode = (TADDR)UMEntryThunk::ReportViolation;
 
     // ldp x16, x0, [x12]
-    m_code[1] = 0xd42017c0;
+    m_code[1] = 0xa9400190;
 
     ClrFlushInstructionCache(&m_code,sizeof(m_code));
 }
@@ -1775,9 +1774,9 @@ void StubLinkerCPU::Init()
 VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
 {
     // On entry x0 holds the delegate instance. Look up the real target address stored in the MethodPtrAux
-    // field and save it in x9. Tailcall to the target method after re-arranging the arguments
-    // ldr x9, [x0, #offsetof(DelegateObject, _methodPtrAux)]
-    EmitLoadStoreRegImm(eLOAD, IntReg(9), IntReg(0), DelegateObject::GetOffsetOfMethodPtrAux());
+    // field and save it in x16(ip). Tailcall to the target method after re-arranging the arguments
+    // ldr x16, [x0, #offsetof(DelegateObject, _methodPtrAux)]
+    EmitLoadStoreRegImm(eLOAD, IntReg(16), IntReg(0), DelegateObject::GetOffsetOfMethodPtrAux());
     //add x11, x0, DelegateObject::GetOffsetOfMethodPtrAux() - load the indirection cell into x11 used by ResolveWorkerAsmStub
     EmitAddImm(IntReg(11), IntReg(0), DelegateObject::GetOffsetOfMethodPtrAux());
 
@@ -1805,14 +1804,14 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
             // dest must be on the stack
             _ASSERTE(!(pEntry->dstofs & ShuffleEntry::REGMASK));
 
-            EmitLoadStoreRegImm(eLOAD, IntReg(8), RegSp, pEntry->srcofs * sizeof(void*));
-            EmitLoadStoreRegImm(eSTORE, IntReg(8), RegSp, pEntry->dstofs * sizeof(void*));
+            EmitLoadStoreRegImm(eLOAD, IntReg(9), RegSp, pEntry->srcofs * sizeof(void*));
+            EmitLoadStoreRegImm(eSTORE, IntReg(9), RegSp, pEntry->dstofs * sizeof(void*));
         }
     }
 
     // Tailcall to target
-    // br x9
-    EmitJumpRegister(IntReg(9));
+    // br x16
+    EmitJumpRegister(IntReg(16));
 }
 
 void StubLinkerCPU::EmitCallLabel(CodeLabel *target, BOOL fTailCall, BOOL fIndirect)

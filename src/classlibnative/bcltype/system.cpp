@@ -100,15 +100,6 @@ FCIMPLEND;
 
 
 
-FCIMPL0(UINT32, SystemNative::GetCurrentProcessorNumber)
-{
-    FCALL_CONTRACT;
-
-    return ::GetCurrentProcessorNumber();
-}
-FCIMPLEND;
-
-
 
 FCIMPL0(UINT32, SystemNative::GetTickCount)
 {
@@ -469,6 +460,14 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         WszOutputDebugString(W("\"\r\n"));
     }
 
+    LPCWSTR argExceptionString = NULL;
+    StackSString msg;
+    if (gc.refExceptionForWatsonBucketing != NULL)
+    {
+        GetExceptionMessage(gc.refExceptionForWatsonBucketing, msg);
+        argExceptionString = msg.GetUnicode();
+    }
+
     Thread *pThread = GetThread();
 
 #ifndef FEATURE_PAL    
@@ -499,7 +498,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
 
-    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString);
+    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, argExceptionString);
 
     GCPROTECT_END();
 }

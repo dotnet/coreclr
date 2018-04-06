@@ -52,7 +52,6 @@ void StackLevelSetter::DoPhase()
         comp->codeGen->setFramePointerRequired(true);
     }
 #endif // !FEATURE_FIXED_OUT_ARGS
-    assert(maxStackLevel <= comp->fgGetPtrArgCntMax());
     if (maxStackLevel != comp->fgGetPtrArgCntMax())
     {
         JITDUMP("fgPtrArgCntMax was calculated wrong during the morph, the old value: %u, the right value: %u.\n",
@@ -91,8 +90,7 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
         // Set throw blocks incoming stack depth for x86.
         if (throwHelperBlocksUsed && !framePointerRequired)
         {
-            bool operMightThrow = ((node->gtFlags & GTF_EXCEPT) != 0);
-            if (operMightThrow)
+            if (node->OperMayThrow(comp))
             {
                 SetThrowHelperBlocks(node, block);
             }
@@ -119,13 +117,16 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
 //                       from the node.
 //
 // Notes:
-//   one node can target several helper blocks.
+//   one node can target several helper blocks, but not all operands that throw do this.
+//   So the function can set 0-2 throw blocks depends on oper and overflow flag.
 //
 // Arguments:
 //   node - the node to process;
 //   block - the source block for the node.
 void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
 {
+    assert(node->OperMayThrow(comp));
+
     // Check that it uses throw block, find its kind, find the block, set level.
     switch (node->OperGet())
     {
@@ -133,6 +134,9 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
 #ifdef FEATURE_SIMD
         case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
         {
             GenTreeBoundsChk* bndsChk = node->AsBoundsChk();
             SetThrowHelperBlock(bndsChk->gtThrowKind, block);
@@ -151,6 +155,8 @@ void StackLevelSetter::SetThrowHelperBlocks(GenTree* node, BasicBlock* block)
             SetThrowHelperBlock(SCK_ARITH_EXCPN, block);
         }
         break;
+        default: // Other opers can target throw only due to overflow.
+            break;
     }
     if (node->gtOverflowEx())
     {

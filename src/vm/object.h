@@ -601,9 +601,9 @@ private:
     // Object::GetSize() looks at m_NumComponents even though it may not be an array (the
     // values is shifted out if not an array, so it's ok). 
     DWORD       m_NumComponents;
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
     DWORD       pad;
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 
     SVAL_DECL(INT32, s_arrayBoundsZero); // = 0
 
@@ -1024,7 +1024,6 @@ class StringObject : public Object
 
     static STRINGREF* InitEmptyStringRefPtr();
 
-    static STRINGREF __stdcall StringInitCharHelper(LPCSTR pszSource, int length);
     DWORD InternalCheckHighChars();
 
     BOOL HasTrailByte();
@@ -1061,8 +1060,6 @@ class StringObject : public Object
 
 
 private:
-    static INT32 FastCompareStringHelper(DWORD* strAChars, INT32 countA, DWORD* strBChars, INT32 countB);
-
     static STRINGREF* EmptyStringRefPtr;
 };
 
@@ -1458,9 +1455,6 @@ private:
     OBJECTREF     m_SynchronizationContext;
     OBJECTREF     m_Name;
     OBJECTREF     m_Delegate;
-#ifdef IO_CANCELLATION_ENABLED
-    OBJECTREF     m_CancellationSignals;
-#endif
     OBJECTREF     m_ThreadStartArg;
 
     // The next field (m_InternalThread) is declared as IntPtr in the managed
@@ -1473,11 +1467,6 @@ private:
 
     //We need to cache the thread id in managed code for perf reasons.
     INT32         m_ManagedThreadId;
-
-    CLR_BOOL      m_ExecutionContextBelongsToCurrentScope;
-#ifdef _DEBUG
-    CLR_BOOL      m_ForbidExecutionContextMutation;
-#endif
 
 protected:
     // the ctor and dtor can do no useful work.
@@ -2910,7 +2899,6 @@ public:
     StackTraceElement & operator[](size_t index);
 
     void Append(StackTraceElement const * begin, StackTraceElement const * end);
-    void AppendSkipLast(StackTraceElement const * begin, StackTraceElement const * end);
 
     I1ARRAYREF Get() const
     {

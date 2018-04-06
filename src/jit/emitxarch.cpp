@@ -87,6 +87,8 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_andnps:
         case INS_andpd:
         case INS_andps:
+        case INS_blendpd:
+        case INS_blendps:
         case INS_cmppd:
         case INS_cmpps:
         case INS_cmpsd:
@@ -114,6 +116,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_minss:
         case INS_movhlps:
         case INS_movlhps:
+        case INS_mpsadbw:
         case INS_mulpd:
         case INS_mulps:
         case INS_mulsd:
@@ -132,10 +135,12 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_paddusb:
         case INS_paddusw:
         case INS_paddw:
+        case INS_palignr:
         case INS_pand:
         case INS_pandn:
         case INS_pavgb:
         case INS_pavgw:
+        case INS_pblendw:
         case INS_pcmpeqb:
         case INS_pcmpeqd:
         case INS_pcmpeqq:
@@ -150,7 +155,11 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_phsubd:
         case INS_phsubsw:
         case INS_phsubw:
+        case INS_pinsrb:
         case INS_pinsrw:
+        case INS_pinsrd:
+        case INS_pinsrq:
+        case INS_pmaddubsw:
         case INS_pmaddwd:
         case INS_pmaxsb:
         case INS_pmaxsd:
@@ -165,6 +174,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_pminud:
         case INS_pminuw:
         case INS_pmuldq:
+        case INS_pmulhrsw:
         case INS_pmulhuw:
         case INS_pmulhw:
         case INS_pmulld:
@@ -172,6 +182,10 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_pmuludq:
         case INS_por:
         case INS_psadbw:
+        case INS_pshufb:
+        case INS_psignb:
+        case INS_psignd:
+        case INS_psignw:
         case INS_psubb:
         case INS_psubd:
         case INS_psubq:
@@ -180,6 +194,14 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_psubusb:
         case INS_psubusw:
         case INS_psubw:
+        case INS_pslld:
+        case INS_psllq:
+        case INS_psllw:
+        case INS_psrld:
+        case INS_psrlq:
+        case INS_psrlw:
+        case INS_psrad:
+        case INS_psraw:
         case INS_punpckhbw:
         case INS_punpckhdq:
         case INS_punpckhqdq:
@@ -201,7 +223,17 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_unpcklpd:
         case INS_vinsertf128:
         case INS_vinserti128:
+        case INS_vmaskmovps:
+        case INS_vmaskmovpd:
         case INS_vperm2i128:
+        case INS_vperm2f128:
+        case INS_vpermilpsvar:
+        case INS_vpermilpdvar:
+        case INS_vpsrlvd:
+        case INS_vpsrlvq:
+        case INS_vpsravd:
+        case INS_vpsllvd:
+        case INS_vpsllvq:
         case INS_xorpd:
         case INS_xorps:
             return IsAVXInstruction(ins);
@@ -285,11 +317,12 @@ bool emitter::Is4ByteSSE4OrAVXInstruction(instruction ins)
 bool emitter::TakesVexPrefix(instruction ins)
 {
     // special case vzeroupper as it requires 2-byte VEX prefix
-    // special case the fencing and the prefetch instructions as they never take a VEX prefix
+    // special case the fencing, movnti and the prefetch instructions as they never take a VEX prefix
     switch (ins)
     {
         case INS_lfence:
         case INS_mfence:
+        case INS_movnti:
         case INS_prefetchnta:
         case INS_prefetcht0:
         case INS_prefetcht1:
@@ -359,9 +392,16 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
     // size specification (128 vs. 256 bits) and the operand size specification (32 vs. 64 bits), where both are
     // required, the instruction must be created with the register size attribute (EA_16BYTE or EA_32BYTE),
     // and here we must special case these by the opcode.
-    if (ins == INS_vpermq)
+    switch (ins)
     {
-        return true;
+        case INS_vpermq:
+        case INS_vpsrlvq:
+        case INS_vpsllvq:
+        case INS_pinsrq:
+        case INS_pextrq:
+            return true;
+        default:
+            break;
     }
 #endif // !LEGACY_BACKEND
 #ifdef _TARGET_AMD64_
@@ -384,13 +424,21 @@ bool TakesRexWPrefix(instruction ins, emitAttr attr)
 
     if (IsSSEOrAVXInstruction(ins))
     {
-        if (ins == INS_cvttsd2si || ins == INS_cvttss2si || ins == INS_cvtsd2si || ins == INS_cvtss2si ||
-            ins == INS_cvtsi2sd || ins == INS_cvtsi2ss || ins == INS_mov_xmm2i || ins == INS_mov_i2xmm)
+        switch (ins)
         {
-            return true;
+            case INS_cvttsd2si:
+            case INS_cvttss2si:
+            case INS_cvtsd2si:
+            case INS_cvtss2si:
+            case INS_cvtsi2sd:
+            case INS_cvtsi2ss:
+            case INS_mov_xmm2i:
+            case INS_mov_i2xmm:
+            case INS_movnti:
+                return true;
+            default:
+                return false;
         }
-
-        return false;
     }
 
     // TODO-XArch-Cleanup: Better way to not emit REX.W when we don't need it, than just testing all these
@@ -1060,7 +1108,7 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
     if (!IsSSEOrAVXInstruction(ins) || ins == INS_mov_xmm2i || ins == INS_cvttsd2si
 #ifndef LEGACY_BACKEND
         || ins == INS_cvttss2si || ins == INS_cvtsd2si || ins == INS_cvtss2si || ins == INS_pmovmskb ||
-        ins == INS_pextrw
+        ins == INS_pextrw || ins == INS_pextrb || ins == INS_pextrd || ins == INS_pextrq || ins == INS_extractps
 #endif // !LEGACY_BACKEND
         )
     {
@@ -2682,6 +2730,9 @@ emitter::insFormat emitter::emitMapFmtAtoM(insFormat fmt)
         case IF_ARW_CNS:
             return IF_MRW_CNS;
 
+        case IF_AWR_RRD_CNS:
+            return IF_MWR_RRD_CNS;
+
         case IF_ARW_SHF:
             return IF_MRW_SHF;
 
@@ -3959,6 +4010,12 @@ void emitter::emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNum
 
     UNATIVE_OFFSET sz = emitInsSizeRR(ins, reg1, reg2, attr);
 
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require one additional byte
+        sz += 1;
+    }
+
     /* Special case: "XCHG" uses a different format */
     insFormat fmt = (ins == INS_xchg) ? IF_RRW_RRW : emitInsModeFormat(ins, IF_RRD_RRD);
 
@@ -4003,6 +4060,14 @@ void emitter::emitIns_R_R_I(instruction ins, emitAttr attr, regNumber reg1, regN
     {
         sz += emitGetRexPrefixSize(ins);
     }
+
+#ifndef LEGACY_BACKEND
+    if ((ins == INS_pextrq || ins == INS_pinsrq) && !UseVEXEncoding())
+    {
+        assert(UseSSE4());
+        sz += 1;
+    }
+#endif // !LEGACY_BACKEND
 
     id->idIns(ins);
     id->idInsFmt(IF_RRW_RRW_CNS);
@@ -5005,6 +5070,31 @@ void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNu
     emitAdjustStackDepthPushPop(ins);
 }
 
+#ifndef LEGACY_BACKEND
+void emitter::emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int disp, regNumber ireg, int ival)
+{
+    assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+    assert(base != REG_NA);
+    assert(ireg != REG_NA);
+    instrDesc* id = emitNewInstrAmdCns(attr, disp, ival);
+
+    id->idIns(ins);
+    id->idInsFmt(IF_AWR_RRD_CNS);
+    id->idAddr()->iiaAddrMode.amBaseReg = base;
+    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
+    id->idReg1(ireg);
+
+    assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
+
+    // Plus one for the 1-byte immediate (ival)
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeMR(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+#endif
+
 void emitter::emitIns_AI_R(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp)
 {
     UNATIVE_OFFSET sz;
@@ -5460,9 +5550,84 @@ void emitter::emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, 
     {
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2
+            assert(reg2 != reg);
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R(ins, attr, reg, reg2);
+    }
+}
+
+static bool isSseShift(instruction ins)
+{
+    switch (ins)
+    {
+        case INS_psrldq:
+        case INS_pslldq:
+        case INS_psrld:
+        case INS_psrlw:
+        case INS_psrlq:
+        case INS_pslld:
+        case INS_psllw:
+        case INS_psllq:
+        case INS_psrad:
+        case INS_psraw:
+            return true;
+        default:
+            return false;
+    }
+}
+
+//------------------------------------------------------------------------
+// IsDstSrcImmAvxInstruction: check if instruction has "R(M) R(M) I" format
+// for EVEX, VEX and legacy SSE encodings and has no (E)VEX.NDS
+//
+// Arguments:
+//    instruction -- processor instruction to check
+//
+// Return Value:
+//    true if instruction has "R(M) R(M) I" format and has no (E)VEX.NDS
+//
+static bool IsDstSrcImmAvxInstruction(instruction ins)
+{
+    switch (ins)
+    {
+        case INS_extractps:
+        case INS_pextrb:
+        case INS_pextrw:
+        case INS_pextrd:
+        case INS_pextrq:
+        case INS_pshufd:
+        case INS_pshufhw:
+        case INS_pshuflw:
+            return true;
+        default:
+            return false;
+    }
+}
+
+void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int ival)
+{
+    // TODO-XARCH refactoring emitIns_R_R_I to handle SSE2/AVX2 shift as well as emitIns_R_I
+    bool isShift = isSseShift(ins);
+    if (IsDstSrcImmAvxInstruction(ins) || (UseVEXEncoding() && !isShift))
+    {
+        emitIns_R_R_I(ins, attr, reg, reg1, ival);
+    }
+    else
+    {
+        if (reg1 != reg)
+        {
+            emitIns_R_R(INS_movaps, attr, reg, reg1);
+        }
+        // TODO-XARCH-BUG emitOutputRI cannot work with SSE2 shift instruction on imm8 > 127, so we replace it by the
+        // semantic alternatives. https://github.com/dotnet/coreclr/issues/16543
+        if (isShift && ival > 127)
+        {
+            ival = 127;
+        }
+        emitIns_R_I(ins, attr, reg, ival);
     }
 }
 
@@ -5495,10 +5660,18 @@ void emitter::emitIns_SIMD_R_R_R_R(
         // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
         if (reg3 != REG_XMM0)
         {
+            // Ensure we aren't overwriting op1 or op2
+            assert(reg1 != REG_XMM0);
+            assert(reg2 != REG_XMM0);
+
             emitIns_R_R(INS_movaps, attr, REG_XMM0, reg3);
         }
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2 or op3
+            assert(reg2 != reg);
+            assert((reg3 == REG_XMM0) || (reg != REG_XMM0));
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R(ins, attr, reg, reg2);
@@ -5583,6 +5756,9 @@ void emitter::emitIns_SIMD_R_R_R_I(
     {
         if (reg1 != reg)
         {
+            // Ensure we aren't overwriting op2
+            assert(reg2 != reg);
+
             emitIns_R_R(INS_movaps, attr, reg, reg1);
         }
         emitIns_R_R_I(ins, attr, reg, reg2, ival);
@@ -7642,6 +7818,32 @@ void emitter::emitDispIns(
             break;
         }
 
+        case IF_AWR_RRD_CNS:
+        {
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            // vextracti/f128 extracts 128-bit data, so we fix sstr as "xmm ptr"
+            sstr = codeGen->genSizeStr(EA_ATTR(16));
+            printf(sstr);
+            emitDispAddrMode(id);
+            printf(", %s", emitRegName(id->idReg1(), attr));
+
+            emitGetInsAmdCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+
+            break;
+        }
+
         case IF_RWR_RRD_ARD:
             printf("%s, %s, %s", emitRegName(id->idReg1(), attr), emitRegName(id->idReg2(), attr), sstr);
             emitDispAddrMode(id);
@@ -8015,6 +8217,32 @@ void emitter::emitDispIns(
             {
                 goto PRINT_CONSTANT;
             }
+            break;
+        }
+
+        case IF_MWR_RRD_CNS:
+        {
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            // vextracti/f128 extracts 128-bit data, so we fix sstr as "xmm ptr"
+            sstr = codeGen->genSizeStr(EA_ATTR(16));
+            printf(sstr);
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+            printf(", %s", emitRegName(id->idReg1(), attr));
+            emitGetInsDcmCns(id, &cnsVal);
+
+            val = cnsVal.cnsVal;
+            printf(", ");
+
+            if (cnsVal.cnsReloc)
+            {
+                emitDispReloc(val);
+            }
+            else
+            {
+                goto PRINT_CONSTANT;
+            }
+
             break;
         }
 
@@ -10733,6 +10961,7 @@ BYTE* emitter::emitOutputRI(BYTE* dst, instrDesc* id)
                 regOpcode = (regNumber)6;
                 break;
             case INS_psrad:
+            case INS_psraw:
                 regOpcode = (regNumber)4;
                 break;
             default:
@@ -12069,6 +12298,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             sz = emitSizeOfInsDsc(id);
             break;
 
+        case IF_AWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsAmdCns(id, &cnsVal);
+            code = insCodeMR(ins);
+            dst  = emitOutputAM(dst, id, code, &cnsVal);
+            sz   = emitSizeOfInsDsc(id);
+            break;
+
         case IF_RRD_ARD:
         case IF_RWR_ARD:
         case IF_RRW_ARD:
@@ -12254,6 +12492,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             assert(IsAVXInstruction(ins));
 
             code = insCodeRM(ins);
+            code = AddVexPrefixIfNeeded(ins, code, size);
+            code = insEncodeReg3456(ins, id->idReg2(), size,
+                                    code); // encode source operand reg in 'vvvv' bits in 1's complement form
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
@@ -12263,11 +12504,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                code = AddVexPrefixIfNeeded(ins, code, size);
-
-                // encode source operand reg in 'vvvv' bits in 1's complement form
-                code = insEncodeReg3456(ins, id->idReg2(), size, code);
-
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputSV(dst, id, code | regcode);
             }
@@ -12278,9 +12514,12 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));
-
             emitGetInsCns(id, &cnsVal);
+
             code = insCodeRM(ins);
+            code = AddVexPrefixIfNeeded(ins, code, size);
+            code = insEncodeReg3456(ins, id->idReg2(), size,
+                                    code); // encode source operand reg in 'vvvv' bits in 1's complement form
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
@@ -12290,11 +12529,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                code = AddVexPrefixIfNeeded(ins, code, size);
-
-                // encode source operand reg in 'vvvv' bits in 1's complement form
-                code = insEncodeReg3456(ins, id->idReg2(), size, code);
-
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputSV(dst, id, code | regcode, &cnsVal);
             }
@@ -12385,6 +12619,17 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             sz = emitSizeOfInsDsc(id);
             break;
 
+        case IF_MWR_RRD_CNS:
+            assert(ins == INS_vextracti128 || ins == INS_vextractf128);
+            assert(UseVEXEncoding());
+            emitGetInsDcmCns(id, &cnsVal);
+            code = insCodeMR(ins);
+            // only AVX2 vextracti128 and AVX vextractf128 can reach this path,
+            // they do not need VEX.vvvv to encode the register operand
+            dst = emitOutputCV(dst, id, code, &cnsVal);
+            sz  = emitSizeOfInsDsc(id);
+            break;
+
         case IF_RRD_MRD:
         case IF_RWR_MRD:
         case IF_RRW_MRD:
@@ -12416,6 +12661,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             assert(IsAVXInstruction(ins));
 
             code = insCodeRM(ins);
+            code = AddVexPrefixIfNeeded(ins, code, size);
+            code = insEncodeReg3456(ins, id->idReg2(), size,
+                                    code); // encode source operand reg in 'vvvv' bits in 1's complement form
 
             // Special case 4-byte AVX instructions
             if (Is4ByteSSE4OrAVXInstruction(ins))
@@ -12424,11 +12672,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                code = AddVexPrefixIfNeeded(ins, code, size);
-
-                // encode source operand reg in 'vvvv' bits in 1's complement form
-                code = insEncodeReg3456(ins, id->idReg2(), size, code);
-
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputCV(dst, id, code | regcode | 0x0500);
             }
@@ -12440,9 +12683,12 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));
-
             emitGetInsCns(id, &cnsVal);
+
             code = insCodeRM(ins);
+            code = AddVexPrefixIfNeeded(ins, code, size);
+            code = insEncodeReg3456(ins, id->idReg2(), size,
+                                    code); // encode source operand reg in 'vvvv' bits in 1's complement form
 
             // Special case 4-byte AVX instructions
             if (Is4ByteSSE4OrAVXInstruction(ins))
@@ -12451,11 +12697,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                code = AddVexPrefixIfNeeded(ins, code, size);
-
-                // encode source operand reg in 'vvvv' bits in 1's complement form
-                code = insEncodeReg3456(ins, id->idReg2(), size, code);
-
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputCV(dst, id, code | regcode | 0x0500, &cnsVal);
             }

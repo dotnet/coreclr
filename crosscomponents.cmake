@@ -1,20 +1,19 @@
 add_definitions(-DCROSS_COMPILE)
 
+if(CLR_CMAKE_PLATFORM_ARCH_AMD64 AND CLR_CMAKE_TARGET_ARCH_ARM)
+    set(FEATURE_CROSSBITNESS 1)
+endif(CLR_CMAKE_PLATFORM_ARCH_AMD64 AND CLR_CMAKE_TARGET_ARCH_ARM)
+
 set (CLR_CROSS_COMPONENTS_LIST
     crossgen   
     clrjit
     legacyjit
 )
 
-if(NOT CLR_CMAKE_PLATFORM_LINUX)
+if(NOT CLR_CMAKE_PLATFORM_LINUX AND NOT FEATURE_CROSSBITNESS)
     list (APPEND CLR_CROSS_COMPONENTS_LIST
-        mcs
         mscordaccore
         mscordbi
         sos
-        superpmi
-        superpmi-shim-collector
-        superpmi-shim-counter
-        superpmi-shim-simple
     )
 endif()

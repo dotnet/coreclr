@@ -27,11 +27,11 @@ enum NamedIntrinsic : unsigned int
 #define HARDWARE_INTRINSIC(id, isa, name, form, ins0, ins1, ins2, flags) id,
 #include "hwintrinsiclistArm64.h"
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
-    NI_HW_INTRINSIC_END
-#endif
+    NI_HW_INTRINSIC_END,
+#endif // FEATURE_HW_INTRINSICS
 };
 
-#if FEATURE_HW_INTRINSICS && defined(_TARGET_XARCH_)
+#if defined(FEATURE_HW_INTRINSICS) && defined(_TARGET_XARCH_)
 enum HWIntrinsicFlag : unsigned int
 {
     HW_Flag_NoFlag = 0,
@@ -75,17 +75,42 @@ enum HWIntrinsicFlag : unsigned int
     // some SIMD scalar intrinsics need the semantics of copying upper bits from the source operand
     HW_Flag_CopyUpperBits = 0x200,
 
-    // Select base type using argument type
-    HW_Flag_BaseTypeFromArg = 0x400,
+    // Select base type using the first argument type
+    HW_Flag_BaseTypeFromFirstArg = 0x400,
 
     // Indicates compFloatingPointUsed does not need to be set.
-    HW_Flag_NoFloatingPointUsed = 0x800
-};
+    HW_Flag_NoFloatingPointUsed = 0x800,
 
-inline HWIntrinsicFlag operator|(HWIntrinsicFlag c1, HWIntrinsicFlag c2)
-{
-    return static_cast<HWIntrinsicFlag>(static_cast<unsigned>(c1) | static_cast<unsigned>(c2));
-}
+    // Maybe IMM
+    // the intrinsic has either imm or Vector overloads
+    HW_Flag_MaybeIMM = 0x1000,
+
+    // NoJmpTable IMM
+    // the imm intrinsic does not need jumptable fallback when it gets non-const argument
+    HW_Flag_NoJmpTableIMM = 0x2000,
+
+    // 64-bit intrinsics
+    // Intrinsics that operate over 64-bit general purpose registers are not supported on 32-bit platform
+    HW_Flag_64BitOnly           = 0x4000,
+    HW_Flag_SecondArgMaybe64Bit = 0x8000,
+
+    // Select base type using the second argument type
+    HW_Flag_BaseTypeFromSecondArg = 0x10000,
+
+    // Special codegen
+    // the intrinsics need special rules in CodeGen,
+    // but may be table-driven in the front-end
+    HW_Flag_SpecialCodeGen = 0x20000,
+
+    // No Read/Modify/Write Semantics
+    // the intrinsic doesn't have read/modify/write semantics in two/three-operand form.
+    HW_Flag_NoRMWSemantics = 0x40000,
+
+    // Special import
+    // the intrinsics need special rules in importer,
+    // but may be table-driven in the back-end
+    HW_Flag_SpecialImport = 0x80000,
+};
 
 enum HWIntrinsicCategory : unsigned int
 {

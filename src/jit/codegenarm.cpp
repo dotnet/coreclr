@@ -239,106 +239,6 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     genProduceReg(treeNode);
 }
 
-//------------------------------------------------------------------------
-// genReturn: Generates code for return statement.
-//            In case of struct return, delegates to the genStructReturn method.
-//
-// Arguments:
-//    treeNode - The GT_RETURN or GT_RETFILT tree node.
-//
-// Return Value:
-//    None
-//
-void CodeGen::genReturn(GenTree* treeNode)
-{
-    assert(treeNode->OperGet() == GT_RETURN || treeNode->OperGet() == GT_RETFILT);
-    GenTree*  op1        = treeNode->gtGetOp1();
-    var_types targetType = treeNode->TypeGet();
-
-    // A void GT_RETFILT is the end of a finally. For non-void filter returns we need to load the result in the return
-    // register, if it's not already there. The processing is the same as GT_RETURN. For filters, the IL spec says the
-    // result is type int32. Further, the only legal values are 0 or 1; the use of other values is "undefined".
-    assert(!treeNode->OperIs(GT_RETFILT) || (targetType == TYP_VOID) || (targetType == TYP_INT));
-
-#ifdef DEBUG
-    if (targetType == TYP_VOID)
-    {
-        assert(op1 == nullptr);
-    }
-#endif
-
-    if (treeNode->TypeGet() == TYP_LONG)
-    {
-        assert(op1 != nullptr);
-        noway_assert(op1->OperGet() == GT_LONG);
-        GenTree* loRetVal = op1->gtGetOp1();
-        GenTree* hiRetVal = op1->gtGetOp2();
-        noway_assert((loRetVal->gtRegNum != REG_NA) && (hiRetVal->gtRegNum != REG_NA));
-
-        genConsumeReg(loRetVal);
-        genConsumeReg(hiRetVal);
-        if (loRetVal->gtRegNum != REG_LNGRET_LO)
-        {
-            inst_RV_RV(ins_Copy(targetType), REG_LNGRET_LO, loRetVal->gtRegNum, TYP_INT);
-        }
-        if (hiRetVal->gtRegNum != REG_LNGRET_HI)
-        {
-            inst_RV_RV(ins_Copy(targetType), REG_LNGRET_HI, hiRetVal->gtRegNum, TYP_INT);
-        }
-    }
-    else
-    {
-        if (isStructReturn(treeNode))
-        {
-            genStructReturn(treeNode);
-        }
-        else if (targetType != TYP_VOID)
-        {
-            assert(op1 != nullptr);
-            noway_assert(op1->gtRegNum != REG_NA);
-
-            // !! NOTE !! genConsumeReg will clear op1 as GC ref after it has
-            // consumed a reg for the operand. This is because the variable
-            // is dead after return. But we are issuing more instructions
-            // like "profiler leave callback" after this consumption. So
-            // if you are issuing more instructions after this point,
-            // remember to keep the variable live up until the new method
-            // exit point where it is actually dead.
-            genConsumeReg(op1);
-
-            regNumber retReg = varTypeIsFloating(treeNode) ? REG_FLOATRET : REG_INTRET;
-            if (varTypeIsFloating(treeNode) && (compiler->opts.compUseSoftFP || compiler->info.compIsVarArgs))
-            {
-                if (targetType == TYP_FLOAT)
-                {
-                    getEmitter()->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, REG_INTRET, op1->gtRegNum);
-                }
-                else
-                {
-                    assert(targetType == TYP_DOUBLE);
-                    getEmitter()->emitIns_R_R_R(INS_vmov_d2i, EA_8BYTE, REG_INTRET, REG_NEXT(REG_INTRET),
-                                                op1->gtRegNum);
-                }
-            }
-            else if (op1->gtRegNum != retReg)
-            {
-                inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->gtRegNum, targetType);
-            }
-        }
-    }
-}
-
-//------------------------------------------------------------------------
-// genLockedInstructions: Generate code for the locked operations.
-//
-// Notes:
-//    Handles GT_LOCKADD, GT_XCHG, GT_XADD nodes.
-//
-void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
-{
-    NYI("genLockedInstructions");
-}
-
 //--------------------------------------------------------------------------------------
 // genLclHeap: Generate code for localloc
 //
@@ -716,9 +616,11 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
         case GT_MUL:
             ins = INS_MUL;
             break;
+#if !defined(USE_HELPERS_FOR_INT_DIV)
         case GT_DIV:
             ins = INS_sdiv;
             break;
+#endif // !USE_HELPERS_FOR_INT_DIV
         case GT_LSH:
             ins = INS_SHIFT_LEFT_LOGICAL;
             break;
@@ -1075,17 +977,10 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     GenTree*    data = tree->gtOp1;
     instruction ins  = ins_Store(targetType);
     emitAttr    attr = emitTypeSize(targetType);
-    if (data->isContainedIntOrIImmed())
-    {
-        assert(data->IsIntegralConst(0));
-        NYI_ARM("st.lclFld contained operand");
-    }
-    else
-    {
-        assert(!data->isContained());
-        genConsumeReg(data);
-        emit->emitIns_S_R(ins, attr, data->gtRegNum, varNum, offset);
-    }
+
+    assert(!data->isContained());
+    genConsumeReg(data);
+    emit->emitIns_S_R(ins, attr, data->gtRegNum, varNum, offset);
 
     genUpdateLife(tree);
     varDsc->lvRegNum = REG_STK;
@@ -1126,17 +1021,8 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
     {
         genConsumeRegs(data);
 
-        regNumber dataReg = REG_NA;
-        if (data->isContainedIntOrIImmed())
-        {
-            assert(data->IsIntegralConst(0));
-            NYI_ARM("st.lclVar contained operand");
-        }
-        else
-        {
-            assert(!data->isContained());
-            dataReg = data->gtRegNum;
-        }
+        assert(!data->isContained());
+        regNumber dataReg = data->gtRegNum;
         assert(dataReg != REG_NA);
 
         if (targetReg == REG_NA) // store into stack based LclVar
@@ -1178,6 +1064,10 @@ void CodeGen::genCodeForDivMod(GenTreeOp* tree)
     // helper call by front-end. Similarly we shouldn't be seeing GT_UDIV and GT_UMOD
     // on float/double args.
     noway_assert(tree->OperIs(GT_DIV) || !varTypeIsFloating(tree));
+
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    noway_assert(!varTypeIsIntOrI(tree));
+#endif // USE_HELPERS_FOR_INT_DIV
 
     var_types targetType = tree->TypeGet();
     regNumber targetReg  = tree->gtRegNum;
@@ -1365,9 +1255,6 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         // registers are taken care of.
         genConsumeOperands(tree);
 
-#if NOGC_WRITE_BARRIERS
-        NYI_ARM("NOGC_WRITE_BARRIERS");
-#else
         // At this point, we should not have any interference.
         // That is, 'data' must not be in REG_ARG_0,
         //  as that is where 'addr' must go.
@@ -1384,7 +1271,6 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         {
             inst_RV_RV(INS_mov, REG_ARG_1, data->gtRegNum, data->TypeGet());
         }
-#endif // NOGC_WRITE_BARRIERS
 
         genGCWriteBarrier(tree, writeBarrierForm);
     }
@@ -1777,9 +1663,7 @@ void CodeGen::genStoreLongLclVar(GenTree* treeNode)
         GenTree* loVal = op1->gtGetOp1();
         GenTree* hiVal = op1->gtGetOp2();
 
-        // NYI: Contained immediates.
-        NYI_IF((loVal->gtRegNum == REG_NA) || (hiVal->gtRegNum == REG_NA),
-               "Store of long lclVar with contained immediate");
+        noway_assert((loVal->gtRegNum != REG_NA) && (hiVal->gtRegNum != REG_NA));
 
         emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, loVal->gtRegNum, lclNum, 0);
         emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, hiVal->gtRegNum, lclNum, genTypeSize(TYP_INT));

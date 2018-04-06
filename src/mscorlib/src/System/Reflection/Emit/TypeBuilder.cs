@@ -677,11 +677,11 @@ namespace System.Reflection.Emit
 
         #region FCalls
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private extern static int DefineType(RuntimeModule module,
+        private static extern int DefineType(RuntimeModule module,
             String fullname, int tkParent, TypeAttributes attributes, int tkEnclosingType, int[] interfaceTokens);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private extern static int DefineGenericParam(RuntimeModule module,
+        private static extern int DefineGenericParam(RuntimeModule module,
             String name, int tkParent, GenericParameterAttributes attributes, int position, int[] constraints);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -1971,7 +1971,7 @@ namespace System.Reflection.Emit
                     //((m_iAttr & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface))
 
                     if (body != null)
-                        throw new InvalidOperationException(SR.InvalidOperation_BadMethodBody);
+                        throw new InvalidOperationException(SR.Format(SR.InvalidOperation_BadMethodBody, meth.Name));
                 }
                 else if (body == null || body.Length == 0)
                 {

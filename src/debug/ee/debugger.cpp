@@ -1885,29 +1885,6 @@ CLR_ENGINE_METRICS g_CLREngineMetrics = {
     CorDebugVersion_4_0, 
     &g_hContinueStartupEvent};
 
-
-bool IsTelestoDebugPackInstalled()
-{
-    RegKeyHolder hKey;
-    if (ERROR_SUCCESS != WszRegOpenKeyEx(HKEY_LOCAL_MACHINE, FRAMEWORK_REGISTRY_KEY_W, 0, KEY_READ, &hKey))
-        return false;
-
-    bool debugPackInstalled = false;
-
-    DWORD cbValue = 0;
-
-    if (ERROR_SUCCESS == WszRegQueryValueEx(hKey, CLRConfig::EXTERNAL_DbgPackShimPath, NULL, NULL, NULL, &cbValue))
-    {
-        if (cbValue != 0)
-        {
-            debugPackInstalled = true;
-        }
-    }
-
-    // RegCloseKey called by holder
-    return debugPackInstalled;
-}
-
 #define StartupNotifyEventNamePrefix W("TelestoStartupEvent_")
 const int cchEventNameBufferSize = sizeof(StartupNotifyEventNamePrefix)/sizeof(WCHAR) + 8; // + hex DWORD (8).  NULL terminator is included in sizeof(StartupNotifyEventNamePrefix)
 HANDLE OpenStartupNotificationEvent()
@@ -1919,7 +1896,7 @@ HANDLE OpenStartupNotificationEvent()
     return WszOpenEvent(MAXIMUM_ALLOWED | SYNCHRONIZE | EVENT_MODIFY_STATE, FALSE, szEventName);
 }
 
-void NotifyDebuggerOfTelestoStartup()
+void NotifyDebuggerOfStartup()
 {
     // Create the continue event first so that we guarantee that any
     // enumeration of this process will get back a valid continue event
@@ -1980,26 +1957,9 @@ HRESULT Debugger::Startup(void)
     _ASSERTE(g_pEEInterface != NULL);
 
 #if !defined(FEATURE_PAL)
-    if (IsWatsonEnabled() || IsTelestoDebugPackInstalled())
-    {
-        // Iff the debug pack is installed, then go through the telesto debugging pipeline.
-        LOG((LF_CORDB, LL_INFO10, "Debugging service is enabled because debug pack is installed or Watson support is enabled)\n"));
-
-        // This may block while an attach occurs.
-        NotifyDebuggerOfTelestoStartup();
-    }
-    else
-    {
-        // On Windows, it's actually safe to finish the initialization here even without the debug pack.
-        // However, doing so causes a perf regression because we used to bail out early if the debug
-        // pack is not installed.
-        //
-        // Unlike Windows, we can't continue executing this function if the debug pack is not installed.
-        // The transport requires the debug pack to be present.  Otherwise it'll raise a fatal error.
-        return S_FALSE;
-    }
+    // This may block while an attach occurs.
+    NotifyDebuggerOfStartup();
 #endif // !FEATURE_PAL
-
     {
         DebuggerLockHolder dbgLockHolder(this);
 
@@ -2010,7 +1970,6 @@ HRESULT Debugger::Startup(void)
         // threads running and throwing debug events. Keep these stress procs separate so that
         // we can focus on certain problem areas.
     #ifdef _DEBUG
-
         g_DbgShouldntUseDebugger = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgNoDebugger) != 0;
 
 
@@ -2078,6 +2037,29 @@ HRESULT Debugger::Startup(void)
 
         InitializeHijackFunctionAddress();
 
+        // Also initialize the AppDomainEnumerationIPCBlock
+    #if !defined(FEATURE_IPCMAN) || defined(FEATURE_DBGIPC_TRANSPORT_VM)
+        m_pAppDomainCB = new (nothrow) AppDomainEnumerationIPCBlock();
+    #else
+        m_pAppDomainCB = g_pIPCManagerInterface->GetAppDomainBlock();
+    #endif 
+
+        if (m_pAppDomainCB == NULL)
+        {
+            LOG((LF_CORDB, LL_INFO100, "D::S: Failed to get AppDomain IPC block from IPCManager.\n"));
+            ThrowHR(E_FAIL);
+        }
+
+        hr = InitAppDomainIPC();
+        _ASSERTE(SUCCEEDED(hr)); // throws on error.
+
+        // Allows the debugger (and profiler) diagnostics to be disabled so resources like 
+        // the named pipes and semaphores are not created.
+        if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableDiagnostics) == 0)
+        {
+            return S_OK;
+        }
+
         // Create the runtime controller thread, a.k.a, the debug helper thread.
         // Don't use the interop-safe heap b/c we don't want to lazily create it.
         m_pRCThread = new DebuggerRCThread(this);
@@ -2102,22 +2084,6 @@ HRESULT Debugger::Startup(void)
     #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
         RaiseStartupNotification();
-
-        // Also initialize the AppDomainEnumerationIPCBlock
-    #if !defined(FEATURE_IPCMAN) || defined(FEATURE_DBGIPC_TRANSPORT_VM)
-        m_pAppDomainCB = new (nothrow) AppDomainEnumerationIPCBlock();
-    #else
-        m_pAppDomainCB = g_pIPCManagerInterface->GetAppDomainBlock();
-    #endif 
-
-        if (m_pAppDomainCB == NULL)
-        {
-            LOG((LF_CORDB, LL_INFO100, "D::S: Failed to get AppDomain IPC block from IPCManager.\n"));
-            ThrowHR(E_FAIL);
-        }
-
-        hr = InitAppDomainIPC();
-        _ASSERTE(SUCCEEDED(hr)); // throws on error.
 
         // See if we need to spin up the helper thread now, rather than later.
         DebuggerIPCControlBlock* pIPCControlBlock = m_pRCThread->GetDCB();
@@ -7234,7 +7200,8 @@ void Debugger::JitAttach(Thread * pThread, EXCEPTION_POINTERS * pExceptionInfo, 
     }
     CONTRACTL_END;
 
-    if (IsDebuggerPresent())
+    // Don't do anything if there is a native debugger already attached or the debugging support has been disabled.
+    if (IsDebuggerPresent() || m_pRCThread == NULL)
         return;
 
     GCX_PREEMP_EEINTERFACE_TOGGLE_IFTHREAD();
@@ -13558,8 +13525,7 @@ void Debugger::UnhandledHijackWorker(CONTEXT * pContext, EXCEPTION_RECORD * pRec
     // On Win7 WatsonLastChance returns CONTINUE_SEARCH for unhandled exceptions execpt stack overflow, and
     // lets OS launch debuggers for us.  Before the unhandled exception reaches the OS, CLR UEF has already 
     // processed this unhandled exception.  Thus, we should not call into CLR UEF again if it is the case.
-    if (RunningOnWin7() &&
-        pThread && 
+    if (pThread && 
         (pThread->HasThreadStateNC(Thread::TSNC_ProcessedUnhandledException) || 
          pThread->HasThreadStateNC(Thread::TSNC_AppDomainContainUnhandled) ||
          fSOException))
@@ -13754,73 +13720,52 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
     SPEW(fprintf(stderr, "0x%x D::FCHF: code=0x%08x, addr=0x%08x, Eip=0x%08x, Esp=0x%08x, EFlags=0x%08x\n",
         tid, pExceptionRecord->ExceptionCode, pExceptionRecord->ExceptionAddress, pContext->Eip, pContext->Esp,
         pContext->EFlags));
-
 #endif
 
-
     // This memory is used as IPC during the hijack. We will place a pointer to this in
-    // either the EEThreadPtr or the EEDebuggerWord and then the RS can write info into
-    // the memory
+    // the EE debugger word (a TLS slot that works even on the debugger break-in thread) 
+    // and then the RS can write info into the memory.
     DebuggerIPCFirstChanceData fcd;
-    // accessing through the volatile pointer to fend off some potential compiler optimizations.
+
+    // Accessing through the volatile pointer to fend off some potential compiler optimizations.
     // If the debugger changes that data from OOP we need to see those updates
     volatile DebuggerIPCFirstChanceData* pFcd = &fcd;
 
-
+    // The Windows native break in thread does not have TLS storage allocated.
+    bool debuggerBreakInThread = (NtCurrentTeb()->ThreadLocalStoragePointer == NULL);
     {
         // Hijack filters are always in the can't stop range.
         // The RS knows this b/c it knows which threads it hijacked.
         // Bump up the CS counter so that any further calls in the LS can see this too.
         // (This makes places where we assert that we're in a CS region happy).
-        CantStopHolder hCantStop;
+        CantStopHolder hCantStop(!debuggerBreakInThread);
 
         // Get the current runtime thread. This is only an optimized TLS access.
-        Thread *pEEThread = g_pEEInterface->GetThread();
+        Thread *pEEThread = debuggerBreakInThread ? NULL : g_pEEInterface->GetThread();
 
-        // Is that really a ptr to a Thread? If the low bit is set or it its NULL then we don't have an EE Thread. If we
-        // have a EE Thread, then we know the original handler now. If not, we have to wait for the Right Side to fixup our
-        // handler chain once we've notified it that the exception does not belong to the runtime. Note: if we don't have an
-        // EE thread, then the exception never belongs to the Runtime.
-        bool hasEEThread = false;
-        if ((pEEThread != NULL) && !(((UINT_PTR)pEEThread) & 0x01))
-        {
-            SPEW(fprintf(stderr, "0x%x D::FCHF: Has EE thread.\n", tid));
-            hasEEThread = true;
-        }
-        
         // Hook up the memory so RS can get to it
         fcd.pLeftSideContext.Set((DT_CONTEXT*)pContext);
         fcd.action = HIJACK_ACTION_EXIT_UNHANDLED;
         fcd.debugCounter = 0;
-        if(hasEEThread)
-        {
-            SPEW(fprintf(stderr, "0x%x D::FCHF: Set Debugger word to 0x%p.\n", tid, pFcd));
-            g_pEEInterface->SetThreadDebuggerWord(pEEThread, (VOID*) pFcd);
-        }
-        else
-        {
-            // this shouldn't be re-entrant
-            _ASSERTE(pEEThread == NULL);
 
-            SPEW(fprintf(stderr, "0x%x D::FCHF: EEThreadPtr word to 0x%p.\n", tid, (BYTE*)pFcd + 1));
-            g_pEEInterface->SetEEThreadPtr((void*) ((BYTE*)pFcd + 1));
-        }
+        SPEW(fprintf(stderr, "0x%x D::FCHF: Set debugger word to 0x%p.\n", tid, pFcd));
+        g_pEEInterface->SetThreadDebuggerWord((VOID*)pFcd);
 
         // Signal the RS to tell us what to do
         SPEW(fprintf(stderr, "0x%x D::FCHF: Signaling hijack started.\n", tid));
         SignalHijackStarted();
         SPEW(fprintf(stderr, "0x%x D::FCHF: Signaling hijack started complete. DebugCounter=0x%x\n", tid, pFcd->debugCounter));
         
-        if(pFcd->action == HIJACK_ACTION_WAIT)
+        if (pFcd->action == HIJACK_ACTION_WAIT)
         {
             // This exception does NOT belong to the CLR.
             // If we belong to the CLR, then we either:
             // - were a  M2U transition, in which case we should be in a different Hijack
             // - were a CLR exception in CLR code, in which case we should have continued and let the inproc handlers get it.
-            SPEW(fprintf(stderr, "0x%x D::FCHF: exception does not belong to the Runtime, hasEEThread=%d, pContext=0x%p\n",
-                         tid, hasEEThread, pContext));
+            SPEW(fprintf(stderr, "0x%x D::FCHF: exception does not belong to the Runtime, pEEThread=0x%p, pContext=0x%p\n",
+                         tid, pEEThread, pContext));
 
-            if(hasEEThread)
+            if (pEEThread != NULL)
             {
                 _ASSERTE(!pEEThread->GetInteropDebuggingHijacked()); // hijack is not re-entrant.
                 pEEThread->SetInteropDebuggingHijacked(TRUE);
@@ -13837,17 +13782,15 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
             // Wait for the continue. We may / may not have an EE Thread for this, (and we're definitely
             // not doing fiber-mode debugging), so just use a raw win32 API, and not some fancy fiber-safe call.
             SPEW(fprintf(stderr, "0x%x D::FCHF: waiting for continue.\n", tid));
-
-            DWORD ret = WaitForSingleObject(g_pDebugger->m_pRCThread->GetDCB()->m_leftSideUnmanagedWaitEvent,
-                                            INFINITE);
-
+            DWORD ret = WaitForSingleObject(g_pDebugger->m_pRCThread->GetDCB()->m_leftSideUnmanagedWaitEvent, INFINITE);
             SPEW(fprintf(stderr, "0x%x D::FCHF: waiting for continue complete.\n", tid));
+
             if (ret != WAIT_OBJECT_0)
             {
                 SPEW(fprintf(stderr, "0x%x D::FCHF: wait failed!\n", tid));
             }
 
-            if(hasEEThread)
+            if (pEEThread != NULL)
             {
                 _ASSERTE(pEEThread->GetInteropDebuggingHijacked());
                 pEEThread->SetInteropDebuggingHijacked(FALSE);
@@ -13868,20 +13811,12 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
         _ASSERTE(pFcd->action != HIJACK_ACTION_WAIT);
 
         // cleanup from above
-        if (hasEEThread)
-        {
-            SPEW(fprintf(stderr, "0x%x D::FCHF: set debugger word = NULL.\n", tid));
-            g_pEEInterface->SetThreadDebuggerWord(pEEThread, (VOID*) NULL);
-        }
-        else
-        {
-            SPEW(fprintf(stderr, "0x%x D::FCHF: set EEThreadPtr = NULL.\n", tid));
-            g_pEEInterface->SetEEThreadPtr(NULL);
-        }
+        SPEW(fprintf(stderr, "0x%x D::FCHF: set debugger word = NULL.\n", tid));
+        g_pEEInterface->SetThreadDebuggerWord(NULL);
 
     } // end can't stop region
 
-    if(pFcd->action == HIJACK_ACTION_EXIT_HANDLED)
+    if (pFcd->action == HIJACK_ACTION_EXIT_HANDLED)
     {
         SPEW(fprintf(stderr, "0x%x D::FCHF: exiting with CONTINUE_EXECUTION\n", tid));
         return EXCEPTION_CONTINUE_EXECUTION;
@@ -13892,7 +13827,7 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
         _ASSERTE(pFcd->action == HIJACK_ACTION_EXIT_UNHANDLED);
         return EXCEPTION_CONTINUE_SEARCH;
     }
-}
+} 
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 void GenericHijackFuncHelper()
@@ -13900,11 +13835,15 @@ void GenericHijackFuncHelper()
 #if DOSPEW
     DWORD tid = GetCurrentThreadId();
 #endif
+
+    // The Windows native break in thread does not have TLS storage allocated.
+    bool debuggerBreakInThread = (NtCurrentTeb()->ThreadLocalStoragePointer == NULL);
+
     // Hijack filters are always in the can't stop range.
     // The RS knows this b/c it knows which threads it hijacked.
     // Bump up the CS counter so that any further calls in the LS can see this too.
     // (This makes places where we assert that we're in a CS region happy).
-    CantStopHolder hCantStop;
+    CantStopHolder hCantStop(!debuggerBreakInThread);
 
     SPEW(fprintf(stderr, "0x%x D::GHF: in generic hijack.\n", tid));
 
@@ -13916,9 +13855,9 @@ void GenericHijackFuncHelper()
     // thread at an unsafe place and enable pgc. This will allow us to sync even with this thread hijacked.
     bool disabled = false;
 
-    Thread *pEEThread = g_pEEInterface->GetThread();
+    Thread *pEEThread = debuggerBreakInThread ? NULL : g_pEEInterface->GetThread();
 
-    if ((pEEThread != NULL) && !(((UINT_PTR)pEEThread) & 0x01))
+    if (pEEThread != NULL)
     {
         disabled = g_pEEInterface->IsPreemptiveGCDisabled();
         _ASSERTE(!disabled);
@@ -13940,22 +13879,20 @@ void GenericHijackFuncHelper()
     // thread's context before clearing the exception, so continuing will give a different result.)
     DWORD continueType = 0;
 
-    pEEThread = g_pEEInterface->GetThread();
+    void* threadDebuggerWord = g_pEEInterface->GetThreadDebuggerWord();
 
-    if (((UINT_PTR)pEEThread) & 0x01)
-    {
-        // There is no EE Thread for this thread, so we null out the TLS word so we don't confuse the Runtime.
-        continueType = 1;
-        g_pEEInterface->SetEEThreadPtr(NULL);
-        pEEThread = NULL;
-    }
-    else if (pEEThread)
+    if (pEEThread != NULL)
     {
         // We've got a Thread ptr, so get the continue type out of the thread's debugger word.
-        continueType = (DWORD) g_pEEInterface->GetThreadDebuggerWord(pEEThread);
+        continueType = (DWORD)threadDebuggerWord;
 
         _ASSERTE(pEEThread->GetInteropDebuggingHijacked());
         pEEThread->SetInteropDebuggingHijacked(FALSE);
+    }
+    else if (threadDebuggerWord != NULL)
+    {
+        continueType = 1;
+        g_pEEInterface->SetThreadDebuggerWord(NULL);
     }
 
     SPEW(fprintf(stderr, "0x%x D::GHF: continued with %d.\n", tid, continueType));
@@ -14194,8 +14131,7 @@ DWORD Debugger::GetHelperThreadID(void )
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_pRCThread->GetDCB()
-        ->m_temporaryHelperThreadId;
+    return m_pRCThread ? m_pRCThread->GetDCB()->m_temporaryHelperThreadId : 0;
 }
 
 

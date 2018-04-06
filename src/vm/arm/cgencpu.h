@@ -12,7 +12,6 @@
 #define __cgencpu_h__
 
 #include "utilcode.h"
-#include "tls.h"
 
 // preferred alignment for data
 #define DATA_ALIGNMENT 4
@@ -31,7 +30,9 @@ struct ArgLocDesc;
 
 extern PCODE GetPreStubEntryPoint();
 
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 // CPU-dependent functions
 Stub * GenerateInitPInvokeFrameHelper();

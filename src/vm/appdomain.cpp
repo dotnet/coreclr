@@ -74,12 +74,6 @@
 
 #include "clrprivtypecachewinrt.h"
 
-
-#pragma warning(push)
-#pragma warning(disable:4324) 
-#include "marvin32.h"
-#pragma warning(pop)
-
 // this file handles string conversion errors for itself
 #undef  MAKE_TRANSLATIONFAILED
 
@@ -8026,7 +8020,7 @@ void AppDomain::Exit(BOOL fRunFinalizers, BOOL fAsyncExit)
     // have exited the domain.
     //
 #ifdef FEATURE_TIERED_COMPILATION
-    m_tieredCompilationManager.Shutdown(FALSE);
+    m_tieredCompilationManager.Shutdown();
 #endif
 
     //

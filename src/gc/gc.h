@@ -136,6 +136,10 @@ extern "C" uint32_t g_max_generation;
 extern "C" MethodTable* g_gc_pFreeObjectMethodTable;
 extern "C" uint32_t g_num_processors;
 
+extern VOLATILE(int32_t) g_fSuspensionPending;
+
+extern uint32_t g_yieldProcessorScalingFactor;
+
 ::IGCHandleManager*  CreateGCHandleManager();
 
 namespace WKS {

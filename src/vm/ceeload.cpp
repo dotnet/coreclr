@@ -39,7 +39,6 @@
 #include <formattype.h>
 #include "fieldmarshaler.h"
 #include "sigbuilder.h"
-#include "tls.h"
 #include "metadataexports.h"
 #include "inlinetracking.h"
 
@@ -86,13 +85,13 @@
 #pragma warning(disable:4244)
 #endif // _MSC_VER
 
-#ifdef _WIN64 
+#ifdef _TARGET_64BIT_
 #define COR_VTABLE_PTRSIZED     COR_VTABLE_64BIT
 #define COR_VTABLE_NOT_PTRSIZED COR_VTABLE_32BIT
-#else // !_WIN64
+#else // !_TARGET_64BIT_
 #define COR_VTABLE_PTRSIZED     COR_VTABLE_32BIT
 #define COR_VTABLE_NOT_PTRSIZED COR_VTABLE_64BIT
-#endif // !_WIN64
+#endif // !_TARGET_64BIT_
 
 #define CEE_FILE_GEN_GROWTH_COLLECTIBLE 2048
 

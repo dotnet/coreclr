@@ -377,7 +377,8 @@ namespace System.Runtime.CompilerServices
             IAsyncStateMachineBox box = GetStateMachineBox(ref stateMachine);
 
             // The null tests here ensure that the jit can optimize away the interface
-            // tests when TAwaiter is is a ref type.
+            // tests when TAwaiter is a ref type.
+
             if ((null != (object)default(TAwaiter)) && (awaiter is ITaskAwaiter))
             {
                 ref TaskAwaiter ta = ref Unsafe.As<TAwaiter, TaskAwaiter>(ref awaiter); // relies on TaskAwaiter/TaskAwaiter<T> having the same layout
@@ -388,19 +389,27 @@ namespace System.Runtime.CompilerServices
                 ref ConfiguredTaskAwaitable.ConfiguredTaskAwaiter ta = ref Unsafe.As<TAwaiter, ConfiguredTaskAwaitable.ConfiguredTaskAwaiter>(ref awaiter);
                 TaskAwaiter.UnsafeOnCompletedInternal(ta.m_task, box, ta.m_continueOnCapturedContext);
             }
-            else if ((null != (object)default(TAwaiter)) && (awaiter is IValueTaskAwaiter))
+            else if ((null != (object)default(TAwaiter)) && (awaiter is IStateMachineBoxAwareAwaiter))
             {
-                Task t = ((IValueTaskAwaiter)awaiter).GetTask();
-                TaskAwaiter.UnsafeOnCompletedInternal(t, box, continueOnCapturedContext: true);
+                try
+                {
+                    ((IStateMachineBoxAwareAwaiter)awaiter).AwaitUnsafeOnCompleted(box);
+                }
+                catch (Exception e)
+                {
+                    // Whereas with Task the code that hooks up and invokes the continuation is all local to corelib,
+                    // with ValueTaskAwaiter we may be calling out to an arbitrary implementation of IValueTaskSource
+                    // wrapped in the ValueTask, and as such we protect against errant exceptions that may emerge.
+                    // We don't want such exceptions propagating back into the async method, which can't handle
+                    // exceptions well at that location in the state machine, especially if the exception may occur
+                    // after the ValueTaskAwaiter already successfully hooked up the callback, in which case it's possible
+                    // two different flows of execution could end up happening in the same async method call.
+                    AsyncMethodBuilderCore.ThrowAsync(e, targetContext: null);
+                }
             }
-            else if ((null != (object)default(TAwaiter)) && (awaiter is IConfiguredValueTaskAwaiter))
-            {
-                Task t = ((IConfiguredValueTaskAwaiter)awaiter).GetTask(out bool continueOnCapturedContext);
-                TaskAwaiter.UnsafeOnCompletedInternal(t, box, continueOnCapturedContext);
-            }
-            // The awaiter isn't specially known. Fall back to doing a normal await.
             else
             {
+                // The awaiter isn't specially known. Fall back to doing a normal await.
                 try
                 {
                     awaiter.UnsafeOnCompleted(box.MoveNextAction);
@@ -523,13 +532,17 @@ namespace System.Runtime.CompilerServices
             public ExecutionContext Context;
 
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
-            public Action MoveNextAction =>
-                _moveNextAction ??
-                (_moveNextAction = AsyncCausalityTracer.LoggingOn ? AsyncMethodBuilderCore.OutputAsyncCausalityEvents(this, new Action(MoveNext)) : new Action(MoveNext));
+            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext()
             {
+                bool loggingOn = AsyncCausalityTracer.LoggingOn;
+                if (loggingOn)
+                {
+                    AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, Id, CausalitySynchronousWork.Execution);
+                }
+
                 ExecutionContext context = Context;
                 if (context == null)
                 {
@@ -547,18 +560,12 @@ namespace System.Runtime.CompilerServices
                 {
                     GC.SuppressFinalize(this);
                 }
+
+                if (loggingOn)
+                {
+                    AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
+                }
             }
-
-            /// <summary>
-            /// Calls MoveNext on <see cref="StateMachine"/>. Implements ITaskCompletionAction.Invoke so
-            /// that the state machine object may be queued directly as a continuation into a Task's
-            /// continuation slot/list.
-            /// </summary>
-            /// <param name="completedTask">The completing task that caused this method to be invoked, if there was one.</param>
-            void ITaskCompletionAction.Invoke(Task completedTask) => MoveNext();
-
-            /// <summary>Signals to Task's continuation logic that <see cref="Invoke"/> runs arbitrary user code via MoveNext.</summary>
-            bool ITaskCompletionAction.InvokeMayRunArbitraryCode => true;
 
             /// <summary>Gets the state machine as a boxed object.  This should only be used for debugging purposes.</summary>
             IAsyncStateMachine IAsyncStateMachineBox.GetStateMachineObject() => StateMachine; // likely boxes, only use for debugging
@@ -784,7 +791,6 @@ namespace System.Runtime.CompilerServices
                 // - Boolean
                 // - Byte, SByte
                 // - Char
-                // - Decimal
                 // - Int32, UInt32
                 // - Int64, UInt64
                 // - Int16, UInt16
@@ -819,7 +825,6 @@ namespace System.Runtime.CompilerServices
                     (typeof(TResult) == typeof(Byte) && default(Byte) == (Byte)(object)result) ||
                     (typeof(TResult) == typeof(SByte) && default(SByte) == (SByte)(object)result) ||
                     (typeof(TResult) == typeof(Char) && default(Char) == (Char)(object)result) ||
-                    (typeof(TResult) == typeof(Decimal) && default(Decimal) == (Decimal)(object)result) ||
                     (typeof(TResult) == typeof(Int64) && default(Int64) == (Int64)(object)result) ||
                     (typeof(TResult) == typeof(UInt64) && default(UInt64) == (UInt64)(object)result) ||
                     (typeof(TResult) == typeof(Int16) && default(Int16) == (Int16)(object)result) ||
@@ -879,8 +884,11 @@ namespace System.Runtime.CompilerServices
     /// <summary>
     /// An interface implemented by all <see cref="AsyncStateMachineBox{TStateMachine, TResult}"/> instances, regardless of generics.
     /// </summary>
-    internal interface IAsyncStateMachineBox : ITaskCompletionAction
+    internal interface IAsyncStateMachineBox
     {
+        /// <summary>Move the state machine forward.</summary>
+        void MoveNext();
+
         /// <summary>
         /// Gets an action for moving forward the contained state machine.
         /// This will lazily-allocate the delegate as needed.
@@ -974,14 +982,6 @@ namespace System.Runtime.CompilerServices
             }
             return sb.ToString();
         }
-
-        internal static Action OutputAsyncCausalityEvents(Task task, Action continuation) =>
-            CreateContinuationWrapper(continuation, (innerContinuation, innerTask) =>
-            {
-                AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, innerTask.Id, CausalitySynchronousWork.Execution);
-                innerContinuation.Invoke(); // Invoke the original continuation
-                AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
-            }, task);
 
         internal static Action CreateContinuationWrapper(Action continuation, Action<Action,Task> invokeAction, Task innerTask) =>
             new ContinuationWrapper(continuation, invokeAction, innerTask).Invoke;

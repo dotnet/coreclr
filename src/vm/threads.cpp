@@ -11,7 +11,6 @@
 
 #include "common.h"
 
-#include "tls.h"
 #include "frames.h"
 #include "threads.h"
 #include "stackwalk.h"
@@ -64,8 +63,6 @@ CONTEXT *ThreadStore::s_pOSContext = NULL;
 CLREvent *ThreadStore::s_pWaitForStackCrawlEvent;
 
 #ifndef DACCESS_COMPILE
-
-
 
 BOOL Thread::s_fCleanFinalizedThread = FALSE;
 
@@ -297,10 +294,12 @@ ThreadLocalInfo gCurrentThreadInfo =
                                                   NULL,    // m_EETlsData
                                               };
 } // extern "C"
+
 // index into TLS Array. Definition added by compiler
 EXTERN_C UINT32 _tls_index;
 
 #ifndef DACCESS_COMPILE
+
 BOOL SetThread(Thread* t)
 {
     LIMITED_METHOD_CONTRACT
@@ -732,6 +731,11 @@ Thread* SetupThread(BOOL fInternal)
     fOK = SetAppDomain(pThread->GetDomain());
     _ASSERTE (fOK);
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+    // Ensure that debugger word slot is allocated
+    UnsafeTlsSetValue(g_debuggerWordTLSIndex, 0);
+#endif
+
     // We now have a Thread object visable to the RS. unmark special status.
     hCantStop.Release();
 
@@ -1122,7 +1126,6 @@ void InitThreadManager()
     }
 
 #ifndef FEATURE_PAL
-
     _ASSERTE(GetThread() == NULL);
 
     PTEB Teb = NtCurrentTeb();
@@ -1139,6 +1142,12 @@ void InitThreadManager()
 
     _ASSERTE(g_TrapReturningThreads == 0);
 #endif // !FEATURE_PAL
+
+#ifdef FEATURE_INTEROP_DEBUGGING
+    g_debuggerWordTLSIndex = UnsafeTlsAlloc();
+    if (g_debuggerWordTLSIndex == TLS_OUT_OF_INDEXES)
+        COMPlusThrowWin32();
+#endif
 
     __ClrFlsGetBlock = CExecutionEngine::GetTlsData;
 
@@ -1455,7 +1464,6 @@ Thread::Thread()
 
     m_debuggerFilterContext = NULL;
     m_debuggerCantStop = 0;
-    m_debuggerWord = NULL;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH
@@ -8820,7 +8828,7 @@ static void ManagedThreadBase_DispatchInner(ManagedThreadCallState *pCallState)
         // This also implies that there will be no exception object marshalling (and it may not be required after all) 
         // as well and once the holder reverts the AD context, the LastThrownObject in Thread will be set to NULL.
 #ifndef FEATURE_PAL
-        BOOL fSetupEHAtTransition = !(RunningOnWin7());            
+        BOOL fSetupEHAtTransition = FALSE;
 #else // !FEATURE_PAL
         BOOL fSetupEHAtTransition = TRUE;
 #endif // !FEATURE_PAL

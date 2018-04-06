@@ -416,6 +416,7 @@ void emitIns_R_R_A_I(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, int ival, insFormat fmt);
 void emitIns_R_R_AR_I(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs, int ival);
+void emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int disp, regNumber ireg, int ival);
 #endif // !LEGACY_BACKEND
 
 void emitIns_R_R_C_I(
@@ -496,6 +497,7 @@ void emitIns_SIMD_R_R_C(
     instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs);
 void emitIns_SIMD_R_R_S(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs);
 void emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2);
+void emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int ival);
 void emitIns_SIMD_R_R_R_R(
     instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber reg3);
 #endif // FEATURE_HW_INTRINSICS

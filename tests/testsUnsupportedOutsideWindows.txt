@@ -1,5 +1,6 @@
 baseservices/exceptions/regressions/Dev11/147911/test147911/test147911.sh
 baseservices/exceptions/regressions/V1/SEH/VJ/UnmanagedToManaged/UnmanagedToManaged.sh
+baseservices/exceptions/WindowsEventLog/WindowsEventLog.sh
 baseservices/threading/commitstackonlyasneeded/DefaultStackCommit/DefaultStackCommit.sh
 baseservices/threading/interlocked/compareexchange/compareexchangetneg/compareexchangetneg.sh
 baseservices/threading/monitor/pulse/monitorpulse02/monitorpulse02.sh
@@ -120,9 +121,6 @@ CoreMangLib/cti/system/datetime/DateTimeParseExact2/DateTimeParseExact2.sh
 CoreMangLib/cti/system/datetime/DateTimeParseExact3/DateTimeParseExact3.sh
 CoreMangLib/cti/system/decimal/DecimalToInt32/DecimalToInt32.sh
 CoreMangLib/cti/system/reflection/emit/DynMethodJumpStubTests/DynMethodJumpStubTests/DynMethodJumpStubTests.sh
-CoreMangLib/cti/system/string/StringCompare1/StringCompare1.sh
-CoreMangLib/cti/system/string/StringCompare15/StringCompare15.sh
-CoreMangLib/cti/system/string/StringCompare2/StringCompare2.sh
 CoreMangLib/system/collections/generic/hashset/Regression_Dev10_609271/Regression_Dev10_609271.sh
 CoreMangLib/system/collections/generic/hashset/Regression_Dev10_624201/Regression_Dev10_624201.sh
 Interop/MarshalAPI/GetNativeVariantForObject/GetNativeVariantForObject/GetNativeVariantForObject.sh

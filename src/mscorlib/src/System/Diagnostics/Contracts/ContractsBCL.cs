@@ -147,12 +147,8 @@ namespace System.Diagnostics.Contracts
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-#if CORERT
-    public // On CoreRT this must be public to support binary serialization with type forwarding.
-#else
-    internal
-#endif
-    sealed class ContractException : Exception
+    // Needs to be public to support binary serialization compatibility
+    public sealed class ContractException : Exception
     {
         private readonly ContractFailureKind _kind;
         private readonly string _userMessage;
@@ -359,22 +355,22 @@ namespace System.Runtime.CompilerServices
 
         private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText)
         {
-            String resourceName = GetResourceNameForFailure(failureKind);
+            String failureMessage;
             // Well-formatted English messages will take one of four forms.  A sentence ending in
             // either a period or a colon, the condition string, then the message tacked 
             // on to the end with two spaces in front.
             // Note that both the conditionText and userMessage may be null.  Also, 
             // on Silverlight we may not be able to look up a friendly string for the
-            // error message.  Let's leverage Silverlight's default error message there.
-            String failureMessage;
+            // error message.  Let's leverage Silverlight's default error message there. 
             if (!String.IsNullOrEmpty(conditionText))
             {
+                String resourceName = GetResourceNameForFailure(failureKind); 
                 resourceName += "_Cnd";
                 failureMessage = SR.Format(SR.GetResourceString(resourceName), conditionText);
             }
             else
             {
-                failureMessage = SR.GetResourceString(resourceName);
+                failureMessage = "";
             }
 
             // Now add in the user message, if present.

@@ -38,82 +38,6 @@ namespace System
         public static extern void BlockCopy(Array src, int srcOffset,
             Array dst, int dstOffset, int count);
 
-        // This is ported from the optimized CRT assembly in memchr.asm. The JIT generates 
-        // pretty good code here and this ends up being within a couple % of the CRT asm.
-        // It is however cross platform as the CRT hasn't ported their fast version to 64-bit
-        // platforms.
-        //
-        internal unsafe static int IndexOfByte(byte* src, byte value, int index, int count)
-        {
-            Debug.Assert(src != null, "src should not be null");
-
-            byte* pByte = src + index;
-
-            // Align up the pointer to sizeof(int).
-            while (((int)pByte & 3) != 0)
-            {
-                if (count == 0)
-                    return -1;
-                else if (*pByte == value)
-                    return (int)(pByte - src);
-
-                count--;
-                pByte++;
-            }
-
-            // Fill comparer with value byte for comparisons
-            //
-            // comparer = 0/0/value/value
-            uint comparer = (((uint)value << 8) + (uint)value);
-            // comparer = value/value/value/value
-            comparer = (comparer << 16) + comparer;
-
-            // Run through buffer until we hit a 4-byte section which contains
-            // the byte we're looking for or until we exhaust the buffer.
-            while (count > 3)
-            {
-                // Test the buffer for presence of value. comparer contains the byte
-                // replicated 4 times.
-                uint t1 = *(uint*)pByte;
-                t1 = t1 ^ comparer;
-                uint t2 = 0x7efefeff + t1;
-                t1 = t1 ^ 0xffffffff;
-                t1 = t1 ^ t2;
-                t1 = t1 & 0x81010100;
-
-                // if t1 is zero then these 4-bytes don't contain a match
-                if (t1 != 0)
-                {
-                    // We've found a match for value, figure out which position it's in.
-                    int foundIndex = (int)(pByte - src);
-                    if (pByte[0] == value)
-                        return foundIndex;
-                    else if (pByte[1] == value)
-                        return foundIndex + 1;
-                    else if (pByte[2] == value)
-                        return foundIndex + 2;
-                    else if (pByte[3] == value)
-                        return foundIndex + 3;
-                }
-
-                count -= 4;
-                pByte += 4;
-            }
-
-            // Catch any bytes that might be left at the tail of the buffer
-            while (count > 0)
-            {
-                if (*pByte == value)
-                    return (int)(pByte - src);
-
-                count--;
-                pByte++;
-            }
-
-            // If we don't have a match return -1;
-            return -1;
-        }
-
         // Returns a bool to indicate if the array is of primitive data types
         // or not.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -195,13 +119,13 @@ namespace System
             return _ByteLength(array);
         }
 
-        internal unsafe static void ZeroMemory(byte* src, long len)
+        internal static unsafe void ZeroMemory(byte* src, long len)
         {
             while (len-- > 0)
                 *(src + len) = 0;
         }
 
-        internal unsafe static void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
+        internal static unsafe void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
         {
             Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
             Debug.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
@@ -215,7 +139,7 @@ namespace System
             }
         }
 
-        internal unsafe static void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
+        internal static unsafe void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
         {
             Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
             Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
@@ -240,10 +164,10 @@ namespace System
         // 2. It is difficult to get this right for arm and again due to release dates we would like to visit it later.
 #if ARM
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe static extern void Memcpy(byte* dest, byte* src, int len);
+        internal static extern unsafe void Memcpy(byte* dest, byte* src, int len);
 #else // ARM
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        internal unsafe static void Memcpy(byte* dest, byte* src, int len)
+        internal static unsafe void Memcpy(byte* dest, byte* src, int len)
         {
             Debug.Assert(len >= 0, "Negative length in memcopy!");
             Memmove(dest, src, (uint)len);
@@ -251,7 +175,7 @@ namespace System
 #endif // ARM
 
         // This method has different signature for x64 and other platforms and is done for performance reasons.
-        internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
+        internal static unsafe void Memmove(byte* dest, byte* src, nuint len)
         {
 #if AMD64 || (BIT32 && !ARM)
             const nuint CopyThreshold = 2048;
@@ -668,7 +592,7 @@ PInvoke:
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        private unsafe static void _Memmove(byte* dest, byte* src, nuint len)
+        private static unsafe void _Memmove(byte* dest, byte* src, nuint len)
         {
             __Memmove(dest, src, len);
         }
@@ -676,7 +600,7 @@ PInvoke:
         // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        private unsafe static void _Memmove(ref byte dest, ref byte src, nuint len)
+        private static unsafe void _Memmove(ref byte dest, ref byte src, nuint len)
         {
             fixed (byte* pDest = &dest)
             fixed (byte* pSrc = &src)
@@ -684,7 +608,7 @@ PInvoke:
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        extern private unsafe static void __Memmove(byte* dest, byte* src, nuint len);
+        private static extern unsafe void __Memmove(byte* dest, byte* src, nuint len);
 
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.

@@ -323,7 +323,7 @@ namespace System
                     T[] list = null;
 
                     if (name == null || name.Length == 0 ||
-                        (cacheType == CacheType.Constructor && name.FirstChar != '.' && name.FirstChar != '*'))
+                        (cacheType == CacheType.Constructor && name[0] != '.' && name[0] != '*'))
                     {
                         list = GetListByName(null, 0, null, 0, listType, cacheType);
                     }
@@ -1781,7 +1781,7 @@ namespace System
             return retval;
         }
 
-        internal unsafe static MethodBase GetMethodBase(RuntimeType reflectedType, RuntimeMethodHandleInternal methodHandle)
+        internal static unsafe MethodBase GetMethodBase(RuntimeType reflectedType, RuntimeMethodHandleInternal methodHandle)
         {
             Debug.Assert(!methodHandle.IsNullHandle());
 
@@ -1923,12 +1923,12 @@ namespace System
             set { Cache.DomainInitialized = value; }
         }
 
-        internal unsafe static FieldInfo GetFieldInfo(IRuntimeFieldInfo fieldHandle)
+        internal static unsafe FieldInfo GetFieldInfo(IRuntimeFieldInfo fieldHandle)
         {
             return GetFieldInfo(RuntimeFieldHandle.GetApproxDeclaringType(fieldHandle), fieldHandle);
         }
 
-        internal unsafe static FieldInfo GetFieldInfo(RuntimeType reflectedType, IRuntimeFieldInfo field)
+        internal static unsafe FieldInfo GetFieldInfo(RuntimeType reflectedType, IRuntimeFieldInfo field)
         {
             RuntimeFieldHandleInternal fieldHandle = field.Value;
 
@@ -1959,7 +1959,7 @@ namespace System
         }
 
         // Called internally
-        private unsafe static PropertyInfo GetPropertyInfo(RuntimeType reflectedType, int tkProperty)
+        private static unsafe PropertyInfo GetPropertyInfo(RuntimeType reflectedType, int tkProperty)
         {
             RuntimePropertyInfo property = null;
             RuntimePropertyInfo[] candidates =
@@ -2426,11 +2426,9 @@ namespace System
         internal IntPtr m_handle;
 
         internal static readonly RuntimeType ValueType = (RuntimeType)typeof(System.ValueType);
-        internal static readonly RuntimeType EnumType = (RuntimeType)typeof(System.Enum);
 
         private static readonly RuntimeType ObjectType = (RuntimeType)typeof(System.Object);
         private static readonly RuntimeType StringType = (RuntimeType)typeof(System.String);
-        private static readonly RuntimeType DelegateType = (RuntimeType)typeof(System.Delegate);
         #endregion
 
         #region Constructor
@@ -3837,10 +3835,10 @@ namespace System
         private static RuntimeType s_typedRef = (RuntimeType)typeof(TypedReference);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static private extern bool CanValueSpecialCast(RuntimeType valueType, RuntimeType targetType);
+        private static extern bool CanValueSpecialCast(RuntimeType valueType, RuntimeType targetType);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static private extern Object AllocateValueType(RuntimeType type, object value, bool fForceTypeChange);
+        private static extern Object AllocateValueType(RuntimeType type, object value, bool fForceTypeChange);
 
         internal unsafe Object CheckValue(Object value, Binder binder, CultureInfo culture, BindingFlags invokeAttr)
         {
@@ -4856,7 +4854,7 @@ namespace System
         }
         #endregion
 
-        #region Legacy Static Internal
+        #region Legacy internal static
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern Object _CreateEnum(RuntimeType enumType, long value);
         internal static Object CreateEnum(RuntimeType enumType, long value)

@@ -137,27 +137,19 @@ namespace System.IO
 
         private async Task CopyToAsyncInternal(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
         {
-            Debug.Assert(destination != null);
-            Debug.Assert(bufferSize > 0);
-            Debug.Assert(CanRead);
-            Debug.Assert(destination.CanWrite);
-
             byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            bufferSize = 0; // reuse same field for high water mark to avoid needing another field in the state machine
             try
             {
                 while (true)
                 {
-                    int bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                    int bytesRead = await ReadAsync(new Memory<byte>(buffer), cancellationToken).ConfigureAwait(false);
                     if (bytesRead == 0) break;
-                    if (bytesRead > bufferSize) bufferSize = bytesRead;
-                    await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                    await destination.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, bytesRead), cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
             {
-                Array.Clear(buffer, 0, bufferSize); // clear only the most we used
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
@@ -176,20 +168,17 @@ namespace System.IO
             StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
 
             byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            int highwaterMark = 0;
             try
             {
                 int read;
                 while ((read = Read(buffer, 0, buffer.Length)) != 0)
                 {
-                    if (read > highwaterMark) highwaterMark = read;
                     destination.Write(buffer, 0, read);
                 }
             }
             finally
             {
-                Array.Clear(buffer, 0, highwaterMark); // clear only the most we used
-                ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
@@ -385,16 +374,16 @@ namespace System.IO
                         : BeginEndReadAsync(buffer, offset, count);
         }
 
-        public virtual ValueTask<int> ReadAsync(Memory<byte> destination, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (destination.TryGetArray(out ArraySegment<byte> array))
+            if (MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> array))
             {
                 return new ValueTask<int>(ReadAsync(array.Array, array.Offset, array.Count, cancellationToken));
             }
             else
             {
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(destination.Length);
-                return FinishReadAsync(ReadAsync(buffer, 0, destination.Length, cancellationToken), buffer, destination);
+                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                return FinishReadAsync(ReadAsync(sharedBuffer, 0, buffer.Length, cancellationToken), sharedBuffer, buffer);
 
                 async ValueTask<int> FinishReadAsync(Task<int> readTask, byte[] localBuffer, Memory<byte> localDestination)
                 {
@@ -694,29 +683,29 @@ namespace System.IO
                         : BeginEndWriteAsync(buffer, offset, count);
         }
 
-        public virtual Task WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default(CancellationToken))
+        public virtual ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (MemoryMarshal.TryGetArray(source, out ArraySegment<byte> array))
+            if (MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> array))
             {
-                return WriteAsync(array.Array, array.Offset, array.Count, cancellationToken);
+                return new ValueTask(WriteAsync(array.Array, array.Offset, array.Count, cancellationToken));
             }
             else
             {
-                byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length);
-                source.Span.CopyTo(buffer);
-                return FinishWriteAsync(WriteAsync(buffer, 0, source.Length, cancellationToken), buffer);
+                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                buffer.Span.CopyTo(sharedBuffer);
+                return new ValueTask(FinishWriteAsync(WriteAsync(sharedBuffer, 0, buffer.Length, cancellationToken), sharedBuffer));
+            }
+        }
 
-                async Task FinishWriteAsync(Task writeTask, byte[] localBuffer)
-                {
-                    try
-                    {
-                        await writeTask.ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        ArrayPool<byte>.Shared.Return(localBuffer);
-                    }
-                }
+        private async Task FinishWriteAsync(Task writeTask, byte[] localBuffer)
+        {
+            try
+            {
+                await writeTask.ConfigureAwait(false);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(localBuffer);
             }
         }
 
@@ -749,20 +738,20 @@ namespace System.IO
 
         public abstract int Read(byte[] buffer, int offset, int count);
 
-        public virtual int Read(Span<byte> destination)
+        public virtual int Read(Span<byte> buffer)
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(destination.Length);
+            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
             try
             {
-                int numRead = Read(buffer, 0, destination.Length);
-                if ((uint)numRead > destination.Length)
+                int numRead = Read(sharedBuffer, 0, buffer.Length);
+                if ((uint)numRead > buffer.Length)
                 {
                     throw new IOException(SR.IO_StreamTooLong);
                 }
-                new Span<byte>(buffer, 0, numRead).CopyTo(destination);
+                new Span<byte>(sharedBuffer, 0, numRead).CopyTo(buffer);
                 return numRead;
             }
-            finally { ArrayPool<byte>.Shared.Return(buffer); }
+            finally { ArrayPool<byte>.Shared.Return(sharedBuffer); }
         }
 
         // Reads one byte from the stream by calling Read(byte[], int, int). 
@@ -782,15 +771,15 @@ namespace System.IO
 
         public abstract void Write(byte[] buffer, int offset, int count);
 
-        public virtual void Write(ReadOnlySpan<byte> source)
+        public virtual void Write(ReadOnlySpan<byte> buffer)
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length);
+            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
             try
             {
-                source.CopyTo(buffer);
-                Write(buffer, 0, source.Length);
+                buffer.CopyTo(sharedBuffer);
+                Write(sharedBuffer, 0, buffer.Length);
             }
-            finally { ArrayPool<byte>.Shared.Return(buffer); }
+            finally { ArrayPool<byte>.Shared.Return(sharedBuffer); }
         }
 
         // Writes one byte from the stream by calling Write(byte[], int, int).
@@ -983,7 +972,7 @@ namespace System.IO
                 return 0;
             }
 
-            public override int Read(Span<byte> destination)
+            public override int Read(Span<byte> buffer)
             {
                 return 0;
             }
@@ -993,7 +982,7 @@ namespace System.IO
                 return AsyncTaskMethodBuilder<int>.s_defaultResultTask;
             }
 
-            public override ValueTask<int> ReadAsync(Memory<byte> destination, CancellationToken cancellationToken = default(CancellationToken))
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
                 return new ValueTask<int>(0);
             }
@@ -1007,7 +996,7 @@ namespace System.IO
             {
             }
 
-            public override void Write(ReadOnlySpan<byte> source)
+            public override void Write(ReadOnlySpan<byte> buffer)
             {
             }
 
@@ -1018,11 +1007,11 @@ namespace System.IO
                     Task.CompletedTask;
             }
 
-            public override Task WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default(CancellationToken))
+            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default(CancellationToken))
             {
                 return cancellationToken.IsCancellationRequested ?
-                    Task.FromCanceled(cancellationToken) :
-                    Task.CompletedTask;
+                    new ValueTask(Task.FromCanceled(cancellationToken)) :
+                    default;
             }
 
             public override void WriteByte(byte value)
@@ -1267,10 +1256,10 @@ namespace System.IO
                     return _stream.Read(bytes, offset, count);
             }
 
-            public override int Read(Span<byte> destination)
+            public override int Read(Span<byte> buffer)
             {
                 lock (_stream)
-                    return _stream.Read(destination);
+                    return _stream.Read(buffer);
             }
 
             public override int ReadByte()
@@ -1324,10 +1313,10 @@ namespace System.IO
                     _stream.Write(bytes, offset, count);
             }
 
-            public override void Write(ReadOnlySpan<byte> source)
+            public override void Write(ReadOnlySpan<byte> buffer)
             {
                 lock (_stream)
-                    _stream.Write(source);
+                    _stream.Write(buffer);
             }
 
             public override void WriteByte(byte b)

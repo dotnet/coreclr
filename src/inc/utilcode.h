@@ -595,7 +595,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
+#ifdef FEATURE_USE_LCID
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 
@@ -1106,7 +1106,7 @@ inline HRESULT DecimalCanonicalize(DECIMAL* dec)
 //
 //*****************************************************************************
 // secure version! Specify the size of the each buffer in count of elements
-void    SplitPath(register const WCHAR *path,
+void    SplitPath(const WCHAR *path,
                   __inout_z __inout_ecount_opt(driveSizeInWords) WCHAR *drive, int driveSizeInWords,
                   __inout_z __inout_ecount_opt(dirSizeInWords) WCHAR *dir, int dirSizeInWords,
                   __inout_z __inout_ecount_opt(fnameSizeInWords) WCHAR *fname, size_t fnameSizeInWords,
@@ -5317,7 +5317,7 @@ inline T* InterlockedExchangeT(
     std::nullptr_t value) // When nullptr is provided as argument.
 {
     //STATIC_ASSERT(value == 0);
-    return InterlockedExchangeT(target, reinterpret_cast<T*>(value));
+    return InterlockedExchangeT(target, static_cast<T*>(value));
 }
 
 template <typename T>
@@ -5327,7 +5327,7 @@ inline T* InterlockedCompareExchangeT(
     T*             comparand)
 {
     //STATIC_ASSERT(exchange == 0);
-    return InterlockedCompareExchangeT(destination, reinterpret_cast<T*>(exchange), comparand);
+    return InterlockedCompareExchangeT(destination, static_cast<T*>(exchange), comparand);
 }
 
 template <typename T>
@@ -5337,7 +5337,7 @@ inline T* InterlockedCompareExchangeT(
     std::nullptr_t comparand) // When nullptr is provided as argument.
 {
     //STATIC_ASSERT(comparand == 0);
-    return InterlockedCompareExchangeT(destination, exchange, reinterpret_cast<T*>(comparand));
+    return InterlockedCompareExchangeT(destination, exchange, static_cast<T*>(comparand));
 }
 
 #undef InterlockedExchangePointer

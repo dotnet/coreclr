@@ -1746,6 +1746,16 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* S
     // profitably promoted.
     if (varDsc->lvIsUsedInSIMDIntrinsic())
     {
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsUsedInSIMDIntrinsic()\n", lclNum);
+        StructPromotionInfo->canPromote = false;
+        return;
+    }
+
+    // Reject struct promotion of parameters when -GS stack reordering is enabled
+    // as we could introduce shadow copies of them.
+    if (varDsc->lvIsParam && compGSReorderStackLayout)
+    {
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsParam and compGSReorderStackLayout\n", lclNum);
         StructPromotionInfo->canPromote = false;
         return;
     }
@@ -1757,6 +1767,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* S
     // TODO-PERF - Allow struct promotion for HFA register arguments
     if (varDsc->lvIsHfaRegArg())
     {
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsHfaRegArg()\n", lclNum);
         StructPromotionInfo->canPromote = false;
         return;
     }
@@ -1764,7 +1775,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* S
 #if !FEATURE_MULTIREG_STRUCT_PROMOTE
     if (varDsc->lvIsMultiRegArg)
     {
-        JITDUMP("Skipping V%02u: marked lvIsMultiRegArg.\n", lclNum);
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegArg\n", lclNum);
         StructPromotionInfo->canPromote = false;
         return;
     }
@@ -1772,7 +1783,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* S
 
     if (varDsc->lvIsMultiRegRet)
     {
-        JITDUMP("Skipping V%02u: marked lvIsMultiRegRet.\n", lclNum);
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegRet\n", lclNum);
         StructPromotionInfo->canPromote = false;
         return;
     }
@@ -1919,7 +1930,6 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
 
         if (varTypeIsFloating(pFieldInfo->fldType) || varTypeIsSIMD(pFieldInfo->fldType))
         {
-            lvaTable[lclNum].lvContainsFloatingFields = 1;
             // Whenever we promote a struct that contains a floating point field
             // it's possible we transition from a method that originally only had integer
             // local vars to start having FP.  We have to communicate this through this flag
@@ -1942,8 +1952,9 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
         }
 #endif
 
-        unsigned varNum = lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs, so
-                                                             // they are long lifetime temps.
+        unsigned varNum = lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs,
+                                                             // so they must be long lifetime temps.
+        varDsc = &lvaTable[lclNum];                          // lvaGrabTemp can reallocate the lvaTable
 
         LclVarDsc* fieldVarDsc       = &lvaTable[varNum];
         fieldVarDsc->lvType          = pFieldInfo->fldType;
@@ -2495,7 +2506,7 @@ void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool
     // Class info matched. Are we updating exactness?
     if (isExact)
     {
-        JITDUMP("\nlvaUpdateClass: Updating class for V%02i (%p) %s to be exact\n", varNum, varDsc->lvClassHnd,
+        JITDUMP("\nlvaUpdateClass: Updating class for V%02i (%p) %s to be exact\n", varNum, dspPtr(varDsc->lvClassHnd),
                 info.compCompHnd->getClassName(varDsc->lvClassHnd));
 
         varDsc->lvClassIsExact = isExact;
@@ -4970,7 +4981,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
             argLcls++;
 
             // Early out if we can. If size is 8 and base reg is 2, then the mask is 0x1100
-            tempMask |= ((((1 << (roundUp(argSize) / REGSIZE_BYTES))) - 1) << lvaTable[preSpillLclNum].lvArgReg);
+            tempMask |= ((((1 << (roundUp(argSize, TARGET_POINTER_SIZE) / REGSIZE_BYTES))) - 1)
+                         << lvaTable[preSpillLclNum].lvArgReg);
             if (tempMask == preSpillMask)
             {
                 // We won't encounter more pre-spilled registers,
@@ -5989,7 +6001,20 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
                 unsigned fieldVarNum            = varDsc->lvFieldLclStart;
                 lvaTable[fieldVarNum].lvStkOffs = varDsc->lvStkOffs;
             }
-#endif
+#endif // _TARGET_ARM64_
+#ifdef _TARGET_ARM_
+            // If we have an incoming register argument that has a promoted long
+            // then we need to copy the lvStkOff (the stack home) from the reg arg to the field lclvar
+            //
+            if (varDsc->lvIsRegArg && varDsc->lvPromoted)
+            {
+                assert(varTypeIsLong(varDsc) && (varDsc->lvFieldCnt == 2));
+
+                unsigned fieldVarNum                = varDsc->lvFieldLclStart;
+                lvaTable[fieldVarNum].lvStkOffs     = varDsc->lvStkOffs;
+                lvaTable[fieldVarNum + 1].lvStkOffs = varDsc->lvStkOffs + 4;
+            }
+#endif // _TARGET_ARM_
         }
     }
 
@@ -6832,10 +6857,12 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     {
         printf(" pinned");
     }
+#ifdef LEGACY_BACKEND
     if (varDsc->lvRefAssign)
     {
         printf(" ref-asgn");
     }
+#endif
     if (varDsc->lvStackByref)
     {
         printf(" stack-byref");
@@ -7319,7 +7346,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
         // Change the variable to a TYP_BLK
         if (varType != TYP_BLK)
         {
-            varDsc->lvExactSize = (unsigned)(roundUp(padding + pComp->lvaLclSize(lclNum)));
+            varDsc->lvExactSize = (unsigned)(roundUp(padding + pComp->lvaLclSize(lclNum), TARGET_POINTER_SIZE));
             varDsc->lvType      = TYP_BLK;
             pComp->lvaSetVarAddrExposed(lclNum);
         }
