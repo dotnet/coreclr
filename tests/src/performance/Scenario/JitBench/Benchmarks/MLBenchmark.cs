@@ -75,7 +75,7 @@ namespace JitBench
             string word2VecNetPublishDir = GetWord2VecNetPublishDirectory(dotNetInstall, outputDir, tfm);
 
             // Download the corpus of text. This is a zip file that contains a text file of 100M of text from Wikipedia
-            var url = "https://perfbenchmarkstorage.blob.core.windows.net/corpus/Corpus.zip";
+            var url = "https://perfbenchmarkstorage.blob.core.windows.net/corpus/Corpus25.zip";
             await FileTasks.DownloadAndUnzip(url, word2VecNetRepoRootDir + "_temp", output);
 
             FileTasks.MoveFile(Path.Combine(word2VecNetRepoRootDir + "_temp", "Corpus.txt"), 
