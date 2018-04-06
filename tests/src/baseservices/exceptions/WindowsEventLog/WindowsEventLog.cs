@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 class Program
 {
@@ -47,12 +48,14 @@ class Program
 
         testProcess.Start();
         testProcess.WaitForExit();
+        
+        Thread.Sleep(2000);
 
         EventLog log = new EventLog("Application");
-        int checkCount = 0;
 
         foreach (EventLogEntry entry in log.Entries)
         {
+            int checkCount = 0;
             if (entry.TimeGenerated > dt) 
             {
                 String source = entry.Source;
@@ -60,8 +63,11 @@ class Program
 
                 foreach (string logEntry in logEntriesToCheck)
                 {
+                    Console.WriteLine("Checking for existence of : " + logEntry);
                     if (message.Contains(logEntry))
                         checkCount += 1;
+                    else
+                        Console.WriteLine("Couldn't find it in: " + message);
                 }
 
                 if (source.Contains(".NET Runtime") && checkCount == logEntriesToCheck.Length)
@@ -78,13 +84,13 @@ class Program
     
     private static bool RunUnhandledExceptionTest()
     {
-        string[] logEntriesToCheck = {"unhandled exception", "ArgumentException"};
+        string[] logEntriesToCheck = {"unhandled exception", "my ae", "ArgumentException"};
         return LaunchTest("UnhandledException", logEntriesToCheck);
     }
 
     private static bool RunFailFastTest()
     {
-        string[] logEntriesToCheck = {"The application requested process termination through System.Environment.FailFast", "ArgumentException"};
+        string[] logEntriesToCheck = {"The application requested process termination through System.Environment.FailFast(string message).", "failing fast", "ArgumentException"};
         return LaunchTest("FailFast", logEntriesToCheck);
     }
 
