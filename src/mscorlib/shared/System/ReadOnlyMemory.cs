@@ -187,7 +187,8 @@ namespace System
                 if (_index < 0)
                 {
                     Debug.Assert(_length >= 0);
-                    return ((MemoryManager<T>)_object).GetSpan().Slice(_index & RemoveFlagsBitMask, _length);
+                    Debug.Assert(_object != null);
+                    return Unsafe.As<MemoryManager<T>>(_object).GetSpan().Slice(_index & RemoveFlagsBitMask, _length);
                 }
                 else if (typeof(T) == typeof(char) && _object is string s)
                 {
@@ -200,7 +201,7 @@ namespace System
                 }
                 else if (_object != null)
                 {
-                    return new ReadOnlySpan<T>((T[])_object, _index, _length & RemoveFlagsBitMask);
+                    return ReadOnlySpan<T>.DangerousCreate(Unsafe.As<T[]>(_object), _index, _length & RemoveFlagsBitMask);
                 }
                 else
                 {
@@ -241,7 +242,8 @@ namespace System
         {
             if (_index < 0)
             {
-                return ((MemoryManager<T>)_object).Pin((_index & RemoveFlagsBitMask));
+                Debug.Assert(_object != null);
+                return Unsafe.As<MemoryManager<T>>(_object).Pin((_index & RemoveFlagsBitMask));
             }
             else if (typeof(T) == typeof(char) && _object is string s)
             {

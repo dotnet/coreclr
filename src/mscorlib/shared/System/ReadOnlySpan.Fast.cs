@@ -120,6 +120,17 @@ namespace System
             _length = length;
         }
 
+        // Dangerous constructor without bounds checks. For internal use only.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ReadOnlySpan<T> DangerousCreate(T[] array, int start, int length)
+        {
+            Debug.Assert(start >= 0);
+            Debug.Assert(length >= 0);
+            Debug.Assert(array != null);
+
+            return new ReadOnlySpan<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
+        }
+
         /// <summary>
         /// Returns the specified element of the read-only span.
         /// </summary>

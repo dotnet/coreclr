@@ -126,6 +126,17 @@ namespace System
             _length = length;
         }
 
+        // Dangerous constructor without bounds checks. For internal use only.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static Span<T> DangerousCreate(T[] array, int start, int length)
+        {
+            Debug.Assert(start >= 0);
+            Debug.Assert(length >= 0);
+            Debug.Assert(array != null);
+
+            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), length);
+        }
+
         /// Returns a reference to specified element of the Span.
         /// </summary>
         /// <param name="index"></param>
