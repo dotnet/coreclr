@@ -4769,7 +4769,7 @@ namespace System
         // the slow path of CreateInstanceDefaultCtor
         internal Object CreateInstanceSlow(bool publicOnly, bool wrapExceptions, bool skipCheckThis, bool fillCache)
         {
-            RuntimeMethodHandleInternal runtime_ctor = default(RuntimeMethodHandleInternal);
+            RuntimeMethodHandleInternal runtime_ctor = default;
             bool bCanBeCached = false;
 
             if (!skipCheckThis)
@@ -5152,7 +5152,7 @@ namespace System.Reflection
             {
                 Table table = Volatile.Read(ref m_Table);
                 if (table == null)
-                    return default(V);
+                    return default;
 
                 int hashcode = GetHashCodeHelper(key);
                 if (hashcode < 0)
@@ -5177,7 +5177,7 @@ namespace System.Reflection
                     }
                     else
                     {
-                        return default(V);
+                        return default;
                     }
                 }
             }

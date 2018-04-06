@@ -181,7 +181,7 @@ namespace System
         private unsafe int IndexOfCharArray(char[] anyOf, int startIndex, int count)
         {
             // use probabilistic map, see InitializeProbabilisticMap
-            ProbabilisticMap map = default(ProbabilisticMap);
+            ProbabilisticMap map = default;
             uint* charMap = (uint*)&map;
 
             InitializeProbabilisticMap(charMap, anyOf);
@@ -427,7 +427,7 @@ namespace System
         private unsafe int LastIndexOfCharArray(char[] anyOf, int startIndex, int count)
         {
             // use probabilistic map, see InitializeProbabilisticMap
-            ProbabilisticMap map = default(ProbabilisticMap);
+            ProbabilisticMap map = default;
             uint* charMap = (uint*)&map;
 
             InitializeProbabilisticMap(charMap, anyOf);

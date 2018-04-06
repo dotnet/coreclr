@@ -99,11 +99,11 @@ namespace System.Globalization
             internal int _zeroes;             // Store the number of leading zeroes (if any)
             internal ReadOnlySpan<char> _sep; // Store the literal that we are parsing (if any)
 
-            public TimeSpanToken(TTT type) : this(type, 0, 0, default(ReadOnlySpan<char>)) { }
+            public TimeSpanToken(TTT type) : this(type, 0, 0, default) { }
 
-            public TimeSpanToken(int number) : this(TTT.Num, number, 0, default(ReadOnlySpan<char>)) { }
+            public TimeSpanToken(int number) : this(TTT.Num, number, 0, default) { }
 
-            public TimeSpanToken(int number, int leadingZeroes) : this(TTT.Num, number, leadingZeroes, default(ReadOnlySpan<char>)) { }
+            public TimeSpanToken(int number, int leadingZeroes) : this(TTT.Num, number, leadingZeroes, default) { }
 
             public TimeSpanToken(TTT type, int number, int leadingZeroes, ReadOnlySpan<char> separator)
             {
@@ -169,7 +169,7 @@ namespace System.Globalization
                             int digit;
                             if (++_pos >= _value.Length || (uint)(digit = _value[_pos] - '0') > 9)
                             {
-                                return new TimeSpanToken(TTT.Num, 0, zeroes, default(ReadOnlySpan<char>));
+                                return new TimeSpanToken(TTT.Num, 0, zeroes, default);
                             }
 
                             if (digit == 0)
@@ -199,7 +199,7 @@ namespace System.Globalization
                         }
                     }
 
-                    return new TimeSpanToken(TTT.Num, num, zeroes, default(ReadOnlySpan<char>));
+                    return new TimeSpanToken(TTT.Num, num, zeroes, default);
                 }
 
                 // Otherwise, we're processing a separator, and we've already processed the first
@@ -391,7 +391,7 @@ namespace System.Globalization
                 switch (tok._ttt)
                 {
                     case TTT.Num:
-                        if ((_tokenCount == 0 && !AddSep(default(ReadOnlySpan<char>), ref result)) || !AddNum(tok, ref result))
+                        if ((_tokenCount == 0 && !AddSep(default, ref result)) || !AddNum(tok, ref result))
                         {
                             return false;
                         }
@@ -466,7 +466,7 @@ namespace System.Globalization
 
             internal TimeSpanResult(bool throwOnFailure)
             {
-                parsedTimeSpan = default(TimeSpan);
+                parsedTimeSpan = default;
                 _throwOnFailure = throwOnFailure;
             }
 
@@ -584,7 +584,7 @@ namespace System.Globalization
                 return true;
             }
 
-            result = default(TimeSpan);
+            result = default;
             return false;
         }
 
@@ -606,7 +606,7 @@ namespace System.Globalization
                 return true;
             }
 
-            result = default(TimeSpan);
+            result = default;
             return false;
         }
 
@@ -628,7 +628,7 @@ namespace System.Globalization
                 return true;
             }
 
-            result = default(TimeSpan);
+            result = default;
             return false;
         }
 

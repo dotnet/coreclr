@@ -175,7 +175,7 @@ namespace System.Collections.Concurrent
         /// cref="ICollection"/>. This property is not supported.
         /// </summary>
         /// <exception cref="NotSupportedException">The SyncRoot property is not supported.</exception>
-        object ICollection.SyncRoot { get { ThrowHelper.ThrowNotSupportedException(ExceptionResource.ConcurrentCollection_SyncRoot_NotSupported); return default(object); } }
+        object ICollection.SyncRoot { get { ThrowHelper.ThrowNotSupportedException(ExceptionResource.ConcurrentCollection_SyncRoot_NotSupported); return default; } }
 
         /// <summary>Returns an enumerator that iterates through a collection.</summary>
         /// <returns>An <see cref="IEnumerator"/> that can be used to iterate through the collection.</returns>
@@ -663,7 +663,7 @@ namespace System.Collections.Concurrent
                 // check and this check, another item could have arrived).
                 if (head._nextSegment == null)
                 {
-                    item = default(T);
+                    item = default;
                     return false;
                 }
 
@@ -757,7 +757,7 @@ namespace System.Collections.Concurrent
                 // and we'll traverse to that segment.
             }
 
-            result = default(T);
+            result = default;
             return false;
         }
 
@@ -920,7 +920,7 @@ namespace System.Collections.Concurrent
                                 // If we're preserving, though, we don't zero out the slot, as we need it for
                                 // enumerations, peeking, ToArray, etc.  And we don't update the sequence number,
                                 // so that an enqueuer will see it as full and be forced to move to a new segment.
-                                _slots[slotsIndex].Item = default(T);
+                                _slots[slotsIndex].Item = default;
                                 Volatile.Write(ref _slots[slotsIndex].SequenceNumber, currentHead + _slots.Length);
                             }
                             return true;
@@ -939,7 +939,7 @@ namespace System.Collections.Concurrent
                         int currentTail = Volatile.Read(ref _headAndTail.Tail);
                         if (currentTail - currentHead <= 0 || (frozen && (currentTail - FreezeOffset - currentHead <= 0)))
                         {
-                            item = default(T);
+                            item = default;
                             return false;
                         }
 
@@ -982,7 +982,7 @@ namespace System.Collections.Concurrent
                     int diff = sequenceNumber - (currentHead + 1);
                     if (diff == 0)
                     {
-                        result = resultUsed ? _slots[slotsIndex].Item : default(T);
+                        result = resultUsed ? _slots[slotsIndex].Item : default;
                         return true;
                     }
                     else if (diff < 0)
@@ -998,7 +998,7 @@ namespace System.Collections.Concurrent
                         int currentTail = Volatile.Read(ref _headAndTail.Tail);
                         if (currentTail - currentHead <= 0 || (frozen && (currentTail - FreezeOffset - currentHead <= 0)))
                         {
-                            result = default(T);
+                            result = default;
                             return false;
                         }
 

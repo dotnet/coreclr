@@ -347,7 +347,7 @@ namespace System.Threading.Tasks
                 }
             }
 
-            TaskConstructorCore(null, state, default(CancellationToken), creationOptions, InternalTaskOptions.PromiseTask, null);
+            TaskConstructorCore(null, state, default, creationOptions, InternalTaskOptions.PromiseTask, null);
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace System.Threading.Tasks
         /// <param name="action">The delegate that represents the code to execute in the Task.</param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="action"/> argument is null.</exception>
         public Task(Action action)
-            : this(action, null, null, default(CancellationToken), TaskCreationOptions.None, InternalTaskOptions.None, null)
+            : this(action, null, null, default, TaskCreationOptions.None, InternalTaskOptions.None, null)
         {
         }
 
@@ -391,7 +391,7 @@ namespace System.Threading.Tasks
         /// cref="T:System.Threading.Tasks.TaskCreationOptions"/>.
         /// </exception>
         public Task(Action action, TaskCreationOptions creationOptions)
-            : this(action, null, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, InternalTaskOptions.None, null)
+            : this(action, null, Task.InternalCurrentIfAttached(creationOptions), default, creationOptions, InternalTaskOptions.None, null)
         {
         }
 
@@ -429,7 +429,7 @@ namespace System.Threading.Tasks
         /// The <paramref name="action"/> argument is null.
         /// </exception>
         public Task(Action<object> action, object state)
-            : this(action, state, null, default(CancellationToken), TaskCreationOptions.None, InternalTaskOptions.None, null)
+            : this(action, state, null, default, TaskCreationOptions.None, InternalTaskOptions.None, null)
         {
         }
 
@@ -467,7 +467,7 @@ namespace System.Threading.Tasks
         /// cref="T:System.Threading.Tasks.TaskCreationOptions"/>.
         /// </exception>
         public Task(Action<object> action, object state, TaskCreationOptions creationOptions)
-            : this(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, InternalTaskOptions.None, null)
+            : this(action, state, Task.InternalCurrentIfAttached(creationOptions), default, creationOptions, InternalTaskOptions.None, null)
         {
         }
 
@@ -1133,7 +1133,7 @@ namespace System.Threading.Tasks
                     // Also if we queued the task above, the task may not be done yet.
                     if (waitForCompletion && !IsCompleted)
                     {
-                        SpinThenBlockingWait(Timeout.Infinite, default(CancellationToken));
+                        SpinThenBlockingWait(Timeout.Infinite, default);
                     }
                 }
                 catch (Exception e)
@@ -1415,7 +1415,7 @@ namespace System.Threading.Tasks
             get
             {
                 var props = Volatile.Read(ref m_contingentProperties);
-                return (props == null) ? default(CancellationToken) : props.m_cancellationToken;
+                return (props == null) ? default : props.m_cancellationToken;
             }
         }
 
@@ -1534,7 +1534,7 @@ namespace System.Threading.Tasks
         public static TaskFactory Factory { get; } = new TaskFactory();
 
         /// <summary>Gets a task that's already been completed successfully.</summary>
-        public static Task CompletedTask { get; } = new Task(false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
+        public static Task CompletedTask { get; } = new Task(false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
 
         /// <summary>
         /// Provides an event that can be used to wait for completion.
@@ -2698,7 +2698,7 @@ namespace System.Threading.Tasks
 #if DEBUG
             bool waitResult =
 #endif
-            Wait(Timeout.Infinite, default(CancellationToken));
+            Wait(Timeout.Infinite, default);
 
 #if DEBUG
             Debug.Assert(waitResult, "expected wait to succeed");
@@ -2732,7 +2732,7 @@ namespace System.Threading.Tasks
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.timeout);
             }
 
-            return Wait((int)totalMilliseconds, default(CancellationToken));
+            return Wait((int)totalMilliseconds, default);
         }
 
 
@@ -2774,7 +2774,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public bool Wait(int millisecondsTimeout)
         {
-            return Wait(millisecondsTimeout, default(CancellationToken));
+            return Wait(millisecondsTimeout, default);
         }
 
 
@@ -3143,11 +3143,11 @@ namespace System.Threading.Tasks
             RecordInternalCancellationRequest();
 
             Debug.Assert((Options & (TaskCreationOptions)InternalTaskOptions.PromiseTask) != 0, "Task.RecordInternalCancellationRequest(CancellationToken) only valid for promise-style task");
-            Debug.Assert(m_contingentProperties.m_cancellationToken == default(CancellationToken));
+            Debug.Assert(m_contingentProperties.m_cancellationToken == default);
 
             // Store the supplied cancellation token as this task's token.
             // Waiting on this task will then result in an OperationCanceledException containing this token.
-            if (tokenToRecord != default(CancellationToken))
+            if (tokenToRecord != default)
             {
                 m_contingentProperties.m_cancellationToken = tokenToRecord;
             }
@@ -3402,7 +3402,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task> continuationAction)
         {
-            return ContinueWith(continuationAction, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -3454,7 +3454,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task> continuationAction, TaskScheduler scheduler)
         {
-            return ContinueWith(continuationAction, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -3487,7 +3487,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task> continuationAction, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith(continuationAction, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith(continuationAction, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -3588,7 +3588,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task, Object> continuationAction, Object state)
         {
-            return ContinueWith(continuationAction, state, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, state, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -3642,7 +3642,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task, Object> continuationAction, Object state, TaskScheduler scheduler)
         {
-            return ContinueWith(continuationAction, state, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, state, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -3676,7 +3676,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task, Object> continuationAction, Object state, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith(continuationAction, state, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith(continuationAction, state, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -3781,7 +3781,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, TResult> continuationFunction)
         {
-            return ContinueWith<TResult>(continuationFunction, TaskScheduler.Current, default(CancellationToken),
+            return ContinueWith<TResult>(continuationFunction, TaskScheduler.Current, default,
                 TaskContinuationOptions.None);
         }
 
@@ -3841,7 +3841,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, TResult> continuationFunction, TaskScheduler scheduler)
         {
-            return ContinueWith<TResult>(continuationFunction, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TResult>(continuationFunction, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -3877,7 +3877,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, TResult> continuationFunction, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith<TResult>(continuationFunction, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith<TResult>(continuationFunction, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -3984,7 +3984,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, Object, TResult> continuationFunction, Object state)
         {
-            return ContinueWith<TResult>(continuationFunction, state, TaskScheduler.Current, default(CancellationToken),
+            return ContinueWith<TResult>(continuationFunction, state, TaskScheduler.Current, default,
                 TaskContinuationOptions.None);
         }
 
@@ -4046,7 +4046,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, Object, TResult> continuationFunction, Object state, TaskScheduler scheduler)
         {
-            return ContinueWith<TResult>(continuationFunction, state, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TResult>(continuationFunction, state, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -4083,7 +4083,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TResult> ContinueWith<TResult>(Func<Task, Object, TResult> continuationFunction, Object state, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith<TResult>(continuationFunction, state, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith<TResult>(continuationFunction, state, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -4491,7 +4491,7 @@ namespace System.Threading.Tasks
 #if DEBUG
             bool waitResult =
 #endif
-            WaitAllCore(tasks, Timeout.Infinite, default(CancellationToken));
+            WaitAllCore(tasks, Timeout.Infinite, default);
 
 #if DEBUG
             Debug.Assert(waitResult, "expected wait to succeed");
@@ -4536,7 +4536,7 @@ namespace System.Threading.Tasks
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.timeout);
             }
 
-            return WaitAllCore(tasks, (int)totalMilliseconds, default(CancellationToken));
+            return WaitAllCore(tasks, (int)totalMilliseconds, default);
         }
 
         /// <summary>
@@ -4568,7 +4568,7 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.NoOptimization)]  // this is needed for the parallel debugger
         public static bool WaitAll(Task[] tasks, int millisecondsTimeout)
         {
-            return WaitAllCore(tasks, millisecondsTimeout, default(CancellationToken));
+            return WaitAllCore(tasks, millisecondsTimeout, default);
         }
 
         /// <summary>
@@ -4884,7 +4884,7 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.NoOptimization)]  // this is needed for the parallel debugger
         public static int WaitAny(params Task[] tasks)
         {
-            int waitResult = WaitAnyCore(tasks, Timeout.Infinite, default(CancellationToken));
+            int waitResult = WaitAnyCore(tasks, Timeout.Infinite, default);
             Debug.Assert(tasks.Length == 0 || waitResult != -1, "expected wait to succeed");
             return waitResult;
         }
@@ -4923,7 +4923,7 @@ namespace System.Threading.Tasks
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.timeout);
             }
 
-            return WaitAnyCore(tasks, (int)totalMilliseconds, default(CancellationToken));
+            return WaitAnyCore(tasks, (int)totalMilliseconds, default);
         }
 
         /// <summary>
@@ -4980,7 +4980,7 @@ namespace System.Threading.Tasks
         [MethodImpl(MethodImplOptions.NoOptimization)]  // this is needed for the parallel debugger
         public static int WaitAny(Task[] tasks, int millisecondsTimeout)
         {
-            return WaitAnyCore(tasks, millisecondsTimeout, default(CancellationToken));
+            return WaitAnyCore(tasks, millisecondsTimeout, default);
         }
 
         /// <summary>
@@ -5131,7 +5131,7 @@ namespace System.Threading.Tasks
         {
             if (!cancellationToken.IsCancellationRequested)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.cancellationToken);
-            return new Task<TResult>(true, default(TResult), TaskCreationOptions.None, cancellationToken);
+            return new Task<TResult>(true, default, TaskCreationOptions.None, cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed due to cancellation with the specified exception.</summary>
@@ -5163,7 +5163,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public static Task Run(Action action)
         {
-            return Task.InternalStartNew(null, action, null, default(CancellationToken), TaskScheduler.Default,
+            return Task.InternalStartNew(null, action, null, default, TaskScheduler.Default,
                 TaskCreationOptions.DenyChildAttach, InternalTaskOptions.None);
         }
 
@@ -5195,7 +5195,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public static Task<TResult> Run<TResult>(Func<TResult> function)
         {
-            return Task<TResult>.StartNew(null, function, default(CancellationToken),
+            return Task<TResult>.StartNew(null, function, default,
                 TaskCreationOptions.DenyChildAttach, InternalTaskOptions.None, TaskScheduler.Default);
         }
 
@@ -5228,7 +5228,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public static Task Run(Func<Task> function)
         {
-            return Run(function, default(CancellationToken));
+            return Run(function, default);
         }
 
 
@@ -5276,7 +5276,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public static Task<TResult> Run<TResult>(Func<Task<TResult>> function)
         {
-            return Run(function, default(CancellationToken));
+            return Run(function, default);
         }
 
         /// <summary>
@@ -5327,7 +5327,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public static Task Delay(TimeSpan delay)
         {
-            return Delay(delay, default(CancellationToken));
+            return Delay(delay, default);
         }
 
         /// <summary>
@@ -5371,7 +5371,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public static Task Delay(int millisecondsDelay)
         {
-            return Delay(millisecondsDelay, default(CancellationToken));
+            return Delay(millisecondsDelay, default);
         }
 
         /// <summary>
@@ -5468,7 +5468,7 @@ namespace System.Threading.Tasks
                     {
                         RemoveFromActiveTasks(this.Id);
                     }
-                    setSucceeded = TrySetResult(default(VoidTaskResult));
+                    setSucceeded = TrySetResult(default);
                 }
 
                 // If we set the value, also clean up.
@@ -5706,7 +5706,7 @@ namespace System.Threading.Tasks
                         {
                             RemoveFromActiveTasks(this.Id);
                         }
-                        TrySetResult(default(VoidTaskResult));
+                        TrySetResult(default);
                     }
                 }
                 Debug.Assert(m_count >= 0, "Count should never go below 0");
@@ -5850,7 +5850,7 @@ namespace System.Threading.Tasks
         {
             Debug.Assert(tasks != null, "Expected a non-null tasks array");
             return (tasks.Length == 0) ? // take shortcut if there are no tasks upon which to wait
-                new Task<TResult[]>(false, new TResult[0], TaskCreationOptions.None, default(CancellationToken)) :
+                new Task<TResult[]>(false, new TResult[0], TaskCreationOptions.None, default) :
                 new WhenAllPromise<TResult>(tasks);
         }
 
@@ -6082,7 +6082,7 @@ namespace System.Threading.Tasks
             Task<Task> intermediate = WhenAny((Task[])tasks);
 
             // Return a continuation task with the correct result type
-            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default(CancellationToken),
+            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default,
                 TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
         }
 
@@ -6111,7 +6111,7 @@ namespace System.Threading.Tasks
             Task<Task> intermediate = WhenAny((IEnumerable<Task>)tasks);
 
             // Return a continuation task with the correct result type
-            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default(CancellationToken),
+            return intermediate.ContinueWith(Task<TResult>.TaskWhenAnyCast, default,
                 TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.DenyChildAttach, TaskScheduler.Default);
         }
         #endregion
@@ -6673,7 +6673,7 @@ namespace System.Threading.Tasks
                         RemoveFromActiveTasks(this.Id);
                     }
 
-                    result = TrySetResult(taskTResult != null ? taskTResult.Result : default(TResult));
+                    result = TrySetResult(taskTResult != null ? taskTResult.Result : default);
                     break;
             }
             return result;
@@ -6689,7 +6689,7 @@ namespace System.Threading.Tasks
             // If the inner task is null, the proxy should be canceled.
             if (task == null)
             {
-                TrySetCanceled(default(CancellationToken));
+                TrySetCanceled(default);
                 _state = STATE_DONE; // ... and record that we are done
             }
 

@@ -320,7 +320,7 @@ namespace System.Reflection
             RuntimeAssembly reqAssembly,
             ref StackCrawlMark stackMark,
             bool throwOnFileNotFound,
-            IntPtr ptrLoadContextBinder = default(IntPtr))
+            IntPtr ptrLoadContextBinder = default)
         {
             return InternalLoadAssemblyName(assemblyRef, reqAssembly, ref stackMark, IntPtr.Zero, true /*throwOnError*/, ptrLoadContextBinder);
         }
@@ -331,7 +331,7 @@ namespace System.Reflection
             ref StackCrawlMark stackMark,
             IntPtr pPrivHostBinder,
             bool throwOnFileNotFound,
-            IntPtr ptrLoadContextBinder = default(IntPtr))
+            IntPtr ptrLoadContextBinder = default)
         {
             if (assemblyRef == null)
                 throw new ArgumentNullException(nameof(assemblyRef));
@@ -362,7 +362,7 @@ namespace System.Reflection
                                                     ref StackCrawlMark stackMark,
                                                     IntPtr pPrivHostBinder,
                                                     bool throwOnFileNotFound,
-                                                    IntPtr ptrLoadContextBinder = default(IntPtr));
+                                                    IntPtr ptrLoadContextBinder = default);
 
         public override bool ReflectionOnly
         {
