@@ -1356,6 +1356,7 @@ namespace System
         {
             if (typeof(T) == typeof(byte) || typeof(T) == typeof(sbyte))
             {
+                // The cast to nuint is not redundant on for netstandard. Do not remove it.
                 size = (nuint)sizeof(byte);
                 return true;
             }
