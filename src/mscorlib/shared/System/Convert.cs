@@ -316,7 +316,7 @@ namespace System
 
         public static Object ChangeType(Object value, Type conversionType, IFormatProvider provider)
         {
-            if (ReferenceEquals(conversionType, null))
+            if (conversionType is null)
             {
                 throw new ArgumentNullException(nameof(conversionType));
             }
