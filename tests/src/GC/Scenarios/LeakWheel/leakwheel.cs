@@ -42,7 +42,7 @@ namespace DefaultNamespace {
             iMem = 10;
 
             //How many iterations
-            iIter = 1500000;
+            iIter = 150000;
 
             //Max items number in the object table
             iTable = 500;
@@ -147,11 +147,15 @@ namespace DefaultNamespace {
             GC.Collect();
             GC.WaitForPendingFinalizers();
 
-            Thread.Sleep(100);
+            Thread.Sleep(10000);
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-
+            GC.WaitForPendingFinalizers();
+            GC.WaitForPendingFinalizers();
+            GC.WaitForPendingFinalizers();
+            GC.WaitForPendingFinalizers();
+            GC.WaitForPendingFinalizers();
 
             Console.WriteLine("When test finished: {0}", GC.GetTotalMemory(false));
             Console.WriteLine("Created VarAry objects: {0} Finalized VarAry Objects: {1}", Node.iVarAryCreat, Node.iVarAryFinal);
