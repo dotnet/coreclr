@@ -127,7 +127,7 @@ namespace System.Reflection.Emit
         {
             // This function takes a string to describe the compound type, such as "[,][]", and a baseType.
 
-            if (strFormat == null || strFormat.Equals(String.Empty))
+            if (strFormat == null || strFormat.Equals(string.Empty))
             {
                 return baseType;
             }
@@ -219,7 +219,7 @@ namespace System.Reflection.Emit
             {
                 foreach (string name in m_TypeBuilderDict.Keys)
                 {
-                    if (String.Compare(name, strTypeName, (StringComparison.OrdinalIgnoreCase)) == 0)
+                    if (string.Compare(name, strTypeName, (StringComparison.OrdinalIgnoreCase)) == 0)
                         return m_TypeBuilderDict[name];
                 }
             }
@@ -1139,7 +1139,7 @@ namespace System.Reflection.Emit
                     return new TypeToken(paramBuilder.MetadataTokenInternal);
                 }
 
-                return new TypeToken(GetTypeRefNested(type, this, String.Empty));
+                return new TypeToken(GetTypeRefNested(type, this, string.Empty));
             }
 
             // After this point, the referenced module is not the same as the referencing
@@ -1147,7 +1147,7 @@ namespace System.Reflection.Emit
             //
             ModuleBuilder refedModuleBuilder = refedModule as ModuleBuilder;
 
-            String strRefedModuleFileName = String.Empty;
+            String strRefedModuleFileName = string.Empty;
             if (refedModule.Assembly.Equals(this.Assembly))
             {
                 // if the referenced module is in the same assembly, the resolution

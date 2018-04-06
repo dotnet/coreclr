@@ -213,7 +213,7 @@ namespace System
 
         public static string FixupCoreLibName(string strToFixup)
         {
-            if (!String.IsNullOrEmpty(strToFixup))
+            if (!string.IsNullOrEmpty(strToFixup))
             {
                 strToFixup = strToFixup.Replace("mscorlib", System.CoreLib.Name);
             }

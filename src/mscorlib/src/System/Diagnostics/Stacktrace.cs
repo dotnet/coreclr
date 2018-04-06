@@ -346,7 +346,7 @@ namespace System.Diagnostics
                     String ns = t.Namespace;
                     if (ns == null)
                         break;
-                    if (String.Compare(ns, PackageName, StringComparison.Ordinal) != 0)
+                    if (string.Compare(ns, PackageName, StringComparison.Ordinal) != 0)
                         break;
                 }
                 iRetVal++;

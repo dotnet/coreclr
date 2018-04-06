@@ -127,23 +127,23 @@ namespace System.Globalization
                     // Add known words into the hash table.
 
                     // Skip these special symbols.                        
-                    temp.Add("/", String.Empty);
-                    temp.Add("-", String.Empty);
-                    temp.Add(".", String.Empty);
+                    temp.Add("/", string.Empty);
+                    temp.Add("-", string.Empty);
+                    temp.Add(".", string.Empty);
                     // Skip known CJK suffixes.
-                    temp.Add(CJKYearSuff, String.Empty);
-                    temp.Add(CJKMonthSuff, String.Empty);
-                    temp.Add(CJKDaySuff, String.Empty);
-                    temp.Add(KoreanYearSuff, String.Empty);
-                    temp.Add(KoreanMonthSuff, String.Empty);
-                    temp.Add(KoreanDaySuff, String.Empty);
-                    temp.Add(KoreanHourSuff, String.Empty);
-                    temp.Add(KoreanMinuteSuff, String.Empty);
-                    temp.Add(KoreanSecondSuff, String.Empty);
-                    temp.Add(CJKHourSuff, String.Empty);
-                    temp.Add(ChineseHourSuff, String.Empty);
-                    temp.Add(CJKMinuteSuff, String.Empty);
-                    temp.Add(CJKSecondSuff, String.Empty);
+                    temp.Add(CJKYearSuff, string.Empty);
+                    temp.Add(CJKMonthSuff, string.Empty);
+                    temp.Add(CJKDaySuff, string.Empty);
+                    temp.Add(KoreanYearSuff, string.Empty);
+                    temp.Add(KoreanMonthSuff, string.Empty);
+                    temp.Add(KoreanDaySuff, string.Empty);
+                    temp.Add(KoreanHourSuff, string.Empty);
+                    temp.Add(KoreanMinuteSuff, string.Empty);
+                    temp.Add(KoreanSecondSuff, string.Empty);
+                    temp.Add(CJKHourSuff, string.Empty);
+                    temp.Add(ChineseHourSuff, string.Empty);
+                    temp.Add(CJKMinuteSuff, string.Empty);
+                    temp.Add(CJKSecondSuff, string.Empty);
 
                     s_knownWords = temp;
                 }

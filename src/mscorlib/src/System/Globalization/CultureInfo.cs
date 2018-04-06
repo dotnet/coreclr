@@ -497,7 +497,7 @@ namespace System.Globalization
                 {
                     string parentName = _cultureData.SPARENT;
 
-                    if (String.IsNullOrEmpty(parentName))
+                    if (string.IsNullOrEmpty(parentName))
                     {
                         _parent = InvariantCulture;
                     }
@@ -562,7 +562,7 @@ namespace System.Globalization
                     _nonSortName = _cultureData.SNAME;
                     if (_nonSortName == null)
                     {
-                        _nonSortName = String.Empty;
+                        _nonSortName = string.Empty;
                     }
                 }
                 return _nonSortName;

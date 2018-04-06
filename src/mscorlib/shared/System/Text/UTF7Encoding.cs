@@ -93,7 +93,7 @@ namespace System.Text
             // UTF7 had an odd decoderFallback behavior, and the Encoder fallback
             // is irrelevant because we encode surrogates individually and never check for unmatched ones
             // (so nothing can fallback during encoding)
-            this.encoderFallback = new EncoderReplacementFallback(String.Empty);
+            this.encoderFallback = new EncoderReplacementFallback(string.Empty);
             this.decoderFallback = new DecoderUTF7Fallback();
         }
 
@@ -385,10 +385,10 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
 
             // Avoid problems with empty input buffer
-            if (count == 0) return String.Empty;
+            if (count == 0) return string.Empty;
 
             fixed (byte* pBytes = bytes)
-                return String.CreateStringFromEncoding(
+                return string.CreateStringFromEncoding(
                     pBytes + index, count, this);
         }
 

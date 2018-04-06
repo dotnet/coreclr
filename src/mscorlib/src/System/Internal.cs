@@ -127,7 +127,7 @@ namespace System
 
             new KeyValuePair<Char, UInt16>('\0', UInt16.MinValue);
             new KeyValuePair<UInt16, Double>(UInt16.MinValue, Double.MinValue);
-            new KeyValuePair<Object, Int32>(String.Empty, Int32.MinValue);
+            new KeyValuePair<Object, Int32>(string.Empty, Int32.MinValue);
             new KeyValuePair<Int32, Int32>(Int32.MinValue, Int32.MinValue);
             SZArrayHelper<Boolean>(null);
             SZArrayHelper<Byte>(null);

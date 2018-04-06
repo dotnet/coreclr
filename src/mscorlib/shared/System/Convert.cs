@@ -2017,7 +2017,7 @@ namespace System
             IFormattable formattable = value as IFormattable;
             if (formattable != null)
                 return formattable.ToString(null, provider);
-            return value == null ? String.Empty : value.ToString();
+            return value == null ? string.Empty : value.ToString();
         }
 
         public static string ToString(bool value)

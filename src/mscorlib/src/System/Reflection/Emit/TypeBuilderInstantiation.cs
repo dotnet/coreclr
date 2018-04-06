@@ -98,7 +98,7 @@ namespace System.Reflection.Emit
             for (int i = 1; i < rank; i++)
                 comma += ",";
 
-            string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", comma);
+            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", comma);
             return SymbolType.FormCompoundType(s, this, 0);
         }
         public override Guid GUID { get { throw new NotSupportedException(); } }

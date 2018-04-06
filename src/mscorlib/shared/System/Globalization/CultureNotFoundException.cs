@@ -94,7 +94,7 @@ namespace System.Globalization
             get
             {
                 return InvalidCultureId != null ?
-                    String.Format(CultureInfo.InvariantCulture, "{0} (0x{0:x4})", (int)InvalidCultureId) :
+                    string.Format(CultureInfo.InvariantCulture, "{0} (0x{0:x4})", (int)InvalidCultureId) :
                     InvalidCultureName;
             }
         }

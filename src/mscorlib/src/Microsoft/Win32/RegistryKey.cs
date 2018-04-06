@@ -712,7 +712,7 @@ namespace Microsoft.Win32
                                     // we found an empty string.  But if we're at the end of the data, 
                                     // it's just the extra null terminator. 
                                     if (nextNull != len - 1)
-                                        strings.Add(String.Empty);
+                                        strings.Add(string.Empty);
                                 }
                             }
                             else
@@ -834,7 +834,7 @@ namespace Microsoft.Win32
                                 for (int i = 0; i < dataStrings.Length; i++)
                                 {
                                     // Assumes that the Strings are always null terminated.
-                                    String.InternalCopy(dataStrings[i], currentPtr, (checked(dataStrings[i].Length * 2)));
+                                    string.InternalCopy(dataStrings[i], currentPtr, (checked(dataStrings[i].Length * 2)));
                                     currentPtr = new IntPtr((long)currentPtr + (checked(dataStrings[i].Length * 2)));
                                     *(char*)(currentPtr.ToPointer()) = '\0';
                                     currentPtr = new IntPtr((long)currentPtr + 2);

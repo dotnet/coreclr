@@ -283,7 +283,7 @@ namespace System.IO
 
             if (stringLength == 0)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             if (_charBytes == null)

@@ -362,7 +362,7 @@ namespace System.Runtime.CompilerServices
             // Note that both the conditionText and userMessage may be null.  Also, 
             // on Silverlight we may not be able to look up a friendly string for the
             // error message.  Let's leverage Silverlight's default error message there. 
-            if (!String.IsNullOrEmpty(conditionText))
+            if (!string.IsNullOrEmpty(conditionText))
             {
                 String resourceName = GetResourceNameForFailure(failureKind); 
                 resourceName += "_Cnd";
@@ -374,7 +374,7 @@ namespace System.Runtime.CompilerServices
             }
 
             // Now add in the user message, if present.
-            if (!String.IsNullOrEmpty(userMessage))
+            if (!string.IsNullOrEmpty(userMessage))
             {
                 return failureMessage + "  " + userMessage;
             }

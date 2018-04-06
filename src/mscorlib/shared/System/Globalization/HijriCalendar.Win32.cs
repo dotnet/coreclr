@@ -61,7 +61,7 @@ namespace System.Globalization
                         return (0);
                     }
                     String str = value.ToString();
-                    if (String.Compare(str, 0, HijriAdvanceRegKeyEntry, 0, HijriAdvanceRegKeyEntry.Length, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Compare(str, 0, HijriAdvanceRegKeyEntry, 0, HijriAdvanceRegKeyEntry.Length, StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         if (str.Length == HijriAdvanceRegKeyEntry.Length)
                             hijriAdvance = -1;

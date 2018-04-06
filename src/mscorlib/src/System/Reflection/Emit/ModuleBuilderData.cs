@@ -37,7 +37,7 @@ namespace System.Reflection.Emit
             else
             {
                 String strExtension = Path.GetExtension(strFileName);
-                if (strExtension == null || strExtension == String.Empty)
+                if (strExtension == null || strExtension == string.Empty)
                 {
                     // This is required by our loader. It cannot load module file that does not have file extension.
                     throw new ArgumentException(SR.Format(SR.Argument_NoModuleFileExtension, strFileName));

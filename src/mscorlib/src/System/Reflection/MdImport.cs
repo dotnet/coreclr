@@ -237,7 +237,7 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override string ToString() { return String.Format(CultureInfo.InvariantCulture, "0x{0:x8}", Value); }
+        public override string ToString() { return string.Format(CultureInfo.InvariantCulture, "0x{0:x8}", Value); }
         #endregion
     }
 
@@ -663,7 +663,7 @@ namespace System.Reflection
 
         public override string ToString()
         {
-            return String.Format(CultureInfo.CurrentCulture, "MetadataException HResult = {0:x}.", m_hr);
+            return string.Format(CultureInfo.CurrentCulture, "MetadataException HResult = {0:x}.", m_hr);
         }
     }
 }

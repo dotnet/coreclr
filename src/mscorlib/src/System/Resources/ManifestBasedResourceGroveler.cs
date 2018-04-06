@@ -360,7 +360,7 @@ namespace System.Resources
             String canonicalName = null;
             foreach (String existingName in satellite.GetManifestResourceNames())
             {
-                if (String.Equals(existingName, givenName, StringComparison.InvariantCultureIgnoreCase))
+                if (string.Equals(existingName, givenName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     if (canonicalName == null)
                     {
@@ -512,7 +512,7 @@ namespace System.Resources
             }
             // We really don't think this should happen - we always
             // expect the neutral locale's resources to be present.
-            String resName = String.Empty;
+            String resName = string.Empty;
             if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
                 resName = _mediator.LocationInfo.Namespace + Type.Delimiter;
             resName += fileName;

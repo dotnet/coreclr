@@ -1125,7 +1125,7 @@ namespace System.Runtime.InteropServices
                 {
                     fixed (char* firstChar = s)
                     {
-                        String.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
+                        string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
                     }
                     return hglobal;
                 }
@@ -1324,7 +1324,7 @@ namespace System.Runtime.InteropServices
                 {
                     fixed (char* firstChar = s)
                     {
-                        String.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
+                        string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
                     }
                     return hglobal;
                 }
@@ -1676,7 +1676,7 @@ namespace System.Runtime.InteropServices
                     String strProgId = (String)progIdConstructorArg.Value;
 
                     if (strProgId == null)
-                        strProgId = String.Empty;
+                        strProgId = string.Empty;
 
                     return strProgId;
                 }

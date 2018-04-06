@@ -127,7 +127,7 @@ namespace System
                 //
                 else if (key.Equals(c_profileKey, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!String.IsNullOrEmpty(value))
+                    if (!string.IsNullOrEmpty(value))
                     {
                         profile = value;
                     }

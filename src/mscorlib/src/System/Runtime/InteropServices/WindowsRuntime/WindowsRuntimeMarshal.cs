@@ -1043,7 +1043,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // There is no difference between a null and empty HSTRING
             if (hstring == IntPtr.Zero)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             unsafe

@@ -1082,7 +1082,7 @@ namespace System.Text
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            return String.CreateStringFromEncoding(bytes, byteCount, this);
+            return string.CreateStringFromEncoding(bytes, byteCount, this);
         }
 
         public unsafe string GetString(ReadOnlySpan<byte> bytes)

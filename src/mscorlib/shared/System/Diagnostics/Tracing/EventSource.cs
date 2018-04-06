@@ -3168,7 +3168,7 @@ namespace System.Diagnostics.Tracing
 
             if ((flags & EventManifestOptions.Strict) != 0 && (manifest.Errors.Count > 0 || exception != null))
             {
-                string msg = String.Empty;
+                string msg = string.Empty;
                 if (manifest.Errors.Count > 0)
                 {
                     bool firstError = true;
@@ -3550,7 +3550,7 @@ namespace System.Diagnostics.Tracing
             {
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
                 // send message to debugger without delay
-                System.Diagnostics.Debugger.Log(0, null, String.Format("EventSource Error: {0}{1}", msg, Environment.NewLine));
+                System.Diagnostics.Debugger.Log(0, null, string.Format("EventSource Error: {0}{1}", msg, Environment.NewLine));
 #endif
 
                 // Send it to all listeners.

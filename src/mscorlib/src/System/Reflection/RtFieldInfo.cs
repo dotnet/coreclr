@@ -103,7 +103,7 @@ namespace System.Reflection
                     else
                     {
                         throw new ArgumentException(
-                            String.Format(CultureInfo.CurrentUICulture, SR.Arg_FieldDeclTarget,
+                            string.Format(CultureInfo.CurrentUICulture, SR.Arg_FieldDeclTarget,
                                 Name, m_declaringType, target.GetType()));
                     }
                 }
@@ -252,7 +252,7 @@ namespace System.Reflection
         {
             get
             {
-                return String.Format("{0}.{1}", DeclaringType.FullName, Name);
+                return string.Format("{0}.{1}", DeclaringType.FullName, Name);
             }
         }
 

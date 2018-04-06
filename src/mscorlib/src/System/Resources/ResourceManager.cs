@@ -698,7 +698,7 @@ namespace System.Resources
                 return false;
 
             // case sensitive
-            if (String.Compare(asmTypeName1, 0, typeName2, 0, typeName2.Length, StringComparison.Ordinal) != 0)
+            if (string.Compare(asmTypeName1, 0, typeName2, 0, typeName2.Length, StringComparison.Ordinal) != 0)
                 return false;
             if (comma == -1)
                 return true;
@@ -709,11 +709,11 @@ namespace System.Resources
 
             // case insensitive
             AssemblyName an1 = new AssemblyName(asmTypeName1.Substring(comma));
-            if (String.Compare(an1.Name, asmName2.Name, StringComparison.OrdinalIgnoreCase) != 0)
+            if (string.Compare(an1.Name, asmName2.Name, StringComparison.OrdinalIgnoreCase) != 0)
                 return false;
 
             // to match IsMscorlib() in VM
-            if (String.Compare(an1.Name, System.CoreLib.Name, StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(an1.Name, System.CoreLib.Name, StringComparison.OrdinalIgnoreCase) == 0)
                 return true;
 
 
@@ -760,8 +760,8 @@ namespace System.Resources
             // exception types that the ResourceManager class is not documented to throw.
             resourceString = _WinRTResourceManager.GetString(
                                        stringName,
-                                       String.IsNullOrEmpty(startingCulture) ? null : startingCulture,
-                                       String.IsNullOrEmpty(neutralResourcesCulture) ? null : neutralResourcesCulture);
+                                       string.IsNullOrEmpty(startingCulture) ? null : startingCulture,
+                                       string.IsNullOrEmpty(neutralResourcesCulture) ? null : neutralResourcesCulture);
 
             return resourceString;
         }
@@ -803,7 +803,7 @@ namespace System.Resources
             {
                 // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
                 String platformResourceRoots = (String)(AppDomain.CurrentDomain.GetData("PLATFORM_RESOURCE_ROOTS"));
-                if ((platformResourceRoots != null) && (platformResourceRoots != String.Empty))
+                if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
                 {
                     string resourceAssemblyPath = resourcesAssembly.Location;
 
@@ -865,7 +865,7 @@ namespace System.Resources
                         // throw a MissingManifestResourceException when GetString is called indicating that a
                         // resW filename called "" could not be found.
                         if (reswFilename == null)
-                            reswFilename = String.Empty;
+                            reswFilename = string.Empty;
 
                         WindowsRuntimeResourceManagerBase WRRM = null;
                         bool bWRRM_Initialized = false;

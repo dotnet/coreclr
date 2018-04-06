@@ -384,7 +384,7 @@ namespace System.Reflection.Emit
                     szrank += ",";
             }
 
-            string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
+            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
             return SymbolType.FormCompoundType(s, this, 0);
         }
 

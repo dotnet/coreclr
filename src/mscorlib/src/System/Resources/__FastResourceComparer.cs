@@ -57,17 +57,17 @@ namespace System.Resources
             if (a == b) return 0;
             String sa = (String)a;
             String sb = (String)b;
-            return String.CompareOrdinal(sa, sb);
+            return string.CompareOrdinal(sa, sb);
         }
 
         public int Compare(String a, String b)
         {
-            return String.CompareOrdinal(a, b);
+            return string.CompareOrdinal(a, b);
         }
 
         public bool Equals(String a, String b)
         {
-            return String.Equals(a, b);
+            return string.Equals(a, b);
         }
 
         public new bool Equals(Object a, Object b)
@@ -75,7 +75,7 @@ namespace System.Resources
             if (a == b) return true;
             String sa = (String)a;
             String sb = (String)b;
-            return String.Equals(sa, sb);
+            return string.Equals(sa, sb);
         }
 
         // Input is one string to compare with, and a byte[] containing chars in 

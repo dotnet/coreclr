@@ -549,7 +549,7 @@ namespace System.Reflection.Emit
             if (iLast == -1 || iLast == 0)
             {
                 // no name space
-                m_strNameSpace = String.Empty;
+                m_strNameSpace = string.Empty;
                 m_strName = fullname;
             }
             else
@@ -1184,7 +1184,7 @@ namespace System.Reflection.Emit
                     szrank += ",";
             }
 
-            string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
+            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
             return SymbolType.FormCompoundType(s, this, 0);
         }
 

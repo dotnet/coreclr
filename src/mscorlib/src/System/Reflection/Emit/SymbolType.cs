@@ -304,7 +304,7 @@ namespace System.Reflection.Emit
                     szrank += ",";
             }
 
-            string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
+            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
             SymbolType st = SymbolType.FormCompoundType(m_format + s, m_baseType, 0) as SymbolType;
             return st;
         }

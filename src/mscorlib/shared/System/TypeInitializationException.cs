@@ -71,7 +71,7 @@ namespace System
             {
                 if (_typeName == null)
                 {
-                    return String.Empty;
+                    return string.Empty;
                 }
                 return _typeName;
             }
