@@ -12,7 +12,7 @@ namespace System
 
         public SpanDebugView(Span<T> span)
         {
-           _array = span.ToArray();
+            _array = span.ToArray();
         }
 
         public SpanDebugView(ReadOnlySpan<T> span)
