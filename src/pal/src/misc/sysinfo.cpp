@@ -26,6 +26,10 @@ Revision History:
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <string>
+#include <sstream>
+#include <iostream>
+
 #if HAVE_SYSCTL
 #include <sys/sysctl.h>
 #elif !HAVE_SYSCONF
@@ -494,4 +498,71 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
 #endif
 
     return cacheSize;
+}
+
+size_t
+PALAPI
+PAL_GetMemAvailableFromOS()
+{
+    size_t value = PAL_GetRestrictedPhysicalMemoryLimit();
+
+    if (value != SIZE_T_MAX)
+    {
+        return value;
+    }
+
+    static int indocker = -1;
+    if (indocker == -1)
+    {
+        FILE* file = fopen("/proc/1/cgroup", "r");
+        if (file != nullptr)
+        {
+            char *line = nullptr;
+            size_t lineLen = 0;
+
+            if (getline(&line, &lineLen, file) != -1)
+            {
+                std::string str(line);
+                std::size_t found = str.find(std::string("docker"));
+                if (found != std::string::npos)
+                {
+                    indocker = 1;
+                }
+                else
+                {
+                    indocker = 0;
+                }
+            }
+            fclose(file);
+        }
+    }
+
+    if (indocker == 1)
+    {
+        return value;
+    }
+
+    FILE* file = fopen("/proc/meminfo", "r");
+    if (file != nullptr)
+    {
+        bool result = false;
+        char *line = nullptr;
+        size_t lineLen = 0;
+
+        while (!result && getline(&line, &lineLen, file) != -1)
+        {
+            char meminfo_name[80];
+            size_t meminfo_value;
+
+            int sscanfRet = sscanf(line, "%s %zu", meminfo_name, &meminfo_value);
+
+            if (strcmp("MemAvailable:", meminfo_name) == 0)
+            {
+                value = (size_t)meminfo_value;
+                result = true;
+            }
+        }
+        fclose(file);
+    }
+    return value;
 }
