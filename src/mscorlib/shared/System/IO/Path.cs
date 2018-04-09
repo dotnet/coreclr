@@ -23,6 +23,7 @@ namespace System.IO
         // For generating random file names
         // 8 random bytes provides 12 chars in our encoding for the 8.3 name.
         private const int KeyLength = 8;
+        private const int RandomFileNameLength = 12;
 
         [Obsolete("Please use GetInvalidPathChars or GetInvalidFileNameChars instead.")]
         public static readonly char[] InvalidPathChars = GetInvalidPathChars();
@@ -219,19 +220,40 @@ namespace System.IO
                 fileName.Slice(0, lastPeriod);
         }
 
+        private static unsafe char* GetRandomFileNameInternal(int randomFileNameLength)
+        {
+            byte* pKey = stackalloc byte[KeyLength];
+            Interop.GetRandomBytes(pKey, KeyLength);
+
+            char* pRandomFileName = stackalloc char[randomFileNameLength];
+            Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, randomFileNameLength);
+            return pRandomFileName;
+        }
+
         /// <summary>
         /// Returns a cryptographically strong random 8.3 string that can be
         /// used as either a folder name or a file name.
         /// </summary>
         public static unsafe string GetRandomFileName()
         {
-            byte* pKey = stackalloc byte[KeyLength];
-            Interop.GetRandomBytes(pKey, KeyLength);
+            return new string(GetRandomFileNameInternal(RandomFileNameLength), 0, RandomFileNameLength);
+        }
 
-            const int RandomFileNameLength = 12;
-            char* pRandomFileName = stackalloc char[RandomFileNameLength];
-            Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, RandomFileNameLength);
-            return new string(pRandomFileName, 0, RandomFileNameLength);
+        /// <summary>
+        /// Returns a cryptographically strong random 8.3 string that can be
+        /// used as either a folder name or a file name.
+        /// </summary>
+        public static unsafe bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            if (destination.Length < RandomFileNameLength)
+                return false;
+
+            ReadOnlySpan<char> randomFileName = new ReadOnlySpan<char>(GetRandomFileNameInternal(RandomFileNameLength), RandomFileNameLength);
+            randomFileName.CopyTo(destination);
+            charsWritten = randomFileName.Length;
+            return true;
         }
 
         /// <summary>
