@@ -115,27 +115,22 @@ namespace System
 
         /// <summary>
         /// Creates a new memory from a memory manager that provides specific method implementations beginning
-        /// at 'start' index and ending at 'end' index (exclusive).
+        /// at 0 index and ending at 'end' index (exclusive).
         /// </summary>
         /// <param name="manager">The memory manager.</param>
-        /// <param name="start">The index at which to begin the memory.</param>
         /// <param name="length">The number of items in the memory.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// Thrown when <paramref name="manager"/> is null.
-        /// </exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
-        /// </exception>
+        /// <remarks>For internal infrastructure only</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Memory(MemoryManager<T> manager, int start, int length)
+        internal Memory(MemoryManager<T> manager, int length)
         {
-            if (manager == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.manager);
-            if ((uint)start > (uint)manager.Length || (uint)length > (uint)(manager.Length - start))
+            Debug.Assert(manager != null);
+
+            if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             _object = manager;
-            _index = start | (1 << 31); // Before using _index, check if _index < 0, then 'and' it with RemoveFlagsBitMask
+            _index = (1 << 31); // Mark as MemoryManager type
+            // Before using _index, check if _index < 0, then 'and' it with RemoveFlagsBitMask
             _length = length;
         }
 
