@@ -154,13 +154,7 @@ namespace System
         /// It can be used for pinning and is required to support the use of span within a fixed statement.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public ref readonly T GetPinnableReference()
-        {
-            if (_length == 0)
-                return ref s_nullPtr;
-            else
-                return ref _pointer.Value;
-        }
+        public unsafe ref readonly T GetPinnableReference() => ref (_length != 0) ? ref _pointer.Value : ref Unsafe.AsRef<T>(null);
 
         /// <summary>
         /// Copies the contents of this read-only span into destination span. If the source
@@ -279,7 +273,5 @@ namespace System
             Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
             return destination;
         }
-
-        private static T s_nullPtr = default;
     }
 }
