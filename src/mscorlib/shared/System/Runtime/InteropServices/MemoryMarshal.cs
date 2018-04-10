@@ -252,6 +252,9 @@ namespace System.Runtime.InteropServices
         /// <param name="array">The pre-pinned target array.</param>
         /// <param name="start">The index at which to begin the memory.</param>
         /// <param name="length">The number of items in the memory.</param>
+        /// <remarks>This method should only be called on an array that is already pinned and 
+        /// that array should not be unpinned while the returned Memory<typeparamref name="T"/> is still in use.
+        /// Calling this method on an unpinned array could result in memory corruption.</remarks>
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
