@@ -223,15 +223,17 @@ namespace System.Buffers
 
         public bool Trim()
         {
-            uint milliseconds = (uint)Environment.TickCount;
-
+            int milliseconds = Environment.TickCount;
             MemoryPressure pressure = GetMemoryPressure();
-            foreach (PerCoreLockedStacks bucket in _buckets)
-            {
-                bucket?.Trim(milliseconds, Id, pressure, _bucketArraySizes);
-            }
 
             ArrayPoolEventSource log = ArrayPoolEventSource.Log;
+            if (log.IsEnabled())
+                log.BufferTrimPoll(milliseconds, (int)pressure);
+
+            foreach (PerCoreLockedStacks bucket in _buckets)
+            {
+                bucket?.Trim((uint)milliseconds, Id, pressure, _bucketArraySizes);
+            }
 
             if (pressure == MemoryPressure.High)
             {
