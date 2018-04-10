@@ -317,7 +317,8 @@ namespace Microsoft.Win32
             EnsureNotDisposed();
 
             var names = new List<string>();
-            char[] name = ArrayPool<char>.Shared.Rent(MaxKeyLength + 1);
+            int length = MaxKeyLength + 1;
+            char[] name = ArrayPool<char>.Shared.Rent(length);
 
             try
             {
@@ -414,7 +415,8 @@ namespace Microsoft.Win32
                                 int oldLength = oldName.Length;
                                 name = null;
                                 ArrayPool<char>.Shared.Return(oldName);
-                                name = ArrayPool<char>.Shared.Rent(checked(oldLength * 2));
+                                int length = checked(oldLength * 2);
+                                name = ArrayPool<char>.Shared.Rent(length);
                             }
                             break;
                         default:

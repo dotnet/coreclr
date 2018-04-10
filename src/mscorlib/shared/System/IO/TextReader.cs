@@ -104,12 +104,13 @@ namespace System.IO
         //
         public virtual int Read(Span<char> buffer)
         {
-            char[] array = ArrayPool<char>.Shared.Rent(buffer.Length);
+            int length = buffer.Length;
+            char[] array = ArrayPool<char>.Shared.Rent(length);
 
             try
             {
-                int numRead = Read(array, 0, buffer.Length);
-                if ((uint)numRead > buffer.Length)
+                int numRead = Read(array, 0, length);
+                if ((uint)numRead > (uint)length)
                 {
                     throw new IOException(SR.IO_InvalidReadLength);
                 }
@@ -154,12 +155,13 @@ namespace System.IO
         //
         public virtual int ReadBlock(Span<char> buffer)
         {
-            char[] array = ArrayPool<char>.Shared.Rent(buffer.Length);
+            int length = buffer.Length;
+            char[] array = ArrayPool<char>.Shared.Rent(length);
 
             try
             {
-                int numRead = ReadBlock(array, 0, buffer.Length);
-                if ((uint)numRead > buffer.Length)
+                int numRead = ReadBlock(array, 0, length);
+                if ((uint)numRead > (uint)length)
                 {
                     throw new IOException(SR.IO_InvalidReadLength);
                 }

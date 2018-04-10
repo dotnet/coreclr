@@ -60,7 +60,8 @@ namespace System.Collections.Generic
 
         private void Grow()
         {
-            T[] array = ArrayPool<T>.Shared.Rent(_span.Length * 2);
+            var length = _span.Length * 2;
+            T[] array = ArrayPool<T>.Shared.Rent(length);
 
             bool success = _span.TryCopyTo(array);
             Debug.Assert(success);

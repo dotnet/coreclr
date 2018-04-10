@@ -1230,9 +1230,10 @@ namespace System.Globalization
             }
 
             char[] borrowedArr = null;
-            Span<char> span = source.Length <= 255 ?
+            int length = source.Length;
+            Span<char> span = length <= 255 ?
                 stackalloc char[255] :
-                (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
+                (borrowedArr = ArrayPool<char>.Shared.Rent(length));
 
             int charsWritten = source.AsSpan().ToUpperInvariant(span);
 

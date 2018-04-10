@@ -398,11 +398,12 @@ namespace System.IO
             }
             else
             {
-                byte[] array = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                int length = buffer.Length;
+                byte[] array = ArrayPool<byte>.Shared.Rent(length);
                 try
                 {
                     buffer.CopyTo(array);
-                    Write(array, 0, buffer.Length);
+                    Write(array, 0, length);
                 }
                 finally
                 {
@@ -413,7 +414,8 @@ namespace System.IO
 
         public virtual void Write(ReadOnlySpan<char> chars)
         {
-            byte[] bytes = ArrayPool<byte>.Shared.Rent(_encoding.GetMaxByteCount(chars.Length));
+            int length = _encoding.GetMaxByteCount(chars.Length);
+            byte[] bytes = ArrayPool<byte>.Shared.Rent(length);
             try
             {
                 int bytesWritten = _encoding.GetBytes(chars, bytes);

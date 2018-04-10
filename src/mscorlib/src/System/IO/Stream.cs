@@ -382,8 +382,9 @@ namespace System.IO
             }
             else
             {
-                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
-                return FinishReadAsync(ReadAsync(sharedBuffer, 0, buffer.Length, cancellationToken), sharedBuffer, buffer);
+                int length = buffer.Length;
+                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
+                return FinishReadAsync(ReadAsync(sharedBuffer, 0, length, cancellationToken), sharedBuffer, buffer);
 
                 async ValueTask<int> FinishReadAsync(Task<int> readTask, byte[] localBuffer, Memory<byte> localDestination)
                 {
@@ -691,9 +692,10 @@ namespace System.IO
             }
             else
             {
-                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                int length = buffer.Length;
+                byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
                 buffer.Span.CopyTo(sharedBuffer);
-                return new ValueTask(FinishWriteAsync(WriteAsync(sharedBuffer, 0, buffer.Length, cancellationToken), sharedBuffer));
+                return new ValueTask(FinishWriteAsync(WriteAsync(sharedBuffer, 0, length, cancellationToken), sharedBuffer));
             }
         }
 
@@ -740,11 +742,12 @@ namespace System.IO
 
         public virtual int Read(Span<byte> buffer)
         {
-            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            int length = buffer.Length;
+            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
             try
             {
-                int numRead = Read(sharedBuffer, 0, buffer.Length);
-                if ((uint)numRead > buffer.Length)
+                int numRead = Read(sharedBuffer, 0, length);
+                if ((uint)numRead > (uint)length)
                 {
                     throw new IOException(SR.IO_StreamTooLong);
                 }
@@ -773,11 +776,12 @@ namespace System.IO
 
         public virtual void Write(ReadOnlySpan<byte> buffer)
         {
-            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            int length = buffer.Length;
+            byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
             try
             {
                 buffer.CopyTo(sharedBuffer);
-                Write(sharedBuffer, 0, buffer.Length);
+                Write(sharedBuffer, 0, length);
             }
             finally { ArrayPool<byte>.Shared.Return(sharedBuffer); }
         }
