@@ -2,29 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** Purpose: Exposes features of the Garbage Collector through
-** the class libraries.  This is a class which cannot be
-** instantiated.
-**
-**
-===========================================================*/
-//This class only static members and doesn't require the serializable keyword.
-
-using System;
-using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime;
-using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
-using System.Globalization;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System
 {
@@ -58,15 +39,18 @@ namespace System
         NotApplicable = 4
     }
 
+    /// <summary>
+    /// Exposes features of the Garbage Collector through the class libraries.
+    /// </summary>
     public static class GC
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetGCLatencyMode();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int SetGCLatencyMode(int newLatencyMode);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
                                                   out uint lastRecordedMemLoad,
@@ -80,13 +64,13 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetLOHCompactionMode();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SetLOHCompactionMode(int newLOHCompactionMode);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -95,20 +79,20 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Collect(int generation, int mode);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetMaxGeneration();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _CollectionCount(int generation, int getSpecialGCCount);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsServerGC();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void _AddMemoryPressure(UInt64 bytesAllocated);
+        private static extern void _AddMemoryPressure(ulong bytesAllocated);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void _RemoveMemoryPressure(UInt64 bytesAllocated);
+        private static extern void _RemoveMemoryPressure(ulong bytesAllocated);
 
         public static void AddMemoryPressure(long bytesAllocated)
         {
@@ -118,7 +102,7 @@ namespace System
                         SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
+            if ((4 == IntPtr.Size) && (bytesAllocated > int.MaxValue))
             {
                 throw new ArgumentOutOfRangeException("pressure",
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
@@ -135,7 +119,7 @@ namespace System
                     SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
+            if ((4 == IntPtr.Size) && (bytesAllocated > int.MaxValue))
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
@@ -144,12 +128,10 @@ namespace System
             _RemoveMemoryPressure((ulong)bytesAllocated);
         }
 
-
         // Returns the generation that obj is currently in.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern int GetGeneration(Object obj);
-
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        public static extern int GetGeneration(object obj);
 
         // Forces a collection of all generations from 0 through Generation.
         //
@@ -187,7 +169,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(mode), SR.ArgumentOutOfRange_Enum);
             }
-
 
             int iInternalModes = 0;
 
@@ -255,8 +236,8 @@ namespace System
         //
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        public static void KeepAlive(Object obj)
+        [MethodImpl(MethodImplOptions.NoInlining)] // disable optimizations
+        public static void KeepAlive(object obj)
         {
         }
 
@@ -287,10 +268,10 @@ namespace System
 
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _SuppressFinalize(Object o);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void _SuppressFinalize(object o);
 
-        public static void SuppressFinalize(Object obj)
+        public static void SuppressFinalize(object obj)
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
@@ -301,10 +282,10 @@ namespace System
         // for which SuppressFinalize has already been called. The other situation 
         // where calling ReRegisterForFinalize is useful is inside a finalizer that 
         // needs to resurrect itself or an object that it references.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void _ReRegisterForFinalize(Object o);
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void _ReRegisterForFinalize(object o);
 
-        public static void ReRegisterForFinalize(Object obj)
+        public static void ReRegisterForFinalize(object obj)
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
@@ -339,7 +320,7 @@ namespace System
             return newSize;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern long _GetAllocatedBytesForCurrentThread();
 
         public static long GetAllocatedBytesForCurrentThread()
@@ -347,16 +328,16 @@ namespace System
             return _GetAllocatedBytesForCurrentThread();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _CancelFullGCNotification();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCApproach(int millisecondsTimeout);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
         public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold)
@@ -364,7 +345,7 @@ namespace System
             if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
-                                                      String.Format(
+                                                      string.Format(
                                                           CultureInfo.CurrentCulture,
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
@@ -374,7 +355,7 @@ namespace System
             if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
             {
                 throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
-                                                      String.Format(
+                                                      string.Format(
                                                           CultureInfo.CurrentCulture,
                                                           SR.ArgumentOutOfRange_Bounds_Lower_Upper,
                                                           1,
