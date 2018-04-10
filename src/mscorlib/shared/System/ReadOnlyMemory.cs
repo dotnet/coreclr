@@ -184,6 +184,7 @@ namespace System
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // Only use the local 'obj' instead of the _object field directly to avoid issues with struct tearing
                 object obj = _object;
                 if (_index < 0)
                 {
@@ -202,6 +203,8 @@ namespace System
                 }
                 else if (obj != null)
                 {
+                    // obj is gauranteed to be a T[] here,
+                    // which is why we can use Unsafe.As as a performance optimization instead of an explicit cast
                     Debug.Assert(obj is T[]);
                     return new ReadOnlySpan<T>(Unsafe.As<T[]>(obj), _index, _length & RemoveFlagsBitMask);
                 }
@@ -242,6 +245,7 @@ namespace System
         /// </summary>
         public unsafe MemoryHandle Pin()
         {
+            // Only use the local 'obj' instead of the _object field directly to avoid issues with struct tearing
             object obj = _object;
             if (_index < 0)
             {
@@ -260,6 +264,8 @@ namespace System
             }
             else if (obj != null)
             {
+                // obj is gauranteed to be a T[] here,
+                // which is why we can use Unsafe.As as a performance optimization instead of an explicit cast
                 Debug.Assert(obj is T[]);
                 GCHandle handle = _length < 0 ? default : GCHandle.Alloc(Unsafe.As<T[]>(obj), GCHandleType.Pinned);
 #if FEATURE_PORTABLE_SPAN
