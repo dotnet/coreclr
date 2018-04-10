@@ -66,7 +66,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int SetGCLatencyMode(int newLatencyMode);
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
                                                   out uint lastRecordedMemLoad,
