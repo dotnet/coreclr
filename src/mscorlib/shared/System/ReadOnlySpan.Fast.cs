@@ -150,6 +150,19 @@ namespace System
         }
 
         /// <summary>
+        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
+        /// It can be used for pinning and is required to support the use of span within a fixed statement.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public ref readonly T GetPinnableReference()
+        {
+            if (_length == 0)
+                return ref s_nullPtr;
+            else
+                return ref _pointer.Value;
+        }
+
+        /// <summary>
         /// Copies the contents of this read-only span into destination span. If the source
         /// and destinations overlap, this method behaves as if the original values in
         /// a temporary location before the destination is overwritten.
@@ -266,5 +279,7 @@ namespace System
             Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
             return destination;
         }
+
+        private static T s_nullPtr = default;
     }
 }

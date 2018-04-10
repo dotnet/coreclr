@@ -155,6 +155,19 @@ namespace System
         }
 
         /// <summary>
+        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
+        /// It can be used for pinning and is required to support the use of span within a fixed statement.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public ref T GetPinnableReference()
+        {
+            if (_length == 0)
+                return ref s_nullPtr;
+            else
+                return ref _pointer.Value;
+        }
+
+        /// <summary>
         /// Clears the contents of this span.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -346,5 +359,7 @@ namespace System
             Buffer.Memmove(ref Unsafe.As<byte, T>(ref destination.GetRawSzArrayData()), ref _pointer.Value, (nuint)_length);
             return destination;
         }
+
+        private static T s_nullPtr = default;
     }
 }
