@@ -922,18 +922,6 @@ UINT64   GCInterface::m_remPressure[NEW_PRESSURE_COUNT] = {0, 0, 0, 0};   // his
 // (m_iteration % NEW_PRESSURE_COUNT) is used as an index into m_addPressure and m_remPressure
 UINT     GCInterface::m_iteration = 0;
 
-FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation)
-{
-    FCALL_CONTRACT;
-
-    FC_GC_POLL_NOT_NEEDED();
-
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem,
-                                                       lastRecordedMemLoad,
-                                                       lastRecordedHeapSize, lastRecordedFragmentation);
-}
-FCIMPLEND
-
 FCIMPL0(int, GCInterface::GetGcLatencyMode)
 {
     FCALL_CONTRACT;
@@ -2251,6 +2239,137 @@ FCIMPL1(INT32, ValueTypeHelper::GetHashCodeOfPtr, LPVOID ptr)
     return hashCode - dwSeed;
 }
 FCIMPLEND
+
+
+COMNlsHashProvider COMNlsHashProvider::s_NlsHashProvider;
+
+
+COMNlsHashProvider::COMNlsHashProvider()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    pEntropy = NULL;
+    pDefaultSeed = NULL;
+}
+
+INT32 COMNlsHashProvider::HashString(LPCWSTR szStr, SIZE_T strLen)
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
+    
+    SymCryptMarvin32(GetDefaultSeed(), (PCBYTE) szStr, strLen * sizeof(WCHAR), (PBYTE) &marvinResult);
+
+    return marvinResult[0] ^ marvinResult[1];
+}
+
+
+INT32 COMNlsHashProvider::HashSortKey(PCBYTE pSrc, SIZE_T cbSrc)
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    int marvinResult[SYMCRYPT_MARVIN32_RESULT_SIZE / sizeof(int)];
+    
+    // Sort Keys are terminated with a null byte which we didn't hash using the old algorithm, 
+    // so we don't have it with Marvin32 either.
+    SymCryptMarvin32(GetDefaultSeed(), pSrc, cbSrc - 1, (PBYTE) &marvinResult);
+
+    return marvinResult[0] ^ marvinResult[1];
+}
+
+void COMNlsHashProvider::InitializeDefaultSeed()
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    PCBYTE pEntropy = GetEntropy();
+    AllocMemHolder<SYMCRYPT_MARVIN32_EXPANDED_SEED> pSeed(GetAppDomain()->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(SYMCRYPT_MARVIN32_EXPANDED_SEED))));
+    SymCryptMarvin32ExpandSeed(pSeed, pEntropy, SYMCRYPT_MARVIN32_SEED_SIZE);
+
+    if(InterlockedCompareExchangeT(&pDefaultSeed, (PCSYMCRYPT_MARVIN32_EXPANDED_SEED) pSeed, NULL) == NULL)
+    {
+        pSeed.SuppressRelease();
+    }
+}
+
+PCSYMCRYPT_MARVIN32_EXPANDED_SEED COMNlsHashProvider::GetDefaultSeed()
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(pDefaultSeed == NULL)
+    {
+        InitializeDefaultSeed();
+    }
+
+    return pDefaultSeed;
+}
+
+PCBYTE COMNlsHashProvider::GetEntropy()
+{
+    CONTRACTL {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if(pEntropy == NULL)
+    {
+        AllocMemHolder<BYTE> pNewEntropy(GetAppDomain()->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(SYMCRYPT_MARVIN32_SEED_SIZE))));
+
+#ifdef FEATURE_PAL
+        PAL_Random(pNewEntropy, SYMCRYPT_MARVIN32_SEED_SIZE);
+#else
+        HCRYPTPROV hCryptProv;
+        WszCryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
+        CryptGenRandom(hCryptProv, SYMCRYPT_MARVIN32_SEED_SIZE, pNewEntropy);
+        CryptReleaseContext(hCryptProv, 0);
+#endif
+
+        if(InterlockedCompareExchangeT(&pEntropy, (PBYTE) pNewEntropy, NULL) == NULL)
+        {
+            pNewEntropy.SuppressRelease();
+        }
+    }
+ 
+    return (PCBYTE) pEntropy;
+}
+
+#ifdef FEATURE_COREFX_GLOBALIZATION
+INT32 QCALLTYPE CoreFxGlobalization::HashSortKey(PCBYTE pSortKey, INT32 cbSortKey)
+{
+    QCALL_CONTRACT;
+
+    INT32 retVal = 0;
+
+    BEGIN_QCALL;
+
+    retVal = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pSortKey, cbSortKey);
+
+    END_QCALL;
+
+    return retVal;
+}
+#endif //FEATURE_COREFX_GLOBALIZATION
 
 static MethodTable * g_pStreamMT;
 static WORD g_slotBeginRead, g_slotEndRead;
