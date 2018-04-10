@@ -10461,38 +10461,24 @@ unsigned CodeGen::getFirstArgWithStackSlot()
 {
 #if defined(UNIX_AMD64_ABI) || defined(_TARGET_ARMARCH_)
     unsigned baseVarNum = 0;
-#if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
-    baseVarNum = compiler->lvaFirstStackIncomingArgNum;
+    // Iterate over all the local variables in the Lcl var table.
+    // They contain all the implicit arguments - thisPtr, retBuf,
+    // generic context, PInvoke cookie, var arg cookie,no-standard args, etc.
+    LclVarDsc* varDsc = nullptr;
+    for (unsigned i = 0; i < compiler->info.compArgsCount; i++)
+    {
+        varDsc = &(compiler->lvaTable[i]);
 
-    if (compiler->lvaFirstStackIncomingArgNum != BAD_VAR_NUM)
-    {
-        baseVarNum = compiler->lvaFirstStackIncomingArgNum;
-    }
-    else
-#endif // FEATURE_UNIX_ARM64_STRUCT_PASSING
-    {
-        // Iterate over all the local variables in the Lcl var table.
-        // They contain all the implicit arguments - thisPtr, retBuf,
-        // generic context, PInvoke cookie, var arg cookie,no-standard args, etc.
-        LclVarDsc* varDsc = nullptr;
-        for (unsigned i = 0; i < compiler->info.compArgsCount; i++)
+        // We are iterating over the arguments only.
+        assert(varDsc->lvIsParam);
+
+        if (varDsc->lvArgReg == REG_STK)
         {
-            varDsc = &(compiler->lvaTable[i]);
-
-            // We are iterating over the arguments only.
-            assert(varDsc->lvIsParam);
-
-            if (varDsc->lvArgReg == REG_STK)
-            {
-                baseVarNum = i;
-#if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
-                compiler->lvaFirstStackIncomingArgNum = baseVarNum;
-#endif // FEATURE_UNIX_ARM64_STRUCT_PASSING
-                break;
-            }
+            baseVarNum = i;
+            break;
         }
-        assert(varDsc != nullptr);
     }
+    assert(varDsc != nullptr);
 
     return baseVarNum;
 #elif defined(_TARGET_AMD64_)
