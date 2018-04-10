@@ -2477,17 +2477,16 @@ void Compiler::fgInterBlockLocalVarLiveness()
         if (VarSetOps::IsMember(this, exceptVars, varDsc->lvVarIndex) ||
             VarSetOps::IsMember(this, filterVars, varDsc->lvVarIndex))
         {
-            /* Mark the variable appropriately */
-            lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LiveInOutOfHandler));
+            // Mark the variable appropriately.
+            lvaSetVarLiveInOutOfHandler(varNum);
         }
 
-        /* Mark all pointer variables live on exit from a 'finally'
-           block as either volatile for non-GC ref types or as
-           'explicitly initialized' (volatile and must-init) for GC-ref types */
+        // Mark all pointer variables live on exit from a 'finally' block as lvLiveInOutOfHndlr.
+        // and as 'explicitly initialized' (must-init) for GC-ref types.
 
         if (VarSetOps::IsMember(this, finallyVars, varDsc->lvVarIndex))
         {
-            lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LiveInOutOfHandler));
+            lvaSetVarLiveInOutOfHandler(varNum);
 
             /* Don't set lvMustInit unless we have a non-arg, GC pointer */
 

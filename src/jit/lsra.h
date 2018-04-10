@@ -1372,6 +1372,7 @@ private:
 
     // A map from bbNum to the block information used during register allocation.
     LsraBlockInfo* blockInfo;
+
     BasicBlock* findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBUGARG(bool* pPredBlockIsAllocated));
 
     // The order in which the blocks will be allocated.
@@ -1399,6 +1400,8 @@ private:
     unsigned int curBBNum;
     // The current location
     LsraLocation currentLoc;
+    // The first location in a cold or funclet block.
+    LsraLocation firstColdLoc;
     // The ordinal of the block we're on (i.e. this is the curBBSeqNum-th block we've allocated).
     unsigned int curBBSeqNum;
     // The number of blocks that we've sequenced.
@@ -1640,6 +1643,7 @@ public:
         , isUpperVector(false)
         , isPartiallySpilled(false)
 #endif
+        , isWriteThru(false)
         , physReg(REG_COUNT)
 #ifdef DEBUG
         , intervalIndex(0)
@@ -1727,6 +1731,9 @@ public:
         return false;
     }
 #endif
+
+    // True if this interval is associated with a lclVar that is written to memory at each definition.
+    bool isWriteThru : 1;
 
     // The register to which it is currently assigned.
     regNumber physReg;
@@ -1951,6 +1958,9 @@ public:
 
     unsigned char reload : 1;
     unsigned char spillAfter : 1;
+    unsigned char writeThru : 1; // true if this var is defined in a register and also spilled. spillAfter must NOT be
+                                 // set.
+
     unsigned char copyReg : 1;
     unsigned char moveReg : 1; // true if this var is moved to a new register
 
@@ -1995,6 +2005,7 @@ public:
         , lastUse(false)
         , reload(false)
         , spillAfter(false)
+        , writeThru(false)
         , copyReg(false)
         , moveReg(false)
         , isPhysRegRef(false)
@@ -2102,7 +2113,7 @@ public:
 
     RefPosition* getRangeEndRef()
     {
-        if (lastUse || nextRefPosition == nullptr)
+        if (lastUse || nextRefPosition == nullptr || spillAfter)
         {
             return this;
         }

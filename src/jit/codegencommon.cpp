@@ -504,7 +504,10 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
     }
     else
     {
-        assert((regSet.GetMaskVars() & regMask) == 0);
+        // If this is going live, the register must not have a variable in it, except
+        // in the case of an exception variable, which may be already treated as live
+        // in the register.
+        assert(varDsc->lvLiveInOutOfHndlr || ((regSet.GetMaskVars() & regMask) == 0));
         regSet.AddMaskVars(regMask);
     }
 }
@@ -681,12 +684,14 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
     unsigned        deadVarIndex = 0;
     while (deadIter.NextElem(&deadVarIndex))
     {
-        unsigned   varNum  = lvaTrackedIndexToLclNum(deadVarIndex);
-        LclVarDsc* varDsc  = lvaGetDesc(varNum);
-        bool       isGCRef = (varDsc->TypeGet() == TYP_REF);
-        bool       isByRef = (varDsc->TypeGet() == TYP_BYREF);
+        unsigned   varNum     = lvaTrackedIndexToLclNum(deadVarIndex);
+        LclVarDsc* varDsc     = lvaGetDesc(varNum);
+        bool       isGCRef    = (varDsc->TypeGet() == TYP_REF);
+        bool       isByRef    = (varDsc->TypeGet() == TYP_BYREF);
+        bool       isInReg    = varDsc->lvIsInReg();
+        bool       isInMemory = !isInReg || varDsc->lvLiveInOutOfHndlr;
 
-        if (varDsc->lvIsInReg())
+        if (isInReg)
         {
             // TODO-Cleanup: Move the code from compUpdateLifeVar to genUpdateRegLife that updates the
             // gc sets
@@ -701,8 +706,8 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
             }
             codeGen->genUpdateRegLife(varDsc, false /*isBorn*/, true /*isDying*/ DEBUGARG(nullptr));
         }
-        // This isn't in a register, so update the gcVarPtrSetCur.
-        else if (isGCRef || isByRef)
+        // Update the gcVarPtrSetCur if it is in memory.
+        if (isInMemory && (isGCRef || isByRef))
         {
             VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, deadVarIndex);
             JITDUMP("\t\t\t\t\t\t\tV%02u becoming dead\n", varNum);
@@ -724,13 +729,16 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 
         if (varDsc->lvIsInReg())
         {
-#ifdef DEBUG
-            if (VarSetOps::IsMember(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex))
+            if (!varDsc->lvLiveInOutOfHndlr)
             {
-                JITDUMP("\t\t\t\t\t\t\tRemoving V%02u from gcVarPtrSetCur\n", varNum);
-            }
+#ifdef DEBUG
+                if (VarSetOps::IsMember(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex))
+                {
+                    JITDUMP("\t\t\t\t\t\t\tRemoving V%02u from gcVarPtrSetCur\n", varNum);
+                }
 #endif // DEBUG
-            VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
+                VarSetOps::RemoveElemD(this, codeGen->gcInfo.gcVarPtrSetCur, bornVarIndex);
+            }
             codeGen->genUpdateRegLife(varDsc, true /*isBorn*/, false /*isDying*/ DEBUGARG(nullptr));
             regMaskTP regMask = varDsc->lvRegMask();
             if (isGCRef)
@@ -3263,6 +3271,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                           // 1 means the first part of a register argument
                           // 2, 3 or 4  means the second,third or fourth part of a multireg argument
         bool stackArg;    // true if the argument gets homed to the stack
+        bool writeThru;   // true if the argument gets homed to both stack and register
         bool processed;   // true after we've processed the argument (and it is in its final location)
         bool circular;    // true if this register participates in a circular dependency loop.
 
@@ -3599,6 +3608,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             }
 
             regArgTab[regArgNum + i].processed = false;
+            regArgTab[regArgNum + i].writeThru = (varDsc->lvIsInReg() && varDsc->lvLiveInOutOfHndlr);
 
             /* mark stack arguments since we will take care of those first */
             regArgTab[regArgNum + i].stackArg = (varDsc->lvIsInReg()) ? false : true;
@@ -3759,9 +3769,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     noway_assert(((regArgMaskLive & RBM_FLTARG_REGS) == 0) &&
                  "Homing of float argument registers with circular dependencies not implemented.");
 
-    /* Now move the arguments to their locations.
-     * First consider ones that go on the stack since they may
-     * free some registers. */
+    // Now move the arguments to their locations.
+    // First consider ones that go on the stack since they may free some registers.
+    // Also home writeThru args, since they're also homed to the stack.
 
     regArgMaskLive = regState->rsCalleeRegArgMaskLiveIn; // reset the live in to what it was at the start
     for (argNum = 0; argNum < argMax; argNum++)
@@ -3799,7 +3809,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         // If not a stack arg go to the next one
         if (varDsc->lvType == TYP_LONG)
         {
-            if (regArgTab[argNum].slot == 1 && !regArgTab[argNum].stackArg)
+            if (regArgTab[argNum].slot == 1 && !regArgTab[argNum].stackArg && !regArgTab[argNum].writeThru)
             {
                 continue;
             }
@@ -3812,7 +3822,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif // !_TARGET_64BIT_
         {
             // If not a stack arg go to the next one
-            if (!regArgTab[argNum].stackArg)
+            if (!regArgTab[argNum].stackArg && !regArgTab[argNum].writeThru)
             {
                 continue;
             }
@@ -3833,7 +3843,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
         noway_assert(varDsc->lvIsParam);
         noway_assert(varDsc->lvIsRegArg);
-        noway_assert(varDsc->lvIsInReg() == false ||
+        noway_assert(varDsc->lvIsInReg() == false || varDsc->lvLiveInOutOfHndlr ||
                      (varDsc->lvType == TYP_LONG && varDsc->GetOtherReg() == REG_STK && regArgTab[argNum].slot == 2));
 
         var_types storeType = TYP_UNDEF;
@@ -3900,13 +3910,15 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #endif // USING_SCOPE_INFO
         }
 
-        /* mark the argument as processed */
-
-        regArgTab[argNum].processed = true;
-        regArgMaskLive &= ~genRegMask(srcRegNum);
+        // Mark the argument as processed.
+        if (!regArgTab[argNum].writeThru)
+        {
+            regArgTab[argNum].processed = true;
+            regArgMaskLive &= ~genRegMask(srcRegNum);
+        }
 
 #if defined(_TARGET_ARM_)
-        if (storeType == TYP_DOUBLE)
+        if ((storeType == TYP_DOUBLE) && !regArgTab[argNum].writeThru)
         {
             regArgTab[argNum + 1].processed = true;
             regArgMaskLive &= ~genRegMask(REG_NEXT(srcRegNum));
@@ -4602,7 +4614,7 @@ void CodeGen::genCheckUseBlockInit()
                     {
                         if (!varDsc->lvRegister)
                         {
-                            if (!varDsc->lvIsInReg())
+                            if (!varDsc->lvIsInReg() || varDsc->lvLiveInOutOfHndlr)
                             {
                                 // Var is on the stack at entry.
                                 initStkLclCnt +=
@@ -7229,7 +7241,9 @@ void CodeGen::genFnProlog()
             continue;
         }
 
-        if (varDsc->lvIsInReg())
+        bool isInReg    = varDsc->lvIsInReg();
+        bool isInMemory = !isInReg || varDsc->lvLiveInOutOfHndlr;
+        if (isInReg)
         {
             regMaskTP regMask = genRegMask(varDsc->GetRegNum());
             if (!varDsc->IsFloatRegType())
@@ -7260,7 +7274,7 @@ void CodeGen::genFnProlog()
                 initFltRegs |= regMask;
             }
         }
-        else
+        if (isInMemory)
         {
         INIT_STK:
 

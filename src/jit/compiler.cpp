@@ -4592,6 +4592,37 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
 
     NewBasicBlockEpoch();
 
+#if DEBUG
+    if (lvaEnregEHVars)
+    {
+        unsigned methHash   = info.compMethodHash();
+        char*    lostr      = getenv("JitEHWTHashLo");
+        unsigned methHashLo = 0;
+        bool     dump       = false;
+        if (lostr != nullptr)
+        {
+            sscanf_s(lostr, "%x", &methHashLo);
+            dump = true;
+        }
+        char*    histr      = getenv("JitEHWTHashHi");
+        unsigned methHashHi = UINT32_MAX;
+        if (histr != nullptr)
+        {
+            sscanf_s(histr, "%x", &methHashHi);
+            dump = true;
+        }
+        if (methHash < methHashLo || methHash > methHashHi)
+        {
+            lvaEnregEHVars = false;
+        }
+        else if (dump)
+        {
+            printf("Enregistering EH Vars for method %s, hash = 0x%x.\n", info.compFullName, info.compMethodHash());
+            printf(""); // flush
+        }
+    }
+#endif
+
     /* Massage the trees so that we can generate code out of them */
 
     fgMorph();

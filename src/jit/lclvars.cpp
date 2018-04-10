@@ -85,6 +85,8 @@ void Compiler::lvaInit()
     lvaCurEpoch = 0;
 
     structPromotionHelper = new (this, CMK_Generic) StructPromotionHelper(this);
+
+    lvaEnregEHVars = ((opts.compFlags & CLFLG_REGVAR) != 0);
 }
 
 /*****************************************************************************/
@@ -2367,6 +2369,49 @@ void Compiler::lvaSetVarAddrExposed(unsigned varNum)
     }
 
     lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_AddrExposed));
+}
+
+// lvaSetVarLiveInOutOfHandler: Set the local varNum as being live in and/or out of a handler
+//
+// Arguments:
+//    varNum - the varNum of the local
+//
+void Compiler::lvaSetVarLiveInOutOfHandler(unsigned varNum)
+{
+    noway_assert(varNum < lvaCount);
+
+    LclVarDsc* varDsc = &lvaTable[varNum];
+
+    varDsc->lvLiveInOutOfHndlr = 1;
+
+    if (varDsc->lvPromoted)
+    {
+        noway_assert(varTypeIsStruct(varDsc));
+
+        for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
+        {
+            noway_assert(lvaTable[i].lvIsStructField);
+            lvaTable[i].lvLiveInOutOfHndlr = 1; // Make field local as address-exposed.
+            if (!lvaEnregEHVars)
+            {
+                lvaSetVarDoNotEnregister(i DEBUGARG(DNER_LiveInOutOfHandler));
+            }
+        }
+    }
+
+    if (!lvaEnregEHVars)
+    {
+        lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LiveInOutOfHandler));
+    }
+#ifdef JIT32_GCENCODER
+    // For the JIT32_GCENCODER, when lvaKeepAliveAndReportThis is true, we must either keep the "this" pointer
+    // in the same register for the entire method, or keep it on the stack. If it is EH-exposed, we can't ever
+    // keep it in a register, since it must also be live on the stack. Therefore, we won't attempt to allocate it.
+    if (lvaKeepAliveAndReportThis() && (varNum == info.compThisArg))
+    {
+        lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LiveInOutOfHandler));
+    }
+#endif // JIT32_GCENCODER
 }
 
 /*****************************************************************************

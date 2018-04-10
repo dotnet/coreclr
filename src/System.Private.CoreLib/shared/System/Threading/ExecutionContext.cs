@@ -134,26 +134,24 @@ namespace System.Threading
         internal static void RunInternal(ExecutionContext? executionContext, ContextCallback callback, object? state)
         {
             // Note: ExecutionContext.RunInternal is an extremely hot function and used by every await, ThreadPool execution, etc.
-            // Note: Manual enregistering may be addressed by "Exception Handling Write Through Optimization"
-            //       https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/eh-writethru.md
 
-            // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
-            ExecutionContext? previousExecutionCtx0 = currentThread0._executionContext;
+            Thread currentThread = Thread.CurrentThread;
+            // previousExecutionCtx is live across an EH boundary. It is conditionally defined, thus has two
+            // definition points. In order to avoid forcing both of those to the stack, we define a temporary
+            // variable and then store that to the value that lives across the EH boundary.
+            ExecutionContext? previousExecutionCtx0 = currentThread._executionContext;
             if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 previousExecutionCtx0 = null;
             }
+            ExecutionContext? previousExecutionCtx = previousExecutionCtx0;
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in callback.Invoke
             // so that they won't "leak" back into caller.
-            // These variables will cross EH so be forced to stack
-            ExecutionContext? previousExecutionCtx = previousExecutionCtx0;
-            SynchronizationContext? previousSyncCtx = currentThread0._synchronizationContext;
+            SynchronizationContext? previousSyncCtx = currentThread._synchronizationContext;
 
             if (executionContext != null && executionContext.m_isDefault)
             {
@@ -161,9 +159,9 @@ namespace System.Threading
                 executionContext = null;
             }
 
-            if (previousExecutionCtx0 != executionContext)
+            if (previousExecutionCtx != executionContext)
             {
-                RestoreChangedContextToThread(currentThread0, executionContext, previousExecutionCtx0);
+                RestoreChangedContextToThread(currentThread, executionContext, previousExecutionCtx);
             }
 
             ExceptionDispatchInfo? edi = null;
@@ -179,21 +177,17 @@ namespace System.Threading
                 edi = ExceptionDispatchInfo.Capture(ex);
             }
 
-            // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
-            SynchronizationContext? previousSyncCtx1 = previousSyncCtx;
-            Thread currentThread1 = currentThread;
             // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
-            if (currentThread1._synchronizationContext != previousSyncCtx1)
+            if (currentThread._synchronizationContext != previousSyncCtx)
             {
                 // Restore changed SynchronizationContext back to previous
-                currentThread1._synchronizationContext = previousSyncCtx1;
+                currentThread._synchronizationContext = previousSyncCtx;
             }
 
-            ExecutionContext? previousExecutionCtx1 = previousExecutionCtx;
-            ExecutionContext? currentExecutionCtx1 = currentThread1._executionContext;
-            if (currentExecutionCtx1 != previousExecutionCtx1)
+            ExecutionContext? currentExecutionCtx = currentThread._executionContext;
+            if (currentExecutionCtx != previousExecutionCtx)
             {
-                RestoreChangedContextToThread(currentThread1, previousExecutionCtx1, currentExecutionCtx1);
+                RestoreChangedContextToThread(currentThread, previousExecutionCtx, currentExecutionCtx);
             }
 
             // If exception was thrown by callback, rethrow it now original contexts are restored
@@ -204,26 +198,25 @@ namespace System.Threading
         internal static void RunInternal<TState>(ExecutionContext? executionContext, ContextCallback<TState> callback, ref TState state)
         {
             // Note: ExecutionContext.RunInternal is an extremely hot function and used by every await, ThreadPool execution, etc.
-            // Note: Manual enregistering may be addressed by "Exception Handling Write Through Optimization"
-            //       https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/eh-writethru.md
 
-            // Enregister variables with 0 post-fix so they can be used in registers without EH forcing them to stack
             // Capture references to Thread Contexts
-            Thread currentThread0 = Thread.CurrentThread;
-            Thread currentThread = currentThread0;
-            ExecutionContext? previousExecutionCtx0 = currentThread0._executionContext;
+            Thread currentThread = Thread.CurrentThread;
+            // previousExecutionCtx is live across an EH boundary. It is conditionally defined, thus has two
+            // definition points. In order to avoid forcing both of those to the stack, we define a temporary
+            // variable and then store that to the value that lives across the EH boundary.
+            ExecutionContext? previousExecutionCtx0 = currentThread._executionContext;
             if (previousExecutionCtx0 != null && previousExecutionCtx0.m_isDefault)
             {
                 // Default is a null ExecutionContext internally
                 previousExecutionCtx0 = null;
             }
+            ExecutionContext? previousExecutionCtx = previousExecutionCtx0;
 
             // Store current ExecutionContext and SynchronizationContext as "previousXxx".
             // This allows us to restore them and undo any Context changes made in callback.Invoke
             // so that they won't "leak" back into caller.
             // These variables will cross EH so be forced to stack
-            ExecutionContext? previousExecutionCtx = previousExecutionCtx0;
-            SynchronizationContext? previousSyncCtx = currentThread0._synchronizationContext;
+            SynchronizationContext? previousSyncCtx = currentThread._synchronizationContext;
 
             if (executionContext != null && executionContext.m_isDefault)
             {
@@ -231,9 +224,9 @@ namespace System.Threading
                 executionContext = null;
             }
 
-            if (previousExecutionCtx0 != executionContext)
+            if (previousExecutionCtx != executionContext)
             {
-                RestoreChangedContextToThread(currentThread0, executionContext, previousExecutionCtx0);
+                RestoreChangedContextToThread(currentThread, executionContext, previousExecutionCtx);
             }
 
             ExceptionDispatchInfo? edi = null;
@@ -249,21 +242,17 @@ namespace System.Threading
                 edi = ExceptionDispatchInfo.Capture(ex);
             }
 
-            // Re-enregistrer variables post EH with 1 post-fix so they can be used in registers rather than from stack
-            SynchronizationContext? previousSyncCtx1 = previousSyncCtx;
-            Thread currentThread1 = currentThread;
             // The common case is that these have not changed, so avoid the cost of a write barrier if not needed.
-            if (currentThread1._synchronizationContext != previousSyncCtx1)
+            if (currentThread._synchronizationContext != previousSyncCtx)
             {
                 // Restore changed SynchronizationContext back to previous
-                currentThread1._synchronizationContext = previousSyncCtx1;
+                currentThread._synchronizationContext = previousSyncCtx;
             }
 
-            ExecutionContext? previousExecutionCtx1 = previousExecutionCtx;
-            ExecutionContext? currentExecutionCtx1 = currentThread1._executionContext;
-            if (currentExecutionCtx1 != previousExecutionCtx1)
+            ExecutionContext? currentExecutionCtx = currentThread._executionContext;
+            if (currentExecutionCtx != previousExecutionCtx)
             {
-                RestoreChangedContextToThread(currentThread1, previousExecutionCtx1, currentExecutionCtx1);
+                RestoreChangedContextToThread(currentThread, previousExecutionCtx, currentExecutionCtx);
             }
 
             // If exception was thrown by callback, rethrow it now original contexts are restored

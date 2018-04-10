@@ -661,9 +661,18 @@ void CodeGen::inst_TT_RV(instruction ins, GenTree* tree, regNumber reg, unsigned
 
 AGAIN:
 
-    /* Is this a spilled value? */
-
-    if (tree->gtFlags & GTF_SPILLED)
+    // Is this a spilled value?
+    bool isSpilledValue = ((tree->gtFlags & GTF_SPILLED) != 0);
+    if (isSpilledValue)
+    {
+        // Is this the special case of a write-thru lclVar?
+        // We mark it as SPILLED to denote that its value is valid in memroy.
+        if (((tree->gtFlags & GTF_SPILL) != 0) && tree->gtOper == GT_STORE_LCL_VAR)
+        {
+            isSpilledValue = false;
+        }
+    }
+    if (isSpilledValue)
     {
         assert(!"ISSUE: If this can happen, we need to generate 'ins [ebp+spill]'");
     }
@@ -685,6 +694,7 @@ AGAIN:
         unsigned varNum;
 
         case GT_LCL_VAR:
+        case GT_STORE_LCL_VAR:
 
             inst_set_SV_var(tree);
             goto LCL;
