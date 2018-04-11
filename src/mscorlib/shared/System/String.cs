@@ -442,7 +442,7 @@ namespace System
             // value.Length == 0 as it will elide the bounds check to
             // the first char: value[0] if that is performed following the test
             // for the same test cost.
-            return (value == null || 0u >= (uint)value.Length);
+            return (value == null || 0u >= (uint)value.Length) ? true : false;
         }
 
         public static bool IsNullOrWhiteSpace(string value)
