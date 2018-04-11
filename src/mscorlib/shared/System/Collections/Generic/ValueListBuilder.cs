@@ -62,7 +62,7 @@ namespace System.Collections.Generic
         {
             // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
             // https://github.com/dotnet/coreclr/issues/15783
-            var length = _span.Length * 2;
+            int length = _span.Length * 2;
             T[] array = ArrayPool<T>.Shared.Rent(length);
 
             bool success = _span.TryCopyTo(array);
