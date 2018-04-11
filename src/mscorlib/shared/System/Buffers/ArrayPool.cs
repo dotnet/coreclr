@@ -24,16 +24,7 @@ namespace System.Buffers
     {
         // Store the shared arraypool in a field of its derived type so the Jit can "see" it when inlining Shared
         // and devirtualize its calls.
-        private static TlsOverPerCoreLockedStacksArrayPool<T> s_arrayPool;
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static TlsOverPerCoreLockedStacksArrayPool<T> InitalizeArrayPool()
-        {
-            TlsOverPerCoreLockedStacksArrayPool<T> newPool = new TlsOverPerCoreLockedStacksArrayPool<T>();
-            TlsOverPerCoreLockedStacksArrayPool<T> currentPool = Interlocked.CompareExchange(ref s_arrayPool, newPool, null);
-
-            return currentPool ?? newPool;
-        }
+        private static TlsOverPerCoreLockedStacksArrayPool<T> s_arrayPool = new TlsOverPerCoreLockedStacksArrayPool<T>();
 
         /// <summary>
         /// Retrieves a shared <see cref="ArrayPool{T}"/> instance.
@@ -49,14 +40,7 @@ namespace System.Buffers
         /// optimized for very fast access speeds, at the expense of more memory consumption.
         /// The shared pool instance is created lazily on first access.
         /// </remarks>
-        public static ArrayPool<T> Shared
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return s_arrayPool ?? InitalizeArrayPool();
-            }
-        }
+        public static ArrayPool<T> Shared => s_arrayPool;
 
         /// <summary>
         /// Creates a new <see cref="ArrayPool{T}"/> instance using default configuration options.
