@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+using System.Threading;
+
 namespace System.Buffers
 {
     /// <summary>
@@ -19,6 +22,19 @@ namespace System.Buffers
     /// </remarks>
     public abstract class ArrayPool<T>
     {
+        // Store the shared arraypool in a field of its derived type so the Jit can "see" it when inlining Shared
+        // and devirtualize its calls.
+        private static TlsOverPerCoreLockedStacksArrayPool<T> s_arrayPool;
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static TlsOverPerCoreLockedStacksArrayPool<T> InitalizeArrayPool()
+        {
+            TlsOverPerCoreLockedStacksArrayPool<T> newPool = new TlsOverPerCoreLockedStacksArrayPool<T>();
+            TlsOverPerCoreLockedStacksArrayPool<T> currentPool = Interlocked.CompareExchange(ref s_arrayPool, newPool, null);
+
+            return currentPool ?? newPool;
+        }
+
         /// <summary>
         /// Retrieves a shared <see cref="ArrayPool{T}"/> instance.
         /// </summary>
@@ -33,7 +49,14 @@ namespace System.Buffers
         /// optimized for very fast access speeds, at the expense of more memory consumption.
         /// The shared pool instance is created lazily on first access.
         /// </remarks>
-        public static ArrayPool<T> Shared { get; } = new TlsOverPerCoreLockedStacksArrayPool<T>();
+        public static ArrayPool<T> Shared
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return s_arrayPool ?? InitalizeArrayPool();
+            }
+        }
 
         /// <summary>
         /// Creates a new <see cref="ArrayPool{T}"/> instance using default configuration options.
