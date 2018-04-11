@@ -382,6 +382,8 @@ namespace System.IO
             }
             else
             {
+                // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+                // https://github.com/dotnet/coreclr/issues/15783
                 int length = buffer.Length;
                 byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
                 return FinishReadAsync(ReadAsync(sharedBuffer, 0, length, cancellationToken), sharedBuffer, buffer);
@@ -692,6 +694,8 @@ namespace System.IO
             }
             else
             {
+                // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+                // https://github.com/dotnet/coreclr/issues/15783
                 int length = buffer.Length;
                 byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
                 buffer.Span.CopyTo(sharedBuffer);
@@ -742,6 +746,8 @@ namespace System.IO
 
         public virtual int Read(Span<byte> buffer)
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = buffer.Length;
             byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
             try
@@ -776,6 +782,8 @@ namespace System.IO
 
         public virtual void Write(ReadOnlySpan<byte> buffer)
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = buffer.Length;
             byte[] sharedBuffer = ArrayPool<byte>.Shared.Rent(length);
             try

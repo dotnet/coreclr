@@ -170,6 +170,8 @@ namespace System.IO
         //
         public virtual void Write(ReadOnlySpan<char> buffer)
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = buffer.Length;
             char[] array = ArrayPool<char>.Shared.Rent(length);
 
@@ -353,6 +355,8 @@ namespace System.IO
 
         public virtual void WriteLine(ReadOnlySpan<char> buffer)
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = buffer.Length;
             char[] array = ArrayPool<char>.Shared.Rent(length);
 

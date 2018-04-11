@@ -398,6 +398,8 @@ namespace System.IO
             }
             else
             {
+                // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+                // https://github.com/dotnet/coreclr/issues/15783
                 int length = buffer.Length;
                 byte[] array = ArrayPool<byte>.Shared.Rent(length);
                 try
@@ -414,6 +416,8 @@ namespace System.IO
 
         public virtual void Write(ReadOnlySpan<char> chars)
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = _encoding.GetMaxByteCount(chars.Length);
             byte[] bytes = ArrayPool<byte>.Shared.Rent(length);
             try

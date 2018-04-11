@@ -231,6 +231,8 @@ namespace System.Text
         {
             Debug.Assert(requiredAdditionalCapacity > 0);
 
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = Math.Max(_pos + requiredAdditionalCapacity, _chars.Length * 2);
             char[] poolArray = ArrayPool<char>.Shared.Rent(length);
 

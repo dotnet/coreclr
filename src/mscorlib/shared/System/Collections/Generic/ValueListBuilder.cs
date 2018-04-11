@@ -60,6 +60,8 @@ namespace System.Collections.Generic
 
         private void Grow()
         {
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             var length = _span.Length * 2;
             T[] array = ArrayPool<T>.Shared.Rent(length);
 

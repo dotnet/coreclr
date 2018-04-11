@@ -317,6 +317,8 @@ namespace Microsoft.Win32
             EnsureNotDisposed();
 
             var names = new List<string>();
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = MaxKeyLength + 1;
             char[] name = ArrayPool<char>.Shared.Rent(length);
 
@@ -412,6 +414,8 @@ namespace Microsoft.Win32
                             else
                             {
                                 char[] oldName = name;
+                                // Use simple variables to call ArrayPool.Shared.Rent to allow devirtualization
+                                // https://github.com/dotnet/coreclr/issues/15783
                                 int oldLength = oldName.Length;
                                 name = null;
                                 ArrayPool<char>.Shared.Return(oldName);

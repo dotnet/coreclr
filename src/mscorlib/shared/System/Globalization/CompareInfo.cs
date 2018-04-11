@@ -1230,6 +1230,8 @@ namespace System.Globalization
             }
 
             char[] borrowedArr = null;
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
             int length = source.Length;
             Span<char> span = length <= 255 ?
                 stackalloc char[255] :
