@@ -220,23 +220,23 @@ namespace System.IO
                 fileName.Slice(0, lastPeriod);
         }
 
-        private static unsafe char* GetRandomFileNameInternal(int randomFileNameLength)
+        private static ReadOnlySpan<char> GetRandomFileNameInternal(int randomFileNameLength)
         {
-            byte* pKey = stackalloc byte[KeyLength];
+            Span<byte> pKey = stackalloc byte[KeyLength];
             Interop.GetRandomBytes(pKey, KeyLength);
 
-            char* pRandomFileName = stackalloc char[randomFileNameLength];
-            Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, randomFileNameLength);
-            return pRandomFileName;
+            Span<char> pRandomFileName = stackalloc char[randomFileNameLength];
+            Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, randomFileNameLength);            
+            return new ReadOnlySpan<char>(ref MemoryMarshal.GetReference(pRandomFileName), pRandomFileName.Length);
         }
 
         /// <summary>
         /// Returns a cryptographically strong random 8.3 string that can be
         /// used as either a folder name or a file name.
         /// </summary>
-        public static unsafe string GetRandomFileName()
+        public static string GetRandomFileName()
         {
-            return new string(GetRandomFileNameInternal(RandomFileNameLength), 0, RandomFileNameLength);
+            return new string(GetRandomFileNameInternal(RandomFileNameLength));            
         }
 
         /// <summary>
@@ -249,10 +249,9 @@ namespace System.IO
 
             if (destination.Length < RandomFileNameLength)
                 return false;
-
-            ReadOnlySpan<char> randomFileName = new ReadOnlySpan<char>(GetRandomFileNameInternal(RandomFileNameLength), RandomFileNameLength);
-            randomFileName.CopyTo(destination);
-            charsWritten = randomFileName.Length;
+            
+            GetRandomFileNameInternal(RandomFileNameLength).CopyTo(destination);
+            charsWritten = RandomFileNameLength;
             return true;
         }
 
@@ -641,7 +640,7 @@ namespace System.IO
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                 'y', 'z', '0', '1', '2', '3', '4', '5'};
 
-        private static unsafe void Populate83FileNameFromRandomBytes(byte* bytes, int byteCount, char* chars, int charCount)
+        private static unsafe void Populate83FileNameFromRandomBytes(Span<byte> bytes, int byteCount, Span<char> chars, int charCount)
         {
             Debug.Assert(bytes != null);
             Debug.Assert(chars != null);
