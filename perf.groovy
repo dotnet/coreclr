@@ -52,7 +52,7 @@ def static getOSGroup(def os) {
                                 }
                             }
 
-                            if (isSmokeTest) {
+                            if (isSmoketest) {
                                 parameters {
                                     stringParam('XUNIT_PERFORMANCE_MAX_ITERATION', '2', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
                                     stringParam('XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED', '2', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
@@ -129,7 +129,7 @@ def static getOSGroup(def os) {
 
                         if (isPR) {
                             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-                            if (isSmokeTest) {
+                            if (isSmoketest) {
                                 builder.setGithubContext("${os} ${arch} ${opt_level} ${jit} CoreCLR Perf Tests Correctness")
                             }
                             else {
