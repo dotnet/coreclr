@@ -438,7 +438,11 @@ namespace System
         [NonVersionable]
         public static bool IsNullOrEmpty(string value)
         {
-            return (value == null || value.Length == 0);
+            // Using 0u >= (uint)value.Length rather than
+            // value.Length == 0 as it will elide the bounds check to
+            // the first char: value[0] if that is performed following the test
+            // for the same test cost.
+            return (value == null || 0u >= (uint)value.Length);
         }
 
         public static bool IsNullOrWhiteSpace(string value)
