@@ -291,8 +291,8 @@ namespace System.Buffers
 
         private static MemoryPressure GetMemoryPressure()
         {
-            const double HighPressureThreshold = .90;                       // Percent of GC memory pressure threshold we consider "high"
-            const double MediumPressureThreshold = .70;                     // Percent of GC memory pressure threshold we consider "medium"
+            const double HighPressureThreshold = .90;       // Percent of GC memory pressure threshold we consider "high"
+            const double MediumPressureThreshold = .70;     // Percent of GC memory pressure threshold we consider "medium"
 
             GC.GetMemoryInfo(out uint threshold, out _, out uint lastLoad, out _, out _);
             if (lastLoad >= threshold * HighPressureThreshold)
@@ -314,7 +314,7 @@ namespace System.Buffers
             // enabling/disabling for now.
             return true;
 #else
-            return CLRConfig.GetBoolValueWithFallbacks("System.Buffers.SharedArrayPoolTrim", "DOTNET_SYSTEM_BUFFERS_SHAREDARRAYPOOLTRIM", defaultValue: true);
+            return CLRConfig.GetBoolValueWithFallbacks("System.Buffers.ArrayPool.TrimShared", "DOTNET_SYSTEM_BUFFERS_ARRAYPOOL_TRIMSHARED", defaultValue: true);
 #endif
         }
 
