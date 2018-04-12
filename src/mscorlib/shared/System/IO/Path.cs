@@ -243,7 +243,7 @@ namespace System.IO
         /// Returns a cryptographically strong random 8.3 string that can be
         /// used as either a folder name or a file name.
         /// </summary>
-        public static bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
+        public static unsafe bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
         {
             charsWritten = 0;
 
@@ -640,7 +640,7 @@ namespace System.IO
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                 'y', 'z', '0', '1', '2', '3', '4', '5'};
 
-        private static void Populate83FileNameFromRandomBytes(Span<byte> bytes, int byteCount, Span<char> chars, int charCount)
+        private static unsafe void Populate83FileNameFromRandomBytes(Span<byte> bytes, int byteCount, Span<char> chars, int charCount)
         {
             Debug.Assert(bytes != null);
             Debug.Assert(chars != null);
