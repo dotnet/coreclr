@@ -3874,7 +3874,7 @@ class CObjectHeader : public Object
 {
 public:
 
-#ifdef FEATURE_REDHAWK
+#if defined(FEATURE_REDHAWK) || defined(BUILD_AS_STANDALONE)
     // The GC expects the following methods that are provided by the Object class in the CLR but not provided
     // by Redhawk's version of Object.
     uint32_t GetNumComponents()
