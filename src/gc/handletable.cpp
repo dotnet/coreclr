@@ -301,7 +301,7 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     }
     CONTRACTL_END;
 
-#if defined( _DEBUG) && !defined(FEATURE_REDHAWK)
+#if defined( _DEBUG) && !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
     if (g_pConfig->ShouldInjectFault(INJECTFAULT_HANDLETABLE))
     {
         FAULT_NOT_FATAL();
