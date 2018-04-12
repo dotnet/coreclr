@@ -143,11 +143,11 @@ namespace System
         **Action:  Creates a number to use as global seed.
         **Returns: An integer that is safe to use as seed values for thread-local seed generators.
         ==========================================================================================*/
-        private static int GenerateGlobalSeed()
+        private static unsafe int GenerateGlobalSeed()
         {
-            Span<byte> result = stackalloc byte[sizeof(int)];
-            Interop.GetRandomBytes(result, result.Length);
-            return BitConverter.ToInt32(result);
+            int result;
+            Interop.GetRandomBytes((byte*)&result, sizeof(int));
+            return result;
         }
 
         //
