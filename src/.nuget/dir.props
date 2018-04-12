@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
+  <Import Project="$(HostMachineInfoPropsFile)" />
 
   <PropertyGroup>
     <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
@@ -67,9 +68,19 @@
     <When Condition="'$(PackageRID)' != ''" />
     <When Condition="'$(_runtimeOSFamily)' == 'win'">
       <PropertyGroup>
-        <RIDPlatform>win7</RIDPlatform>
-        <RIDPlatform Condition="'$(ArchGroup)' == 'arm'">win8</RIDPlatform>
-        <RIDPlatform Condition="'$(ArchGroup)' == 'arm64'">win10</RIDPlatform>
+        <!-- Set the non-portable RID platform.  This logic is fragile and questionable since
+             it confuses the concepts of "portable build" and "cross build."
+        -->
+        <RIDPlatform>$(HostMachineRid.Substring(0, $(HostMachineRid.IndexOf('-'))))</RIDPlatform>
+        <RIDPlatform Condition="'$(ArchGroup)' == 'arm' and '$(RIDPlatform)' == 'win7'">
+          win8
+        </RIDPlatform>
+        <RIDPlatform Condition="'$(ArchGroup)' == 'arm64' and
+            ('$(RIDPlatform)' == 'win7' or
+             '$(RIDPlatform)' == 'win8' or
+             '$(RIDPlatform)' == 'win81')">
+          win10
+        </RIDPlatform>
         
         <!-- Set the platform part of the RID if we are doing a portable build -->
         <RIDPlatform Condition="'$(PortableBuild)' == 'true'">win</RIDPlatform>
