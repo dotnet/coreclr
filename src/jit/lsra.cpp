@@ -236,66 +236,13 @@ regMaskTP LinearScan::allRegs(RegisterType rt)
     }
 }
 
-//--------------------------------------------------------------------------
-// allMultiRegCallNodeRegs: represents a set of registers that can be used
-// to allocate a multi-reg call node.
-//
-// Arguments:
-//    call   -  Multi-reg call node
-//
-// Return Value:
-//    Mask representing the set of available registers for multi-reg call
-//    node.
-//
-// Note:
-// Multi-reg call node available regs = Bitwise-OR(allregs(GetReturnRegType(i)))
-// for all i=0..RetRegCount-1.
-regMaskTP LinearScan::allMultiRegCallNodeRegs(GenTreeCall* call)
+regMaskTP LinearScan::allByteRegs()
 {
-    assert(call->HasMultiRegRetVal());
-
-    ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
-    regMaskTP       resultMask  = allRegs(retTypeDesc->GetReturnRegType(0));
-
-    unsigned count = retTypeDesc->GetReturnRegCount();
-    for (unsigned i = 1; i < count; ++i)
-    {
-        resultMask |= allRegs(retTypeDesc->GetReturnRegType(i));
-    }
-
-    return resultMask;
-}
-
-//--------------------------------------------------------------------------
-// allRegs: returns the set of registers that can accomodate the type of
-// given node.
-//
-// Arguments:
-//    tree   -  GenTree node
-//
-// Return Value:
-//    Mask representing the set of available registers for given tree
-//
-// Note: In case of multi-reg call node, the full set of registers must be
-// determined by looking at types of individual return register types.
-// In this case, the registers may include registers from different register
-// sets and will not be limited to the actual ABI return registers.
-regMaskTP LinearScan::allRegs(GenTree* tree)
-{
-    regMaskTP resultMask;
-
-    // In case of multi-reg calls, allRegs is defined as
-    // Bitwise-Or(allRegs(GetReturnRegType(i)) for i=0..ReturnRegCount-1
-    if (tree->IsMultiRegCall())
-    {
-        resultMask = allMultiRegCallNodeRegs(tree->AsCall());
-    }
-    else
-    {
-        resultMask = allRegs(tree->TypeGet());
-    }
-
-    return resultMask;
+#ifdef _TARGET_X86_
+    return availableIntRegs & RBM_BYTE_REGS;
+#else
+    return availableIntRegs;
+#endif
 }
 
 regMaskTP LinearScan::allSIMDRegs()
@@ -664,9 +611,8 @@ LinearScan::LinearScan(Compiler* theCompiler)
     , listNodePool(theCompiler)
 {
 #ifdef DEBUG
-    maxNodeLocation    = 0;
-    activeRefPosition  = nullptr;
-    specialPutArgCount = 0;
+    maxNodeLocation   = 0;
+    activeRefPosition = nullptr;
 
     // Get the value of the environment variable that controls stress for register allocation
     lsraStressMask = JitConfig.JitStressRegs();
@@ -698,7 +644,7 @@ LinearScan::LinearScan(Compiler* theCompiler)
         else if (dump == true)
         {
             printf("JitStressRegs = %x for method %s, hash = 0x%x.\n",
-                   lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
+                lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
             printf("");         // in our logic this causes a flush
         }
     }
@@ -770,6 +716,9 @@ LinearScan::LinearScan(Compiler* theCompiler)
     }
     nextFreeMask = FIRST_SINGLE_REG_IDX + REG_COUNT;
     noway_assert(nextFreeMask <= numMasks);
+
+    pendingDelayFree = false;
+    tgtPrefUse       = nullptr;
 }
 
 // Return the reg mask corresponding to the given index.
@@ -5459,7 +5408,7 @@ void LinearScan::allocateRegisters()
             {
                 assert(!currentInterval->isLocalVar);
                 Interval* srcInterval = currentInterval->relatedInterval;
-                assert(srcInterval->isLocalVar);
+                assert(srcInterval != nullptr && srcInterval->isLocalVar);
                 if (refType == RefTypeDef)
                 {
                     assert(srcInterval->recentRefPosition->nodeLocation == currentLocation - 1);
@@ -8656,11 +8605,6 @@ void RefPosition::dump()
 {
     printf("<RefPosition #%-3u @%-3u", rpNum, nodeLocation);
 
-    if (nextRefPosition)
-    {
-        printf(" ->#%-3u", nextRefPosition->rpNum);
-    }
-
     printf(" %s ", getRefTypeName(refType));
 
     if (this->isPhysRegRef)
@@ -8847,43 +8791,67 @@ void RegRecord::tinyDump()
     printf("<Reg:%-3s> ", getRegName(regNum));
 }
 
-void TreeNodeInfo::dump(LinearScan* lsra)
+void LinearScan::dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCount, int dstCount)
 {
-    printf("<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
+    if (!VERBOSE)
+    {
+        return;
+    }
+    // This is formatted like the old dump to make diffs easier. TODO-Cleanup: improve.
+    int       internalIntCount   = 0;
+    int       internalFloatCount = 0;
+    regMaskTP internalCandidates = RBM_NONE;
+    for (int i = 0; i < internalCount; i++)
+    {
+        RefPosition* def = internalDefs[i];
+        if (def->getInterval()->registerType == TYP_INT)
+        {
+            internalIntCount++;
+        }
+        else
+        {
+            internalFloatCount++;
+        }
+        internalCandidates |= def->registerAssignment;
+    }
+    if (dstCandidates == RBM_NONE)
+    {
+        dstCandidates = varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT);
+    }
+    if (internalCandidates == RBM_NONE)
+    {
+        internalCandidates = allRegs(TYP_INT);
+    }
+    printf("    +<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
     printf(" src=");
-    dumpRegMask(getSrcCandidates(lsra));
+    dumpRegMask(varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT));
     printf(" int=");
-    dumpRegMask(getInternalCandidates(lsra));
+    dumpRegMask(internalCandidates);
     printf(" dst=");
-    dumpRegMask(getDstCandidates(lsra));
-    if (isLocalDefUse)
+    dumpRegMask(dstCandidates);
+    if (node->IsUnusedValue())
     {
         printf(" L");
     }
-    if (isInitialized)
-    {
-        printf(" I");
-    }
-    if (isDelayFree)
+    printf(" I");
+    if (pendingDelayFree)
     {
         printf(" D");
     }
-    if (isTgtPref)
-    {
-        printf(" P");
-    }
-    if (isInternalRegDelayFree)
+    if (setInternalRegsDelayFree)
     {
         printf(" ID");
     }
     printf(">");
+    node->dumpLIRFlags();
+    printf("\n  consume= %d produce=%d\n", srcCount, dstCount);
 }
 
 void LinearScan::dumpDefList()
 {
     JITDUMP("DefList: { ");
     bool first = true;
-    for (LocationInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+    for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
          listNode = listNode->Next())
     {
         GenTree* node = listNode->treeNode;

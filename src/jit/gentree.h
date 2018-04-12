@@ -1302,6 +1302,20 @@ public:
         return OperIsShiftOrRotate(OperGet());
     }
 
+    static bool OperIsMul(genTreeOps gtOper)
+    {
+        return (gtOper == GT_MUL) || (gtOper == GT_MULHI)
+#if !defined(_TARGET_64BIT_)
+               || (gtOper == GT_MUL_LONG)
+#endif
+            ;
+    }
+
+    bool OperIsMul() const
+    {
+        return OperIsMul(gtOper);
+    }
+
     bool OperIsArithmetic() const
     {
         genTreeOps op = OperGet();
