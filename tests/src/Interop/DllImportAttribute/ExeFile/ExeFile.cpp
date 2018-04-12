@@ -15,6 +15,7 @@ extern "C" DLL_EXPORT int _cdecl Sum(int a, int b)
     return a + b;
 }
 
-extern "C" int _cdecl wmain(int argc, __in WCHAR **argv)
+extern "C" int _cdecl main(int argc,  char **argv)
 {
+    return 0;
 }
