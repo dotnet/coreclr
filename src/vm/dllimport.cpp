@@ -5896,6 +5896,8 @@ bool         NDirect::s_fSecureLoadLibrarySupported = false;
 #else // !FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_A ".dll"
 #define PLATFORM_SHARED_LIB_PREFIX_A ""
+#define PLATFORM_SHARED_LIB_SUFFIX_W W(".dll")
+#define WINDOWS_SHARED_EXE_SUFFIX_W W(".exe")
 #endif // !FEATURE_PAL
 
 // static
@@ -6055,17 +6057,21 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
     if (libNameIsRelativePath)
     {
         bool containsSuffix;
+#ifdef FEATURE_PAL
+        // We check if the suffix is contained in the name, because on Linux it is common to append
+        // a version number to the library name (e.g. 'libicuuc.so.57').
         SString::CIterator it = libName.Begin();
         if (libName.FindASCII(it, PLATFORM_SHARED_LIB_SUFFIX_A))
         {
             it += (int)strlen(PLATFORM_SHARED_LIB_SUFFIX_A);
-            containsSuffix = it == libName.End();
-#ifdef FEATURE_PAL
-            // We check if the suffix is contained in the name, because on Linux it is common to append
-            // a version number to the library name (e.g. 'libicuuc.so.57').
-            containsSuffix = containsSuffix || *it == (WCHAR)'.';
-#endif
+            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
         }
+#else
+        if (libName.EndsWithCaseInsensitive(PLATFORM_SHARED_LIB_SUFFIX_W) || libName.EndsWithCaseInsensitive(WINDOWS_SHARED_EXE_SUFFIX_W))
+        {
+            containsSuffix = true;
+        }
+#endif
         else
         {
             containsSuffix = false;
