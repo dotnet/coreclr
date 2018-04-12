@@ -68,7 +68,8 @@ namespace System.IO
         /// </summary>
         internal static unsafe int EqualStartingCharacterCount(string first, string second, bool ignoreCase)
         {
-            if (string.IsNullOrEmpty(first) || string.IsNullOrEmpty(second)) return 0;
+            if (string.IsNullOrEmpty(first) || string.IsNullOrEmpty(second))
+                return 0;
 
             int commonChars = 0;
 
@@ -117,24 +118,54 @@ namespace System.IO
         internal static string RemoveRelativeSegments(string path, int rootLength)
         {
             Debug.Assert(rootLength > 0);
-            bool flippedSeparator = false;
 
+            Span<char> initialBuffer = stackalloc char[260 /* PathInternal.MaxShortPath */];
+            ValueStringBuilder sb = new ValueStringBuilder(initialBuffer);
+
+            bool flippedSeparator = RemoveRelativeSegmentsHelper(path.AsSpan(), rootLength, ref sb);
+
+            // If we haven't changed the source path, return the original
+            if (!flippedSeparator && sb.Length == path.Length)
+            {
+                sb.Dispose();
+                return path;
+            }
+
+            return sb.Length < rootLength ? path.Substring(0, rootLength) : sb.ToString();
+        }
+
+        /// <summary>
+        /// Try to remove relative segments from the given path (without combining with a root).
+        /// </summary>
+        /// <param name="rootLength">The length of the root of the given path</param>
+        internal static void RemoveRelativeSegments(ReadOnlySpan<char> path, int rootLength, ref ValueStringBuilder sb)
+        {
+            Debug.Assert(rootLength > 0);
+            bool flippedSeparator = RemoveRelativeSegmentsHelper(path, rootLength, ref sb);
+
+            if (sb.Length < rootLength)
+            {
+                sb.Length = rootLength;
+                sb[sb.Length - 1] = path[rootLength - 1];
+            }
+        }
+
+        private static bool RemoveRelativeSegmentsHelper(ReadOnlySpan<char> path, int rootLength, ref ValueStringBuilder sb)
+        {
             int skip = rootLength;
+            bool flippedSeparator = false;
             // We treat "\.." , "\." and "\\" as a relative segment. We want to collapse the first separator past the root presuming
             // the root actually ends in a separator. Otherwise the first segment for RemoveRelativeSegments
             // in cases like "\\?\C:\.\" and "\\?\C:\..\", the first segment after the root will be ".\" and "..\" which is not considered as a relative segment and hence not be removed.
             if (PathInternal.IsDirectorySeparator(path[skip - 1]))
                 skip--;
 
-            Span<char> initialBuffer = stackalloc char[260 /* PathInternal.MaxShortPath */];
-            ValueStringBuilder sb = new ValueStringBuilder(initialBuffer);
-
             // Remove "//", "/./", and "/../" from the path by copying each character to the output, 
             // except the ones we're removing, such that the builder contains the normalized path 
             // at the end.
             if (skip > 0)
             {
-                sb.Append(path.AsSpan().Slice(0, skip));
+                sb.Append(path.Slice(0, skip));
             }
 
             for (int i = skip; i < path.Length; i++)
@@ -195,14 +226,7 @@ namespace System.IO
                 sb.Append(c);
             }
 
-            // If we haven't changed the source path, return the original
-            if (!flippedSeparator && sb.Length == path.Length)
-            {
-                sb.Dispose();
-                return path;
-            }
-
-            return sb.Length < rootLength ? path.Substring(0, rootLength) : sb.ToString();
+            return flippedSeparator;
         }
     }
 }
