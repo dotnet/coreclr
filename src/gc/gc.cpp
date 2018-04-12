@@ -9017,7 +9017,7 @@ inline size_t my_get_size (Object* ob)
 #ifdef COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointersOrCollectible()
 
-#define get_class_object(i) method_table(i)->GetLoaderAllocatorObjectForGC()
+#define get_class_object(i) GCToEEInterface::GetLoaderAllocatorObjectForGC(i)
 #define is_collectible(i) method_table(i)->Collectible()
 #else //COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointers()
