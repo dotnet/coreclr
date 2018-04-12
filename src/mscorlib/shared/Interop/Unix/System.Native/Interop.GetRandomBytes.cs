@@ -11,11 +11,11 @@ internal partial class Interop
     internal unsafe partial class Sys
     {
         [DllImport(Interop.Libraries.SystemNative, EntryPoint = "SystemNative_GetNonCryptographicallySecureRandomBytes")]
-        internal static extern unsafe void GetNonCryptographicallySecureRandomBytes(byte* buffer, int length);
+        internal static extern void GetNonCryptographicallySecureRandomBytes(in byte buffer, int length);
     }
 
-    internal static unsafe void GetRandomBytes(byte* buffer, int length)
+    internal static void GetRandomBytes(Span<byte> buffer, int length)
     {
-        Sys.GetNonCryptographicallySecureRandomBytes(buffer, length);
+        Sys.GetNonCryptographicallySecureRandomBytes(MemoryMarshal.GetReference(buffer), length);
     }
 }
