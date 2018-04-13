@@ -228,7 +228,7 @@ namespace System.IO
         {
             byte* pKey = stackalloc byte[KeyLength];
             Interop.GetRandomBytes(pKey, KeyLength);
-            
+
             char* pRandomFileName = stackalloc char[RandomFileNameLength];
             Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, RandomFileNameLength);
             return new string(pRandomFileName, 0, RandomFileNameLength);
@@ -247,10 +247,10 @@ namespace System.IO
 
             byte* pKey = stackalloc byte[KeyLength];
             Interop.GetRandomBytes(pKey, KeyLength);
-            
+
             char* pRandomFileName = stackalloc char[RandomFileNameLength];
             Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, RandomFileNameLength);
-            new ReadOnlySpan<char>(pRandomFileName,RandomFileNameLength).CopyTo(destination);
+            new ReadOnlySpan<char>(pRandomFileName, RandomFileNameLength).CopyTo(destination);
             charsWritten = RandomFileNameLength;
             return true;
         }
