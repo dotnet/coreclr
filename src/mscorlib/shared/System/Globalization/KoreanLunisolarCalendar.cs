@@ -61,6 +61,9 @@ namespace System.Globalization
             }
         }
 
+// Data for years 1391-2050 matches that available from
+// Korea Astronomy and Space Science Institute (KASI)
+// https://astro.kasi.re.kr:444/life/pageView/5
         private static readonly int[,] s_yinfo =
         {
 /*Y           LM  Lmon  Lday    DaysPerMonth               D1   D2   D3   D4   D5   D6   D7   D8   D9   D10  D11  D12  D13  #Days
