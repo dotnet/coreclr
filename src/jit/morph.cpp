@@ -5970,7 +5970,7 @@ BasicBlock* Compiler::fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, u
             const unsigned theStkDepth = fgGlobalMorph ? fgPtrArgCntCur : *stkDepth;
 #else
             // only x86 pushes args
-            const unsigned theStkDepth   = 0;
+            const unsigned theStkDepth = 0;
 #endif
 
             // Create/find the appropriate "range-fail" label
