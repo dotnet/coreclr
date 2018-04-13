@@ -1443,7 +1443,13 @@ DBG_FlushInstructionCache(
 #ifndef _ARM_
     // Intrinsic should do the right thing across all platforms (except Linux arm)
     __builtin___clear_cache((char *)lpBaseAddress, (char *)((INT_PTR)lpBaseAddress + dwSize));
-#else
+#else // _ARM_
+    // On Linux/arm (at least on 3.10) we found that there is a problem with __do_cache_op (arch/arm/kernel/traps.c)
+    // implementing cacheflush syscall. cacheflush flushes only the first page in range [lpBaseAddress, lpBaseAddress + dwSize)
+    // and leaves other pages in undefined state which causes random tests failures (often due to SIGSEGV) with no particular pattern.
+    //
+    // As a workaround, we call __builtin___clear_cache on each page separately.
+
     const SIZE_T pageSize = GetVirtualPageSize();
     INT_PTR begin = (INT_PTR)lpBaseAddress;
     const INT_PTR end = begin + dwSize;
@@ -1457,6 +1463,6 @@ DBG_FlushInstructionCache(
         __builtin___clear_cache((char *)begin, (char *)endOrNextPageBegin);
         begin = endOrNextPageBegin;
     }
-#endif
+#endif // _ARM_
     return TRUE;
 }
