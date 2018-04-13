@@ -6098,7 +6098,9 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
                 "%.0s%s%s", // name+suffix
 #ifdef FEATURE_PAL
                 "%s%s%s",   // prefix+name+suffix
+#endif
                 "%.0s%s",   // name
+#ifdef FEATURE_PAL
                 "%s%s%.0s"  // prefix+name
 #endif
             };
