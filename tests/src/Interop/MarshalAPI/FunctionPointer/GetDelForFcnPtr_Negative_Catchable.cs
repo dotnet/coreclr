@@ -87,7 +87,7 @@ public partial class FunctionPtr
             if (del.Target != md.Target)
             {
                 retVal = 0;
-                Console.WriteLine("Failure - the Target of the funcptr->delegate should be null since the original method is static.");
+                Console.WriteLine("Failure - the Target of the funcptr->delegate should be equal to the original method.");
                 Console.WriteLine(del.Target);
             }
 
@@ -111,13 +111,18 @@ public partial class FunctionPtr
         }
 
         // Native FcnPtr -> Delegate
+        IntPtr pNativeMemory = IntPtr.Zero;
         try
         {
+            pNativeMemory = Marshal.AllocCoTaskMem(64);
+            Marshal.WriteInt32(pNativeMemory, 0);
+            Marshal.WriteInt32(pNativeMemory + 4, 0);
+
             // Intentionally using the fcnptr but moved by 1 byte. We need a native pointer which is readable (since CLR assumes this is a function pointer which can be called
             // and reads the first few instructions to check if it's something it knows about).
             // But we need something which is NOT a reverse-pinvoke thunk so that CLR won't be able to match/find it.
             // Note that it really doesn't matter where the address comes from as long as it's readable and not one of the thunks.
-            VoidDelegate del = (VoidDelegate)Marshal.GetDelegateForFunctionPointer(fcnptr + 1, typeof(VoidDelegate));
+            VoidDelegate del = (VoidDelegate)Marshal.GetDelegateForFunctionPointer(pNativeMemory, typeof(VoidDelegate));
             if (del.Target != null)
             {
                 retVal = 0;
@@ -141,6 +146,13 @@ public partial class FunctionPtr
             retVal = 0;
             Console.WriteLine("Failure - received exception while converting funcptr to delegate.");
             Console.WriteLine(e);
+        }
+        finally
+        {
+            if (pNativeMemory != IntPtr.Zero)
+            {
+                Marshal.FreeCoTaskMem(pNativeMemory);
+            }
         }
 
 
