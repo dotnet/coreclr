@@ -68,7 +68,7 @@ public:
       "Does a DebugBreak at the soonest time we detect an OOM")                                \
   BOOL_CONFIG(NoAffinitize, "GCNoAffinitize", false,                                           \
       "If set, do not affinitize server GC threads")                                           \
-  BOOL_CONFIG(LogEnabled,   "GCLogEnabled", false,                                             \
+  BOOL_CONFIG(LogEnabled,   "GCLogEnabled", true,                                             \
       "Specifies if you want to turn on logging in GC")                                        \
   BOOL_CONFIG(ConfigLogEnabled, "GCConfigLogEnabled", false,                                   \
       "Specifies the name of the GC config log file")                                          \
