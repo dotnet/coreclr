@@ -5896,8 +5896,6 @@ bool         NDirect::s_fSecureLoadLibrarySupported = false;
 #else // !FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_A ".dll"
 #define PLATFORM_SHARED_LIB_PREFIX_A ""
-#define PLATFORM_SHARED_LIB_SUFFIX_W W(".dll")
-#define WINDOWS_SHARED_EXE_SUFFIX_W W(".exe")
 #endif // !FEATURE_PAL
 
 // static
@@ -6052,26 +6050,20 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
     return hmod;
 }
 
+#ifdef FEATURE_PAL
 static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
     if (libNameIsRelativePath)
     {
-        bool containsSuffix;
-#ifdef FEATURE_PAL
         // We check if the suffix is contained in the name, because on Linux it is common to append
         // a version number to the library name (e.g. 'libicuuc.so.57').
+        bool containsSuffix;
         SString::CIterator it = libName.Begin();
-        if (libName.FindASCII(it, PLATFORM_SHARED_LIB_SUFFIX_A))
+        if (libName.FindASCII(it, PAL_SHLIB_SUFFIX))
         {
-            it += (int)strlen(PLATFORM_SHARED_LIB_SUFFIX_A);
+            it += strlen(PAL_SHLIB_SUFFIX);
             containsSuffix = it == libName.End() || *it == (WCHAR)'.';
         }
-#else
-        if (libName.EndsWithCaseInsensitive(PLATFORM_SHARED_LIB_SUFFIX_W) || libName.EndsWithCaseInsensitive(WINDOWS_SHARED_EXE_SUFFIX_W))
-        {
-            containsSuffix = true;
-        }
-#endif
         else
         {
             containsSuffix = false;
@@ -6082,11 +6074,9 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
             static const char* const SuffixLast[] =
             {
                 "%.0s%s",   // name
-#ifdef FEATURE_PAL
                 "%s%s%.0s", // prefix+name
                 "%.0s%s%s", // name+suffix
                 "%s%s%s"    // prefix+name+suffix
-#endif                
             };
             *libNameVariations = SuffixLast;
             *numberOfVariations = COUNTOF(SuffixLast);
@@ -6096,13 +6086,9 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
             static const char* const SuffixFirst[] =
             {
                 "%.0s%s%s", // name+suffix
-#ifdef FEATURE_PAL
                 "%s%s%s",   // prefix+name+suffix
-#endif
                 "%.0s%s",   // name
-#ifdef FEATURE_PAL
                 "%s%s%.0s"  // prefix+name
-#endif
             };
             *libNameVariations = SuffixFirst;
             *numberOfVariations = COUNTOF(SuffixFirst);
@@ -6118,6 +6104,36 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
         *numberOfVariations = COUNTOF(NameOnly);
     }
 }
+#else
+static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+{
+    bool endWithDot = libName.EndsWith(W("."));
+    bool notContainDot = !libName.Find(libName.Begin(), W('.'));
+    bool containsSuffix = libName.EndsWithCaseInsensitive(W(".dll")) || libName.EndsWithCaseInsensitive(W(".exe"));
+    if (endWithDot || notContainDot || containsSuffix || !libNameIsRelativePath)
+    {
+        // file name end with '.'
+        // file name doesn't contain '.'
+        // file name is absolute path
+        static const char* const NameOnly[] =
+        {
+            "%.0s%s"
+        };
+        *libNameVariations = NameOnly;
+        *numberOfVariations = COUNTOF(NameOnly);
+    }
+    else
+    {
+        static const char* const SuffixLast[] =
+        {
+            "%.0s%s",   // name
+            "%.0s%s%s", // name+suffix
+        };
+        *libNameVariations = SuffixLast;
+        *numberOfVariations = COUNTOF(SuffixLast);
+    }
+}
+#endif
 
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
