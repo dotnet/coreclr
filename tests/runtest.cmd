@@ -84,6 +84,8 @@ if /i "%1" == "tieredcompilation"     (set COMPLUS_TieredCompilation=1&shift&got
 if /i "%1" == "gcname"                (set COMPlus_GCName=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "timeout"               (set __TestTimeout=%2&shift&shift&goto Arg_Loop)
 
+set COMPlus_TieredCompilation=1
+
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
 if /i "%1" == "collectdumps"          (set __CollectDumps=true&shift&goto Arg_Loop)
