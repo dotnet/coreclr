@@ -26,6 +26,8 @@ SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do
 #include "pal/context.h"
 #include "pal/debug.h"
 #include "pal/thread.hpp"
+#include "pal/utils.h"
+#include "pal/virtual.h"
 
 #include <sys/ptrace.h> 
 #include <errno.h>
@@ -1442,22 +1444,19 @@ DBG_FlushInstructionCache(
     // Intrinsic should do the right thing across all platforms (except Linux arm)
     __builtin___clear_cache((char *)lpBaseAddress, (char *)((INT_PTR)lpBaseAddress + dwSize));
 #else
-    constexpr SIZE_T dwPageSize = 0x1000;
-
+    const SIZE_T pageSize = GetVirtualPageSize();
     INT_PTR begin = (INT_PTR)lpBaseAddress;
-    INT_PTR end   = begin + dwSize;
-    INT_PTR pos;
+    const INT_PTR end = begin + dwSize;
 
-    do
+    while (begin < end)
     {
-        pos = (begin + dwPageSize) & ~(dwPageSize - 1);
-        if (pos > end)
-            pos = end;
+        INT_PTR endOrNextPageBegin = ALIGN_UP(begin + 1, pageSize);
+        if (endOrNextPageBegin > end)
+            endOrNextPageBegin = end;
 
-        __builtin___clear_cache((char *)begin, (char *)pos);
-        begin = pos;
-    } while (pos < end);
-
+        __builtin___clear_cache((char *)begin, (char *)endOrNextPageBegin);
+        begin = endOrNextPageBegin;
+    }
 #endif
     return TRUE;
 }
