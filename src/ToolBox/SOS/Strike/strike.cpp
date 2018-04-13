@@ -8571,6 +8571,7 @@ DECLARE_API(DumpLog)
     return Status;
 }
 
+#define TRACE_GC
 #ifdef TRACE_GC
 
 DECLARE_API (DumpGCLog)
@@ -8585,6 +8586,11 @@ DECLARE_API (DumpGCLog)
     }
 
     const char* fileName = "GCLog.txt";
+    int iLogSize;
+    int iRealLogSize;
+    DWORD dwWritten;
+    BYTE* bGCLog;
+    
 
     while (isspace (*args))
         args ++;
@@ -8629,8 +8635,8 @@ DECLARE_API (DumpGCLog)
         goto exit;
     }
 
-    int iLogSize = 1024*1024;
-    BYTE* bGCLog = new NOTHROW BYTE[iLogSize];
+    iLogSize = 1024*1024;
+    bGCLog = new NOTHROW BYTE[iLogSize];
     if (bGCLog == NULL)
     {
         ReportOOM();
@@ -8643,7 +8649,7 @@ DECLARE_API (DumpGCLog)
         ExtOut("failed to read memory from %08x\n", dwAddr);
     }
 
-    int iRealLogSize = iLogSize - 1;
+    iRealLogSize = iLogSize - 1;
     while (iRealLogSize >= 0)
     {
         if (bGCLog[iRealLogSize] != '*')
@@ -8654,7 +8660,7 @@ DECLARE_API (DumpGCLog)
         iRealLogSize--;
     }
 
-    DWORD dwWritten = 0;
+    dwWritten = 0;
     WriteFile (hGCLog, bGCLog, iRealLogSize + 1, &dwWritten, NULL);
 
     Status = S_OK;

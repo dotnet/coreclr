@@ -17312,7 +17312,7 @@ BOOL gc_heap::gc_mark1 (uint8_t* o)
 {
     BOOL marked = !marked (o);
     set_marked (o);
-    dprintf (3, ("*%Ix*, newly marked: %d", (size_t)o, marked));
+    dprintf (1, ("*%Ix*, newly marked: %d", (size_t)o, marked));
     return marked;
 }
 
@@ -29525,7 +29525,7 @@ void gc_heap::set_static_data()
         dprintf (GTC_LOG, ("PM: %d - min: %Id, max: %Id, fr_l: %Id, fr_b: %d%%",
             settings.pause_mode,
             dd->min_size, dd_max_size, 
-            dd->fragmentation_limit, (int)(dd->fragmentation_burden_limit * 100)));
+            sdata->fragmentation_limit, (int)(sdata->fragmentation_burden_limit * 100)));
     }
 }
 
@@ -33786,7 +33786,7 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
 
     gc_heap* hp = gc_heap::heap_of (o);
 
-    dprintf (3, ("Promote %Ix", (size_t)o));
+    dprintf (1, ("Promote %Ix", (size_t)o));
 
 #ifdef INTERIOR_POINTERS
     if (flags & GC_CALL_INTERIOR)
@@ -35898,7 +35898,11 @@ retry:
     }
     if (obj)
     {
-        dprintf (3, ("running finalizer for %Ix (mt: %Ix)", obj, method_table (obj)));
+        dprintf (1, ("running finalizer for %Ix (mt: %Ix)", obj, method_table (obj)));
+    }
+    else
+    {
+        dprintf (1, ("no more items to finalize!!!"));
     }
     LeaveFinalizeLock();
     return obj;
@@ -36154,6 +36158,7 @@ CFinalize::ScanForFinalization (promote_func* pfn, int gen, BOOL mark_only_p,
                     else
                     {
                         m_PromotedCount++;
+                        dprintf (1, ("%Ix is added to finalizer queue", obj));
 
                         if (method_table(obj)->HasCriticalFinalizer())
                         {
