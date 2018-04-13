@@ -1,1 +1,2 @@
 GC/API/GC/GetAllocatedBytesForCurrentThread/GetAllocatedBytesForCurrentThread.sh
+GC/Scenarios/LeakWheel/leakwheel/leakwheel.sh
