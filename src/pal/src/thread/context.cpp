@@ -1438,8 +1438,25 @@ DBG_FlushInstructionCache(
                           IN LPCVOID lpBaseAddress,
                           IN SIZE_T dwSize)
 {
+
+#if defined(_ARM_)
+    // Intrinsic should do the right thing across all platforms
+    constexpr SIZE_T dwPageSize = 64;
+
+    char* lpCurAddress = (char*)lpBaseAddress;
+    char* lpEndAddress = (char*)((char*)lpBaseAddress + (INT_PTR)dwSize);
+
+    while (lpCurAddress < lpEndAddress)
+    {
+        char* lpNextPage = lpCurAddress + (dwPageSize - ((SIZE_T)lpCurAddress % dwPageSize));
+        char* lpNextAddress = (lpNextPage < lpEndAddress)? lpNextPage:lpEndAddress;
+        __builtin___clear_cache(lpCurAddress, lpNextAddress);
+        lpCurAddress = lpNextAddress;
+    }    
+    
+#else // !defined(_ARM_)
     // Intrinsic should do the right thing across all platforms
     __builtin___clear_cache((char *)lpBaseAddress, (char *)((INT_PTR)lpBaseAddress + dwSize));
-
+#endif // !defined(_ARM_)
     return TRUE;
 }
