@@ -6104,17 +6104,23 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
         *numberOfVariations = COUNTOF(NameOnly);
     }
 }
-#else
+#else // FEATURE_PAL
 static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
     bool endWithDot = libName.EndsWith(W("."));
     bool notContainDot = !libName.Find(libName.Begin(), W('.'));
     bool containsSuffix = libName.EndsWithCaseInsensitive(W(".dll")) || libName.EndsWithCaseInsensitive(W(".exe"));
+    
+    // The whole purpose is to workaround LoadLibrary limitation --- LoadLibray won't append extension if filename contains '.'
+    // The change is to:
+    // For file name which contains '.' and '.' isn't at end, call LoadLibrary with "File.Name" and "File.Name.dll"
+    // For other cases, keep same behavior as before,         call LoadLibrary with specified fileName and let LoadLibrary to handle wehether to add extension
     if (endWithDot || notContainDot || containsSuffix || !libNameIsRelativePath)
     {
-        // file name end with '.'
-        // file name doesn't contain '.'
-        // file name is absolute path
+        // Follow LoadLibrary Rules: From MSDN doc https://msdn.microsoft.com/en-us/library/windows/desktop/ms684175(v=vs.85).aspx
+        // If the string specifies a full path, the function searches only that path for the module.
+        // If the string specifies a module name without a path and the file name extension is omitted, the function appends the default library extension .dll to the module name.
+        // To prevent the function from appending .dll to the module name, include a trailing point character (.) in the module name string.
         static const char* const NameOnly[] =
         {
             "%.0s%s"
@@ -6133,7 +6139,7 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
         *numberOfVariations = COUNTOF(SuffixLast);
     }
 }
-#endif
+#endif // FEATURE_PAL
 
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
