@@ -31,7 +31,10 @@
     <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>x86</Platform>
     </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
+    <ProjectReference Include="debian\8\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
+    <ProjectReference Include="debian\9\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="fedora\23\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
@@ -41,6 +44,9 @@
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="fedora\27\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
+    <ProjectReference Include="fedora\28\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="opensuse\13.2\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">

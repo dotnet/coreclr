@@ -22,7 +22,10 @@
     <ProjectReference Include="win\Microsoft.NETCore.ILAsm.pkgproj">
       <Platform>arm</Platform>
     </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.ILAsm.pkgproj">
+    <ProjectReference Include="debian\8\Microsoft.NETCore.ILAsm.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
+    <ProjectReference Include="debian\9\Microsoft.NETCore.ILAsm.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="fedora\23\Microsoft.NETCore.ILAsm.pkgproj">
@@ -32,6 +35,9 @@
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="fedora\27\Microsoft.NETCore.ILAsm.pkgproj">
+      <Platform>amd64</Platform>
+    </ProjectReference>
+    <ProjectReference Include="fedora\28\Microsoft.NETCore.ILAsm.pkgproj">
       <Platform>amd64</Platform>
     </ProjectReference>
     <ProjectReference Include="opensuse\13.2\Microsoft.NETCore.ILAsm.pkgproj">
