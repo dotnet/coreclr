@@ -734,8 +734,10 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     }
 
 #ifdef FEATURE_TIERED_COMPILATION
-    if (g_pConfig->TieredCompilation() && !flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER1))
+    if (g_pConfig->TieredCompilation() && flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
     {
+        // The flag above is only set (in TieredCompilationManager::GetJitFlags()) when this method was eligible for tiered
+        // compilation at the time when it was checked, and a tier 0 JIT was requested for this method
         GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
     }
 #endif // FEATURE_TIERED_COMPILATION
@@ -1734,15 +1736,20 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // When the TieredCompilationManager has received enough call notifications
     // for this method only then do we back-patch it.
     BOOL fCanBackpatchPrestub = TRUE;
+    BOOL fEligibleForCallCounting = FALSE;
 #ifdef FEATURE_TIERED_COMPILATION
     TieredCompilationManager* pTieredCompilationManager = nullptr;
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
     BOOL fWasPromotedToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
-        pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-        CallCounter * pCallCounter = GetCallCounter();
-        pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
+        fEligibleForCallCounting = g_pConfig->TieredCompilation_CallCounting();
+        if (fEligibleForCallCounting)
+        {
+            pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
+            CallCounter * pCallCounter = GetCallCounter();
+            pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
+        }
     }
 #endif
 
@@ -1755,7 +1762,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
 
-        if (pTieredCompilationManager != nullptr && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
+        if (pTieredCompilationManager != nullptr && fEligibleForCallCounting && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
         {
             pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
         }
