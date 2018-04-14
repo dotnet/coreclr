@@ -273,9 +273,10 @@ namespace System.Threading
                         return null;
                     }
 
-                    // Decrement the tail using a fence to ensure subsequent read doesn't come before.
                     tail -= 1;
-                    Interlocked.Exchange(ref m_tailIndex, tail);
+                    m_tailIndex = tail;
+                    // Use a full memory barrier to ensure subsequent read doesn't come before write is visible.
+                    Interlocked.MemoryBarrier();
 
                     // If there is no interaction with a take, we can head down the fast path.
                     if (m_headIndex <= tail)
@@ -339,9 +340,10 @@ namespace System.Threading
                             m_foreignLock.TryEnter(ref taken);
                             if (taken)
                             {
-                                // Increment head, and ensure read of tail doesn't move before it (fence).
                                 int head = m_headIndex;
-                                Interlocked.Exchange(ref m_headIndex, head + 1);
+                                m_headIndex = head + 1;
+                                // Use a full memory barrier to ensure subsequent read doesn't come before write is visible.
+                                Interlocked.MemoryBarrier();
 
                                 if (head < m_tailIndex)
                                 {
