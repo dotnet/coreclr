@@ -6107,14 +6107,14 @@ static void DetermineLibNameVariations(const char* const** libNameVariations, in
 #else // FEATURE_PAL
 static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
-    bool endWithDot = libName.EndsWith(W("."));
+    bool endWithDot = libName.EndsWith(W(".")) == TRUE;
     bool notContainDot = !libName.Find(libName.Begin(), W('.'));
     bool containsSuffix = libName.EndsWithCaseInsensitive(W(".dll")) || libName.EndsWithCaseInsensitive(W(".exe"));
     
-    // The whole purpose is to workaround LoadLibrary limitation --- LoadLibray won't append extension if filename contains '.'
-    // The change is to:
-    // For file name which contains '.' and '.' isn't at end, call LoadLibrary with "File.Name" and "File.Name.dll"
-    // For other cases, keep same behavior as before,         call LoadLibrary with specified fileName and let LoadLibrary to handle wehether to add extension
+    // The purpose of following code is to workaround LoadLibrary limitation: 
+    // LoadLibray won't append extension if filename itself contains '.'. Thus It will break the following scenario:
+    // [DllImport("A.B")] // The full name for file is "A.B.dll". This is common code pattern for cross-platform pinvoke.
+    // The workaround for above scenario is to call LoadLibrary with "A.B" first, if it fails, then call LoadLibrary with "A.B.dll"
     if (endWithDot || notContainDot || containsSuffix || !libNameIsRelativePath)
     {
         // Follow LoadLibrary Rules: From MSDN doc https://msdn.microsoft.com/en-us/library/windows/desktop/ms684175(v=vs.85).aspx
