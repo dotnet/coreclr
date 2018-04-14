@@ -247,9 +247,12 @@ namespace System.IO
                 return false;
 
             Span<byte> pKey = stackalloc byte[KeyLength];
-            Interop.GetRandomBytes(pKey);
+            fixed (byte* p = &pKey.GetPinnableReference())
+            {
+                Interop.GetRandomBytes(p, pKey.Length);
+            }
 
-            Populate83FileNameFromRandomBytes(pKey, KeyLength, destination, destination.Length);
+            Populate83FileNameFromRandomBytes(pKey, destination);
             charsWritten = RandomFileNameLength;
             return true;
         }
@@ -639,14 +642,14 @@ namespace System.IO
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                 'y', 'z', '0', '1', '2', '3', '4', '5'};
 
-        private static unsafe void Populate83FileNameFromRandomBytes(Span<byte> bytes, int byteCount, Span<char> chars, int charCount)
+        private static unsafe void Populate83FileNameFromRandomBytes(Span<byte> bytes, Span<char> chars)
         {
             Debug.Assert(bytes != null);
             Debug.Assert(chars != null);
 
             // This method requires bytes of length 8 and chars of length >= 12.
-            Debug.Assert(byteCount == 8, $"Unexpected {nameof(byteCount)}");
-            Debug.Assert(charCount >= 12, $"Unexpected {nameof(charCount)}");
+            Debug.Assert(bytes.Length == 8, $"Unexpected bytes.Length");
+            Debug.Assert(chars.Length >= 12, $"Unexpected chars.Length");
 
             byte b0 = bytes[0];
             byte b1 = bytes[1];
