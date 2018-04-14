@@ -129,11 +129,11 @@ namespace System
 
         public static ulong DefaultSeed { get; } = GenerateSeed();
 
-        private static unsafe ulong GenerateSeed()
+        private static ulong GenerateSeed()
         {
-            ulong seed;
-            Interop.GetRandomBytes((byte*)&seed, sizeof(ulong));
-            return seed;
+            Span<byte> seed = stackalloc byte[sizeof(ulong)];
+            Interop.GetRandomBytes(seed);
+            return BitConverter.ToUInt64(seed);
         }
     }
 }

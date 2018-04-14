@@ -64,11 +64,11 @@ namespace System
         private uint _queue1, _queue2, _queue3;
         private uint _length;
 
-        private static unsafe uint GenerateGlobalSeed()
+        private static uint GenerateGlobalSeed()
         {
-            uint result;
-            Interop.GetRandomBytes((byte*)&result, sizeof(uint));
-            return result;
+            Span<byte> result = stackalloc byte[sizeof(uint)];
+            Interop.GetRandomBytes(result);
+            return BitConverter.ToUInt32(result);
         }
 
         public static int Combine<T1>(T1 value1)

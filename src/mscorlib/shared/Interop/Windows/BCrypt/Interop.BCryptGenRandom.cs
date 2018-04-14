@@ -10,12 +10,11 @@ internal partial class Interop
 {
     internal partial class BCrypt
     {
-        internal static unsafe int BCryptGenRandom(byte* pbBuffer, int count)
-        {
-            Debug.Assert(pbBuffer != null);
+        internal static int BCryptGenRandom(ref byte pbBuffer, int count)
+        {            
             Debug.Assert(count >= 0);
 
-            return BCryptGenRandom(IntPtr.Zero, pbBuffer, count, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+            return BCryptGenRandom(IntPtr.Zero,ref pbBuffer, count, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
         }
 
         private const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
@@ -23,12 +22,12 @@ internal partial class Interop
         internal const int STATUS_NO_MEMORY = unchecked((int)0xC0000017);
 
         [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
-        private static extern unsafe int BCryptGenRandom(IntPtr hAlgorithm, byte* pbBuffer, int cbBuffer, int dwFlags);
+        private static extern int BCryptGenRandom(IntPtr hAlgorithm, ref byte pbBuffer, int cbBuffer, int dwFlags);
     }
 
-    internal static unsafe void GetRandomBytes(byte* buffer, int length)
+    internal static void GetRandomBytes(Span<byte> buffer)
     {
-        int status = BCrypt.BCryptGenRandom(buffer, length);
+        int status = BCrypt.BCryptGenRandom(ref MemoryMarshal.GetReference(buffer), buffer.Length);
         if (status != BCrypt.STATUS_SUCCESS)
         {
             if (status == BCrypt.STATUS_NO_MEMORY)
