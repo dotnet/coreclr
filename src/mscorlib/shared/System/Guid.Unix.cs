@@ -10,12 +10,11 @@ namespace System
     partial struct Guid
     {
         // This will create a new random guid based on the https://www.ietf.org/rfc/rfc4122.txt 
-        public static Guid NewGuid()
+        public static unsafe Guid NewGuid()
         {
-            Span<byte> randomBytes = stackalloc byte[Marshal.SizeOf<Guid>()];
-            Interop.GetRandomBytes(randomBytes);
-            Guid g = new Guid(randomBytes);
-
+            Guid g;
+            Interop.GetRandomBytes((byte*)&g, sizeof(Guid));
+            
             const ushort VersionMask = 0xF000;
             const ushort RandomGuidVersion = 0x4000;
 
