@@ -10,7 +10,7 @@ using TestLibrary;
 
 public class FileExtensionProbe
 {
-    private static int Fails = 0;
+    private static int s_failures = 0;
 
     [DllImport("ExeFile.exe", CallingConvention = CallingConvention.Cdecl, EntryPoint = "Sum")]
     public extern static int Exe_Sum(int a, int b);
@@ -28,13 +28,13 @@ public class FileExtensionProbe
             if (5 != Simple_Sum(2, 3))
             {
                 Console.WriteLine("Dll returns incorrectly result!");
-                Fails++;
+                s_failures++;
             }
         }
         catch (Exception e)
         {
             Console.WriteLine("Dll throws unexpected exception: " + e.Message);
-            Fails++;
+            s_failures++;
         }
     }
 
@@ -45,13 +45,13 @@ public class FileExtensionProbe
             if (7 != FileNameContainDot_Sum(3, 4))
             {
                 Console.WriteLine("FileNameContainDot returns incorrectly result!");
-                Fails++;
+                s_failures++;
             }
         }
         catch (Exception e)
         {
             Console.WriteLine("FileNameContainDot throws unexpected exception: " + e.Message);
-            Fails++;
+            s_failures++;
         }
     }
 
@@ -62,13 +62,13 @@ public class FileExtensionProbe
             if (9 != Exe_Sum(5, 4))
             {
                 Console.WriteLine("Exe_Sum returns incorrectly result!");
-                Fails++;
+                s_failures++;
             }
         }
         catch (Exception e)
         {
             Console.WriteLine("Exe_Sum throws unexpected exception: " + e.Message);
-            Fails++;
+            s_failures++;
         }
     }
 
@@ -81,7 +81,7 @@ public class FileExtensionProbe
             Exe();
         }
 
-        if (Fails > 0)
+        if (s_failures > 0)
         {
             Console.WriteLine("Failed!");
             return 101;
