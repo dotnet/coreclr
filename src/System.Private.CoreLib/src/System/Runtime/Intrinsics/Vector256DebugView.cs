@@ -6,7 +6,7 @@ using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics
 {
-    internal struct Vector256DebugView<T> where T : struct
+    internal struct Vector256DebugView<T> where T : unmanaged
     {
         private Vector256<T> _value;
 

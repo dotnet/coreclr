@@ -38,102 +38,102 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector add
         /// Corresponds to vector forms of ARM64 ADD & FADD
         /// </summary>
-        public static Vector64<T>  Add<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Add<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Add<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Add<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector and
         /// Corresponds to vector forms of ARM64 AND
         /// </summary>
-        public static Vector64<T>  And<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> And<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  And<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> And<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector and not
         /// Corresponds to vector forms of ARM64 BIC
         /// </summary>
-        public static Vector64<T>  AndNot<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> AndNot<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  AndNot<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> AndNot<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector BitwiseSelect
         /// For each bit in the vector result[bit] = sel[bit] ? left[bit] : right[bit]
         /// Corresponds to vector forms of ARM64 BSL (Also BIF & BIT)
         /// </summary>
-        public static Vector64<T>  BitwiseSelect<T>(Vector64<T>  sel, Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> BitwiseSelect<T>(Vector128<T> sel, Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  BitwiseSelect<T>(Vector64<T>  sel, Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> BitwiseSelect<T>(Vector128<T> sel, Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareEqual
         /// For each element result[elem] = (left[elem] == right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMEQ & FCMEQ
         /// </summary>
-        public static Vector64<T>  CompareEqual<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareEqual<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareEqual<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareEqual<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareEqualZero
         /// For each element result[elem] = (left[elem] == 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMEQ & FCMEQ
         /// </summary>
-        public static Vector64<T>  CompareEqualZero<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareEqualZero<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareEqualZero<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareEqualZero<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareGreaterThan
         /// For each element result[elem] = (left[elem] > right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT/CMHI & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareGreaterThan<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareGreaterThan<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareGreaterThan<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareGreaterThan<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareGreaterThanZero
         /// For each element result[elem] = (left[elem] > 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanZero<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareGreaterThanZero<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareGreaterThanZero<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareGreaterThanZero<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareGreaterThanOrEqual
         /// For each element result[elem] = (left[elem] >= right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGE/CMHS & FCMGE
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanOrEqual<T>(Vector64<T>  left, Vector64<T>    right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareGreaterThanOrEqual<T>(Vector128<T> left, Vector128<T>   right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareGreaterThanOrEqual<T>(Vector64<T>  left, Vector64<T>    right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareGreaterThanOrEqual<T>(Vector128<T> left, Vector128<T>   right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareGreaterThanOrEqualZero
         /// For each element result[elem] = (left[elem] >= 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGE & FCMGE
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanOrEqualZero<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareGreaterThanOrEqualZero<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareGreaterThanOrEqualZero<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareGreaterThanOrEqualZero<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareLessThanZero
         /// For each element result[elem] = (left[elem] < 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareLessThanZero<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareLessThanZero<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareLessThanZero<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareLessThanZero<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareLessThanOrEqualZero
         /// For each element result[elem] = (left[elem] < 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareLessThanOrEqualZero<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareLessThanOrEqualZero<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareLessThanOrEqualZero<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareLessThanOrEqualZero<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector CompareTest
         /// For each element result[elem] = (left[elem] & right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMTST
         /// </summary>
-        public static Vector64<T>  CompareTest<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> CompareTest<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  CompareTest<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> CompareTest<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// TBD Convert...
 
@@ -155,8 +155,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 MOV
         /// </summary>
-        public static T Extract<T>(Vector64<T>  vector, byte index) where T : struct { throw new PlatformNotSupportedException(); }
-        public static T Extract<T>(Vector128<T> vector, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static T Extract<T>(Vector64<T>  vector, byte index) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static T Extract<T>(Vector128<T> vector, byte index) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector insert item
@@ -169,8 +169,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 INS
         /// </summary>
-        public static Vector64<T>  Insert<T>(Vector64<T>  vector, byte index, T data) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Insert<T>(Vector128<T> vector, byte index, T data) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Insert<T>(Vector64<T>  vector, byte index, T data) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Insert<T>(Vector128<T> vector, byte index, T data) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector LeadingSignCount
@@ -284,22 +284,22 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector not
         /// Corresponds to vector forms of ARM64 NOT
         /// </summary>
-        public static Vector64<T>  Not<T>(Vector64<T>  value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Not<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Not<T>(Vector64<T>  value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Not<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector or
         /// Corresponds to vector forms of ARM64 ORR
         /// </summary>
-        public static Vector64<T>  Or<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Or<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Or<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Or<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector or not
         /// Corresponds to vector forms of ARM64 ORN
         /// </summary>
-        public static Vector64<T>  OrNot<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> OrNot<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  OrNot<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> OrNot<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector PopCount
@@ -315,8 +315,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 DUP (general), DUP (element 0), FMOV (vector, immediate)
         /// </summary>
-        public static Vector64<T>    SetAllVector64<T>(T value) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T>   SetAllVector128<T>(T value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>    SetAllVector64<T>(T value) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T>   SetAllVector128<T>(T value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// Vector square root
@@ -330,15 +330,15 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector subtract
         /// Corresponds to vector forms of ARM64 SUB & FSUB
         /// </summary>
-        public static Vector64<T>  Subtract<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Subtract<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Subtract<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Subtract<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
 
         /// <summary>
         /// Vector exclusive or
         /// Corresponds to vector forms of ARM64 EOR
         /// </summary>
-        public static Vector64<T>  Xor<T>(Vector64<T>  left, Vector64<T>  right) where T : struct { throw new PlatformNotSupportedException(); }
-        public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector64<T>  Xor<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
     }
 }

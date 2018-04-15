@@ -38,102 +38,102 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector add
         /// Corresponds to vector forms of ARM64 ADD & FADD
         /// </summary>
-        public static Vector64<T>  Add<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => Add(left, right);
-        public static Vector128<T> Add<T>(Vector128<T> left, Vector128<T> right) where T : struct => Add(left, right);
+        public static Vector64<T>  Add<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => Add(left, right);
+        public static Vector128<T> Add<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => Add(left, right);
 
         /// <summary>
         /// Vector and
         /// Corresponds to vector forms of ARM64 AND
         /// </summary>
-        public static Vector64<T>  And<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => And(left, right);
-        public static Vector128<T> And<T>(Vector128<T> left, Vector128<T> right) where T : struct => And(left, right);
+        public static Vector64<T>  And<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => And(left, right);
+        public static Vector128<T> And<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => And(left, right);
 
         /// <summary>
         /// Vector and not
         /// Corresponds to vector forms of ARM64 BIC
         /// </summary>
-        public static Vector64<T>  AndNot<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => AndNot(left, right);
-        public static Vector128<T> AndNot<T>(Vector128<T> left, Vector128<T> right) where T : struct => AndNot(left, right);
+        public static Vector64<T>  AndNot<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => AndNot(left, right);
+        public static Vector128<T> AndNot<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => AndNot(left, right);
 
         /// <summary>
         /// Vector BitwiseSelect
         /// For each bit in the vector result[bit] = sel[bit] ? left[bit] : right[bit]
         /// Corresponds to vector forms of ARM64 BSL (Also BIF & BIT)
         /// </summary>
-        public static Vector64<T>  BitwiseSelect<T>(Vector64<T>  sel, Vector64<T>  left, Vector64<T>  right) where T : struct => BitwiseSelect(sel, left, right);
-        public static Vector128<T> BitwiseSelect<T>(Vector128<T> sel, Vector128<T> left, Vector128<T> right) where T : struct => BitwiseSelect(sel, left, right);
+        public static Vector64<T>  BitwiseSelect<T>(Vector64<T>  sel, Vector64<T>  left, Vector64<T>  right) where T : unmanaged => BitwiseSelect(sel, left, right);
+        public static Vector128<T> BitwiseSelect<T>(Vector128<T> sel, Vector128<T> left, Vector128<T> right) where T : unmanaged => BitwiseSelect(sel, left, right);
 
         /// <summary>
         /// Vector CompareEqual
         /// For each element result[elem] = (left[elem] == right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMEQ & FCMEQ
         /// </summary>
-        public static Vector64<T>  CompareEqual<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => CompareEqual(left, right);
-        public static Vector128<T> CompareEqual<T>(Vector128<T> left, Vector128<T> right) where T : struct => CompareEqual(left, right);
+        public static Vector64<T>  CompareEqual<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => CompareEqual(left, right);
+        public static Vector128<T> CompareEqual<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => CompareEqual(left, right);
 
         /// <summary>
         /// Vector CompareEqualZero
         /// For each element result[elem] = (left[elem] == 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMEQ & FCMEQ
         /// </summary>
-        public static Vector64<T>  CompareEqualZero<T>(Vector64<T>  value) where T : struct => CompareEqualZero(value);
-        public static Vector128<T> CompareEqualZero<T>(Vector128<T> value) where T : struct => CompareEqualZero(value);
+        public static Vector64<T>  CompareEqualZero<T>(Vector64<T>  value) where T : unmanaged => CompareEqualZero(value);
+        public static Vector128<T> CompareEqualZero<T>(Vector128<T> value) where T : unmanaged => CompareEqualZero(value);
 
         /// <summary>
         /// Vector CompareGreaterThan
         /// For each element result[elem] = (left[elem] > right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT/CMHI & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareGreaterThan<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => CompareGreaterThan(left, right);
-        public static Vector128<T> CompareGreaterThan<T>(Vector128<T> left, Vector128<T> right) where T : struct => CompareGreaterThan(left, right);
+        public static Vector64<T>  CompareGreaterThan<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => CompareGreaterThan(left, right);
+        public static Vector128<T> CompareGreaterThan<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => CompareGreaterThan(left, right);
 
         /// <summary>
         /// Vector CompareGreaterThanZero
         /// For each element result[elem] = (left[elem] > 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanZero<T>(Vector64<T>  value) where T : struct => CompareGreaterThanZero(value);
-        public static Vector128<T> CompareGreaterThanZero<T>(Vector128<T> value) where T : struct => CompareGreaterThanZero(value);
+        public static Vector64<T>  CompareGreaterThanZero<T>(Vector64<T>  value) where T : unmanaged => CompareGreaterThanZero(value);
+        public static Vector128<T> CompareGreaterThanZero<T>(Vector128<T> value) where T : unmanaged => CompareGreaterThanZero(value);
 
         /// <summary>
         /// Vector CompareGreaterThanOrEqual
         /// For each element result[elem] = (left[elem] >= right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGE/CMHS & FCMGE
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanOrEqual<T>(Vector64<T>  left, Vector64<T>    right) where T : struct => CompareGreaterThanOrEqual(left, right);
-        public static Vector128<T> CompareGreaterThanOrEqual<T>(Vector128<T> left, Vector128<T>   right) where T : struct => CompareGreaterThanOrEqual(left, right);
+        public static Vector64<T>  CompareGreaterThanOrEqual<T>(Vector64<T>  left, Vector64<T>    right) where T : unmanaged => CompareGreaterThanOrEqual(left, right);
+        public static Vector128<T> CompareGreaterThanOrEqual<T>(Vector128<T> left, Vector128<T>   right) where T : unmanaged => CompareGreaterThanOrEqual(left, right);
 
         /// <summary>
         /// Vector CompareGreaterThanOrEqualZero
         /// For each element result[elem] = (left[elem] >= 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGE & FCMGE
         /// </summary>
-        public static Vector64<T>  CompareGreaterThanOrEqualZero<T>(Vector64<T>  value) where T : struct => CompareGreaterThanOrEqualZero(value);
-        public static Vector128<T> CompareGreaterThanOrEqualZero<T>(Vector128<T> value) where T : struct => CompareGreaterThanOrEqualZero(value);
+        public static Vector64<T>  CompareGreaterThanOrEqualZero<T>(Vector64<T>  value) where T : unmanaged => CompareGreaterThanOrEqualZero(value);
+        public static Vector128<T> CompareGreaterThanOrEqualZero<T>(Vector128<T> value) where T : unmanaged => CompareGreaterThanOrEqualZero(value);
 
         /// <summary>
         /// Vector CompareLessThanZero
         /// For each element result[elem] = (left[elem] < 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareLessThanZero<T>(Vector64<T>  value) where T : struct => CompareLessThanZero(value);
-        public static Vector128<T> CompareLessThanZero<T>(Vector128<T> value) where T : struct => CompareLessThanZero(value);
+        public static Vector64<T>  CompareLessThanZero<T>(Vector64<T>  value) where T : unmanaged => CompareLessThanZero(value);
+        public static Vector128<T> CompareLessThanZero<T>(Vector128<T> value) where T : unmanaged => CompareLessThanZero(value);
 
         /// <summary>
         /// Vector CompareLessThanOrEqualZero
         /// For each element result[elem] = (left[elem] < 0) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMGT & FCMGT
         /// </summary>
-        public static Vector64<T>  CompareLessThanOrEqualZero<T>(Vector64<T>  value) where T : struct => CompareLessThanOrEqualZero(value);
-        public static Vector128<T> CompareLessThanOrEqualZero<T>(Vector128<T> value) where T : struct => CompareLessThanOrEqualZero(value);
+        public static Vector64<T>  CompareLessThanOrEqualZero<T>(Vector64<T>  value) where T : unmanaged => CompareLessThanOrEqualZero(value);
+        public static Vector128<T> CompareLessThanOrEqualZero<T>(Vector128<T> value) where T : unmanaged => CompareLessThanOrEqualZero(value);
 
         /// <summary>
         /// Vector CompareTest
         /// For each element result[elem] = (left[elem] & right[elem]) ? ~0 : 0
         /// Corresponds to vector forms of ARM64 CMTST
         /// </summary>
-        public static Vector64<T>  CompareTest<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => CompareTest(left, right);
-        public static Vector128<T> CompareTest<T>(Vector128<T> left, Vector128<T> right) where T : struct => CompareTest(left, right);
+        public static Vector64<T>  CompareTest<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => CompareTest(left, right);
+        public static Vector128<T> CompareTest<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => CompareTest(left, right);
 
         /// TBD Convert...
 
@@ -155,8 +155,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 MOV
         /// </summary>
-        public static T Extract<T>(Vector64<T>  vector, byte index) where T : struct => Extract(vector, index);
-        public static T Extract<T>(Vector128<T> vector, byte index) where T : struct => Extract(vector, index);
+        public static T Extract<T>(Vector64<T>  vector, byte index) where T : unmanaged => Extract(vector, index);
+        public static T Extract<T>(Vector128<T> vector, byte index) where T : unmanaged => Extract(vector, index);
 
         /// <summary>
         /// Vector insert item
@@ -169,8 +169,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 INS
         /// </summary>
-        public static Vector64<T>  Insert<T>(Vector64<T>  vector, byte index, T data) where T : struct => Insert(vector, index, data);
-        public static Vector128<T> Insert<T>(Vector128<T> vector, byte index, T data) where T : struct => Insert(vector, index, data);
+        public static Vector64<T>  Insert<T>(Vector64<T>  vector, byte index, T data) where T : unmanaged => Insert(vector, index, data);
+        public static Vector128<T> Insert<T>(Vector128<T> vector, byte index, T data) where T : unmanaged => Insert(vector, index, data);
 
         /// <summary>
         /// Vector LeadingSignCount
@@ -284,22 +284,22 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector not
         /// Corresponds to vector forms of ARM64 NOT
         /// </summary>
-        public static Vector64<T>  Not<T>(Vector64<T>  value) where T : struct => Not(value);
-        public static Vector128<T> Not<T>(Vector128<T> value) where T : struct => Not(value);
+        public static Vector64<T>  Not<T>(Vector64<T>  value) where T : unmanaged => Not(value);
+        public static Vector128<T> Not<T>(Vector128<T> value) where T : unmanaged => Not(value);
 
         /// <summary>
         /// Vector or
         /// Corresponds to vector forms of ARM64 ORR
         /// </summary>
-        public static Vector64<T>  Or<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => Or(left, right);
-        public static Vector128<T> Or<T>(Vector128<T> left, Vector128<T> right) where T : struct => Or(left, right);
+        public static Vector64<T>  Or<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => Or(left, right);
+        public static Vector128<T> Or<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => Or(left, right);
 
         /// <summary>
         /// Vector or not
         /// Corresponds to vector forms of ARM64 ORN
         /// </summary>
-        public static Vector64<T>  OrNot<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => OrNot(left, right);
-        public static Vector128<T> OrNot<T>(Vector128<T> left, Vector128<T> right) where T : struct => OrNot(left, right);
+        public static Vector64<T>  OrNot<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => OrNot(left, right);
+        public static Vector128<T> OrNot<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => OrNot(left, right);
 
         /// <summary>
         /// Vector PopCount
@@ -315,8 +315,8 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         ///
         /// Corresponds to vector forms of ARM64 DUP (general), DUP (element 0), FMOV (vector, immediate)
         /// </summary>
-        public static Vector64<T>    SetAllVector64<T>(T value)  where T : struct => SetAllVector64(value);
-        public static Vector128<T>   SetAllVector128<T>(T value) where T : struct => SetAllVector128(value);
+        public static Vector64<T>    SetAllVector64<T>(T value)  where T : unmanaged => SetAllVector64(value);
+        public static Vector128<T>   SetAllVector128<T>(T value) where T : unmanaged => SetAllVector128(value);
 
         /// <summary>
         /// Vector square root
@@ -330,15 +330,15 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// Vector subtract
         /// Corresponds to vector forms of ARM64 SUB & FSUB
         /// </summary>
-        public static Vector64<T>  Subtract<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => Subtract(left, right);
-        public static Vector128<T> Subtract<T>(Vector128<T> left, Vector128<T> right) where T : struct => Subtract(left, right);
+        public static Vector64<T>  Subtract<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => Subtract(left, right);
+        public static Vector128<T> Subtract<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => Subtract(left, right);
 
 
         /// <summary>
         /// Vector exclusive or
         /// Corresponds to vector forms of ARM64 EOR
         /// </summary>
-        public static Vector64<T>  Xor<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => Xor(left, right);
-        public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : struct => Xor(left, right);
+        public static Vector64<T>  Xor<T>(Vector64<T>  left, Vector64<T>  right) where T : unmanaged => Xor(left, right);
+        public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : unmanaged => Xor(left, right);
     }
 }

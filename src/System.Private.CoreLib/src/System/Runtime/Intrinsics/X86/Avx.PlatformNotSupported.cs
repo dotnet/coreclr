@@ -283,7 +283,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm256_extractf128_si256 (__m256i a, const int imm8)
         ///   VEXTRACTF128 xmm/m128, ymm, imm8
         /// </summary>
-        public static Vector128<T> ExtractVector128<T>(Vector256<T> value, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> ExtractVector128<T>(Vector256<T> value, byte index) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm256_extractf128_si256 (__m256i a, const int imm8)
@@ -344,7 +344,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_castsi128_si256 (__m128i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector256<T> ExtendToVector256<T>(Vector128<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> ExtendToVector256<T>(Vector128<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256 _mm256_floor_ps (__m256 a)
@@ -365,7 +365,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm256_castsi256_si128 (__m256i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector128<T> GetLowerHalf<T>(Vector256<T> value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> GetLowerHalf<T>(Vector256<T> value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256 _mm256_hadd_ps (__m256 a, __m256 b)
@@ -438,7 +438,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_insertf128_si256 (__m256i a, __m128i b, int imm8)
         ///   VINSERTF128 ymm, ymm, xmm/m128, imm8
         /// </summary>
-        public static Vector256<T> InsertVector128<T>(Vector256<T> value, Vector128<T> data, byte index) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> InsertVector128<T>(Vector256<T> value, Vector128<T> data, byte index) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256i _mm256_insertf128_si256 (__m256i a, __m128i b, int imm8)
@@ -763,7 +763,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_permute2f128_si256 (__m256i a, __m256i b, int imm8)
         ///   VPERM2F128 ymm, ymm, ymm/m256, imm8
         /// </summary>
-        public static Vector256<T> Permute2x128<T>(Vector256<T> left, Vector256<T> right, byte control) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> Permute2x128<T>(Vector256<T> left, Vector256<T> right, byte control) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128 _mm_permutevar_ps (__m128 a, __m128i b)
@@ -915,7 +915,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256d _mm256_set1_pd (double a)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetAllVector256<T>(T value) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> SetAllVector256<T>(T value) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256 _mm256_set_m128 (__m128 hi, __m128 lo)
@@ -925,7 +925,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_set_m128i (__m128i hi, __m128i lo)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetHighLow<T>(Vector128<T> hi, Vector128<T> lo) where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> SetHighLow<T>(Vector128<T> hi, Vector128<T> lo) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256i _mm256_setzero_si256 (void)
@@ -935,7 +935,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256d _mm256_setzero_pd (void)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetZeroVector256<T>() where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<T> SetZeroVector256<T>() where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256 _mm256_shuffle_ps (__m256 a, __m256 b, const int imm8)
@@ -973,7 +973,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256 _mm256_castsi256_ps (__m256i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector256<U> StaticCast<T, U>(Vector256<T> value) where T : struct where U : struct { throw new PlatformNotSupportedException(); }
+        public static Vector256<U> StaticCast<T, U>(Vector256<T> value) where T : unmanaged where U : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// void _mm256_store_si256 (__m256i * mem_addr, __m256i a)
@@ -1158,7 +1158,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testc_pd (__m256d a, __m256d b)
         ///   VTESTPS ymm, ymm/m256
         /// </summary>
-        public static bool TestC<T>(Vector256<T> left, Vector256<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static bool TestC<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int _mm_testnzc_ps (__m128 a, __m128 b)
@@ -1179,7 +1179,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testnzc_pd (__m256d a, __m256d b)
         ///   VTESTPD ymm, ymm/m256
         /// </summary>
-        public static bool TestNotZAndNotC<T>(Vector256<T> left, Vector256<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static bool TestNotZAndNotC<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int _mm_testz_ps (__m128 a, __m128 b)
@@ -1200,7 +1200,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testz_pd (__m256d a, __m256d b)
         ///   VTESTPD ymm, ymm/m256
         /// </summary>
-        public static bool TestZ<T>(Vector256<T> left, Vector256<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+        public static bool TestZ<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m256 _mm256_unpackhi_ps (__m256 a, __m256 b)

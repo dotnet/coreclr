@@ -1071,7 +1071,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_setzero_pd (void)
         ///   HELPER: XORPD
         /// </summary>
-        public static Vector128<T> SetZeroVector128<T>() where T : struct { throw new PlatformNotSupportedException(); }
+        public static Vector128<T> SetZeroVector128<T>() where T : unmanaged { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// __m128i _mm_sad_epu8 (__m128i a,  __m128i b)

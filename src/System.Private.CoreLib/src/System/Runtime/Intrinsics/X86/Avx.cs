@@ -371,7 +371,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm256_extractf128_si256 (__m256i a, const int imm8)
         ///   VEXTRACTF128 xmm/m128, ymm, imm8
         /// </summary>
-        public static Vector128<T> ExtractVector128<T>(Vector256<T> value, byte index) where T : struct
+        public static Vector128<T> ExtractVector128<T>(Vector256<T> value, byte index) where T : unmanaged
         {
             return ExtractVector128<T>(value, index);
         }
@@ -435,7 +435,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_castsi128_si256 (__m128i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector256<T> ExtendToVector256<T>(Vector128<T> value) where T : struct
+        public static Vector256<T> ExtendToVector256<T>(Vector128<T> value) where T : unmanaged
         {
             return ExtendToVector256<T>(value);
         }
@@ -459,7 +459,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128i _mm256_castsi256_si128 (__m256i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector128<T> GetLowerHalf<T>(Vector256<T> value) where T : struct
+        public static Vector128<T> GetLowerHalf<T>(Vector256<T> value) where T : unmanaged
         {
             return GetLowerHalf<T>(value);
         }
@@ -622,7 +622,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_insertf128_si256 (__m256i a, __m128i b, int imm8)
         ///   VINSERTF128 ymm, ymm, xmm/m128, imm8
         /// </summary>
-        public static Vector256<T> InsertVector128<T>(Vector256<T> value, Vector128<T> data, byte index) where T : struct
+        public static Vector256<T> InsertVector128<T>(Vector256<T> value, Vector128<T> data, byte index) where T : unmanaged
         {
             return InsertVector128<T>(value, data, index);
         }
@@ -950,7 +950,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_permute2f128_si256 (__m256i a, __m256i b, int imm8)
         ///   VPERM2F128 ymm, ymm, ymm/m256, imm8
         /// </summary>
-        public static Vector256<T> Permute2x128<T>(Vector256<T> left, Vector256<T> right, byte control) where T : struct
+        public static Vector256<T> Permute2x128<T>(Vector256<T> left, Vector256<T> right, byte control) where T : unmanaged
         {
             return Permute2x128<T>(left, right, control);
         }
@@ -1105,7 +1105,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256d _mm256_set1_pd (double a)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetAllVector256<T>(T value) where T : struct
+        public static Vector256<T> SetAllVector256<T>(T value) where T : unmanaged
         {
             return SetAllVector256<T>(value);
         }
@@ -1118,7 +1118,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256i _mm256_set_m128i (__m128i hi, __m128i lo)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetHighLow<T>(Vector128<T> hi, Vector128<T> lo) where T : struct
+        public static Vector256<T> SetHighLow<T>(Vector128<T> hi, Vector128<T> lo) where T : unmanaged
         {
             return SetHighLow<T>(hi, lo);
         }
@@ -1131,7 +1131,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256d _mm256_setzero_pd (void)
         ///   HELPER
         /// </summary>
-        public static Vector256<T> SetZeroVector256<T>() where T : struct
+        public static Vector256<T> SetZeroVector256<T>() where T : unmanaged
         {
             return SetZeroVector256<T>();
         }
@@ -1172,7 +1172,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256 _mm256_castsi256_ps (__m256i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector256<U> StaticCast<T, U>(Vector256<T> value) where T : struct where U : struct
+        public static Vector256<U> StaticCast<T, U>(Vector256<T> value) where T : unmanaged where U : unmanaged
         {
             return StaticCast<T, U>(value);
         }
@@ -1360,7 +1360,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testc_pd (__m256d a, __m256d b)
         ///   VTESTPS ymm, ymm/m256
         /// </summary>
-        public static bool TestC<T>(Vector256<T> left, Vector256<T> right) where T : struct
+        public static bool TestC<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged
         {
             return TestC<T>(left, right);
         }
@@ -1384,7 +1384,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testnzc_pd (__m256d a, __m256d b)
         ///   VTESTPD ymm, ymm/m256
         /// </summary>
-        public static bool TestNotZAndNotC<T>(Vector256<T> left, Vector256<T> right) where T : struct
+        public static bool TestNotZAndNotC<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged
         {
             return TestNotZAndNotC<T>(left, right);
         }
@@ -1408,7 +1408,7 @@ namespace System.Runtime.Intrinsics.X86
         /// int _mm256_testz_pd (__m256d a, __m256d b)
         ///   VTESTPD ymm, ymm/m256
         /// </summary>
-        public static bool TestZ<T>(Vector256<T> left, Vector256<T> right) where T : struct
+        public static bool TestZ<T>(Vector256<T> left, Vector256<T> right) where T : unmanaged
         {
             return TestZ<T>(left, right);
         }
