@@ -13569,6 +13569,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 lclTyp = JITtype2varType(ciType);
 
+#ifdef FEATURE_SIMD
+                if (lclTyp == TYP_STRUCT)
+                {
+                    lclTyp = impNormStructType(clsHnd);
+                }
+#endif
+
 #ifdef _TARGET_AMD64
                 noway_assert(varTypeIsIntegralOrI(lclTyp) || varTypeIsFloating(lclTyp) || lclTyp == TYP_STRUCT);
 #endif // _TARGET_AMD64
