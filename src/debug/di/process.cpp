@@ -156,6 +156,39 @@ STDAPI OpenVirtualProcessImpl(
 };
 
 //---------------------------------------------------------------------------------------
+//
+// OpenVirtualProcessImpl2 method called by the dbgshim to get an ICorDebugProcess4 instance
+//
+// Arguments:
+//    clrInstanceId - target pointer identifying which CLR in the Target to debug.
+//    pDataTarget - data target abstraction.
+//    pDacModulePath - the module path of the appropriate DAC dll for this runtime
+//    riid - interface ID to query for.
+//    ppProcessOut - new object for target, interface ID matches riid.
+//    ppFlagsOut - currently only has 1 bit to indicate whether or not this runtime
+//                 instance will send a managed event after attach
+//
+// Return Value:
+//    S_OK on success. Else failure
+//---------------------------------------------------------------------------------------
+STDAPI OpenVirtualProcessImpl2(
+    ULONG64 clrInstanceId,
+    IUnknown * pDataTarget,
+    LPCWSTR pDacModulePath,
+    CLR_DEBUGGING_VERSION * pMaxDebuggerSupportedVersion,
+    REFIID riid,
+    IUnknown ** ppInstance,
+    CLR_DEBUGGING_PROCESS_FLAGS* pFlagsOut)
+{
+    HMODULE hDac = LoadLibraryW(pDacModulePath);
+    if (hDac == NULL)
+    {
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+    return OpenVirtualProcessImpl(clrInstanceId, pDataTarget, hDac, pMaxDebuggerSupportedVersion, riid, ppInstance, pFlagsOut);
+}
+
+//---------------------------------------------------------------------------------------
 // DEPRECATED - use OpenVirtualProcessImpl
 // OpenVirtualProcess method used by the shim in CLR v4 Beta1
 // We'd like a beta1 shim/VS to still be able to open dumps using a CLR v4 Beta2+ mscordbi.dll, 
@@ -8889,10 +8922,10 @@ CordbProcess::GetVersion(COR_VERSION* pVersion)
     //
     // Because we require a matching version of mscordbi.dll to debug a certain version of the runtime,
     // we can just use constants found in this particular mscordbi.dll to determine the version of the left side.
-    pVersion->dwMajor = VER_MAJORVERSION;
-    pVersion->dwMinor = VER_MINORVERSION;
-    pVersion->dwBuild = VER_PRODUCTBUILD;
-    pVersion->dwSubBuild = VER_PRODUCTBUILD_QFE;
+    pVersion->dwMajor = CLR_MAJOR_VERSION;
+    pVersion->dwMinor = CLR_MINOR_VERSION;
+    pVersion->dwBuild = CLR_BUILD_VERSION;
+    pVersion->dwSubBuild = CLR_BUILD_VERSION_QFE;
 
     return S_OK;
 }

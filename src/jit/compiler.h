@@ -3100,10 +3100,14 @@ protected:
     bool isScalarISA(InstructionSet isa);
     static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
     unsigned simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_INFO* sig);
-    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
     static GenTree* lastOpOfHWIntrinsic(GenTreeHWIntrinsic* node, int numArgs);
     static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
+
+public:
     static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
+
+protected:
     static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     static int immUpperBoundOfHWIntrinsic(NamedIntrinsic intrinsic);
@@ -10528,7 +10532,7 @@ const instruction INS_ADDC            = INS_adc;
 const instruction INS_SUBC            = INS_sbb;
 const instruction INS_NOT             = INS_not;
 
-#endif
+#endif // _TARGET_XARCH_
 
 #ifdef _TARGET_ARM_
 
@@ -10550,22 +10554,20 @@ const instruction INS_ADDC            = INS_adc;
 const instruction INS_SUBC            = INS_sbc;
 const instruction INS_NOT             = INS_mvn;
 
-const instruction INS_ABS   = INS_vabs;
-const instruction INS_ROUND = INS_invalid;
-const instruction INS_SQRT  = INS_vsqrt;
+const instruction INS_ABS  = INS_vabs;
+const instruction INS_SQRT = INS_vsqrt;
 
-#endif
+#endif // _TARGET_ARM_
 
 #ifdef _TARGET_ARM64_
 
 const instruction INS_MULADD     = INS_madd;
 const instruction INS_BREAKPOINT = INS_bkpt;
 
-const instruction INS_ABS   = INS_fabs;
-const instruction INS_ROUND = INS_frintn;
-const instruction INS_SQRT  = INS_fsqrt;
+const instruction INS_ABS  = INS_fabs;
+const instruction INS_SQRT = INS_fsqrt;
 
-#endif
+#endif // _TARGET_ARM64_
 
 /*****************************************************************************/
 
