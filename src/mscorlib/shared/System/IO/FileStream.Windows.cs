@@ -45,6 +45,7 @@ namespace System.IO
         private bool _canSeek;
         private bool _isPipe;      // Whether to disable async buffering code.
         private long _appendStart; // When appending, prevent overwriting file.
+        private FileMode _mode;
 
         private static unsafe IOCompletionCallback s_ioCallback = FileStreamCompletionSource.IOCallback;
 
@@ -95,6 +96,7 @@ namespace System.IO
             }
 
             _canSeek = true;
+            _mode = mode;
 
             // For Append mode...
             if (mode == FileMode.Append)
@@ -1071,7 +1073,13 @@ namespace System.IO
             FileStreamCompletionSource completionSource = FileStreamCompletionSource.Create(this, 0, source);
             NativeOverlapped* intOverlapped = completionSource.Overlapped;
 
-            if (CanSeek)
+            if (_mode == FileMode.Append)
+            {
+                // To write to the end of file, specify both the Offset and OffsetHigh members of the OVERLAPPED structure as 0xFFFFFFFF.
+                intOverlapped->OffsetLow = -1;
+                intOverlapped->OffsetHigh = -1;
+            }
+            else if (CanSeek)
             {
                 // Make sure we set the length of the file appropriately.
                 long len = Length;
