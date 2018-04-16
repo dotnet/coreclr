@@ -28,11 +28,6 @@ const char g_psBaseLibrary[]      = CoreLibName_IL_A;
 const char g_psBaseLibraryName[]  = CoreLibName_A;
 const char g_psBaseLibrarySatelliteAssemblyName[]  = CoreLibSatelliteName_A;
 
-#ifdef FEATURE_COMINTEROP
-const WCHAR g_pwBaseLibraryTLB[]  = CoreLibName_TLB_W;
-const char g_psBaseLibraryTLB[]   = CoreLibName_TLB_A;
-#endif  // FEATURE_COMINTEROP
-
 Volatile<LONG>       g_TrapReturningThreads;
 
 HINSTANCE            g_pMSCorEE;
@@ -107,10 +102,6 @@ GPTR_IMPL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 GPTR_IMPL(SyncTableEntry,g_pSyncTable);
 
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-DWORD g_dwHandles = 0;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
-
 #ifdef STRESS_LOG
 GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 #endif
@@ -120,12 +111,12 @@ GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_IMPL_INIT(DWORD, g_debuggerWordTLSIndex, TLS_OUT_OF_INDEXES);
+#endif
+GVAL_IMPL_INIT(DWORD, g_TlsIndex, TLS_OUT_OF_INDEXES);
 
 #ifndef DACCESS_COMPILE
-
-// <TODO> @TODO Remove eventually - </TODO> determines whether the verifier throws an exception when something fails
-bool                g_fVerifierOff;
-
 
 // <TODO> @TODO - PROMOTE. </TODO>
 OBJECTHANDLE         g_pPreallocatedOutOfMemoryException;
@@ -149,7 +140,8 @@ SpinConstants g_SpinConstants = {
     50,        // dwInitialDuration 
     40000,     // dwMaximumDuration - ideally (20000 * max(2, numProc))
     3,         // dwBackoffFactor
-    10         // dwRepetitions
+    10,        // dwRepetitions
+    0          // dwMonitorSpinCount
 };
 
 // support for Event Tracing for Windows (ETW)
@@ -252,8 +244,6 @@ LPWSTR g_pCachedModuleFileName = 0;
 //
 HINSTANCE g_hInstShim = NULL;
 
-char g_Version[] = VER_PRODUCTVERSION_STR;
-
 #endif // #ifndef DACCESS_COMPILE
 
 #ifdef DACCESS_COMPILE
@@ -294,50 +284,5 @@ extern "C" RAW_KEYWORD(volatile) const GSCookie s_gsCookie = 0;
 __GlobalVal< GSCookie > s_gsCookie(&g_dacGlobals.dac__s_gsCookie);
 #endif //!DACCESS_COMPILE
 
-BOOL IsCompilationProcess()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-#if defined(FEATURE_NATIVE_IMAGE_GENERATION) && !defined(DACCESS_COMPILE)
-    return g_pCEECompileInfo != NULL;
-#else
-    return FALSE;
-#endif
-}
-
 //==============================================================================
 
-enum NingenState
-{
-    kNotInitialized = 0,
-    kNingenEnabled = 1,
-    kNingenDisabled = 2,
-};
-
-extern int g_ningenState;
-int g_ningenState = kNotInitialized;
-
-// Removes all execution of managed or third-party code in the ngen compilation process.
-BOOL NingenEnabled()
-{
-    LIMITED_METHOD_CONTRACT;
-
-#ifdef CROSSGEN_COMPILE
-    // Always enable ningen for cross-compile
-    return TRUE;
-#else // CROSSGEN_COMPILE
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-    // Note that ningen is enabled by default to get byte-to-byte identical NGen images between native compile and cross-compile
-    if (g_ningenState == kNotInitialized)
-    {
-        // This code must be idempotent as we don't have a lock to prevent a race to initialize g_ningenState.
-        g_ningenState = (IsCompilationProcess() && (0 != CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Ningen))) ? kNingenEnabled : kNingenDisabled;
-    }
-
-    return g_ningenState == kNingenEnabled;
-#else
-    return FALSE;
-#endif
-
-#endif // CROSSGEN_COMPILE
-}

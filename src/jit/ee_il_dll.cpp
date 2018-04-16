@@ -58,6 +58,20 @@ extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
     {
+        if (jitHost != g_jitHost)
+        {
+            // We normally don't expect jitStartup() to be invoked more than once.
+            // (We check whether it has been called once due to an abundance of caution.)
+            // However, during SuperPMI playback of MCH file, we need to JIT many different methods.
+            // Each one carries its own environment configuration state.
+            // So, we need the JIT to reload the JitConfig state for each change in the environment state of the
+            // replayed compilations.
+            // We do this by calling jitStartup with a different ICorJitHost,
+            // and have the JIT re-initialize its JitConfig state when this happens.
+            JitConfig.destroy(g_jitHost);
+            JitConfig.initialize(jitHost);
+            g_jitHost = jitHost;
+        }
         return;
     }
 
@@ -191,9 +205,6 @@ ICorJitCompiler* __stdcall getJit()
 // Information kept in thread-local storage. This is used in the noway_assert exceptional path.
 // If you are using it more broadly in retail code, you would need to understand the
 // performance implications of accessing TLS.
-//
-// If the JIT is being statically linked, these methods must be implemented by the consumer.
-#if !defined(FEATURE_MERGE_JIT_AND_ENGINE) || !defined(FEATURE_IMPLICIT_TLS)
 
 __declspec(thread) void* gJitTls = nullptr;
 
@@ -206,15 +217,6 @@ void SetJitTls(void* value)
 {
     gJitTls = value;
 }
-
-#else // !defined(FEATURE_MERGE_JIT_AND_ENGINE) || !defined(FEATURE_IMPLICIT_TLS)
-
-extern "C" {
-void* GetJitTls();
-void SetJitTls(void* value);
-}
-
-#endif // // defined(FEATURE_MERGE_JIT_AND_ENGINE) && defined(FEATURE_IMPLICIT_TLS)
 
 #if defined(DEBUG)
 
@@ -325,8 +327,6 @@ void CILJit::clearCache(void)
  */
 BOOL CILJit::isCacheCleanupRequired(void)
 {
-    BOOL doCleanup;
-
     if (g_realJitCompiler != nullptr)
     {
         if (g_realJitCompiler->isCacheCleanupRequired())
@@ -382,12 +382,15 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     jitFlags.SetFromFlags(cpuCompileFlags);
 
 #ifdef FEATURE_SIMD
-#ifdef _TARGET_XARCH_
-#ifdef FEATURE_AVX_SUPPORT
+#if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
-        if (JitConfig.EnableAVX() != 0)
+        if (JitConfig.EnableAVX() != 0
+#ifdef DEBUG
+            && JitConfig.EnableAVX2() != 0
+#endif
+            )
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {
@@ -396,13 +399,12 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
             return 32;
         }
     }
-#endif // FEATURE_AVX_SUPPORT
+#endif // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
         JITDUMP("getMaxIntrinsicSIMDVectorLength: returning 16\n");
     }
     return 16;
-#endif // _TARGET_XARCH_
 #else  // !FEATURE_SIMD
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
@@ -439,7 +441,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         return structSize; // TODO: roundUp() needed here?
     }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-    return sizeof(size_t);
+    return TARGET_POINTER_SIZE;
 
 #else // !_TARGET_AMD64_
 
@@ -452,7 +454,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         unsigned structSize = info.compCompHnd->getClassSize(argClass);
 
         // make certain the EE passes us back the right thing for refanys
-        assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2 * sizeof(void*));
+        assert(argTypeJit != CORINFO_TYPE_REFANY || structSize == 2 * TARGET_POINTER_SIZE);
 
         // For each target that supports passing struct args in multiple registers
         // apply the target specific rules for them here:
@@ -502,13 +504,13 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
 
 /*****************************************************************************/
 
-GenTreePtr Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
+GenTree* Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
 {
     void *cookie, *pCookie;
     cookie = info.compCompHnd->GetCookieForPInvokeCalliSig(szMetaSig, &pCookie);
     assert((cookie == nullptr) != (pCookie == nullptr));
 
-    return gtNewIconEmbHndNode(cookie, pCookie, GTF_ICON_PINVKI_HDL);
+    return gtNewIconEmbHndNode(cookie, pCookie, GTF_ICON_PINVKI_HDL, szMetaSig);
 }
 
 //------------------------------------------------------------------------
@@ -722,7 +724,7 @@ void Compiler::eeGetVars()
     {
         // Allocate a bit-array for all the variables and initialize to false
 
-        bool*    varInfoProvided = (bool*)compGetMemA(info.compLocalsCount * sizeof(varInfoProvided[0]));
+        bool*    varInfoProvided = (bool*)compGetMem(info.compLocalsCount * sizeof(varInfoProvided[0]));
         unsigned i;
         for (i = 0; i < info.compLocalsCount; i++)
         {
@@ -796,7 +798,7 @@ void Compiler::eeDispVar(ICorDebugInfo::NativeVarInfo* var)
     printf("%3d(%10s) : From %08Xh to %08Xh, in ", var->varNumber,
            (VarNameToStr(name) == nullptr) ? "UNKNOWN" : VarNameToStr(name), var->startOffset, var->endOffset);
 
-    switch (var->loc.vlType)
+    switch ((Compiler::siVarLocType)var->loc.vlType)
     {
         case VLT_REG:
         case VLT_REG_BYREF:

@@ -48,7 +48,7 @@ if (WIN32)
     list(APPEND SUPERPMI_SHIM_COLLECTOR_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-collector.def)
 endif (WIN32)
 
-add_library(superpmi-shim-collector
+_add_library(superpmi-shim-collector
     SHARED
     ${SUPERPMI_SHIM_COLLECTOR_SOURCES}
 )
@@ -67,7 +67,7 @@ else()
         ${STATIC_MT_CPP_LIB}
     )
 
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-collector.pdb DESTINATION PDB)
+    _install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-collector.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS superpmi-shim-collector DESTINATION .)
+_install (TARGETS superpmi-shim-collector DESTINATION .)

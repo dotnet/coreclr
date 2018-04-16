@@ -93,7 +93,8 @@ jit_list = {
 
 os_group_list = {
     'Windows_NT': 'Windows_NT',
-    'Ubuntu14.04': 'Linux'
+    'Ubuntu14.04': 'Linux',
+    'Ubuntu16.04': 'Linux'
 }
 
 python_exe_list = {
@@ -119,6 +120,7 @@ parser.add_argument('-benchview_path', dest='benchview_path', default=None)
 parser.add_argument('-iterations', dest='iterations', default=5, type=int)
 parser.add_argument('-opt_level', dest='opt_level', default='full_opt')
 parser.add_argument('-jit_name', dest='jit_name', default='ryujit')
+parser.add_argument('-nopgo', dest='no_pgo', default=False, action='store_true')
 
 ##########################################################################
 # Helper Functions
@@ -146,6 +148,7 @@ def validate_args(args):
     iterations = args.iterations
     opt_level = args.opt_level.lower()
     jit_name = args.jit_name.lower()
+    no_pgo = args.no_pgo
 
     def validate_arg(arg, check):
         """ Validate an individual arg
@@ -166,7 +169,7 @@ def validate_args(args):
     valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
-    valid_os = ['Windows_NT', 'Ubuntu14.04']
+    valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
     valid_opt_levels = ['full_opt', 'min_opt']
     valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend']}
 
@@ -200,7 +203,7 @@ def validate_args(args):
         benchview_path = os.path.normpath(benchview_path)
         validate_arg(benchview_path, lambda item: os.path.isdir(benchview_path))
 
-    args = (arch, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name)
+    args = (arch, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name, no_pgo)
 
     # Log configuration
     log('Configuration:')
@@ -210,6 +213,7 @@ def validate_args(args):
     log(' build_type: %s' % build_type)
     log(' opt_level: %s' % opt_level)
     log(' jit_name: %s' % jit_name)
+    log(' no_pgo: %s' % no_pgo)
     log(' run_type: %s' % run_type)
     log(' iterations: %d' % iterations)
     log(' clr_root: %s' % clr_root)
@@ -332,11 +336,16 @@ def main(args):
     global os_group_list
     global python_exe_list
 
-    architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name = validate_args(args)
+    architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name, no_pgo = validate_args(args)
     arch = architecture
 
     if jit_name == 'legacy_backend':
         architecture = 'x86lb'
+
+    pgo_string = 'pgo'
+
+    if no_pgo:
+        pgo_string = 'nopgo'
 
     current_dir = os.getcwd()
     jit = jit_list[os_group][architecture]
@@ -433,7 +442,10 @@ def main(args):
                 "--config",
                 "JitName",
                 jit_name,
-                "--arch",
+                "--config",
+                "PGO",
+                pgo_string,
+                "--architecture",
                 architecture,
                 "--machinepool",
                 "PerfSnake"
@@ -441,6 +453,9 @@ def main(args):
         log(" ".join(submission_args))
         proc = subprocess.Popen(submission_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
         # Call upload.py
         upload_args = [python_exe,
@@ -452,6 +467,9 @@ def main(args):
         log(" ".join(upload_args))
         proc = subprocess.Popen(upload_args)
         proc.communicate()
+        if proc.returncode != 0:
+            os.chdir(current_dir)
+            return -1
 
     os.chdir(current_dir)
 

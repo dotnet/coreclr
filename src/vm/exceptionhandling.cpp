@@ -1837,7 +1837,7 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
                     pICFForUnwindTarget = pFrame;
                 }
             }
-#endif // defined(_TARGET_ARM)
+#endif // defined(_TARGET_ARM_)
 
             cfThisFrame.CheckGSCookies();
 
@@ -5156,7 +5156,7 @@ static BOOL IsIPinVirtualStub(PCODE f_IP)
     }
 
     VirtualCallStubManager::StubKind sk;
-    VirtualCallStubManager::FindStubManager(f_IP, &sk);
+    VirtualCallStubManager::FindStubManager(f_IP, &sk, FALSE /* usePredictStubKind */);
 
     if (sk == VirtualCallStubManager::SK_DISPATCH)
     {

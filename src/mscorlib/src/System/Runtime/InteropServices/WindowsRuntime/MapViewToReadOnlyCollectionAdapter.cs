@@ -9,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -30,14 +30,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private MapViewToReadOnlyCollectionAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // int Count { get }
-        [Pure]
         internal int Count<K, V>()
         {
-            object _this = JitHelpers.UnsafeCast<object>(this);
+            object _this = Unsafe.As<object>(this);
 
             IMapView<K, V> _this_map = _this as IMapView<K, V>;
             if (_this_map != null)
@@ -53,7 +52,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                IVectorView<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVectorView<KeyValuePair<K, V>>>(this);
+                IVectorView<KeyValuePair<K, V>> _this_vector = Unsafe.As<IVectorView<KeyValuePair<K, V>>>(this);
                 uint size = _this_vector.Size;
 
                 if (((uint)Int32.MaxValue) < size)

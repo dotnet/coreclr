@@ -22,7 +22,6 @@ namespace System.Resources
     using System.Collections;
     using System.Text;
     using System.Reflection;
-    using System.Runtime.Serialization;
     using System.Security;
     using System.Threading;
     using System.Runtime.InteropServices;
@@ -31,7 +30,6 @@ namespace System.Resources
     using System.Collections.Generic;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
 #if FEATURE_APPX
     //
@@ -39,25 +37,24 @@ namespace System.Resources
     // allowing us to ask for a WinRT-specific ResourceManager.
     // It is important to have WindowsRuntimeResourceManagerBase as regular class with virtual methods and default implementations. 
     // Defining WindowsRuntimeResourceManagerBase as abstract class or interface will cause issues when adding more methods to it 
-    // because it�ll create dependency between mscorlib and System.Runtime.WindowsRuntime which will require always shipping both DLLs together. 
-    // Also using interface or abstract class will not play nice with FriendAccessAllowed.
+    // because it'll create dependency between mscorlib and System.Runtime.WindowsRuntime which will require always shipping both DLLs together. 
     //
-    [FriendAccessAllowed]
-    internal class WindowsRuntimeResourceManagerBase
+    // [FriendAccessAllowed]
+    internal abstract class WindowsRuntimeResourceManagerBase
     {
-        public virtual bool Initialize(string libpath, string reswFilename, out PRIExceptionInfo exceptionInfo) { exceptionInfo = null; return false; }
+        public abstract bool Initialize(string libpath, string reswFilename, out PRIExceptionInfo exceptionInfo);
 
-        public virtual String GetString(String stringName, String startingCulture, String neutralResourcesCulture) { return null; }
+        public abstract String GetString(String stringName, String startingCulture, String neutralResourcesCulture);
 
-        public virtual CultureInfo GlobalResourceContextBestFitCultureInfo
+        public abstract CultureInfo GlobalResourceContextBestFitCultureInfo
         {
-            get { return null; }
+            get;
         }
 
-        public virtual bool SetGlobalResourceContextDefaultCulture(CultureInfo ci) { return false; }
+        public abstract bool SetGlobalResourceContextDefaultCulture(CultureInfo ci);
     }
 
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal class PRIExceptionInfo
     {
         public string _PackageSimpleName;
@@ -114,13 +111,9 @@ namespace System.Resources
     // We encapsulate fallback logic in a fallback iterator class, so that 
     // this logic isn't duplicated in several methods.
     // 
-    // In the future, we can look into either breaking serialization if we
-    // decide this doesn't make sense for ResourceManager (i.e. how common
-    // is the scenario), manually make serialization work by providing 
-    // appropriate OnSerialization, Deserialization methods. We can also 
-    // look into further factoring and better design of IResourceGroveler
-    // interface to accommodate unused parameters that don't make sense
-    // for either file-based or manifest-based lookup paths.
+    // In the future, we can also look into further factoring and better
+    // design of IResourceGroveler interface to accommodate unused parameters
+    // that don't make sense for either file-based or manifest-based lookup paths.
     //
     // Benefits of this refactoring:
     // - Makes it possible to understand what the ResourceManager does, 
@@ -164,8 +157,6 @@ namespace System.Resources
         internal Hashtable ResourceSets;
 
 
-        // don't serialize the cache of ResourceSets
-        [NonSerialized]
         private Dictionary<String, ResourceSet> _resourceSets;
         private String moduleDir;      // For assembly-ignorant directory location
         protected Assembly MainAssembly;   // Need the assembly manifest sometimes.
@@ -173,17 +164,12 @@ namespace System.Resources
         private Type _userResourceSet;  // Which ResourceSet instance to create
         private CultureInfo _neutralResourcesCulture;  // For perf optimizations.
 
-        [NonSerialized]
         private CultureNameResourceSetPair _lastUsedResourceCache;
 
         private bool _ignoreCase;   // Whether case matters in GetString & GetObject
 
         private bool UseManifest;  // Use Assembly manifest, or grovel disk.
 
-        // unused! But need to keep for serialization
-        [OptionalField(VersionAdded = 1)]
-        private bool UseSatelliteAssem;  // Are all the .resources files in the 
-                                         // main assembly, or in satellite assemblies for each culture?
 #if RESOURCE_SATELLITE_CONFIG
         private static volatile Hashtable _installedSatelliteInfo;  // Give the user the option  
                                                                     // to prevent certain satellite assembly probes via a config file.
@@ -193,24 +179,13 @@ namespace System.Resources
 
         // Whether to fall back to the main assembly or a particular 
         // satellite for the neutral resources.
-        [OptionalField]
         private UltimateResourceFallbackLocation _fallbackLoc;
         // Version number of satellite assemblies to look for.  May be null.
-        [OptionalField]
         private Version _satelliteContractVersion;
-        [OptionalField]
         private bool _lookedForSatelliteContractVersion;
 
-        // unused! But need to keep for serialization
-        [OptionalField(VersionAdded = 1)]
-        private Assembly _callingAssembly;  // Assembly who created the ResMgr.
+        private RuntimeAssembly _callingAssembly;  // Assembly who created the ResMgr.
 
-        // replaces _callingAssembly
-        [OptionalField(VersionAdded = 4)]
-        private RuntimeAssembly m_callingAssembly;  // Assembly who created the ResMgr.
-
-        // no need to serialize this; just create a new one on deserialization
-        [NonSerialized]
         private IResourceGroveler resourceGroveler;
 
         public static readonly int MagicNumber = unchecked((int)0xBEEFCACE);  // If only hex had a K...
@@ -244,16 +219,12 @@ namespace System.Resources
         internal const String ResFileExtension = ".resources";
         internal const int ResFileExtensionLength = 10;
 
-        // My private debugging aid.  Set to 5 or 6 for verbose output.  Set to 3
-        // for summary level information.
-        internal static readonly int DEBUG = 0; //Making this const causes C# to consider all of the code that it guards unreachable.
-
         private static volatile bool s_IsAppXModel;
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         private void Init()
         {
-            m_callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
+            _callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
         }
 
         protected ResourceManager()
@@ -281,7 +252,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(baseName));
             if (null == resourceDir)
                 throw new ArgumentNullException(nameof(resourceDir));
-            Contract.EndContractBlock();
 
             BaseNameField = baseName;
 
@@ -306,7 +276,6 @@ namespace System.Resources
 
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
-            Contract.EndContractBlock();
 
             if (!(assembly is RuntimeAssembly))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
@@ -318,14 +287,14 @@ namespace System.Resources
 
             CommonAssemblyInit();
 
-            m_callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
+            _callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
             // Special case for mscorlib - protect mscorlib's private resources.
             // This isn't for security reasons, but to ensure we can make
             // breaking changes to mscorlib's internal resources without 
             // assuming users may have taken a dependency on them.
-            if (assembly == typeof(Object).Assembly && m_callingAssembly != assembly)
+            if (assembly == typeof(Object).Assembly && _callingAssembly != assembly)
             {
-                m_callingAssembly = null;
+                _callingAssembly = null;
             }
         }
 
@@ -336,7 +305,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(baseName));
             if (null == assembly)
                 throw new ArgumentNullException(nameof(assembly));
-            Contract.EndContractBlock();
 
             if (!(assembly is RuntimeAssembly))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeAssembly);
@@ -349,13 +317,13 @@ namespace System.Resources
             _userResourceSet = usingResourceSet;
 
             CommonAssemblyInit();
-            m_callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
+            _callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
             // Special case for mscorlib - protect mscorlib's private resources.
             // This isn't for security reasons, but to ensure we can make
             // breaking changes to mscorlib's internal resources without 
             // assuming users may have taken a dependency on them.
-            if (assembly == typeof(Object).Assembly && m_callingAssembly != assembly)
-                m_callingAssembly = null;
+            if (assembly == typeof(Object).Assembly && _callingAssembly != assembly)
+                _callingAssembly = null;
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
@@ -363,7 +331,6 @@ namespace System.Resources
         {
             if (null == resourceSource)
                 throw new ArgumentNullException(nameof(resourceSource));
-            Contract.EndContractBlock();
 
             if (!(resourceSource is RuntimeType))
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
@@ -376,63 +343,13 @@ namespace System.Resources
 
             CommonAssemblyInit();
 
-            m_callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
+            _callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
             // Special case for mscorlib - protect mscorlib's private resources.
-            if (MainAssembly == typeof(Object).Assembly && m_callingAssembly != MainAssembly)
+            if (MainAssembly == typeof(Object).Assembly && _callingAssembly != MainAssembly)
             {
-                m_callingAssembly = null;
+                _callingAssembly = null;
             }
         }
-
-        [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
-            _resourceSets = null;
-            resourceGroveler = null;
-            _lastUsedResourceCache = null;
-        }
-
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
-            _resourceSets = new Dictionary<String, ResourceSet>();
-            _lastUsedResourceCache = new CultureNameResourceSetPair();
-            // set up resource groveler, depending on whether this ResourceManager
-            // is looking for files or assemblies
-            ResourceManagerMediator mediator = new ResourceManagerMediator(this);
-            if (UseManifest)
-            {
-                resourceGroveler = new ManifestBasedResourceGroveler(mediator);
-            }
-            else
-            {
-                resourceGroveler = new FileBasedResourceGroveler(mediator);
-            }
-
-            // correct callingAssembly for v2
-            if (m_callingAssembly == null)
-            {
-                m_callingAssembly = (RuntimeAssembly)_callingAssembly;
-            }
-
-            // v2 does this lazily
-            if (UseManifest && _neutralResourcesCulture == null)
-            {
-                _neutralResourcesCulture = ManifestBasedResourceGroveler.GetNeutralResourcesLanguage(MainAssembly, ref _fallbackLoc);
-            }
-        }
-
-        [OnSerializing]
-        private void OnSerializing(StreamingContext ctx)
-        {
-            // Initialize the fields Whidbey expects
-            _callingAssembly = m_callingAssembly;
-            UseSatelliteAssem = UseManifest;
-#pragma warning disable 618
-            ResourceSets = new Hashtable(); // for backward compatibility
-#pragma warning restore 618
-        }
-
 
         // Trying to unify code as much as possible, even though having to do a
         // security check in each constructor prevents it.
@@ -499,11 +416,9 @@ namespace System.Resources
 
             lock (localResourceSets)
             {
-                IDictionaryEnumerator setEnum = localResourceSets.GetEnumerator();
-
-                while (setEnum.MoveNext())
+                foreach ((_, ResourceSet resourceSet) in localResourceSets)
                 {
-                    ((ResourceSet)setEnum.Value).Close();
+                    resourceSet.Close();
                 }
             }
         }
@@ -525,17 +440,16 @@ namespace System.Resources
         // such as ".ResX", or a completely different format for naming files.
         protected virtual String GetResourceFileName(CultureInfo culture)
         {
-            StringBuilder sb = new StringBuilder(255);
-            sb.Append(BaseNameField);
-            // If this is the neutral culture, don't append culture name.
-            if (!culture.HasInvariantCultureName)
+            // If this is the neutral culture, don't include the culture name.
+            if (culture.HasInvariantCultureName)
             {
-                CultureInfo.VerifyCultureName(culture.Name, true);
-                sb.Append('.');
-                sb.Append(culture.Name);
+                return BaseNameField + ResFileExtension;
             }
-            sb.Append(ResFileExtension);
-            return sb.ToString();
+            else
+            {
+                CultureInfo.VerifyCultureName(culture.Name, throwException: true);
+                return BaseNameField + "." + culture.Name + ResFileExtension;
+            }
         }
 
         // WARNING: This function must be kept in sync with ResourceFallbackManager.GetEnumerator()
@@ -598,7 +512,6 @@ namespace System.Resources
         {
             if (null == culture)
                 throw new ArgumentNullException(nameof(culture));
-            Contract.EndContractBlock();
 
             Dictionary<String, ResourceSet> localResourceSets = _resourceSets;
             ResourceSet rs;
@@ -617,7 +530,7 @@ namespace System.Resources
             {
                 string fileName = GetResourceFileName(culture);
                 RuntimeAssembly mainAssembly = (RuntimeAssembly)MainAssembly;
-                Stream stream = mainAssembly.GetManifestResourceStream(_locationInfo, fileName, m_callingAssembly == MainAssembly, ref stackMark);
+                Stream stream = mainAssembly.GetManifestResourceStream(_locationInfo, fileName, _callingAssembly == MainAssembly, ref stackMark);
                 if (createIfNotExists && stream != null)
                 {
                     rs = ((ManifestBasedResourceGroveler)resourceGroveler).CreateResourceSet(stream, MainAssembly);
@@ -757,7 +670,6 @@ namespace System.Resources
             {
                 throw new ArgumentNullException(nameof(a), SR.ArgumentNull_Assembly);
             }
-            Contract.EndContractBlock();
 
             // Return null. The calling code will use the assembly version instead to avoid potential type
             // and library loads caused by CA lookup. NetCF uses the assembly version always.
@@ -859,22 +771,18 @@ namespace System.Resources
         // we can do very little with WinRT in mscorlib.
         internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
         {
-            Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, " + AssemblyRef.SystemRuntimeWindowsRuntime, true);
+            Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, System.Runtime.WindowsRuntime", throwOnError: true);
             return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, true);
         }
 #endif
 
-        [NonSerialized]
         private bool _bUsingModernResourceManagement; // Written only by SetAppXConfiguration
 
 #if FEATURE_APPX
-        [NonSerialized]
         private WindowsRuntimeResourceManagerBase _WinRTResourceManager; // Written only by SetAppXConfiguration
 
-        [NonSerialized]
         private bool _PRIonAppXInitialized; // Written only by SetAppXConfiguration
 
-        [NonSerialized]
         private PRIExceptionInfo _PRIExceptionInfo; // Written only by SetAppXConfiguration
 
         // When running under AppX, the following rules apply for resource lookup:
@@ -932,7 +840,7 @@ namespace System.Resources
             RuntimeAssembly resourcesAssembly = (RuntimeAssembly)MainAssembly;
 
             if (resourcesAssembly == null)
-                resourcesAssembly = m_callingAssembly;
+                resourcesAssembly = _callingAssembly;
 
             if (resourcesAssembly != null)
             {
@@ -1035,7 +943,7 @@ namespace System.Resources
                                         // In this case _PRIExceptionInfo is now null and we will just throw the generic
                                         // MissingManifestResource_NoPRIresources exception.
                                         // See the implementation of GetString for more details.
-                                        if (e.HResult != __HResults.ERROR_MRM_MAP_NOT_FOUND)
+                                        if (e.HResult != HResults.ERROR_MRM_MAP_NOT_FOUND)
                                             throw; // Unexpected exception code. Bubble it up to the caller.
                                     }
 
@@ -1087,7 +995,6 @@ namespace System.Resources
         {
             if (null == name)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
 #if FEATURE_APPX
             if (s_IsAppXModel)
@@ -1197,7 +1104,6 @@ namespace System.Resources
         {
             if (null == name)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
 #if FEATURE_APPX
             if (s_IsAppXModel)
@@ -1404,7 +1310,7 @@ namespace System.Resources
 
             internal RuntimeAssembly CallingAssembly
             {
-                get { return _rm.m_callingAssembly; }
+                get { return _rm._callingAssembly; }
             }
 
             internal RuntimeAssembly MainAssembly

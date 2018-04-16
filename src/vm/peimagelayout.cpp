@@ -8,7 +8,6 @@
 #include "common.h"
 #include "peimagelayout.h"
 #include "peimagelayout.inl"
-#include "pefingerprint.h"
 
 #ifndef DACCESS_COMPILE
 PEImageLayout* PEImageLayout::CreateFlat(const void *flat, COUNT_T size,PEImage* pOwner)
@@ -150,6 +149,8 @@ void PEImageLayout::ApplyBaseRelocations()
     SIZE_T cbWriteableRegion = 0;
     DWORD dwOldProtection = 0;
 
+    BOOL bRelocDone = FALSE;
+
     COUNT_T dirPos = 0;
     while (dirPos < dirSize)
     {
@@ -176,9 +177,19 @@ void PEImageLayout::ApplyBaseRelocations()
             // Restore the protection
             if (dwOldProtection != 0)
             {
+                BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+                    PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
+
                 if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
                                        dwOldProtection, &dwOldProtection))
                     ThrowLastError();
+
+                if (bRelocDone && bExecRegion)
+                {
+                    ClrFlushInstructionCache(pWriteableRegion, cbWriteableRegion);
+                }
+
+                bRelocDone = FALSE;
 
                 dwOldProtection = 0;
             }
@@ -195,14 +206,14 @@ void PEImageLayout::ApplyBaseRelocations()
             if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) == 0))
             {
                 DWORD dwNewProtection = PAGE_READWRITE;
-#ifdef FEATURE_PAL
+#if defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
                 if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0))
                 {
                     // On SELinux, we cannot change protection that doesn't have execute access rights
                     // to one that has it, so we need to set the protection to RWX instead of RW
                     dwNewProtection = PAGE_EXECUTE_READWRITE;
                 }
-#endif // FEATURE_PAL
+#endif // FEATURE_PAL && !CROSSGEN_COMPILE
                 if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
                                        dwNewProtection, &dwOldProtection))
                     ThrowLastError();
@@ -222,11 +233,13 @@ void PEImageLayout::ApplyBaseRelocations()
             {
             case IMAGE_REL_BASED_PTR:
                 *(TADDR *)address += delta;
+                bRelocDone = TRUE;
                 break;
 
 #ifdef _TARGET_ARM_
             case IMAGE_REL_BASED_THUMB_MOV32:
                 PutThumb2Mov32((UINT16 *)address, GetThumb2Mov32((UINT16 *)address) + delta);
+                bRelocDone = TRUE;
                 break;
 #endif
 
@@ -243,13 +256,23 @@ void PEImageLayout::ApplyBaseRelocations()
     }
     _ASSERTE(dirSize == dirPos);
 
+#ifndef CROSSGEN_COMPILE
     if (dwOldProtection != 0)
     {
+        BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+            PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
+
         // Restore the protection
         if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
                                dwOldProtection, &dwOldProtection))
             ThrowLastError();
+
+        if (bRelocDone && bExecRegion)
+        {
+            ClrFlushInstructionCache(pWriteableRegion, cbWriteableRegion);
+        }
     }
+#endif // CROSSGEN_COMPILE
 }
 #endif // FEATURE_PREJIT
 
@@ -267,9 +290,6 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner)
     CONTRACTL_END;
     m_pOwner=pOwner;
     m_Layout=LAYOUT_FLAT;
-
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
 
     if (size)
     {
@@ -301,9 +321,6 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
     m_pOwner=pOwner;
     m_Layout=LAYOUT_MAPPED;
 
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
-
     if (bTakeOwnership)
     {
 #ifndef FEATURE_PAL
@@ -331,9 +348,6 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
     m_Layout=LAYOUT_LOADED;    
     m_pOwner=source->m_pOwner;
     _ASSERTE(!source->IsMapped());
-
-    PEFingerprintVerificationHolder verifyHolder(source->m_pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
     
     if (!source->HasNTHeaders())
         EEFileLoadException::Throw(GetPath(), COR_E_BADIMAGEFORMAT);
@@ -378,8 +392,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
     // If mapping was requested, try to do SEC_IMAGE mapping
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening OS mapped %S (hFile %p)\n", (LPCWSTR) GetPath(), hFile));
-
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
 #ifndef FEATURE_PAL
 
@@ -443,7 +455,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
         // if (!HasNativeHeader())
         //     ThrowHR(COR_E_BADIMAGEFORMAT);
 
-        if (HasNativeHeader())
+        if (HasNativeHeader() && g_fAllowNativeImages)
         {
             if (!IsNativeMachineFormat())
                 ThrowHR(COR_E_BADIMAGEFORMAT);
@@ -478,8 +490,10 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
 #else //!FEATURE_PAL
 
-    m_FileView = PAL_LOADLoadPEFile(hFile);
-    if (m_FileView == NULL)
+#ifndef CROSSGEN_COMPILE
+    m_LoadedFile = PAL_LOADLoadPEFile(hFile);
+
+    if (m_LoadedFile == NULL)
     {
         // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
         // regular mapping - but not for native images.
@@ -489,15 +503,15 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     }
 
     LOG((LF_LOADER, LL_INFO1000, "PEImage: image %S (hFile %p) mapped @ %p\n",
-        (LPCWSTR) GetPath(), hFile, (void*)m_FileView));
+        (LPCWSTR) GetPath(), hFile, (void*)m_LoadedFile));
 
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));            
-    IfFailThrow(Init((void *) m_FileView));
+    TESTHOOKCALL(ImageMapped(GetPath(),m_LoadedFile,IM_IMAGEMAP));
+    IfFailThrow(Init((void *) m_LoadedFile));
 
     if (!HasCorHeader())
         ThrowHR(COR_E_BADIMAGEFORMAT);
 
-    if (HasNativeHeader() || HasReadyToRunHeader())
+    if ((HasNativeHeader() || HasReadyToRunHeader()) && g_fAllowNativeImages)
     {
         //Do base relocation for PE, if necessary.
         if (!IsNativeMachineFormat())
@@ -506,6 +520,10 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
         ApplyBaseRelocations();
         SetRelocated();
     }
+
+#else // !CROSSGEN_COMPILE
+    m_LoadedFile = NULL;
+#endif // !CROSSGEN_COMPILE
 
 #endif // !FEATURE_PAL
 }
@@ -523,9 +541,6 @@ LoadedImageLayout::LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bTh
     
     m_Layout=LAYOUT_LOADED;    
     m_pOwner=pOwner;
-
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
 
     DWORD dwFlags = GetLoadWithAlteredSearchPathFlag();
     if (bNTSafeLoad)
@@ -560,9 +575,6 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
     m_Layout=LAYOUT_FLAT;    
     m_pOwner=pOwner;    
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening flat %S\n", (LPCWSTR) GetPath()));
-
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
 
     COUNT_T size = SafeGetFileSize(hFile, NULL);
     if (size == 0xffffffff && GetLastError() != NOERROR)
@@ -600,113 +612,3 @@ PEImageLayout::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     PEDecoder::EnumMemoryRegions(flags,false);
 }
 #endif //DACCESS_COMPILE
-
-#if defined(_WIN64) && !defined(DACCESS_COMPILE)
-
-#define IMAGE_HEADER_3264_SIZE_DIFF (sizeof(IMAGE_NT_HEADERS64) - sizeof(IMAGE_NT_HEADERS32)) 
-
-// This function is expected to be in sync with LdrpCorFixupImage in the OS loader implementation (//depot/winmain/minkernel/ntdll/ldrcor.c).
-bool PEImageLayout::ConvertILOnlyPE32ToPE64Worker()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(IsILOnly()); // This should be called for IL-Only images
-        PRECONDITION(Has32BitNTHeaders()); // // Image should be marked to have a PE32 header only.
-        PRECONDITION(IsPlatformNeutral());
-    }
-    CONTRACTL_END;
-    
-    PBYTE pImage = (PBYTE)GetBase();
-    
-    IMAGE_DOS_HEADER *pDosHeader = (IMAGE_DOS_HEADER*)pImage;
-    IMAGE_NT_HEADERS32 *pHeader32 = GetNTHeaders32();
-    IMAGE_NT_HEADERS64 *pHeader64 = GetNTHeaders64();
-
-    _ASSERTE(&pHeader32->OptionalHeader.Magic == &pHeader64->OptionalHeader.Magic);
-    _ASSERTE(pHeader32->OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC));
-
-    // Move the data directory and section headers down IMAGE_HEADER_3264_SIZE_DIFF bytes.
-    PBYTE pStart32 = (PBYTE) &pHeader32->OptionalHeader.DataDirectory[0];
-    PBYTE pStart64 = (PBYTE) &pHeader64->OptionalHeader.DataDirectory[0];
-    _ASSERTE(pStart64 - pStart32 == IMAGE_HEADER_3264_SIZE_DIFF);
-
-    PBYTE pEnd32 = (PBYTE) (IMAGE_FIRST_SECTION(pHeader32)
-                            + VAL16(pHeader32->FileHeader.NumberOfSections));
-    
-    // On AMD64, used for a 12-byte jump thunk + the original entry point offset.
-    if (((pEnd32 + IMAGE_HEADER_3264_SIZE_DIFF /* delta in headers to compute end of 64bit header */) - pImage) > GetOsPageSize() ) {
-        // This should never happen.  An IL_ONLY image should at most 3 sections.  
-        _ASSERTE(!"ConvertILOnlyPE32ToPE64Worker: Insufficient room to rewrite headers as PE64");
-        return false;
-    }
-
-    memmove(pStart64, pStart32, pEnd32 - pStart32);
-
-    // Move the tail fields in reverse order.
-    pHeader64->OptionalHeader.NumberOfRvaAndSizes = pHeader32->OptionalHeader.NumberOfRvaAndSizes;
-    pHeader64->OptionalHeader.LoaderFlags = pHeader32->OptionalHeader.LoaderFlags;
-    pHeader64->OptionalHeader.SizeOfHeapCommit = VAL64(VAL32(pHeader32->OptionalHeader.SizeOfHeapCommit));
-    pHeader64->OptionalHeader.SizeOfHeapReserve = VAL64(VAL32(pHeader32->OptionalHeader.SizeOfHeapReserve));
-    pHeader64->OptionalHeader.SizeOfStackCommit = VAL64(VAL32(pHeader32->OptionalHeader.SizeOfStackCommit));
-    pHeader64->OptionalHeader.SizeOfStackReserve = VAL64(VAL32(pHeader32->OptionalHeader.SizeOfStackReserve));
-
-    // One more field that's not the same
-    pHeader64->OptionalHeader.ImageBase = VAL64(VAL32(pHeader32->OptionalHeader.ImageBase));
-
-    // The optional header changed size.
-    pHeader64->FileHeader.SizeOfOptionalHeader = VAL16(VAL16(pHeader64->FileHeader.SizeOfOptionalHeader) + 16);
-    pHeader64->OptionalHeader.Magic = VAL16(IMAGE_NT_OPTIONAL_HDR64_MAGIC);
-
-    // Now we just have to make a new 16-byte PPLABEL_DESCRIPTOR for the new entry point address & gp
-    PBYTE pEnd64 = (PBYTE) (IMAGE_FIRST_SECTION(pHeader64) + VAL16(pHeader64->FileHeader.NumberOfSections));
-    pHeader64->OptionalHeader.AddressOfEntryPoint = VAL32((ULONG) (pEnd64 - pImage));
-    
-    // Should be PE32+ now
-    _ASSERTE(!Has32BitNTHeaders());
-    
-    return true;
-}
-
-bool PEImageLayout::ConvertILOnlyPE32ToPE64()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(IsILOnly()); // This should be called for IL-Only images
-        PRECONDITION(Has32BitNTHeaders()); 
-    }
-    CONTRACTL_END;
-    
-    bool fConvertedToPE64 = false;
-
-    // Only handle platform neutral IL assemblies
-    if (!IsPlatformNeutral())
-    {
-        return false;
-    }
-
-    PBYTE pageBase = (PBYTE)GetBase();
-    DWORD oldProtect;
-
-    if (!ClrVirtualProtect(pageBase, GetOsPageSize(), PAGE_READWRITE, &oldProtect))
-    {
-        // We are not going to be able to update header.
-        return false;
-    }
-        
-    fConvertedToPE64 = ConvertILOnlyPE32ToPE64Worker();
-    
-    DWORD ignore;
-    if (!ClrVirtualProtect(pageBase, GetOsPageSize(), oldProtect, &ignore))
-    {
-        // This is not so bad; just ignore it
-    }
-    
-    return fConvertedToPE64;
-}
-#endif // defined(_WIN64) && !defined(DACCESS_COMPILE)

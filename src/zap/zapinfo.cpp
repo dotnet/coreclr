@@ -1346,9 +1346,6 @@ void ZapInfo::allocUnwindInfo (
 
 BOOL ZapInfo::logMsg(unsigned level, const char *fmt, va_list args)
 {
-    if (m_zapper->m_pOpt->m_legacyMode)
-        return FALSE;
-
     if (HasSvcLogger())
     {
         if (level <= LL_INFO10)
@@ -3024,6 +3021,16 @@ const char* ZapInfo::getClassName(CORINFO_CLASS_HANDLE cls)
     return m_pEEJitInfo->getClassName(cls);
 }
 
+const char* ZapInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    return m_pEEJitInfo->getClassNameFromMetadata(cls, namespaceName);
+}
+
+CORINFO_CLASS_HANDLE ZapInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    return m_pEEJitInfo->getTypeInstantiationArgument(cls, index);
+}
+
 const char* ZapInfo::getHelperName(CorInfoHelpFunc func)
 {
     return m_pEEJitInfo->getHelperName(func);
@@ -3096,6 +3103,11 @@ CorInfoType ZapInfo::getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE cls)
     return m_pEEJitInfo->getTypeForPrimitiveValueClass(cls);
 }
 
+CorInfoType ZapInfo::getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    return m_pEEJitInfo->getTypeForPrimitiveNumericClass(cls);
+}
+
 BOOL ZapInfo::canCast(CORINFO_CLASS_HANDLE child,
                                 CORINFO_CLASS_HANDLE parent)
 {
@@ -3105,6 +3117,16 @@ BOOL ZapInfo::canCast(CORINFO_CLASS_HANDLE child,
 BOOL ZapInfo::areTypesEquivalent(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
 {
     return m_pEEJitInfo->areTypesEquivalent(cls1, cls2);
+}
+
+TypeCompareState ZapInfo::compareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLASS_HANDLE toClass)
+{
+    return m_pEEJitInfo->compareTypesForCast(fromClass, toClass);
+}
+
+TypeCompareState ZapInfo::compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    return m_pEEJitInfo->compareTypesForEquality(cls1, cls2);
 }
 
 CORINFO_CLASS_HANDLE ZapInfo::mergeClasses(
@@ -3545,6 +3567,11 @@ const char* ZapInfo::getMethodName(CORINFO_METHOD_HANDLE ftn, const char **modul
     return m_pEEJitInfo->getMethodName(ftn, moduleName);
 }
 
+const char* ZapInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn, const char **className, const char** namespaceName)
+{
+    return m_pEEJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
+}
+
 unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)
 {
     return m_pEEJitInfo->getMethodHash(ftn);
@@ -3693,10 +3720,22 @@ void ZapInfo::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,
 CORINFO_METHOD_HANDLE ZapInfo::resolveVirtualMethod(
         CORINFO_METHOD_HANDLE virtualMethod,
         CORINFO_CLASS_HANDLE implementingClass,
-        CORINFO_CONTEXT_HANDLE ownerType
-        )
+        CORINFO_CONTEXT_HANDLE ownerType)
 {
     return m_pEEJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
+}
+
+CORINFO_METHOD_HANDLE ZapInfo::getUnboxedEntry(
+    CORINFO_METHOD_HANDLE ftn,
+    bool* requiresInstMethodTableArg)
+{
+    return m_pEEJitInfo->getUnboxedEntry(ftn, requiresInstMethodTableArg);
+}
+
+CORINFO_CLASS_HANDLE ZapInfo::getDefaultEqualityComparerClass(
+    CORINFO_CLASS_HANDLE elemType)
+{
+    return m_pEEJitInfo->getDefaultEqualityComparerClass(elemType);
 }
 
 void ZapInfo::expandRawHandleIntrinsic(

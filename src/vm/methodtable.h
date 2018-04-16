@@ -882,9 +882,6 @@ public:
 
     BOOL            IsExtensibleRCW();
 
-    // mark the class type as COM object class
-    void SetComObjectType();
-
 #if defined(FEATURE_TYPEEQUIVALENCE)
     // mark the type as opted into type equivalence
     void SetHasTypeEquivalence();
@@ -894,12 +891,6 @@ public:
     // the hierarchy
     MethodTable* GetComPlusParentMethodTable();
 
-    // class is a com object class
-    BOOL IsComObjectType()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetFlag(enum_flag_ComObject);
-    }
     // class is a WinRT object class (is itself or derives from a ProjectedFromWinRT class)
     BOOL IsWinRTObjectType();
 
@@ -943,17 +934,22 @@ public:
     InteropMethodTableData *GetComInteropData();
 
 #else // !FEATURE_COMINTEROP
-    BOOL IsComObjectType()
-    {
-        SUPPORTS_DAC;
-        return FALSE;
-    }
     BOOL IsWinRTObjectType()
     {
         LIMITED_METHOD_CONTRACT;
         return FALSE;
     }
 #endif // !FEATURE_COMINTEROP
+
+    // class is a com object class
+    BOOL IsComObjectType()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return GetFlag(enum_flag_ComObject);
+    }
+
+    // mark the class type as COM object class
+    void SetComObjectType();
 
 #ifdef FEATURE_ICASTABLE
     void SetICastable();
@@ -1396,6 +1392,18 @@ public:
     inline void SetHasModuleDependencies()
     {
         SetFlag(enum_flag_HasModuleDependencies);
+    }
+
+    inline BOOL IsIntrinsicType()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;;
+        return GetFlag(enum_flag_IsIntrinsicType);
+    }
+
+    inline void SetIsIntrinsicType()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;;
+        SetFlag(enum_flag_IsIntrinsicType);
     }
 
     // See the comment in code:MethodTable.DoFullyLoad for detailed description.
@@ -2068,7 +2076,17 @@ public:
         LIMITED_METHOD_CONTRACT;
         SetFlag(enum_flag_IsHFA);
     }
+#else // !FEATURE_HFA
+    bool IsHFA();
 #endif // FEATURE_HFA
+
+    // Get the HFA type. This is supported both with FEATURE_HFA, in which case it
+    // depends on the cached bit on the class, or without, in which case it is recomputed
+    // for each invocation.
+    CorElementType GetHFAType();
+    // The managed and unmanaged HFA type can differ for types with layout. The following two methods return the unmanaged HFA type.
+    bool IsNativeHFA();
+    CorElementType GetNativeHFAType();
 
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     inline bool IsRegPassedStruct()
@@ -2083,15 +2101,6 @@ public:
         SetFlag(enum_flag_IsRegStructPassed);
     }
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-
-#ifdef FEATURE_HFA
-
-    CorElementType GetHFAType();
-
-    // The managed and unmanaged HFA type can differ for types with layout. The following two methods return the unmanaged HFA type.
-    bool IsNativeHFA();
-    CorElementType GetNativeHFAType();
-#endif // FEATURE_HFA
 
 #ifdef FEATURE_64BIT_ALIGNMENT
     // Returns true iff the native view of this type requires 64-bit aligment.
@@ -2165,9 +2174,11 @@ public:
     //
 
 #if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#define PARENT_MT_FIXUP_OFFSET (-FIXUP_POINTER_INDIRECTION)
     typedef RelativeFixupPointer<PTR_MethodTable> ParentMT_t;
 #else
-    typedef PlainPointer<PTR_MethodTable> ParentMT_t;
+#define PARENT_MT_FIXUP_OFFSET ((SSIZE_T)offsetof(MethodTable, m_pParentMethodTable))
+    typedef IndirectPointer<PTR_MethodTable> ParentMT_t;
 #endif
 
     BOOL HasApproxParent()
@@ -2188,22 +2199,60 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 
         PRECONDITION(IsParentMethodTablePointerValid());
-        return ReadPointerMaybeNull(this, &MethodTable::m_pParentMethodTable);
+        return ReadPointerMaybeNull(this, &MethodTable::m_pParentMethodTable, GetFlagHasIndirectParent());
     }
 
-    inline static PTR_VOID GetParentMethodTable(PTR_VOID pMT)
+    inline static PTR_VOID GetParentMethodTableOrIndirection(PTR_VOID pMT)
     {
-      LIMITED_METHOD_DAC_CONTRACT;
+        WRAPPER_NO_CONTRACT;
+#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+        PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
+        PTR_MethodTable pParentMT = ReadPointerMaybeNull((MethodTable*) pMethodTable, &MethodTable::m_pParentMethodTable);
+        return dac_cast<PTR_VOID>(pParentMT);
+#else
+        return PTR_VOID(*PTR_TADDR(dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable)));
+#endif
+    }
 
-      PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
-      return pMethodTable->GetParentMethodTable();
+    inline static BOOL IsParentMethodTableTagged(PTR_MethodTable pMT)
+    {
+        LIMITED_METHOD_CONTRACT;
+        TADDR base = dac_cast<TADDR>(pMT) + offsetof(MethodTable, m_pParentMethodTable);
+        return pMT->m_pParentMethodTable.IsTaggedIndirect(base, pMT->GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    bool GetFlagHasIndirectParent()
+    {
+#ifdef FEATURE_PREJIT
+        return !!GetFlag(enum_flag_HasIndirectParent);
+#else
+        return false;
+#endif
     }
 
 #ifndef DACCESS_COMPILE
-    inline ParentMT_t * GetParentMethodTablePlainOrRelativePointerPtr()
+    inline ParentMT_t * GetParentMethodTablePointerPtr()
     {
-      LIMITED_METHOD_CONTRACT;
-      return &m_pParentMethodTable;
+        LIMITED_METHOD_CONTRACT;
+        return &m_pParentMethodTable;
+    }
+
+    inline bool IsParentMethodTableIndirectPointerMaybeNull()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.IsIndirectPtrMaybeNullIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    inline bool IsParentMethodTableIndirectPointer()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.IsIndirectPtrIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
+    }
+
+    inline MethodTable ** GetParentMethodTableValuePtr()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pParentMethodTable.GetValuePtrIndirect(GetFlagHasIndirectParent(), PARENT_MT_FIXUP_OFFSET);
     }
 #endif // !DACCESS_COMPILE
 
@@ -2224,7 +2273,7 @@ public:
     void SetParentMethodTable (MethodTable *pParentMethodTable)
     {
         LIMITED_METHOD_CONTRACT;
-        PRECONDITION(!m_pParentMethodTable.IsIndirectPtrMaybeNull());
+        PRECONDITION(!IsParentMethodTableIndirectPointerMaybeNull());
         m_pParentMethodTable.SetValueMaybeNull(pParentMethodTable);
 #ifdef _DEBUG
         GetWriteableDataForWrite_NoLogging()->SetParentMethodTablePointerValid();
@@ -2546,6 +2595,14 @@ public:
         UINT32         typeID, 
         UINT32         slotNumber, 
         DispatchSlot * pImplSlot);
+
+
+#ifndef DACCESS_COMPILE
+    BOOL FindDefaultInterfaceImplementation(
+        MethodDesc *pInterfaceMD,
+        MethodTable *pObjectMT,
+        MethodDesc **ppDefaultMethod);
+#endif // DACCESS_COMPILE
 
     DispatchSlot FindDispatchSlot(UINT32 typeID, UINT32 slotNumber);
 
@@ -4002,7 +4059,7 @@ private:
 
         enum_flag_HasModuleDependencies     = 0x0080,
 
-        // enum_Unused                      = 0x0100,
+        enum_flag_IsIntrinsicType           = 0x0100,
 
         enum_flag_RequiresDispatchTokenFat  = 0x0200,
 
@@ -4116,6 +4173,7 @@ private:
     LPCUTF8         debug_m_szClassName;
 #endif //_DEBUG
     
+    // On Linux ARM is a RelativeFixupPointer. Otherwise,
     // Parent PTR_MethodTable if enum_flag_HasIndirectParent is not set. Pointer to indirection cell
     // if enum_flag_enum_flag_HasIndirectParent is set. The indirection is offset by offsetof(MethodTable, m_pParentMethodTable).
     // It allows casting helpers to go through parent chain natually. Casting helper do not need need the explicit check

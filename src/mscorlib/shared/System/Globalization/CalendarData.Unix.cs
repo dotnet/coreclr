@@ -4,10 +4,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
-using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Globalization
 {
@@ -46,10 +45,27 @@ namespace System.Globalization
             result &= EnumCalendarInfo(localeName, calendarId, CalendarDataType.DayNames, out this.saDayNames);
             result &= EnumCalendarInfo(localeName, calendarId, CalendarDataType.AbbrevDayNames, out this.saAbbrevDayNames);
             result &= EnumCalendarInfo(localeName, calendarId, CalendarDataType.SuperShortDayNames, out this.saSuperShortDayNames);
-            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.MonthNames, out this.saMonthNames);
-            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.AbbrevMonthNames, out this.saAbbrevMonthNames);
-            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.MonthGenitiveNames, out this.saMonthGenitiveNames);
-            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.AbbrevMonthGenitiveNames, out this.saAbbrevMonthGenitiveNames);
+
+            string leapHebrewMonthName = null;
+            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.MonthNames, out this.saMonthNames, ref leapHebrewMonthName);
+            if (leapHebrewMonthName != null)
+            {              
+                // In Hebrew calendar, get the leap month name Adar II and override the non-leap month 7              
+                Debug.Assert(calendarId == CalendarId.HEBREW && saMonthNames.Length == 13);
+                saLeapYearMonthNames = (string[]) saMonthNames.Clone();
+                saLeapYearMonthNames[6] = leapHebrewMonthName;
+
+                // The returned data from ICU has 6th month name as 'Adar I' and 7th month name as 'Adar'
+                // We need to adjust that in the list used with non-leap year to have 6th month as 'Adar' and 7th month as 'Adar II'
+                // note that when formatting non-leap year dates, 7th month shouldn't get used at all.
+                saMonthNames[5] = saMonthNames[6];
+                saMonthNames[6] = leapHebrewMonthName;
+
+            }
+            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.AbbrevMonthNames, out this.saAbbrevMonthNames, ref leapHebrewMonthName);
+            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.MonthGenitiveNames, out this.saMonthGenitiveNames, ref leapHebrewMonthName);
+            result &= EnumMonthNames(localeName, calendarId, CalendarDataType.AbbrevMonthGenitiveNames, out this.saAbbrevMonthGenitiveNames, ref leapHebrewMonthName);
+
             result &= EnumEraNames(localeName, calendarId, CalendarDataType.EraNames, out this.saEraNames);
             result &= EnumEraNames(localeName, calendarId, CalendarDataType.AbbrevEraNames, out this.saAbbrevEraNames);
 
@@ -69,7 +85,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
 
             // NOTE: there are no 'user overrides' on Linux
-            int count = Interop.GlobalizationInterop.GetCalendars(localeName, calendars, calendars.Length);
+            int count = Interop.Globalization.GetCalendars(localeName, calendars, calendars.Length);
 
             // ensure there is at least 1 calendar returned
             if (count == 0 && calendars.Length > 0)
@@ -94,7 +110,7 @@ namespace System.Globalization
 
             return Interop.CallStringMethod(
                 (locale, calId, type, stringBuilder) =>
-                    Interop.GlobalizationInterop.GetCalendarInfo(
+                    Interop.Globalization.GetCalendarInfo(
                         locale,
                         calId,
                         type,
@@ -110,9 +126,10 @@ namespace System.Globalization
         {
             datePatterns = null;
 
-            CallbackContext callbackContext = new CallbackContext();
+            EnumCalendarsData callbackContext = new EnumCalendarsData();
+            callbackContext.Results = new List<string>();
             callbackContext.DisallowDuplicates = true;
-            bool result = EnumCalendarInfo(localeName, calendarId, dataType, callbackContext);
+            bool result = EnumCalendarInfo(localeName, calendarId, dataType, ref callbackContext);
             if (result)
             {
                 List<string> datePatternsList = callbackContext.Results;
@@ -241,12 +258,13 @@ namespace System.Globalization
             return index - startIndex;
         }
 
-        private static bool EnumMonthNames(string localeName, CalendarId calendarId, CalendarDataType dataType, out string[] monthNames)
+        private static bool EnumMonthNames(string localeName, CalendarId calendarId, CalendarDataType dataType, out string[] monthNames, ref string leapHebrewMonthName)
         {
             monthNames = null;
 
-            CallbackContext callbackContext = new CallbackContext();
-            bool result = EnumCalendarInfo(localeName, calendarId, dataType, callbackContext);
+            EnumCalendarsData callbackContext = new EnumCalendarsData();
+            callbackContext.Results = new List<string>();
+            bool result = EnumCalendarInfo(localeName, calendarId, dataType, ref callbackContext);
             if (result)
             {
                 // the month-name arrays are expected to have 13 elements.  If ICU only returns 12, add an
@@ -255,6 +273,17 @@ namespace System.Globalization
                 {
                     callbackContext.Results.Add(string.Empty);
                 }
+
+                if (callbackContext.Results.Count > 13)
+                {
+                    Debug.Assert(calendarId == CalendarId.HEBREW && callbackContext.Results.Count == 14);
+                    
+                    if (calendarId == CalendarId.HEBREW)
+                    {
+                        leapHebrewMonthName = callbackContext.Results[13];
+                    }
+                    callbackContext.Results.RemoveRange(13, callbackContext.Results.Count - 13);
+                }                
 
                 monthNames = callbackContext.Results.ToArray();
             }
@@ -281,8 +310,9 @@ namespace System.Globalization
         {
             calendarData = null;
 
-            CallbackContext callbackContext = new CallbackContext();
-            bool result = EnumCalendarInfo(localeName, calendarId, dataType, callbackContext);
+            EnumCalendarsData callbackContext = new EnumCalendarsData();
+            callbackContext.Results = new List<string>();
+            bool result = EnumCalendarInfo(localeName, calendarId, dataType, ref callbackContext);
             if (result)
             {
                 calendarData = callbackContext.Results.ToArray();
@@ -291,24 +321,16 @@ namespace System.Globalization
             return result;
         }
 
-        private static bool EnumCalendarInfo(string localeName, CalendarId calendarId, CalendarDataType dataType, CallbackContext callbackContext)
+        private static unsafe bool EnumCalendarInfo(string localeName, CalendarId calendarId, CalendarDataType dataType, ref EnumCalendarsData callbackContext)
         {
-            GCHandle context = GCHandle.Alloc(callbackContext);
-            try
-            {
-                return Interop.GlobalizationInterop.EnumCalendarInfo(EnumCalendarInfoCallback, localeName, calendarId, dataType, (IntPtr)context);
-            }
-            finally
-            {
-                context.Free();
-            }
+            return Interop.Globalization.EnumCalendarInfo(EnumCalendarInfoCallback, localeName, calendarId, dataType, (IntPtr)Unsafe.AsPointer(ref callbackContext));
         }
 
-        private static void EnumCalendarInfoCallback(string calendarString, IntPtr context)
+        private static unsafe void EnumCalendarInfoCallback(string calendarString, IntPtr context)
         {
             try
             {
-                CallbackContext callbackContext = (CallbackContext)((GCHandle)context).Target;
+                ref EnumCalendarsData callbackContext = ref Unsafe.As<byte, EnumCalendarsData>(ref *(byte*)context);
 
                 if (callbackContext.DisallowDuplicates)
                 {
@@ -326,23 +348,16 @@ namespace System.Globalization
             }
             catch (Exception e)
             {
-                Debug.Assert(false, e.ToString());
+                Debug.Fail(e.ToString());
                 // we ignore the managed exceptions here because EnumCalendarInfoCallback will get called from the native code.
                 // If we don't ignore the exception here that can cause the runtime to fail fast.
             }
         }
 
-        private class CallbackContext
+        private struct EnumCalendarsData
         {
-            private List<string> _results = new List<string>();
-
-            public CallbackContext()
-            {
-            }
-
-            public List<string> Results { get { return _results; } }
-
-            public bool DisallowDuplicates { get; set; }
+            public List<string> Results;
+            public bool DisallowDuplicates;
         }
     }
 }

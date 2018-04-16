@@ -1,7 +1,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 # Needed due to the cmunged files being in the binary folders, the set(CMAKE_INCLUDE_CURRENT_DIR ON) is not enough
-include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}) 
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${ARCH_SOURCES_DIR})
 
 add_definitions(-DUNICODE)
@@ -9,16 +9,12 @@ add_definitions(-D_UNICODE)
 
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
-  foreach (Config DEBUG CHECKED)  
-    if(NOT FEATURE_STANDALONE_GC_ONLY)
-      set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
-    endif(NOT FEATURE_STANDALONE_GC_ONLY)
+  foreach (Config DEBUG CHECKED)
+    set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS $<$<CONFIG:${Config}>:WRITE_BARRIER_CHECK=1>)
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    if(NOT FEATURE_STANDALONE_GC_ONLY)
-      add_definitions(-DWRITE_BARRIER_CHECK=1)
-    endif(NOT FEATURE_STANDALONE_GC_ONLY)
+    add_definitions(-DWRITE_BARRIER_CHECK=1)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -73,6 +69,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     formattype.cpp
     fptrstubs.cpp
     frames.cpp
+    gctoclreventsink.cpp
     gcheaputilities.cpp
     gchandleutilities.cpp
     genericdict.cpp
@@ -120,6 +117,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     versionresilienthashcode.cpp
     virtualcallstub.cpp
     win32threadpool.cpp
+    yieldprocessornormalized.cpp
     zapsig.cpp
 )
 
@@ -186,11 +184,15 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeeventsource.cpp
+    eventpipeblock.cpp
     eventpipefile.cpp
     eventpipejsonfile.cpp
+    eventpipemetadatagenerator.cpp
     eventpipeprovider.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
+    eventpipesession.cpp
     eventstore.cpp
     fastserializer.cpp
     fcall.cpp
@@ -200,6 +202,7 @@ set(VM_SOURCES_WKS
     gccover.cpp
     gcenv.ee.static.cpp
     gcenv.ee.common.cpp
+    gcenv.os.cpp
     gchelpers.cpp
     genmeth.cpp
     hosting.cpp
@@ -212,7 +215,6 @@ set(VM_SOURCES_WKS
     jithelpers.cpp
     managedmdimport.cpp
     marshalnative.cpp
-    marvin32.cpp
     mdaassistants.cpp
     methodtablebuilder.cpp
     mlinfo.cpp
@@ -223,9 +225,7 @@ set(VM_SOURCES_WKS
     nativeoverlapped.cpp
     objectlist.cpp
     olevariant.cpp
-    pefingerprint.cpp
     pendingload.cpp
-    perfdefaults.cpp
     profattach.cpp
     profattachclient.cpp
     profattachserver.cpp
@@ -262,6 +262,7 @@ set(VM_SOURCES_WKS
 
 set(GC_SOURCES_WKS
     ${GC_SOURCES_DAC_AND_WKS_COMMON}
+    ../gc/gceventstatus.cpp
     ../gc/gcconfig.cpp
     ../gc/gccommon.cpp
     ../gc/gcscan.cpp
@@ -270,6 +271,7 @@ set(GC_SOURCES_WKS
     ../gc/gchandletable.cpp
     ../gc/gceesvr.cpp
     ../gc/gceewks.cpp
+    ../gc/gcload.cpp
     ../gc/softwarewritewatch.cpp
     ../gc/handletablecache.cpp)
 
@@ -285,12 +287,6 @@ if(FEATURE_STANDALONE_GC)
         )
 endif(FEATURE_STANDALONE_GC)
 
-if(NOT FEATURE_STANDALONE_GC)
-    list(APPEND VM_SOURCES_WKS
-        gcenv.os.cpp
-        )
-endif(NOT FEATURE_STANDALONE_GC)
-
 if(WIN32)
 
 set(VM_SOURCES_DAC_AND_WKS_WIN32
@@ -299,7 +295,7 @@ set(VM_SOURCES_DAC_AND_WKS_WIN32
     winrttypenameconverter.cpp
 )
 
-list(APPEND VM_SOURCES_WKS 
+list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
     appxutil.cpp
@@ -319,20 +315,19 @@ list(APPEND VM_SOURCES_WKS
     dwreport.cpp
     eventreporter.cpp
     extensibleclassfactory.cpp
-    microsoft.comservices_i.c
     mngstdinterfaces.cpp
     notifyexternals.cpp
-    olecontexthelpers.cpp    
+    olecontexthelpers.cpp
     rcwrefcache.cpp
     rtlfunctions.cpp
     runtimecallablewrapper.cpp
     stacksampler.cpp
     stdinterfaces.cpp
     stdinterfaces_wrapper.cpp
-    winrthelpers.cpp    
+    winrthelpers.cpp
 )
 
-list(APPEND VM_SOURCES_DAC 
+list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
     clrprivbinderwinrt.cpp
@@ -351,7 +346,6 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/InstantiatingStub.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_Fast.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_FastWriteBarriers.asm
-        ${ARCH_SOURCES_DIR}/JitHelpers_InlineGetAppDomain.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_InlineGetThread.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_SingleAppDomain.asm
         ${ARCH_SOURCES_DIR}/JitHelpers_Slow.asm
@@ -359,7 +353,6 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/RedirectedHandledJITCase.asm
         ${ARCH_SOURCES_DIR}/ThePreStubAMD64.asm
         ${ARCH_SOURCES_DIR}/ExternalMethodFixupThunk.asm
-        ${ARCH_SOURCES_DIR}/TlsGetters.asm # Condition="'$(FeatureImplicitTls)' != 'true'
         ${ARCH_SOURCES_DIR}/UMThunkStub.asm
         ${ARCH_SOURCES_DIR}/VirtualCallStubAMD64.asm
     )
@@ -394,6 +387,7 @@ else(WIN32)
 
     if(CLR_CMAKE_TARGET_ARCH_AMD64)
         set(VM_SOURCES_WKS_ARCH_ASM
+            ${ARCH_SOURCES_DIR}/asmhelpers.S
             ${ARCH_SOURCES_DIR}/calldescrworkeramd64.S
             ${ARCH_SOURCES_DIR}/crthelpers.S
             ${ARCH_SOURCES_DIR}/externalmethodfixupthunk.S
@@ -433,7 +427,7 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/pinvokestubs.S
         )
     endif()
-    
+
 endif(WIN32)
 
 
@@ -444,7 +438,7 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
         ${ARCH_SOURCES_DIR}/gmsamd64.cpp
         ${ARCH_SOURCES_DIR}/stublinkeramd64.cpp
     )
-    
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jithelpersamd64.cpp
         ${ARCH_SOURCES_DIR}/jitinterfaceamd64.cpp
@@ -462,7 +456,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/gmsx86.cpp
         ${ARCH_SOURCES_DIR}/stublinkerx86.cpp
     )
-    
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jitinterfacex86.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
@@ -475,7 +469,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         ${ARCH_SOURCES_DIR}/stubs.cpp
         ${ARCH_SOURCES_DIR}/armsinglestepper.cpp
     )
-    
+
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jithelpersarm.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
@@ -484,7 +478,6 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_DAC_AND_WKS_ARCH
-        ${ARCH_SOURCES_DIR}/cgenarm64.cpp
         ${ARCH_SOURCES_DIR}/stubs.cpp
         exceptionhandling.cpp
         gcinfodecoder.cpp
@@ -502,7 +495,7 @@ set(VM_SOURCES_DAC_ARCH
     exceptionhandling.cpp
 )
 
-list(APPEND VM_SOURCES_WKS 
+list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_WKS_ARCH}
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
 )
@@ -512,15 +505,9 @@ list(APPEND VM_SOURCES_DAC
     ${VM_SOURCES_DAC_AND_WKS_ARCH}
 )
 
-# The default option for FEATURE_STANDALONE_GC builds a standalone
-# and non-standalone GC, linking the non-standalone GC into coreclr.dll.
-# For testing purposes, FEATURE_STANDALONE_GC_ONLY instead only builds and
-# links the non-standalone GC into coreclr.dll.
-if (NOT FEATURE_STANDALONE_GC_ONLY)
-    list(APPEND VM_SOURCES_WKS
-        ${GC_SOURCES_WKS}
-    )
-endif(NOT FEATURE_STANDALONE_GC_ONLY)
+list(APPEND VM_SOURCES_WKS
+     ${GC_SOURCES_WKS}
+)
 
 # The DAC does need GC sources in order to link correctly, even if
 # it's not used.
@@ -535,6 +522,6 @@ convert_to_absolute_path(VM_SOURCES_DAC ${VM_SOURCES_DAC})
 add_subdirectory(dac)
 add_subdirectory(wks)
 
-if(CLR_CMAKE_PLATFORM_LINUX)
-    add_subdirectory($ENV{__IntermediatesDir}/Generated/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
-endif(CLR_CMAKE_PLATFORM_LINUX)
+if(FEATURE_PERFTRACING)
+    add_subdirectory(${GENERATED_EVENTING_DIR}/eventpipe ${CMAKE_CURRENT_BINARY_DIR}/eventpipe)
+endif(FEATURE_PERFTRACING)

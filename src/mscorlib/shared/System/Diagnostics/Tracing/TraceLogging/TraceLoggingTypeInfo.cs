@@ -39,8 +39,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(dataType));
             }
 
-            Contract.EndContractBlock();
-
             this.name = dataType.Name;
             this.dataType = dataType;
             this.propertyValueFactory = PropertyValue.GetFactory(dataType);
@@ -63,8 +61,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(name));
             }
-
-            Contract.EndContractBlock();
 
             Statics.CheckName(name);
 

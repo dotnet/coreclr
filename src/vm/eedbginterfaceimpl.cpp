@@ -61,30 +61,6 @@ Thread* EEDbgInterfaceImpl::GetThread(void)
 
 #ifndef DACCESS_COMPILE
 
-void EEDbgInterfaceImpl::SetEEThreadPtr(VOID* newPtr)
-{
-    // Since this may be called from a Debugger Interop Hijack, the EEThread may be bogus.
-    // Thus we can't use contracts. If we do fix that, then the contract below would be nice...
-#if 0
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-
-        PRECONDITION(GetThread() == NULL); // shouldn't have an EE thread.
-    }
-    CONTRACTL_END;
-#endif
-    // This should only be called by interop-debugging when we don't have an EE thread
-    // object. 
-    
-    // Normally the LS & RS can communicate a pointer value using the EE thread's
-    // m_debuggerWord field. If we have no EE thread, then we can use the 
-    // TLS slot that the EE thread would have been in.
-
-    SetThread((Thread*)newPtr);
-}
-
 StackWalkAction EEDbgInterfaceImpl::StackWalkFramesEx(Thread* pThread,
                                                       PREGDISPLAY pRD,
                                                       PSTACKWALKFRAMESCALLBACK pCallback,
@@ -434,39 +410,32 @@ CONTEXT *EEDbgInterfaceImpl::GetThreadFilterContext(Thread *thread)
     RETURN thread->GetFilterContext();    
 }
 
-VOID * EEDbgInterfaceImpl::GetThreadDebuggerWord(Thread *thread)
-{
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-        NOTHROW;
-        GC_NOTRIGGER;
-        PRECONDITION(CheckPointer(thread));
-    }
-    CONTRACTL_END;
+#ifdef FEATURE_INTEROP_DEBUGGING
 
-    return thread->m_debuggerWord;
+VOID * EEDbgInterfaceImpl::GetThreadDebuggerWord()
+{
+    return UnsafeTlsGetValue(g_debuggerWordTLSIndex);
 }
 
-void EEDbgInterfaceImpl::SetThreadDebuggerWord(Thread *thread, 
-                                               VOID *dw)
+void EEDbgInterfaceImpl::SetThreadDebuggerWord(VOID *dw)
 {
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-        NOTHROW;
-        GC_NOTRIGGER;
-        PRECONDITION(CheckPointer(thread));
-    }
-    CONTRACTL_END;
-
-    thread->m_debuggerWord = dw;
+    UnsafeTlsSetValue(g_debuggerWordTLSIndex, dw);
 }
+
+#endif
 
 BOOL EEDbgInterfaceImpl::IsManagedNativeCode(const BYTE *address)
 { 
     WRAPPER_NO_CONTRACT;
     return ExecutionManager::IsManagedCode((PCODE)address);
+}
+
+PCODE EEDbgInterfaceImpl::GetNativeCodeStartAddress(PCODE address)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(address != NULL);
+
+    return ExecutionManager::GetCodeStartAddress(address);
 }
 
 MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
@@ -1387,19 +1356,15 @@ void EEDbgInterfaceImpl::DisableTraceCall(Thread *thread)
     thread->DecrementTraceCallCount();
 }
 
-#ifdef FEATURE_IMPLICIT_TLS
 EXTERN_C UINT32 _tls_index;
-#endif
 
 void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
                                            SIZE_T *pTLSIsSpecialIndex,
                                            SIZE_T *pTLSCantStopIndex,
-                                           SIZE_T* pTLSIndexOfPredefs,
                                            SIZE_T *pEEThreadStateOffset,
                                            SIZE_T *pEEThreadStateNCOffset,
                                            SIZE_T *pEEThreadPGCDisabledOffset,
                                            DWORD  *pEEThreadPGCDisabledValue,
-                                           SIZE_T *pEEThreadDebuggerWordOffset,
                                            SIZE_T *pEEThreadFrameOffset,
                                            SIZE_T *pEEThreadMaxNeededSize,
                                            DWORD  *pEEThreadSteppingStateMask,
@@ -1417,11 +1382,9 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
         PRECONDITION(CheckPointer(pTLSIndex));
         PRECONDITION(CheckPointer(pTLSIsSpecialIndex));
         PRECONDITION(CheckPointer(pEEThreadStateOffset));
-        PRECONDITION(CheckPointer(pTLSIndexOfPredefs));
         PRECONDITION(CheckPointer(pEEThreadStateNCOffset));
         PRECONDITION(CheckPointer(pEEThreadPGCDisabledOffset));
         PRECONDITION(CheckPointer(pEEThreadPGCDisabledValue));
-        PRECONDITION(CheckPointer(pEEThreadDebuggerWordOffset));
         PRECONDITION(CheckPointer(pEEThreadFrameOffset));
         PRECONDITION(CheckPointer(pEEThreadMaxNeededSize));
         PRECONDITION(CheckPointer(pEEThreadSteppingStateMask));
@@ -1433,19 +1396,13 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
     }
     CONTRACTL_END;
     
-#ifdef FEATURE_IMPLICIT_TLS
-    *pTLSIndex = _tls_index;
-#else
-    *pTLSIndex = GetThreadTLSIndex();
-#endif
+    *pTLSIndex = g_TlsIndex;
     *pTLSIsSpecialIndex = TlsIdx_ThreadType;
     *pTLSCantStopIndex = TlsIdx_CantStopCount;
-    *pTLSIndexOfPredefs = CExecutionEngine::TlsIndex;
     *pEEThreadStateOffset = Thread::GetOffsetOfState();
     *pEEThreadStateNCOffset = Thread::GetOffsetOfStateNC();
     *pEEThreadPGCDisabledOffset = Thread::GetOffsetOfGCFlag();
     *pEEThreadPGCDisabledValue = 1; // A little obvious, but just in case...
-    *pEEThreadDebuggerWordOffset = Thread::GetOffsetOfDebuggerWord();
     *pEEThreadFrameOffset = Thread::GetOffsetOfCurrentFrame();
     *pEEThreadMaxNeededSize = sizeof(Thread);
     *pEEThreadDebuggerFilterContextOffset = Thread::GetOffsetOfDebuggerFilterContext();
@@ -1466,8 +1423,6 @@ void EEDbgInterfaceImpl::DebuggerModifyingLogSwitch (int iNewLevel,
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-    
-    Log::DebuggerModifyingLogSwitch (iNewLevel, pLogSwitchName);
 }
 
 

@@ -5,7 +5,6 @@
 
 using System;
 using System.Reflection;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Runtime.Versioning;
 using System.Runtime.CompilerServices;
@@ -19,23 +18,18 @@ namespace System.Runtime.Loader
     public abstract class AssemblyLoadContext
     {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern bool CanUseAppPathAssemblyLoadContextInCurrentDomain();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr LoadFromStream(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyArray, int iAssemblyArrayLen, IntPtr ptrSymbols, int iSymbolArrayLen, ObjectHandleOnStack retAssembly);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         internal static extern void InternalSetProfileRoot(string directoryPath);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         internal static extern void InternalStartProfile(string profile, IntPtr ptrNativeAssemblyLoadContext);
 
         protected AssemblyLoadContext()
@@ -68,7 +62,6 @@ namespace System.Runtime.Loader
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContext, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
 
         public static Assembly[] GetLoadedAssemblies()
@@ -200,10 +193,9 @@ namespace System.Runtime.Loader
             if (assemblyResolveHandler != null)
             {
                 // Loop through the event subscribers and return the first non-null Assembly instance
-                Delegate[] arrSubscribers = assemblyResolveHandler.GetInvocationList();
-                for (int i = 0; i < arrSubscribers.Length; i++)
+                foreach (Func<AssemblyLoadContext, AssemblyName, Assembly> handler in assemblyResolveHandler.GetInvocationList())
                 {
-                    resolvedAssembly = ((Func<AssemblyLoadContext, AssemblyName, Assembly>)arrSubscribers[i])(this, assemblyName);
+                    resolvedAssembly = handler(this, assemblyName);
                     if (resolvedAssembly != null)
                     {
                         break;
@@ -278,7 +270,6 @@ namespace System.Runtime.Loader
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr InternalLoadUnmanagedDllFromPath(string unmanagedDllPath);
 
         // This method provides a way for overriders of LoadUnmanagedDll() to load an unmanaged DLL from a specific path in a
@@ -354,7 +345,6 @@ namespace System.Runtime.Loader
         }
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr GetLoadContextForAssembly(RuntimeAssembly assembly);
 
         // Returns the load context in which the specified assembly has been loaded

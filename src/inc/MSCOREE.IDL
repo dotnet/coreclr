@@ -22,21 +22,11 @@ import "unknwn.idl";
 #if defined(FEATURE_WINDOWSPHONE)
 import "gchost.idl";
 #endif
-import "ivalidator.idl";
 
 #include "product_version.h"
 
 cpp_quote("struct IActivationFactory;")
 interface IActivationFactory;
-
-const char* CLR_MAJOR_VERSION = VER_MAJORVERSION;
-const char* CLR_MINOR_VERSION = VER_MINORVERSION;
-const char* CLR_BUILD_VERSION = VER_PRODUCTBUILD;
-
-const char* CLR_ASSEMBLY_MAJOR_VERSION = VER_ASSEMBLYMAJORVERSION;
-const char* CLR_ASSEMBLY_MINOR_VERSION = VER_ASSEMBLYMINORVERSION;
-const char* CLR_ASSEMBLY_BUILD_VERSION = VER_ASSEMBLYBUILD;
-
 
 // CLSID TypeNameFactory : uuid{B81FF171-20F3-11d2-8DCC-00A0C9B00525}
 cpp_quote("EXTERN_GUID(CLSID_TypeNameFactory, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x25);")
@@ -164,7 +154,7 @@ typedef enum {
   STARTUP_ARM                   = 0x400000,                     // Enable the ARM feature.
   STARTUP_SINGLE_APPDOMAIN      = 0x800000,                      // application runs in default domain, no more domains are created 
   STARTUP_APPX_APP_MODEL        = 0x1000000,                     // jupiter app
-  STARTUP_DISABLE_RANDOMIZED_STRING_HASHING     = 0x2000000      // Disable the randomized string hashing
+  STARTUP_DISABLE_RANDOMIZED_STRING_HASHING     = 0x2000000      // Disable the randomized string hashing (not supported)
 } STARTUP_FLAGS;
 
 typedef enum {
@@ -930,11 +920,6 @@ EInitializeNewDomainFlags;
 library mscoree
 {
     importlib("stdole32.tlb");
-
-#ifdef INCLUDE_SVC_IDL
-#define IN_MSCOREE
-#include "mscorsvc.idl"
-#endif
 
     //*****************************************************************************
     //

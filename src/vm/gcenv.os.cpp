@@ -83,7 +83,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
 
 #if !defined(FEATURE_CORESYSTEM)
     SetThreadIdealProcessor(GetCurrentThread(), (DWORD)affinity->Processor);
-#elif !defined(FEATURE_PAL)
+#else
     PROCESSOR_NUMBER proc;
 
     if (affinity->Group != -1)
@@ -94,6 +94,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
         
         success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, NULL);
     }
+#if !defined(FEATURE_PAL)
     else
     {
         if (GetThreadIdealProcessorEx(GetCurrentThread(), &proc))
@@ -102,6 +103,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(GCThreadAffinity* affinity)
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, &proc);
         }        
     }
+#endif // !defined(FEATURE_PAL)
 #endif
 
     return success;
@@ -141,13 +143,6 @@ void GCToOSInterface::DebugBreak()
 {
     LIMITED_METHOD_CONTRACT;
     ::DebugBreak();
-}
-
-// Get number of logical processors
-uint32_t GCToOSInterface::GetLogicalCpuCount()
-{
-    LIMITED_METHOD_CONTRACT;
-    return ::GetLogicalCpuCount();
 }
 
 // Causes the calling thread to sleep for the specified number of milliseconds
@@ -320,11 +315,55 @@ bool GCToOSInterface::GetWriteWatch(bool resetState, void* address, size_t size,
 //             the processor architecture
 // Return:
 //  Size of the cache
-size_t GCToOSInterface::GetLargestOnDieCacheSize(bool trueSize)
+size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return ::GetLargestOnDieCacheSize(trueSize);
+    return ::GetCacheSizePerLogicalCpu(trueSize);
+}
+
+// Sets the calling thread's affinity to only run on the processor specified
+// in the GCThreadAffinity structure.
+// Parameters:
+//  affinity - The requested affinity for the calling thread. At most one processor
+//             can be provided.
+// Return:
+//  true if setting the affinity was successful, false otherwise.
+bool GCToOSInterface::SetThreadAffinity(GCThreadAffinity* affinity)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    assert(affinity != nullptr);
+    if (affinity->Group != GCThreadAffinity::None)
+    {
+        assert(affinity->Processor != GCThreadAffinity::None);
+        
+        GROUP_AFFINITY ga;
+        ga.Group = (WORD)affinity->Group;
+        ga.Reserved[0] = 0; // reserve must be filled with zero
+        ga.Reserved[1] = 0; // otherwise call may fail
+        ga.Reserved[2] = 0;
+        ga.Mask = (size_t)1 << affinity->Processor;
+        return !!SetThreadGroupAffinity(GetCurrentThread(), &ga, nullptr);
+    }
+    else if (affinity->Processor != GCThreadAffinity::None)
+    {
+        return !!SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << affinity->Processor);
+    }
+
+    // Given affinity must specify at least one processor to use.
+    return false;
+}
+
+// Boosts the calling thread's thread priority to a level higher than the default
+// for new threads.
+// Parameters:
+//  None.
+// Return:
+//  true if the priority boost was successful, false otherwise.
+bool GCToOSInterface::BoostThreadPriority()
+{
+    return !!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
 }
 
 // Get affinity mask of the current process
@@ -370,10 +409,13 @@ size_t GCToOSInterface::GetVirtualMemoryLimit()
     return (size_t)memStatus.ullTotalVirtual;
 }
 
-
 static size_t g_RestrictedPhysicalMemoryLimit = (size_t)MAX_PTR;
 
 #ifndef FEATURE_PAL
+
+// For 32-bit processes the virtual address range could be smaller than the amount of physical
+// memory on the machine/in the container, we need to restrict by the VM.
+static bool g_UseRestrictedVirtualMemory = false;
 
 typedef BOOL (WINAPI *PGET_PROCESS_MEMORY_INFO)(HANDLE handle, PROCESS_MEMORY_COUNTERS* memCounters, uint32_t cb);
 static PGET_PROCESS_MEMORY_INFO GCGetProcessMemoryInfo = 0;
@@ -390,6 +432,8 @@ static size_t GetRestrictedPhysicalMemoryLimit()
         return g_RestrictedPhysicalMemoryLimit;
 
     size_t job_physical_memory_limit = (size_t)MAX_PTR;
+    uint64_t total_virtual = 0;
+    uint64_t total_physical = 0;
     BOOL in_job_p = FALSE;
     HINSTANCE hinstKernel32 = 0;
 
@@ -448,6 +492,8 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 
             MEMORYSTATUSEX ms;
             ::GetProcessMemoryLoad(&ms);
+            total_virtual = ms.ullTotalVirtual;
+            total_physical = ms.ullAvailPhys;
 
             // A sanity check in case someone set a larger limit than there is actual physical memory.
             job_physical_memory_limit = (size_t) min (job_physical_memory_limit, ms.ullTotalPhys);
@@ -459,7 +505,40 @@ exit:
     {
         job_physical_memory_limit = 0;
 
-        FreeLibrary(hinstKernel32);
+        if (hinstKernel32 != 0)
+        {
+            FreeLibrary(hinstKernel32);
+            hinstKernel32 = 0;
+            GCGetProcessMemoryInfo = 0;
+        }
+    }
+
+    // Check to see if we are limited by VM.
+    if (total_virtual == 0)
+    {
+        MEMORYSTATUSEX ms;
+        ::GetProcessMemoryLoad(&ms);
+
+        total_virtual = ms.ullTotalVirtual;
+        total_physical = ms.ullTotalPhys;
+    }
+
+    if (job_physical_memory_limit != 0)
+    {
+        total_physical = job_physical_memory_limit;
+    }
+
+    if (total_virtual < total_physical)
+    {
+        if (hinstKernel32 != 0)
+        {
+            // We can also free the lib here - if we are limited by VM we will not be calling
+            // GetProcessMemoryInfo.
+            FreeLibrary(hinstKernel32);
+            GCGetProcessMemoryInfo = 0;
+        }
+        g_UseRestrictedVirtualMemory = true;
+        job_physical_memory_limit = (size_t)total_virtual;
     }
 
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, job_physical_memory_limit);
@@ -519,9 +598,12 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
         size_t workingSetSize;
         BOOL status = FALSE;
 #ifndef FEATURE_PAL
-        PROCESS_MEMORY_COUNTERS pmc;
-        status = GCGetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
-        workingSetSize = pmc.WorkingSetSize;
+        if (!g_UseRestrictedVirtualMemory)
+        {
+            PROCESS_MEMORY_COUNTERS pmc;
+            status = GCGetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc));
+            workingSetSize = pmc.WorkingSetSize;
+        }
 #else
         status = PAL_GetWorkingSetSize(&workingSetSize);
 #endif
@@ -548,13 +630,32 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
 
     MEMORYSTATUSEX ms;
     ::GetProcessMemoryLoad(&ms);
+    
+#ifndef FEATURE_PAL
+    if (g_UseRestrictedVirtualMemory)
+    {
+        _ASSERTE (ms.ullTotalVirtual == restricted_limit);
+        if (memory_load != NULL)
+            *memory_load = (uint32_t)((float)(ms.ullTotalVirtual - ms.ullAvailVirtual) * 100.0 / (float)ms.ullTotalVirtual);
+        if (available_physical != NULL)
+            *available_physical = ms.ullTotalVirtual;
 
-    if (memory_load != NULL)
-        *memory_load = ms.dwMemoryLoad;
-    if (available_physical != NULL)
-        *available_physical = ms.ullAvailPhys;
-    if (available_page_file != NULL)
-        *available_page_file = ms.ullAvailPageFile;
+        // Available page file isn't helpful when we are restricted by virtual memory
+        // since the amount of memory we can reserve is less than the amount of
+        // memory we can commit.
+        if (available_page_file != NULL)
+            *available_page_file = 0;
+    }
+    else
+#endif //!FEATURE_PAL
+    {
+        if (memory_load != NULL)
+            *memory_load = ms.dwMemoryLoad;
+        if (available_physical != NULL)
+            *available_physical = ms.ullAvailPhys;
+        if (available_page_file != NULL)
+            *available_page_file = ms.ullAvailPageFile;
+    }
 }
 
 // Get a high precision performance counter
@@ -601,85 +702,6 @@ uint32_t GCToOSInterface::GetLowPrecisionTimeStamp()
     LIMITED_METHOD_CONTRACT;
 
     return ::GetTickCount();
-}
-
-// Parameters of the GC thread stub
-struct GCThreadStubParam
-{
-    GCThreadFunction GCThreadFunction;
-    void* GCThreadParam;
-};
-
-// GC thread stub to convert GC thread function to an OS specific thread function
-static DWORD WINAPI GCThreadStub(void* param)
-{
-    WRAPPER_NO_CONTRACT;
-
-    GCThreadStubParam *stubParam = (GCThreadStubParam*)param;
-    GCThreadFunction function = stubParam->GCThreadFunction;
-    void* threadParam = stubParam->GCThreadParam;
-
-    delete stubParam;
-
-    function(threadParam);
-
-    return 0;
-}
-
-// Create a new thread
-// Parameters:
-//  function - the function to be executed by the thread
-//  param    - parameters of the thread
-//  affinity - processor affinity of the thread
-// Return:
-//  true if it has succeeded, false if it has failed
-bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThreadAffinity* affinity)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    uint32_t thread_id;
-
-    NewHolder<GCThreadStubParam> stubParam = new (nothrow) GCThreadStubParam();
-    if (stubParam == NULL)
-    {
-        return false;
-    }
-
-    stubParam->GCThreadFunction = function;
-    stubParam->GCThreadParam = param;
-
-    HANDLE gc_thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, GCThreadStub, stubParam, CREATE_SUSPENDED, (DWORD*)&thread_id);
-
-    if (!gc_thread)
-    {
-        return false;
-    }
-
-    stubParam.SuppressRelease();
-
-    SetThreadPriority(gc_thread, /* THREAD_PRIORITY_ABOVE_NORMAL );*/ THREAD_PRIORITY_HIGHEST );
-
-    if (affinity->Group != GCThreadAffinity::None)
-    {
-        _ASSERTE(affinity->Processor != GCThreadAffinity::None);
-        GROUP_AFFINITY ga;
-        ga.Group = (WORD)affinity->Group;
-        ga.Reserved[0] = 0; // reserve must be filled with zero
-        ga.Reserved[1] = 0; // otherwise call may fail
-        ga.Reserved[2] = 0;
-        ga.Mask = (size_t)1 << affinity->Processor;
-
-        CPUGroupInfo::SetThreadGroupAffinity(gc_thread, &ga, NULL);
-    }
-    else if (affinity->Processor != GCThreadAffinity::None)
-    {
-        SetThreadAffinityMask(gc_thread, (DWORD_PTR)1 << affinity->Processor);
-    }
-
-    ResumeThread(gc_thread);
-    CloseHandle(gc_thread);
-
-    return true;
 }
 
 uint32_t GCToOSInterface::GetTotalProcessorCount()

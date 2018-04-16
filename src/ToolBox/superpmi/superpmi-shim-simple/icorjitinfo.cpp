@@ -132,13 +132,19 @@ CORINFO_MODULE_HANDLE interceptor_ICJI::getMethodModule(CORINFO_METHOD_HANDLE me
 
 // This function returns the offset of the specified method in the
 // vtable of it's owning class or interface.
-void interceptor_ICJI::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,                /* IN */
-                                             unsigned*             offsetOfIndirection,   /* OUT */
-                                             unsigned*             offsetAfterIndirection,/* OUT */
-                                             bool*                 isRelative             /* OUT */
+void interceptor_ICJI::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,                 /* IN */
+                                             unsigned*             offsetOfIndirection,    /* OUT */
+                                             unsigned*             offsetAfterIndirection, /* OUT */
+                                             bool*                 isRelative              /* OUT */
                                              )
 {
     original_ICorJitInfo->getMethodVTableOffset(method, offsetOfIndirection, offsetAfterIndirection, isRelative);
+}
+
+// Get the unboxed entry point for a method, if possible.
+CORINFO_METHOD_HANDLE interceptor_ICJI::getUnboxedEntry(CORINFO_METHOD_HANDLE ftn, bool* requiresInstMethodTableArg)
+{
+    return original_ICorJitInfo->getUnboxedEntry(ftn, requiresInstMethodTableArg);
 }
 
 // Find the virtual method in implementingClass that overrides virtualMethod.
@@ -150,9 +156,15 @@ CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(CORINFO_METHOD_HAND
     return original_ICorJitInfo->resolveVirtualMethod(virtualMethod, implementingClass, ownerType);
 }
 
-void interceptor_ICJI::expandRawHandleIntrinsic(
-    CORINFO_RESOLVED_TOKEN *        pResolvedToken,
-    CORINFO_GENERICHANDLE_RESULT *  pResult)
+// Given T, return the type of the default EqualityComparer<T>.
+// Returns null if the type can't be determined exactly.
+CORINFO_CLASS_HANDLE interceptor_ICJI::getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE cls)
+{
+    return original_ICorJitInfo->getDefaultEqualityComparerClass(cls);
+}
+
+void interceptor_ICJI::expandRawHandleIntrinsic(CORINFO_RESOLVED_TOKEN*       pResolvedToken,
+                                                CORINFO_GENERICHANDLE_RESULT* pResult)
 {
     return original_ICorJitInfo->expandRawHandleIntrinsic(pResolvedToken, pResult);
 }
@@ -350,6 +362,16 @@ CorInfoType interceptor_ICJI::asCorInfoType(CORINFO_CLASS_HANDLE cls)
 const char* interceptor_ICJI::getClassName(CORINFO_CLASS_HANDLE cls)
 {
     return original_ICorJitInfo->getClassName(cls);
+}
+
+const char* interceptor_ICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    return original_ICorJitInfo->getClassNameFromMetadata(cls, namespaceName);
+}
+
+CORINFO_CLASS_HANDLE interceptor_ICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    return original_ICorJitInfo->getTypeInstantiationArgument(cls, index);
 }
 
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
@@ -607,6 +629,13 @@ CorInfoType interceptor_ICJI::getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE
     return original_ICorJitInfo->getTypeForPrimitiveValueClass(cls);
 }
 
+// "System.Int32" ==> CORINFO_TYPE_INT..
+// "System.UInt32" ==> CORINFO_TYPE_UINT..
+CorInfoType interceptor_ICJI::getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    return original_ICorJitInfo->getTypeForPrimitiveNumericClass(cls);
+}
+
 // TRUE if child is a subtype of parent
 // if parent is an interface, then does child implement / extend parent
 BOOL interceptor_ICJI::canCast(CORINFO_CLASS_HANDLE child, // subtype (extends parent)
@@ -620,6 +649,20 @@ BOOL interceptor_ICJI::canCast(CORINFO_CLASS_HANDLE child, // subtype (extends p
 BOOL interceptor_ICJI::areTypesEquivalent(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
 {
     return original_ICorJitInfo->areTypesEquivalent(cls1, cls2);
+}
+
+// See if a cast from fromClass to toClass will succeed, fail, or needs
+// to be resolved at runtime.
+TypeCompareState interceptor_ICJI::compareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLASS_HANDLE toClass)
+{
+    return original_ICorJitInfo->compareTypesForCast(fromClass, toClass);
+}
+
+// See if types represented by cls1 and cls2 compare equal, not
+// equal, or the comparison needs to be resolved at runtime.
+TypeCompareState interceptor_ICJI::compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    return original_ICorJitInfo->compareTypesForEquality(cls1, cls2);
 }
 
 // returns is the intersection of cls1 and cls2.
@@ -972,6 +1015,14 @@ const char* interceptor_ICJI::getMethodName(CORINFO_METHOD_HANDLE ftn,       /* 
                                             )
 {
     return original_ICorJitInfo->getMethodName(ftn, moduleName);
+}
+
+const char* interceptor_ICJI::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,          /* IN */
+                                                        const char**          className,    /* OUT */
+                                                        const char**          namespaceName /* OUT */
+                                                        )
+{
+    return original_ICorJitInfo->getMethodNameFromMetadata(ftn, className, namespaceName);
 }
 
 // this function is for debugging only.  It returns a value that

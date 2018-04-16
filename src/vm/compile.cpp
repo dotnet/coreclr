@@ -90,7 +90,6 @@ HRESULT CEECompileInfo::Startup(  BOOL fForceDebug,
     HRESULT hr = S_OK;
 
     m_fCachingOfInliningHintsEnabled = TRUE;
-    m_fGeneratingNgenPDB = FALSE;
 
     _ASSERTE(!g_fEEStarted && !g_fEEInit && "You cannot run the EE inside an NGEN compilation process");
 
@@ -129,8 +128,7 @@ HRESULT CEECompileInfo::CreateDomain(ICorCompilationDomain **ppDomain,
                                      IMetaDataAssemblyEmit *pEmitter,
                                      BOOL fForceDebug,
                                      BOOL fForceProfiling,
-                                     BOOL fForceInstrument,
-                                     BOOL fForceFulltrustDomain)
+                                     BOOL fForceInstrument)
 {
     STANDARD_VM_CONTRACT;
 
@@ -334,17 +332,17 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         // by LoadAssembly then we can blame it on bitness mismatch.  We do the check here
         // and not in the CATCH to distinguish between the COR_IMAGE_ERROR that can be thrown by
         // VerifyIsAssembly (not necessarily a bitness mismatch) and that from LoadAssembly
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
         if (pImage->Has32BitNTHeaders())
         {
             hrProcessLibraryBitnessMismatch = PEFMT_E_32BIT;
         }
-#else
+#else // !_TARGET_64BIT_
         if (!pImage->Has32BitNTHeaders())
         {
             hrProcessLibraryBitnessMismatch = PEFMT_E_64BIT;
         }
-#endif
+#endif // !_TARGET_64BIT_
         
         AssemblySpec spec;
         spec.InitializeSpec(TokenFromRid(1, mdtAssembly), pImage->GetMDImport(), NULL, FALSE);
@@ -1028,7 +1026,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
 
     nStackSlots = nStackBytes / sizeof(TADDR) + NUM_ARGUMENT_REGISTERS;
 #else
-    nStackSlots = (sizeof(TransitionBlock) + nStackBytes - TransitionBlock::GetOffsetOfArgumentRegisters()) / sizeof(TADDR);
+    nStackSlots = (sizeof(TransitionBlock) + nStackBytes - TransitionBlock::GetOffsetOfArgumentRegisters()) / TARGET_POINTER_SIZE;
 #endif
 
     for (UINT pos = 0; pos < nStackSlots; pos++)
@@ -1040,7 +1038,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
 #else
-        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * sizeof(TADDR);
+        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * TARGET_POINTER_SIZE;
 #endif
 
         CORCOMPILE_GCREFMAP_TOKENS token = *(CORCOMPILE_GCREFMAP_TOKENS *)(pFrame + ofs);
@@ -1083,7 +1081,7 @@ void CEECompileInfo::GetCallRefMap(CORINFO_METHOD_HANDLE hMethod, GCRefMapBuilde
             (TransitionBlock::GetOffsetOfArgumentRegisters() + ARGUMENTREGISTERS_SIZE - (pos + 1) * sizeof(TADDR)) :
             (TransitionBlock::GetOffsetOfArgs() + (pos - NUM_ARGUMENT_REGISTERS) * sizeof(TADDR));
 #else
-        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * sizeof(TADDR);
+        ofs = TransitionBlock::GetOffsetOfArgumentRegisters() + pos * TARGET_POINTER_SIZE;
 #endif
 
         if (token != 0)
@@ -2113,7 +2111,7 @@ void CEECompileInfo::EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuild
 
     // Check everything 
     dwFlags |= READYTORUN_LAYOUT_Alignment;
-    if (dwAlignment == sizeof(void *))
+    if (dwAlignment == TARGET_POINTER_SIZE)
         dwFlags |= READYTORUN_LAYOUT_Alignment_Native;
 
     dwFlags |= READYTORUN_LAYOUT_GCLayout;
@@ -2139,7 +2137,7 @@ void CEECompileInfo::EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuild
 
     if ((dwFlags & READYTORUN_LAYOUT_GCLayout) && !(dwFlags & READYTORUN_LAYOUT_GCLayout_Empty))
     {
-        size_t cbGCRefMap = (dwSize / sizeof(TADDR) + 7) / 8;
+        size_t cbGCRefMap = (dwSize / TARGET_POINTER_SIZE + 7) / 8;
         _ASSERTE(cbGCRefMap > 0);
 
         BYTE * pGCRefMap = (BYTE *)_alloca(cbGCRefMap);
@@ -2541,8 +2539,8 @@ private:
 
 public:
     NGenPdbWriter (LPCWSTR wszNativeImagePath, LPCWSTR wszPdbPath, DWORD dwExtraData, LPCWSTR wszManagedPDBSearchPath)
-        : m_hModule(NULL),
-          m_Create(NULL),
+        : m_Create(NULL),
+          m_hModule(NULL),
           m_wszPdbPath(wszPdbPath),
           m_dwExtraData(dwExtraData),
           m_wszManagedPDBSearchPath(wszManagedPDBSearchPath)
@@ -2600,7 +2598,7 @@ public:
     }
 };
 
-#define UNKNOWN_SOURCE_FILE_PATH L"unknown"
+#define UNKNOWN_SOURCE_FILE_PATH W("unknown")
 
 // ----------------------------------------------------------------------------
 // Manages generating all PDB data for an EE Module. Directly responsible for writing the
@@ -2730,10 +2728,10 @@ public:
         : m_Create(Create),
           m_wszPdbPath(wszPdbPath),
           m_pWriter(NULL),
-          m_dwExtraData(dwExtraData),
-          m_pBinder(pBinder),
           m_pModule(pModule),
+          m_dwExtraData(dwExtraData),
           m_wszManagedPDBSearchPath(wszManagedPDBSearchPath),
+          m_pBinder(pBinder),
           m_ilPdbDocCount(0),
           m_finalPdbDocCount(1)
     {
@@ -2836,9 +2834,9 @@ public:
           m_pMethodRegionInfo(pMethodRegionInfo),
           m_pCodeInfo(pCodeInfo),
           m_pDocNameToOffsetMap(pDocNameToOffsetMap),
+          m_isILPDBProvided(isILPDBProvided),
           m_cIlNativeMap(0),
-          m_cSeqPoints(0),
-          m_isILPDBProvided(isILPDBProvided)
+          m_cSeqPoints(0)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3094,7 +3092,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 	// we copy the file to somethign with this convention before generating the PDB
 	// and delete it when we are done.  
 	SString dllPath = pLoadedLayout->GetPath();
-	if (!dllPath.EndsWithCaseInsensitive(L".ni.dll") && !dllPath.EndsWithCaseInsensitive(L".ni.exe"))
+	if (!dllPath.EndsWithCaseInsensitive(W(".ni.dll")) && !dllPath.EndsWithCaseInsensitive(W(".ni.exe")))
 	{
 		SString::Iterator fileNameStart = dllPath.End();
 		dllPath.FindBack(fileNameStart, DIRECTORY_SEPARATOR_STR_W);
@@ -3105,7 +3103,7 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 		// m_tempSourceDllName = Convertion of  INPUT.dll  to INPUT.ni.dll where the PDB lives.  
 		m_tempSourceDllName = m_wszPdbPath;
 		m_tempSourceDllName += SString(dllPath, fileNameStart, ext - fileNameStart);
-		m_tempSourceDllName += L".ni";
+		m_tempSourceDllName += W(".ni");
 		m_tempSourceDllName += SString(dllPath, ext, dllPath.End() - ext);
 		CopyFileW(dllPath, m_tempSourceDllName, false);
 		dllPath = m_tempSourceDllName;
@@ -3268,10 +3266,10 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
             fullName, 
             hotDesc, 
             TypeString::FormatNamespace | TypeString::FormatSignature);
-		fullName.Append(L"$#");
+		fullName.Append(W("$#"));
 		if (!mAssemblyName.Equals(assemblyName))
 			fullName.Append(assemblyName);
-		fullName.Append(L"#");
+		fullName.Append(W("#"));
         fullName.Append(methodToken);
         BSTRHolder hotNameHolder(SysAllocString(fullName.GetUnicode()));
         hr = m_pWriter->AddSymbol(hotNameHolder,
@@ -3291,10 +3289,10 @@ HRESULT NGenModulePdbWriter::WriteMethodPDBData(PEImageLayout * pLoadedLayout, U
                 fullNameCold, 
                 hotDesc, 
                 TypeString::FormatNamespace | TypeString::FormatSignature);
-			fullNameCold.Append(L"$#");
+			fullNameCold.Append(W("$#"));
 			if (!mAssemblyName.Equals(assemblyName))
 				fullNameCold.Append(assemblyName);
-			fullNameCold.Append(L"#");
+			fullNameCold.Append(W("#"));
             fullNameCold.Append(methodToken);
 
             BSTRHolder coldNameHolder(SysAllocString(fullNameCold.GetUnicode()));
@@ -4903,10 +4901,7 @@ static bool IsMethodAccessibleOutsideItsAssembly(MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
-    // Note that this ignores unrestricted friend access. This friend access allowed attribute can be used to 
-    // prevent methods from getting trimmed if necessary.
-    if (pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE, NULL, NULL) == S_OK)
-        return true;
+    // Note that this ignores friend access.
 
     switch (pMD->GetAttrs() & mdMemberAccessMask)
     {
@@ -5162,6 +5157,7 @@ static void SpecializeComparer(SString& ss, Instantiation& inst)
 
 //
 // This method has duplicated logic from bcl\system\collections\generic\equalitycomparer.cs
+// and matching logic in jitinterface.cpp
 //
 static void SpecializeEqualityComparer(SString& ss, Instantiation& inst)
 {
@@ -5204,19 +5200,11 @@ static void SpecializeEqualityComparer(SString& ss, Instantiation& inst)
         if (et == ELEMENT_TYPE_I4 ||
             et == ELEMENT_TYPE_U4 ||
             et == ELEMENT_TYPE_U2 ||
-            et == ELEMENT_TYPE_U1)
+            et == ELEMENT_TYPE_I2 ||
+            et == ELEMENT_TYPE_U1 ||
+            et == ELEMENT_TYPE_I1)
         {
             ss.Set(W("System.Collections.Generic.EnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I2)
-        {
-            ss.Set(W("System.Collections.Generic.ShortEnumEqualityComparer`1"));
-            return;
-        }
-        else if (et == ELEMENT_TYPE_I1)
-        {
-            ss.Set(W("System.Collections.Generic.SByteEnumEqualityComparer`1"));
             return;
         }
         else if (et == ELEMENT_TYPE_I8 ||

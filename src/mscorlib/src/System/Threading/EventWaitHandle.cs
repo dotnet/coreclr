@@ -34,7 +34,6 @@ namespace System.Threading
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using System.Security.AccessControl;
-    using System.Diagnostics.Contracts;
 
     [ComVisibleAttribute(true)]
     public class EventWaitHandle : WaitHandle
@@ -51,13 +50,12 @@ namespace System.Threading
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
+                if (Interop.Kernel32.MAX_PATH < name.Length)
                 {
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
                 }
 #endif
             }
-            Contract.EndContractBlock();
 
             uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
             switch (mode)
@@ -80,10 +78,10 @@ namespace System.Threading
                 int errorCode = Marshal.GetLastWin32Error();
 
                 _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
-                __Error.WinIOError(errorCode, name);
+                throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
             SetHandleInternal(_handle);
         }
@@ -100,13 +98,12 @@ namespace System.Threading
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
+                if (Interop.Kernel32.MAX_PATH < name.Length)
                 {
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
                 }
 #endif
             }
-            Contract.EndContractBlock();
             Win32Native.SECURITY_ATTRIBUTES secAttrs = null;
 
             uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
@@ -129,12 +126,12 @@ namespace System.Threading
             if (_handle.IsInvalid)
             {
                 _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
-                __Error.WinIOError(errorCode, name);
+                throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
-            createdNew = errorCode != Win32Native.ERROR_ALREADY_EXISTS;
+            createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
             SetHandleInternal(_handle);
         }
 
@@ -160,8 +157,7 @@ namespace System.Threading
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 case OpenExistingResult.PathNotFound:
-                    __Error.WinIOError(Win32Native.ERROR_PATH_NOT_FOUND, "");
-                    return result; //never executes
+                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, "");
 
                 default:
                     return result;
@@ -180,7 +176,7 @@ namespace System.Threading
 #else
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name), SR.ArgumentNull_WithParamName);
+                throw new ArgumentNullException(nameof(name));
             }
 
             if (name.Length == 0)
@@ -188,12 +184,11 @@ namespace System.Threading
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             }
 
-            if (null != name && System.IO.Path.MaxPath < name.Length)
+            if (null != name && Interop.Kernel32.MAX_PATH < name.Length)
             {
-                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
+                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
             }
 
-            Contract.EndContractBlock();
 
             result = null;
 
@@ -203,14 +198,14 @@ namespace System.Threading
             {
                 int errorCode = Marshal.GetLastWin32Error();
 
-                if (Win32Native.ERROR_FILE_NOT_FOUND == errorCode || Win32Native.ERROR_INVALID_NAME == errorCode)
+                if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
                     return OpenExistingResult.NameNotFound;
-                if (Win32Native.ERROR_PATH_NOT_FOUND == errorCode)
+                if (Interop.Errors.ERROR_PATH_NOT_FOUND == errorCode)
                     return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
+                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     return OpenExistingResult.NameInvalid;
                 //this is for passed through Win32Native Errors
-                __Error.WinIOError(errorCode, "");
+                throw Win32Marshal.GetExceptionForWin32Error(errorCode, "");
             }
             result = new EventWaitHandle(myHandle);
             return OpenExistingResult.Success;
@@ -220,7 +215,7 @@ namespace System.Threading
         {
             bool res = Win32Native.ResetEvent(safeWaitHandle);
             if (!res)
-                __Error.WinIOError();
+                throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;
         }
         public bool Set()
@@ -228,7 +223,7 @@ namespace System.Threading
             bool res = Win32Native.SetEvent(safeWaitHandle);
 
             if (!res)
-                __Error.WinIOError();
+                throw Win32Marshal.GetExceptionForLastWin32Error();
 
             return res;
         }

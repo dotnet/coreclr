@@ -25,6 +25,9 @@ namespace System.Diagnostics.Tracing
     public class TraceLoggingEventTypes
     {
         internal readonly TraceLoggingTypeInfo[] typeInfos;
+#if FEATURE_PERFTRACING
+        internal readonly string[] paramNames;
+#endif
         internal readonly string name;
         internal readonly EventTags tags;
         internal readonly byte level;
@@ -97,9 +100,10 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(name));
             }
 
-            Contract.EndContractBlock();
-
             this.typeInfos = MakeArray(paramInfos);
+#if FEATURE_PERFTRACING
+            this.paramNames = MakeParamNameArray(paramInfos);
+#endif
             this.name = name;
             this.tags = tags;
             this.level = Statics.DefaultLevel;
@@ -134,8 +138,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(defaultName));
             }
-
-            Contract.EndContractBlock();
 
             this.typeInfos = typeInfos;
             this.name = defaultName;
@@ -215,8 +217,6 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(paramInfos));
             }
 
-            Contract.EndContractBlock();
-
             var recursionCheck = new List<Type>(paramInfos.Length);
             var result = new TraceLoggingTypeInfo[paramInfos.Length];
             for (int i = 0; i < paramInfos.Length; ++i)
@@ -233,8 +233,6 @@ namespace System.Diagnostics.Tracing
             {
                 throw new ArgumentNullException(nameof(types));
             }
-
-            Contract.EndContractBlock();
 
             var recursionCheck = new List<Type>(types.Length);
             var result = new TraceLoggingTypeInfo[types.Length];
@@ -254,9 +252,21 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(typeInfos));
             }
 
-            Contract.EndContractBlock();
-
             return (TraceLoggingTypeInfo[])typeInfos.Clone(); ;
         }
+
+#if FEATURE_PERFTRACING
+        private static string[] MakeParamNameArray(
+            System.Reflection.ParameterInfo[] paramInfos)
+        {
+            string[] paramNames = new string[paramInfos.Length];
+            for (int i = 0; i < paramNames.Length; i++)
+            {
+                paramNames[i] = paramInfos[i].Name;
+            }
+
+            return paramNames;
+        }
+#endif
     }
 }

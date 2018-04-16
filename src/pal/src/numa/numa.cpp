@@ -31,6 +31,13 @@ SET_DEFAULT_DEBUG_CHANNEL(NUMA);
 
 #include <pthread.h>
 #include <dlfcn.h>
+#ifdef __FreeBSD__
+#include <stdlib.h>
+#else
+#include <alloca.h>
+#endif
+
+#include <algorithm>
 
 #include "numashim.h"
 
@@ -85,26 +92,6 @@ static const WORD NO_GROUP = 0xffff;
 
 /*++
 Function:
-  AllocateLookupArrays
-
-Allocate CPU and group lookup arrays
---*/
-VOID
-AllocateLookupArrays()
-{
-    g_groupAndIndexToCpu = (short*)malloc(g_groupCount * MaxCpusPerGroup * sizeof(short));
-    g_cpuToAffinity = (CpuAffinity*)malloc(g_possibleCpuCount * sizeof(CpuAffinity));
-    g_groupToCpuMask = (KAFFINITY*)malloc(g_groupCount * sizeof(KAFFINITY));
-    g_groupToCpuCount = (BYTE*)malloc(g_groupCount * sizeof(BYTE));
-
-    memset(g_groupAndIndexToCpu, 0xff, g_groupCount * MaxCpusPerGroup * sizeof(short));
-    memset(g_cpuToAffinity, 0xff, g_possibleCpuCount * sizeof(CpuAffinity));
-    memset(g_groupToCpuMask, 0, g_groupCount * sizeof(KAFFINITY));
-    memset(g_groupToCpuCount, 0, g_groupCount * sizeof(BYTE));
-}
-
-/*++
-Function:
   FreeLookupArrays
 
 Free CPU and group lookup arrays
@@ -121,6 +108,53 @@ FreeLookupArrays()
     g_cpuToAffinity = NULL;
     g_groupToCpuMask = NULL;
     g_groupToCpuCount = NULL;
+}
+
+/*++
+Function:
+  AllocateLookupArrays
+
+Allocate CPU and group lookup arrays
+Return TRUE if the allocation succeeded
+--*/
+BOOL
+AllocateLookupArrays()
+{
+    g_groupAndIndexToCpu = (short*)malloc(g_groupCount * MaxCpusPerGroup * sizeof(short));
+    if (g_groupAndIndexToCpu == NULL)
+    {
+        goto FAILED;
+    }
+
+    g_cpuToAffinity = (CpuAffinity*)malloc(g_possibleCpuCount * sizeof(CpuAffinity));
+    if (g_cpuToAffinity == NULL)
+    {
+        goto FAILED;
+    }
+
+    g_groupToCpuMask = (KAFFINITY*)malloc(g_groupCount * sizeof(KAFFINITY));
+    if (g_groupToCpuMask == NULL)
+    {
+        goto FAILED;
+    }
+
+    g_groupToCpuCount = (BYTE*)malloc(g_groupCount * sizeof(BYTE));
+    if (g_groupToCpuCount == NULL)
+    {
+        goto FAILED;
+    }
+
+    memset(g_groupAndIndexToCpu, 0xff, g_groupCount * MaxCpusPerGroup * sizeof(short));
+    memset(g_cpuToAffinity, 0xff, g_possibleCpuCount * sizeof(CpuAffinity));
+    memset(g_groupToCpuMask, 0, g_groupCount * sizeof(KAFFINITY));
+    memset(g_groupToCpuCount, 0, g_groupCount * sizeof(BYTE));
+
+    return TRUE;
+
+FAILED:
+    FreeLookupArrays();
+
+    return FALSE;
 }
 
 /*++
@@ -189,7 +223,11 @@ FOR_ALL_NUMA_FUNCTIONS
                 g_groupCount += nodeGroupCount;
             }
 
-            AllocateLookupArrays();
+            if (!AllocateLookupArrays())
+            {
+                dlclose(numaHandle);
+                return FALSE;
+            }
 
             WORD currentGroup = 0;
             int currentGroupCpus = 0;
@@ -244,7 +282,10 @@ FOR_ALL_NUMA_FUNCTIONS
         g_groupCount = 1;
         g_highestNumaNode = 0;
 
-        AllocateLookupArrays();
+        if (!AllocateLookupArrays())
+        {
+            return FALSE;
+        }
 
         for (int i = 0; i < g_possibleCpuCount; i++)
         {
@@ -630,7 +671,7 @@ SetThreadAffinityMask(
 
     if (st == 0)
     {
-        for (int i = 0; i < min(8 * sizeof(KAFFINITY), g_possibleCpuCount); i++)
+        for (int i = 0; i < std::min(8 * (int)sizeof(KAFFINITY), g_possibleCpuCount); i++)
         {
             if (CPU_ISSET(i, &prevCpuSet))
             {
@@ -834,8 +875,7 @@ VirtualAllocExNuma(
             if (result != NULL && g_numaAvailable)
             {
                 int nodeMaskLength = (g_highestNumaNode + 1 + sizeof(unsigned long) - 1) / sizeof(unsigned long);
-                unsigned long *nodeMask = new unsigned long[nodeMaskLength];
-
+                unsigned long *nodeMask = (unsigned long*)alloca(nodeMaskLength * sizeof(unsigned long));
                 memset(nodeMask, 0, nodeMaskLength);
 
                 int index = nndPreferred / sizeof(unsigned long);
@@ -844,7 +884,6 @@ VirtualAllocExNuma(
 
                 int st = mbind(result, dwSize, MPOL_PREFERRED, nodeMask, g_highestNumaNode, 0);
 
-                free(nodeMask);
                 _ASSERTE(st == 0);
                 // If the mbind fails, we still return the allocated memory since the nndPreferred is just a hint
             }
@@ -866,4 +905,116 @@ VirtualAllocExNuma(
     PERF_EXIT(VirtualAllocExNuma);
 
     return result;
+}
+
+/*++
+Function:
+  SetThreadIdealProcessorEx
+
+See MSDN doc.
+--*/
+BOOL
+PALAPI
+SetThreadIdealProcessorEx(
+  IN HANDLE hThread,
+  IN PPROCESSOR_NUMBER lpIdealProcessor,
+  OUT PPROCESSOR_NUMBER lpPreviousIdealProcessor)
+{
+    PERF_ENTRY(SetThreadIdealProcessorEx);
+    ENTRY("SetThreadIdealProcessorEx(hThread=%p, lpIdealProcessor=%p)\n", hThread, lpIdealProcessor);
+
+    CPalThread *pCurrentThread = InternalGetCurrentThread();
+    CPalThread *pTargetThread = NULL;
+    IPalObject *pTargetThreadObject = NULL;
+
+    PAL_ERROR palErr =
+        InternalGetThreadDataFromHandle(pCurrentThread, hThread,
+                                        0, // THREAD_SET_CONTEXT
+                                        &pTargetThread, &pTargetThreadObject);
+
+    if (NO_ERROR != palErr)
+    {
+        ERROR("Unable to obtain thread data for handle %p (error %x)!\n", hThread,
+              palErr);
+        return 0;
+    }
+
+    pthread_t thread = pTargetThread->GetPThreadSelf();
+
+#if HAVE_PTHREAD_GETAFFINITY_NP
+    int cpu = -1;
+    if ((lpIdealProcessor->Group < g_groupCount) &&
+        (lpIdealProcessor->Number < MaxCpusPerGroup) &&
+        (lpIdealProcessor->Reserved == 0))
+    {
+        cpu = g_groupAndIndexToCpu[lpIdealProcessor->Group * MaxCpusPerGroup + lpIdealProcessor->Number];
+    }
+
+    if (cpu == -1)
+    {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return FALSE;
+    }
+
+    if (lpPreviousIdealProcessor != NULL)
+    {
+        cpu_set_t prevCpuSet;
+        CPU_ZERO(&prevCpuSet);
+        DWORD prevCpu = GetCurrentProcessorNumber();
+
+        int st = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &prevCpuSet);
+
+        if (st == 0)
+        {
+            for (int i = 0; i < g_possibleCpuCount; i++)
+            {
+                if (CPU_ISSET(i, &prevCpuSet))
+                {
+                    prevCpu = i;
+                    break;
+                }
+            }
+        }
+
+        _ASSERTE(prevCpu < g_possibleCpuCount);
+        lpPreviousIdealProcessor->Group = g_cpuToAffinity[prevCpu].Group;
+        lpPreviousIdealProcessor->Number = g_cpuToAffinity[prevCpu].Number;
+        lpPreviousIdealProcessor->Reserved = 0;
+    }
+
+    cpu_set_t cpuSet;
+    CPU_ZERO(&cpuSet);
+    CPU_SET(cpu, &cpuSet);
+
+    int st = pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuSet);
+
+    if (st != 0)
+    {
+        switch (st)
+        {
+        case EINVAL:
+            // There is no processor in the mask that is allowed to execute the
+            // process
+            SetLastError(ERROR_INVALID_PARAMETER);
+            break;
+        case ESRCH:
+            SetLastError(ERROR_INVALID_HANDLE);
+            break;
+        default:
+            SetLastError(ERROR_GEN_FAILURE);
+            break;
+        }
+    }
+
+    BOOL success = (st == 0);
+
+#else  // HAVE_PTHREAD_GETAFFINITY_NP
+    // There is no API to manage thread affinity, so let's ignore the request
+    BOOL success = FALSE;
+#endif // HAVE_PTHREAD_GETAFFINITY_NP
+
+    LOGEXIT("SetThreadIdealProcessorEx returns BOOL %d\n", success);
+    PERF_EXIT(SetThreadIdealProcessorEx);
+
+    return success;
 }

@@ -14,7 +14,6 @@
 #include "eventtrace.h"
 #include "posterror.h"
 #include "eemessagebox.h"
-#include "newapis.h"
 
 #include <shlobj.h>
 
@@ -1854,9 +1853,10 @@ fDone:
 
 #endif // _TARGET_X86_ || _TARGET_AMD64_
 
-size_t GetLargestOnDieCacheSize(BOOL bTrueSize)
+// fix this if/when AMD does multicore or SMT
+size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
 {
-    // No CONTRACT possible because GetLargestOnDieCacheSize uses SEH
+    // No CONTRACT possible because GetCacheSizePerLogicalCpu uses SEH
 
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -1909,6 +1909,31 @@ size_t GetLargestOnDieCacheSize(BOOL bTrueSize)
                         {                    // deterministic enumeration failed, fallback to legacy enumeration using descriptor values            
                             tempSize = GetIntelDescriptorValuesCache();   
                         }   
+                    }
+
+                    // TODO: Currently GetLogicalCpuCountFromOS() and GetLogicalCpuCountFallback() are broken on 
+                    // multi-core processor, but we never call into those two functions since we don't halve the
+                    // gen0size when it's prescott and above processor. We keep the old version here for earlier
+                    // generation system(Northwood based), perf data suggests on those systems, halve gen0 size 
+                    // still boost the performance(ex:Biztalk boosts about 17%). So on earlier systems(Northwood) 
+                    // based, we still go ahead and halve gen0 size.  The logic in GetLogicalCpuCountFromOS() 
+                    // and GetLogicalCpuCountFallback() works fine for those earlier generation systems. 
+                    // If it's a Prescott and above processor or Multi-core, perf data suggests not to halve gen0 
+                    // size at all gives us overall better performance. 
+                    // This is going to be fixed with a new version in orcas time frame.
+                    if (maxCpuId >= 2 && !((maxCpuId > 3) && (maxCpuId < 0x80000000)))
+                    {
+                        DWORD logicalProcessorCount = GetLogicalCpuCountFromOS(); //try to obtain HT enumeration from OS API
+
+                        if (!logicalProcessorCount)
+                        {
+                            logicalProcessorCount = GetLogicalCpuCountFallback();    // OS API failed, Fallback to HT enumeration using CPUID
+                        }
+
+                        if (logicalProcessorCount)
+                        {
+                            tempSize = tempSize / logicalProcessorCount;
+                        }
                     }
 
                     // update maxSize once with final value
@@ -2009,7 +2034,7 @@ size_t GetLargestOnDieCacheSize(BOOL bTrueSize)
     maxSize = maxTrueSize * 3;
 #endif
 
-    //    printf("GetLargestOnDieCacheSize returns %d, adjusted size %d\n", maxSize, maxTrueSize);
+    //    printf("GetCacheSizePerLogicalCpu returns %d, adjusted size %d\n", maxSize, maxTrueSize);
     if (bTrueSize)
         return maxTrueSize;
     else
@@ -2021,11 +2046,7 @@ size_t GetLargestOnDieCacheSize(BOOL bTrueSize)
 #ifndef FEATURE_PAL
 ThreadLocaleHolder::~ThreadLocaleHolder()
 {
-#ifdef FEATURE_USE_LCID
-#endif // FEATURE_USE_LCID
-    {
-        SetThreadLocale(m_locale);
-    }
+    SetThreadLocale(m_locale);
 }
 
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
@@ -2849,7 +2870,7 @@ void InitializeClrNotifications()
 #endif // FEATURE_GDBJIT
 
 // called from the runtime
-void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
+void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation)
 {
     CONTRACTL
     {
@@ -2860,8 +2881,8 @@ void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr)
     }
     CONTRACTL_END;
 
-    TADDR Args[2] = { JIT_NOTIFICATION, (TADDR) MethodDescPtr };
-    DACNotifyExceptionHelper(Args, 2);
+    TADDR Args[3] = { JIT_NOTIFICATION2, (TADDR) MethodDescPtr, NativeCodeLocation };
+    DACNotifyExceptionHelper(Args, 3);
 }
 
 void DACNotify::DoJITPitchingNotification(MethodDesc *MethodDescPtr)
@@ -2986,16 +3007,17 @@ int DACNotify::GetType(TADDR Args[])
     // Type is an enum, and will thus fit into an int.
     return static_cast<int>(Args[0]);
 }
-    
-BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr)
+
+BOOL DACNotify::ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation)
 {
-    _ASSERTE(Args[0] == JIT_NOTIFICATION);
-    if (Args[0] != JIT_NOTIFICATION)
+    _ASSERTE(Args[0] == JIT_NOTIFICATION2);
+    if (Args[0] != JIT_NOTIFICATION2)
     {
         return FALSE;
     }
 
     MethodDescPtr = Args[1];
+    NativeCodeLocation = Args[2];
 
     return TRUE;
 }
@@ -3436,7 +3458,7 @@ INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) L
     }
 
     //Do the casing operation
-    NewApis::LCMapStringEx(W(""), LCMAP_LOWERCASE, szInWide, wideCopyLen, szWideOut, wideCopyLen, NULL, NULL, 0);
+    ::LCMapStringEx(W(""), LCMAP_LOWERCASE, szInWide, wideCopyLen, szWideOut, wideCopyLen, NULL, NULL, 0);
 
     //Convert the Unicode back to UTF8
     result = WszWideCharToMultiByte(CP_UTF8, 0, szWideOut, wideCopyLen, szOut, cMaxBytes, NULL, NULL);

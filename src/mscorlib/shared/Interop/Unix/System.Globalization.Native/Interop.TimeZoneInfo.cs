@@ -7,11 +7,8 @@ using System.Text;
 
 internal static partial class Interop
 {
-    internal static partial class GlobalizationInterop
+    internal static partial class Globalization
     {
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Ansi, EntryPoint = "GlobalizationNative_ReadLink")] // readlink requires char*
-        internal static extern bool ReadLink(string filePath, [Out] StringBuilder result, uint resultCapacity);
-
         // needs to be kept in sync with TimeZoneDisplayNameType in System.Globalization.Native
         internal enum TimeZoneDisplayNameType
         {
@@ -20,7 +17,7 @@ internal static partial class Interop
             DaylightSavings = 2,
         }
 
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_GetTimeZoneDisplayName")]
+        [DllImport(Libraries.GlobalizationNative, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_GetTimeZoneDisplayName")]
         internal static extern ResultCode GetTimeZoneDisplayName(
             string localeName, 
             string timeZoneId, 

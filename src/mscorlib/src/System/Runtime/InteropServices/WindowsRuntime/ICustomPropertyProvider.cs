@@ -7,12 +7,13 @@
 using System;
 using System.StubHelpers;
 using System.Reflection;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Security;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -25,10 +26,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Creates a ICustomProperty implementation for Jupiter
         // Called from ICustomPropertyProvider_GetProperty from within runtime
         //
-        static internal ICustomProperty CreateProperty(object target, string propertyName)
+        internal static ICustomProperty CreateProperty(object target, string propertyName)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
             if (proxy != null)
@@ -49,10 +50,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Creates a ICustomProperty implementation for Jupiter
         // Called from ICustomPropertyProvider_GetIndexedProperty from within runtime
         //               
-        static internal unsafe ICustomProperty CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
+        internal static unsafe ICustomProperty CreateIndexedProperty(object target, string propertyName, TypeNameNative* pIndexedParamType)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             Type indexedParamType = null;
             SystemTypeMarshaler.ConvertToManaged(pIndexedParamType, ref indexedParamType);
@@ -60,10 +61,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return CreateIndexedProperty(target, propertyName, indexedParamType);
         }
 
-        static internal ICustomProperty CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
+        internal static ICustomProperty CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
         {
-            Contract.Requires(target != null);
-            Contract.Requires(propertyName != null);
+            Debug.Assert(target != null);
+            Debug.Assert(propertyName != null);
 
             IGetProxyTarget proxy = target as IGetProxyTarget;
             if (proxy != null)
@@ -85,7 +86,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return new CustomPropertyImpl(propertyInfo);
         }
 
-        static internal unsafe void GetType(object target, TypeNameNative* pIndexedParamType)
+        internal static unsafe void GetType(object target, TypeNameNative* pIndexedParamType)
         {
             IGetProxyTarget proxy = target as IGetProxyTarget;
             if (proxy != null)
@@ -243,7 +244,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // IBindableVector implementation (forwards to IBindableVector / IVector<T>)
         //        
-        [Pure]
         object IBindableVector.GetAt(uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -259,7 +259,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         uint IBindableVector.Size
         {
             get
@@ -278,7 +277,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         IBindableVectorView IBindableVector.GetView()
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -303,13 +301,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 _vectorView = vectorView;
             }
 
-            [Pure]
             object IBindableVectorView.GetAt(uint index)
             {
                 return _vectorView.GetAt(index);
             }
 
-            [Pure]
             uint IBindableVectorView.Size
             {
                 get
@@ -318,7 +314,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            [Pure]
             bool IBindableVectorView.IndexOf(object value, out uint index)
             {
                 return _vectorView.IndexOf(ConvertTo<T>(value), out index);
@@ -330,7 +325,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         bool IBindableVector.IndexOf(object value, out uint index)
         {
             IBindableVector bindableVector = GetIBindableVectorNoThrow();
@@ -439,7 +433,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         private IBindableVector GetIBindableVectorNoThrow()
         {
             if ((_flags & InterfaceForwardingSupport.IBindableVector) != 0)
-                return JitHelpers.UnsafeCast<IBindableVector>(_target);
+                return Unsafe.As<IBindableVector>(_target);
             else
                 return null;
         }
@@ -447,7 +441,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         private IVector_Raw<T1> GetVectorOfT()
         {
             if ((_flags & InterfaceForwardingSupport.IVector) != 0)
-                return JitHelpers.UnsafeCast<IVector_Raw<T1>>(_target);
+                return Unsafe.As<IVector_Raw<T1>>(_target);
             else
                 throw new InvalidOperationException();  // We should not go down this path, unless Jupiter pass this out to managed code
                                                         // and managed code use reflection to do the cast
@@ -456,7 +450,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         //
         // IBindableVectorView implementation (forwarding to IBindableVectorView or IVectorView<T>)
         //
-        [Pure]
         object IBindableVectorView.GetAt(uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
@@ -466,7 +459,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return GetVectorViewOfT().GetAt(index);
         }
 
-        [Pure]
         uint IBindableVectorView.Size
         {
             get
@@ -479,7 +471,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [Pure]
         bool IBindableVectorView.IndexOf(object value, out uint index)
         {
             IBindableVectorView bindableVectorView = GetIBindableVectorViewNoThrow();
@@ -513,7 +504,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         private IBindableVectorView GetIBindableVectorViewNoThrow()
         {
             if ((_flags & InterfaceForwardingSupport.IBindableVectorView) != 0)
-                return JitHelpers.UnsafeCast<IBindableVectorView>(_target);
+                return Unsafe.As<IBindableVectorView>(_target);
             else
                 return null;
         }
@@ -521,7 +512,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         private IVectorView<T2> GetVectorViewOfT()
         {
             if ((_flags & InterfaceForwardingSupport.IVectorView) != 0)
-                return JitHelpers.UnsafeCast<IVectorView<T2>>(_target);
+                return Unsafe.As<IVectorView<T2>>(_target);
             else
                 throw new InvalidOperationException();  // We should not go down this path, unless Jupiter pass this out to managed code
                                                         // and managed code use reflection to do the cast

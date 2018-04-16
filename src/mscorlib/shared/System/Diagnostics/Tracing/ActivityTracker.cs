@@ -248,11 +248,6 @@ namespace System.Diagnostics.Tracing
         #region private
 
         /// <summary>
-        /// The current activity ID.  Use this to log normal events.  
-        /// </summary>
-        private Guid CurrentActivityId { get { return m_current.Value.ActivityId; } }
-
-        /// <summary>
         /// Searched for a active (nonstopped) activity with the given name.  Returns null if not found.  
         /// </summary>
         private ActivityInfo FindActiveActivity(string name, ActivityInfo startLocation)
@@ -525,7 +520,7 @@ namespace System.Diagnostics.Tracing
             /// </summary>
             private static unsafe void WriteNibble(ref byte* ptr, byte* endPtr, uint value)
             {
-                Debug.Assert(0 <= value && value < 16);
+                Debug.Assert(value < 16);
                 Debug.Assert(ptr < endPtr);
 
                 if (*ptr != 0)

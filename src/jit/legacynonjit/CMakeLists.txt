@@ -6,7 +6,8 @@ add_definitions(-DSELF_NO_HOST)
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 
 remove_definitions(-DFEATURE_SIMD)
-remove_definitions(-DFEATURE_AVX_SUPPORT)
+
+remove_definitions(-DFEATURE_HW_INTRINSICS)
 
 add_definitions(-DLEGACY_BACKEND)
 
@@ -35,7 +36,7 @@ set_property(TARGET legacynonjit APPEND_STRING PROPERTY LINK_DEPENDS ${JIT_EXPOR
 
 set(RYUJIT_LINK_LIBRARIES
    utilcodestaticnohost
-   gcinfo
+   gcinfo_arm
 )
 
 if(CLR_CMAKE_PLATFORM_UNIX)

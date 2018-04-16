@@ -17,6 +17,8 @@ using System.Runtime.Serialization;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial class BadImageFormatException : SystemException
     {
         private String _fileName;  // The name of the corrupt PE file.
@@ -25,43 +27,46 @@ namespace System
         public BadImageFormatException()
             : base(SR.Arg_BadImageFormatException)
         {
-            HResult = __HResults.COR_E_BADIMAGEFORMAT;
+            HResult = HResults.COR_E_BADIMAGEFORMAT;
         }
 
         public BadImageFormatException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_BADIMAGEFORMAT;
+            HResult = HResults.COR_E_BADIMAGEFORMAT;
         }
 
         public BadImageFormatException(String message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_BADIMAGEFORMAT;
+            HResult = HResults.COR_E_BADIMAGEFORMAT;
         }
 
         public BadImageFormatException(String message, String fileName) : base(message)
         {
-            HResult = __HResults.COR_E_BADIMAGEFORMAT;
+            HResult = HResults.COR_E_BADIMAGEFORMAT;
             _fileName = fileName;
         }
 
         public BadImageFormatException(String message, String fileName, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_BADIMAGEFORMAT;
+            HResult = HResults.COR_E_BADIMAGEFORMAT;
             _fileName = fileName;
         }
 
         protected BadImageFormatException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            _fileName = info.GetString("BadImageFormat_FileName");
+            _fusionLog = info.GetString("BadImageFormat_FusionLog");
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("BadImageFormat_FileName", _fileName, typeof(string));
+            info.AddValue("BadImageFormat_FusionLog", _fusionLog, typeof(string));
         }
 
         public override String Message
@@ -78,7 +83,7 @@ namespace System
             if (_message == null)
             {
                 if ((_fileName == null) &&
-                    (HResult == __HResults.COR_E_EXCEPTION))
+                    (HResult == HResults.COR_E_EXCEPTION))
                     _message = SR.Arg_BadImageFormatException;
 
                 else

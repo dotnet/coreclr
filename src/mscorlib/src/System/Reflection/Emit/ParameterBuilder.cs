@@ -16,7 +16,6 @@
 using System.Runtime.InteropServices;
 using System;
 using System.Reflection;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {
@@ -40,7 +39,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(
                 m_methodBuilder.GetModuleBuilder(),
@@ -57,15 +55,8 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
             customBuilder.CreateCustomAttribute((ModuleBuilder)(m_methodBuilder.GetModule()), m_pdToken.Token);
         }
-
-        //*******************************
-        // Make a private constructor so these cannot be constructed externally.
-        //*******************************
-        private ParameterBuilder() { }
-
 
         internal ParameterBuilder(
             MethodBuilder methodBuilder,

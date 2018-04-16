@@ -11,8 +11,6 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define FEATURE_REDHAWK 1
-
 #define REDHAWK_PALIMPORT extern "C"
 #define REDHAWK_PALAPI __stdcall
 
@@ -45,6 +43,7 @@
 typedef int BOOL;
 typedef uint32_t DWORD;
 typedef uint64_t DWORD64;
+typedef uint32_t ULONG;
 
 // -----------------------------------------------------------------------------------------------------------
 // HRESULT subset.
@@ -207,6 +206,16 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
 #endif // defined(__i386__) || defined(__x86_64__)
 
+#ifdef __aarch64__
+ #define YieldProcessor() asm volatile ("yield")
+ #define MemoryBarrier __sync_synchronize
+#endif // __aarch64__
+
+#ifdef __arm__
+ #define YieldProcessor()
+ #define MemoryBarrier __sync_synchronize
+#endif // __arm__
+
 #endif // _MSC_VER
 
 #ifdef _MSC_VER
@@ -244,12 +253,18 @@ inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
     uint32_t hi = (mask >> 32) & 0xFFFFFFFF;
     uint32_t lo = mask & 0xFFFFFFFF;
     uint32_t fakeBitIndex = 0;
-    if (BitScanForward(&fakeBitIndex, hi))
+    
+    uint8_t result = BitScanForward(bitIndex, lo);
+    if (result == 0)
     {
-        *bitIndex = fakeBitIndex + 32;
+        result = BitScanForward(&fakeBitIndex, hi);
+        if (result != 0)
+        {
+            *bitIndex = fakeBitIndex + 32;
+        }
     }
 
-    return BitScanForward(bitIndex, lo);
+    return result;
  #else
     return _BitScanForward64((unsigned long*)bitIndex, mask);
  #endif // _WIN32
@@ -309,6 +324,11 @@ inline void* ALIGN_DOWN(void* ptr, size_t alignment)
 {
     size_t as_size_t = reinterpret_cast<size_t>(ptr);
     return reinterpret_cast<void*>(ALIGN_DOWN(as_size_t, alignment));
+}
+
+inline int GetRandomInt(int max)
+{
+    return rand() % max;
 }
 
 typedef struct _PROCESSOR_NUMBER {
@@ -417,131 +437,7 @@ typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
 
 #define VALIDATEOBJECTREF(_objref) (void)_objref;
 
-#define VOLATILE(T) T volatile
-
-//
-// This code is extremely compiler- and CPU-specific, and will need to be altered to 
-// support new compilers and/or CPUs.  Here we enforce that we can only compile using
-// VC++, or Clang on x86, AMD64, ARM and ARM64.
-// 
-#if !defined(_MSC_VER) && !defined(__clang__)
-#error The Volatile type is currently only defined for Visual C++ and Clang
-#endif
-
-#if defined(__clang__) && !defined(_X86_) && !defined(_AMD64_) && !defined(_ARM_) && !defined(_ARM64_)
-#error The Volatile type is currently only defined for Clang when targeting x86, AMD64, ARM or ARM64 CPUs
-#endif
-
-#if defined(__clang__)
-#if defined(_ARM_) || defined(_ARM64_)
-// This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
-#define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb ish" : : : "memory")
-#else
-//
-// For Clang, we prevent reordering by the compiler by inserting the following after a volatile
-// load (to prevent subsequent operations from moving before the read), and before a volatile 
-// write (to prevent prior operations from moving past the write).  We don't need to do anything
-// special to prevent CPU reorderings, because the x86 and AMD64 architectures are already
-// sufficiently constrained for our purposes.  If we ever need to run on weaker CPU architectures
-// (such as PowerPC), then we will need to do more work.
-// 
-// Please do not use this macro outside of this file.  It is subject to change or removal without
-// notice.
-//
-#define VOLATILE_MEMORY_BARRIER() asm volatile ("" : : : "memory")
-#endif // !_ARM_
-#elif defined(_ARM_) && _ISO_VOLATILE
-// ARM has a very weak memory model and very few tools to control that model. We're forced to perform a full
-// memory barrier to preserve the volatile semantics. Technically this is only necessary on MP systems but we
-// currently don't have a cheap way to determine the number of CPUs from this header file. Revisit this if it
-// turns out to be a performance issue for the uni-proc case.
-#define VOLATILE_MEMORY_BARRIER() MemoryBarrier()
-#else
-//
-// On VC++, reorderings at the compiler and machine level are prevented by the use of the 
-// "volatile" keyword in VolatileLoad and VolatileStore.  This should work on any CPU architecture
-// targeted by VC++ with /iso_volatile-.
-//
-#define VOLATILE_MEMORY_BARRIER()
-#endif
-
-//
-// VolatileLoad loads a T from a pointer to T.  It is guaranteed that this load will not be optimized
-// away by the compiler, and that any operation that occurs after this load, in program order, will
-// not be moved before this load.  In general it is not guaranteed that the load will be atomic, though
-// this is the case for most aligned scalar data types.  If you need atomic loads or stores, you need
-// to consult the compiler and CPU manuals to find which circumstances allow atomicity.
-//
-template<typename T>
-inline
-T VolatileLoad(T const * pt)
-{
-#if defined(_ARM64_) && defined(__clang__)
-    T val;
-    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
-    if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
-    {
-        __atomic_load((T volatile const *)pt, &val, __ATOMIC_ACQUIRE);
-    }
-    else
-    {
-        val = *(T volatile const *)pt;
-        asm volatile ("dmb ishld" : : : "memory");
-    }
-#else
-    T val = *(T volatile const *)pt;
-    VOLATILE_MEMORY_BARRIER();
-#endif
-    return val;
-}
-
-template<typename T>
-inline
-T VolatileLoadWithoutBarrier(T const * pt)
-{
-#ifndef DACCESS_COMPILE
-    T val = *(T volatile const *)pt;
-#else
-    T val = *pt;
-#endif
-    return val;
-}
-
-//
-// VolatileStore stores a T into the target of a pointer to T.  Is is guaranteed that this store will
-// not be optimized away by the compiler, and that any operation that occurs before this store, in program
-// order, will not be moved after this store.  In general, it is not guaranteed that the store will be
-// atomic, though this is the case for most aligned scalar data types.  If you need atomic loads or stores,
-// you need to consult the compiler and CPU manuals to find which circumstances allow atomicity.
-//
-template<typename T>
-inline
-void VolatileStore(T* pt, T val)
-{
-#if defined(_ARM64_) && defined(__clang__)
-    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
-    if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
-    {
-        __atomic_store((T volatile *)pt, &val, __ATOMIC_RELEASE);
-    }
-    else
-    {
-        VOLATILE_MEMORY_BARRIER();
-        *(T volatile *)pt = val;
-    }
-#else
-    VOLATILE_MEMORY_BARRIER();
-    *(T volatile *)pt = val;
-#endif
-}
-
 class Thread;
-
-inline bool IsGCSpecialThread()
-{
-    // [LOCALGC TODO] this is not correct
-    return false;
-}
 
 inline bool dbgOnly_IsSpecialEEThread()
 {
@@ -570,12 +466,6 @@ namespace ETW
         GC_ROOT_OVERFLOW = 5
     } GC_ROOT_KIND;
 };
-
-inline bool IsGCThread()
-{
-    // [LOCALGC TODO] this is not correct
-    return false;
-}
 
 inline bool FitsInU1(uint64_t val)
 {

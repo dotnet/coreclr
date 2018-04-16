@@ -340,7 +340,7 @@ private:
     ReJITID m_rejitId;
     PTR_ILCodeVersionNode m_pNextILVersionNode;
     Volatile<ILCodeVersion::RejitFlags> m_rejitState;
-    VolatilePtr<COR_ILMETHOD> m_pIL;
+    VolatilePtr<COR_ILMETHOD, PTR_COR_ILMETHOD> m_pIL;
     Volatile<DWORD> m_jitFlags;
     InstrumentedILOffsetMapping m_instrumentedILMap;
 };
@@ -492,7 +492,7 @@ public:
         return (count_t)(size_t)dac_cast<TADDR>(k);
     }
 
-    static const element_t Null() { LIMITED_METHOD_CONTRACT; return element_t(); }
+    static const element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_MethodDescVersioningState>(nullptr); }
     static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
 };
 
@@ -554,7 +554,7 @@ public:
         return (count_t)k.Hash();
     }
 
-    static const element_t Null() { LIMITED_METHOD_CONTRACT; return element_t(); }
+    static const element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_ILCodeVersioningState>(nullptr); }
     static bool IsNull(const element_t &e) { LIMITED_METHOD_CONTRACT; return e == NULL; }
 };
 

@@ -126,8 +126,10 @@ DEFINE_DACVAR(ULONG, BOOL, SystemDomain__s_fForceProfiling, SystemDomain::s_fFor
 DEFINE_DACVAR(ULONG, BOOL, SystemDomain__s_fForceInstrument, SystemDomain::s_fForceInstrument)
 DEFINE_DACVAR(ULONG, PTR_SharedDomain, SharedDomain__m_pSharedDomain, SharedDomain::m_pSharedDomain)
 
-
-DEFINE_DACVAR(ULONG, DWORD, CExecutionEngine__TlsIndex, CExecutionEngine::TlsIndex)
+#ifdef FEATURE_INTEROP_DEBUGGING
+DEFINE_DACVAR(ULONG, DWORD, dac__g_debuggerWordTLSIndex, g_debuggerWordTLSIndex)
+#endif
+DEFINE_DACVAR(ULONG, DWORD, dac__g_TlsIndex, g_TlsIndex)
 
 #if defined(FEATURE_WINDOWSPHONE)
 DEFINE_DACVAR(ULONG, int, CCLRErrorReportingManager__g_ECustomDumpFlavor, CCLRErrorReportingManager::g_ECustomDumpFlavor)
@@ -149,11 +151,6 @@ DEFINE_DACVAR(ULONG, BOOL, StackwalkCache__s_Enabled, StackwalkCache::s_Enabled)
 DEFINE_DACVAR(ULONG, PTR_JITNotification, dac__g_pNotificationTable, ::g_pNotificationTable)
 DEFINE_DACVAR(ULONG, ULONG32, dac__g_dacNotificationFlags, ::g_dacNotificationFlags)
 DEFINE_DACVAR(ULONG, PTR_GcNotification, dac__g_pGcNotificationTable, ::g_pGcNotificationTable)
-
-#ifndef FEATURE_IMPLICIT_TLS
-DEFINE_DACVAR(ULONG, DWORD, dac__gThreadTLSIndex, ::gThreadTLSIndex)
-DEFINE_DACVAR(ULONG, DWORD, dac__gAppDomainTLSIndex, ::gAppDomainTLSIndex)
-#endif
 
 DEFINE_DACVAR(ULONG, PTR_EEConfig, dac__g_pConfig, ::g_pConfig)
 
@@ -217,12 +214,12 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pDebugger, ::g_pDebugger)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pDebugInterface, ::g_pDebugInterface)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pEEDbgInterfaceImpl, ::g_pEEDbgInterfaceImpl)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pEEInterface, ::g_pEEInterface)
+DEFINE_DACVAR(ULONG, ULONG, dac__CLRJitAttachState, ::CLRJitAttachState)
 
 DEFINE_DACVAR(ULONG, BOOL, Debugger__s_fCanChangeNgenFlags, Debugger::s_fCanChangeNgenFlags)
 
 DEFINE_DACVAR(ULONG, PTR_DebuggerPatchTable, DebuggerController__g_patches, DebuggerController::g_patches)
 DEFINE_DACVAR(ULONG, BOOL, DebuggerController__g_patchTableValid, DebuggerController::g_patchTableValid)
-
 
 DEFINE_DACVAR(ULONG, SIZE_T, dac__gLowestFCall, ::gLowestFCall)
 DEFINE_DACVAR(ULONG, SIZE_T, dac__gHighestFCall, ::gHighestFCall)
@@ -261,8 +258,6 @@ DEFINE_DACVAR(ULONG, HRESULT, dac__g_hrFatalError, ::g_hrFatalError)
 #if defined(DEBUGGING_SUPPORTED) && defined (FEATURE_PREJIT)
     DEFINE_DACVAR(ULONG, DWORD, PEFile__s_NGENDebugFlags, PEFile::s_NGENDebugFlags)
 #endif //defined(DEBUGGING_SUPPORTED) && defined (FEATURE_PREJIT)
-
-
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 DEFINE_DACVAR(ULONG, DWORD, dac__g_MiniMetaDataBuffMaxSize, ::g_MiniMetaDataBuffMaxSize)

@@ -272,6 +272,7 @@ public:
     DWORD         SpinLimitProcFactor(void)       const {LIMITED_METHOD_CONTRACT;  return dwSpinLimitProcFactor; }
     DWORD         SpinLimitConstant(void)         const {LIMITED_METHOD_CONTRACT;  return dwSpinLimitConstant; }
     DWORD         SpinRetryCount(void)            const {LIMITED_METHOD_CONTRACT;  return dwSpinRetryCount; }
+    DWORD         MonitorSpinCount(void)          const {LIMITED_METHOD_CONTRACT;  return dwMonitorSpinCount; }
 
     // Jit-config
     
@@ -284,6 +285,10 @@ public:
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
     bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
+    bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
+    DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
+    DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -315,9 +320,7 @@ public:
 
     bool LegacyNullReferenceExceptionPolicy(void)   const {LIMITED_METHOD_CONTRACT;  return fLegacyNullReferenceExceptionPolicy; }
     bool LegacyUnhandledExceptionPolicy(void)       const {LIMITED_METHOD_CONTRACT;  return fLegacyUnhandledExceptionPolicy; }
-    bool LegacyVirtualMethodCallVerification(void)  const {LIMITED_METHOD_CONTRACT;  return fLegacyVirtualMethodCallVerification; }
 
-    bool LegacyApartmentInitPolicy(void)            const {LIMITED_METHOD_CONTRACT;  return fLegacyApartmentInitPolicy; }
     bool LegacyComHierarchyVisibility(void)         const {LIMITED_METHOD_CONTRACT;  return fLegacyComHierarchyVisibility; }
     bool LegacyComVTableLayout(void)                const {LIMITED_METHOD_CONTRACT;  return fLegacyComVTableLayout; }
     bool NewComVTableLayout(void)                   const {LIMITED_METHOD_CONTRACT;  return fNewComVTableLayout; }
@@ -862,13 +865,11 @@ private: //----------------------------------------------------------------
 
     bool fLegacyNullReferenceExceptionPolicy; // Old AV's as NullRef behavior
     bool fLegacyUnhandledExceptionPolicy;     // Old unhandled exception policy (many are swallowed)
-    bool fLegacyVirtualMethodCallVerification;  // Old (pre-whidbey) policy for call (nonvirt) of virtual function
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     bool fLegacyCorruptedStateExceptionsPolicy;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-    bool fLegacyApartmentInitPolicy;          // Old nondeterministic COM apartment initialization switch
     bool fLegacyComHierarchyVisibility;       // Old behavior allowing QIs for classes with invisible parents
     bool fLegacyComVTableLayout;              // Old behavior passing out IClassX interface for IUnknown and IDispatch.
     bool fNewComVTableLayout;                 // New behavior passing out Basic interface for IUnknown and IDispatch.
@@ -911,8 +912,6 @@ private: //----------------------------------------------------------------
     LPUTF8 pszBreakOnInteropStubSetup;   // Halt before we set up the interop stub for a method
     LPUTF8 pszBreakOnComToClrNativeInfoInit; // Halt before we init the native info for a COM to CLR call
     LPUTF8 pszBreakOnStructMarshalSetup; // Halt before the field marshallers are set up for a struct
-
-    bool   fAppDomainLeaks;             // Enable appdomain leak detection for object refs
 
     bool   m_fAssertOnBadImageFormat;   // If false, don't assert on invalid IL (for testing)
     bool   m_fAssertOnFailFast;         // If false, don't assert if we detect a stack corruption
@@ -980,6 +979,7 @@ private: //----------------------------------------------------------------
     DWORD dwSpinLimitProcFactor;
     DWORD dwSpinLimitConstant;
     DWORD dwSpinRetryCount;
+    DWORD dwMonitorSpinCount;
 
 #ifdef VERIFY_HEAP
     int  iGCHeapVerify;
@@ -1111,6 +1111,10 @@ private: //----------------------------------------------------------------
 
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
+    bool fTieredCompilation_CallCounting;
+    bool fTieredCompilation_OptimizeTier0;
+    DWORD tieredCompilation_tier1CallCountThreshold;
+    DWORD tieredCompilation_tier1CallCountingDelayMs;
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

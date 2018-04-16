@@ -1,4 +1,4 @@
-# Require at least version 2.8.12 of CMake
+# Verify minimum required version
 cmake_minimum_required(VERSION 2.8.12)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
@@ -23,6 +23,7 @@ endif (WIN32)
 set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
+set(GENERATED_EVENTING_DIR ${CMAKE_CURRENT_BINARY_DIR}/eventing)
 set(VERSION_FILE_PATH "${CMAKE_BINARY_DIR}/version.cpp")
 
 set(CORECLR_SET_RPATH ON)
@@ -35,7 +36,7 @@ OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
 
 # Ensure that python is present
-find_program(PYTHON python)
+find_program(PYTHON NAMES python2.7 python2 python)
 if (PYTHON STREQUAL "PYTHON-NOTFOUND")
     message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
 endif()
@@ -43,7 +44,7 @@ endif()
 # Ensure other tools are present
 if (WIN32)
     if(CLR_CMAKE_HOST_ARCH STREQUAL arm)
-      
+
       # Confirm that Windows SDK is present
       if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION OR CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION STREQUAL "" )
 	      message(FATAL_ERROR "Windows SDK is required for the Arm32 build.")
@@ -57,9 +58,9 @@ if (WIN32)
       else()
         file(TO_CMAKE_PATH "$ENV{VCToolsInstallDir}\\bin\\HostX86\\arm\\armasm.exe" CMAKE_ASM_COMPILER)
       endif()
-      
+
       set(CMAKE_ASM_MASM_COMPILER ${CMAKE_ASM_COMPILER})
-      message("CMAKE_ASM_MASM_COMPILER explicitly set to: ${CMAKE_ASM_MASM_COMPILER}") 
+      message("CMAKE_ASM_MASM_COMPILER explicitly set to: ${CMAKE_ASM_MASM_COMPILER}")
 
       # Enable generic assembly compilation to avoid CMake generate VS proj files that explicitly
       # use ml[64].exe as the assembler.
@@ -75,13 +76,13 @@ if (WIN32)
     endif()
 
     if (CLR_CMAKE_HOST_ARCH STREQUAL arm64)
-      # CMAKE_CXX_COMPILER will default to the compiler installed with 
-      # Visual studio. Overwrite it to the compiler on the path. 
-      # TODO, remove when cmake generator supports Arm64 as a target.  
-      find_program(PATH_CXX_COMPILER cl) 
-      set(CMAKE_CXX_COMPILER ${PATH_CXX_COMPILER})  
-      message("Overwriting the CMAKE_CXX_COMPILER.") 
-      message(CMAKE_CXX_COMPILER found:${CMAKE_CXX_COMPILER}) 
+      # CMAKE_CXX_COMPILER will default to the compiler installed with
+      # Visual studio. Overwrite it to the compiler on the path.
+      # TODO, remove when cmake generator supports Arm64 as a target.
+      find_program(PATH_CXX_COMPILER cl)
+      set(CMAKE_CXX_COMPILER ${PATH_CXX_COMPILER})
+      message("Overwriting the CMAKE_CXX_COMPILER.")
+      message(CMAKE_CXX_COMPILER found:${CMAKE_CXX_COMPILER})
     endif()
 
 else (WIN32)
@@ -92,7 +93,12 @@ else (WIN32)
     if (AWK STREQUAL "AWK-NOTFOUND")
         message(FATAL_ERROR "AWK not found")
     endif()
- 
+
+    # Try to locate the paxctl tool. Failure to find it is not fatal,
+    # but the generated executables won't work on a system where PAX is set
+    # to prevent applications to create executable memory mappings.
+    find_program(PAXCTL paxctl)
+
     if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
       # Ensure that dsymutil and strip are present
@@ -150,7 +156,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         endif()
     else()
         # CMAKE_SYSTEM_PROCESSOR returns the value of `uname -p` on target.
-        # For the AMD/Intel 64bit architecure two different strings are common.
+        # For the AMD/Intel 64bit architecture two different strings are common.
         # Linux and Darwin identify it as "x86_64" while FreeBSD and netbsd uses the
         # "amd64" string. Accept either of the two here.
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
@@ -325,13 +331,13 @@ if (WIN32)
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do not create Side-by-Side Assembly Manifest
 
   if (CLR_CMAKE_PLATFORM_ARCH_ARM)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.02") #windows subsystem - arm minimum is 6.02  
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.02") #windows subsystem - arm minimum is 6.02
   elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.03") #windows subsystem - arm64 minimum is 6.03  
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.03") #windows subsystem - arm64 minimum is 6.03
   else ()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.01") #windows subsystem
   endif ()
-    
+
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DYNAMICBASE") #Use address space layout randomization
@@ -343,6 +349,12 @@ if (WIN32)
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
+
+  # Temporarily disable incremental link due to incremental linking CFG bug crashing crossgen. 
+  # See https://github.com/dotnet/coreclr/issues/12592
+  # This has been fixed in VS 2017 Update 5 but we're keeping this around until everyone is off
+  # the versions that have the bug. The bug manifests itself as a bad crash.
+  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")  
 
   # Debug build specific flags
   set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")
@@ -370,11 +382,11 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /machine:arm64")
   endif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
 
-  # Force uCRT to be dynamically linked for Release build  
-  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")  
-  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")  
-  set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")  
-  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")  
+  # Force uCRT to be dynamically linked for Release build
+  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")
+  set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")
+  set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /NODEFAULTLIB:libucrt.lib /DEFAULTLIB:ucrt.lib")
 
 elseif (CLR_CMAKE_PLATFORM_UNIX)
   # Set the values to display when interactively configuring CMAKE_BUILD_TYPE
@@ -412,6 +424,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
       if (${__ASAN_POS} GREATER -1)
         set(CLR_SANITIZE_CXX_FLAGS "${CLR_SANITIZE_CXX_FLAGS}address,")
         set(CLR_SANITIZE_LINK_FLAGS "${CLR_SANITIZE_LINK_FLAGS}address,")
+        add_definitions(-DHAS_ASAN)
         message("Address Sanitizer (asan) enabled")
       endif ()
       if (${__UBSAN_POS} GREATER -1)
@@ -437,11 +450,23 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(WIN32)
 
-if(CLR_CMAKE_PLATFORM_LINUX)  
+# CLR_ADDITIONAL_LINKER_FLAGS - used for passing additional arguments to linker
+# CLR_ADDITIONAL_COMPILER_OPTIONS - used for passing additional arguments to compiler
+#
+# For example:
+#       ./build-native.sh cmakeargs "-DCLR_ADDITIONAL_COMPILER_OPTIONS=<...>" cmakeargs "-DCLR_ADDITIONAL_LINKER_FLAGS=<...>"
+#
+if(CLR_CMAKE_PLATFORM_UNIX)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CLR_ADDITIONAL_LINKER_FLAGS}" )
+    add_compile_options(${CLR_ADDITIONAL_COMPILER_OPTIONS})
+endif(CLR_CMAKE_PLATFORM_UNIX)
+
+if(CLR_CMAKE_PLATFORM_LINUX)
   set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -Wa,--noexecstack")
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--build-id=sha1")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--build-id=sha1")
-endif(CLR_CMAKE_PLATFORM_LINUX)  
+endif(CLR_CMAKE_PLATFORM_LINUX)
 
 #------------------------------------
 # Definitions (for platform)
@@ -496,9 +521,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     message("Detected FreeBSD amd64")
   endif(CLR_CMAKE_PLATFORM_FREEBSD)
 
-  if(CLR_CMAKE_PLATFORM_NETBSD)  
-    message("Detected NetBSD amd64")  
-  endif(CLR_CMAKE_PLATFORM_NETBSD)  
+  if(CLR_CMAKE_PLATFORM_NETBSD)
+    message("Detected NetBSD amd64")
+  endif(CLR_CMAKE_PLATFORM_NETBSD)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 if (WIN32)
@@ -569,11 +594,18 @@ endif()
 
 # Above projects do not build with these compile options
 # All of the compiler options are specified in file compileoptions.cmake
-# Do not add any new options here. They shoul be added in compileoptions.cmake
+# Do not add any new options here. They should be added in compileoptions.cmake
 if(WIN32)
   add_compile_options(/FIWarningControl.h) # force include of WarningControl.h
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
+
+#------------------------------
+# Add Test Directory
+#------------------------------
+if(CLR_CMAKE_BUILD_TESTS)
+  add_subdirectory(tests)
+endif(CLR_CMAKE_BUILD_TESTS)
 
 #--------------------------------
 # Definition directives
@@ -594,10 +626,6 @@ if(FEATURE_STANDALONE_GC)
   add_subdirectory(src/gc)
 endif(FEATURE_STANDALONE_GC)
 
-if(FEATURE_STANDALONE_GC_ONLY)
-  add_definitions(-DFEATURE_STANDALONE_GC_ONLY)
-endif(FEATURE_STANDALONE_GC_ONLY)
-
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
@@ -606,23 +634,11 @@ endif (CLR_CMAKE_PLATFORM_UNIX)
 
 # Microsoft.Dotnet.BuildTools.Coreclr version
 set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_DIR}/packages/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
+set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory
 #------------------------------
 add_subdirectory(src)
-
-#------------------------------
-# Add Test Directory
-#------------------------------
-if(CLR_CMAKE_BUILD_TESTS)
-  # remove some definitions for test build
-  remove_definitions(-D_SECURE_SCL=0)
-  remove_definitions(-DUNICODE)
-  remove_definitions(-D_UNICODE)
-
-  add_subdirectory(tests)
-endif(CLR_CMAKE_BUILD_TESTS)
 
 include(definitionsconsistencycheck.cmake)

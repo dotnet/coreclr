@@ -12,7 +12,6 @@
 #define __cgencpu_h__
 
 #include "utilcode.h"
-#include "tls.h"
 
 // preferred alignment for data
 #define DATA_ALIGNMENT 4
@@ -29,7 +28,11 @@ class BaseDomain;
 class ZapNode;
 struct ArgLocDesc;
 
+extern PCODE GetPreStubEntryPoint();
+
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 // CPU-dependent functions
 Stub * GenerateInitPInvokeFrameHelper();
@@ -82,9 +85,6 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 
 #define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
 #define CALLDESCR_FPARGREGS                     1   // CallDescrWorker has FloatArgumentRegisters parameter
-
-// Max size of optimized TLS helpers
-#define TLS_GETTER_MAX_SIZE 0x10
 
 // Given a return address retrieved during stackwalk,
 // this is the offset by which it should be decremented to arrive at the callsite.
@@ -552,7 +552,7 @@ public:
         ThumbEmitJumpRegister(thumbRegLr);
     }
 
-    void ThumbEmitGetThread(TLSACCESSMODE mode, ThumbReg dest);
+    void ThumbEmitGetThread(ThumbReg dest);
 
     void ThumbEmitNop()
     {
@@ -1056,19 +1056,15 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #endif
 }
 
-#ifndef FEATURE_IMPLICIT_TLS
 //
 // JIT HELPER ALIASING FOR PORTABILITY.
 //
 // Create alias for optimized implementations of helpers provided on this platform
 //
-// optimized static helpers 
-#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_InlineGetAppDomain
-#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_InlineGetAppDomain
-#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_InlineGetAppDomain
-
-#endif
+#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_SingleAppDomain
+#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
 
 #ifndef FEATURE_PAL
 #define JIT_Stelem_Ref                      JIT_Stelem_Ref
@@ -1118,6 +1114,19 @@ struct StubPrecode {
     {
         LIMITED_METHOD_DAC_CONTRACT; 
         return m_pTarget;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetPreStubEntryPoint());
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
@@ -1211,6 +1220,19 @@ struct FixupPrecode {
     {
         LIMITED_METHOD_DAC_CONTRACT; 
         return m_pTarget;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetEEFuncEntryPoint(PrecodeFixupThunk));
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)

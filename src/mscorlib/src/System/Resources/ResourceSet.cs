@@ -13,16 +13,9 @@
 ** 
 ===========================================================*/
 
-using System;
 using System.Collections;
 using System.IO;
-using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Reflection;
-using System.Runtime.Serialization;
-using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
-using System.Collections.Generic;
 
 namespace System.Resources
 {
@@ -34,7 +27,7 @@ namespace System.Resources
     //
     public class ResourceSet : IDisposable, IEnumerable
     {
-        [NonSerialized] protected IResourceReader Reader;
+        protected IResourceReader Reader;
         internal Hashtable Table;
 
         private Hashtable _caseInsensitiveTable;  // For case-insensitive lookups.
@@ -78,7 +71,6 @@ namespace System.Resources
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            Contract.EndContractBlock();
             Reader = reader;
             CommonInit();
             ReadResources();
@@ -235,7 +227,6 @@ namespace System.Resources
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            Contract.EndContractBlock();
 
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 

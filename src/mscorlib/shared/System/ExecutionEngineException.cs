@@ -21,24 +21,30 @@ using System.Runtime.Serialization;
 namespace System
 {
     [Obsolete("This type previously indicated an unspecified fatal error in the runtime. The runtime no longer raises this exception so this type is obsolete.")]
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class ExecutionEngineException : SystemException
     {
         public ExecutionEngineException()
             : base(SR.Arg_ExecutionEngineException)
         {
-            HResult = __HResults.COR_E_EXECUTIONENGINE;
+            HResult = HResults.COR_E_EXECUTIONENGINE;
         }
 
         public ExecutionEngineException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_EXECUTIONENGINE;
+            HResult = HResults.COR_E_EXECUTIONENGINE;
         }
 
         public ExecutionEngineException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_EXECUTIONENGINE;
+            HResult = HResults.COR_E_EXECUTIONENGINE;
+        }
+
+        internal ExecutionEngineException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
     }
 }

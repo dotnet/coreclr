@@ -243,7 +243,7 @@ namespace System.Threading
         /// </summary>
         /// <param name="overlapped">
         ///     An unmanaged pointer to the <see cref="NativeOverlapped"/> structure from which to return the 
-        ///     asscociated user-provided object.
+        ///     associated user-provided object.
         /// </param>
         /// <returns>
         ///     A user-provided object that distinguishes this <see cref="NativeOverlapped"/> 
@@ -254,7 +254,7 @@ namespace System.Threading
         ///     <paramref name="overlapped"/> is <see langword="null"/>.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe static object GetNativeOverlappedState(NativeOverlapped* overlapped)
+        public static unsafe object GetNativeOverlappedState(NativeOverlapped* overlapped)
         {
             if (overlapped == null)
                 throw new ArgumentNullException(nameof(overlapped));

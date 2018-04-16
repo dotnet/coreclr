@@ -16,7 +16,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Configuration.Assemblies;
 using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
@@ -171,7 +170,6 @@ namespace System.Reflection
             {
                 if (index < 0 || index >= m_length)
                     throw new IndexOutOfRangeException();
-                Contract.EndContractBlock();
 
                 unsafe
                 {
@@ -262,7 +260,7 @@ namespace System.Reflection
         {
             get
             {
-                Contract.Requires(0 <= index && index < Length);
+                Debug.Assert(0 <= index && index < Length);
                 if (largeResult != null)
                     return largeResult[index];
 
@@ -340,7 +338,7 @@ namespace System.Reflection
 
         #region FCalls
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe static extern void _Enum(IntPtr scope, int type, int parent, out MetadataEnumResult result);
+        private static extern unsafe void _Enum(IntPtr scope, int type, int parent, out MetadataEnumResult result);
 
         public unsafe void Enum(MetadataTokenType type, int parent, out MetadataEnumResult result)
         {
@@ -389,7 +387,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern void _GetUserString(IntPtr scope, int mdToken, void** name, out int length);
+        private static extern unsafe void _GetUserString(IntPtr scope, int mdToken, void** name, out int length);
         public unsafe String GetUserString(int mdToken)
         {
             void* name;
@@ -413,7 +411,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern void _GetName(IntPtr scope, int mdToken, void** name);
+        private static extern unsafe void _GetName(IntPtr scope, int mdToken, void** name);
         public unsafe Utf8String GetName(int mdToken)
         {
             void* name;
@@ -423,7 +421,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern void _GetNamespace(IntPtr scope, int mdToken, void** namesp);
+        private static extern unsafe void _GetNamespace(IntPtr scope, int mdToken, void** namesp);
         public unsafe Utf8String GetNamespace(int mdToken)
         {
             void* namesp;
@@ -433,7 +431,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe static extern void _GetEventProps(IntPtr scope, int mdToken, void** name, out int eventAttributes);
+        private static extern unsafe void _GetEventProps(IntPtr scope, int mdToken, void** name, out int eventAttributes);
         public unsafe void GetEventProps(int mdToken, out void* name, out EventAttributes eventAttributes)
         {
             int _eventAttributes;
@@ -453,7 +451,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe static extern void _GetPropertyProps(IntPtr scope,
+        private static extern unsafe void _GetPropertyProps(IntPtr scope,
             int mdToken, void** name, out int propertyAttributes, out ConstArray signature);
         public unsafe void GetPropertyProps(int mdToken, out void* name, out PropertyAttributes propertyAttributes, out ConstArray signature)
         {
@@ -627,7 +625,7 @@ namespace System.Reflection
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe static extern void _GetPInvokeMap(IntPtr scope,
+        private static extern unsafe void _GetPInvokeMap(IntPtr scope,
             int token,
             out int attributes,
             void** importName,

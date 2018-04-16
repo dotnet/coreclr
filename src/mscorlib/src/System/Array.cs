@@ -13,13 +13,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Security;
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -39,7 +39,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<ReadOnlyCollection<T>>() != null);
 
             // T[] implements IList<T>.
             return new ReadOnlyCollection<T>(array);
@@ -49,9 +48,6 @@ namespace System
         {
             if (newSize < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.newSize, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.ValueAtReturn(out array) != null);
-            Contract.Ensures(Contract.ValueAtReturn(out array).Length == newSize);
-            Contract.EndContractBlock();
 
             T[] larray = array;
             if (larray == null)
@@ -69,16 +65,12 @@ namespace System
         }
 
         // Create instance will create an array
-        public unsafe static Array CreateInstance(Type elementType, int length)
+        public static unsafe Array CreateInstance(Type elementType, int length)
         {
             if ((object)elementType == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Length == length);
-            Contract.Ensures(Contract.Result<Array>().Rank == 1);
-            Contract.EndContractBlock();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -86,7 +78,7 @@ namespace System
             return InternalCreate((void*)t.TypeHandle.Value, 1, &length, null);
         }
 
-        public unsafe static Array CreateInstance(Type elementType, int length1, int length2)
+        public static unsafe Array CreateInstance(Type elementType, int length1, int length2)
         {
             if ((object)elementType == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
@@ -94,10 +86,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length1, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length2 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == 2);
-            Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
-            Contract.Ensures(Contract.Result<Array>().GetLength(1) == length2);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -108,7 +96,7 @@ namespace System
             return InternalCreate((void*)t.TypeHandle.Value, 2, pLengths, null);
         }
 
-        public unsafe static Array CreateInstance(Type elementType, int length1, int length2, int length3)
+        public static unsafe Array CreateInstance(Type elementType, int length1, int length2, int length3)
         {
             if ((object)elementType == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
@@ -118,11 +106,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (length3 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length3, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == 3);
-            Contract.Ensures(Contract.Result<Array>().GetLength(0) == length1);
-            Contract.Ensures(Contract.Result<Array>().GetLength(1) == length2);
-            Contract.Ensures(Contract.Result<Array>().GetLength(2) == length3);
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -134,7 +117,7 @@ namespace System
             return InternalCreate((void*)t.TypeHandle.Value, 3, pLengths, null);
         }
 
-        public unsafe static Array CreateInstance(Type elementType, params int[] lengths)
+        public static unsafe Array CreateInstance(Type elementType, params int[] lengths)
         {
             if ((object)elementType == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
@@ -142,9 +125,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
-            Contract.EndContractBlock();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -170,9 +150,6 @@ namespace System
             }
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
-            Contract.EndContractBlock();
 
             int[] intLengths = new int[lengths.Length];
 
@@ -188,7 +165,7 @@ namespace System
         }
 
 
-        public unsafe static Array CreateInstance(Type elementType, int[] lengths, int[] lowerBounds)
+        public static unsafe Array CreateInstance(Type elementType, int[] lengths, int[] lowerBounds)
         {
             if (elementType == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
@@ -200,9 +177,6 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RanksAndBounds);
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
-            Contract.Ensures(Contract.Result<Array>() != null);
-            Contract.Ensures(Contract.Result<Array>().Rank == lengths.Length);
-            Contract.EndContractBlock();
 
             RuntimeType t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
@@ -222,7 +196,7 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe static extern Array InternalCreate(void* elementType, int rank, int* pLengths, int* pLowerBounds);
+        private static extern unsafe Array InternalCreate(void* elementType, int rank, int* pLengths, int* pLowerBounds);
 
         internal static Array UnsafeCreateInstance(Type elementType, int length)
         {
@@ -238,13 +212,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.sourceArray);
             if (destinationArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
-            /*
-            Contract.Requires(sourceArray.Rank == destinationArray.Rank);
-            Contract.Requires(length >= 0);
-            Contract.Requires(length <= sourceArray.GetLowerBound(0) + sourceArray.Length);
-            Contract.Requires(length <= destinationArray.GetLowerBound(0) + destinationArray.Length);
-             */
-            Contract.EndContractBlock();
 
             Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, false);
         }
@@ -308,7 +275,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
-            Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
             fixed (int* pIndices = &indices[0])
@@ -320,7 +286,6 @@ namespace System
         {
             if (Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
-            Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
             InternalGetReference(&elemref, 1, &index);
@@ -331,7 +296,6 @@ namespace System
         {
             if (Rank != 2)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need2DArray);
-            Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[2];
             pIndices[0] = index1;
@@ -346,7 +310,6 @@ namespace System
         {
             if (Rank != 3)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need3DArray);
-            Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[3];
             pIndices[0] = index1;
@@ -362,7 +325,6 @@ namespace System
         {
             if (index > Int32.MaxValue || index < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             return this.GetValue((int)index);
         }
@@ -373,7 +335,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             return this.GetValue((int)index1, (int)index2);
         }
@@ -386,7 +347,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             if (index3 > Int32.MaxValue || index3 < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             return this.GetValue((int)index1, (int)index2, (int)index3);
         }
@@ -397,7 +357,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
-            Contract.EndContractBlock();
 
             int[] intIndices = new int[indices.Length];
 
@@ -417,7 +376,6 @@ namespace System
         {
             if (Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need1DArray);
-            Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
             InternalGetReference(&elemref, 1, &index);
@@ -428,7 +386,6 @@ namespace System
         {
             if (Rank != 2)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need2DArray);
-            Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[2];
             pIndices[0] = index1;
@@ -443,7 +400,6 @@ namespace System
         {
             if (Rank != 3)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_Need3DArray);
-            Contract.EndContractBlock();
 
             int* pIndices = stackalloc int[3];
             pIndices[0] = index1;
@@ -461,7 +417,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
-            Contract.EndContractBlock();
 
             TypedReference elemref = new TypedReference();
             fixed (int* pIndices = &indices[0])
@@ -473,7 +428,6 @@ namespace System
         {
             if (index > Int32.MaxValue || index < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             this.SetValue(value, (int)index);
         }
@@ -484,7 +438,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index1, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             if (index2 > Int32.MaxValue || index2 < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             this.SetValue(value, (int)index1, (int)index2);
         }
@@ -497,7 +450,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index2, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
             if (index3 > Int32.MaxValue || index3 < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index3, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             this.SetValue(value, (int)index1, (int)index2, (int)index3);
         }
@@ -508,7 +460,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
             if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
-            Contract.EndContractBlock();
 
             int[] intIndices = new int[indices.Length];
 
@@ -525,16 +476,15 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
-        private unsafe extern void InternalGetReference(void* elemRef, int rank, int* pIndices);
+        private extern unsafe void InternalGetReference(void* elemRef, int rank, int* pIndices);
 
         // Ideally, we would like to use TypedReference.SetValue instead. Unfortunately, TypedReference.SetValue
         // always throws not-supported exception
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private unsafe extern static void InternalSetValue(void* target, Object value);
+        private static extern unsafe void InternalSetValue(void* target, Object value);
 
         public extern int Length
         {
-            [Pure]
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
@@ -542,7 +492,7 @@ namespace System
         private static int GetMedian(int low, int hi)
         {
             // Note both may be negative, if we are dealing with arrays w/ negative lower bounds.
-            Contract.Requires(low <= hi);
+            Debug.Assert(low <= hi);
             Debug.Assert(hi - low >= 0, "Length overflow!");
             return low + ((hi - low) >> 1);
         }
@@ -557,16 +507,13 @@ namespace System
 
         public extern long LongLength
         {
-            [Pure]
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetLength(int dimension);
 
-        [Pure]
         public long GetLongLength(int dimension)
         {
             //This method should throw an IndexOufOfRangeException for compat if dimension < 0 or >= Rank
@@ -575,16 +522,13 @@ namespace System
 
         public extern int Rank
         {
-            [Pure]
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetUpperBound(int dimension);
 
-        [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern int GetLowerBound(int dimension);
 
@@ -741,7 +685,6 @@ namespace System
         {
             if (comparer == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
-            Contract.EndContractBlock();
 
             int ret = 0;
 
@@ -766,13 +709,10 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, Object value)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures((Contract.Result<int>() >= array.GetLowerBound(0) && Contract.Result<int>() <= array.GetUpperBound(0)) || (Contract.Result<int>() < array.GetLowerBound(0) && ~Contract.Result<int>() <= array.GetUpperBound(0) + 1));
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return BinarySearch(array, lb, array.Length, value, null);
         }
@@ -790,7 +730,6 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, int index, int length, Object value)
         {
             return BinarySearch(array, index, length, value, null);
@@ -810,12 +749,10 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, Object value, IComparer comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return BinarySearch(array, lb, array.Length, value, comparer);
         }
@@ -835,12 +772,10 @@ namespace System
         // negative result to produce the index of the first element (if any) that
         // is larger than the given search value.
         // 
-        [Pure]
         public static int BinarySearch(Array array, int index, int length, Object value, IComparer comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             if (index < lb)
                 ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
@@ -922,31 +857,25 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool TrySZBinarySearch(Array sourceArray, int sourceIndex, int count, Object value, out int retVal);
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, T value)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             return BinarySearch<T>(array, 0, array.Length, value, null);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, T value, System.Collections.Generic.IComparer<T> comparer)
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             return BinarySearch<T>(array, 0, array.Length, value, comparer);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, int index, int length, T value)
         {
             return BinarySearch<T>(array, index, length, value, null);
         }
 
-        [Pure]
         public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Collections.Generic.IComparer<T> comparer)
         {
             if (array == null)
@@ -958,7 +887,6 @@ namespace System
 
             if (array.Length - index < length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
         }
@@ -974,9 +902,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.converter);
             }
-            Contract.Ensures(Contract.Result<TOutput[]>() != null);
-            Contract.Ensures(Contract.Result<TOutput[]>().Length == array.Length);
-            Contract.EndContractBlock();
 
             TOutput[] newArray = new TOutput[array.Length];
             for (int i = 0; i < array.Length; i++)
@@ -993,22 +918,18 @@ namespace System
         // Array.Copy internally.  If you aren't using ICollection explicitly,
         // call Array.Copy to avoid an extra indirection.
         // 
-        [Pure]
         public void CopyTo(Array array, int index)
         {
             if (array != null && array.Rank != 1)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
-            Contract.EndContractBlock();
             // Note: Array.Copy throws a RankException and we want a consistent ArgumentException for all the IList CopyTo methods.
             Array.Copy(this, GetLowerBound(0), array, index, Length);
         }
 
-        [Pure]
         public void CopyTo(Array array, long index)
         {
             if (index > Int32.MaxValue || index < Int32.MinValue)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_HugeArrayNotSupported);
-            Contract.EndContractBlock();
 
             this.CopyTo(array, (int)index);
         }
@@ -1018,13 +939,8 @@ namespace System
             internal static readonly T[] Value = new T[0];
         }
 
-        [Pure]
         public static T[] Empty<T>()
         {
-            Contract.Ensures(Contract.Result<T[]>() != null);
-            Contract.Ensures(Contract.Result<T[]>().Length == 0);
-            Contract.EndContractBlock();
-
             return EmptyArray<T>.Value;
         }
 
@@ -1080,7 +996,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = 0; i < array.Length; i++)
             {
@@ -1103,7 +1018,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             List<T> list = new List<T>();
             for (int i = 0; i < array.Length; i++)
@@ -1122,8 +1036,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             return FindIndex(array, 0, array.Length, match);
         }
@@ -1134,8 +1046,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             return FindIndex(array, startIndex, array.Length - startIndex, match);
         }
@@ -1161,8 +1071,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
@@ -1183,7 +1091,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = array.Length - 1; i >= 0; i--)
             {
@@ -1201,7 +1108,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.EndContractBlock();
 
             return FindLastIndex(array, array.Length - 1, array.Length, match);
         }
@@ -1212,7 +1118,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.EndContractBlock();
 
             return FindLastIndex(array, startIndex, startIndex + 1, match);
         }
@@ -1228,7 +1133,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             if (array.Length == 0)
             {
@@ -1275,7 +1179,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.action);
             }
-            Contract.EndContractBlock();
 
             for (int i = 0; i < array.Length; i++)
             {
@@ -1304,8 +1207,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return IndexOf(array, value, lb, array.Length);
         }
@@ -1320,8 +1221,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return IndexOf(array, value, startIndex, array.Length - startIndex + lb);
         }
@@ -1338,8 +1237,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
 
             int lb = array.GetLowerBound(0);
             if (startIndex < lb || startIndex > array.Length + lb)
@@ -1395,16 +1292,12 @@ namespace System
             return lb - 1;
         }
 
-        [Pure]
         public static int IndexOf<T>(T[] array, T value)
         {
             if (array == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures((Contract.Result<int>() < 0) ||
-                (Contract.Result<int>() >= 0 && Contract.Result<int>() < array.Length && EqualityComparer<T>.Default.Equals(value, array[Contract.Result<int>()])));
-            Contract.EndContractBlock();
 
             return IndexOf(array, value, 0, array.Length);
         }
@@ -1415,8 +1308,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             return IndexOf(array, value, startIndex, array.Length - startIndex);
         }
@@ -1437,8 +1328,6 @@ namespace System
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             return EqualityComparer<T>.Default.IndexOf(array, value, startIndex, count);
         }
@@ -1455,8 +1344,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return LastIndexOf(array, value, array.Length - 1 + lb, array.Length);
         }
@@ -1470,8 +1357,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             return LastIndexOf(array, value, startIndex, startIndex + 1 - lb);
         }
@@ -1486,8 +1371,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.Ensures(Contract.Result<int>() < array.GetLowerBound(0) + array.Length);
-            Contract.EndContractBlock();
             int lb = array.GetLowerBound(0);
             if (array.Length == 0)
             {
@@ -1553,8 +1436,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             return LastIndexOf(array, value, array.Length - 1, array.Length);
         }
@@ -1565,8 +1446,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
             // if array is empty and startIndex is 0, we need to pass 0 as count
             return LastIndexOf(array, value, startIndex, (array.Length == 0) ? 0 : (startIndex + 1));
         }
@@ -1577,8 +1456,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
-            Contract.Ensures(Contract.Result<int>() < array.Length);
-            Contract.EndContractBlock();
 
             if (array.Length == 0)
             {
@@ -1627,7 +1504,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Reverse(array, array.GetLowerBound(0), array.Length);
         }
 
@@ -1651,28 +1527,20 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
-            Contract.EndContractBlock();
 
             bool r = TrySZReverse(array, index, length);
             if (r)
                 return;
 
-            int i = index;
-            int j = index + length - 1;
             Object[] objArray = array as Object[];
             if (objArray != null)
             {
-                while (i < j)
-                {
-                    Object temp = objArray[i];
-                    objArray[i] = objArray[j];
-                    objArray[j] = temp;
-                    i++;
-                    j--;
-                }
+                Array.Reverse<object>(objArray, index, length);
             }
             else
             {
+                int i = index;
+                int j = index + length - 1;
                 while (i < j)
                 {
                     Object temp = array.GetValue(i);
@@ -1691,7 +1559,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Reverse(array, 0, array.Length);
         }
 
@@ -1705,15 +1572,15 @@ namespace System
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (array.Length - index < length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
+            ref T p = ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData());
             int i = index;
             int j = index + length - 1;
             while (i < j)
             {
-                T temp = array[i];
-                array[i] = array[j];
-                array[j] = temp;
+                T temp = Unsafe.Add(ref p, i);
+                Unsafe.Add(ref p, i) = Unsafe.Add(ref p, j);
+                Unsafe.Add(ref p, j) = temp;
                 i++;
                 j--;
             }
@@ -1727,7 +1594,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Sort(array, null, array.GetLowerBound(0), array.Length, null);
         }
 
@@ -1741,7 +1607,6 @@ namespace System
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Contract.EndContractBlock();
             Sort(keys, items, keys.GetLowerBound(0), keys.Length, null);
         }
 
@@ -1775,7 +1640,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Sort(array, null, array.GetLowerBound(0), array.Length, comparer);
         }
 
@@ -1791,7 +1655,6 @@ namespace System
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Contract.EndContractBlock();
             Sort(keys, items, keys.GetLowerBound(0), keys.Length, comparer);
         }
 
@@ -1831,7 +1694,6 @@ namespace System
             if (keys.Length - (index - keysLowerBound) < length || (items != null && (index - keysLowerBound) > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-            Contract.EndContractBlock();
 
             if (length > 1)
             {
@@ -1866,7 +1728,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Sort<T>(array, 0, array.Length, null);
         }
 
@@ -1874,7 +1735,6 @@ namespace System
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Contract.EndContractBlock();
             Sort<TKey, TValue>(keys, items, 0, keys.Length, null);
         }
 
@@ -1892,7 +1752,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            Contract.EndContractBlock();
             Sort<T>(array, 0, array.Length, comparer);
         }
 
@@ -1900,7 +1759,6 @@ namespace System
         {
             if (keys == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.keys);
-            Contract.EndContractBlock();
             Sort<TKey, TValue>(keys, items, 0, keys.Length, comparer);
         }
 
@@ -1914,7 +1772,6 @@ namespace System
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (array.Length - index < length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (length > 1)
             {
@@ -1940,7 +1797,6 @@ namespace System
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
             if (keys.Length - index < length || (items != null && index > items.Length - length))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
-            Contract.EndContractBlock();
 
             if (length > 1)
             {
@@ -1973,7 +1829,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
             }
-            Contract.EndContractBlock();
 
             ArraySortHelper<T>.Sort(array, 0, array.Length, comparison);
         }
@@ -1989,7 +1844,6 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
             }
-            Contract.EndContractBlock();
 
             for (int i = 0; i < array.Length; i++)
             {
@@ -2062,7 +1916,7 @@ namespace System
 
                 try
                 {
-                    IntroSort(left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2(keys.Length));
+                    IntroSort(left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
                 }
                 catch (IndexOutOfRangeException)
                 {
@@ -2268,7 +2122,7 @@ namespace System
 
                 try
                 {
-                    IntroSort(left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2(keys.Length));
+                    IntroSort(left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
                 }
                 catch (IndexOutOfRangeException)
                 {
@@ -2602,7 +2456,7 @@ namespace System
         // It is never legal to instantiate this class.
         private SZArrayHelper()
         {
-            Debug.Assert(false, "Hey! How'd I get here?");
+            Debug.Fail("Hey! How'd I get here?");
         }
 
         // -----------------------------------------------------------
@@ -2612,7 +2466,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return _this.Length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this);
         }
 
@@ -2624,7 +2478,7 @@ namespace System
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
 
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             Array.Copy(_this, 0, array, index, _this.Length);
         }
 
@@ -2632,7 +2486,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return _this.Length;
         }
 
@@ -2643,7 +2497,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -2656,7 +2510,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             if ((uint)index >= (uint)_this.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -2675,7 +2529,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length) >= 0;
         }
 
@@ -2696,7 +2550,7 @@ namespace System
         {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
-            T[] _this = JitHelpers.UnsafeCast<T[]>(this);
+            T[] _this = Unsafe.As<T[]>(this);
             return Array.IndexOf(_this, value, 0, _this.Length);
         }
 

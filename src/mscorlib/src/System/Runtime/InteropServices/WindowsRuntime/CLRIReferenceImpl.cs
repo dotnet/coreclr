@@ -7,7 +7,6 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Security;
 
@@ -20,7 +19,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public CLRIReferenceImpl(PropertyType type, T obj)
             : base(type, obj)
         {
-            BCLDebug.Assert(obj != null, "Must not be null");
+            Debug.Assert(obj != null, "Must not be null");
             _value = obj;
         }
 
@@ -50,12 +49,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // the get_Value property, allocate an appropriately-sized managed object, marshal the native object
         // to the managed object, and free the native method.  Also we want the return value boxed (aka normal value type boxing).
         //
-        // This method is called by VM. Mark the method with FriendAccessAllowed attribute to ensure that the unreferenced method
-        // optimization skips it and the code will be saved into NGen image.
-        [System.Runtime.CompilerServices.FriendAccessAllowed]
+        // This method is called by VM.
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
             IReference<T> reference = (IReference<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<" + typeof(T) + ">, but that failed.");
             return reference.Value;
@@ -74,7 +71,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public CLRIReferenceArrayImpl(PropertyType type, T[] obj)
             : base(type, obj)
         {
-            BCLDebug.Assert(obj != null, "Must not be null");
+            Debug.Assert(obj != null, "Must not be null");
 
             _value = obj;
 
@@ -213,12 +210,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // the get_Value property, allocate an appropriately-sized managed object, marshal the native object
         // to the managed object, and free the native method.
         //
-        // This method is called by VM. Mark the method with FriendAccessAllowed attribute to ensure that the unreferenced method
-        // optimization skips it and the code will be saved into NGen image.
-        [System.Runtime.CompilerServices.FriendAccessAllowed]
+        // This method is called by VM.
         internal static Object UnboxHelper(Object wrapper)
         {
-            Contract.Requires(wrapper != null);
+            Debug.Assert(wrapper != null);
             IReferenceArray<T> reference = (IReferenceArray<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
             T[] marshaled = reference.Value;
@@ -229,14 +224,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // For creating instances of Windows Runtime's IReference<T> and IReferenceArray<T>.
     internal static class IReferenceFactory
     {
-        internal static readonly Type s_pointType = Type.GetType("Windows.Foundation.Point, " + AssemblyRef.SystemRuntimeWindowsRuntime);
-        internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, " + AssemblyRef.SystemRuntimeWindowsRuntime);
-        internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, " + AssemblyRef.SystemRuntimeWindowsRuntime);
+        internal static readonly Type s_pointType = Type.GetType("Windows.Foundation.Point, System.Runtime.WindowsRuntime");
+        internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, System.Runtime.WindowsRuntime");
+        internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, System.Runtime.WindowsRuntime");
 
         internal static Object CreateIReference(Object obj)
         {
-            Contract.Requires(obj != null, "Null should not be boxed.");
-            Contract.Ensures(Contract.Result<Object>() != null);
+            Debug.Assert(obj != null, "Null should not be boxed.");
 
             Type type = obj.GetType();
 
@@ -305,15 +299,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return Activator.CreateInstance(specificType, new Object[] { propType.Value, obj });
             }
 
-            Debug.Assert(false, "We should not see non-WinRT type here");
+            Debug.Fail("We should not see non-WinRT type here");
             return null;
         }
 
         internal static Object CreateIReferenceArray(Array obj)
         {
-            Contract.Requires(obj != null);
-            Contract.Requires(obj.GetType().IsArray);
-            Contract.Ensures(Contract.Result<Object>() != null);
+            Debug.Assert(obj != null);
+            Debug.Assert(obj.GetType().IsArray);
 
             Type type = obj.GetType().GetElementType();
 

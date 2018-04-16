@@ -220,7 +220,6 @@ typedef interface ICLRAppDomainResourceMonitor ICLRAppDomainResourceMonitor;
 /* header files for imported files */
 #include "unknwn.h"
 #include "gchost.h"
-#include "ivalidator.h"
 
 #ifdef __cplusplus
 extern "C"{
@@ -234,18 +233,6 @@ extern "C"{
 #define DEPRECATED_CLR_STDAPI STDAPI
 
 struct IActivationFactory;
-
-#define	CLR_MAJOR_VERSION	( 4 )
-
-#define	CLR_MINOR_VERSION	( 0 )
-
-#define	CLR_BUILD_VERSION	( 23203 )
-
-#define	CLR_ASSEMBLY_MAJOR_VERSION	( 4 )
-
-#define	CLR_ASSEMBLY_MINOR_VERSION	( 0 )
-
-#define	CLR_ASSEMBLY_BUILD_VERSION	( 0 )
 
 EXTERN_GUID(CLSID_TypeNameFactory, 0xB81FF171, 0x20F3, 0x11d2, 0x8d, 0xcc, 0x00, 0xa0, 0xc9, 0xb0, 0x05, 0x25);
 EXTERN_GUID(CLSID_ComCallUnmarshal, 0x3F281000,0xE95A,0x11d2,0x88,0x6B,0x00,0xC0,0x4F,0x86,0x9F,0x04);
@@ -317,7 +304,7 @@ enum __MIDL___MIDL_itf_mscoree_0000_0000_0002
         STARTUP_ARM	= 0x400000,
         STARTUP_SINGLE_APPDOMAIN	= 0x800000,
         STARTUP_APPX_APP_MODEL	= 0x1000000,
-        STARTUP_DISABLE_RANDOMIZED_STRING_HASHING	= 0x2000000
+        STARTUP_DISABLE_RANDOMIZED_STRING_HASHING	= 0x2000000 // not supported
     } 	STARTUP_FLAGS;
 
 typedef /* [public] */ 

@@ -4,7 +4,6 @@
 
 using System;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 using System.Threading;
 
 namespace System.Globalization
@@ -99,7 +98,6 @@ namespace System.Globalization
                             SR.Format(SR.ArgumentOutOfRange_Range,
                     GregorianCalendarTypes.Localized, GregorianCalendarTypes.TransliteratedFrench));
             }
-            Contract.EndContractBlock();
             this.m_type = type;
         }
 
@@ -214,7 +212,6 @@ namespace System.Globalization
                                 -120000,
                                 120000));
             }
-            Contract.EndContractBlock();
             time.GetDatePart(out int y, out int m, out int d);
             int i = m - 1 + months;
             if (i >= 0)
@@ -385,6 +382,22 @@ namespace System.Globalization
             return time.Year;
         }
 
+        internal override bool IsValidYear(int year, int era) => year >= 1 && year <= MaxYear;
+
+        internal override bool IsValidDay(int year, int month, int day, int era)
+        {
+            if ((era != CurrentEra && era != ADEra) || 
+                year < 1 || year > MaxYear ||
+                month < 1 || month > 12 ||
+                day < 1)
+            {
+                return false;
+            }
+
+            int[] days = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? DaysToMonth366 : DaysToMonth365;
+            return day <= (days[month] - days[month - 1]);
+        }
+
         // Checks whether a given day in the specified era is a leap day. This method returns true if
         // the date is a leap day, or false if not.
         //
@@ -396,7 +409,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 12));
             }
-            Contract.EndContractBlock();
 
             if (era != CurrentEra && era != ADEra)
             {
@@ -443,7 +455,6 @@ namespace System.Globalization
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
-            Contract.EndContractBlock();
             return (0);
         }
 
@@ -472,7 +483,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 12));
             }
-            Contract.EndContractBlock();
             return (false);
         }
 
@@ -510,25 +520,11 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
-        internal override Boolean TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
+        internal override bool TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
         {
             if (era == CurrentEra || era == ADEra)
             {
-                try
-                {
-                    result = new DateTime(year, month, day, hour, minute, second, millisecond);
-                    return true;
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    result = DateTime.Now;
-                    return false;
-                }
-                catch (ArgumentException)
-                {
-                    result = DateTime.Now;
-                    return false;
-                }
+                return DateTime.TryCreate(year, month, day, hour, minute, second, millisecond, out result);
             }
             result = DateTime.MinValue;
             return false;
@@ -573,7 +569,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (year > MaxYear)
             {

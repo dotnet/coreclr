@@ -39,7 +39,6 @@ CLREventBase * ThreadSuspend::s_hAbortEvtCache = NULL;
 extern "C" void             RedirectedHandledJITCaseForGCThreadControl_Stub(void);
 extern "C" void             RedirectedHandledJITCaseForDbgThreadControl_Stub(void);
 extern "C" void             RedirectedHandledJITCaseForUserSuspend_Stub(void);
-extern "C" void             RedirectedHandledJITCaseForYieldTask_Stub(void);
 
 #define GetRedirectHandlerForGCThreadControl()      \
                 ((PFN_REDIRECTTARGET) GetEEFuncEntryPoint(RedirectedHandledJITCaseForGCThreadControl_Stub))
@@ -47,8 +46,6 @@ extern "C" void             RedirectedHandledJITCaseForYieldTask_Stub(void);
                 ((PFN_REDIRECTTARGET) GetEEFuncEntryPoint(RedirectedHandledJITCaseForDbgThreadControl_Stub))
 #define GetRedirectHandlerForUserSuspend()          \
                 ((PFN_REDIRECTTARGET) GetEEFuncEntryPoint(RedirectedHandledJITCaseForUserSuspend_Stub))
-#define GetRedirectHandlerForYieldTask()            \
-                ((PFN_REDIRECTTARGET) GetEEFuncEntryPoint(RedirectedHandledJITCaseForYieldTask_Stub))
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
@@ -672,39 +669,6 @@ struct StackCrawlContext
     CrawlFrame  LatchedCF;
 };
 
-
-#if _TARGET_AMD64_
-// Returns the PC for the next instruction
-// If you want to skip ahead of a NOP padding sequence
-// You'll need to call this thing multiple times, until it returns NULL
-
-#define NOP_REX_PREFIX ((char)0x66)
-#define XCHG_EAX_EAX ((char)0x90)
-
-int isAtNop(const void *ip)
-{
-    const char *NextByte = (const char *)ip;
-    STRESS_LOG1(LF_EH, LL_INFO100, "AMD64 - isAtNop ip 0x%p\n", ip);
-    
-    int lpfxCount = 0;
-    //
-    // Read in length prefixes - no effect
-    //
-    for (lpfxCount = 0; lpfxCount < 14; lpfxCount++)
-    {
-        if (NextByte[lpfxCount] != NOP_REX_PREFIX)
-            break;
-    }
-
-    //
-    // xchg eax, eax
-    // 
-    if (NextByte[lpfxCount] == XCHG_EAX_EAX)
-        return (lpfxCount + 1);
-    return 0;
-}
-#endif // _TARGET_AMD64_
-
 // Crawl the stack looking for Thread Abort related information (whether we're executing inside a CER or an error handling clauses
 // of some sort).
 static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlContext *pData)
@@ -805,58 +769,11 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     }
 #endif  // !WIN64EXCEPTIONS
 
-#if _TARGET_AMD64_ 
-    STRESS_LOG1(LF_EH, LL_INFO10, "AMD64 - in TAStackCrawlCallBack 0x%x offset\n", offs);
-    STRESS_LOG1(LF_EH, LL_INFO10, "AMD64 - in TAStackCrawlCallBack frame IP is 0x%p\n", (void *)GetControlPC(pCf->GetRegisterSet()));
-    STRESS_LOG3(LF_EH, LL_INFO100, "AMD64 - in TAStackCrawlCallBack: STACKCRAWL method:%pM (), Frame:%p, FrameVtable = %pV\n",
-              pMD, pFrame, pCf->IsFrameless()?0:(*(void**)pFrame));
-  
-    DWORD OffsSkipNop = offs;
-  
-    if ( pCf->IsFrameless() && pCf->IsActiveFrame())
-    {
-        // If the frame is the top most frame and is managed,
-        // get the ip
-        void *oldIP = (void *)GetControlPC(pCf->GetRegisterSet());
-  
-        // skip over the nop to get newIP
-        int bNop = isAtNop(oldIP);
-  
-        // Skip over the nop if any
-        OffsSkipNop += bNop;
-
-        if (bNop != 0)
-        {
-            STRESS_LOG1(LF_EH, LL_INFO100, "AMD64 - TAStackCrawlCallBack: STACKCRAWL new Offset 0x%x V\n", OffsSkipNop );
-        }
-    }
-#endif // _TARGET_AMD64_
-  
-
     for(ULONG i=0; i < EHCount; i++)
     {
         pJitManager->GetNextEHClause(&pEnumState, &EHClause);
         _ASSERTE(IsValidClause(&EHClause));
 
-#if _TARGET_AMD64_
-         if (offs != OffsSkipNop && OffsSkipNop == EHClause.TryStartPC) 
-         {
-            // Ensure that the new offset isnt landing us into a cloned finally
-            // that "appears" to have a try-block which starts with a non-NOP
-            // instruction when actually its a cloned finally.
-            if (!IsClonedFinally(&EHClause))
-            {
-                // If we are at the nop instruction injected by JIT right before a try catch,
-                // we don't want to async abort. This is a workaround to address issue with the C# lock statement bug,
-                // where we could end up leaking a lock.
-                //
-                STRESS_LOG1(LF_EH, LL_INFO100, "AMD64 - TAStackCrawlCallBack: STACKCRAWL AMD64 TA at beginning of a Try catch 0x%x \n", OffsSkipNop );
-                pData->fWithinEHClause = true;
-                return SWA_ABORT;
-            }
-         }
-#endif // _TARGET_AMD64_
- 
         // !!! If this function is called on Aborter thread, we should check for finally only.
 
         // !!! If this function is called on Aborter thread, we should check for finally only.
@@ -3090,12 +3007,6 @@ void Thread::RareDisablePreemptiveGC()
     // waiting for GC
     _ASSERTE ((m_StateNC & Thread::TSNC_OwnsSpinLock) == 0);
 
-    // If this thread is asked to yield
-    if (m_State & TS_YieldRequested)
-    {
-        __SwitchToThread(0, CALLER_LIMITS_SPINNING);
-    }
-
     if (!GCHeapUtilities::IsGCHeapInitialized())
     {
         goto Exit;
@@ -3661,6 +3572,7 @@ void ThreadStore::TrapReturningThreads(BOOL yes)
         FastInterlockIncrement(&g_trtChgStamp);
 #endif
 
+        GCHeapUtilities::GetGCHeap()->SetSuspensionPending(true);
         FastInterlockIncrement (&g_TrapReturningThreads);
 #ifdef ENABLE_FAST_GCPOLL_HELPER
         EnableJitGCPoll();
@@ -3674,10 +3586,15 @@ void ThreadStore::TrapReturningThreads(BOOL yes)
     else
     {
         FastInterlockDecrement (&g_TrapReturningThreads);
+        GCHeapUtilities::GetGCHeap()->SetSuspensionPending(false);
+
 #ifdef ENABLE_FAST_GCPOLL_HELPER
         if (0 == g_TrapReturningThreads)
+        {
             DisableJitGCPoll();
+        }
 #endif
+
         _ASSERTE(g_TrapReturningThreads >= 0);
     }
 #ifdef ENABLE_FAST_GCPOLL_HELPER
@@ -3931,12 +3848,6 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
             case RedirectReason_UserSuspension:
                 // Do nothing;
                 break;
-            case RedirectReason_YieldTask:
-                if (pThread->IsYieldRequested())
-                {
-                    __SwitchToThread(0, CALLER_LIMITS_SPINNING);
-                }
-                break;
             default:
                 _ASSERTE(!"Invalid redirect reason");
                 break;
@@ -4096,15 +4007,6 @@ void __stdcall Thread::RedirectedHandledJITCaseForUserSuspend()
 {
     WRAPPER_NO_CONTRACT;
     RedirectedHandledJITCase(RedirectReason_UserSuspension);
-}
-
-//***********************
-// Like the above, but called for YieldTask.
-//
-void __stdcall Thread::RedirectedHandledJITCaseForYieldTask()
-{
-    WRAPPER_NO_CONTRACT;
-    RedirectedHandledJITCase(RedirectReason_YieldTask);
 }
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
@@ -4348,8 +4250,7 @@ BOOL Thread::IsAddrOfRedirectFunc(void * pFuncAddr)
     return
         (pFuncAddr == GetRedirectHandlerForGCThreadControl()) ||
         (pFuncAddr == GetRedirectHandlerForDbgThreadControl()) ||
-        (pFuncAddr == GetRedirectHandlerForUserSuspend()) ||
-        (pFuncAddr == GetRedirectHandlerForYieldTask());
+        (pFuncAddr == GetRedirectHandlerForUserSuspend());
 }
 
 //************************************************************************
@@ -4398,22 +4299,6 @@ BOOL Thread::CheckForAndDoRedirectForUserSuspend()
 
     LOG((LF_SYNC, LL_INFO1000, "Redirecting thread %08x for UserSuspension", GetThreadId()));
     return CheckForAndDoRedirect(GetRedirectHandlerForUserSuspend());
-}
-
-//*************************************************************************
-// Redirect thread to make task yield.
-BOOL Thread::CheckForAndDoRedirectForYieldTask()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    LOG((LF_SYNC, LL_INFO1000, "Redirecting thread %08x for YieldTask", GetThreadId()));
-    return CheckForAndDoRedirect(GetRedirectHandlerForYieldTask());
 }
 
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
@@ -6343,6 +6228,19 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                             // For (1) we can use CallerContext->ControlPC to be used as the return address
                             // since we know that leaf frames will return back to their caller.
                             // For this, we may need JIT support to do so.
+                            notJittedCase = true;
+                        }
+                        else if (pCF->HasTailCalls())
+                        {
+                            // Do not hijack functions that have tail calls, since there are two problems:
+                            // 1. When a function that tail calls another one is hijacked, the LR may be
+                            //    stored at a different location in the stack frame of the tail call target.
+                            //    So just by performing tail call, the hijacked location becomes invalid and
+                            //    unhijacking would corrupt stack by writing to that location.
+                            // 2. There is a small window after the caller pops LR from the stack in its
+                            //    epilog and before the tail called function pushes LR in its prolog when
+                            //    the hijacked return address would not be not on the stack and so we would
+                            //    not be able to unhijack.
                             notJittedCase = true;
                         }
                         else

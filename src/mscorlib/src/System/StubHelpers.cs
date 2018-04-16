@@ -17,16 +17,15 @@ namespace System.StubHelpers
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal static class AnsiCharMarshaler
     {
         // The length of the returned array is an approximation based on the length of the input string and the system
         // character set. It is only guaranteed to be larger or equal to cbLength, don't depend on the exact value.
-        unsafe static internal byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
+        unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
             byte[] buffer = new byte[(str.Length + 1) * Marshal.SystemMaxDBCSCharSize];
-            BCLDebug.Assert(buffer.Length != 0);
+            Debug.Assert(buffer.Length != 0);
             fixed (byte* bufferPtr = &buffer[0])
             {
                 cbLength = str.ConvertToAnsi(bufferPtr, buffer.Length, fBestFit, fThrowOnUnmappableChar);
@@ -34,20 +33,20 @@ namespace System.StubHelpers
             return buffer;
         }
 
-        unsafe static internal byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
+        unsafe internal static byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
         {
             int cbAllocLength = (1 + 1) * Marshal.SystemMaxDBCSCharSize;
             byte* bufferPtr = stackalloc byte[cbAllocLength];
 
             int cbLength = managedChar.ToString().ConvertToAnsi(bufferPtr, cbAllocLength, fBestFit, fThrowOnUnmappableChar);
 
-            BCLDebug.Assert(cbLength > 0, "Zero bytes returned from DoAnsiConversion in AnsiCharMarshaler.ConvertToNative");
+            Debug.Assert(cbLength > 0, "Zero bytes returned from DoAnsiConversion in AnsiCharMarshaler.ConvertToNative");
             return bufferPtr[0];
         }
 
-        static internal char ConvertToManaged(byte nativeChar)
+        internal static char ConvertToManaged(byte nativeChar)
         {
-            byte[] bytes = new byte[1] { nativeChar };
+            Span<byte> bytes = new Span<byte>(ref nativeChar, 1);
             string str = Encoding.Default.GetString(bytes);
             return str[0];
         }
@@ -55,7 +54,7 @@ namespace System.StubHelpers
 
     internal static class CSTRMarshaler
     {
-        static internal unsafe IntPtr ConvertToNative(int flags, string strManaged, IntPtr pNativeBuffer)
+        internal static unsafe IntPtr ConvertToNative(int flags, string strManaged, IntPtr pNativeBuffer)
         {
             if (null == strManaged)
             {
@@ -106,7 +105,7 @@ namespace System.StubHelpers
             return (IntPtr)pbNativeBuffer;
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr cstr)
+        internal static unsafe string ConvertToManaged(IntPtr cstr)
         {
             if (IntPtr.Zero == cstr)
                 return null;
@@ -114,7 +113,7 @@ namespace System.StubHelpers
                 return new String((sbyte*)cstr);
         }
 
-        static internal void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
             Win32Native.CoTaskMemFree(pNative);
         }
@@ -123,7 +122,7 @@ namespace System.StubHelpers
     internal static class UTF8Marshaler
     {
         private const int MAX_UTF8_CHAR_SIZE = 3;
-        static internal unsafe IntPtr ConvertToNative(int flags, string strManaged, IntPtr pNativeBuffer)
+        internal static unsafe IntPtr ConvertToNative(int flags, string strManaged, IntPtr pNativeBuffer)
         {
             if (null == strManaged)
             {
@@ -159,7 +158,7 @@ namespace System.StubHelpers
             return (IntPtr)pbNativeBuffer;
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr cstr)
+        internal static unsafe string ConvertToManaged(IntPtr cstr)
         {
             if (IntPtr.Zero == cstr)
                 return null;
@@ -167,7 +166,7 @@ namespace System.StubHelpers
             return String.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
         }
 
-        static internal void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
             if (pNative != IntPtr.Zero)
             {
@@ -178,7 +177,7 @@ namespace System.StubHelpers
 
     internal static class UTF8BufferMarshaler
     {
-        static internal unsafe IntPtr ConvertToNative(StringBuilder sb, IntPtr pNativeBuffer, int flags)
+        internal static unsafe IntPtr ConvertToNative(StringBuilder sb, IntPtr pNativeBuffer, int flags)
         {
             if (null == sb)
             {
@@ -199,7 +198,7 @@ namespace System.StubHelpers
             return (IntPtr)pbNativeBuffer;
         }
 
-        static internal unsafe void ConvertToManaged(StringBuilder sb, IntPtr pNative)
+        internal static unsafe void ConvertToManaged(StringBuilder sb, IntPtr pNative)
         {
             if (pNative == null)
                 return;
@@ -228,7 +227,7 @@ namespace System.StubHelpers
 
     internal static class BSTRMarshaler
     {
-        static internal unsafe IntPtr ConvertToNative(string strManaged, IntPtr pNativeBuffer)
+        internal static unsafe IntPtr ConvertToNative(string strManaged, IntPtr pNativeBuffer)
         {
             if (null == strManaged)
             {
@@ -255,10 +254,10 @@ namespace System.StubHelpers
                 {
                     // If caller provided a buffer, construct the BSTR manually. The size
                     // of the buffer must be at least (lengthInBytes + 6) bytes.
-#if _DEBUG
+#if DEBUG
                     uint length = *((uint*)pNativeBuffer.ToPointer());
-                    BCLDebug.Assert(length >= lengthInBytes + 6, "BSTR localloc'ed buffer is too small");
-#endif // _DEBUG
+                    Debug.Assert(length >= lengthInBytes + 6, "BSTR localloc'ed buffer is too small");
+#endif
 
                     // set length
                     *((uint*)pNativeBuffer.ToPointer()) = lengthInBytes;
@@ -297,7 +296,7 @@ namespace System.StubHelpers
             }
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr bstr)
+        internal static unsafe string ConvertToManaged(IntPtr bstr)
         {
             if (IntPtr.Zero == bstr)
             {
@@ -341,7 +340,7 @@ namespace System.StubHelpers
             }
         }
 
-        static internal void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
             if (IntPtr.Zero != pNative)
             {
@@ -355,7 +354,7 @@ namespace System.StubHelpers
 
     internal static class VBByValStrMarshaler
     {
-        static internal unsafe IntPtr ConvertToNative(string strManaged, bool fBestFit, bool fThrowOnUnmappableChar, ref int cch)
+        internal static unsafe IntPtr ConvertToNative(string strManaged, bool fBestFit, bool fThrowOnUnmappableChar, ref int cch)
         {
             if (null == strManaged)
             {
@@ -386,7 +385,7 @@ namespace System.StubHelpers
                 int nbytesused;
                 byte[] bytes = AnsiCharMarshaler.DoAnsiConversion(strManaged, fBestFit, fThrowOnUnmappableChar, out nbytesused);
 
-                BCLDebug.Assert(nbytesused < nbytes, "Insufficient buffer allocated in VBByValStrMarshaler.ConvertToNative");
+                Debug.Assert(nbytesused < nbytes, "Insufficient buffer allocated in VBByValStrMarshaler.ConvertToNative");
                 Buffer.Memcpy(pNative, 0, bytes, 0, nbytesused);
 
                 pNative[nbytesused] = 0;
@@ -396,7 +395,7 @@ namespace System.StubHelpers
             return new IntPtr(pNative);
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr pNative, int cch)
+        internal static unsafe string ConvertToManaged(IntPtr pNative, int cch)
         {
             if (IntPtr.Zero == pNative)
             {
@@ -406,7 +405,7 @@ namespace System.StubHelpers
             return new String((sbyte*)pNative, 0, cch);
         }
 
-        static internal unsafe void ClearNative(IntPtr pNative)
+        internal static unsafe void ClearNative(IntPtr pNative)
         {
             if (IntPtr.Zero != pNative)
             {
@@ -420,7 +419,7 @@ namespace System.StubHelpers
 
     internal static class AnsiBSTRMarshaler
     {
-        static internal unsafe IntPtr ConvertToNative(int flags, string strManaged)
+        internal static unsafe IntPtr ConvertToNative(int flags, string strManaged)
         {
             if (null == strManaged)
             {
@@ -442,7 +441,7 @@ namespace System.StubHelpers
             return Win32Native.SysAllocStringByteLen(bytes, (uint)nb);
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr bstr)
+        internal static unsafe string ConvertToManaged(IntPtr bstr)
         {
             if (IntPtr.Zero == bstr)
             {
@@ -457,7 +456,7 @@ namespace System.StubHelpers
             }
         }
 
-        static internal unsafe void ClearNative(IntPtr pNative)
+        internal static unsafe void ClearNative(IntPtr pNative)
         {
             if (IntPtr.Zero != pNative)
             {
@@ -471,21 +470,21 @@ namespace System.StubHelpers
 
     internal static class WSTRBufferMarshaler
     {
-        static internal IntPtr ConvertToNative(string strManaged)
+        internal static IntPtr ConvertToNative(string strManaged)
         {
-            Debug.Assert(false, "NYI");
+            Debug.Fail("NYI");
             return IntPtr.Zero;
         }
 
-        static internal unsafe string ConvertToManaged(IntPtr bstr)
+        internal static unsafe string ConvertToManaged(IntPtr bstr)
         {
-            Debug.Assert(false, "NYI");
+            Debug.Fail("NYI");
             return null;
         }
 
-        static internal void ClearNative(IntPtr pNative)
+        internal static void ClearNative(IntPtr pNative)
         {
-            Debug.Assert(false, "NYI");
+            Debug.Fail("NYI");
         }
     }  // class WSTRBufferMarshaler
 
@@ -591,13 +590,13 @@ namespace System.StubHelpers
     internal static class ObjectMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertToNative(object objSrc, IntPtr pDstVariant);
+        internal static extern void ConvertToNative(object objSrc, IntPtr pDstVariant);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern object ConvertToManaged(IntPtr pSrcVariant);
+        internal static extern object ConvertToManaged(IntPtr pSrcVariant);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNative(IntPtr pVariant);
+        internal static extern void ClearNative(IntPtr pVariant);
     }  // class ObjectMarshaler
 
 #endif // FEATURE_COMINTEROP
@@ -605,41 +604,41 @@ namespace System.StubHelpers
     internal static class ValueClassMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkList pCleanupWorkList);
+        internal static extern void ConvertToNative(IntPtr dst, IntPtr src, IntPtr pMT, ref CleanupWorkList pCleanupWorkList);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertToManaged(IntPtr dst, IntPtr src, IntPtr pMT);
+        internal static extern void ConvertToManaged(IntPtr dst, IntPtr src, IntPtr pMT);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNative(IntPtr dst, IntPtr pMT);
+        internal static extern void ClearNative(IntPtr dst, IntPtr pMT);
     }  // class ValueClassMarshaler
 
     internal static class DateMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern double ConvertToNative(DateTime managedDate);
+        internal static extern double ConvertToNative(DateTime managedDate);
 
         // The return type is really DateTime but we use long to avoid the pain associated with returning structures.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern long ConvertToManaged(double nativeDate);
+        internal static extern long ConvertToManaged(double nativeDate);
     }  // class DateMarshaler
 
 #if FEATURE_COMINTEROP
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal static class InterfaceMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr ConvertToNative(object objSrc, IntPtr itfMT, IntPtr classMT, int flags);
+        internal static extern IntPtr ConvertToNative(object objSrc, IntPtr itfMT, IntPtr classMT, int flags);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern object ConvertToManaged(IntPtr pUnk, IntPtr itfMT, IntPtr classMT, int flags);
+        internal static extern object ConvertToManaged(IntPtr pUnk, IntPtr itfMT, IntPtr classMT, int flags);
 
-        [DllImport(JitHelpers.QCall), SuppressUnmanagedCodeSecurity]
-        static internal extern void ClearNative(IntPtr pUnk);
+        [DllImport(JitHelpers.QCall)]
+        internal static extern void ClearNative(IntPtr pUnk);
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern object ConvertToManagedWithoutUnboxing(IntPtr pNative);
+        internal static extern object ConvertToManagedWithoutUnboxing(IntPtr pNative);
     }  // class InterfaceMarshaler
 #endif // FEATURE_COMINTEROP
 
@@ -647,12 +646,12 @@ namespace System.StubHelpers
     internal static class UriMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern string GetRawUriFromNative(IntPtr pUri);
+        internal static extern string GetRawUriFromNative(IntPtr pUri);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static unsafe internal extern IntPtr CreateNativeUriInstanceHelper(char* rawUri, int strLen);
+        internal static extern unsafe IntPtr CreateNativeUriInstanceHelper(char* rawUri, int strLen);
 
-        static unsafe internal IntPtr CreateNativeUriInstance(string rawUri)
+        internal static unsafe IntPtr CreateNativeUriInstance(string rawUri)
         {
             fixed (char* pManaged = rawUri)
             {
@@ -661,11 +660,11 @@ namespace System.StubHelpers
         }
     }  // class InterfaceMarshaler
 
-    [FriendAccessAllowed]
+    // [FriendAccessAllowed]
     internal static class EventArgsMarshaler
     {
-        [FriendAccessAllowed]
-        static internal IntPtr CreateNativeNCCEventArgsInstance(int action, object newItems, object oldItems, int newIndex, int oldIndex)
+        // [FriendAccessAllowed]
+        internal static IntPtr CreateNativeNCCEventArgsInstance(int action, object newItems, object oldItems, int newIndex, int oldIndex)
         {
             IntPtr newItemsIP = IntPtr.Zero;
             IntPtr oldItemsIP = IntPtr.Zero;
@@ -682,19 +681,19 @@ namespace System.StubHelpers
             }
             finally
             {
-                if (!oldItemsIP.IsNull())
+                if (oldItemsIP != IntPtr.Zero)
                     Marshal.Release(oldItemsIP);
-                if (!newItemsIP.IsNull())
+                if (newItemsIP != IntPtr.Zero)
                     Marshal.Release(newItemsIP);
             }
         }
 
-        [FriendAccessAllowed]
-        [DllImport(JitHelpers.QCall), SuppressUnmanagedCodeSecurity]
-        static extern internal IntPtr CreateNativePCEventArgsInstance([MarshalAs(UnmanagedType.HString)]string name);
+        // [FriendAccessAllowed]
+        [DllImport(JitHelpers.QCall)]
+        static internal extern IntPtr CreateNativePCEventArgsInstance([MarshalAs(UnmanagedType.HString)]string name);
 
-        [DllImport(JitHelpers.QCall), SuppressUnmanagedCodeSecurity]
-        static extern internal IntPtr CreateNativeNCCEventArgsInstanceHelper(int action, IntPtr newItem, IntPtr oldItem, int newIndex, int oldIndex);
+        [DllImport(JitHelpers.QCall)]
+        static internal extern IntPtr CreateNativeNCCEventArgsInstanceHelper(int action, IntPtr newItem, IntPtr oldItem, int newIndex, int oldIndex);
     }
 #endif // FEATURE_COMINTEROP
 
@@ -712,54 +711,54 @@ namespace System.StubHelpers
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, int dwFlags);
+        internal static extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, int dwFlags);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertSpaceToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome,
+        internal static extern void ConvertSpaceToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome,
                                                           int cElements);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNative(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
+        internal static extern void ClearNative(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNativeContents(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
+        internal static extern void ClearNativeContents(IntPtr pMarshalState, IntPtr pNativeHome, int cElements);
     }  // class MngdNativeArrayMarshaler
 
 #if FEATURE_COMINTEROP
     internal static class MngdSafeArrayMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, int iRank, int dwFlags);
+        internal static extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, int iRank, int dwFlags);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome, object pOriginalManaged);
+        internal static extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome, object pOriginalManaged);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertSpaceToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertSpaceToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ClearNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
     }  // class MngdSafeArrayMarshaler
 
     internal static class MngdHiddenLengthArrayMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, IntPtr cbElementSize, ushort vt);
+        internal static extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pMT, IntPtr cbElementSize, ushort vt);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ConvertSpaceToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
@@ -919,19 +918,19 @@ namespace System.StubHelpers
     internal static class MngdRefCustomMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pCMHelper);
+        internal static extern void CreateMarshaler(IntPtr pMarshalState, IntPtr pCMHelper);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertContentsToNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ConvertContentsToManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ClearNative(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
+        internal static extern void ClearManaged(IntPtr pMarshalState, ref object pManagedHome, IntPtr pNativeHome);
     }  // class MngdRefCustomMarshaler
 
     internal struct AsAnyMarshaler
@@ -979,7 +978,7 @@ namespace System.StubHelpers
         internal AsAnyMarshaler(IntPtr pvArrayMarshaler)
         {
             // we need this in case the value being marshaled turns out to be array
-            BCLDebug.Assert(pvArrayMarshaler != IntPtr.Zero, "pvArrayMarshaler must not be null");
+            Debug.Assert(pvArrayMarshaler != IntPtr.Zero, "pvArrayMarshaler must not be null");
 
             this.pvArrayMarshaler = pvArrayMarshaler;
             backPropAction = BackPropAction.None;
@@ -1285,7 +1284,7 @@ namespace System.StubHelpers
 #if FEATURE_COMINTEROP
     internal static class NullableMarshaler
     {
-        static internal IntPtr ConvertToNative<T>(ref Nullable<T> pManaged) where T : struct
+        internal static IntPtr ConvertToNative<T>(ref Nullable<T> pManaged) where T : struct
         {
             if (pManaged.HasValue)
             {
@@ -1298,13 +1297,13 @@ namespace System.StubHelpers
             }
         }
 
-        static internal void ConvertToManagedRetVoid<T>(IntPtr pNative, ref Nullable<T> retObj) where T : struct
+        internal static void ConvertToManagedRetVoid<T>(IntPtr pNative, ref Nullable<T> retObj) where T : struct
         {
             retObj = ConvertToManaged<T>(pNative);
         }
 
 
-        static internal Nullable<T> ConvertToManaged<T>(IntPtr pNative) where T : struct
+        internal static Nullable<T> ConvertToManaged<T>(IntPtr pNative) where T : struct
         {
             if (pNative != IntPtr.Zero)
             {
@@ -1431,7 +1430,7 @@ namespace System.StubHelpers
     // For converting WinRT's Windows.Foundation.HResult into System.Exception and vice versa.
     internal static class HResultExceptionMarshaler
     {
-        static internal unsafe int ConvertToNative(Exception ex)
+        internal static unsafe int ConvertToNative(Exception ex)
         {
             if (!Environment.IsWinRTSupported)
             {
@@ -1444,10 +1443,8 @@ namespace System.StubHelpers
             return ex._HResult;
         }
 
-        static internal unsafe Exception ConvertToManaged(int hr)
+        internal static unsafe Exception ConvertToManaged(int hr)
         {
-            Contract.Ensures(Contract.Result<Exception>() != null || hr >= 0);
-
             if (!Environment.IsWinRTSupported)
             {
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
@@ -1536,7 +1533,7 @@ namespace System.StubHelpers
 
         public void Add(CleanupWorkListElement elem)
         {
-            BCLDebug.Assert(elem.m_owned == false, "m_owned is supposed to be false and set later by DangerousAddRef");
+            Debug.Assert(elem.m_owned == false, "m_owned is supposed to be false and set later by DangerousAddRef");
             m_list.Add(elem);
         }
 
@@ -1550,31 +1547,30 @@ namespace System.StubHelpers
         }
     }  // class CleanupWorkList
 
-    [SuppressUnmanagedCodeSecurityAttribute()]
     internal static class StubHelpers
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern bool IsQCall(IntPtr pMD);
+        internal static extern bool IsQCall(IntPtr pMD);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void InitDeclaringType(IntPtr pMD);
+        internal static extern void InitDeclaringType(IntPtr pMD);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetNDirectTarget(IntPtr pMD);
+        internal static extern IntPtr GetNDirectTarget(IntPtr pMD);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetDelegateTarget(Delegate pThis, ref IntPtr pStubArg);
+        internal static extern IntPtr GetDelegateTarget(Delegate pThis, ref IntPtr pStubArg);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ClearLastError();
+        internal static extern void ClearLastError();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void SetLastError();
+        internal static extern void SetLastError();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ThrowInteropParamException(int resID, int paramIdx);
+        internal static extern void ThrowInteropParamException(int resID, int paramIdx);
 
-        static internal IntPtr AddToCleanupList(ref CleanupWorkList pCleanupWorkList, SafeHandle handle)
+        internal static IntPtr AddToCleanupList(ref CleanupWorkList pCleanupWorkList, SafeHandle handle)
         {
             if (pCleanupWorkList == null)
                 pCleanupWorkList = new CleanupWorkList();
@@ -1586,7 +1582,7 @@ namespace System.StubHelpers
             return SafeHandleAddRef(handle, ref element.m_owned);
         }
 
-        static internal void DestroyCleanupList(ref CleanupWorkList pCleanupWorkList)
+        internal static void DestroyCleanupList(ref CleanupWorkList pCleanupWorkList)
         {
             if (pCleanupWorkList != null)
             {
@@ -1595,7 +1591,7 @@ namespace System.StubHelpers
             }
         }
 
-        static internal Exception GetHRExceptionObject(int hr)
+        internal static Exception GetHRExceptionObject(int hr)
         {
             Exception ex = InternalGetHRExceptionObject(hr);
             ex.InternalPreserveStackTrace();
@@ -1603,17 +1599,17 @@ namespace System.StubHelpers
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern Exception InternalGetHRExceptionObject(int hr);
+        internal static extern Exception InternalGetHRExceptionObject(int hr);
 
 #if FEATURE_COMINTEROP
-        static internal Exception GetCOMHRExceptionObject(int hr, IntPtr pCPCMD, object pThis)
+        internal static Exception GetCOMHRExceptionObject(int hr, IntPtr pCPCMD, object pThis)
         {
             Exception ex = InternalGetCOMHRExceptionObject(hr, pCPCMD, pThis, false);
             ex.InternalPreserveStackTrace();
             return ex;
         }
 
-        static internal Exception GetCOMHRExceptionObject_WinRT(int hr, IntPtr pCPCMD, object pThis)
+        internal static Exception GetCOMHRExceptionObject_WinRT(int hr, IntPtr pCPCMD, object pThis)
         {
             Exception ex = InternalGetCOMHRExceptionObject(hr, pCPCMD, pThis, true);
             ex.InternalPreserveStackTrace();
@@ -1621,19 +1617,19 @@ namespace System.StubHelpers
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern Exception InternalGetCOMHRExceptionObject(int hr, IntPtr pCPCMD, object pThis, bool fForWinRT);
+        internal static extern Exception InternalGetCOMHRExceptionObject(int hr, IntPtr pCPCMD, object pThis, bool fForWinRT);
 
 #endif // FEATURE_COMINTEROP
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr CreateCustomMarshalerHelper(IntPtr pMD, int paramToken, IntPtr hndManagedType);
+        internal static extern IntPtr CreateCustomMarshalerHelper(IntPtr pMD, int paramToken, IntPtr hndManagedType);
 
         //-------------------------------------------------------
         // SafeHandle Helpers
         //-------------------------------------------------------
 
         // AddRefs the SH and returns the underlying unmanaged handle.
-        static internal IntPtr SafeHandleAddRef(SafeHandle pHandle, ref bool success)
+        internal static IntPtr SafeHandleAddRef(SafeHandle pHandle, ref bool success)
         {
             if (pHandle == null)
             {
@@ -1645,7 +1641,7 @@ namespace System.StubHelpers
         }
 
         // Releases the SH (to be called from finally block).
-        static internal void SafeHandleRelease(SafeHandle pHandle)
+        internal static void SafeHandleRelease(SafeHandle pHandle)
         {
             if (pHandle == null)
             {
@@ -1669,55 +1665,55 @@ namespace System.StubHelpers
 
 #if FEATURE_COMINTEROP
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetCOMIPFromRCW(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget, out bool pfNeedsRelease);
+        internal static extern IntPtr GetCOMIPFromRCW(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget, out bool pfNeedsRelease);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetCOMIPFromRCW_WinRT(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
+        internal static extern IntPtr GetCOMIPFromRCW_WinRT(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetCOMIPFromRCW_WinRTSharedGeneric(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
+        internal static extern IntPtr GetCOMIPFromRCW_WinRTSharedGeneric(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetCOMIPFromRCW_WinRTDelegate(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
+        internal static extern IntPtr GetCOMIPFromRCW_WinRTDelegate(object objSrc, IntPtr pCPCMD, out IntPtr ppTarget);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern bool ShouldCallWinRTInterface(object objSrc, IntPtr pCPCMD);
+        internal static extern bool ShouldCallWinRTInterface(object objSrc, IntPtr pCPCMD);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern Delegate GetTargetForAmbiguousVariantCall(object objSrc, IntPtr pMT, out bool fUseString);
+        internal static extern Delegate GetTargetForAmbiguousVariantCall(object objSrc, IntPtr pMT, out bool fUseString);
 
         //-------------------------------------------------------
         // Helper for the MDA RaceOnRCWCleanup
         //-------------------------------------------------------
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void StubRegisterRCW(object pThis);
+        internal static extern void StubRegisterRCW(object pThis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void StubUnregisterRCW(object pThis);
+        internal static extern void StubUnregisterRCW(object pThis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetDelegateInvokeMethod(Delegate pThis);
+        internal static extern IntPtr GetDelegateInvokeMethod(Delegate pThis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern object GetWinRTFactoryObject(IntPtr pCPCMD);
+        internal static extern object GetWinRTFactoryObject(IntPtr pCPCMD);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetWinRTFactoryReturnValue(object pThis, IntPtr pCtorEntry);
+        internal static extern IntPtr GetWinRTFactoryReturnValue(object pThis, IntPtr pCtorEntry);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetOuterInspectable(object pThis, IntPtr pCtorMD);
+        internal static extern IntPtr GetOuterInspectable(object pThis, IntPtr pCtorMD);
 
 #if MDA_SUPPORTED
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern Exception TriggerExceptionSwallowedMDA(Exception ex, IntPtr pManagedTarget);
+        internal static extern Exception TriggerExceptionSwallowedMDA(Exception ex, IntPtr pManagedTarget);
 #endif // MDA_SUPPORTED
 
 #endif // FEATURE_COMINTEROP
 
 #if MDA_SUPPORTED
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void CheckCollectedDelegateMDA(IntPtr pEntryThunk);
+        internal static extern void CheckCollectedDelegateMDA(IntPtr pEntryThunk);
 #endif // MDA_SUPPORTED
 
         //-------------------------------------------------------
@@ -1725,21 +1721,21 @@ namespace System.StubHelpers
         //-------------------------------------------------------
 #if PROFILING_SUPPORTED
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr ProfilerBeginTransitionCallback(IntPtr pSecretParam, IntPtr pThread, object pThis);
+        internal static extern IntPtr ProfilerBeginTransitionCallback(IntPtr pSecretParam, IntPtr pThread, object pThis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ProfilerEndTransitionCallback(IntPtr pMD, IntPtr pThread);
+        internal static extern void ProfilerEndTransitionCallback(IntPtr pMD, IntPtr pThread);
 #endif // PROFILING_SUPPORTED
 
         //------------------------------------------------------
         // misc
         //------------------------------------------------------
-        static internal void CheckStringLength(int length)
+        internal static void CheckStringLength(int length)
         {
             CheckStringLength((uint)length);
         }
 
-        static internal void CheckStringLength(uint length)
+        internal static void CheckStringLength(uint length)
         {
             if (length > 0x7ffffff0)
             {
@@ -1748,49 +1744,49 @@ namespace System.StubHelpers
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal unsafe extern int strlen(sbyte* ptr);
+        internal static extern unsafe int strlen(sbyte* ptr);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void DecimalCanonicalizeInternal(ref Decimal dec);
+        internal static extern void DecimalCanonicalizeInternal(ref Decimal dec);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal unsafe extern void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkList pCleanupWorkList);
+        internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkList pCleanupWorkList);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal unsafe extern void FmtClassUpdateCLRInternal(object obj, byte* pNative);
+        internal static extern unsafe void FmtClassUpdateCLRInternal(object obj, byte* pNative);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal unsafe extern void LayoutDestroyNativeInternal(byte* pNative, IntPtr pMT);
+        internal static extern unsafe void LayoutDestroyNativeInternal(byte* pNative, IntPtr pMT);
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern object AllocateInternal(IntPtr typeHandle);
+        internal static extern object AllocateInternal(IntPtr typeHandle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void MarshalToUnmanagedVaListInternal(IntPtr va_list, uint vaListSize, IntPtr pArgIterator);
+        internal static extern void MarshalToUnmanagedVaListInternal(IntPtr va_list, uint vaListSize, IntPtr pArgIterator);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void MarshalToManagedVaListInternal(IntPtr va_list, IntPtr pArgIterator);
+        internal static extern void MarshalToManagedVaListInternal(IntPtr va_list, IntPtr pArgIterator);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern uint CalcVaListSize(IntPtr va_list);
+        internal static extern uint CalcVaListSize(IntPtr va_list);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ValidateObject(object obj, IntPtr pMD, object pThis);
+        internal static extern void ValidateObject(object obj, IntPtr pMD, object pThis);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void LogPinnedArgument(IntPtr localDesc, IntPtr nativeArg);
+        internal static extern void LogPinnedArgument(IntPtr localDesc, IntPtr nativeArg);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void ValidateByref(IntPtr byref, IntPtr pMD, object pThis); // the byref is pinned so we can safely "cast" it to IntPtr
+        internal static extern void ValidateByref(IntPtr byref, IntPtr pMD, object pThis); // the byref is pinned so we can safely "cast" it to IntPtr
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetStubContext();
+        internal static extern IntPtr GetStubContext();
 
 #if BIT64
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern IntPtr GetStubContextAddr();
+        internal static extern IntPtr GetStubContextAddr();
 #endif // BIT64
 
 #if MDA_SUPPORTED
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static internal extern void TriggerGCForMDA();        
+        internal static extern void TriggerGCForMDA();        
 #endif // MDA_SUPPORTED
 
 #if FEATURE_ARRAYSTUB_AS_IL

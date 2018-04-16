@@ -49,7 +49,7 @@ if (WIN32)
     list(APPEND SUPERPMI_SHIM_COUNTER_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-counter.def)
 endif (WIN32)
 
-add_library(superpmi-shim-counter
+_add_library(superpmi-shim-counter
     SHARED
     ${SUPERPMI_SHIM_COUNTER_SOURCES}
 )
@@ -68,7 +68,7 @@ else()
         ${STATIC_MT_CPP_LIB}
     )
 
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-counter.pdb DESTINATION PDB)
+    _install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-counter.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS superpmi-shim-counter DESTINATION .)
+_install (TARGETS superpmi-shim-counter DESTINATION .)

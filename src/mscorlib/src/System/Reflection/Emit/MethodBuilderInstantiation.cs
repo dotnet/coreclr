@@ -8,7 +8,6 @@ using System;
 using System.Reflection;
 using System.Collections;
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {
@@ -19,14 +18,13 @@ namespace System.Reflection.Emit
         {
             if (!method.IsGenericMethodDefinition)
                 throw new InvalidOperationException();
-            Contract.EndContractBlock();
 
             return new MethodBuilderInstantiation(method, inst);
         }
 
         #endregion
 
-        #region Private Data Mebers
+        #region Private Data Members
         internal MethodInfo m_method;
         private Type[] m_inst;
         #endregion
@@ -56,7 +54,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region MethodBase Members
-        [Pure]
         public override ParameterInfo[] GetParameters() { throw new NotSupportedException(); }
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_method.GetMethodImplementationFlags(); }
         public override RuntimeMethodHandle MethodHandle { get { throw new NotSupportedException(SR.NotSupported_DynamicModule); } }
@@ -88,7 +85,7 @@ namespace System.Reflection.Emit
 
         public override MethodInfo MakeGenericMethod(params Type[] arguments)
         {
-            throw new InvalidOperationException(SR.Arg_NotGenericMethodDefinition);
+            throw new InvalidOperationException(SR.Format(SR.Arg_NotGenericMethodDefinition, this));
         }
 
         public override bool IsGenericMethod { get { return true; } }

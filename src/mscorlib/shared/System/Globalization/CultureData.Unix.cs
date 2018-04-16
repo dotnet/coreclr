@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
@@ -34,7 +33,7 @@ namespace System.Globalization
             string realNameBuffer = _sRealName;
 
             // Basic validation
-            if (realNameBuffer.Contains("@"))
+            if (realNameBuffer.Contains('@'))
             {
                 return false; // don't allow ICU variants to come in directly
             }
@@ -44,7 +43,7 @@ namespace System.Globalization
             if (index > 0)
             {
                 if (index >= (realNameBuffer.Length - 1) // must have characters after _
-                    || realNameBuffer.Substring(index + 1).Contains("_")) // only one _ allowed
+                    || realNameBuffer.Substring(index + 1).Contains('_')) // only one _ allowed
                 {
                     return false; // fail
                 }
@@ -92,7 +91,7 @@ namespace System.Globalization
         {
             // Get the locale name from ICU
             StringBuilder sb = StringBuilderCache.Acquire(ICU_ULOC_FULLNAME_CAPACITY);
-            if (!Interop.GlobalizationInterop.GetLocaleName(localeName, sb, sb.Capacity))
+            if (!Interop.Globalization.GetLocaleName(localeName, sb, sb.Capacity))
             {
                 StringBuilderCache.Release(sb);
                 windowsName = null;
@@ -108,7 +107,7 @@ namespace System.Globalization
         {
             // Get the default (system) locale name from ICU
             StringBuilder sb = StringBuilderCache.Acquire(ICU_ULOC_FULLNAME_CAPACITY);
-            if (!Interop.GlobalizationInterop.GetDefaultLocaleName(sb, sb.Capacity))
+            if (!Interop.Globalization.GetDefaultLocaleName(sb, sb.Capacity))
             {
                 StringBuilderCache.Release(sb);
                 windowsName = null;
@@ -144,12 +143,12 @@ namespace System.Globalization
 
             StringBuilder sb = StringBuilderCache.Acquire(ICU_ULOC_KEYWORD_AND_VALUES_CAPACITY);
 
-            bool result = Interop.GlobalizationInterop.GetLocaleInfoString(localeName, (uint)type, sb, sb.Capacity);
+            bool result = Interop.Globalization.GetLocaleInfoString(localeName, (uint)type, sb, sb.Capacity);
             if (!result)
             {
                 // Failed, just use empty string
                 StringBuilderCache.Release(sb);
-                Debug.Assert(false, "[CultureData.GetLocaleInfo(LocaleStringData)] Failed");
+                Debug.Fail("[CultureData.GetLocaleInfo(LocaleStringData)] Failed");
                 return String.Empty;
             }
             return StringBuilderCache.GetStringAndRelease(sb);
@@ -170,11 +169,11 @@ namespace System.Globalization
             
 
             int value = 0;
-            bool result = Interop.GlobalizationInterop.GetLocaleInfoInt(_sWindowsName, (uint)type, ref value);
+            bool result = Interop.Globalization.GetLocaleInfoInt(_sWindowsName, (uint)type, ref value);
             if (!result)
             {
                 // Failed, just use 0
-                Debug.Assert(false, "[CultureData.GetLocaleInfo(LocaleNumberData)] failed");
+                Debug.Fail("[CultureData.GetLocaleInfo(LocaleNumberData)] failed");
             }
 
             return value;
@@ -186,10 +185,10 @@ namespace System.Globalization
 
             int primaryGroupingSize = 0;
             int secondaryGroupingSize = 0;
-            bool result = Interop.GlobalizationInterop.GetLocaleInfoGroupingSizes(_sWindowsName, (uint)type, ref primaryGroupingSize, ref secondaryGroupingSize);
+            bool result = Interop.Globalization.GetLocaleInfoGroupingSizes(_sWindowsName, (uint)type, ref primaryGroupingSize, ref secondaryGroupingSize);
             if (!result)
             {
-                Debug.Assert(false, "[CultureData.GetLocaleInfo(LocaleGroupingData type)] failed");
+                Debug.Fail("[CultureData.GetLocaleInfo(LocaleGroupingData type)] failed");
             }
 
             if (secondaryGroupingSize == 0)
@@ -211,12 +210,12 @@ namespace System.Globalization
 
             StringBuilder sb = StringBuilderCache.Acquire(ICU_ULOC_KEYWORD_AND_VALUES_CAPACITY);
 
-            bool result = Interop.GlobalizationInterop.GetLocaleTimeFormat(_sWindowsName, shortFormat, sb, sb.Capacity);
+            bool result = Interop.Globalization.GetLocaleTimeFormat(_sWindowsName, shortFormat, sb, sb.Capacity);
             if (!result)
             {
                 // Failed, just use empty string
                 StringBuilderCache.Release(sb);
-                Debug.Assert(false, "[CultureData.GetTimeFormatString(bool shortFormat)] Failed");
+                Debug.Fail("[CultureData.GetTimeFormatString(bool shortFormat)] Failed");
                 return String.Empty;
             }
 
@@ -366,7 +365,7 @@ namespace System.Globalization
                 return Array.Empty<CultureInfo>();
             }
             
-            int bufferLength = Interop.GlobalizationInterop.GetLocales(null, 0);
+            int bufferLength = Interop.Globalization.GetLocales(null, 0);
             if (bufferLength <= 0)
             {
                 return Array.Empty<CultureInfo>();
@@ -374,7 +373,7 @@ namespace System.Globalization
             
             Char [] chars = new Char[bufferLength];
             
-            bufferLength = Interop.GlobalizationInterop.GetLocales(chars, bufferLength);
+            bufferLength = Interop.Globalization.GetLocales(chars, bufferLength);
             if (bufferLength <= 0)
             {
                 return Array.Empty<CultureInfo>();

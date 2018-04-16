@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using Microsoft.Win32;
 
 #if ES_BUILD_STANDALONE
@@ -15,7 +16,7 @@ namespace System.Diagnostics.Tracing
     {
         // Register an event provider.
         unsafe uint EventRegister(
-            ref Guid providerId,
+            EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle);

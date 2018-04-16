@@ -15,7 +15,6 @@ namespace System.Reflection.Emit
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices;
 
     public sealed class DynamicMethod : MethodInfo
@@ -55,8 +54,6 @@ namespace System.Reflection.Emit
         //
         // class initialization (ctor and init)
         //
-
-        private DynamicMethod() { }
 
         public DynamicMethod(string name,
                              Type returnType,
@@ -213,14 +210,13 @@ namespace System.Reflection.Emit
 
         // helpers for intialization
 
-        static private void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention)
+        private static void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention)
         {
-            // only static public for method attributes
+            // only public static for method attributes
             if ((attributes & ~MethodAttributes.MemberAccessMask) != MethodAttributes.Static)
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
             if ((attributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
-            Contract.EndContractBlock();
 
             // only standard or varargs supported
             if (callingConvention != CallingConventions.Standard && callingConvention != CallingConventions.VarArgs)
@@ -288,7 +284,7 @@ namespace System.Reflection.Emit
                     if (signature[i] == null)
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                     m_parameterTypes[i] = signature[i].UnderlyingSystemType as RuntimeType;
-                    if (m_parameterTypes[i] == null || !(m_parameterTypes[i] is RuntimeType) || m_parameterTypes[i] == (RuntimeType)typeof(void))
+                    if (m_parameterTypes[i] == null || m_parameterTypes[i] == typeof(void))
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                 }
             }
@@ -299,7 +295,7 @@ namespace System.Reflection.Emit
 
             // check and store the return value
             m_returnType = (returnType == null) ? (RuntimeType)typeof(void) : returnType.UnderlyingSystemType as RuntimeType;
-            if ((m_returnType == null) || !(m_returnType is RuntimeType) || m_returnType.IsByRef)
+            if (m_returnType == null)
                 throw new NotSupportedException(SR.Arg_InvalidTypeInRetType);
 
             if (transparentMethod)
@@ -431,7 +427,6 @@ namespace System.Reflection.Emit
 
         public override MethodInfo GetBaseDefinition() { return this; }
 
-        [Pure]
         public override ParameterInfo[] GetParameters() { return m_dynMethod.GetParameters(); }
 
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_dynMethod.GetMethodImplementationFlags(); }
@@ -464,7 +459,6 @@ namespace System.Reflection.Emit
         {
             if ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
                 throw new NotSupportedException(SR.NotSupported_CallToVarArg);
-            Contract.EndContractBlock();
 
             //
             // We do not demand any permission here because the caller already has access
@@ -487,18 +481,19 @@ namespace System.Reflection.Emit
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
             // if we are here we passed all the previous checks. Time to look at the arguments
+            bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             Object retValue = null;
             if (actualCount > 0)
             {
                 Object[] arguments = CheckArguments(parameters, binder, invokeAttr, culture, sig);
-                retValue = RuntimeMethodHandle.InvokeMethod(null, arguments, sig, false);
+                retValue = RuntimeMethodHandle.InvokeMethod(null, arguments, sig, false, wrapExceptions);
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
                     parameters[index] = arguments[index];
             }
             else
             {
-                retValue = RuntimeMethodHandle.InvokeMethod(null, null, sig, false);
+                retValue = RuntimeMethodHandle.InvokeMethod(null, null, sig, false, wrapExceptions);
             }
 
             GC.KeepAlive(this);
@@ -578,18 +573,13 @@ namespace System.Reflection.Emit
         // This way the DynamicMethod creator is the only one responsible for DynamicMethod access,
         // and can control exactly who gets access to it.
         //
-        internal class RTDynamicMethod : MethodInfo
+        internal sealed class RTDynamicMethod : MethodInfo
         {
             internal DynamicMethod m_owner;
             private RuntimeParameterInfo[] m_parameters;
             private String m_name;
             private MethodAttributes m_attributes;
             private CallingConventions m_callingConvention;
-
-            //
-            // ctors
-            //
-            private RTDynamicMethod() { }
 
             internal RTDynamicMethod(DynamicMethod owner, String name, MethodAttributes attributes, CallingConventions callingConvention)
             {
@@ -647,7 +637,6 @@ namespace System.Reflection.Emit
                 return this;
             }
 
-            [Pure]
             public override ParameterInfo[] GetParameters()
             {
                 ParameterInfo[] privateParameters = LoadParameters();
@@ -676,10 +665,9 @@ namespace System.Reflection.Emit
             {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
-                Contract.EndContractBlock();
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))
-                    return new Object[] { new MethodImplAttribute(GetMethodImplementationFlags()) };
+                    return new Object[] { new MethodImplAttribute((MethodImplOptions)GetMethodImplementationFlags()) };
                 else
                     return Array.Empty<Object>();
             }
@@ -687,14 +675,13 @@ namespace System.Reflection.Emit
             public override Object[] GetCustomAttributes(bool inherit)
             {
                 // support for MethodImplAttribute PCA
-                return new Object[] { new MethodImplAttribute(GetMethodImplementationFlags()) };
+                return new Object[] { new MethodImplAttribute((MethodImplOptions)GetMethodImplementationFlags()) };
             }
 
             public override bool IsDefined(Type attributeType, bool inherit)
             {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
-                Contract.EndContractBlock();
 
                 if (attributeType.IsAssignableFrom(typeof(MethodImplAttribute)))
                     return true;

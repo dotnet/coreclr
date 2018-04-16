@@ -72,10 +72,6 @@
 
 #include "lazycow.h"
 
-#include "compatibilityflags.h"
-extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-extern DWORD* GetGlobalCompatibilityFlags();
-
 #include "strongname.h"
 #include "stdmacros.h"
 
@@ -250,11 +246,6 @@ inline void* memcpyUnsafe(void *dest, const void *src, size_t len)
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
     #endif // !defined(memcpy)
-
-
-    #if !defined(CHECK_APP_DOMAIN_LEAKS)
-    #define CHECK_APP_DOMAIN_LEAKS 1
-    #endif
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     inline void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;

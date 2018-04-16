@@ -21,20 +21,23 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Compilers">
       <Version>1.1.1</Version>
     </PackageReference>
+    <PackageReference Include="CommandLineParser">
+      <Version>2.1.1-beta</Version>
+    </PackageReference>
     <PackageReference Include="xunit.performance.api">
-      <Version>$(XUnitPerformanceApiVersion)</Version>
+      <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.performance.core">
-      <Version>$(XUnitPerformanceApiVersion)</Version>
+      <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.performance.execution">
-      <Version>$(XUnitPerformanceApiVersion)</Version>
+      <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.performance.metrics">
-      <Version>$(XUnitPerformanceApiVersion)</Version>
+      <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent">
-      <Version>$(MicrosoftDiagnosticsTracingLibraryVersion)</Version>
+      <Version>$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>9.0.1</Version>
@@ -43,7 +46,7 @@
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.console.netcore">
-      <Version>$(XUnitConsoleNetCoreVersion)</Version>
+      <Version>$(XunitConsoleNetcorePackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.runner.utility">
       <Version>$(XunitPackageVersion)</Version>
@@ -71,6 +74,7 @@
     <PackageToInclude Include="Microsoft.CodeAnalysis.Compilers"/>
     <PackageToInclude Include="Microsoft.CodeAnalysis.CSharp"/>
     <PackageToInclude Include="Microsoft.CodeAnalysis.VisualBasic"/>
+    <PackageToInclude Include="CommandLineParser"/>
     <PackageToInclude Include="$(XUnitRunnerPackageId)" />
   </ItemGroup>
 

@@ -4,12 +4,10 @@
 
 using System;
 using System.Reflection;
-using System.Runtime;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Reflection.Emit;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -67,7 +65,7 @@ namespace System
             // the types are the same, obj should also be a
             // MulticastDelegate
             Debug.Assert(obj is MulticastDelegate, "Shouldn't have failed here since we already checked the types are the same!");
-            var d = JitHelpers.UnsafeCast<MulticastDelegate>(obj);
+            var d = Unsafe.As<MulticastDelegate>(obj);
 
             if (_invocationCount != (IntPtr)0)
             {
@@ -410,8 +408,6 @@ namespace System
         // This method returns the Invocation list of this multicast delegate.
         public override sealed Delegate[] GetInvocationList()
         {
-            Contract.Ensures(Contract.Result<Delegate[]>() != null);
-
             Delegate[] del;
             Object[] invocationList = _invocationList as Object[];
             if (invocationList == null)
@@ -433,18 +429,22 @@ namespace System
 
         public static bool operator ==(MulticastDelegate d1, MulticastDelegate d2)
         {
-            if ((Object)d1 == null)
-                return (Object)d2 == null;
+            if (ReferenceEquals(d1, d2))
+            {
+                return true;
+            }
 
-            return d1.Equals(d2);
+            return d1 is null ? false : d1.Equals(d2);
         }
 
         public static bool operator !=(MulticastDelegate d1, MulticastDelegate d2)
         {
-            if ((Object)d1 == null)
-                return (Object)d2 != null;
+            if (ReferenceEquals(d1, d2))
+            {
+                return false;
+            }
 
-            return !d1.Equals(d2);
+            return d1 is null ? true : !d1.Equals(d2);
         }
 
         public override sealed int GetHashCode()

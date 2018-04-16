@@ -21,7 +21,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.Versioning;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Resources
 {
@@ -161,10 +160,10 @@ namespace System.Resources
     // into smaller chunks, each of size sqrt(n), would be substantially better for
     // resource files containing thousands of resources.
     // 
-#if CORECLR
-    internal
-#else
+#if CORERT
     public  // On CoreRT, this must be public because of need to whitelist past the ReflectionBlock.
+#else
+    internal
 #endif
     sealed class RuntimeResourceSet : ResourceSet, IEnumerable
     {
@@ -285,7 +284,6 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(key));
             if (Reader == null || _resCache == null)
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
-            Contract.EndContractBlock();
 
             Object value = null;
             ResourceLocator resLocation;

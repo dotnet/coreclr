@@ -161,8 +161,19 @@
 #endif
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#ifndef _TARGET_64BIT_
 #define _TARGET_64BIT_
-#endif
+#endif // _TARGET_64BIT_
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+#ifdef _TARGET_64BIT_
+#ifdef _TARGET_X86_
+#error Cannot define both _TARGET_X86_ and _TARGET_64BIT_
+#endif // _TARGET_X86_
+#ifdef _TARGET_ARM_
+#error Cannot define both _TARGET_ARM_ and _TARGET_64BIT_
+#endif // _TARGET_ARM_
+#endif // _TARGET_64BIT_
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 #define _TARGET_XARCH_
@@ -414,8 +425,7 @@ typedef ptrdiff_t ssize_t;
 
 //=============================================================================
 
-#define OPT_MULT_ADDSUB 1 // optimize consecutive "lclVar += or -= icon"
-#define OPT_BOOL_OPS 1    // optimize boolean operations
+#define OPT_BOOL_OPS 1 // optimize boolean operations
 
 //=============================================================================
 
@@ -592,29 +602,13 @@ struct JitOptions
 
 extern JitOptions jitOpts;
 
-/*****************************************************************************
-*
-*  Returns a word filled with the JITs allocator CHK fill value.
-*
-*/
+// Forward declarations for UninitializedWord and IsUninitialized are needed by alloc.h
 template <typename T>
-inline T UninitializedWord()
-{
-    __int64 word = 0x0101010101010101LL * (JitConfig.JitDefaultFill() & 0xFF);
-    return (T)word;
-}
-
-/*****************************************************************************
-*
-*  Determines whether this value is coming from uninitialized JIT memory
-*
-*/
+inline T UninitializedWord(Compiler* comp);
 
 template <typename T>
-inline bool IsUninitialized(T data)
-{
-    return data == UninitializedWord<T>();
-}
+inline bool IsUninitialized(T data);
+
 #endif // DEBUG
 
 /*****************************************************************************/
@@ -696,11 +690,12 @@ inline size_t unsigned_abs(ssize_t x)
 
 #if CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE || MEASURE_MEM_ALLOC
 
+#define HISTOGRAM_MAX_SIZE_COUNT 64
+
 class Histogram
 {
 public:
-    Histogram(IAllocator* allocator, const unsigned* const sizeTable);
-    ~Histogram();
+    Histogram(const unsigned* const sizeTable);
 
     void dump(FILE* output);
     void record(unsigned size);
@@ -708,10 +703,9 @@ public:
 private:
     void ensureAllocated();
 
-    IAllocator*           m_allocator;
     unsigned              m_sizeCount;
     const unsigned* const m_sizeTable;
-    unsigned*             m_counts;
+    unsigned              m_counts[HISTOGRAM_MAX_SIZE_COUNT];
 };
 
 #endif // CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE
@@ -732,7 +726,6 @@ private:
 #pragma warning(push)
 #pragma warning(default : 4820) // 'bytes' bytes padding added after construct 'member_name'
 #endif                          // CHECK_STRUCT_PADDING
-
 #include "alloc.h"
 #include "target.h"
 
@@ -823,6 +816,10 @@ const int MIN_SHORT_AS_INT = -32768;
 
 /*****************************************************************************/
 
+// CompMemKind values are used to tag memory allocations performed via
+// the compiler's allocator so that the memory usage of various compiler
+// components can be tracked separately (when MEASURE_MEM_ALLOC is defined).
+
 enum CompMemKind
 {
 #define CompMemKindMacro(kind) CMK_##kind,
@@ -831,6 +828,98 @@ enum CompMemKind
 };
 
 class Compiler;
+
+// Allows general purpose code (e.g. collection classes) to allocate memory
+// of a pre-determined kind via the compiler's allocator.
+
+class CompAllocator
+{
+    Compiler* const m_comp;
+#if MEASURE_MEM_ALLOC
+    CompMemKind const m_cmk;
+#endif
+public:
+    CompAllocator(Compiler* comp, CompMemKind cmk)
+        : m_comp(comp)
+#if MEASURE_MEM_ALLOC
+        , m_cmk(cmk)
+#endif
+    {
+    }
+
+    // Allocates a block of memory at least `sz` in size.
+    // Zero-length allocation are not allowed.
+    inline void* Alloc(size_t sz);
+
+    // Allocates a block of memory at least `elems * elemSize` in size.
+    // Zero-length allocation are not allowed.
+    inline void* ArrayAlloc(size_t elems, size_t elemSize);
+
+    // For the compiler's ArenaAllocator, free operations are no-ops.
+    void Free(void* p)
+    {
+    }
+};
+
+// Global operator new overloads that work with CompAllocator
+
+inline void* __cdecl operator new(size_t n, CompAllocator* alloc)
+{
+    return alloc->Alloc(n);
+}
+
+inline void* __cdecl operator new[](size_t n, CompAllocator* alloc)
+{
+    return alloc->Alloc(n);
+}
+
+// A CompAllocator wrapper that implements IAllocator and allows zero-length
+// memory allocations (the compiler's ArenAllocator does not support zero-length
+// allocation).
+
+class CompIAllocator : public IAllocator
+{
+    CompAllocator* const m_alloc;
+    char                 m_zeroLenAllocTarg;
+
+public:
+    CompIAllocator(CompAllocator* alloc) : m_alloc(alloc)
+    {
+    }
+
+    // Allocates a block of memory at least `sz` in size.
+    virtual void* Alloc(size_t sz) override
+    {
+        if (sz == 0)
+        {
+            return &m_zeroLenAllocTarg;
+        }
+        else
+        {
+            return m_alloc->Alloc(sz);
+        }
+    }
+
+    // Allocates a block of memory at least `elems * elemSize` in size.
+    virtual void* ArrayAlloc(size_t elemSize, size_t numElems) override
+    {
+        if ((elemSize == 0) || (numElems == 0))
+        {
+            return &m_zeroLenAllocTarg;
+        }
+        else
+        {
+            return m_alloc->ArrayAlloc(elemSize, numElems);
+        }
+    }
+
+    // Frees the block of memory pointed to by p.
+    virtual void Free(void* p) override
+    {
+        m_alloc->Free(p);
+    }
+};
+
 class JitTls
 {
 #ifdef DEBUG
@@ -852,9 +941,49 @@ public:
 };
 
 #if defined(DEBUG)
-
+//  Include the definition of Compiler for use by these template functions
+//
 #include "compiler.h"
 
+//****************************************************************************
+//
+//  Returns a word filled with the JITs allocator default fill value.
+//
+template <typename T>
+inline T UninitializedWord(Compiler* comp)
+{
+    unsigned char defaultFill = 0xdd;
+    if (comp == nullptr)
+    {
+        comp = JitTls::GetCompiler();
+    }
+    defaultFill = comp->compGetJitDefaultFill();
+    assert(defaultFill <= 0xff);
+    __int64 word = 0x0101010101010101LL * defaultFill;
+    return (T)word;
+}
+
+//****************************************************************************
+//
+//  Tries to determine if this value is coming from uninitialized JIT memory
+//    - Returns true if the value matches what we initialized the memory to.
+//
+//  Notes:
+//    - Asserts that use this are assuming that the UninitializedWord value
+//      isn't a legal value for 'data'.  Thus using a default fill value of
+//      0x00 will often trigger such asserts.
+//
+template <typename T>
+inline bool IsUninitialized(T data)
+{
+    return data == UninitializedWord<T>(JitTls::GetCompiler());
+}
+
+//****************************************************************************
+//
+//  Debug template definitions for dspPtr, dspOffset
+//    - Used to format pointer/offset values for diffable Disasm
+//
 template <typename T>
 T dspPtr(T p)
 {
@@ -869,6 +998,11 @@ T dspOffset(T o)
 
 #else // !defined(DEBUG)
 
+//****************************************************************************
+//
+//  Non-Debug template definitions for dspPtr, dspOffset
+//    - This is a nop in non-Debug builds
+//
 template <typename T>
 T dspPtr(T p)
 {

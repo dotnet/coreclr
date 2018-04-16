@@ -36,7 +36,6 @@
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #endif
-#include "tls.h"
 #include "ecall.h"
 #include "generics.h"
 #include "typestring.h"
@@ -456,7 +455,7 @@ HCIMPLEND
 HCIMPL2_VV(UINT64, JIT_LLsh, UINT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num << shift;
+    return num << (shift & 0x3F);
 }
 HCIMPLEND
 
@@ -464,7 +463,7 @@ HCIMPLEND
 HCIMPL2_VV(INT64, JIT_LRsh, INT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num >> shift;
+    return num >> (shift & 0x3F);
 }
 HCIMPLEND
 
@@ -472,7 +471,7 @@ HCIMPLEND
 HCIMPL2_VV(UINT64, JIT_LRsz, UINT64 num, int shift)
 {
     FCALL_CONTRACT;
-    return num >> shift;
+    return num >> (shift & 0x3F);
 }
 HCIMPLEND
 #endif // !BIT64 && !_TARGET_X86_
@@ -2396,7 +2395,7 @@ HCIMPL2(Object*, JIT_ChkCastClass_Portable, MethodTable* pTargetMT, Object* pObj
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     } while (pMT);
 
     ENDFORBIDGC();
@@ -2416,14 +2415,14 @@ HCIMPL2(Object*, JIT_ChkCastClassSpecial_Portable, MethodTable* pTargetMT, Objec
         PRECONDITION(pObject->GetMethodTable() != pTargetMT);
     } CONTRACTL_END;
 
-    PTR_VOID pMT = MethodTable::GetParentMethodTable(pObject->GetMethodTable());
+    PTR_VOID pMT = MethodTable::GetParentMethodTableOrIndirection(pObject->GetMethodTable());
 
     while (pMT)
     {
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     }
 
     ENDFORBIDGC();
@@ -2450,7 +2449,7 @@ HCIMPL2(Object*, JIT_IsInstanceOfClass_Portable, MethodTable* pTargetMT, Object*
         if (pMT == pTargetMT)
             return pObject;
 
-        pMT = MethodTable::GetParentMethodTable(pMT);
+        pMT = MethodTable::GetParentMethodTableOrIndirection(pMT);
     } while (pMT);
 
     if (!pObject->GetMethodTable()->HasTypeEquivalence())
@@ -2777,13 +2776,6 @@ HCIMPL1(Object*, JIT_NewS_MP_FastPortable, CORINFO_CLASS_HANDLE typeHnd_)
         _ASSERTE(object->HasEmptySyncBlockInfo());
         object->SetMethodTable(methodTable);
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            object->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         return object;
     } while (false);
 
@@ -2879,13 +2871,6 @@ HCIMPL1(StringObject*, AllocateString_MP_FastPortable, DWORD stringLength)
         stringObject->SetMethodTable(g_pStringClass);
         stringObject->SetStringLength(stringLength);
         _ASSERTE(stringObject->GetBuffer()[stringLength] == W('\0'));
-
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            stringObject->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
 
         return stringObject;
     } while (false);
@@ -3055,13 +3040,6 @@ HCIMPL2(Object*, JIT_NewArr1VC_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, IN
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            array->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
         return array;
     } while (false);
 
@@ -3120,13 +3098,6 @@ HCIMPL2(Object*, JIT_NewArr1OBJ_MP_FastPortable, CORINFO_CLASS_HANDLE arrayMT, I
         array->SetArrayMethodTable(pArrayMT);
         _ASSERTE(static_cast<DWORD>(componentCount) == componentCount);
         array->m_NumComponents = static_cast<DWORD>(componentCount);
-
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            array->SetAppDomain();
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
 
         return array;
     } while (false);
@@ -3369,11 +3340,6 @@ HCIMPL2(LPVOID, ArrayStoreCheck, Object** pElement, PtrArray** pArray)
 
     GCStress<cfg_any, EeconfigFastGcSPolicy>::MaybeTrigger();
 
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
-      (*pElement)->AssignAppDomain((*pArray)->GetAppDomain());
-#endif // CHECK_APP_DOMAIN_LEAKS
-
     if (!ObjIsInstanceOf(*pElement, (*pArray)->GetArrayElementTypeHandle()))
         COMPlusThrow(kArrayTypeMismatchException);
 
@@ -3404,22 +3370,6 @@ HCIMPL3(void, JIT_Stelem_Ref_Portable, PtrArray* array, unsigned idx, Object *va
         MethodTable *valMT = val->GetMethodTable();
         TypeHandle arrayElemTH = array->GetArrayElementTypeHandle();
 
-#if CHECK_APP_DOMAIN_LEAKS
-        // If the instance is agile or check agile
-        if (g_pConfig->AppDomainLeaks() && !arrayElemTH.IsAppDomainAgile() && !arrayElemTH.IsCheckAppDomainAgile())
-        {
-            // FCALL_CONTRACT increase ForbidGC count.  Normally, HELPER_METHOD_FRAME macros decrease the count.
-            // But to avoid perf hit, we manually decrease the count here before calling another HCCALL.
-            ENDFORBIDGC();
-
-            if (HCCALL2(ArrayStoreCheck,(Object**)&val, (PtrArray**)&array) != NULL)
-            {
-                // This return is never executed. It helps epilog walker to find its way out.
-                return;
-            }
-        }
-        else
-#endif
         if (arrayElemTH != TypeHandle(valMT) && arrayElemTH != TypeHandle(g_pObjectClass))
         {   
             TypeHandle::CastResult result = ObjIsInstanceOfNoGC(val, arrayElemTH);
@@ -4416,29 +4366,8 @@ NOINLINE static void JIT_MonEnter_Helper(Object* obj, BYTE* pbLockTaken, LPVOID 
         GET_THREAD()->PulseGCMode();
     }
     objRef->EnterObjMonitor();
-    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->m_Recursion == 1 && pThread->m_dwLockCount == lockCount + 1) ||
+    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->GetRecursionLevel() == 1 && pThread->m_dwLockCount == lockCount + 1) ||
               pThread->m_dwLockCount == lockCount);
-    if (pbLockTaken != 0) *pbLockTaken = 1;
-
-    GCPROTECT_END();
-    HELPER_METHOD_FRAME_END();
-
-    FC_INNER_EPILOG();
-}
-
-/*********************************************************************/
-NOINLINE static void JIT_MonContention_Helper(Object* obj, BYTE* pbLockTaken, LPVOID __me)
-{
-    FC_INNER_PROLOG_NO_ME_SETUP();
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);    
-
-    GCPROTECT_BEGININTERIOR(pbLockTaken);
-
-    objRef->GetSyncBlock()->QuickGetMonitor()->Contention();
     if (pbLockTaken != 0) *pbLockTaken = 1;
 
     GCPROTECT_END();
@@ -4453,44 +4382,13 @@ NOINLINE static void JIT_MonContention_Helper(Object* obj, BYTE* pbLockTaken, LP
 HCIMPL_MONHELPER(JIT_MonEnterWorker_Portable, Object* obj)
 {
     FCALL_CONTRACT;
-    
-    AwareLock::EnterHelperResult result;
-    Thread * pCurThread;
 
-    if (obj == NULL)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
-    {
-        MONHELPER_STATE(*pbLockTaken = 1;)
+        MONHELPER_STATE(*pbLockTaken = 1);
         return;
     }
-    else
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        AwareLock::EnterHelperResult resultSpin = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (resultSpin == AwareLock::EnterHelperResult_Entered)
-        {
-            MONHELPER_STATE(*pbLockTaken = 1;)
-            return;
-        }
-        if (resultSpin == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, MONHELPER_ARG, GetEEFuncEntryPointMacro(JIT_MonEnter)));
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, MONHELPER_ARG, GetEEFuncEntryPointMacro(JIT_MonEnter)));
 }
 HCIMPLEND
@@ -4499,41 +4397,11 @@ HCIMPL1(void, JIT_MonEnter_Portable, Object* obj)
 {
     FCALL_CONTRACT;
 
-    Thread * pCurThread;
-    AwareLock::EnterHelperResult result;
-    
-    if (obj == NULL)
-    {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
         return;
     }
-    else
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        AwareLock::EnterHelperResult resultSpin = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (resultSpin == AwareLock::EnterHelperResult_Entered)
-        {
-            return;
-        }
-        if (resultSpin == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, NULL, GetEEFuncEntryPointMacro(JIT_MonEnter)));
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, NULL, GetEEFuncEntryPointMacro(JIT_MonEnter)));
 }
 HCIMPLEND
@@ -4542,43 +4410,12 @@ HCIMPL2(void, JIT_MonReliableEnter_Portable, Object* obj, BYTE* pbLockTaken)
 {
     FCALL_CONTRACT;
 
-    Thread * pCurThread;
-    AwareLock::EnterHelperResult result;
-    
-    if (obj == NULL)
-    {
-        goto FramedLockHelper;
-    }
-
-    pCurThread = GetThread();
-
-    if (pCurThread->CatchAtSafePointOpportunistic()) 
-    {
-        goto FramedLockHelper;
-    }
-
-    result = obj->EnterObjMonitorHelper(pCurThread);
-    if (result == AwareLock::EnterHelperResult_Entered)
+    if (obj != nullptr && obj->TryEnterObjMonitorSpinHelper())
     {
         *pbLockTaken = 1;
         return;
     }
-    else
-    if (result == AwareLock::EnterHelperResult_Contention)
-    {
-        AwareLock::EnterHelperResult resultSpin = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (resultSpin == AwareLock::EnterHelperResult_Entered)
-        {
-            *pbLockTaken = 1;
-            return;
-        }
-        if (resultSpin == AwareLock::EnterHelperResult_Contention)
-        {
-            FC_INNER_RETURN_VOID(JIT_MonContention_Helper(obj, pbLockTaken, GetEEFuncEntryPointMacro(JIT_MonReliableEnter)));
-        }
-    }
 
-FramedLockHelper:
     FC_INNER_RETURN_VOID(JIT_MonEnter_Helper(obj, pbLockTaken, GetEEFuncEntryPointMacro(JIT_MonReliableEnter)));
 }
 HCIMPLEND
@@ -4649,14 +4486,15 @@ HCIMPL3(void, JIT_MonTryEnter_Portable, Object* obj, INT32 timeOut, BYTE* pbLock
         *pbLockTaken = 1;
         return;
     }
-    else
     if (result == AwareLock::EnterHelperResult_Contention)
     {
         if (timeOut == 0)
+        {
             return;
+        }
 
-        AwareLock::EnterHelperResult resultSpin = obj->EnterObjMonitorHelperSpin(pCurThread);
-        if (resultSpin == AwareLock::EnterHelperResult_Entered)
+        result = obj->EnterObjMonitorHelperSpin(pCurThread);
+        if (result == AwareLock::EnterHelperResult_Entered)
         {
             *pbLockTaken = 1;
             return;
@@ -4741,7 +4579,6 @@ FCIMPL1(void, JIT_MonExit_Portable, Object* obj)
     {
         return;
     }
-    else
     if (action == AwareLock::LeaveHelperAction_Signal)
     {
         FC_INNER_RETURN_VOID(JIT_MonExit_Signal(obj));
@@ -4773,7 +4610,6 @@ HCIMPL_MONHELPER(JIT_MonExitWorker_Portable, Object* obj)
         MONHELPER_STATE(*pbLockTaken = 0;)
         return;
     }
-    else
     if (action == AwareLock::LeaveHelperAction_Signal)
     {
         MONHELPER_STATE(*pbLockTaken = 0;)
@@ -4821,7 +4657,7 @@ HCIMPL_MONHELPER(JIT_MonEnterStatic_Portable, AwareLock *lock)
         goto FramedLockHelper;
     }
 
-    if (lock->EnterHelper(pCurThread) == AwareLock::EnterHelperResult_Entered)
+    if (lock->TryEnterHelper(pCurThread))
     {
 #if defined(_DEBUG) && defined(TRACK_SYNC)
         // The best place to grab this is from the ECall frame
@@ -4908,289 +4744,6 @@ HCIMPL_MONHELPER(JIT_MonExitStatic_Portable, AwareLock *lock)
 }
 HCIMPLEND
 #include <optdefault.h>
-
-/*********************************************************************/
-// JITutil_Mon* are helpers than handle slow paths for JIT_Mon* methods
-// implemented in assembly. They are not doing any spinning compared 
-// to the full fledged portable implementations above.
-/*********************************************************************/
-
-/*********************************************************************/
-HCIMPL_MONHELPER(JITutil_MonEnterWorker, Object* obj)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // The following makes sure that Monitor.Enter shows up on thread abort
-    // stack walks (otherwise Monitor.Enter called within a CER can block a
-    // thread abort indefinitely). Setting the __me internal variable (normally
-    // only set for fcalls) will cause the helper frame below to be able to
-    // backtranslate into the method desc for the Monitor.Enter fcall.
-    //
-    // Note that we need explicitly initialize Monitor.Enter fcall in
-    // code:SystemDomain::LoadBaseSystemClasses to make this work in the case
-    // where the first call ever to Monitor.Enter is done as JIT helper 
-    // for synchronized method.
-    __me = GetEEFuncEntryPointMacro(JIT_MonEnter);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH, objRef);
-
-    if (objRef == NULL)
-        COMPlusThrow(kArgumentNullException);
-
-    MONHELPER_STATE(GCPROTECT_BEGININTERIOR(pbLockTaken);)
-
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    DWORD lockCount = pThread->m_dwLockCount;
-#endif
-    if (GET_THREAD()->CatchAtSafePointOpportunistic())
-    {
-        GET_THREAD()->PulseGCMode();
-    }
-    objRef->EnterObjMonitor();
-    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->m_Recursion == 1 && pThread->m_dwLockCount == lockCount + 1) ||
-              pThread->m_dwLockCount == lockCount);
-    MONHELPER_STATE(if (pbLockTaken != 0) *pbLockTaken = 1;)
-
-    MONHELPER_STATE(GCPROTECT_END();)
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-/*********************************************************************/
-
-// This helper is only ever used as part of FCall, but it is implemented using HCIMPL macro
-// so that it can be tail called from assembly helper without triggering asserts in debug.
-HCIMPL2(void, JITutil_MonReliableEnter, Object* obj, BYTE* pbLockTaken)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // The following makes sure that Monitor.Enter shows up on thread abort
-    // stack walks (otherwise Monitor.Enter called within a CER can block a
-    // thread abort indefinitely). Setting the __me internal variable (normally
-    // only set for fcalls) will cause the helper frame below to be able to
-    // backtranslate into the method desc for the Monitor.Enter fcall.
-    __me = GetEEFuncEntryPointMacro(JIT_MonReliableEnter);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH, objRef);    
-
-    if (objRef == NULL)
-        COMPlusThrow(kArgumentNullException);
-
-    GCPROTECT_BEGININTERIOR(pbLockTaken);
-
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    DWORD lockCount = pThread->m_dwLockCount;
-#endif
-    if (GET_THREAD()->CatchAtSafePointOpportunistic())
-    {
-        GET_THREAD()->PulseGCMode();
-    }
-    objRef->EnterObjMonitor();
-    _ASSERTE ((objRef->GetSyncBlock()->GetMonitor()->m_Recursion == 1 && pThread->m_dwLockCount == lockCount + 1) ||
-              pThread->m_dwLockCount == lockCount);
-    *pbLockTaken = 1;
-
-    GCPROTECT_END();
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-
-/*********************************************************************/
-
-// This helper is only ever used as part of FCall, but it is implemented using HCIMPL macro
-// so that it can be tail called from assembly helper without triggering asserts in debug.
-HCIMPL3(void, JITutil_MonTryEnter, Object* obj, INT32 timeOut, BYTE* pbLockTaken)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    BOOL result = FALSE;
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // The following makes sure that Monitor.TryEnter shows up on thread
-    // abort stack walks (otherwise Monitor.TryEnter called within a CER can
-    // block a thread abort for long periods of time). Setting the __me internal
-    // variable (normally only set for fcalls) will cause the helper frame below
-    // to be able to backtranslate into the method desc for the Monitor.TryEnter
-    // fcall.
-    __me = GetEEFuncEntryPointMacro(JIT_MonTryEnter);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH, objRef);    
-
-    if (objRef == NULL)
-        COMPlusThrow(kArgumentNullException);
-
-    if (timeOut < -1)
-        COMPlusThrow(kArgumentOutOfRangeException);
-
-    GCPROTECT_BEGININTERIOR(pbLockTaken);
-
-    if (GET_THREAD()->CatchAtSafePointOpportunistic())
-    {
-        GET_THREAD()->PulseGCMode();
-    }
-
-    result = objRef->TryEnterObjMonitor(timeOut);
-    *pbLockTaken = result != FALSE;
-
-    GCPROTECT_END();
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-/*********************************************************************/
-HCIMPL_MONHELPER(JITutil_MonExitWorker, Object* obj)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    MONHELPER_STATE(if (pbLockTaken != NULL && *pbLockTaken == 0) return;)
-
-    OBJECTREF objRef = ObjectToOBJECTREF(obj);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB_1(Frame::FRAME_ATTR_NO_THREAD_ABORT|Frame::FRAME_ATTR_EXACT_DEPTH, objRef);    
-    
-    if (objRef == NULL)
-        COMPlusThrow(kArgumentNullException);
-
-    if (!objRef->LeaveObjMonitor())
-        COMPlusThrow(kSynchronizationLockException);
-
-    MONHELPER_STATE(if (pbLockTaken != 0) *pbLockTaken = 0;)
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
-    
-    if (GET_THREAD()->IsAbortRequested()) {
-        GET_THREAD()->HandleThreadAbort();
-    }
-
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-/*********************************************************************/
-// A helper for JIT_MonEnter that is on the callee side of an ecall
-// frame and handles the contention case.
-
-HCIMPL_MONHELPER(JITutil_MonContention, AwareLock* lock)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    // The following makes sure that Monitor.Enter shows up on thread abort
-    // stack walks (otherwise Monitor.Enter called within a CER can block a
-    // thread abort indefinitely). Setting the __me internal variable (normally
-    // only set for fcalls) will cause the helper frame below to be able to
-    // backtranslate into the method desc for the Monitor.Enter fcall.
-    __me = GetEEFuncEntryPointMacro(JIT_MonEnter);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH);    
-    MONHELPER_STATE(GCPROTECT_BEGININTERIOR(pbLockTaken);)
-
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    DWORD lockCount = pThread->m_dwLockCount;
-#endif
-    lock->Contention();
-    _ASSERTE (pThread->m_dwLockCount == lockCount + 1);
-    MONHELPER_STATE(if (pbLockTaken != 0) *pbLockTaken = 1;)
-
-    MONHELPER_STATE(GCPROTECT_END();)
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-// This helper is only ever used as part of FCall, but it is implemented using HCIMPL macro
-// so that it can be tail called from assembly helper without triggering asserts in debug.
-HCIMPL2(void, JITutil_MonReliableContention, AwareLock* lock, BYTE* pbLockTaken)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    // The following makes sure that Monitor.Enter shows up on thread abort
-    // stack walks (otherwise Monitor.Enter called within a CER can block a
-    // thread abort indefinitely). Setting the __me internal variable (normally
-    // only set for fcalls) will cause the helper frame below to be able to
-    // backtranslate into the method desc for the Monitor.Enter fcall.
-    __me = GetEEFuncEntryPointMacro(JIT_MonReliableEnter);
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH);    
-    GCPROTECT_BEGININTERIOR(pbLockTaken);
-
-#ifdef _DEBUG
-    Thread *pThread = GetThread();
-    DWORD lockCount = pThread->m_dwLockCount;
-#endif
-    lock->Contention();
-    _ASSERTE (pThread->m_dwLockCount == lockCount + 1);
-    *pbLockTaken = 1;
-
-    GCPROTECT_END();
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
-
-/*********************************************************************/
-// A helper for JIT_MonExit and JIT_MonExitStatic that is on the
-// callee side of an ecall frame and handles cases that might allocate,
-// throw or block.
-HCIMPL_MONHELPER(JITutil_MonSignal, AwareLock* lock)
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    // Monitor helpers are used as both hcalls and fcalls, thus we need exact depth.
-    HELPER_METHOD_FRAME_BEGIN_ATTRIB(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_NO_THREAD_ABORT);
-
-    lock->Signal();
-    MONHELPER_STATE(if (pbLockTaken != 0) *pbLockTaken = 0;)
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
-    
-    if (GET_THREAD()->IsAbortRequested()) {
-        GET_THREAD()->HandleThreadAbort();
-    }
-
-    HELPER_METHOD_FRAME_END();
-}
-HCIMPLEND
 
 HCIMPL1(void *, JIT_GetSyncFromClassHandle, CORINFO_CLASS_HANDLE typeHnd_)
     CONTRACTL {
@@ -5391,6 +4944,42 @@ HCIMPL0(void, JIT_ThrowArgumentOutOfRangeException)
     HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
 
     COMPlusThrow(kArgumentOutOfRangeException);
+
+    HELPER_METHOD_FRAME_END();
+}
+HCIMPLEND
+
+/*********************************************************************/
+HCIMPL0(void, JIT_ThrowPlatformNotSupportedException)
+{
+    FCALL_CONTRACT;
+
+    /* Make no assumptions about the current machine state */
+    ResetCurrentContext();
+
+    FC_GC_POLL_NOT_NEEDED();    // throws always open up for GC
+
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
+
+    COMPlusThrow(kPlatformNotSupportedException);
+
+    HELPER_METHOD_FRAME_END();
+}
+HCIMPLEND
+
+/*********************************************************************/
+HCIMPL0(void, JIT_ThrowTypeNotSupportedException)
+{
+    FCALL_CONTRACT;
+
+    /* Make no assumptions about the current machine state */
+    ResetCurrentContext();
+
+    FC_GC_POLL_NOT_NEEDED();    // throws always open up for GC
+
+    HELPER_METHOD_FRAME_BEGIN_ATTRIB_NOPOLL(Frame::FRAME_ATTR_EXCEPTION);    // Set up a frame
+
+    COMPlusThrow(kNotSupportedException, W("Arg_TypeNotSupported"));
 
     HELPER_METHOD_FRAME_END();
 }

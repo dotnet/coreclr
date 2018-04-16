@@ -9,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -28,13 +28,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IReadOnlyListToIVectorViewAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // T GetAt(uint index)
         internal T GetAt<T>(uint index)
         {
-            IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
+            IReadOnlyList<T> _this = Unsafe.As<IReadOnlyList<T>>(this);
             EnsureIndexInt32(index, _this.Count);
 
             try
@@ -43,7 +43,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                ex.SetErrorCode(__HResults.E_BOUNDS);
+                ex.SetErrorCode(HResults.E_BOUNDS);
                 throw;
             }
         }
@@ -51,14 +51,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // uint Size { get }
         internal uint Size<T>()
         {
-            IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
+            IReadOnlyList<T> _this = Unsafe.As<IReadOnlyList<T>>(this);
             return (uint)_this.Count;
         }
 
         // bool IndexOf(T value, out uint index)
         internal bool IndexOf<T>(T value, out uint index)
         {
-            IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
+            IReadOnlyList<T> _this = Unsafe.As<IReadOnlyList<T>>(this);
 
             int ind = -1;
             int max = _this.Count;
@@ -84,7 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // uint GetMany(uint startIndex, T[] items)
         internal uint GetMany<T>(uint startIndex, T[] items)
         {
-            IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
+            IReadOnlyList<T> _this = Unsafe.As<IReadOnlyList<T>>(this);
 
             // REX spec says "calling GetMany with startIndex equal to the length of the vector 
             // (last valid index + 1) and any specified capacity will succeed and return zero actual
@@ -127,7 +127,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
             {
                 Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
-                e.SetErrorCode(__HResults.E_BOUNDS);
+                e.SetErrorCode(HResults.E_BOUNDS);
                 throw e;
             }
         }

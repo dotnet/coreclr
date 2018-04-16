@@ -17,7 +17,8 @@ namespace System
 {
     // The ArgumentException is thrown when an argument 
     // is null when it shouldn't be.
-    // 
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class ArgumentNullException : ArgumentException
     {
         // Creates a new ArgumentNullException with its message 
@@ -26,30 +27,29 @@ namespace System
              : base(SR.ArgumentNull_Generic)
         {
             // Use E_POINTER - COM used that for null pointers.  Description is "invalid pointer"
-            HResult = __HResults.E_POINTER;
+            HResult = HResults.E_POINTER;
         }
 
         public ArgumentNullException(String paramName)
             : base(SR.ArgumentNull_Generic, paramName)
         {
-            HResult = __HResults.E_POINTER;
+            HResult = HResults.E_POINTER;
         }
 
         public ArgumentNullException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.E_POINTER;
+            HResult = HResults.E_POINTER;
         }
 
         public ArgumentNullException(String paramName, String message)
             : base(message, paramName)
         {
-            HResult = __HResults.E_POINTER;
+            HResult = HResults.E_POINTER;
         }
 
         protected ArgumentNullException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
     }
 }

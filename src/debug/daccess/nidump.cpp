@@ -720,7 +720,7 @@ NativeImageDumper::DumpNativeImage()
 
     for (COUNT_T i = 0; i < m_decoder.GetNumberOfSections(); i++)
     {
-        PTR_IMAGE_SECTION_HEADER section = dptr_add(m_decoder.FindFirstSection(), i);
+        PTR_IMAGE_SECTION_HEADER section = m_decoder.FindFirstSection() + i;
         m_display->Section(reinterpret_cast<char *>(section->Name),
                            section->VirtualAddress,
                            section->SizeOfRawData);
@@ -5608,6 +5608,7 @@ NativeImageDumper::EnumMnemonics s_MTFlags2[] =
     MTFLAG2_ENTRY(IsZapped),
     MTFLAG2_ENTRY(IsPreRestored),
     MTFLAG2_ENTRY(HasModuleDependencies),
+    MTFLAG2_ENTRY(IsIntrinsicType),
     MTFLAG2_ENTRY(RequiresDispatchTokenFat),
     MTFLAG2_ENTRY(HasCctor),
     MTFLAG2_ENTRY(HasCCWTemplate),
@@ -5986,7 +5987,7 @@ PTR_MethodTable NativeImageDumper::GetParent( PTR_MethodTable mt )
     /* REVISIT_TODO Thu 12/01/2005
      * Handle fixups
      */
-    PTR_MethodTable parent( ReadPointerMaybeNull((MethodTable *) mt, &MethodTable::m_pParentMethodTable) );
+    PTR_MethodTable parent( ReadPointerMaybeNull((MethodTable*) mt, &MethodTable::m_pParentMethodTable, mt->GetFlagHasIndirectParent()) );
     _ASSERTE(!CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(parent)));
     return parent;
 }
@@ -6960,7 +6961,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
 
 
 
-    PTR_MethodTable parent = ReadPointerMaybeNull((MethodTable *) mt, &MethodTable::m_pParentMethodTable);
+    PTR_MethodTable parent = ReadPointerMaybeNull((MethodTable*) mt, &MethodTable::m_pParentMethodTable, mt->GetFlagHasIndirectParent());
     if( parent == NULL )
     {
         DisplayWriteFieldPointer( m_pParentMethodTable, NULL, MethodTable,

@@ -13,11 +13,10 @@ namespace System
     using CultureInfo = System.Globalization.CultureInfo;
     using FieldInfo = System.Reflection.FieldInfo;
     using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
 
     [CLSCompliant(false)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
-    public struct TypedReference
+    public ref struct TypedReference
     {
         private IntPtr Value;
         private IntPtr Type;
@@ -29,7 +28,6 @@ namespace System
                 throw new ArgumentNullException(nameof(target));
             if (flds == null)
                 throw new ArgumentNullException(nameof(flds));
-            Contract.EndContractBlock();
             if (flds.Length == 0)
                 throw new ArgumentException(SR.Arg_ArrayZeroError);
 
@@ -72,7 +70,7 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
-        private unsafe static extern void InternalMakeTypedReference(void* result, Object target, IntPtr[] flds, RuntimeType lastFieldType);
+        private static extern unsafe void InternalMakeTypedReference(void* result, Object target, IntPtr[] flds, RuntimeType lastFieldType);
 
         public override int GetHashCode()
         {
@@ -87,19 +85,19 @@ namespace System
             throw new NotSupportedException(SR.NotSupported_NYI);
         }
 
-        public unsafe static Object ToObject(TypedReference value)
+        public static unsafe Object ToObject(TypedReference value)
         {
             return InternalToObject(&value);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static Object InternalToObject(void* value);
+        internal static extern unsafe Object InternalToObject(void* value);
 
         internal bool IsNull
         {
             get
             {
-                return Value.IsNull() && Type.IsNull();
+                return Value == IntPtr.Zero && Type == IntPtr.Zero;
             }
         }
 
@@ -115,12 +113,12 @@ namespace System
 
         //  This may cause the type to be changed.
         [CLSCompliant(false)]
-        public unsafe static void SetTypedReference(TypedReference target, Object value)
+        public static unsafe void SetTypedReference(TypedReference target, Object value)
         {
             InternalSetTypedReference(&target, value);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static void InternalSetTypedReference(void* target, Object value);
+        internal static extern unsafe void InternalSetTypedReference(void* target, Object value);
     }
 }

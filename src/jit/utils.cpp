@@ -120,7 +120,7 @@ const char* varTypeName(var_types vt)
 #undef DEF_TP
     };
 
-    assert((unsigned)vt < sizeof(varTypeNames) / sizeof(varTypeNames[0]));
+    assert((unsigned)vt < _countof(varTypeNames));
 
     return varTypeNames[vt];
 }
@@ -277,20 +277,20 @@ const char* getRegNameFloat(regNumber reg, var_types type)
 #define REGDEF(name, rnum, mask, sname) "x" sname,
 #include "register.h"
     };
-#ifdef FEATURE_AVX_SUPPORT
+#ifdef FEATURE_SIMD
     static const char* regNamesYMM[] = {
 #define REGDEF(name, rnum, mask, sname) "y" sname,
 #include "register.h"
     };
-#endif // FEATURE_AVX_SUPPORT
+#endif // FEATURE_SIMD
     assert((unsigned)reg < ArrLen(regNamesFloat));
 
-#ifdef FEATURE_AVX_SUPPORT
+#ifdef FEATURE_SIMD
     if (type == TYP_SIMD32)
     {
         return regNamesYMM[reg];
     }
-#endif // FEATURE_AVX_SUPPORT
+#endif // FEATURE_SIMD
 
     return regNamesFloat[reg];
 #endif
@@ -882,8 +882,7 @@ void ConfigMethodRange::InitRanges(const wchar_t* rangeStr, unsigned capacity)
  *  Histogram class.
  */
 
-Histogram::Histogram(IAllocator* allocator, const unsigned* const sizeTable)
-    : m_allocator(allocator), m_sizeTable(sizeTable), m_counts(nullptr)
+Histogram::Histogram(const unsigned* const sizeTable) : m_sizeTable(sizeTable)
 {
     unsigned sizeCount = 0;
     do
@@ -891,32 +890,15 @@ Histogram::Histogram(IAllocator* allocator, const unsigned* const sizeTable)
         sizeCount++;
     } while ((sizeTable[sizeCount] != 0) && (sizeCount < 1000));
 
+    assert(sizeCount < HISTOGRAM_MAX_SIZE_COUNT - 1);
+
     m_sizeCount = sizeCount;
-}
 
-Histogram::~Histogram()
-{
-    if (m_counts != nullptr)
-    {
-        m_allocator->Free(m_counts);
-    }
-}
-
-// We need to lazy allocate the histogram data so static `Histogram` variables don't try to
-// call the host memory allocator in the loader lock, which doesn't work.
-void Histogram::ensureAllocated()
-{
-    if (m_counts == nullptr)
-    {
-        m_counts = new (m_allocator) unsigned[m_sizeCount + 1];
-        memset(m_counts, 0, (m_sizeCount + 1) * sizeof(*m_counts));
-    }
+    memset(m_counts, 0, (m_sizeCount + 1) * sizeof(*m_counts));
 }
 
 void Histogram::dump(FILE* output)
 {
-    ensureAllocated();
-
     unsigned t = 0;
     for (unsigned i = 0; i < m_sizeCount; i++)
     {
@@ -956,8 +938,6 @@ void Histogram::dump(FILE* output)
 
 void Histogram::record(unsigned size)
 {
-    ensureAllocated();
-
     unsigned i;
     for (i = 0; i < m_sizeCount; i++)
     {
@@ -1004,7 +984,7 @@ FixedBitVect* FixedBitVect::bitVectInit(UINT size, Compiler* comp)
 
     assert(bitVectMemSize * bitChunkSize() >= size);
 
-    bv = (FixedBitVect*)comp->compGetMemA(sizeof(FixedBitVect) + bitVectMemSize, CMK_FixedBitVect);
+    bv = (FixedBitVect*)comp->compGetMem(sizeof(FixedBitVect) + bitVectMemSize, CMK_FixedBitVect);
     memset(bv->bitVect, 0, bitVectMemSize);
 
     bv->bitVectSize = size;
@@ -1258,6 +1238,8 @@ void HelperCallProperties::init()
 
             // This (or these) are not pure, in that they have "VM side effects"...but they don't mutate the heap.
             case CORINFO_HELP_ENDCATCH:
+
+                noThrow = true;
                 break;
 
             // Arithmetic helpers that may throw
@@ -1393,11 +1375,11 @@ void HelperCallProperties::init()
                 break;
 
             // helpers that return internal handle
-            // TODO-ARM64-Bug?: Can these throw or not?
             case CORINFO_HELP_GETCLASSFROMMETHODPARAM:
             case CORINFO_HELP_GETSYNCFROMCLASSHANDLE:
 
-                isPure = true;
+                isPure  = true;
+                noThrow = true;
                 break;
 
             // Helpers that load the base address for static variables.
@@ -1472,6 +1454,10 @@ void HelperCallProperties::init()
             case CORINFO_HELP_THROWNULLREF:
             case CORINFO_HELP_THROW:
             case CORINFO_HELP_RETHROW:
+            case CORINFO_HELP_THROW_ARGUMENTEXCEPTION:
+            case CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION:
+            case CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED:
+            case CORINFO_HELP_THROW_TYPE_NOT_SUPPORTED:
 
                 break;
 
@@ -1480,12 +1466,33 @@ void HelperCallProperties::init()
             case CORINFO_HELP_FIELD_ACCESS_CHECK:
             case CORINFO_HELP_CLASS_ACCESS_CHECK:
             case CORINFO_HELP_DELEGATE_SECURITY_CHECK:
+            case CORINFO_HELP_MON_EXIT_STATIC:
 
                 break;
 
             // This is a debugging aid; it simply returns a constant address.
             case CORINFO_HELP_LOOP_CLONE_CHOICE_ADDR:
                 isPure  = true;
+                noThrow = true;
+                break;
+
+            case CORINFO_HELP_DBG_IS_JUST_MY_CODE:
+            case CORINFO_HELP_BBT_FCN_ENTER:
+            case CORINFO_HELP_POLL_GC:
+            case CORINFO_HELP_MON_ENTER:
+            case CORINFO_HELP_MON_EXIT:
+            case CORINFO_HELP_MON_ENTER_STATIC:
+            case CORINFO_HELP_JIT_REVERSE_PINVOKE_ENTER:
+            case CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT:
+            case CORINFO_HELP_SECURITY_PROLOG:
+            case CORINFO_HELP_SECURITY_PROLOG_FRAMED:
+            case CORINFO_HELP_VERIFICATION_RUNTIME_CHECK:
+            case CORINFO_HELP_GETFIELDADDR:
+            case CORINFO_HELP_INIT_PINVOKE_FRAME:
+            case CORINFO_HELP_JIT_PINVOKE_BEGIN:
+            case CORINFO_HELP_JIT_PINVOKE_END:
+            case CORINFO_HELP_GETCURRENTMANAGEDTHREADID:
+
                 noThrow = true;
                 break;
 
@@ -1515,7 +1522,7 @@ void HelperCallProperties::init()
 // MyAssembly;mscorlib;System
 // MyAssembly;mscorlib System
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, IAllocator* alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator* alloc) : m_alloc(alloc)
 {
     assert(m_alloc != nullptr);
 
@@ -1744,13 +1751,16 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d)
 
 // Rounds a double-precision floating-point value to the nearest integer,
 // and rounds midpoint values to the nearest even number.
-// Note this should align with classlib in floatdouble.cpp
-// Specializing for x86 using a x87 instruction is optional since
-// this outcome is identical across targets.
 double FloatingPointUtils::round(double x)
 {
+    // ************************************************************************************
+    // IMPORTANT: Do not change this implementation without also updating Math.Round(double),
+    //            MathF.Round(float), and FloatingPointUtils::round(float)
+    // ************************************************************************************
+
     // If the number has no fractional part do nothing
     // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+
     if (x == (double)((INT64)x))
     {
         return x;
@@ -1759,10 +1769,9 @@ double FloatingPointUtils::round(double x)
     // We had a number that was equally close to 2 integers.
     // We need to return the even one.
 
-    double tempVal    = (x + 0.5);
-    double flrTempVal = floor(tempVal);
+    double flrTempVal = floor(x + 0.5);
 
-    if ((flrTempVal == tempVal) && (fmod(tempVal, 2.0) != 0))
+    if ((x == (floor(x) + 0.5)) && (fmod(flrTempVal, 2.0) != 0))
     {
         flrTempVal -= 1.0;
     }
@@ -1784,13 +1793,16 @@ double FloatingPointUtils::round(double x)
 
 // Rounds a single-precision floating-point value to the nearest integer,
 // and rounds midpoint values to the nearest even number.
-// Note this should align with classlib in floatsingle.cpp
-// Specializing for x86 using a x87 instruction is optional since
-// this outcome is identical across targets.
 float FloatingPointUtils::round(float x)
 {
+    // ************************************************************************************
+    // IMPORTANT: Do not change this implementation without also updating MathF.Round(float),
+    //            Math.Round(double), and FloatingPointUtils::round(double)
+    // ************************************************************************************
+
     // If the number has no fractional part do nothing
     // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
+
     if (x == (float)((INT32)x))
     {
         return x;
@@ -1799,10 +1811,9 @@ float FloatingPointUtils::round(float x)
     // We had a number that was equally close to 2 integers.
     // We need to return the even one.
 
-    float tempVal    = (x + 0.5f);
-    float flrTempVal = floorf(tempVal);
+    float flrTempVal = floorf(x + 0.5f);
 
-    if ((flrTempVal == tempVal) && (fmodf(tempVal, 2.0f) != 0))
+    if ((x == (floorf(x) + 0.5f)) && (fmodf(flrTempVal, 2.0f) != 0))
     {
         flrTempVal -= 1.0f;
     }
@@ -2084,7 +2095,6 @@ T GetSignedMagic(T denom, int* shift /*out*/)
     UT  q2;
     UT  t;
     T   result_magic;
-    int result_shift;
     int iters = 0;
 
     absDenom = abs(denom);

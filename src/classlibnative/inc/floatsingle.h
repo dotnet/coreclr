@@ -12,19 +12,23 @@ class COMSingle {
 public:
     FCDECL1_V(static float, Abs, float x);
     FCDECL1_V(static float, Acos, float x);
+    FCDECL1_V(static float, Acosh, float x);
     FCDECL1_V(static float, Asin, float x);
+    FCDECL1_V(static float, Asinh, float x);
     FCDECL1_V(static float, Atan, float x);
+    FCDECL1_V(static float, Atanh, float x);
     FCDECL2_VV(static float, Atan2, float y, float x);
+    FCDECL1_V(static float, Cbrt, float x);
     FCDECL1_V(static float, Ceil, float x);
     FCDECL1_V(static float, Cos, float x);
     FCDECL1_V(static float, Cosh, float x);
     FCDECL1_V(static float, Exp, float x);
     FCDECL1_V(static float, Floor, float x);
+    FCDECL2_VV(static float, FMod, float x, float y);
     FCDECL1_V(static float, Log, float x);
     FCDECL1_V(static float, Log10, float x);
-    FCDECL1(static float, ModF, float* iptr);
+    FCDECL2_VI(static float, ModF, float x, float* intptr);
     FCDECL2_VV(static float, Pow, float x, float y);
-    FCDECL1_V(static float, Round, float x);
     FCDECL1_V(static float, Sin, float x);
     FCDECL1_V(static float, Sinh, float x);
     FCDECL1_V(static float, Sqrt, float x);

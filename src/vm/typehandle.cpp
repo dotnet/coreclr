@@ -494,7 +494,6 @@ DWORD TypeHandle::IsTransparentProxy() const
     return FALSE;
 }
 
-#ifdef FEATURE_HFA
 bool TypeHandle::IsHFA() const
 {
     WRAPPER_NO_CONTRACT;
@@ -520,7 +519,7 @@ CorElementType TypeHandle::GetHFAType() const
 
     return ELEMENT_TYPE_END;
 }
-#endif // FEATURE_HFA
+
 
 #ifdef FEATURE_64BIT_ALIGNMENT
 bool TypeHandle::RequiresAlign8() const
@@ -1443,7 +1442,7 @@ OBJECTREF TypeHandle::GetManagedClassObjectFast() const
 
 #endif // #ifndef DACCESS_COMPILE
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
 
 BOOL TypeHandle::IsAppDomainAgile() const
 {
@@ -1535,7 +1534,7 @@ BOOL TypeHandle::IsArrayOfElementsCheckAppDomainAgile() const
     }
 }
 
-#endif // defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#endif // defined(_DEBUG)
 
 
 BOOL TypeHandle::IsByRef()  const

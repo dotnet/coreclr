@@ -12,6 +12,9 @@
 #include "number.h"
 #include "string.h"
 #include "decimal.h"
+#include "bignum.h"
+#include "grisu3.h"
+#include "fp.h"
 #include <stdlib.h>
 
 typedef wchar_t wchar;
@@ -27,32 +30,6 @@ typedef wchar_t wchar;
 
 #define SCALE_NAN 0x80000000
 #define SCALE_INF 0x7FFFFFFF
-
-struct FPSINGLE {
-#if BIGENDIAN
-    unsigned int sign: 1;
-    unsigned int exp: 8;
-    unsigned int mant: 23;
-#else
-    unsigned int mant: 23;
-    unsigned int exp: 8;
-    unsigned int sign: 1;
-#endif
-};
-
-struct FPDOUBLE {
-#if BIGENDIAN
-    unsigned int sign: 1;
-    unsigned int exp: 11;
-    unsigned int mantHi: 20;
-    unsigned int mantLo;
-#else
-    unsigned int mantLo;
-    unsigned int mantHi: 20;
-    unsigned int exp: 11;
-    unsigned int sign: 1;
-#endif
-};
 
 
 static const char* const posCurrencyFormats[] = {
@@ -112,30 +89,290 @@ L2:             dec     ecx
     }
 }
 
-unsigned int Int64DivMod1E9(unsigned __int64* value)
-{
-    LIMITED_METHOD_CONTRACT
-
-    _asm {
-        mov     ebx,value
-        mov     ecx,1000000000
-        xor     edx,edx
-        mov     eax,[ebx+4]
-        div     ecx
-        mov     [ebx+4],eax
-        mov     eax,[ebx]
-        div     ecx
-        mov     [ebx],eax
-        mov     eax,edx
-    }
-}
-
 #pragma warning(default:4035)
 
 #else // _TARGET_X86_ && !FEATURE_PAL
 
-#pragma warning(disable:4273)
-extern "C" char* __cdecl _ecvt(double, int, int*, int*);
+void Dragon4( double value, int count, int* dec, int* sign, wchar_t* digits )
+{
+    // ========================================================================================================================================
+    // This implementation is based on the paper: https://www.cs.indiana.edu/~dyb/pubs/FP-Printing-PLDI96.pdf
+    // Besides the paper, some of the code and ideas are modified from http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
+    // You must read these two materials to fully understand the code.
+    //
+    // Note: we only support fixed format input.
+    // ======================================================================================================================================== 
+    //
+    // Overview:
+    //
+    // The input double number can be represented as:
+    // value = f * 2^e = r / s.
+    //
+    // f: the output mantissa. Note: f is not the 52 bits mantissa of the input double number. 
+    // e: biased exponent.
+    // r: numerator.
+    // s: denominator.
+    // k: value = d0.d1d2 . . . dn * 10^k
+
+    // Step 1:
+    // Extract meta data from the input double value.
+    //
+    // Refer to IEEE double precision floating point format.
+    UINT64 f = 0;
+    int e = 0;
+    ExtractFractionAndBiasedExponent(value, &f, &e);
+
+    UINT32 mantissaHighBitIdx = 0;
+    if (((FPDOUBLE*)&value)->exp != 0)
+    {
+        mantissaHighBitIdx = 52;
+    }
+    else
+    {
+        mantissaHighBitIdx = BigNum::LogBase2(f);
+    }
+
+    // Step 2:
+    // Estimate k. We'll verify it and fix any error later.
+    //
+    // This is an improvement of the estimation in the original paper.
+    // Inspired by http://www.ryanjuckett.com/programming/printing-floating-point-numbers/
+    //
+    // LOG10V2 = 0.30102999566398119521373889472449
+    // DRIFT_FACTOR = 0.69 = 1 - log10V2 - epsilon (a small number account for drift of floating point multiplication)
+    int k = (int)(ceil(double((int)mantissaHighBitIdx + e) * LOG10V2 - DRIFT_FACTOR));
+
+    // Step 3:
+    // Store the input double value in BigNum format.
+    //
+    // To keep the precision, we represent the double value as r/s.
+    // We have several optimization based on following table in the paper.
+    //
+    //     ----------------------------------------------------------------------------------------------------------
+    //     |               e >= 0                   |                         e < 0                                 |
+    //     ----------------------------------------------------------------------------------------------------------
+    //     |  f != b^(P - 1)  |  f = b^(P - 1)      | e = min exp or f != b^(P - 1) | e > min exp and f = b^(P - 1) |
+    // --------------------------------------------------------------------------------------------------------------
+    // | r |  f * b^e * 2     |  f * b^(e + 1) * 2  |          f * 2                |            f * b * 2          |
+    // --------------------------------------------------------------------------------------------------------------
+    // | s |        2         |        b * 2        |          b^(-e) * 2           |            b^(-e + 1) * 2     |
+    // --------------------------------------------------------------------------------------------------------------  
+    //
+    // Note, we do not need m+ and m- because we only support fixed format input here.
+    // m+ and m- are used for free format input, which need to determine the exact range of values 
+    // that would round to value when input so that we can generate the shortest correct digits.
+    //
+    // In our case, we just output digits until reaching the expected precision. 
+    BigNum r(f);
+    BigNum s;
+    if (e >= 0)
+    {
+        // When f != b^(P - 1):
+        // r = f * b^e * 2
+        // s = 2
+        // value = r / s = f * b^e * 2 / 2 = f * b^e / 1
+        //
+        // When f = b^(P - 1):
+        // r = f * b^(e + 1) * 2
+        // s = b * 2
+        // value = r / s =  f * b^(e + 1) * 2 / b * 2 = f * b^e / 1
+        //
+        // Therefore, we can simply say that when e >= 0:
+        // r = f * b^e = f * 2^e
+        // s = 1
+
+        r.ShiftLeft(e);
+        s.SetUInt64(1);
+    }
+    else
+    {
+        // When e = min exp or f != b^(P - 1):
+        // r = f * 2
+        // s = b^(-e) * 2
+        // value = r / s = f * 2 / b^(-e) * 2 = f / b^(-e)
+        //
+        // When e > min exp and f = b^(P - 1):
+        // r = f * b * 2
+        // s = b^(-e + 1) * 2
+        // value = r / s =  f * b * 2 / b^(-e + 1) * 2 = f / b^(-e)
+        //
+        // Therefore, we can simply say that when e < 0:
+        // r = f
+        // s = b^(-e) = 2^(-e)
+
+        BigNum::ShiftLeft(1, -e, s);
+    }
+
+    // According to the paper, we should use k >= 0 instead of k > 0 here.
+    // However, if k = 0, both r and s won't be changed, we don't need to do any operation.
+    //
+    // Following are the Scheme code from the paper:
+    // --------------------------------------------------------------------------------
+    // (if (>= est 0)
+    // (fixup r (* s (exptt B est)) m+ m− est B low-ok? high-ok? )
+    // (let ([scale (exptt B (− est))])
+    // (fixup (* r scale) s (* m+ scale) (* m− scale) est B low-ok? high-ok? ))))
+    // --------------------------------------------------------------------------------
+    //
+    // If est is 0, (* s (exptt B est)) = s, (* r scale) = (* r (exptt B (− est)))) = r.
+    //
+    // So we just skip when k = 0.
+    
+    if (k > 0)
+    {
+        BigNum poweredValue;
+        BigNum::Pow10(k, poweredValue);
+        s.Multiply(poweredValue);
+    }
+    else if (k < 0)
+    {
+        BigNum poweredValue;
+        BigNum::Pow10(-k, poweredValue);
+        r.Multiply(poweredValue);
+    }
+
+    if (BigNum::Compare(r, s) >= 0)
+    {
+        // The estimation was incorrect. Fix the error by increasing 1.
+        k += 1;
+    }
+    else
+    {
+        r.Multiply10();
+    }
+
+    *dec = k - 1;
+
+    // This the prerequisite of calling BigNum::HeuristicDivide().
+    BigNum::PrepareHeuristicDivide(&r, &s);
+
+    // Step 4:
+    // Calculate digits.
+    //
+    // Output digits until reaching the last but one precision or the numerator becomes zero.
+    int digitsNum = 0;
+    int currentDigit = 0;
+    while (true)
+    {
+        currentDigit = BigNum::HeuristicDivide(&r, s);
+        if (r.IsZero() || digitsNum + 1 == count)
+        {
+            break;
+        }
+
+        digits[digitsNum] = L'0' + currentDigit;
+        ++digitsNum;
+
+        r.Multiply10();
+    }
+
+    // Step 5:
+    // Set the last digit.
+    //
+    // We round to the closest digit by comparing value with 0.5:
+    //  compare( value, 0.5 )
+    //  = compare( r / s, 0.5 )
+    //  = compare( r, 0.5 * s)
+    //  = compare(2 * r, s)
+    //  = compare(r << 1, s)
+    r.ShiftLeft(1);
+    int compareResult = BigNum::Compare(r, s);
+    bool isRoundDown = compareResult < 0;
+
+    // We are in the middle, round towards the even digit (i.e. IEEE rouding rules)
+    if (compareResult == 0)
+    {
+        isRoundDown = (currentDigit & 1) == 0;
+    }
+
+    if (isRoundDown)
+    {
+        digits[digitsNum] = L'0' + currentDigit;
+        ++digitsNum;
+    }
+    else
+    {
+        wchar_t* pCurDigit = digits + digitsNum;
+
+        // Rounding up for 9 is special.
+        if (currentDigit == 9)
+        {
+            // find the first non-nine prior digit
+            while (true)
+            {
+                // If we are at the first digit
+                if (pCurDigit == digits)
+                {
+                    // Output 1 at the next highest exponent
+                    *pCurDigit = L'1';
+                    ++digitsNum;
+                    *dec += 1;
+                    break;
+                }
+
+                --pCurDigit;
+                --digitsNum;
+                if (*pCurDigit != L'9')
+                {
+                    // increment the digit
+                    *pCurDigit += 1;
+                    ++digitsNum;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // It's simple if the digit is not 9.
+            *pCurDigit = L'0' + currentDigit + 1;
+            ++digitsNum;
+        }
+    }
+
+    while (digitsNum < count)
+    {
+        digits[digitsNum] = L'0';
+        ++digitsNum;
+    }
+
+    digits[count] = 0;
+
+    ++*dec;
+    *sign = ((FPDOUBLE*)&value)->sign;
+}
+
+// Convert a double value to a NUMBER struct.
+//
+// 1. You should ensure the input value is not infinity or NaN.
+// 2. For 0.0, number->digits will be set as an empty string. i.e the value of the first bucket is 0.
+void DoubleToNumberWorker( double value, int count, int* dec, int* sign, wchar_t* digits )
+{
+    _ASSERTE(dec != nullptr && sign != nullptr && digits != nullptr);
+
+    // The caller of DoubleToNumberWorker should already checked the Infinity and NAN values.
+    _ASSERTE(((FPDOUBLE*)&value)->exp != 0x7ff);
+
+    // Shortcut for zero.
+    if (value == 0.0)
+    {
+        *dec = 0;
+        *sign = 0;
+
+        // Instead of zeroing digits, we just make it as an empty string due to performance reason.
+        *digits = 0;
+
+        return;
+    }
+
+    // Try Grisu3 first.
+    if (Grisu3::Run(value, count, dec, sign, digits))
+    {
+        return;
+    }
+
+    // Grisu3 failed, fall back to Dragon4.
+    Dragon4(value, count, dec, sign, digits);
+}
 
 void DoubleToNumber(double value, int precision, NUMBER* number)
 {
@@ -149,12 +386,7 @@ void DoubleToNumber(double value, int precision, NUMBER* number)
         number->digits[0] = 0;
     }
     else {
-        char* src = _ecvt(value, precision, &number->scale, &number->sign);
-        wchar* dst = number->digits;
-        if (*src != '0') {
-            while (*src) *dst++ = *src++;
-        }
-        *dst = 0;
+        DoubleToNumberWorker(value, precision, &number->scale, &number->sign, number->digits);
     }
 }
 
@@ -587,20 +819,6 @@ wchar_t* COMNumber::Int32ToDecChars(__in wchar_t* p, unsigned int value, int dig
     }
     return p;
 }
-
-unsigned int Int64DivMod1E9(unsigned __int64* value)
-{
-    LIMITED_METHOD_CONTRACT
-    _ASSERTE(value != NULL);
-
-    unsigned int rem = (unsigned int)(*value % 1000000000);
-    *value /= 1000000000;
-    return rem;
-}
-
-
-
-
 #endif // _TARGET_X86_ && !FEATURE_PAL
 
 #if defined(_MSC_VER) && defined(_TARGET_X86_)
@@ -630,284 +848,6 @@ inline wchar* GetDigitsBuffer(NUMBER* number)
 #pragma optimize("", on)		// Go back to command line default optimizations
 #endif
 
-LPCWSTR MatchChars(LPCWSTR p, LPCWSTR str)
-{
-    LIMITED_METHOD_CONTRACT
-    _ASSERTE(p != NULL && str != NULL);
-
-    if (!*str) return 0;
-    for (; *str; p++, str++)
-    {
-        if (*p != *str) //We only hurt the failure case
-        {
-            if ((*str == 0xA0) && (*p == 0x20)) // This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 as a
-                // space character we use 0x20 space character instead to mean the same.
-                continue;
-            return 0;
-        }
-    }
-    return p;
-}
-
-wchar* Int32ToHexChars(__in wchar* p, unsigned int value, int hexBase, int digits)
-{
-    LIMITED_METHOD_CONTRACT
-    _ASSERTE(p != NULL);
-
-    while (--digits >= 0 || value != 0) {
-        unsigned char digit = static_cast<unsigned char>(value & 0xF);
-        *--p = static_cast<wchar>(digit + (digit < 10? '0': hexBase));
-        value >>= 4;
-    }
-    return p;
-}
-
-STRINGREF Int32ToDecStr(int value, int digits, STRINGREF sNegative)
-{
-    CONTRACTL {
-        THROWS;
-        INJECT_FAULT(COMPlusThrowOM());
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    } CONTRACTL_END;
-
-    CQuickBytes buf;
-
-    if (digits < 1) digits = 1;
-
-    UINT maxDigitsLength = (digits > 15) ? digits : 15; // Since an int32 can have maximum of 10 chars as a String
-    UINT bufferLength = (maxDigitsLength > 100) ? maxDigitsLength : 100;
-    int negLength = 0;
-    wchar* src = NULL;
-
-    if (value < 0) {
-        _ASSERTE(sNegative != NULL);
-        src = sNegative->GetBuffer();
-        _ASSERTE(src != NULL);
-        negLength = sNegative->GetStringLength();
-        if ((UINT) negLength > bufferLength - maxDigitsLength) {
-            bufferLength = (UINT) negLength + maxDigitsLength;
-        }
-    }
-
-    wchar *buffer = (wchar*)buf.AllocThrows(bufferLength * sizeof(WCHAR));
-    wchar* p = COMNumber::Int32ToDecChars(buffer + bufferLength, value >= 0? value: -value, digits);
-    _ASSERTE(p != NULL);
-    if (value < 0) {
-        for (int i =negLength - 1; i >= 0; i--)
-        {
-            *(--p) = *(src+i);
-        }
-    }
-
-    _ASSERTE(buffer + bufferLength - p >=0 && buffer <= p);
-    return StringObject::NewString(p, (int)(buffer + bufferLength - p));
-}
-
-STRINGREF UInt32ToDecStr(unsigned int value, int digits)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[100];
-    if (digits < 1) digits = 1;
-    wchar* p = COMNumber::Int32ToDecChars(buffer + 100, value, digits);
-    _ASSERTE(p != NULL && p >= buffer && p < (buffer + 100));
-    return StringObject::NewString(p, (int) (buffer + 100 - p));
-}
-
-STRINGREF Int32ToHexStr(unsigned int value, int hexBase, int digits)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[100];
-    if (digits < 1) digits = 1;
-    wchar* p = Int32ToHexChars(buffer + 100, value, hexBase, digits);
-    return StringObject::NewString(p, (int) (buffer + 100 - p));
-}
-
-void Int32ToNumber(int value, NUMBER* number)
-{
-    WRAPPER_NO_CONTRACT
-    _ASSERTE(number != NULL);
-
-    wchar buffer[INT32_PRECISION+1];
-    number->precision = INT32_PRECISION;
-    if (value >= 0) {
-        number->sign = 0;
-    }
-    else {
-        number->sign = 1;
-        value = -value;
-    }
-    wchar* p = COMNumber::Int32ToDecChars(buffer + INT32_PRECISION, value, 0);
-    _ASSERTE(p != NULL);
-    int i = (int) (buffer + INT32_PRECISION - p);
-    number->scale = i;
-    wchar* dst = number->digits;
-    _ASSERTE(dst != NULL);
-    while (--i >= 0) *dst++ = *p++;
-    *dst = 0;
-
-    
-}
-
-void UInt32ToNumber(unsigned int value, NUMBER* number)
-{
-    WRAPPER_NO_CONTRACT
-    _ASSERTE(number != NULL);
-
-    wchar buffer[UINT32_PRECISION+1];
-    number->precision = UINT32_PRECISION;
-    number->sign = 0;
-    wchar* p = COMNumber::Int32ToDecChars(buffer + UINT32_PRECISION, value, 0);
-    _ASSERT(p != NULL);
-    int i = (int) (buffer + UINT32_PRECISION - p);
-    number->scale = i;
-    wchar* dst = number->digits;
-    _ASSERT(dst != NULL);
-    while (--i >= 0) *dst++ = *p++;
-    *dst = 0;
-}
-
-
-
-
-#define LO32(x) ((unsigned int)(x))
-#define HI32(x) ((unsigned int)(((x) & UI64(0xFFFFFFFF00000000)) >> 32))
-
-STRINGREF Int64ToDecStr(__int64 value, int digits, STRINGREF sNegative)
-{
-    CONTRACTL {
-        THROWS;
-        INJECT_FAULT(COMPlusThrowOM());
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    } CONTRACTL_END;
-
-    CQuickBytes buf;
-
-    if (digits < 1) digits = 1;
-    int sign = HI32(value);
-
-    // digits as specified in the format string can be at most 99.
-    UINT maxDigitsLength = (digits > 20) ? digits : 20; 
-    UINT bufferLength = (maxDigitsLength > 100) ? maxDigitsLength : 100;
-
-    if (sign < 0) {
-        value = -value;
-        _ASSERTE(sNegative);
-        int negLength = sNegative->GetStringLength();
-        if ((UINT) negLength > bufferLength - maxDigitsLength) {
-            bufferLength = negLength + maxDigitsLength;
-        }
-    }
-
-    wchar *buffer = (wchar*)buf.AllocThrows(bufferLength * sizeof(WCHAR));
-    wchar* p = buffer + bufferLength;
-    while (HI32(value)) {
-        p = COMNumber::Int32ToDecChars(p, Int64DivMod1E9((unsigned __int64*)&value), 9);
-        _ASSERTE(p != NULL);
-        digits -= 9;
-    }
-    p = COMNumber::Int32ToDecChars(p, LO32(value), digits);
-    _ASSERTE(p != NULL);
-    if (sign < 0) {
-        wchar* src = sNegative->GetBuffer();
-        _ASSERTE(src != NULL);
-        for (int i =sNegative->GetStringLength() - 1; i >= 0; i--)
-        {
-            *(--p) = *(src+i);
-        }
-    }
-    return StringObject::NewString(p, (int) (buffer + bufferLength - p));
-}
-
-STRINGREF UInt64ToDecStr(unsigned __int64 value, int digits)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[100];
-    if (digits < 1) digits = 1;
-    wchar* p = buffer + 100;
-    while (HI32(value)) {
-        p = COMNumber::Int32ToDecChars(p, Int64DivMod1E9(&value), 9);
-        _ASSERTE(p != NULL);
-        digits -= 9;
-    }
-    p = COMNumber::Int32ToDecChars(p, LO32(value), digits);
-    _ASSERTE(p != NULL && p >= buffer && p < (buffer + 100));
-    return StringObject::NewString(p, (int) (buffer + 100 - p));
-}
-
-STRINGREF Int64ToHexStr(unsigned __int64 value, int hexBase, int digits)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[100];
-    wchar* p;
-    if (HI32(value)) {
-        Int32ToHexChars(buffer + 100, LO32(value), hexBase, 8);
-        p = Int32ToHexChars(buffer + 100 - 8, HI32(value), hexBase, digits - 8);
-    }
-    else {
-        if (digits < 1) digits = 1;
-        p = Int32ToHexChars(buffer + 100, LO32(value), hexBase, digits);
-    }
-    _ASSERTE(p != NULL && p >= buffer && p < (buffer + 100));
-    return StringObject::NewString(p, (int) (buffer + 100 - p));
-}
-
-void Int64ToNumber(__int64 value, NUMBER* number)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[INT64_PRECISION+1];
-    number->precision = INT64_PRECISION;
-    if (value >= 0) {
-        number->sign = 0;
-    }
-    else {
-        number->sign = 1;
-        value = -value;
-    }
-    wchar* p = buffer + INT64_PRECISION;
-    while (HI32(value)) {
-        p = COMNumber::Int32ToDecChars(p, Int64DivMod1E9((unsigned __int64*)&value), 9);
-        _ASSERTE(p != NULL);
-    }
-    p = COMNumber::Int32ToDecChars(p, LO32(value), 0);
-    _ASSERTE(p != NULL);
-    int i = (int) (buffer + INT64_PRECISION - p);
-    number->scale = i;
-    wchar* dst = number->digits;
-    _ASSERTE(dst != NULL);
-    while (--i >= 0) *dst++ = *p++;
-    *dst = 0;
-    
-}
-
-void UInt64ToNumber(unsigned __int64 value, NUMBER* number)
-{
-    WRAPPER_NO_CONTRACT
-
-    wchar buffer[UINT64_PRECISION+1];
-    number->precision = UINT64_PRECISION;
-    number->sign = 0;
-    wchar* p = buffer + UINT64_PRECISION;
-    while (HI32(value)) {
-        p = COMNumber::Int32ToDecChars(p, Int64DivMod1E9(&value), 9);
-        _ASSERTE(p != NULL);
-    }
-    p = COMNumber::Int32ToDecChars(p, LO32(value), 0);
-    _ASSERTE(p != NULL);
-    int i = (int) (buffer + UINT64_PRECISION - p);
-    number->scale = i;
-    wchar* dst = number->digits;
-    _ASSERTE(dst != NULL);
-    while (--i >= 0) *dst++ = *p++;
-    *dst = 0;
-    
-}
 
 void RoundNumber(NUMBER* number, int pos)
 {
@@ -2043,537 +1983,28 @@ ParseSection:
 #pragma warning(pop)
 #endif
 
-FCIMPL3_VII(Object*, COMNumber::FormatDecimal, FC_DECIMAL value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
+FCIMPL3_VII(void, COMNumber::DoubleToNumberFC, double value, int precision, NUMBER* number)
 {
     FCALL_CONTRACT;
 
-    NUMBER number;
-
-    wchar fmt;
-    int digits;
-
-    STRINGREF  refRetVal = NULL;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-
-    struct _gc
-    {
-        STRINGREF   format;
-        NUMFMTREF   numfmt;
-    } gc;
-
-    gc.format = (STRINGREF) formatUNSAFE;
-    gc.numfmt = (NUMFMTREF) numfmtUNSAFE;
-
-    if (gc.numfmt == 0)
-        COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-
-    COMDecimal::DecimalToNumber(&value, &number);
-
-    fmt = ParseFormatSpecifier(gc.format, &digits);
-    if (fmt != 0) {
-        refRetVal = NumberToString(&number, fmt, digits, gc.numfmt, TRUE);
-    } else {
-        refRetVal = NumberToStringFormat(&number, gc.format, gc.numfmt);
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(refRetVal);
+    DoubleToNumber(value, precision, number);
 }
 FCIMPLEND
 
-FCIMPL3_VII(Object*, COMNumber::FormatDouble, double value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    NUMBER number;
-    int digits;
-    double dTest;
-
-    struct _gc
-    {
-        STRINGREF   format;
-        NUMFMTREF   numfmt;
-        STRINGREF   refRetVal;
-    } gc;
-
-    gc.format = (STRINGREF) formatUNSAFE;
-    gc.numfmt = (NUMFMTREF) numfmtUNSAFE;
-    gc.refRetVal = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    if (gc.numfmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    wchar fmt = ParseFormatSpecifier(gc.format, &digits);
-    wchar val = (fmt & 0xFFDF);
-    int precision = DOUBLE_PRECISION;
-    switch (val) {
-    case 'R':
-        //In order to give numbers that are both friendly to display and round-trippable,
-        //we parse the number using 15 digits and then determine if it round trips to the same
-        //value.  If it does, we convert that NUMBER to a string, otherwise we reparse using 17 digits
-        //and display that.
-
-        DoubleToNumber(value, DOUBLE_PRECISION, &number);
-
-        if (number.scale == (int) SCALE_NAN) {
-            gc.refRetVal = gc.numfmt->sNaN;
-            goto lExit;
-        }
-
-        if (number.scale == SCALE_INF) {
-            gc.refRetVal = (number.sign? gc.numfmt->sNegativeInfinity: gc.numfmt->sPositiveInfinity);
-            goto lExit;
-        }
-
-        NumberToDouble(&number, &dTest);
-
-        if (dTest == value) {
-            gc.refRetVal = NumberToString(&number, 'G', DOUBLE_PRECISION, gc.numfmt);
-            goto lExit;
-        }
-
-        DoubleToNumber(value, 17, &number);
-        gc.refRetVal = NumberToString(&number, 'G', 17, gc.numfmt);
-        goto lExit;
-        break;
-
-    case 'E':
-        // Here we round values less than E14 to 15 digits
-        if (digits > 14) {
-            precision = 17;
-        }
-        break;
-
-    case 'G':
-        // Here we round values less than G15 to 15 digits, G16 and G17 will not be touched
-        if (digits > 15) {
-            precision = 17;
-        }
-        break;
-
-    }
-
-    DoubleToNumber(value, precision, &number);
-
-    if (number.scale == (int) SCALE_NAN) {
-        gc.refRetVal = gc.numfmt->sNaN;
-        goto lExit;
-    }
-
-    if (number.scale == SCALE_INF) {
-        gc.refRetVal = (number.sign? gc.numfmt->sNegativeInfinity: gc.numfmt->sPositiveInfinity);
-        goto lExit;
-    }
-
-    if (fmt != 0) {
-        gc.refRetVal = NumberToString( &number, fmt, digits, gc.numfmt);
-    }
-    else {
-        gc.refRetVal = NumberToStringFormat( &number, gc.format, gc.numfmt);
-    }
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetVal);
-}
-FCIMPLEND
-
-//
-//This function and the function pointer which we use to access are 
-//to prevent VC7 from optimizing away our cast from double to float.
-//We need this narrowing operation to verify whether or not we successfully round-tripped
-//the single value.  
-
-//
-// We need this method to have volatile arguments.
-//
-static void CvtToFloat(double val, RAW_KEYWORD(volatile) float* fltPtr)
-{
-    LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;	
-
-    *fltPtr = (float)val;
-}
-
-void (*CvtToFloatPtr)(double val, RAW_KEYWORD(volatile) float* fltPtr) = CvtToFloat;
-
-
-FCIMPL3_VII(Object*, COMNumber::FormatSingle, float value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    NUMBER number;
-    int digits;
-    double dTest;
-    double argsValue = value;
-
-    struct _gc
-    {
-        STRINGREF   format;
-        NUMFMTREF   numfmt;
-        STRINGREF   refRetVal;
-    } gc;
-
-    gc.format = (STRINGREF) formatUNSAFE;
-    gc.numfmt = (NUMFMTREF) numfmtUNSAFE;
-    gc.refRetVal = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    if (gc.numfmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    wchar fmt = ParseFormatSpecifier(gc.format, &digits);
-    wchar val = fmt & 0xFFDF;
-    int precision = FLOAT_PRECISION;
-    switch (val) {
-    case 'R':
-        {
-            //In order to give numbers that are both friendly to display and round-trippable,
-            //we parse the number using 7 digits and then determine if it round trips to the same
-            //value.  If it does, we convert that NUMBER to a string, otherwise we reparse using 9 digits
-            //and display that.
-
-            DoubleToNumber(argsValue, FLOAT_PRECISION, &number);
-            if (number.scale == (int) SCALE_NAN) {
-                gc.refRetVal = gc.numfmt->sNaN;
-                goto lExit;
-            }
-            if (number.scale == SCALE_INF) {
-                gc.refRetVal = (number.sign? gc.numfmt->sNegativeInfinity: gc.numfmt->sPositiveInfinity);
-                goto lExit;
-            }
-
-            NumberToDouble(&number, &dTest);
-
-            Volatile<float> fTest;
-
-            (*CvtToFloatPtr)(dTest, &fTest);
-
-            if (fTest == value) {
-                gc.refRetVal = NumberToString(&number, 'G', FLOAT_PRECISION, gc.numfmt);
-                goto lExit;
-            }
-
-            DoubleToNumber(argsValue, 9, &number);
-            gc.refRetVal = NumberToString(&number, 'G', 9, gc.numfmt);
-            goto lExit;
-        }
-        break;
-    case 'E':
-        // Here we round values less than E14 to 15 digits
-        if (digits > 6) {
-            precision = 9;
-        }
-        break;
-
-
-    case 'G':
-        // Here we round values less than G15 to 15 digits, G16 and G17 will not be touched
-        if (digits > 7) {
-            precision = 9;
-        }
-        break;
-    }
-
-    DoubleToNumber(value, precision, &number);
-
-    if (number.scale == (int) SCALE_NAN) {
-        gc.refRetVal = gc.numfmt->sNaN;
-        goto lExit;
-    }
-
-    if (number.scale == SCALE_INF) {
-        gc.refRetVal = (number.sign? gc.numfmt->sNegativeInfinity: gc.numfmt->sPositiveInfinity);
-        goto lExit;
-    }
-
-    if (fmt != 0) {
-        gc.refRetVal = NumberToString( &number, fmt, digits, gc.numfmt);
-    }
-    else {
-        gc.refRetVal = NumberToStringFormat( &number, gc.format, gc.numfmt);
-    }
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetVal);
-}
-FCIMPLEND
-
-FCIMPL3(Object*, COMNumber::FormatInt32, INT32 value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    wchar fmt;
-    int digits;
-
-    struct _gc
-    {
-        STRINGREF   refFormat;
-        NUMFMTREF   refNumFmt;
-        STRINGREF   refRetString;
-    } gc;
-
-    gc.refFormat    = (STRINGREF)formatUNSAFE;
-    gc.refNumFmt    = (NUMFMTREF)numfmtUNSAFE;
-    gc.refRetString = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-
-    if (gc.refNumFmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    fmt = ParseFormatSpecifier(gc.refFormat, &digits);
-
-    //ANDing fmt with FFDF has the effect of uppercasing the character because
-    //we've removed the bit that marks lower-case.
-    switch (fmt & 0xFFDF) {
-    case 'G':
-        if (digits > 0)
-        {
-            NUMBER number;
-            Int32ToNumber(value, &number);
-            if (fmt != 0) {
-                gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                break;
-            }
-            gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-            break;
-        }
-        // fall through
-    case 'D':
-        gc.refRetString = Int32ToDecStr(value, digits, gc.refNumFmt->sNegative);
-        break;
-    case 'X':
-        //The fmt-(X-A+10) has the effect of dictating whether we produce uppercase
-        //or lowercase hex numbers for a-f.  'X' as the fmt code produces uppercase. 'x'
-        //as the format code produces lowercase.
-        gc.refRetString = Int32ToHexStr(value, fmt - ('X' - 'A' + 10), digits);
-        break;
-    default:
-        NUMBER number;
-        Int32ToNumber(value, &number);
-        if (fmt != 0) {
-            gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-            break;
-        }
-        gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-        break;
-
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetString);
-}
-FCIMPLEND
-
-FCIMPL3(Object*, COMNumber::FormatUInt32, UINT32 value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    wchar fmt;
-    int digits;
-
-    struct _gc
-    {
-        STRINGREF   refFormat;
-        NUMFMTREF   refNumFmt;
-        STRINGREF   refRetString;
-    } gc;
-
-    gc.refFormat    = (STRINGREF)formatUNSAFE;
-    gc.refNumFmt    = (NUMFMTREF)numfmtUNSAFE;
-    gc.refRetString = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-
-    if (gc.refNumFmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    fmt = ParseFormatSpecifier(gc.refFormat, &digits);
-    switch (fmt & 0xFFDF)
-    {
-    case 'G':
-        if (digits > 0)
-        {
-            NUMBER number;
-            UInt32ToNumber(value, &number);
-            if (fmt != 0) {
-                gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                break;
-            }
-            gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-            break;
-        }
-        // fall through
-    case 'D':
-        gc.refRetString = UInt32ToDecStr(value, digits);
-        break;
-    case 'X':
-        gc.refRetString = Int32ToHexStr(value, fmt - ('X' - 'A' + 10), digits);
-        break;
-    default:
-        NUMBER number;
-        UInt32ToNumber(value, &number);
-        if (fmt != 0) {
-            gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-            break;
-        }
-        gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-        break;
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetString);
-}
-FCIMPLEND
-
-FCIMPL3_VII(Object*, COMNumber::FormatInt64, INT64 value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    wchar fmt;
-    int digits;
-
-    struct _gc
-    {
-        STRINGREF   refFormat;
-        NUMFMTREF   refNumFmt;
-        STRINGREF   refRetString;
-    } gc;
-
-    gc.refFormat    = ObjectToSTRINGREF(formatUNSAFE);
-    gc.refNumFmt    = (NUMFMTREF)numfmtUNSAFE;
-    gc.refRetString = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-
-    if (gc.refNumFmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    fmt = ParseFormatSpecifier(gc.refFormat, &digits);
-    switch (fmt & 0xFFDF)
-    {
-        case 'G':
-            if (digits > 0)
-            {
-                NUMBER number;
-                Int64ToNumber(value, &number);
-                if (fmt != 0) {
-                    gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                    break;
-                }
-                gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-                break;
-            }
-            // fall through
-        case 'D':
-            gc.refRetString = Int64ToDecStr(value, digits, gc.refNumFmt->sNegative);
-            break;
-        case 'X':
-            gc.refRetString = Int64ToHexStr(value, fmt - ('X' - 'A' + 10), digits);
-            break;
-        default:
-            NUMBER number;
-            Int64ToNumber(value, &number);
-            if (fmt != 0) {
-                gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                break;
-            }
-            gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-            break;
-    }
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetString);
-}
-FCIMPLEND
-
-FCIMPL3_VII(Object*, COMNumber::FormatUInt64, UINT64 value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    wchar fmt;
-    int digits;
-
-    struct _gc
-    {
-        STRINGREF   refFormat;
-        NUMFMTREF   refNumFmt;
-        STRINGREF   refRetString;
-    } gc;
-
-    gc.refFormat    = ObjectToSTRINGREF(formatUNSAFE);
-    gc.refNumFmt    = (NUMFMTREF)numfmtUNSAFE;
-    gc.refRetString = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    if (gc.refNumFmt == 0) COMPlusThrowArgumentNull(W("NumberFormatInfo"));
-    fmt = ParseFormatSpecifier(gc.refFormat, &digits);
-    switch (fmt & 0xFFDF) {
-        case 'G':
-            if (digits > 0)
-            {
-                NUMBER number;
-                UInt64ToNumber(value, &number);
-                if (fmt != 0) {
-                    gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                    break;
-                }
-                gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-                break;
-            }
-            // fall through
-        case 'D':
-            gc.refRetString = UInt64ToDecStr(value, digits);
-            break;
-        case 'X':
-            gc.refRetString = Int64ToHexStr(value, fmt - ('X' - 'A' + 10), digits);
-            break;
-        default:
-            NUMBER number;
-            UInt64ToNumber(value, &number);
-            if (fmt != 0) {
-                gc.refRetString = NumberToString(&number, fmt, digits, gc.refNumFmt);
-                break;
-            }
-            gc.refRetString = NumberToStringFormat(&number, gc.refFormat, gc.refNumFmt);
-            break;
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(gc.refRetString);
-}
-FCIMPLEND
-
-
-FCIMPL2(FC_BOOL_RET, COMNumber::NumberBufferToDecimal, BYTE* number, DECIMAL* value)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(COMDecimal::NumberToDecimal((NUMBER *) number, value) != 0);
-}
-FCIMPLEND
-
-FCIMPL2(FC_BOOL_RET, COMNumber::NumberBufferToDouble, BYTE* number, double* value)
+FCIMPL1(double, COMNumber::NumberToDoubleFC, NUMBER* number)
 {
     FCALL_CONTRACT;
 
     double d = 0;
-    NumberToDouble((NUMBER*) number, &d);
-    unsigned int e = ((FPDOUBLE*)&d)->exp;
-    unsigned int fmntLow = ((FPDOUBLE*)&d)->mantLo;
-    unsigned int fmntHigh = ((FPDOUBLE*)&d)->mantHi;
-    if (e == 0x7FF) {
-        FC_RETURN_BOOL(false);
-    }
-    if (e == 0 && fmntLow ==0 && fmntHigh == 0)  {
-        d = 0;
-    }
-    *value = d;
-    FC_RETURN_BOOL(true);
+    NumberToDouble(number, &d);
+    return d;
+}
+FCIMPLEND
+
+FCIMPL2(FC_BOOL_RET, COMNumber::NumberBufferToDecimal, NUMBER* number, DECIMAL* value)
+{
+    FCALL_CONTRACT;
+
+    FC_RETURN_BOOL(COMDecimal::NumberToDecimal(number, value) != 0);
 }
 FCIMPLEND

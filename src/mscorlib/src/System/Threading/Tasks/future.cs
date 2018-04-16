@@ -18,7 +18,6 @@ using System.Runtime.ExceptionServices;
 using System.Security;
 using System.Threading;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 // Disable the "reference to volatile field not treated as volatile" error.
 #pragma warning disable 0420
@@ -617,7 +616,7 @@ namespace System.Threading.Tasks
                 m_result = funcWithState(m_stateObject);
                 return;
             }
-            Debug.Assert(false, "Invalid m_action in Task<TResult>");
+            Debug.Fail("Invalid m_action in Task<TResult>");
         }
 
         #region Await Support

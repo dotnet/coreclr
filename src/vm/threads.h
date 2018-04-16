@@ -305,7 +305,6 @@ public:
 
     enum ThreadState
     {
-        TS_YieldRequested         = 0x00000040,    // The task should yield
     };
 
     BOOL HasThreadState(ThreadState ts)
@@ -586,8 +585,6 @@ enum ThreadpoolThreadType
 //
 // Public functions for ASM code generators
 //
-//      int GetThreadTLSIndex()         - returns TLS index used to point to Thread
-//      int GetAppDomainTLSIndex()      - returns TLS index used to point to AppDomain
 //      Thread* __stdcall CreateThreadBlockThrow() - creates new Thread on reverse p-invoke
 //
 // Public functions for one-time init/cleanup
@@ -628,14 +625,6 @@ Thread* SetupThreadNoThrow(HRESULT *phresult = NULL);
 // WARNING : only GC calls this with bRequiresTSL set to FALSE.
 Thread* SetupUnstartedThread(BOOL bRequiresTSL=TRUE);
 void    DestroyThread(Thread *th);
-
-
-//---------------------------------------------------------------------------
-//---------------------------------------------------------------------------
-#ifndef FEATURE_IMPLICIT_TLS
-DWORD GetThreadTLSIndex();
-DWORD GetAppDomainTLSIndex();
-#endif
 
 DWORD GetRuntimeId();
 
@@ -1110,7 +1099,7 @@ public:
 
         TS_LegalToJoin            = 0x00000020,    // Is it now legal to attempt a Join()
 
-        TS_YieldRequested         = 0x00000040,    // The task should yield
+        // unused                 = 0x00000040,
 
 #ifdef FEATURE_HIJACK
         TS_Hijacked               = 0x00000080,    // Return address has been hijacked
@@ -1167,7 +1156,7 @@ public:
 
         // We require (and assert) that the following bits are less than 0x100.
         TS_CatchAtSafePoint = (TS_UserSuspendPending | TS_AbortRequested |
-                               TS_GCSuspendPending | TS_DebugSuspendPending | TS_GCOnTransitions | TS_YieldRequested),
+                               TS_GCSuspendPending | TS_DebugSuspendPending | TS_GCOnTransitions),
     };
 
     // Thread flags that aren't really states in themselves but rather things the thread
@@ -2359,15 +2348,6 @@ public:
     }
 
     //---------------------------------------------------------------
-    // Expose offset of the debugger word for the debugger
-    //---------------------------------------------------------------
-    static SIZE_T GetOffsetOfDebuggerWord()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (SIZE_T)(offsetof(class Thread, m_debuggerWord));
-    }
-
-    //---------------------------------------------------------------
     // Expose offset of the debugger cant stop count for the debugger
     //---------------------------------------------------------------
     static SIZE_T GetOffsetOfCantStop()
@@ -2976,12 +2956,6 @@ private:
     BOOL           ReadyForAsyncException();
 
 public:
-    inline BOOL IsYieldRequested()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_State & TS_YieldRequested);
-    }
-
     void           UserInterrupt(ThreadInterruptMode mode);
 
     void           SetAbortRequest(EEPolicy::ThreadAbortTypes abortType);  // Should only be called by ADUnload
@@ -3308,19 +3282,15 @@ public:
 
     DWORD          DoAppropriateWait(AppropriateWaitFunc func, void *args, DWORD millis,
                                      WaitMode mode, PendingSync *syncInfo = 0);
-#ifndef FEATURE_PAL
     DWORD          DoSignalAndWait(HANDLE *handles, DWORD millis, BOOL alertable,
                                      PendingSync *syncState = 0);
-#endif // !FEATURE_PAL
 private:
     void           DoAppropriateWaitWorkerAlertableHelper(WaitMode mode);
     DWORD          DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL waitAll,
                                            DWORD millis, WaitMode mode);
     DWORD          DoAppropriateWaitWorker(AppropriateWaitFunc func, void *args,
                                            DWORD millis, WaitMode mode);
-#ifndef FEATURE_PAL
     DWORD          DoSignalAndWaitWorker(HANDLE* pHandles, DWORD millis,BOOL alertable);
-#endif // !FEATURE_PAL
     DWORD          DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL bWaitAll, DWORD timeout, WaitMode mode);
     DWORD          DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis);
 public:
@@ -3530,7 +3500,6 @@ private:
     BOOL CheckForAndDoRedirectForDbg();
     BOOL CheckForAndDoRedirectForGC();
     BOOL CheckForAndDoRedirectForUserSuspend();
-    BOOL CheckForAndDoRedirectForYieldTask();
 
     // Exception handling must be very aware of redirection, so we provide a helper
     // to identifying redirection targets
@@ -3699,7 +3668,6 @@ private:
         RedirectReason_GCSuspension,
         RedirectReason_DebugSuspension,
         RedirectReason_UserSuspension,
-        RedirectReason_YieldTask,
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
         RedirectReason_GCStress,
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
@@ -3708,7 +3676,6 @@ private:
     static void __stdcall RedirectedHandledJITCaseForDbgThreadControl();
     static void __stdcall RedirectedHandledJITCaseForGCThreadControl();
     static void __stdcall RedirectedHandledJITCaseForUserSuspend();
-    static void __stdcall RedirectedHandledJITCaseForYieldTask();
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
     static void __stdcall Thread::RedirectedHandledJITCaseForGCStress();
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
@@ -3890,23 +3857,6 @@ private:
 
     ULONG  m_ulEnablePreemptiveGCCount;
 #endif  // _DEBUG
-
-#ifdef ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-
-private:
-    // Set once on initialization, single-threaded, inside friend code:InitThreadManager,
-    // based on whether the user has set COMPlus_EnforceEEThreadNotRequiredContracts.
-    // This is then later accessed via public
-    // code:Thread::ShouldEnforceEEThreadNotRequiredContracts. See
-    // code:GetThreadGenericFullCheck for details.
-    static BOOL s_fEnforceEEThreadNotRequiredContracts;
-
-public:
-    static BOOL ShouldEnforceEEThreadNotRequiredContracts();
-
-#endif  // ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-
-
 
 private:
     // For suspends:
@@ -4147,12 +4097,6 @@ private:
     // areas that the Interop Debugging Services must know about.
     //---------------------------------------------------------------
     DWORD m_debuggerCantStop;
-
-    //---------------------------------------------------------------
-    // A word reserved for use by the CLR Debugging Services during
-    // managed/unmanaged debugging.
-    //---------------------------------------------------------------
-    VOID*    m_debuggerWord;
 
     //---------------------------------------------------------------
     // The current custom notification data object (or NULL if none
@@ -5293,6 +5237,10 @@ private:
     // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
     Volatile<ULONG> m_gcModeOnSuspension;
 
+    // The activity ID for the current thread.
+    // An activity ID of zero means the thread is not executing in the context of an activity.
+    GUID m_activityId;
+
 public:
     EventPipeBufferList* GetEventPipeBufferList()
     {
@@ -5321,7 +5269,7 @@ public:
     bool GetGCModeOnSuspension()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_gcModeOnSuspension;
+        return m_gcModeOnSuspension != 0;
     }
 
     void SaveGCModeOnSuspension()
@@ -5333,6 +5281,20 @@ public:
     void ClearGCModeOnSuspension()
     {
         m_gcModeOnSuspension = 0;
+    }
+
+    LPCGUID GetActivityId() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_activityId;
+    }
+
+    void SetActivityId(LPCGUID pActivityId)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(pActivityId != NULL);
+
+        m_activityId = *pActivityId;
     }
 #endif // FEATURE_PERFTRACING
 
@@ -7386,7 +7348,6 @@ inline void SetTypeHandleOnThreadForAlloc(TypeHandle th)
 
 #endif // CROSSGEN_COMPILE
 
-#ifdef FEATURE_IMPLICIT_TLS
 class Compiler;
 // users of OFFSETOF__TLS__tls_CurrentThread macro expect the offset of these variables wrt to _tls_start to be stable. 
 // Defining each of the following thread local variable separately without the struct causes the offsets to change in 
@@ -7398,11 +7359,7 @@ struct ThreadLocalInfo
     Thread* m_pThread;
     AppDomain* m_pAppDomain;
     void** m_EETlsData; // ClrTlsInfo::data
-#ifdef FEATURE_MERGE_JIT_AND_ENGINE
-    void* m_pJitTls;
-#endif
 };
-#endif // FEATURE_IMPLICIT_TLS
 
 class ThreadStateHolder
 {

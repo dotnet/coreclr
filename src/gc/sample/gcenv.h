@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+#ifndef __GCENV_H__
+#define __GCENV_H__
 
 // The sample is to be kept simple, so building the sample
 // in tandem with a standalone GC is currently not supported.
@@ -29,6 +31,7 @@
 #include "gcenv.object.h"
 #include "gcenv.sync.h"
 #include "gcenv.ee.h"
+#include "volatile.h"
 
 #ifdef PLATFORM_UNIX
 #include "gcenv.unix.inl"
@@ -121,13 +124,6 @@ public:
     void SetGCSpecial(bool fGCSpecial)
     {
     }
-
-    bool CatchAtSafePoint()
-    {
-        // This is only called by the GC on a background GC worker thread that's explicitly interested in letting
-        // a foreground GC proceed at that point. So it's always safe to return true.
-        return true;
-    }
 };
 
 Thread * GetThread();
@@ -199,3 +195,5 @@ extern EEConfig * g_pConfig;
 
 #include "etmdummy.h"
 #define ETW_EVENT_ENABLED(e,f) false
+
+#endif // __GCENV_H__

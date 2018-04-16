@@ -5,7 +5,7 @@
 using System.Runtime.Serialization;
 using System.Text;
 using System;
-using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
 
 namespace System.Text
 {
@@ -67,14 +67,8 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(bytes),
                     SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            Contract.EndContractBlock();
-
-            // Avoid null fixed problem
-            if (bytes.Length == 0)
-                bytes = new byte[1];
-
             // Just call pointer version
-            fixed (byte* pBytes = &bytes[0])
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 return GetCharCount(pBytes + index, count, flush);
         }
 
@@ -88,7 +82,6 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Remember the flush
             _mustFlush = flush;
@@ -124,19 +117,11 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(charIndex),
                     SR.ArgumentOutOfRange_Index);
 
-            Contract.EndContractBlock();
-
-            // Avoid empty input fixed problem
-            if (bytes.Length == 0)
-                bytes = new byte[1];
-
             int charCount = chars.Length - charIndex;
-            if (chars.Length == 0)
-                chars = new char[1];
 
             // Just call pointer version
-            fixed (byte* pBytes = &bytes[0])
-            fixed (char* pChars = &chars[0])
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
+            fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
                 // Remember that charCount is # to decode, not size of array
                 return GetChars(pBytes + byteIndex, byteCount,
                                 pChars + charIndex, charCount, flush);
@@ -153,7 +138,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // Remember our flush
             _mustFlush = flush;
@@ -190,18 +174,10 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(chars),
                       SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            Contract.EndContractBlock();
-
-            // Avoid empty input problem
-            if (bytes.Length == 0)
-                bytes = new byte[1];
-            if (chars.Length == 0)
-                chars = new char[1];
-
             // Just call the pointer version (public overrides can't do this)
-            fixed (byte* pBytes = &bytes[0])
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
             {
-                fixed (char* pChars = &chars[0])
+                fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
                 {
                     Convert(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, flush,
                         out bytesUsed, out charsUsed, out completed);
@@ -223,7 +199,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // We don't want to throw
             _mustFlush = flush;

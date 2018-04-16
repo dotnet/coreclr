@@ -22,24 +22,26 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class TypeLoadException : SystemException, ISerializable
     {
         public TypeLoadException()
             : base(SR.Arg_TypeLoadException)
         {
-            HResult = __HResults.COR_E_TYPELOAD;
+            HResult = HResults.COR_E_TYPELOAD;
         }
 
         public TypeLoadException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_TYPELOAD;
+            HResult = HResults.COR_E_TYPELOAD;
         }
 
         public TypeLoadException(String message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_TYPELOAD;
+            HResult = HResults.COR_E_TYPELOAD;
         }
 
         public override String Message
@@ -91,7 +93,7 @@ namespace System
                                   int resourceId)
         : base(null)
         {
-            HResult = __HResults.COR_E_TYPELOAD;
+            HResult = HResults.COR_E_TYPELOAD;
             ClassName = className;
             AssemblyName = assemblyName;
             MessageArg = messageArg;
@@ -104,16 +106,22 @@ namespace System
 
         protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            ClassName = info.GetString("TypeLoadClassName");
+            AssemblyName = info.GetString("TypeLoadAssemblyName");
+            MessageArg = info.GetString("TypeLoadMessageArg");
+            ResourceId = info.GetInt32("TypeLoadResourceID");
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetTypeLoadExceptionMessage(int resourceId, StringHandleOnStack retString);
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("TypeLoadClassName", ClassName, typeof(string));
+            info.AddValue("TypeLoadAssemblyName", AssemblyName, typeof(string));
+            info.AddValue("TypeLoadMessageArg", MessageArg, typeof(string));
+            info.AddValue("TypeLoadResourceID", ResourceId);
         }
 
         // If ClassName != null, GetMessage will construct on the fly using it

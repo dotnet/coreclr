@@ -6,8 +6,6 @@
 #if !defined(_EX_H_)
 #define _EX_H_
 
-void RetailAssertIfExpectedClean();             // Defined in src/utilcode/debug.cpp
-
 #ifdef FEATURE_PAL
 #define EX_TRY_HOLDER                                   \
     HardwareExceptionHolder                             \
@@ -1193,31 +1191,6 @@ Exception *ExThrowWithInnerHelper(Exception *inner);
             EX_RETHROW;                                                         \
                                                                                 \
         _ASSERTE(FAILED(HR));                                                   \
-        IErrorInfo *pErr = GET_EXCEPTION()->GetErrorInfo();                     \
-        if (pErr != NULL)                                                       \
-        {                                                                       \
-            SetErrorInfo(0, pErr);                                              \
-            pErr->Release();                                                    \
-        }                                                                       \
-    }                                                                           \
-    EX_END_CATCH(SwallowAllExceptions)
-
-
-//===================================================================================
-// Variant of the above Macro for used by ngen and mscorsvc to add
-// a RetailAssert when a reg key is set if we get an unexpected HRESULT
-// from one of the RPC calls.
-//===================================================================================
-
-#define EX_CATCH_HRESULT_AND_NGEN_CLEAN(_hr)                                    \
-    EX_CATCH                                                                    \
-    {                                                                           \
-        (_hr) = GET_EXCEPTION()->GetHR();                                       \
-        RetailAssertIfExpectedClean();                                          \
-        /* Enable this assert after we fix EH so that GetHR() never */          \
-        /* mistakenly returns S_OK */                                           \
-        /***/                                                                   \
-        /* _ASSERTE(FAILED(_hr)); */                                            \
         IErrorInfo *pErr = GET_EXCEPTION()->GetErrorInfo();                     \
         if (pErr != NULL)                                                       \
         {                                                                       \

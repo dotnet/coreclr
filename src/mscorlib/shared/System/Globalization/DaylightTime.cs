@@ -11,10 +11,6 @@ namespace System.Globalization
         private readonly DateTime _end;
         private readonly TimeSpan _delta;
 
-        private DaylightTime()
-        {
-        }
-
         public DaylightTime(DateTime start, DateTime end, TimeSpan delta)
         {
             _start = start;
@@ -33,7 +29,7 @@ namespace System.Globalization
     }
 
     // Value type version of DaylightTime
-    internal struct DaylightTimeStruct
+    internal readonly struct DaylightTimeStruct
     {
         public DaylightTimeStruct(DateTime start, DateTime end, TimeSpan delta)
         {

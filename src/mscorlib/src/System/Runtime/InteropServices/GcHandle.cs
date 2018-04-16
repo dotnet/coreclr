@@ -7,7 +7,6 @@ namespace System.Runtime.InteropServices
     using System;
     using System.Runtime.CompilerServices;
     using System.Threading;
-    using System.Diagnostics.Contracts;
 #if BIT64
     using nint = System.Int64;
 #else
@@ -61,7 +60,6 @@ namespace System.Runtime.InteropServices
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)MaxHandleType)
                 ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
-            Contract.EndContractBlock();
 
             IntPtr handle = InternalAlloc(value, type);
 
@@ -147,7 +145,7 @@ namespace System.Runtime.InteropServices
         }
 
         // Determine whether this handle has been allocated or not.
-        public bool IsAllocated => !m_handle.IsNull();
+        public bool IsAllocated => m_handle != IntPtr.Zero;
 
         // Used to create a GCHandle from an int.  This is intended to
         // be used with the reverse conversion.
@@ -160,7 +158,6 @@ namespace System.Runtime.InteropServices
         public static GCHandle FromIntPtr(IntPtr value)
         {
             ValidateHandle(value);
-            Contract.EndContractBlock();
 
 #if MDA_SUPPORTED
             IntPtr handle = value;
@@ -263,21 +260,21 @@ namespace System.Runtime.InteropServices
 
 #if MDA_SUPPORTED
         // The GCHandle cookie table.
-        static private volatile GCHandleCookieTable s_cookieTable = null;
-        static private volatile bool s_probeIsActive = false;
+        private static volatile GCHandleCookieTable s_cookieTable = null;
+        private static volatile bool s_probeIsActive = false;
 #endif
 
         private void ValidateHandle()
         {
             // Check if the handle was never initialized or was freed.
-            if (m_handle.IsNull())
+            if (m_handle == IntPtr.Zero)
                 ThrowInvalidOperationException_HandleIsNotInitialized();
         }
 
         private static void ValidateHandle(IntPtr handle)
         {
             // Check if the handle was never initialized or was freed.
-            if (handle.IsNull())
+            if (handle == IntPtr.Zero)
                 ThrowInvalidOperationException_HandleIsNotInitialized();
         }
 

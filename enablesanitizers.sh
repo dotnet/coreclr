@@ -26,6 +26,7 @@ else
     __EnableLSan=0
     __TurnOff=0
     __Options=
+    __ExportSymbolizerPath=1
 
     for i in "$@"
         do
@@ -60,6 +61,17 @@ else
             clang3.7)
                 __ClangMajorVersion=3
                 __ClangMinorVersion=7
+                __ExportSymbolizerPath=0
+                ;;
+            clang3.8)
+                __ClangMajorVersion=3
+                __ClangMinorVersion=8
+                __ExportSymbolizerPath=0
+                ;;
+            clang3.9)
+                __ClangMajorVersion=3
+                __ClangMinorVersion=9
+                __ExportSymbolizerPath=0
                 ;;
             *)
                 echo "Unknown arg: $i"
@@ -71,8 +83,9 @@ else
         unset DEBUG_SANITIZERS
         echo "Setting DEBUG_SANITIZERS="
     else
-        # for now, specify alloc_dealloc_mismatch=0 as there are too many error reports that are not an issue
-        ASAN_OPTIONS="symbolize=1 alloc_dealloc_mismatch=0"
+        # for now, specify alloc_dealloc_mismatch=0 as there are too many error reports that are not an issue.
+        # Also specify use_sigaltstack=0 as coreclr uses own alternate stack for signal handlers
+        ASAN_OPTIONS="symbolize=1 alloc_dealloc_mismatch=0 use_sigaltstack=0"
         # when Clang 3.8 available, add: suppressions=$(readlink -f sanitizersuppressions.txt)
         UBSAN_OPTIONS="print_stacktrace=1"
 
@@ -83,7 +96,9 @@ else
             __Options="$__Options ubsan"
         fi
         if [ $__EnableLSan == 1 ]; then
-            ASAN_OPTIONS="$ASAN_OPTIONS detect_leaks"
+            ASAN_OPTIONS="$ASAN_OPTIONS detect_leaks=1"
+        else
+            ASAN_OPTIONS="$ASAN_OPTIONS detect_leaks=0"
         fi
 
         # passed to build.sh
@@ -92,18 +107,22 @@ else
         echo "Setting DEBUG_SANITIZERS=$DEBUG_SANITIZERS"
 
         # used by ASan at run-time
-        ASAN_OPTIONS="\"$ASAN_OPTIONS\""
         export ASAN_OPTIONS
-        echo "Setting ASAN_OPTIONS=$ASAN_OPTIONS"
+        echo "Setting ASAN_OPTIONS=\"$ASAN_OPTIONS\""
 
-        UBSAN_OPTIONS="\"$UBSAN_OPTIONS\""
         export UBSAN_OPTIONS
-        echo "Setting UBSAN_OPTIONS=$UBSAN_OPTIONS"
+        echo "Setting UBSAN_OPTIONS=\"$UBSAN_OPTIONS\""
 
-        # used by ASan at run-time
-        ASAN_SYMBOLIZER_PATH="/usr/bin/llvm-symbolizer-$__ClangMajorVersion.$__ClangMinorVersion"
-        export ASAN_SYMBOLIZER_PATH
-        echo "Setting ASAN_SYMBOLIZER_PATH=$ASAN_SYMBOLIZER_PATH"
+        # for compiler-rt > 3.6 Asan check that binary name is 'llvm-symbolizer', 'addr2line' or
+        # 'atos' (for Darwin) otherwise it returns error
+        if [ $__ExportSymbolizerPath == 1 ]; then
+            # used by ASan at run-time
+            ASAN_SYMBOLIZER_PATH="/usr/bin/llvm-symbolizer-$__ClangMajorVersion.$__ClangMinorVersion"
+            export ASAN_SYMBOLIZER_PATH
+            echo "Setting ASAN_SYMBOLIZER_PATH=$ASAN_SYMBOLIZER_PATH"
+        else
+            unset ASAN_SYMBOLIZER_PATH
+        fi
         echo "Done. You can now run: build.sh Debug clang$__ClangMajorVersion.$__ClangMinorVersion"
     fi
 

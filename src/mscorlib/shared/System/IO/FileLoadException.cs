@@ -6,36 +6,38 @@ using System.Runtime.Serialization;
 
 namespace System.IO
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial class FileLoadException : IOException
     {
         public FileLoadException()
             : base(SR.IO_FileLoad)
         {
-            HResult = __HResults.COR_E_FILELOAD;
+            HResult = HResults.COR_E_FILELOAD;
         }
 
         public FileLoadException(string message)
             : base(message)
         {
-            HResult = __HResults.COR_E_FILELOAD;
+            HResult = HResults.COR_E_FILELOAD;
         }
 
         public FileLoadException(string message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_FILELOAD;
+            HResult = HResults.COR_E_FILELOAD;
         }
 
         public FileLoadException(string message, string fileName) : base(message)
         {
-            HResult = __HResults.COR_E_FILELOAD;
+            HResult = HResults.COR_E_FILELOAD;
             FileName = fileName;
         }
 
         public FileLoadException(string message, string fileName, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_FILELOAD;
+            HResult = HResults.COR_E_FILELOAD;
             FileName = fileName;
         }
 
@@ -82,12 +84,15 @@ namespace System.IO
         protected FileLoadException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            FileName = info.GetString("FileLoad_FileName");
+            FusionLog = info.GetString("FileLoad_FusionLog");
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("FileLoad_FileName", FileName, typeof(string));
+            info.AddValue("FileLoad_FusionLog", FusionLog, typeof(string));
         }
     }
 }

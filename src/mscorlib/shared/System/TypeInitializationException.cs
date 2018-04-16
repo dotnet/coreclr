@@ -19,6 +19,8 @@ using System.Runtime.Serialization;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class TypeInitializationException : SystemException
     {
         private String _typeName;
@@ -28,7 +30,7 @@ namespace System
         private TypeInitializationException()
             : base(SR.TypeInitialization_Default)
         {
-            HResult = __HResults.COR_E_TYPEINITIALIZATION;
+            HResult = HResults.COR_E_TYPEINITIALIZATION;
         }
 
 
@@ -41,19 +43,26 @@ namespace System
         // for Interop only, though it's not particularly useful.
         internal TypeInitializationException(String message) : base(message)
         {
-            HResult = __HResults.COR_E_TYPEINITIALIZATION;
+            HResult = HResults.COR_E_TYPEINITIALIZATION;
         }
 
         internal TypeInitializationException(String fullTypeName, String message, Exception innerException)
             : base(message, innerException)
         {
             _typeName = fullTypeName;
-            HResult = __HResults.COR_E_TYPEINITIALIZATION;
+            HResult = HResults.COR_E_TYPEINITIALIZATION;
+        }
+
+        internal TypeInitializationException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
+            _typeName = info.GetString("TypeName");
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("TypeName", TypeName, typeof(string));
         }
 
         public String TypeName

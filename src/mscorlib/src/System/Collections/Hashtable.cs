@@ -74,7 +74,7 @@ namespace System.Collections
           fixes here probably need to be made to the generic Dictionary as well.
     
           This Hashtable uses double hashing.  There are hashsize buckets in the 
-          table, and each bucket can contain 0 or 1 element.  We a bit to mark
+          table, and each bucket can contain 0 or 1 element.  We use a bit to mark
           whether there's been a collision when we inserted multiple elements
           (ie, an inserted item was hashed at least a second time and we probed 
           this bucket, but it was already in use).  Using the collision bit, we
@@ -123,7 +123,6 @@ namespace System.Collections
            -- 
         */
 
-        internal const Int32 HashPrime = 101;
         private const Int32 InitialSize = 3;
         private const String LoadFactorName = "LoadFactor";
         private const String VersionName = "Version";
@@ -205,7 +204,6 @@ namespace System.Collections
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (!(loadFactor >= 0.1f && loadFactor <= 1.0f))
                 throw new ArgumentOutOfRangeException(nameof(loadFactor), SR.Format(SR.ArgumentOutOfRange_HashtableLoadFactor, .1, 1.0));
-            Contract.EndContractBlock();
 
             // Based on perf work, .72 is the optimal load factor for this table.  
             this.loadFactor = 0.72f * loadFactor;
@@ -269,7 +267,7 @@ namespace System.Collections
             // visit every bucket in the table exactly once within hashsize 
             // iterations.  Violate this and it'll cause obscure bugs forever.
             // If you change this calculation for h2(key), update putEntry too!
-            incr = (uint)(1 + ((seed * HashPrime) % ((uint)hashsize - 1)));
+            incr = (uint)(1 + ((seed * HashHelpers.HashPrime) % ((uint)hashsize - 1)));
             return hashcode;
         }
 
@@ -344,7 +342,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            Contract.EndContractBlock();
 
             uint seed;
             uint incr;
@@ -375,8 +372,8 @@ namespace System.Collections
         // the KeyCollection class.
         private void CopyKeys(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)
@@ -394,8 +391,8 @@ namespace System.Collections
         // the KeyCollection class.
         private void CopyEntries(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)
@@ -421,7 +418,6 @@ namespace System.Collections
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (array.Length - arrayIndex < Count)
                 throw new ArgumentException(SR.Arg_ArrayPlusOffTooSmall);
-            Contract.EndContractBlock();
             CopyEntries(array, arrayIndex);
         }
 
@@ -431,8 +427,8 @@ namespace System.Collections
         // the ValueCollection class.
         private void CopyValues(Array array, int arrayIndex)
         {
-            Contract.Requires(array != null);
-            Contract.Requires(array.Rank == 1);
+            Debug.Assert(array != null);
+            Debug.Assert(array.Rank == 1);
 
             bucket[] lbuckets = buckets;
             for (int i = lbuckets.Length; --i >= 0;)
@@ -456,7 +452,6 @@ namespace System.Collections
                 {
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
-                Contract.EndContractBlock();
 
                 uint seed;
                 uint incr;
@@ -479,7 +474,7 @@ namespace System.Collections
                     //        (3) compare the key, if equal, go to step 4. Otherwise end.
                     //        (4) return the value contained in the bucket.
                     //     After step 3 and before step 4. A writer can kick in a remove the old item and add a new one 
-                    //     in the same bukcet. So in the reader we need to check if the hash table is modified during above steps.
+                    //     in the same bucket. So in the reader we need to check if the hash table is modified during above steps.
                     //
                     // Writers (Insert, Remove, Clear) will set 'isWriterInProgress' flag before it starts modifying 
                     // the hashtable and will ckear the flag when it is done.  When the flag is cleared, the 'version'
@@ -699,7 +694,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            Contract.EndContractBlock();
             if (count >= loadsize)
             {
                 expand();
@@ -802,7 +796,7 @@ namespace System.Collections
             // If you see this assert, make sure load factor & count are reasonable.
             // Then verify that our double hash function (h2, described at top of file)
             // meets the requirements described above. You should never see this assert.
-            Debug.Assert(false, "hash table insert failed!  Load factor too high, or our double hashing function is incorrect.");
+            Debug.Fail("hash table insert failed!  Load factor too high, or our double hashing function is incorrect.");
             throw new InvalidOperationException(SR.InvalidOperation_HashInsertFailed);
         }
 
@@ -811,7 +805,7 @@ namespace System.Collections
             Debug.Assert(hashcode >= 0, "hashcode >= 0");  // make sure collision bit (sign bit) wasn't set.
 
             uint seed = (uint)hashcode;
-            uint incr = (uint)(1 + ((seed * HashPrime) % ((uint)newBuckets.Length - 1)));
+            uint incr = (uint)(1 + ((seed * HashHelpers.HashPrime) % ((uint)newBuckets.Length - 1)));
             int bucketNumber = (int)(seed % (uint)newBuckets.Length);
             do
             {
@@ -842,7 +836,6 @@ namespace System.Collections
             {
                 throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
-            Contract.EndContractBlock();
             Debug.Assert(!isWriterInProgress, "Race condition detected in usages of Hashtable - multiple threads appear to be writing to a Hashtable instance simultaneously!  Don't do that - use Hashtable.Synchronized.");
 
             uint seed;
@@ -908,7 +901,6 @@ namespace System.Collections
         {
             if (table == null)
                 throw new ArgumentNullException(nameof(table));
-            Contract.EndContractBlock();
             return new SyncHashtable(table);
         }
 
@@ -1038,7 +1030,6 @@ namespace System.Collections
                     throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
                 if (arrayIndex < 0)
                     throw new ArgumentOutOfRangeException(nameof(arrayIndex), SR.ArgumentOutOfRange_NeedNonNegNum);
-                Contract.EndContractBlock();
                 if (array.Length - arrayIndex < _hashtable.count)
                     throw new ArgumentException(SR.Arg_ArrayPlusOffTooSmall);
                 _hashtable.CopyKeys(array, arrayIndex);
@@ -1084,7 +1075,6 @@ namespace System.Collections
                     throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
                 if (arrayIndex < 0)
                     throw new ArgumentOutOfRangeException(nameof(arrayIndex), SR.ArgumentOutOfRange_NeedNonNegNum);
-                Contract.EndContractBlock();
                 if (array.Length - arrayIndex < _hashtable.count)
                     throw new ArgumentException(SR.Arg_ArrayPlusOffTooSmall);
                 _hashtable.CopyValues(array, arrayIndex);
@@ -1204,7 +1194,6 @@ namespace System.Collections
                 {
                     throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
-                Contract.EndContractBlock();
                 return _table.ContainsKey(key);
             }
 
@@ -1314,14 +1303,14 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (current == false) throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                     return currentKey;
                 }
             }
 
             public virtual bool MoveNext()
             {
-                if (version != hashtable.version) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != hashtable.version) throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
                 while (bucket > 0)
                 {
                     bucket--;
@@ -1342,7 +1331,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     return new DictionaryEntry(currentKey, currentValue);
                 }
             }
@@ -1352,7 +1341,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
 
                     if (getObjectRetType == Keys)
                         return currentKey;
@@ -1367,14 +1356,14 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     return currentValue;
                 }
             }
 
             public virtual void Reset()
             {
-                if (version != hashtable.version) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != hashtable.version) throw new InvalidOperationException(SR.InvalidOperation_EnumFailedVersion);
                 current = false;
                 bucket = hashtable.buckets.Length;
                 currentKey = null;
@@ -1387,107 +1376,5 @@ namespace System.Collections
         {
             private Hashtable hashtable;
         }
-    }
-
-    [FriendAccessAllowed]
-    internal static class HashHelpers
-    {
-#if FEATURE_RANDOMIZED_STRING_HASHING
-        public const int HashCollisionThreshold = 100;
-        public static bool s_UseRandomizedStringHashing = String.UseRandomizedHashing();
-#endif
-
-        // Table of prime numbers to use as hash table sizes. 
-        // A typical resize algorithm would pick the smallest prime number in this array
-        // that is larger than twice the previous capacity. 
-        // Suppose our Hashtable currently has capacity x and enough elements are added 
-        // such that a resize needs to occur. Resizing first computes 2x then finds the 
-        // first prime in the table greater than 2x, i.e. if primes are ordered 
-        // p_1, p_2, ..., p_i, ..., it finds p_n such that p_n-1 < 2x < p_n. 
-        // Doubling is important for preserving the asymptotic complexity of the 
-        // hashtable operations such as add.  Having a prime guarantees that double 
-        // hashing does not lead to infinite loops.  IE, your hash function will be 
-        // h1(key) + i*h2(key), 0 <= i < size.  h2 and the size must be relatively prime.
-        public static readonly int[] primes = {
-            3, 7, 11, 17, 23, 29, 37, 47, 59, 71, 89, 107, 131, 163, 197, 239, 293, 353, 431, 521, 631, 761, 919,
-            1103, 1327, 1597, 1931, 2333, 2801, 3371, 4049, 4861, 5839, 7013, 8419, 10103, 12143, 14591,
-            17519, 21023, 25229, 30293, 36353, 43627, 52361, 62851, 75431, 90523, 108631, 130363, 156437,
-            187751, 225307, 270371, 324449, 389357, 467237, 560689, 672827, 807403, 968897, 1162687, 1395263,
-            1674319, 2009191, 2411033, 2893249, 3471899, 4166287, 4999559, 5999471, 7199369};
-
-        // Used by Hashtable and Dictionary's SeralizationInfo .ctor's to store the SeralizationInfo
-        // object until OnDeserialization is called.
-        private static ConditionalWeakTable<object, SerializationInfo> s_SerializationInfoTable;
-
-        internal static ConditionalWeakTable<object, SerializationInfo> SerializationInfoTable
-        {
-            get
-            {
-                if (s_SerializationInfoTable == null)
-                {
-                    ConditionalWeakTable<object, SerializationInfo> newTable = new ConditionalWeakTable<object, SerializationInfo>();
-                    Interlocked.CompareExchange(ref s_SerializationInfoTable, newTable, null);
-                }
-
-                return s_SerializationInfoTable;
-            }
-        }
-
-        public static bool IsPrime(int candidate)
-        {
-            if ((candidate & 1) != 0)
-            {
-                int limit = (int)Math.Sqrt(candidate);
-                for (int divisor = 3; divisor <= limit; divisor += 2)
-                {
-                    if ((candidate % divisor) == 0)
-                        return false;
-                }
-                return true;
-            }
-            return (candidate == 2);
-        }
-
-        public static int GetPrime(int min)
-        {
-            if (min < 0)
-                throw new ArgumentException(SR.Arg_HTCapacityOverflow);
-            Contract.EndContractBlock();
-
-            for (int i = 0; i < primes.Length; i++)
-            {
-                int prime = primes[i];
-                if (prime >= min) return prime;
-            }
-
-            //outside of our predefined table. 
-            //compute the hard way. 
-            for (int i = (min | 1); i < Int32.MaxValue; i += 2)
-            {
-                if (IsPrime(i) && ((i - 1) % Hashtable.HashPrime != 0))
-                    return i;
-            }
-            return min;
-        }
-
-        // Returns size of hashtable to grow to.
-        public static int ExpandPrime(int oldSize)
-        {
-            int newSize = 2 * oldSize;
-
-            // Allow the hashtables to grow to maximum possible size (~2G elements) before encoutering capacity overflow.
-            // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
-            if ((uint)newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize)
-            {
-                Debug.Assert(MaxPrimeArrayLength == GetPrime(MaxPrimeArrayLength), "Invalid MaxPrimeArrayLength");
-                return MaxPrimeArrayLength;
-            }
-
-            return GetPrime(newSize);
-        }
-
-
-        // This is the maximum prime smaller than Array.MaxArrayLength
-        public const int MaxPrimeArrayLength = 0x7FEFFFFD;
     }
 }

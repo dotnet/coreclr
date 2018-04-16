@@ -52,7 +52,7 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -205,7 +205,7 @@ namespace Microsoft.Win32
             // From windows 2003 server, if the name is too long we will get error code ERROR_FILENAME_EXCED_RANGE  
             // This still means the name doesn't exist. We need to be consistent with previous OS.
             //
-            if (errorCode == Win32Native.ERROR_FILE_NOT_FOUND || errorCode == Win32Native.ERROR_FILENAME_EXCED_RANGE)
+            if (errorCode == Interop.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.Errors.ERROR_FILENAME_EXCED_RANGE)
             {
                 if (throwOnMissingValue)
                 {
@@ -216,7 +216,7 @@ namespace Microsoft.Win32
             }
             // We really should throw an exception here if errorCode was bad,
             // but we can't for compatibility reasons.
-            BCLDebug.Correctness(errorCode == 0, "RegDeleteValue failed.  Here's your error code: " + errorCode);
+            Debug.Assert(errorCode == 0, "RegDeleteValue failed.  Here's your error code: " + errorCode);
         }
 
         /**
@@ -243,8 +243,8 @@ namespace Microsoft.Win32
         internal static RegistryKey GetBaseKey(IntPtr hKey, RegistryView view)
         {
             int index = ((int)hKey) & 0x0FFFFFFF;
-            BCLDebug.Assert(index >= 0 && index < hkeyNames.Length, "index is out of range!");
-            BCLDebug.Assert((((int)hKey) & 0xFFFFFFF0) == 0x80000000, "Invalid hkey value!");
+            Debug.Assert(index >= 0 && index < hkeyNames.Length, "index is out of range!");
+            Debug.Assert((((int)hKey) & 0xFFFFFFF0) == 0x80000000, "Invalid hkey value!");
 
             bool isPerf = hKey == HKEY_PERFORMANCE_DATA;
             // only mark the SafeHandle as ownsHandle if the key is HKEY_PERFORMANCE_DATA.
@@ -287,7 +287,7 @@ namespace Microsoft.Win32
             }
 
             // Return null if we didn't find the key.
-            if (ret == Win32Native.ERROR_ACCESS_DENIED || ret == Win32Native.ERROR_BAD_IMPERSONATION_LEVEL)
+            if (ret == Interop.Errors.ERROR_ACCESS_DENIED || ret == Interop.Errors.ERROR_BAD_IMPERSONATION_LEVEL)
             {
                 // We need to throw SecurityException here for compatibility reasons,
                 // although UnauthorizedAccessException will make more sense.
@@ -503,7 +503,7 @@ namespace Microsoft.Win32
 
                     int r;
                     byte[] blob = new byte[size];
-                    while (Win32Native.ERROR_MORE_DATA == (r = Win32Native.RegQueryValueEx(hkey, name, null, ref type, blob, ref sizeInput)))
+                    while (Interop.Errors.ERROR_MORE_DATA == (r = Win32Native.RegQueryValueEx(hkey, name, null, ref type, blob, ref sizeInput)))
                     {
                         if (size == Int32.MaxValue)
                         {
@@ -531,7 +531,7 @@ namespace Microsoft.Win32
                     // For stuff like ERROR_FILE_NOT_FOUND, we want to return null (data).
                     // Some OS's returned ERROR_MORE_DATA even in success cases, so we 
                     // want to continue on through the function. 
-                    if (ret != Win32Native.ERROR_MORE_DATA)
+                    if (ret != Interop.Errors.ERROR_MORE_DATA)
                         return data;
                 }
             }
@@ -539,7 +539,7 @@ namespace Microsoft.Win32
             if (datasize < 0)
             {
                 // unexpected code path
-                BCLDebug.Assert(false, "[InternalGetValue] RegQueryValue returned ERROR_SUCCESS but gave a negative datasize");
+                Debug.Fail("[InternalGetValue] RegQueryValue returned ERROR_SUCCESS but gave a negative datasize");
                 datasize = 0;
             }
 
@@ -563,7 +563,7 @@ namespace Microsoft.Win32
                             goto case Win32Native.REG_BINARY;
                         }
                         long blob = 0;
-                        BCLDebug.Assert(datasize == 8, "datasize==8");
+                        Debug.Assert(datasize == 8, "datasize==8");
                         // Here, datasize must be 8 when calling this
                         ret = Win32Native.RegQueryValueEx(hkey, name, null, ref type, ref blob, ref datasize);
 
@@ -578,7 +578,7 @@ namespace Microsoft.Win32
                             goto case Win32Native.REG_QWORD;
                         }
                         int blob = 0;
-                        BCLDebug.Assert(datasize == 4, "datasize==4");
+                        Debug.Assert(datasize == 4, "datasize==4");
                         // Here, datasize must be four when calling this
                         ret = Win32Native.RegQueryValueEx(hkey, name, null, ref type, ref blob, ref datasize);
 
@@ -702,7 +702,7 @@ namespace Microsoft.Win32
 
                             if (nextNull < len)
                             {
-                                BCLDebug.Assert(blob[nextNull] == (char)0, "blob[nextNull] should be 0");
+                                Debug.Assert(blob[nextNull] == (char)0, "blob[nextNull] should be 0");
                                 if (nextNull - cur > 0)
                                 {
                                     strings.Add(new String(blob, cur, nextNull - cur));
@@ -960,13 +960,13 @@ namespace Microsoft.Win32
         {
             switch (errorCode)
             {
-                case Win32Native.ERROR_ACCESS_DENIED:
+                case Interop.Errors.ERROR_ACCESS_DENIED:
                     if (str != null)
                         throw new UnauthorizedAccessException(SR.Format(SR.UnauthorizedAccess_RegistryKeyGeneric_Key, str));
                     else
                         throw new UnauthorizedAccessException();
 
-                case Win32Native.ERROR_INVALID_HANDLE:
+                case Interop.Errors.ERROR_INVALID_HANDLE:
                     /**
                      * For normal RegistryKey instances we dispose the SafeRegHandle and throw IOException.
                      * However, for HKEY_PERFORMANCE_DATA (on a local or remote machine) we avoid disposing the
@@ -986,17 +986,17 @@ namespace Microsoft.Win32
                     }
                     goto default;
 
-                case Win32Native.ERROR_FILE_NOT_FOUND:
+                case Interop.Errors.ERROR_FILE_NOT_FOUND:
                     throw new IOException(SR.Arg_RegKeyNotFound, errorCode);
 
                 default:
-                    throw new IOException(Win32Native.GetMessage(errorCode), errorCode);
+                    throw new IOException(Interop.Kernel32.GetMessage(errorCode), errorCode);
             }
         }
 
         internal static String FixupName(String name)
         {
-            BCLDebug.Assert(name != null, "[FixupName]name!=null");
+            Debug.Assert(name != null, "[FixupName]name!=null");
             if (name.IndexOf('\\') == -1)
                 return name;
 
@@ -1011,7 +1011,7 @@ namespace Microsoft.Win32
 
         private static void FixupPath(StringBuilder path)
         {
-            Contract.Requires(path != null);
+            Debug.Assert(path != null);
             int length = path.Length;
             bool fixup = false;
             char markerChar = (char)0xFFFF;
@@ -1105,9 +1105,8 @@ namespace Microsoft.Win32
             }
         }
 
-        static private void ValidateKeyName(string name)
+        private static void ValidateKeyName(string name)
         {
-            Contract.Ensures(name != null);
             if (name == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.name);
@@ -1128,7 +1127,7 @@ namespace Microsoft.Win32
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RegKeyStrLenBug);
         }
 
-        static private void ValidateKeyView(RegistryView view)
+        private static void ValidateKeyView(RegistryView view)
         {
             if (view != RegistryView.Default && view != RegistryView.Registry32 && view != RegistryView.Registry64)
             {

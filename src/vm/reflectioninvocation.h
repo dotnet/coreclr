@@ -38,6 +38,7 @@
 #define BINDER_OptionalParamBinding 0x040000
 
 #define BINDER_IgnoreReturn         0x1000000
+#define BINDER_DoNotWrapExceptions  0x2000000
 
 #define BINDER_DefaultLookup        (BINDER_Instance | BINDER_Static | BINDER_Public)
 #define BINDER_AllLookup            (BINDER_Instance | BINDER_Static | BINDER_Public | BINDER_Instance)
@@ -50,6 +51,8 @@ public:
 
     static FCDECL1(void, RunClassConstructor, ReflectClassBaseObject *pTypeUNSAFE);
     static FCDECL1(void, RunModuleConstructor, ReflectModuleBaseObject *pModuleUNSAFE);
+    static FCDECL3(void, PrepareMethod, ReflectMethodObject* pMethodUNSAFE, TypeHandle *pInstantiation, UINT32 cInstantiation);
+    static FCDECL1(void, PrepareDelegate, Object* delegateUNSAFE);
     static FCDECL1(void, PrepareContractedDelegate, Object* delegateUNSAFE);
     static FCDECL0(void, ProbeForSufficientStack);    
     static FCDECL0(void, EnsureSufficientExecutionStack);

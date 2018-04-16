@@ -8,7 +8,7 @@ using System;
 using System.Reflection;
 using System.Collections;
 using System.Globalization;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 
 namespace System.Reflection.Emit
 {
@@ -23,14 +23,13 @@ namespace System.Reflection.Emit
         #region Static Members
         internal static Type MakeGenericType(Type type, Type[] typeArguments)
         {
-            Contract.Requires(type != null, "this is only called from RuntimeType.MakeGenericType and TypeBuilder.MakeGenericType so 'type' cannot be null");
+            Debug.Assert(type != null, "this is only called from RuntimeType.MakeGenericType and TypeBuilder.MakeGenericType so 'type' cannot be null");
 
             if (!type.IsGenericTypeDefinition)
                 throw new InvalidOperationException();
 
             if (typeArguments == null)
                 throw new ArgumentNullException(nameof(typeArguments));
-            Contract.EndContractBlock();
 
             foreach (Type t in typeArguments)
             {
@@ -43,7 +42,7 @@ namespace System.Reflection.Emit
 
         #endregion
 
-        #region Private Data Mebers
+        #region Private Data Members
         private Type m_type;
         private Type[] m_inst;
         private string m_strFullQualName;
@@ -94,7 +93,6 @@ namespace System.Reflection.Emit
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
-            Contract.EndContractBlock();
 
             string comma = "";
             for (int i = 1; i < rank; i++)
@@ -222,10 +220,9 @@ namespace System.Reflection.Emit
         }
         public override MethodBase DeclaringMethod { get { return null; } }
         public override Type GetGenericTypeDefinition() { return m_type; }
-        public override Type MakeGenericType(params Type[] inst) { throw new InvalidOperationException(SR.Arg_NotGenericTypeDefinition); }
+        public override Type MakeGenericType(params Type[] inst) { throw new InvalidOperationException(SR.Format(SR.Arg_NotGenericTypeDefinition, this)); }
         public override bool IsAssignableFrom(Type c) { throw new NotSupportedException(); }
 
-        [Pure]
         public override bool IsSubclassOf(Type c)
         {
             throw new NotSupportedException();

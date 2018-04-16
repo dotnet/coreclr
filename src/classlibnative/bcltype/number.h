@@ -14,6 +14,11 @@
 
 #define NUMBER_MAXDIGITS 50
 
+static const double LOG10V2 = 0.30102999566398119521373889472449;
+
+// DRIFT_FACTOR = 1 - LOG10V2 - epsilon (a small number account for drift of floating point multiplication)
+static const double DRIFT_FACTOR = 0.69;
+
 struct NUMBER {
     int precision;
     int scale;
@@ -26,15 +31,9 @@ struct NUMBER {
 class COMNumber
 {
 public:
-    static FCDECL3_VII(Object*, FormatDecimal, FC_DECIMAL value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3_VII(Object*, FormatDouble,  double  value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3_VII(Object*, FormatSingle,  float   value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3(Object*, FormatInt32,   INT32      value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3(Object*, FormatUInt32,  UINT32     value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3_VII(Object*, FormatInt64,   INT64  value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL3_VII(Object*, FormatUInt64,  UINT64 value, StringObject* formatUNSAFE, NumberFormatInfo* numfmtUNSAFE);
-    static FCDECL2(FC_BOOL_RET, NumberBufferToDecimal, BYTE* number, DECIMAL* value);
-    static FCDECL2(FC_BOOL_RET, NumberBufferToDouble, BYTE* number, double* value);
+    static FCDECL3_VII(void, DoubleToNumberFC, double value, int precision, NUMBER* number);
+    static FCDECL1(double, NumberToDoubleFC, NUMBER* number);
+    static FCDECL2(FC_BOOL_RET, NumberBufferToDecimal, NUMBER* number, DECIMAL* value);
     
     static wchar_t* Int32ToDecChars(__in wchar_t* p, unsigned int value, int digits);
 };

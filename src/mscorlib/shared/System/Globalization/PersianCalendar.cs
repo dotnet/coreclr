@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Globalization
 {
@@ -289,7 +288,6 @@ namespace System.Globalization
                                 -120000,
                                 120000));
             }
-            Contract.EndContractBlock();
             // Get the date in Persian calendar.
             int y = GetDatePart(time.Ticks, DatePartYear);
             int m = GetDatePart(time.Ticks, DatePartMonth);
@@ -521,7 +519,6 @@ namespace System.Globalization
             int daysInMonth = GetDaysInMonth(year, month, era);
             if (day < 1 || day > daysInMonth)
             {
-                // BCLDebug.Log("year = " + year + ", month = " + month + ", day = " + day);
                 throw new ArgumentOutOfRangeException(
                             nameof(day),
                             String.Format(
@@ -582,7 +579,6 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            Contract.EndContractBlock();
 
             if (year < 100)
             {

@@ -10,9 +10,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -28,14 +28,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private BindableVectorToCollectionAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // int Count { get }
-        [Pure]
         internal int Count()
         {
-            IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
+            IBindableVector _this = Unsafe.As<IBindableVector>(this);
             uint size = _this.Size;
             if (((uint)Int32.MaxValue) < size)
             {
@@ -46,21 +45,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IsSynchronized { get }
-        [Pure]
         internal bool IsSynchronized()
         {
             return false;
         }
 
         // object SyncRoot { get }
-        [Pure]
         internal object SyncRoot()
         {
             return this;
         }
 
         // void CopyTo(Array array, int index)
-        [Pure]
         internal void CopyTo(Array array, int arrayIndex)
         {
             if (array == null)
@@ -94,7 +90,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new ArgumentException(SR.Argument_IndexOutOfArrayBounds);
 
             // We need to verify the index as we;
-            IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
+            IBindableVector _this = Unsafe.As<IBindableVector>(this);
 
             for (uint i = 0; i < srcLen; i++)
             {

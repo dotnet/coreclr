@@ -16,7 +16,7 @@
 namespace Microsoft.Win32
 {
     using System;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Reflection;
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
@@ -99,10 +99,8 @@ namespace Microsoft.Win32
 
         private static int GetCVTypeFromClass(Type ctype)
         {
-            Contract.Requires(ctype != null);
-#if _DEBUG
-            BCLDebug.Assert(ClassTypes[CV_OBJECT] == typeof(Object), "OAVariantLib::ClassTypes[CV_OBJECT] == Object.class");
-#endif
+            Debug.Assert(ctype != null);
+            Debug.Assert(ClassTypes[CV_OBJECT] == typeof(Object), "OAVariantLib::ClassTypes[CV_OBJECT] == Object.class");
 
             int cvtype = -1;
             for (int i = 0; i < ClassTypes.Length; i++)

@@ -17,6 +17,8 @@ using System.Threading;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class OperationCanceledException : SystemException
     {
         [NonSerialized]
@@ -31,19 +33,19 @@ namespace System
         public OperationCanceledException()
             : base(SR.OperationCanceled)
         {
-            HResult = __HResults.COR_E_OPERATIONCANCELED;
+            HResult = HResults.COR_E_OPERATIONCANCELED;
         }
 
         public OperationCanceledException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_OPERATIONCANCELED;
+            HResult = HResults.COR_E_OPERATIONCANCELED;
         }
 
         public OperationCanceledException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_OPERATIONCANCELED;
+            HResult = HResults.COR_E_OPERATIONCANCELED;
         }
 
 
@@ -67,7 +69,6 @@ namespace System
 
         protected OperationCanceledException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
     }
 }

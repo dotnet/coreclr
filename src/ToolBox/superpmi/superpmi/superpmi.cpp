@@ -9,6 +9,7 @@
 #include "coredistools.h"
 #endif // USE_COREDISTOOLS
 
+#include "lightweightmap.h"
 #include "commandline.h"
 #include "superpmi.h"
 #include "jitinstance.h"
@@ -94,8 +95,8 @@ void InvokeNearDiffer(NearDiffer*           nearDiffer,
                      (*pParam->mc)->methodSize);
 
             // This is a difference in ASM outputs from Jit1 & Jit2 and not a playback failure
-             //We will add this MC to the diffMCList if one is requested
-             //Otherwise this will end up in failingMCList
+            // We will add this MC to the diffMCList if one is requested
+            // Otherwise this will end up in failingMCList
             if ((*pParam->o).diffMCLFilename != nullptr)
                 (*pParam->diffMCL).AddMethodToMCL((*pParam->reader)->GetMethodContextIndex());
             else if ((*pParam->o).mclFilename != nullptr)
@@ -106,8 +107,8 @@ void InvokeNearDiffer(NearDiffer*           nearDiffer,
     {
         SpmiException e(&param.exceptionPointers);
 
-        LogError("main method %d of size %d failed to load and compile correctly. EnvCnt=%d",
-                 (*reader)->GetMethodContextIndex(), (*mc)->methodSize, (*mc)->repEnvironmentGetCount());
+        LogError("main method %d of size %d failed to load and compile correctly.", (*reader)->GetMethodContextIndex(),
+                 (*mc)->methodSize);
         e.ShowAndDeleteMessage();
         if ((*o).mclFilename != nullptr)
             (*failingMCL).AddMethodToMCL((*reader)->GetMethodContextIndex());
@@ -284,9 +285,9 @@ int __cdecl main(int argc, char* argv[])
 
         if (jit == nullptr)
         {
-            SimpleTimer st4;
+            SimpleTimer stInitJit;
 
-            jit = JitInstance::InitJit(o.nameOfJit, o.breakOnAssert, &st4, mc);
+            jit = JitInstance::InitJit(o.nameOfJit, o.breakOnAssert, &stInitJit, mc, o.forceJitOptions, o.jitOptions);
             if (jit == nullptr)
             {
                 // InitJit already printed a failure message
@@ -295,7 +296,8 @@ int __cdecl main(int argc, char* argv[])
 
             if (o.nameOfJit2 != nullptr)
             {
-                jit2 = JitInstance::InitJit(o.nameOfJit2, o.breakOnAssert, &st4, mc);
+                jit2 = JitInstance::InitJit(o.nameOfJit2, o.breakOnAssert, &stInitJit, mc, o.forceJit2Options,
+                                            o.jit2Options);
                 if (jit2 == nullptr)
                 {
                     // InitJit already printed a failure message
@@ -312,6 +314,21 @@ int __cdecl main(int argc, char* argv[])
 
         mc->cr         = new CompileResult();
         mc->originalCR = crl;
+
+        if (mc->wasEnviromentChanged())
+        {
+            if (!jit->resetConfig(mc))
+            {
+                LogError("JIT can't reset enviroment");
+            }
+            if (o.nameOfJit2 != nullptr)
+            {
+                if (!jit2->resetConfig(mc))
+                {
+                    LogError("JIT2 can't reset enviroment");
+                }
+            }
+        }
 
         jittedCount++;
         st3.Start();
@@ -345,8 +362,8 @@ int __cdecl main(int argc, char* argv[])
 
             if (res2 == JitInstance::RESULT_ERROR)
             {
-                LogError("JIT2 main method %d of size %d failed to load and compile correctly. EnvCnt=%d",
-                         reader->GetMethodContextIndex(), mc->methodSize, mc->repEnvironmentGetCount());
+                LogError("JIT2 main method %d of size %d failed to load and compile correctly.",
+                         reader->GetMethodContextIndex(), mc->methodSize);
             }
 
             // Methods that don't compile due to missing JIT-EE information
@@ -488,8 +505,8 @@ int __cdecl main(int argc, char* argv[])
             // to, for instance, failures caused by missing JIT-EE details).
             if (res == JitInstance::RESULT_ERROR)
             {
-                LogError("main method %d of size %d failed to load and compile correctly. EnvCnt=%d",
-                         reader->GetMethodContextIndex(), mc->methodSize, mc->repEnvironmentGetCount());
+                LogError("main method %d of size %d failed to load and compile correctly.",
+                         reader->GetMethodContextIndex(), mc->methodSize);
                 if ((o.reproName != nullptr) && (o.indexCount == -1))
                 {
                     char buff[500];

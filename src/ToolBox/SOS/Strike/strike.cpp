@@ -166,8 +166,10 @@ HMODULE g_hInstance = NULL;
 
 #ifdef FEATURE_PAL
 #define SOSPrefix ""
+#define SOSThreads "clrthreads"
 #else
 #define SOSPrefix "!"
+#define SOSThreads "!threads"
 #endif
 
 #if defined _X86_ && !defined FEATURE_PAL
@@ -324,7 +326,9 @@ DECLARE_API(IP2MD)
 #define DEBUG_STACK_CONTEXT AMD64_CONTEXT
 #elif defined(_TARGET_ARM_) // _TARGET_WIN64_
 #define DEBUG_STACK_CONTEXT ARM_CONTEXT
-#endif // _TARGET_ARM_
+#elif defined(_TARGET_X86_) // _TARGET_ARM_
+#define DEBUG_STACK_CONTEXT X86_CONTEXT
+#endif // _TARGET_X86_
 
 #ifdef DEBUG_STACK_CONTEXT
 // I use a global set of frames for stack walking on win64 because the debugger's
@@ -774,7 +778,7 @@ BOOL GatherDynamicInfo(TADDR DynamicMethodObj, DacpObjectData *codeArray,
     if (objData.Request(g_sos, TO_CDADDR(DynamicMethodObj)) != S_OK)
         return bRet;
     
-    iOffset = GetObjFieldOffset(DynamicMethodObj, objData.MethodTable, W("m_resolver"));
+    iOffset = GetObjFieldOffset(TO_CDADDR(DynamicMethodObj), objData.MethodTable, W("m_resolver"));
     if (iOffset <= 0)
         return bRet;
     
@@ -785,7 +789,7 @@ BOOL GatherDynamicInfo(TADDR DynamicMethodObj, DacpObjectData *codeArray,
     if (objData.Request(g_sos, TO_CDADDR(resolverPtr)) != S_OK)
         return bRet;
     
-    iOffset = GetObjFieldOffset(resolverPtr, objData.MethodTable, W("m_code"));
+    iOffset = GetObjFieldOffset(TO_CDADDR(resolverPtr), objData.MethodTable, W("m_code"));
     if (iOffset <= 0)
         return bRet;
 
@@ -800,7 +804,7 @@ BOOL GatherDynamicInfo(TADDR DynamicMethodObj, DacpObjectData *codeArray,
         return bRet;
         
     // We also need the resolution table
-    iOffset = GetObjFieldOffset (resolverPtr, objData.MethodTable, W("m_scope"));
+    iOffset = GetObjFieldOffset (TO_CDADDR(resolverPtr), objData.MethodTable, W("m_scope"));
     if (iOffset <= 0)
         return bRet;
 
@@ -811,7 +815,7 @@ BOOL GatherDynamicInfo(TADDR DynamicMethodObj, DacpObjectData *codeArray,
     if (objData.Request(g_sos, TO_CDADDR(scopePtr)) != S_OK)
         return bRet;
     
-    iOffset = GetObjFieldOffset (scopePtr, objData.MethodTable, W("m_tokens"));
+    iOffset = GetObjFieldOffset (TO_CDADDR(scopePtr), objData.MethodTable, W("m_tokens"));
     if (iOffset <= 0)
         return bRet;
 
@@ -822,7 +826,7 @@ BOOL GatherDynamicInfo(TADDR DynamicMethodObj, DacpObjectData *codeArray,
     if (objData.Request(g_sos, TO_CDADDR(tokensPtr)) != S_OK)
         return bRet;
     
-    iOffset = GetObjFieldOffset(tokensPtr, objData.MethodTable, W("_items"));
+    iOffset = GetObjFieldOffset(TO_CDADDR(tokensPtr), objData.MethodTable, W("_items"));
     if (iOffset <= 0)
         return bRet;
 
@@ -1243,12 +1247,6 @@ DECLARE_API(DumpClass)
     
     ExtOut("\n");        
 
-    DacpMethodTableTransparencyData transparency;
-    if (SUCCEEDED(transparency.Request(g_sos, methodTable)))
-    {
-        ExtOut("Transparency:        %s\n", GetTransparency(transparency));
-    }
-
     DacpMethodTableFieldData vMethodTableFields;
     if (SUCCEEDED(vMethodTableFields.Request(g_sos, methodTable)))
     {
@@ -1469,7 +1467,7 @@ HRESULT PrintVC(TADDR taMT, TADDR taObject, BOOL bPrintFields = TRUE)
 void PrintRuntimeTypeInfo(TADDR p_rtObject, const DacpObjectData & rtObjectData)
 {
     // Get the method table
-    int iOffset = GetObjFieldOffset(p_rtObject, rtObjectData.MethodTable, W("m_handle"));
+    int iOffset = GetObjFieldOffset(TO_CDADDR(p_rtObject), rtObjectData.MethodTable, W("m_handle"));
     if (iOffset > 0)
     {            
         TADDR mtPtr;
@@ -1541,7 +1539,7 @@ HRESULT PrintObj(TADDR taObj, BOOL bPrintFields = TRUE)
     if (_wcscmp(obj.GetTypeName(), W("System.RuntimeType+RuntimeTypeCache")) == 0)
     {
         // Get the method table
-        int iOffset = GetObjFieldOffset (taObj, objData.MethodTable, W("m_runtimeType"));
+        int iOffset = GetObjFieldOffset (TO_CDADDR(taObj), objData.MethodTable, W("m_runtimeType"));
         if (iOffset > 0)
         {            
             TADDR rtPtr;
@@ -1712,7 +1710,7 @@ HRESULT PrintPermissionSet (TADDR p_PermSet)
 
     // Walk the fields, printing some fields in a special way.
 
-    int iOffset = GetObjFieldOffset (p_PermSet, PermSetData.MethodTable, W("m_Unrestricted"));
+    int iOffset = GetObjFieldOffset (TO_CDADDR(p_PermSet), PermSetData.MethodTable, W("m_Unrestricted"));
     
     if (iOffset > 0)        
     {
@@ -1724,7 +1722,7 @@ HRESULT PrintPermissionSet (TADDR p_PermSet)
             ExtOut("Unrestricted: FALSE\n");
     }
 
-    iOffset = GetObjFieldOffset (p_PermSet, PermSetData.MethodTable, W("m_permSet"));
+    iOffset = GetObjFieldOffset (TO_CDADDR(p_PermSet), PermSetData.MethodTable, W("m_permSet"));
     if (iOffset > 0)
     {
         TADDR tbSetPtr;
@@ -1738,7 +1736,7 @@ HRESULT PrintPermissionSet (TADDR p_PermSet)
                 return Status;
             }
 
-            iOffset = GetObjFieldOffset (tbSetPtr, tbSetData.MethodTable, W("m_Set"));
+            iOffset = GetObjFieldOffset (TO_CDADDR(tbSetPtr), tbSetData.MethodTable, W("m_Set"));
             if (iOffset > 0)
             {
                 DWORD_PTR PermsArrayPtr;
@@ -1758,7 +1756,7 @@ HRESULT PrintPermissionSet (TADDR p_PermSet)
                 }
             }
 
-            iOffset = GetObjFieldOffset (tbSetPtr, tbSetData.MethodTable, W("m_Obj"));
+            iOffset = GetObjFieldOffset (TO_CDADDR(tbSetPtr), tbSetData.MethodTable, W("m_Obj"));
             if (iOffset > 0)
             {
                 DWORD_PTR PermObjPtr;
@@ -1967,7 +1965,7 @@ HRESULT PrintArray(DacpObjectData& objData, DumpArrayFlags& flags, BOOL isPermSe
 
             if (isElementValueType)
             {
-                DMLOut( " %s\n", DMLValueClass(objData.MethodTable, p_Element));
+                DMLOut( " %s\n", DMLValueClass(objData.ElementTypeHandle, p_Element));
             }
             else
             {
@@ -2188,7 +2186,7 @@ static const HRESULT AsyncHResultValues[] =
     COR_E_DATAMISALIGNED, // kDataMisalignedException
     
 };
-BOOL IsAsyncException(TADDR taObj, TADDR mtObj)
+BOOL IsAsyncException(CLRDATA_ADDRESS taObj, CLRDATA_ADDRESS mtObj)
 {
     // by default we'll treat exceptions as synchronous
     UINT32 xcode = EXCEPTION_COMPLUS;
@@ -2382,12 +2380,12 @@ void SosExtOutLargeString(__inout_z __inout_ecount_opt(len) WCHAR * pwszLargeStr
     ExtOut("%S", pwsz);
 }
 
-HRESULT FormatException(TADDR taObj, BOOL bLineNumbers = FALSE)
+HRESULT FormatException(CLRDATA_ADDRESS taObj, BOOL bLineNumbers = FALSE)
 {
     HRESULT Status = S_OK;
 
     DacpObjectData objData;
-    if ((Status=objData.Request(g_sos, TO_CDADDR(taObj))) != S_OK)
+    if ((Status=objData.Request(g_sos, taObj)) != S_OK)
     {        
         ExtOut("Invalid object\n");
         return Status;
@@ -2416,7 +2414,7 @@ HRESULT FormatException(TADDR taObj, BOOL bLineNumbers = FALSE)
 
     // First try to get exception object data using ISOSDacInterface2
     DacpExceptionObjectData excData;
-    BOOL bGotExcData = SUCCEEDED(excData.Request(g_sos, TO_CDADDR(taObj)));
+    BOOL bGotExcData = SUCCEEDED(excData.Request(g_sos, taObj));
 
     // Walk the fields, printing some fields in a special way.
     // HR, InnerException, Message, StackTrace, StackTraceString
@@ -2486,7 +2484,7 @@ HRESULT FormatException(TADDR taObj, BOOL bLineNumbers = FALSE)
     }
 
     BOOL bAsync = bGotExcData ? IsAsyncException(excData)
-                              : IsAsyncException(taObj, TO_TADDR(objData.MethodTable));
+                              : IsAsyncException(taObj, objData.MethodTable);
 
     {
         TADDR taStackTrace = 0;
@@ -2720,7 +2718,7 @@ DECLARE_API(PrintException)
 
     if (p_Object)
     {
-        FormatException(p_Object, bLineNumbers);
+        FormatException(TO_CDADDR(p_Object), bLineNumbers);
     }
 
     // Are there nested exceptions?
@@ -2760,7 +2758,7 @@ DECLARE_API(PrintException)
             }
 
             ExtOut("\nNested exception -------------------------------------------------------------\n");
-            Status = FormatException((DWORD_PTR) obj, bLineNumbers);
+            Status = FormatException(obj, bLineNumbers);
             if (Status != S_OK)
             {
                 return Status;
@@ -3173,7 +3171,7 @@ DECLARE_API(DumpPermissionSet)
 {
     INIT_API();
     MINIDUMP_NOT_SUPPORTED();    
-    
+
     DWORD_PTR p_Object = NULL;
 
     CMDValue arg[] = 
@@ -3522,7 +3520,7 @@ void PrintRuntimeTypes(DWORD_PTR objAddr,size_t Size,DWORD_PTR methodTable,LPVOI
         if (_wcscmp(g_mdName, W("System.RuntimeType")) == 0)
         {
             pArgs->mtOfRuntimeType = methodTable;
-            pArgs->handleFieldOffset = GetObjFieldOffset(objAddr, methodTable, W("m_handle"));
+            pArgs->handleFieldOffset = GetObjFieldOffset(TO_CDADDR(objAddr), TO_CDADDR(methodTable), W("m_handle"));
             if (pArgs->handleFieldOffset <= 0)
                 ExtOut("Error getting System.RuntimeType.m_handle offset\n");
 
@@ -4646,8 +4644,8 @@ DECLARE_API(GCHeapStat)
             ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u\n", 0, 
                 hpUsage.genUsage[0].allocd, hpUsage.genUsage[1].allocd, 
                 hpUsage.genUsage[2].allocd, hpUsage.genUsage[3].allocd);
-            ExtOut("\nFree space:                                                 Percentage\n");
-            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u", 0, 
+            ExtOut("\nFree space:                                                  Percentage\n");
+            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u ", 0, 
                 hpUsage.genUsage[0].freed, hpUsage.genUsage[1].freed, 
                 hpUsage.genUsage[2].freed, hpUsage.genUsage[3].freed);
             tempf = ((float)(hpUsage.genUsage[0].freed+hpUsage.genUsage[1].freed+hpUsage.genUsage[2].freed)) /
@@ -4656,8 +4654,8 @@ DECLARE_API(GCHeapStat)
                 (int)(100*((float)hpUsage.genUsage[3].freed) / (hpUsage.genUsage[3].allocd)));
             if (bIncUnreachable)
             {
-            ExtOut("\nUnrooted objects:                                           Percentage\n");
-            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u", 0, 
+            ExtOut("\nUnrooted objects:                                            Percentage\n");
+            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u ", 0, 
                 hpUsage.genUsage[0].unrooted, hpUsage.genUsage[1].unrooted, 
                 hpUsage.genUsage[2].unrooted, hpUsage.genUsage[3].unrooted);
             tempf = ((float)(hpUsage.genUsage[0].unrooted+hpUsage.genUsage[1].unrooted+hpUsage.genUsage[2].unrooted)) / 
@@ -4735,10 +4733,10 @@ DECLARE_API(GCHeapStat)
             genUsageStat[0].allocd, genUsageStat[1].allocd, 
             genUsageStat[2].allocd, genUsageStat[3].allocd);
 
-        ExtOut("\nFree space:                                                 Percentage\n");
+        ExtOut("\nFree space:                                                  Percentage\n");
         for (DWORD n = 0; n < dwNHeaps; n ++)
         {
-            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u", n, 
+            ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u ", n, 
                 hpUsage[n].genUsage[0].freed, hpUsage[n].genUsage[1].freed, 
                 hpUsage[n].genUsage[2].freed, hpUsage[n].genUsage[3].freed);
 
@@ -4754,10 +4752,10 @@ DECLARE_API(GCHeapStat)
 
         if (bIncUnreachable)
         {
-            ExtOut("\nUnrooted objects:                                           Percentage\n");
+            ExtOut("\nUnrooted objects:                                            Percentage\n");
             for (DWORD n = 0; n < dwNHeaps; n ++)
             {
-                ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u", n, 
+                ExtOut("Heap%-4d %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u %12" POINTERSIZE_TYPE "u ", n, 
                     hpUsage[n].genUsage[0].unrooted, hpUsage[n].genUsage[1].unrooted, 
                     hpUsage[n].genUsage[2].unrooted, hpUsage[n].genUsage[3].unrooted);
 
@@ -5776,7 +5774,6 @@ HRESULT PrintSpecialThreads()
 
         TADDR CLRTLSDataAddr = 0;
 
-#ifdef FEATURE_IMPLICIT_TLS
         TADDR tlsArrayAddr = NULL;
         if (!SafeReadMemory (TO_TADDR(cdaTeb) + WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer , &tlsArrayAddr, sizeof (void**), NULL))
         {
@@ -5784,38 +5781,19 @@ HRESULT PrintSpecialThreads()
             continue;
         }
 
-        TADDR moduleTlsDataAddr = 0;
+        if (tlsArrayAddr == NULL)
+        {
+            continue;
+        }
 
-        if (!SafeReadMemory (tlsArrayAddr + sizeof (void*) * dwCLRTLSDataIndex, &moduleTlsDataAddr, sizeof (void**), NULL))
+        TADDR moduleTlsDataAddr = 0;
+        if (!SafeReadMemory (tlsArrayAddr + sizeof (void*) * (dwCLRTLSDataIndex & 0xFFFF), &moduleTlsDataAddr, sizeof (void**), NULL))
         {
             PrintLn("Failed to get Tls expansion slots for thread ", ThreadID(SysId));        
             continue;
         }
 
-        CLRTLSDataAddr = moduleTlsDataAddr + OFFSETOF__TLS__tls_EETlsData;
-#else
-        if (dwCLRTLSDataIndex < TLS_MINIMUM_AVAILABLE)
-        {
-            CLRTLSDataAddr = TO_TADDR(cdaTeb) + offsetof(TEB, TlsSlots) + sizeof (void*) * dwCLRTLSDataIndex;
-        }
-        else
-        {
-            //if TLS index is bigger than TLS_MINIMUM_AVAILABLE, the TLS slot lives in ExpansionSlots
-            TADDR TebExpsionAddr = NULL;
-            if (!SafeReadMemory (TO_TADDR(cdaTeb) + offsetof(TEB, TlsExpansionSlots) , &TebExpsionAddr, sizeof (void**), NULL))
-            {
-                PrintLn("Failed to get Tls expansion slots for thread ", ThreadID(SysId));        
-                continue;
-            }
-
-            if (TebExpsionAddr == NULL)
-            {
-                continue;
-            }
-            
-            CLRTLSDataAddr = TebExpsionAddr + sizeof (void*) * (dwCLRTLSDataIndex - TLS_MINIMUM_AVAILABLE);
-        }
-#endif // FEATURE_IMPLICIT_TLS
+        CLRTLSDataAddr = moduleTlsDataAddr + ((dwCLRTLSDataIndex & 0x7FFF0000) >> 16) + OFFSETOF__TLS__tls_EETlsData;
 
         TADDR CLRTLSData = NULL;
         if (!SafeReadMemory (CLRTLSDataAddr, &CLRTLSData, sizeof (TADDR), NULL))
@@ -6343,6 +6321,27 @@ public:
         return bNeedUpdates;
     }
 
+    BOOL UpdateKnownCodeAddress(TADDR mod, CLRDATA_ADDRESS bpLocation)
+    {
+        PendingBreakpoint *pCur = m_breakpoints;
+        BOOL bpSet = FALSE;
+
+        while(pCur)
+        {
+            PendingBreakpoint *pNext = pCur->pNext;
+            if (pCur->ModuleMatches(mod))
+            {
+                IssueDebuggerBPCommand(bpLocation);
+                bpSet = TRUE;
+                break;
+            }
+
+            pCur = pNext;
+        }
+
+        return bpSet;
+    }
+
     void RemovePendingForModule(TADDR mod)
     {
         PendingBreakpoint *pCur = m_breakpoints;
@@ -6715,7 +6714,7 @@ BOOL g_stopOnNextCatch = FALSE;
 // According to the latest debuggers these callbacks will not get called
 // unless the user (or an extension, like SOS :-)) had previously enabled
 // clrn with "sxe clrn".
-class CNotification : public IXCLRDataExceptionNotification4
+class CNotification : public IXCLRDataExceptionNotification5
 {
     static int s_condemnedGen;
 
@@ -6741,9 +6740,10 @@ public:
             || IsEqualIID(iid, IID_IXCLRDataExceptionNotification)
             || IsEqualIID(iid, IID_IXCLRDataExceptionNotification2)
             || IsEqualIID(iid, IID_IXCLRDataExceptionNotification3)
-            || IsEqualIID(iid, IID_IXCLRDataExceptionNotification4))
+            || IsEqualIID(iid, IID_IXCLRDataExceptionNotification4)
+            || IsEqualIID(iid, IID_IXCLRDataExceptionNotification5))
         {
-            *ppvObject = static_cast<IXCLRDataExceptionNotification4*>(this);
+            *ppvObject = static_cast<IXCLRDataExceptionNotification5*>(this);
             AddRef();
             return S_OK;
         }
@@ -6769,7 +6769,13 @@ public:
      */
     STDMETHODIMP OnCodeGenerated(IXCLRDataMethodInstance* method)
     {
-        // Some method has been generated, make a breakpoint and remove it.
+        m_dbgStatus = DEBUG_STATUS_GO_HANDLED;
+        return S_OK;
+    }
+
+    STDMETHODIMP OnCodeGenerated2(IXCLRDataMethodInstance* method, CLRDATA_ADDRESS nativeCodeLocation)
+    {
+        // Some method has been generated, make a breakpoint.
         ULONG32 len = mdNameLen;
         LPWSTR szModuleName = (LPWSTR)alloca(mdNameLen * sizeof(WCHAR));
         if (method->GetName(0, mdNameLen, &len, g_mdName) == S_OK)
@@ -6782,12 +6788,11 @@ public:
                 if (pMod->GetName(mdNameLen, &len, szModuleName) == S_OK)
                 {
                     ExtOut("JITTED %S!%S\n", szModuleName, g_mdName);
-
-                    // Add breakpoint, perhaps delete pending breakpoint
+                    
                     DacpGetModuleAddress dgma;
                     if (SUCCEEDED(dgma.Request(pMod)))
                     {
-                        g_bpoints.Update(TO_TADDR(dgma.ModulePtr), FALSE);
+                        g_bpoints.UpdateKnownCodeAddress(TO_TADDR(dgma.ModulePtr), nativeCodeLocation);
                     }
                     else
                     {
@@ -7671,8 +7676,8 @@ DECLARE_API(FindAppDomain)
         if (IsDMLEnabled())
             DMLOut("<exec cmd=\"!gcroot /d %p\">!gcroot %p</exec>, and if you find a root on a\n", p_Object, p_Object);
         else
-            ExtOut("!gcroot %p, and if you find a root on a\n", p_Object);
-        ExtOut("stack, check the AppDomain of that stack with !threads.\n");
+            ExtOut(SOSPrefix "gcroot %p, and if you find a root on a\n", p_Object);
+        ExtOut("stack, check the AppDomain of that stack with " SOSThreads ".\n");
         ExtOut("Note that the Thread could have transitioned between\n");
         ExtOut("multiple AppDomains.\n");
     }
@@ -9647,7 +9652,7 @@ DECLARE_API(GCRoot)
     if (all)
         ExtOut("Found %d roots.\n", i);
     else
-        ExtOut("Found %d unique roots (run '!GCRoot -all' to see all roots).\n", i);
+        ExtOut("Found %d unique roots (run '" SOSPrefix "gcroot -all' to see all roots).\n", i);
 
     return Status;
 }
@@ -12349,7 +12354,7 @@ private:
         if ((hr = g_clrData->GetTaskByOSThreadID(osID, &pTask)) != S_OK)
         {
             ExtOut("Unable to walk the managed stack. The current thread is likely not a \n");
-            ExtOut("managed thread. You can run !threads to get a list of managed threads in\n");
+            ExtOut("managed thread. You can run " SOSThreads " to get a list of managed threads in\n");
             ExtOut("the process\n");
             return hr;
         }
@@ -13769,7 +13774,7 @@ HRESULT AppendExceptionInfo(CLRDATA_ADDRESS cdaObj,
     }
     
     BOOL bAsync = bGotExcData ? IsAsyncException(excData)
-                              : IsAsyncException(TO_TADDR(cdaObj), TO_TADDR(objData.MethodTable));
+                              : IsAsyncException(cdaObj, objData.MethodTable);
 
     DWORD_PTR arrayPtr;
     if (bGotExcData)

@@ -38,6 +38,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # There are constants of type BOOL used in a condition. But BOOL is defined as int
   # and so the compiler thinks that there is a mistake.
   add_compile_options(-Wno-constant-logical-operand)
+  # We use pshpack1/2/4/8.h and poppack.h headers to set and restore packing. However
+  # clang 6.0 complains when the packing change lifetime is not contained within 
+  # a header file.
+  add_compile_options(-Wno-pragma-pack)
 
   add_compile_options(-Wno-unknown-warning-option)
 
@@ -94,6 +98,7 @@ if (WIN32)
   add_compile_options(/wd4960 /wd4961 /wd4603 /wd4627 /wd4838 /wd4456 /wd4457 /wd4458 /wd4459 /wd4091 /we4640)
   add_compile_options(/Zi) # enable debugging information
   add_compile_options(/ZH:SHA_256) # use SHA256 for generating hashes of compiler processed source files.
+  add_compile_options(/source-charset:utf-8) # Force MSVC to compile source as UTF-8.
 
   if (CLR_CMAKE_PLATFORM_ARCH_I386)
     add_compile_options(/Gz)

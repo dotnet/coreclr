@@ -8,6 +8,7 @@
 //----------------------------------------------------------
 
 #include "standardpch.h"
+#include "lightweightmap.h"
 #include "commandline.h"
 #include "superpmi.h"
 #include "mclist.h"
@@ -116,7 +117,17 @@ void CommandLine::DumpHelp(const char* program)
     printf("     Ignored: MSVCDIS is not available, so CoreDisTools will be used.\n");
 #else
     printf("     Ignored: neither MSVCDIS nor CoreDisTools is available.\n");
-#endif
+#endif // USE_COREDISTOOLS
+    printf("\n");
+    printf(" -jitoption [force] key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 1 if the option was not set.");
+    printf("     With optional force flag overwrites the existing value if it was already set. NOTE: do not use a "
+           "\"COMPlus_\" prefix!\n");
+    printf("\n");
+    printf(" -jit2option [force] key=value\n");
+    printf("     Set the JIT option named \"key\" to \"value\" for JIT 2 if the option was not set.");
+    printf("     With optional force flag overwrites the existing value if it was already set. NOTE: do not use a "
+           "\"COMPlus_\" prefix!\n");
     printf("\n");
     printf("Inputs are case sensitive.\n");
     printf("\n");
@@ -138,6 +149,36 @@ void CommandLine::DumpHelp(const char* program)
     printf("     ; same as above, but use all available processors to compile in parallel\n");
     printf(" %s -f fail.mcl " MAKEDLLNAME_A("clrjit") " test.mch\n", program);
     printf("     ; if there are any failures, record their MC numbers in the file fail.mcl\n");
+}
+
+static bool ParseJitOption(const char* optionString, wchar_t** key, wchar_t** value)
+{
+    char tempKey[1024];
+
+    unsigned i;
+    for (i = 0; optionString[i] != '='; i++)
+    {
+        if ((i >= 1023) || (optionString[i] == '\0'))
+        {
+            return false;
+        }
+        tempKey[i] = optionString[i];
+    }
+    tempKey[i] = '\0';
+
+    const char* tempVal = &optionString[i + 1];
+
+    const unsigned keyLen = i;
+    wchar_t*       keyBuf = new wchar_t[keyLen + 1];
+    MultiByteToWideChar(CP_UTF8, 0, tempKey, keyLen + 1, keyBuf, keyLen + 1);
+
+    const unsigned valLen = (unsigned)strlen(tempVal);
+    wchar_t*       valBuf = new wchar_t[valLen + 1];
+    MultiByteToWideChar(CP_UTF8, 0, tempVal, valLen + 1, valBuf, valLen + 1);
+
+    *key   = keyBuf;
+    *value = valBuf;
+    return true;
 }
 
 // Assumption: All inputs are initialized to default or real value.  we'll just set the stuff we see on the command
@@ -481,6 +522,22 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
                     return false;
                 }
             }
+            else if (_strnicmp(&argv[i][1], "jitoption", argLen) == 0)
+            {
+                i++;
+                if (!AddJitOption(i, argc, argv, &o->jitOptions, &o->forceJitOptions))
+                {
+                    return false;
+                }
+            }
+            else if (_strnicmp(&argv[i][1], "jit2option", argLen) == 0)
+            {
+                i++;
+                if (!AddJitOption(i, argc, argv, &o->jit2Options, &o->forceJit2Options))
+                {
+                    return false;
+                }
+            }
             else
             {
                 LogError("Unknown switch '%s' passed as argument.", argv[i]);
@@ -489,7 +546,7 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
             }
         }
         // Process an input filename
-         //String comparisons on file extensions must be case-insensitive since we run on Windows
+        // String comparisons on file extensions must be case-insensitive since we run on Windows
         else
         {
             char* lastdot = strrchr(argv[i], '.');
@@ -548,5 +605,69 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
         DumpHelp(argv[0]);
         return false;
     }
+    return true;
+}
+
+//-------------------------------------------------------------
+// AddJitOption: Parse the value that was passed with -jitOption flag.
+//
+// Arguments:
+//    currArgument     - current argument number. Points to the token next to -jitOption. After the function
+//                       points to the last parsed token
+//    argc             - number of all arguments
+//    argv             - arguments as array of char*
+//    pJitOptions      - a jit options map, that sets the option, if it was not already set.
+//    pForceJitOptions - a jit options map, that forces the option even if it was already set.
+//
+// Returns:
+//    False if an error occurred, true if the option was parsed and added.
+bool CommandLine::AddJitOption(int&  currArgument,
+                               int   argc,
+                               char* argv[],
+                               LightWeightMap<DWORD, DWORD>** pJitOptions,
+                               LightWeightMap<DWORD, DWORD>** pForceJitOptions)
+{
+    if (currArgument >= argc)
+    {
+        DumpHelp(argv[0]);
+        return false;
+    }
+
+    LightWeightMap<DWORD, DWORD>* targetjitOptions = nullptr;
+
+    if (_strnicmp(argv[currArgument], "force", strlen(argv[currArgument])) == 0)
+    {
+        if (*pForceJitOptions == nullptr)
+        {
+            *pForceJitOptions = new LightWeightMap<DWORD, DWORD>();
+        }
+        targetjitOptions = *pForceJitOptions;
+        currArgument++;
+    }
+    else
+    {
+        if (*pJitOptions == nullptr)
+        {
+            *pJitOptions = new LightWeightMap<DWORD, DWORD>();
+        }
+        targetjitOptions = *pJitOptions;
+    }
+
+    wchar_t* key;
+    wchar_t* value;
+    if ((currArgument >= argc) || !ParseJitOption(argv[currArgument], &key, &value))
+    {
+        DumpHelp(argv[0]);
+        return false;
+    }
+
+    DWORD keyIndex =
+        (DWORD)targetjitOptions->AddBuffer((unsigned char*)key, sizeof(wchar_t) * ((unsigned int)wcslen(key) + 1));
+    DWORD valueIndex =
+        (DWORD)targetjitOptions->AddBuffer((unsigned char*)value, sizeof(wchar_t) * ((unsigned int)wcslen(value) + 1));
+    targetjitOptions->Add(keyIndex, valueIndex);
+
+    delete[] key;
+    delete[] value;
     return true;
 }

@@ -8,8 +8,8 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,12 +27,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IDisposableToIClosableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         public void Close()
         {
-            IDisposable _this = JitHelpers.UnsafeCast<IDisposable>(this);
+            IDisposable _this = Unsafe.As<IDisposable>(this);
             _this.Dispose();
         }
     }
@@ -42,12 +42,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IClosableToIDisposableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         private void Dispose()
         {
-            IClosable _this = JitHelpers.UnsafeCast<IClosable>(this);
+            IClosable _this = Unsafe.As<IClosable>(this);
             _this.Close();
         }
     }

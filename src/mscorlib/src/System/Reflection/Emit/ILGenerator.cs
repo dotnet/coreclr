@@ -31,9 +31,7 @@ namespace System.Reflection.Emit
 
         internal static T[] EnlargeArray<T>(T[] incoming, int requiredSize)
         {
-            Contract.Requires(incoming != null);
-            Contract.Ensures(Contract.Result<T[]>() != null);
-            Contract.Ensures(Contract.Result<T[]>().Length == requiredSize);
+            Debug.Assert(incoming != null);
 
             T[] temp = new T[requiredSize];
             Array.Copy(incoming, 0, temp, 0, incoming.Length);
@@ -47,9 +45,7 @@ namespace System.Reflection.Emit
 
         private static byte[] EnlargeArray(byte[] incoming, int requiredSize)
         {
-            Contract.Requires(incoming != null);
-            Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == requiredSize);
+            Debug.Assert(incoming != null);
 
             byte[] temp = new byte[requiredSize];
             Buffer.BlockCopy(incoming, 0, temp, 0, incoming.Length);
@@ -108,8 +104,8 @@ namespace System.Reflection.Emit
 
         internal ILGenerator(MethodInfo methodBuilder, int size)
         {
-            Contract.Requires(methodBuilder != null);
-            Contract.Requires(methodBuilder is MethodBuilder || methodBuilder is DynamicMethod);
+            Debug.Assert(methodBuilder != null);
+            Debug.Assert(methodBuilder is MethodBuilder || methodBuilder is DynamicMethod);
 
             if (size < defaultSize)
             {
@@ -288,7 +284,7 @@ namespace System.Reflection.Emit
             __ExceptionInfo[] temp;
             if (m_currExcStackCount != 0)
             {
-                throw new NotSupportedException(SR.GetResourceString(ResId.Argument_UnclosedExceptionBlock));
+                throw new NotSupportedException(SR.Argument_UnclosedExceptionBlock);
             }
 
             if (m_exceptionCount == 0)
@@ -466,7 +462,6 @@ namespace System.Reflection.Emit
         {
             if (meth == null)
                 throw new ArgumentNullException(nameof(meth));
-            Contract.EndContractBlock();
 
             if (opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj))
             {
@@ -536,6 +531,51 @@ namespace System.Reflection.Emit
             PutInteger4(modBuilder.GetSignatureToken(sig).Token);
         }
 
+        public virtual void EmitCalli(OpCode opcode, CallingConvention unmanagedCallConv, Type returnType, Type[] parameterTypes)
+        {
+            int stackchange = 0;
+            int cParams = 0;
+            int i;
+            SignatureHelper sig;
+
+            ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
+
+            if (parameterTypes != null)
+            {
+                cParams = parameterTypes.Length;
+            }
+
+            sig = SignatureHelper.GetMethodSigHelper(
+                modBuilder,
+                unmanagedCallConv,
+                returnType);
+
+            if (parameterTypes != null)
+            {
+                for (i = 0; i < cParams; i++)
+                {
+                    sig.AddArgument(parameterTypes[i]);
+                }
+            }
+
+            // If there is a non-void return type, push one.
+            if (returnType != typeof(void))
+                stackchange++;
+
+            // Pop off arguments if any.
+            if (parameterTypes != null)
+                stackchange -= cParams;
+
+            // Pop the native function pointer.
+            stackchange--;
+            UpdateStackSize(OpCodes.Calli, stackchange);
+
+            EnsureCapacity(7);
+            Emit(OpCodes.Calli);
+            RecordTokenFixup();
+            PutInteger4(modBuilder.GetSignatureToken(sig).Token);
+        }
+
         public virtual void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
             if (methodInfo == null)
@@ -544,7 +584,6 @@ namespace System.Reflection.Emit
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
                 throw new ArgumentException(SR.Argument_NotMethodCallOpcode, nameof(opcode));
 
-            Contract.EndContractBlock();
 
             int stackchange = 0;
             int tk = GetMethodToken(methodInfo, optionalParameterTypes, false);
@@ -577,7 +616,6 @@ namespace System.Reflection.Emit
         {
             if (signature == null)
                 throw new ArgumentNullException(nameof(signature));
-            Contract.EndContractBlock();
 
             int stackchange = 0;
             ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
@@ -612,7 +650,6 @@ namespace System.Reflection.Emit
         {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
-            Contract.EndContractBlock();
 
             int stackchange = 0;
 
@@ -690,7 +727,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(arg >> 56);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, float arg)
+        public unsafe virtual void Emit(OpCode opcode, float arg)
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
@@ -701,7 +738,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(tempVal >> 24);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, double arg)
+        public unsafe virtual void Emit(OpCode opcode, double arg)
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
@@ -749,7 +786,6 @@ namespace System.Reflection.Emit
         {
             if (labels == null)
                 throw new ArgumentNullException(nameof(labels));
-            Contract.EndContractBlock();
 
             // Emitting a switch table
 
@@ -800,7 +836,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(local));
             }
-            Contract.EndContractBlock();
             int tempVal = local.GetLocalIndex();
             if (local.GetMethodBuilder() != m_methodBuilder)
             {
@@ -1124,7 +1159,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentException(SR.Argument_NotExceptionType);
             }
-            Contract.EndContractBlock();
             ConstructorInfo con = excType.GetConstructor(Type.EmptyTypes);
             if (con == null)
             {
@@ -1136,9 +1170,7 @@ namespace System.Reflection.Emit
 
         private static Type GetConsoleType()
         {
-            return Type.GetType(
-                "System.Console, System.Console, Version=4.0.0.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-                throwOnError: true);
+            return Type.GetType("System.Console, System.Console", throwOnError: true);
         }
 
         public virtual void EmitWriteLine(String value)
@@ -1197,7 +1229,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(fld));
             }
-            Contract.EndContractBlock();
 
             MethodInfo prop = GetConsoleType().GetMethod("get_Out");
             Emit(OpCodes.Call, prop);
@@ -1279,7 +1310,6 @@ namespace System.Reflection.Emit
 
             if (usingNamespace.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(usingNamespace));
-            Contract.EndContractBlock();
 
             int index;
             MethodBuilder methodBuilder = m_methodBuilder as MethodBuilder;
@@ -1308,7 +1338,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentOutOfRangeException(nameof(startLine));
             }
-            Contract.EndContractBlock();
             m_LineNumberInfo.AddLineNumberInfo(document, m_length, startLine, startColumn, endLine, endColumn);
         }
 
@@ -1371,22 +1400,6 @@ namespace System.Reflection.Emit
         internal int m_currentCatch;
 
         private int m_currentState;
-
-
-        //This will never get called.  The values exist merely to keep the
-        //compiler happy.
-        private __ExceptionInfo()
-        {
-            m_startAddr = 0;
-            m_filterAddr = null;
-            m_catchAddr = null;
-            m_catchEndAddr = null;
-            m_endAddr = 0;
-            m_currentCatch = 0;
-            m_type = null;
-            m_endFinally = -1;
-            m_currentState = State_Try;
-        }
 
         internal __ExceptionInfo(int startAddr, Label endLabel)
         {
@@ -1566,7 +1579,7 @@ namespace System.Reflection.Emit
         // not having a nesting relation. 
         internal bool IsInner(__ExceptionInfo exc)
         {
-            Contract.Requires(exc != null);
+            Debug.Assert(exc != null);
             Debug.Assert(m_currentCatch > 0, "m_currentCatch > 0");
             Debug.Assert(exc.m_currentCatch > 0, "exc.m_currentCatch > 0");
 
@@ -1622,7 +1635,7 @@ namespace System.Reflection.Emit
 
         /***************************
         *
-        * Find the current active lexcial scope. For example, if we have
+        * Find the current active lexical scope. For example, if we have
         * "Open Open Open Close",
         * we will return 1 as the second BeginScope is currently active.
         *
@@ -1681,7 +1694,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentException(SR.Argument_UnmatchingSymScope);
             }
-            Contract.EndContractBlock();
 
             // make sure that arrays are large enough to hold addition info
             EnsureCapacity();

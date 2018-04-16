@@ -17,7 +17,9 @@ using System.Runtime.Serialization;
 namespace System
 {
     // The ArgumentOutOfRangeException is thrown when an argument 
-    // is outside the legal range for that argument.  
+    // is outside the legal range for that argument.
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class ArgumentOutOfRangeException : ArgumentException
     {
         private Object _actualValue;
@@ -27,25 +29,25 @@ namespace System
         public ArgumentOutOfRangeException()
             : base(SR.Arg_ArgumentOutOfRangeException)
         {
-            HResult = __HResults.COR_E_ARGUMENTOUTOFRANGE;
+            HResult = HResults.COR_E_ARGUMENTOUTOFRANGE;
         }
 
         public ArgumentOutOfRangeException(String paramName)
             : base(SR.Arg_ArgumentOutOfRangeException, paramName)
         {
-            HResult = __HResults.COR_E_ARGUMENTOUTOFRANGE;
+            HResult = HResults.COR_E_ARGUMENTOUTOFRANGE;
         }
 
         public ArgumentOutOfRangeException(String paramName, String message)
             : base(message, paramName)
         {
-            HResult = __HResults.COR_E_ARGUMENTOUTOFRANGE;
+            HResult = HResults.COR_E_ARGUMENTOUTOFRANGE;
         }
 
         public ArgumentOutOfRangeException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_ARGUMENTOUTOFRANGE;
+            HResult = HResults.COR_E_ARGUMENTOUTOFRANGE;
         }
 
         // We will not use this in the classlibs, but we'll provide it for
@@ -55,18 +57,19 @@ namespace System
             : base(message, paramName)
         {
             _actualValue = actualValue;
-            HResult = __HResults.COR_E_ARGUMENTOUTOFRANGE;
+            HResult = HResults.COR_E_ARGUMENTOUTOFRANGE;
         }
 
         protected ArgumentOutOfRangeException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            _actualValue = info.GetValue("ActualValue", typeof(object));
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("ActualValue", _actualValue, typeof(object));
         }
 
         public override String Message

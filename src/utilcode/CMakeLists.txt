@@ -36,7 +36,6 @@ set(UTILCODE_COMMON_SOURCES
   outstring.cpp
   ilformatter.cpp
   opinfo.cpp
-  sortversioning.cpp
   corimage.cpp
   format1.cpp
   prettyprintsig.cpp
@@ -67,9 +66,7 @@ if(WIN32)
     appxutil.cpp
     dacutil.cpp
     dlwrap.cpp
-    downlevel.cpp
     loadrc.cpp
-    newapis.cpp
     securitywrapper.cpp
     securityutil.cpp
     stacktrace.cpp
@@ -81,25 +78,12 @@ if(WIN32)
     )
   endif()
   
-  if(NOT DEFINED FEATURE_IMPLICIT_TLS)
-    list(APPEND UTILCODE_SOURCES 
-      tls.cpp
-    )
-  endif(NOT DEFINED FEATURE_IMPLICIT_TLS)
 endif(WIN32)
   
 set(UTILCODE_SOURCES 
   ${UTILCODE_COMMON_SOURCES}
   perflog.cpp
 )
-
-if(WIN32)
-  if(NOT DEFINED FEATURE_IMPLICIT_TLS)
-    list(APPEND UTILCODE_SOURCES 
-      tls.cpp
-    )
-  endif(NOT DEFINED FEATURE_IMPLICIT_TLS)
-endif()
 
 set(UTILCODE_DAC_SOURCES 
   ${UTILCODE_COMMON_SOURCES}

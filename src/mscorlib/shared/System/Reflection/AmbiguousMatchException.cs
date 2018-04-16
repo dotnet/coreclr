@@ -6,24 +6,30 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class AmbiguousMatchException : SystemException
     {
         public AmbiguousMatchException()
             : base(SR.RFLCT_Ambiguous)
         {
-            HResult = __HResults.COR_E_AMBIGUOUSMATCH;
+            HResult = HResults.COR_E_AMBIGUOUSMATCH;
         }
 
         public AmbiguousMatchException(string message)
             : base(message)
         {
-            HResult = __HResults.COR_E_AMBIGUOUSMATCH;
+            HResult = HResults.COR_E_AMBIGUOUSMATCH;
         }
 
         public AmbiguousMatchException(string message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_AMBIGUOUSMATCH;
+            HResult = HResults.COR_E_AMBIGUOUSMATCH;
+        }
+
+        internal AmbiguousMatchException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
     }
 }

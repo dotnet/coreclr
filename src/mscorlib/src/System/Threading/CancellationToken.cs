@@ -27,7 +27,7 @@ namespace System.Threading
     /// </para>
     /// </remarks>
     [DebuggerDisplay("IsCancellationRequested = {IsCancellationRequested}")]
-    public struct CancellationToken
+    public readonly struct CancellationToken
     {
         private readonly static Action<object> s_actionToActionObjShunt = obj => ((Action)obj)();
 
@@ -52,7 +52,7 @@ namespace System.Threading
         /// <remarks>
         /// <para>
         /// This property indicates whether cancellation has been requested for this token, 
-        /// either through the token initially being construted in a canceled state, or through
+        /// either through the token initially being constructed in a canceled state, or through
         /// calling <see cref="System.Threading.CancellationTokenSource.Cancel()">Cancel</see> 
         /// on the token's associated <see cref="CancellationTokenSource"/>.
         /// </para>
@@ -130,7 +130,7 @@ namespace System.Threading
         /// </remarks>
         /// <param name="callback">The delegate to be executed when the <see cref="T:System.Threading.CancellationToken">CancellationToken</see> is canceled.</param>
         /// <returns>The <see cref="T:System.Threading.CancellationTokenRegistration"/> instance that can 
-        /// be used to deregister the callback.</returns>
+        /// be used to unregister the callback.</returns>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="callback"/> is null.</exception>
         public CancellationTokenRegistration Register(Action callback) =>
             Register(
@@ -159,7 +159,7 @@ namespace System.Threading
         /// the current <see cref="T:System.Threading.SynchronizationContext">SynchronizationContext</see> and use it
         /// when invoking the <paramref name="callback"/>.</param>
         /// <returns>The <see cref="T:System.Threading.CancellationTokenRegistration"/> instance that can 
-        /// be used to deregister the callback.</returns>
+        /// be used to unregister the callback.</returns>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="callback"/> is null.</exception>
         public CancellationTokenRegistration Register(Action callback, bool useSynchronizationContext) =>
             Register(
@@ -186,7 +186,7 @@ namespace System.Threading
         /// <param name="callback">The delegate to be executed when the <see cref="T:System.Threading.CancellationToken">CancellationToken</see> is canceled.</param>
         /// <param name="state">The state to pass to the <paramref name="callback"/> when the delegate is invoked.  This may be null.</param>
         /// <returns>The <see cref="T:System.Threading.CancellationTokenRegistration"/> instance that can 
-        /// be used to deregister the callback.</returns>
+        /// be used to unregister the callback.</returns>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="callback"/> is null.</exception>
         public CancellationTokenRegistration Register(Action<object> callback, object state) =>
             Register(callback, state, useSyncContext: false, useExecutionContext: true);
@@ -212,7 +212,7 @@ namespace System.Threading
         /// the current <see cref="T:System.Threading.SynchronizationContext">SynchronizationContext</see> and use it
         /// when invoking the <paramref name="callback"/>.</param>
         /// <returns>The <see cref="T:System.Threading.CancellationTokenRegistration"/> instance that can 
-        /// be used to deregister the callback.</returns>
+        /// be used to unregister the callback.</returns>
         /// <exception cref="T:System.ArgumentNullException"><paramref name="callback"/> is null.</exception>
         /// <exception cref="T:System.ObjectDisposedException">The associated <see
         /// cref="T:System.Threading.CancellationTokenSource">CancellationTokenSource</see> has been disposed.</exception>
@@ -313,8 +313,5 @@ namespace System.Threading
         // Throws an OCE; separated out to enable better inlining of ThrowIfCancellationRequested
         private void ThrowOperationCanceledException() =>
             throw new OperationCanceledException(SR.OperationCanceled, this);
-
-        private static void ThrowObjectDisposedException() =>
-            throw new ObjectDisposedException(null, SR.CancellationToken_SourceDisposed);
     }
 }

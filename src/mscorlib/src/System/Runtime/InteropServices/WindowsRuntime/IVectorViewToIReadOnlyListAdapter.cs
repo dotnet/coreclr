@@ -9,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -30,7 +30,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IVectorViewToIReadOnlyListAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // T this[int index] { get }
@@ -39,7 +39,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVectorView<T> _this = JitHelpers.UnsafeCast<IVectorView<T>>(this);
+            IVectorView<T> _this = Unsafe.As<IVectorView<T>>(this);
 
             try
             {
@@ -50,7 +50,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -68,12 +68,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (target != null)
             {
-                return (JitHelpers.UnsafeCast<Indexer_Get_Delegate<T>>(target))(index);
+                return (Unsafe.As<Indexer_Get_Delegate<T>>(target))(index);
             }
 
             if (fUseString)
             {
-                return JitHelpers.UnsafeCast<T>(Indexer_Get<string>(index));
+                return Unsafe.As<T>(Indexer_Get<string>(index));
             }
 
             return Indexer_Get<T>(index);

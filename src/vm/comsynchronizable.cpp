@@ -32,8 +32,6 @@
 #include "utilcode.h"
 #endif
 
-#include "newapis.h"
-
 // To include definition of CAPTURE_BUCKETS_AT_TRANSITION
 #include "exstate.h"
 
@@ -399,20 +397,20 @@ ULONG WINAPI ThreadNative::KickOffThread(void* pass)
 }
 
 
-FCIMPL2(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
+FCIMPL1(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
 
-    StartInner(pThisUNSAFE, pStackMark);
+    StartInner(pThisUNSAFE);
 
     HELPER_METHOD_FRAME_END_POLL();
 }
 FCIMPLEND
 
 // Start up a thread, which by now should be in the ThreadStore's Unstarted list.
-void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
+void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE)
 {
     CONTRACTL
     {
@@ -1109,13 +1107,10 @@ FCIMPL1(void, ThreadNative::StartupSetApartmentState, ThreadBaseObject* pThisUNS
     // Assert that the thread hasn't been started yet.
     _ASSERTE(Thread::TS_Unstarted & thread->GetSnapshotState());
 
-    if ((g_pConfig != NULL) && !g_pConfig->LegacyApartmentInitPolicy())
+    Thread::ApartmentState as = thread->GetExplicitApartment();
+    if (as == Thread::AS_Unknown)
     {
-        Thread::ApartmentState as = thread->GetExplicitApartment();
-        if (as == Thread::AS_Unknown)
-        {
-            thread->SetApartment(Thread::AS_InMTA, TRUE);
-        }
+        thread->SetApartment(Thread::AS_InMTA, TRUE);
     }
 
     HELPER_METHOD_FRAME_END();
@@ -1624,22 +1619,41 @@ FCIMPL1(FC_BOOL_RET, ThreadNative::IsThreadpoolThread, ThreadBaseObject* thread)
 }
 FCIMPLEND
 
+INT32 QCALLTYPE ThreadNative::GetOptimalMaxSpinWaitsPerSpinIteration()
+{
+    QCALL_CONTRACT;
+
+    INT32 optimalMaxNormalizedYieldsPerSpinIteration;
+
+    BEGIN_QCALL;
+
+    // RuntimeThread calls this function only once lazily and caches the result, so ensure initialization
+    EnsureYieldProcessorNormalizedInitialized();
+    optimalMaxNormalizedYieldsPerSpinIteration = g_optimalMaxNormalizedYieldsPerSpinIteration;
+
+    END_QCALL;
+
+    return optimalMaxNormalizedYieldsPerSpinIteration;
+}
 
 FCIMPL1(void, ThreadNative::SpinWait, int iterations)
 {
     FCALL_CONTRACT;
 
+    if (iterations <= 0)
+    {
+        return;
+    }
+
     //
     // If we're not going to spin for long, it's ok to remain in cooperative mode.
     // The threshold is determined by the cost of entering preemptive mode; if we're
     // spinning for less than that number of cycles, then switching to preemptive
-    // mode won't help a GC start any faster.  That number is right around 1000000 
-    // on my machine.
+    // mode won't help a GC start any faster.
     //
-    if (iterations <= 1000000)
+    if (iterations <= 100000)
     {
-        for(int i = 0; i < iterations; i++)
-            YieldProcessor();
+        YieldProcessorNormalized(YieldProcessorNormalizationInfo(), iterations);
         return;
     }
 
@@ -1649,8 +1663,7 @@ FCIMPL1(void, ThreadNative::SpinWait, int iterations)
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
     GCX_PREEMP();
 
-    for(int i = 0; i < iterations; i++)
-        YieldProcessor();
+    YieldProcessorNormalized(YieldProcessorNormalizationInfo(), iterations);
 
     HELPER_METHOD_FRAME_END();
 }
@@ -1753,3 +1766,10 @@ FCIMPL1(void, ThreadNative::ClearAbortReason, ThreadBaseObject* pThisUNSAFE)
 FCIMPLEND
 
 
+FCIMPL0(INT32, ThreadNative::GetCurrentProcessorNumber)
+{
+    FCALL_CONTRACT;
+
+    return ::GetCurrentProcessorNumber();
+}
+FCIMPLEND;

@@ -62,9 +62,6 @@ void SafeHandle::AddRef()
     // Cannot use "this" after Release, which toggles the GC mode.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     // To prevent handle recycling security attacks we must enforce the
@@ -137,9 +134,6 @@ void SafeHandle::Release(bool fDispose)
     // Cannot use "this" after RunReleaseMethod, which toggles the GC mode.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     // See AddRef above for the design of the synchronization here. Basically we
@@ -236,9 +230,6 @@ void SafeHandle::Dispose()
     // Release may trigger a GC.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     GCPROTECT_BEGIN(sh);
@@ -445,62 +436,5 @@ FCIMPL1(void, CriticalHandle::FireCustomerDebugProbe, CriticalHandle* refThisUNS
 #endif
 
     HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-
-FCIMPL1(UINT, SafeBuffer::SizeOfType, ReflectClassBaseObject* typeUNSAFE)
-{
-	FCALL_CONTRACT;
-
-	REFLECTCLASSBASEREF type(typeUNSAFE);
-
-	MethodTable* pMT = type->GetType().AsMethodTable();
-
-	if (!pMT->IsValueType() || pMT->ContainsPointers())
-		FCThrowArgument(W("type"), W("Argument_NeedStructWithNoRefs"));
-
-	FC_GC_POLL_RET();
-
-	return pMT->GetNumInstanceFieldBytes();
-}
-FCIMPLEND
-
-FCIMPL1(UINT, SafeBuffer::AlignedSizeOfType, ReflectClassBaseObject* typeUNSAFE)
-{
-	FCALL_CONTRACT;
-
-	REFLECTCLASSBASEREF type(typeUNSAFE);
-
-	MethodTable* pMT = type->GetType().AsMethodTable();
-
-	if (!pMT->IsValueType() || pMT->ContainsPointers())
-		FCThrowArgument(W("type"), W("Argument_NeedStructWithNoRefs"));
-
-	FC_GC_POLL_RET();
-
-	return pMT->GetAlignedNumInstanceFieldBytes();
-}
-FCIMPLEND
-
-FCIMPL3_IVI(void, SafeBuffer::PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT)
-{
-	FCALL_CONTRACT;
-
-	LPVOID structData = structure.data;
-	_ASSERTE(ptr != NULL && structData != NULL);
-	memcpyNoGCRefs(structData, ptr, sizeofT);
-	FC_GC_POLL();
-}
-FCIMPLEND
-
-FCIMPL3_VII(void, SafeBuffer::StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT)
-{
-	FCALL_CONTRACT;
-
-	LPVOID structData = structure.data;
-	_ASSERTE(ptr != NULL && structData != NULL);
-	memcpyNoGCRefs(ptr, structData, sizeofT);
-	FC_GC_POLL();
 }
 FCIMPLEND

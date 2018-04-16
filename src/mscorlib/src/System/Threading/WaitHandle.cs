@@ -21,7 +21,6 @@ namespace System.Threading
     using Microsoft.Win32.SafeHandles;
     using System.Runtime.Versioning;
     using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
     using Win32Native = Microsoft.Win32.Win32Native;
 
@@ -32,7 +31,7 @@ namespace System.Threading
         private const int MAX_WAITHANDLES = 64;
 
 #pragma warning disable 414  // Field is not used from managed.
-        private IntPtr waitHandle;  // !!! DO NOT MOVE THIS FIELD. (See defn of WAITHANDLEREF in object.h - has hardcoded access to this field.)
+        private IntPtr waitHandle;  // !!! DO NOT MOVE THIS FIELD. (See defn of WAITHANDLEREF in object.h - has hard-coded access to this field.)
 #pragma warning restore 414
 
         internal volatile SafeWaitHandle safeWaitHandle;
@@ -154,7 +153,6 @@ namespace System.Threading
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
-            Contract.EndContractBlock();
             return WaitOne((long)millisecondsTimeout, exitContext);
         }
 
@@ -196,7 +194,6 @@ namespace System.Threading
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
-            Contract.EndContractBlock();
             int ret = WaitOneNative(waitableSafeHandle, (uint)millisecondsTimeout, hasThreadAffinity, exitContext);
 
             if (ret == WAIT_ABANDONED)
@@ -214,7 +211,6 @@ namespace System.Threading
             {
                 throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
             }
-            Contract.EndContractBlock();
 
             long timeout = -1;
             int ret = WaitOneNative(safeWaitHandle, (uint)timeout, hasThreadAffinity, false);
@@ -232,7 +228,7 @@ namespace System.Threading
         ** Waits for signal from all the objects. 
         ** timeout indicates how long to wait before the method returns.
         ** This method will return either when all the object have been pulsed
-        ** or timeout milliseonds have elapsed.
+        ** or timeout milliseconds have elapsed.
         ** If exitContext is true then the synchronization domain for the context 
         ** (if in a synchronized context) is exited before the wait and reacquired 
         ========================================================================*/
@@ -267,7 +263,6 @@ namespace System.Threading
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
-            Contract.EndContractBlock();
             WaitHandle[] internalWaitHandles = new WaitHandle[waitHandles.Length];
             for (int i = 0; i < waitHandles.Length; i++)
             {
@@ -278,7 +273,7 @@ namespace System.Threading
 
                 internalWaitHandles[i] = waitHandle;
             }
-#if _DEBUG
+#if DEBUG
             // make sure we do not use waitHandles any more.
             waitHandles = null;
 #endif
@@ -334,7 +329,7 @@ namespace System.Threading
         ** Waits for notification from any of the objects. 
         ** timeout indicates how long to wait before the method returns.
         ** This method will return either when either one of the object have been 
-        ** signalled or timeout milliseonds have elapsed.
+        ** signaled or timeout milliseconds have elapsed.
         ** If exitContext is true then the synchronization domain for the context 
         ** (if in a synchronized context) is exited before the wait and reacquired 
         ========================================================================*/
@@ -357,7 +352,6 @@ namespace System.Threading
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
-            Contract.EndContractBlock();
             WaitHandle[] internalWaitHandles = new WaitHandle[waitHandles.Length];
             for (int i = 0; i < waitHandles.Length; i++)
             {
@@ -368,7 +362,7 @@ namespace System.Threading
 
                 internalWaitHandles[i] = waitHandle;
             }
-#if _DEBUG
+#if DEBUG
             // make sure we do not use waitHandles any more.
             waitHandles = null;
 #endif
@@ -427,21 +421,15 @@ namespace System.Threading
         ==  SignalAndWait
         ==
         ==================================================*/
-#if PLATFORM_WINDOWS
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int SignalAndWaitOne(SafeWaitHandle waitHandleToSignal, SafeWaitHandle waitHandleToWaitOn, int millisecondsTimeout,
                                             bool hasThreadAffinity, bool exitContext);
-#endif // PLATFORM_WINDOWS       
 
         public static bool SignalAndWait(
                                         WaitHandle toSignal,
                                         WaitHandle toWaitOn)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
             return SignalAndWait(toSignal, toWaitOn, -1, false);
-#endif
         }
 
         public static bool SignalAndWait(
@@ -450,16 +438,12 @@ namespace System.Threading
                                         TimeSpan timeout,
                                         bool exitContext)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
             long tm = (long)timeout.TotalMilliseconds;
             if (-1 > tm || (long)Int32.MaxValue < tm)
             {
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
             return SignalAndWait(toSignal, toWaitOn, (int)tm, exitContext);
-#endif
         }
 
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread-safety.")]
@@ -469,9 +453,6 @@ namespace System.Threading
                                         int millisecondsTimeout,
                                         bool exitContext)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported); // https://github.com/dotnet/coreclr/issues/10441
-#else
             if (null == toSignal)
             {
                 throw new ArgumentNullException(nameof(toSignal));
@@ -484,7 +465,6 @@ namespace System.Threading
             {
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
-            Contract.EndContractBlock();
 
             //NOTE: This API is not supporting Pause/Resume as it's not exposed in CoreCLR (not in WP or SL)
             int ret = SignalAndWaitOne(toSignal.safeWaitHandle, toWaitOn.safeWaitHandle, millisecondsTimeout,
@@ -508,7 +488,6 @@ namespace System.Threading
 
             //Timeout
             return false;
-#endif
         }
 
         private static void ThrowAbandonedMutexException()

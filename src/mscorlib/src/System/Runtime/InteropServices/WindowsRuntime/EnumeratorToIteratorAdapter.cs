@@ -8,9 +8,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -26,13 +26,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToIterableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // This method is invoked when First is called on a managed implementation of IIterable<T>.
         internal IIterator<T> First_Stub<T>()
         {
-            IEnumerable<T> _this = JitHelpers.UnsafeCast<IEnumerable<T>>(this);
+            IEnumerable<T> _this = Unsafe.As<IEnumerable<T>>(this);
             return new EnumeratorToIteratorAdapter<T>(_this.GetEnumerator());
         }
     }
@@ -41,7 +41,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToBindableIterableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         internal sealed class NonGenericToGenericEnumerator : IEnumerator<object>
@@ -60,7 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // This method is invoked when First is called on a managed implementation of IBindableIterable.
         internal IBindableIterator First_Stub()
         {
-            IEnumerable _this = JitHelpers.UnsafeCast<IEnumerable>(this);
+            IEnumerable _this = Unsafe.As<IEnumerable>(this);
             return new EnumeratorToIteratorAdapter<object>(new NonGenericToGenericEnumerator(_this.GetEnumerator()));
         }
     }
@@ -74,7 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal EnumeratorToIteratorAdapter(IEnumerator<T> enumerator)
         {
-            Contract.Requires(enumerator != null);
+            Debug.Assert(enumerator != null);
             m_enumerator = enumerator;
         }
 
@@ -92,7 +92,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (!m_hasCurrent)
                 {
-                    throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, null);
+                    throw WindowsRuntimeMarshal.GetExceptionForHR(HResults.E_BOUNDS, null);
                 }
 
                 return m_enumerator.Current;
@@ -131,7 +131,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (InvalidOperationException e)
             {
-                throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_CHANGED_STATE, e);
+                throw WindowsRuntimeMarshal.GetExceptionForHR(HResults.E_CHANGED_STATE, e);
             }
 
             return m_hasCurrent;

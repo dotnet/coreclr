@@ -3,20 +3,18 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Globalization;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
     public class ExceptionHandlingClause
     {
-        #region costructor
+        #region constructor
         // This class can only be created from inside the EE.
         protected ExceptionHandlingClause() { }
         #endregion
 
         #region Private Data Members
         private MethodBody m_methodBody;
-        [ContractPublicPropertyName("Flags")]
         private ExceptionHandlingClauseOptions m_flags;
         private int m_tryOffset;
         private int m_tryLength;

@@ -15,6 +15,11 @@
     <WindowsNativeLocation Include="$(BinDir)*.dll" />
     <WindowsNativeLocation Include="$(BinDir)*.exe" />
   </ItemGroup>
+  <!-- sign the cross targeted files as well -->
+  <ItemGroup Condition="'$(CrossTargetComponentFolder)' != ''">
+    <WindowsNativeLocation Include="$(BinDir)$(CrossTargetComponentFolder)/*.dll" />
+    <WindowsNativeLocation Include="$(BinDir)$(CrossTargetComponentFolder)/*.exe" />
+  </ItemGroup>
 
   <Target Name="GenerateSignForWindowsNative">
     <!--
@@ -42,7 +47,7 @@
   </Target>
 
   <Target Name="Build"
-          Condition="'$(SkipSigning)' != 'true' and '$(SignType)' != 'oss'"
+          Condition="'$(SkipSigning)' != 'true'"
           DependsOnTargets="GetFilesToSignItems;SignFiles">
 
     <!-- now that the files have been signed delete the marker files -->

@@ -24,7 +24,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
+using System.Diagnostics;
 
 namespace System
 {
@@ -66,12 +66,18 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int SetGCLatencyMode(int newLatencyMode);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
+                                                  out ulong totalPhysicalMem,
+                                                  out uint lastRecordedMemLoad,
+                                                  // The next two are size_t
+                                                  out UIntPtr lastRecordedHeapSize,
+                                                  out UIntPtr lastRecordedFragmentation);
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         internal static extern int _EndNoGCRegion();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -84,11 +90,9 @@ namespace System
         private static extern int GetGenerationWR(IntPtr handle);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern long GetTotalMemory();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void _Collect(int generation, int mode);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -100,10 +104,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsServerGC();
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(UInt64 bytesAllocated);
 
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _RemoveMemoryPressure(UInt64 bytesAllocated);
 
         public static void AddMemoryPressure(long bytesAllocated)
@@ -119,7 +123,6 @@ namespace System
                 throw new ArgumentOutOfRangeException("pressure",
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
-            Contract.EndContractBlock();
 
             _AddMemoryPressure((ulong)bytesAllocated);
         }
@@ -137,7 +140,6 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
-            Contract.EndContractBlock();
 
             _RemoveMemoryPressure((ulong)bytesAllocated);
         }
@@ -186,7 +188,6 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(mode), SR.ArgumentOutOfRange_Enum);
             }
 
-            Contract.EndContractBlock();
 
             int iInternalModes = 0;
 
@@ -216,7 +217,6 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(generation), SR.ArgumentOutOfRange_GenericPositive);
             }
-            Contract.EndContractBlock();
             return _CollectionCount(generation, 0);
         }
 
@@ -277,7 +277,6 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void _WaitForPendingFinalizers();
 
         public static void WaitForPendingFinalizers()
@@ -295,7 +294,6 @@ namespace System
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
-            Contract.EndContractBlock();
             _SuppressFinalize(obj);
         }
 
@@ -310,7 +308,6 @@ namespace System
         {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
-            Contract.EndContractBlock();
             _ReRegisterForFinalize(obj);
         }
 
@@ -441,14 +438,37 @@ namespace System
 
         private static bool StartNoGCRegionWorker(long totalSize, bool hasLohSize, long lohSize, bool disallowFullBlockingGC)
         {
+            if (totalSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(totalSize), "totalSize can't be zero or negative");
+            }
+
+            if (hasLohSize)
+            {
+                if (lohSize <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(lohSize), "lohSize can't be zero or negative");
+                }
+
+                if (lohSize > totalSize)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(lohSize), "lohSize can't be greater than totalSize");
+                }
+            }
+
             StartNoGCRegionStatus status = (StartNoGCRegionStatus)_StartNoGCRegion(totalSize, hasLohSize, lohSize, disallowFullBlockingGC);
-            if (status == StartNoGCRegionStatus.AmountTooLarge)
-                throw new ArgumentOutOfRangeException(nameof(totalSize),
-                    "totalSize is too large. For more information about setting the maximum size, see \"Latency Modes\" in http://go.microsoft.com/fwlink/?LinkId=522706");
-            else if (status == StartNoGCRegionStatus.AlreadyInProgress)
-                throw new InvalidOperationException("The NoGCRegion mode was already in progress");
-            else if (status == StartNoGCRegionStatus.NotEnoughMemory)
-                return false;
+            switch (status)
+            {
+                case StartNoGCRegionStatus.NotEnoughMemory:
+                    return false;
+                case StartNoGCRegionStatus.AlreadyInProgress:
+                    throw new InvalidOperationException("The NoGCRegion mode was already in progress");
+                case StartNoGCRegionStatus.AmountTooLarge:
+                    throw new ArgumentOutOfRangeException(nameof(totalSize),
+                        "totalSize is too large. For more information about setting the maximum size, see \"Latency Modes\" in http://go.microsoft.com/fwlink/?LinkId=522706");
+            }
+
+            Debug.Assert(status == StartNoGCRegionStatus.Succeeded);
             return true;
         }
 

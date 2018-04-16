@@ -21,7 +21,6 @@ namespace System.Reflection.Emit
     using System.Runtime.Versioning;
     using System.Runtime.CompilerServices;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal sealed class InternalModuleBuilder : RuntimeModule
     {
@@ -59,7 +58,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Static Members
-        static internal String UnmangleTypeName(String typeName)
+        internal static String UnmangleTypeName(String typeName)
         {
             // Gets the original type name, without '+' name mangling.
 
@@ -87,7 +86,7 @@ namespace System.Reflection.Emit
 
         #endregion
 
-        #region Intenral Data Members
+        #region Internal Data Members
         // m_TypeBuilder contains both TypeBuilder and EnumBuilder objects
         private Dictionary<string, Type> m_TypeBuilderDict;
         private ISymbolWriter m_iSymWriter;
@@ -149,12 +148,10 @@ namespace System.Reflection.Emit
 
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetTypeRef(RuntimeModule module, String strFullName, RuntimeModule refedModule, String strRefedModuleFileName, int tkResolution);
+        private static extern int GetTypeRef(RuntimeModule module, String strFullName, RuntimeModule refedModule, String strRefedModuleFileName, int tkResolution);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetMemberRef(RuntimeModule module, RuntimeModule refedModule, int tr, int defToken);
+        private static extern int GetMemberRef(RuntimeModule module, RuntimeModule refedModule, int tr, int defToken);
 
         private int GetMemberRef(Module refedModule, int tr, int defToken)
         {
@@ -162,8 +159,7 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetMemberRefFromSignature(RuntimeModule module, int tr, String methodName, byte[] signature, int length);
+        private static extern int GetMemberRefFromSignature(RuntimeModule module, int tr, String methodName, byte[] signature, int length);
 
         private int GetMemberRefFromSignature(int tr, String methodName, byte[] signature, int length)
         {
@@ -171,8 +167,7 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetMemberRefOfMethodInfo(RuntimeModule module, int tr, IRuntimeMethodInfo method);
+        private static extern int GetMemberRefOfMethodInfo(RuntimeModule module, int tr, IRuntimeMethodInfo method);
 
         private int GetMemberRefOfMethodInfo(int tr, RuntimeMethodInfo method)
         {
@@ -189,8 +184,7 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetMemberRefOfFieldInfo(RuntimeModule module, int tkType, RuntimeTypeHandle declaringType, int tkField);
+        private static extern int GetMemberRefOfFieldInfo(RuntimeModule module, int tkType, RuntimeTypeHandle declaringType, int tkField);
 
         private int GetMemberRefOfFieldInfo(int tkType, RuntimeTypeHandle declaringType, RuntimeFieldInfo runtimeField)
         {
@@ -200,8 +194,7 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetTokenFromTypeSpec(RuntimeModule pModule, byte[] signature, int length);
+        private static extern int GetTokenFromTypeSpec(RuntimeModule pModule, byte[] signature, int length);
 
         private int GetTokenFromTypeSpec(byte[] signature, int length)
         {
@@ -209,16 +202,13 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetArrayMethodToken(RuntimeModule module, int tkTypeSpec, String methodName, byte[] signature, int sigLength);
+        private static extern int GetArrayMethodToken(RuntimeModule module, int tkTypeSpec, String methodName, byte[] signature, int sigLength);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static int GetStringConstant(RuntimeModule module, String str, int length);
+        private static extern int GetStringConstant(RuntimeModule module, String str, int length);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal extern static void SetFieldRVAContent(RuntimeModule module, int fdToken, byte[] data, int length);
+        internal static extern void SetFieldRVAContent(RuntimeModule module, int fdToken, byte[] data, int length);
 
         #endregion
 
@@ -269,7 +259,6 @@ namespace System.Reflection.Emit
 
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -824,7 +813,6 @@ namespace System.Reflection.Emit
 
         public override Assembly Assembly
         {
-            [Pure]
             get
             {
                 return m_assemblyBuilder;
@@ -838,8 +826,6 @@ namespace System.Reflection.Emit
         #region Define Type
         public TypeBuilder DefineType(String name)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, TypeAttributes.NotPublic, null, null, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -848,8 +834,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, null, null, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -858,8 +842,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 // Why do we only call CheckContext here? Why don't we call it in the other overloads?
@@ -871,8 +853,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, null, PackingSize.Unspecified, typesize);
@@ -881,8 +861,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packingSize, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, null, packingSize, typesize);
@@ -891,8 +869,6 @@ namespace System.Reflection.Emit
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, Type[] interfaces)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, interfaces, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize);
@@ -901,15 +877,11 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, Type[] interfaces, PackingSize packingSize, int typesize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null); ;
         }
 
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineTypeNoLock(name, attr, parent, packsize);
@@ -918,8 +890,6 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
-            Contract.Ensures(Contract.Result<TypeBuilder>() != null);
-
             return new TypeBuilder(name, attr, parent, null, this, packsize, TypeBuilder.UnspecifiedTypeSize, null);
         }
 
@@ -931,8 +901,6 @@ namespace System.Reflection.Emit
         // Nested enum types can be defined manually using ModuleBuilder.DefineType.
         public EnumBuilder DefineEnum(String name, TypeAttributes visibility, Type underlyingType)
         {
-            Contract.Ensures(Contract.Result<EnumBuilder>() != null);
-
             CheckContext(underlyingType);
             lock (SyncRoot)
             {
@@ -957,8 +925,6 @@ namespace System.Reflection.Emit
 
         private EnumBuilder DefineEnumNoLock(String name, TypeAttributes visibility, Type underlyingType)
         {
-            Contract.Ensures(Contract.Result<EnumBuilder>() != null);
-
             return new EnumBuilder(name, underlyingType, visibility, this);
         }
 
@@ -971,16 +937,12 @@ namespace System.Reflection.Emit
         #region Define Global Method
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-
             return DefineGlobalMethod(name, attributes, CallingConventions.Standard, returnType, parameterTypes);
         }
 
         public MethodBuilder DefineGlobalMethod(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type returnType, Type[] parameterTypes)
         {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-
             return DefineGlobalMethod(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
 
@@ -1011,8 +973,6 @@ namespace System.Reflection.Emit
 
             if ((attributes & MethodAttributes.Static) == 0)
                 throw new ArgumentException(SR.Argument_GlobalFunctionHasToBeStatic);
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-            Contract.EndContractBlock();
 
             CheckContext(returnType);
             CheckContext(requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers, parameterTypes);
@@ -1054,7 +1014,6 @@ namespace System.Reflection.Emit
             // This method will define an initialized Data in .sdata. 
             // We will create a fake TypeDef to represent the data with size. This TypeDef
             // will be the signature for the Field.         
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
 
             lock (SyncRoot)
             {
@@ -1071,8 +1030,6 @@ namespace System.Reflection.Emit
             {
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
-            Contract.EndContractBlock();
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineInitializedData(name, data, attributes);
@@ -1080,8 +1037,6 @@ namespace System.Reflection.Emit
 
         public FieldBuilder DefineUninitializedData(String name, int size, FieldAttributes attributes)
         {
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
-
             lock (SyncRoot)
             {
                 return DefineUninitializedDataNoLock(name, size, attributes);
@@ -1098,8 +1053,6 @@ namespace System.Reflection.Emit
             {
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
-            Contract.Ensures(Contract.Result<FieldBuilder>() != null);
-            Contract.EndContractBlock();
 
             m_moduleData.m_fHasGlobal = true;
             return m_moduleData.m_globalTypeBuilder.DefineUninitializedData(name, size, attributes);
@@ -1134,7 +1087,6 @@ namespace System.Reflection.Emit
         {
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
-            Contract.EndContractBlock();
 
             CheckContext(type);
 
@@ -1251,7 +1203,6 @@ namespace System.Reflection.Emit
             // return the MethodDef token. 
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -1443,7 +1394,6 @@ namespace System.Reflection.Emit
 
             if (arrayClass.IsArray == false)
                 throw new ArgumentException(SR.Argument_HasToBeArrayClass);
-            Contract.EndContractBlock();
 
             CheckContext(returnType, arrayClass);
             CheckContext(parameterTypes);
@@ -1500,7 +1450,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(field));
             }
-            Contract.EndContractBlock();
 
             int tr;
             int mr = 0;
@@ -1589,7 +1538,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(str));
             }
-            Contract.EndContractBlock();
 
             // Returns a token representing a String constant.  If the string 
             // value has already been defined, the existing token will be returned.
@@ -1605,7 +1553,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(sigHelper));
             }
-            Contract.EndContractBlock();
 
             int sigLength;
             byte[] sigBytes;
@@ -1618,7 +1565,6 @@ namespace System.Reflection.Emit
         {
             if (sigBytes == null)
                 throw new ArgumentNullException(nameof(sigBytes));
-            Contract.EndContractBlock();
 
             byte[] localSigBytes = new byte[sigBytes.Length];
             Buffer.BlockCopy(sigBytes, 0, localSigBytes, 0, sigBytes.Length);
@@ -1636,7 +1582,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(
                 this,
@@ -1652,7 +1597,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
 
             customBuilder.CreateCustomAttribute(this, 1);   // This is hard coding the module token to 1
         }
@@ -1696,7 +1640,6 @@ namespace System.Reflection.Emit
             // url cannot be null but can be an empty string 
             if (url == null)
                 throw new ArgumentNullException(nameof(url));
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {
@@ -1715,7 +1658,6 @@ namespace System.Reflection.Emit
             return m_iSymWriter.DefineDocument(url, language, languageVendor, documentType);
         }
 
-        [Pure]
         public bool IsTransient()
         {
             return InternalModule.IsTransientInternal();

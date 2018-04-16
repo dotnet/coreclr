@@ -981,7 +981,11 @@ void LIR::Range::Remove(GenTree* node, bool markOperandsUnused)
     if (markOperandsUnused)
     {
         node->VisitOperands([](GenTree* operand) -> GenTree::VisitResult {
-            operand->SetUnusedValue();
+            // The operand of JTRUE does not produce a value (just sets the flags).
+            if (operand->IsValue())
+            {
+                operand->SetUnusedValue();
+            }
             return GenTree::VisitResult::Continue;
         });
     }
@@ -1407,6 +1411,105 @@ LIR::ReadOnlyRange LIR::Range::GetRangeOfOperandTrees(GenTree* root, bool* isClo
 #ifdef DEBUG
 
 //------------------------------------------------------------------------
+// CheckLclVarSemanticsHelper checks lclVar semantics.
+//
+// Specifically, ensure that an unaliasable lclVar is not redefined between the
+// point at which a use appears in linear order and the point at which it is used by its user.
+// This ensures that it is always safe to treat a lclVar use as happening at the user (rather than at
+// the lclVar node).
+class CheckLclVarSemanticsHelper
+{
+public:
+    //------------------------------------------------------------------------
+    // CheckLclVarSemanticsHelper constructor: Init arguments for the helper.
+    //
+    // This needs unusedDefs because unused lclVar reads may otherwise appear as outstanding reads
+    // and produce false indications that a write to a lclVar occurs while outstanding reads of that lclVar
+    // exist.
+    //
+    // Arguments:
+    //    compiler - A compiler context.
+    //    range - a range to do the check.
+    //    unusedDefs - map of defs that do no have users.
+    //
+    CheckLclVarSemanticsHelper(Compiler*         compiler,
+                               const LIR::Range* range,
+                               SmallHashTable<GenTree*, bool, 32U>& unusedDefs)
+        : compiler(compiler), range(range), unusedDefs(unusedDefs), unusedLclVarReads(compiler)
+    {
+    }
+
+    //------------------------------------------------------------------------
+    // Check: do the check.
+    // Return Value:
+    //    'true' if the Local variables semantics for the specified range is legal.
+    bool Check()
+    {
+        for (GenTree* node : *range)
+        {
+            if (!node->isContained()) // a contained node reads operands in the parent.
+            {
+                UseNodeOperands(node);
+            }
+
+            AliasSet::NodeInfo nodeInfo(compiler, node);
+            if (nodeInfo.IsLclVarRead() && !unusedDefs.Contains(node))
+            {
+                int count = 0;
+                unusedLclVarReads.TryGetValue(nodeInfo.LclNum(), &count);
+                unusedLclVarReads.AddOrUpdate(nodeInfo.LclNum(), count + 1);
+            }
+
+            // If this node is a lclVar write, it must be to a lclVar that does not have an outstanding read.
+            assert(!nodeInfo.IsLclVarWrite() || !unusedLclVarReads.Contains(nodeInfo.LclNum()));
+        }
+
+        return true;
+    }
+
+private:
+    //------------------------------------------------------------------------
+    // UseNodeOperands: mark the node's operands as used.
+    //
+    // Arguments:
+    //    node - the node to use operands from.
+    void UseNodeOperands(GenTree* node)
+    {
+        for (GenTree* operand : node->Operands())
+        {
+            if (!operand->IsLIR())
+            {
+                // ARGPLACE nodes are not represented in the LIR sequence. Ignore them.
+                assert(operand->OperIs(GT_ARGPLACE));
+                continue;
+            }
+            if (operand->isContained())
+            {
+                UseNodeOperands(operand);
+            }
+            AliasSet::NodeInfo operandInfo(compiler, operand);
+            if (operandInfo.IsLclVarRead())
+            {
+                int        count;
+                const bool removed = unusedLclVarReads.TryRemove(operandInfo.LclNum(), &count);
+                assert(removed);
+
+                if (count > 1)
+                {
+                    unusedLclVarReads.AddOrUpdate(operandInfo.LclNum(), count - 1);
+                }
+            }
+        }
+    }
+
+private:
+    Compiler*         compiler;
+    const LIR::Range* range;
+    SmallHashTable<GenTree*, bool, 32U>& unusedDefs;
+    SmallHashTable<int, int, 32U>        unusedLclVarReads;
+};
+
+//------------------------------------------------------------------------
 // LIR::Range::CheckLIR: Performs a set of correctness checks on the LIR
 //                       contained in this range.
 //
@@ -1478,6 +1581,11 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         // Verify that the node is allowed in LIR.
         assert(node->IsLIR());
 
+        // Some nodes should never be marked unused, as they must be contained in the backend.
+        // These may be marked as unused during dead code elimination traversal, but they *must* be subsequently
+        // removed.
+        assert(!node->IsUnusedValue() || !node->OperIs(GT_FIELD_LIST, GT_LIST, GT_INIT_VAL));
+
         // Verify that the REVERSE_OPS flag is not set. NOTE: if we ever decide to reuse the bit assigned to
         // GTF_REVERSE_OPS for an LIR-only flag we will need to move this check to the points at which we
         // insert nodes into an LIR range.
@@ -1501,20 +1609,19 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
 
             assert(!(checkUnusedValues && def->IsUnusedValue()) && "operands should never be marked as unused values");
 
-            if (def->OperGet() == GT_ARGPLACE)
-            {
-                // ARGPLACE nodes are not represented in the LIR sequence. Ignore them.
-                continue;
-            }
-            else if (!def->IsValue())
+            if (!def->IsValue())
             {
                 // Stack arguments do not produce a value, but they are considered children of the call.
                 // It may be useful to remove these from being call operands, but that may also impact
                 // other code that relies on being able to reach all the operands from a call node.
                 // The GT_NOP case is because sometimes we eliminate stack argument stores as dead, but
                 // instead of removing them we replace with a NOP.
-                assert((node->OperGet() == GT_CALL) &&
-                       (def->OperIsStore() || (def->OperGet() == GT_PUTARG_STK) || (def->OperGet() == GT_NOP)));
+                // ARGPLACE nodes are not represented in the LIR sequence. Ignore them.
+                // The argument of a JTRUE doesn't produce a value (just sets a flag).
+                assert(((node->OperGet() == GT_CALL) &&
+                        (def->OperIsStore() || def->OperIs(GT_PUTARG_STK, GT_NOP, GT_ARGPLACE))) ||
+                       ((node->OperGet() == GT_JTRUE) && (def->TypeGet() == TYP_VOID) &&
+                        ((def->gtFlags & GTF_SET_FLAGS) != 0)));
                 continue;
             }
 
@@ -1562,47 +1669,12 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         {
             GenTree* node = kvp.Key();
             assert(node->IsUnusedValue() && "found an unmarked unused value");
+            assert(!node->isContained() && "a contained node should have a user");
         }
     }
 
-    // Check lclVar semantics: specifically, ensure that an unaliasable lclVar is not redefined between the
-    // point at which a use appears in linear order and the point at which that use is consumed by its user.
-    // This ensures that it is always safe to treat a lclVar use as happening at the user (rather than at
-    // the lclVar node).
-    //
-    // This happens as a second pass because unused lclVar reads may otherwise appear as outstanding reads
-    // and produce false indications that a write to a lclVar occurs while outstanding reads of that lclVar
-    // exist.
-    SmallHashTable<int, int, 32> unconsumedLclVarReads(compiler);
-    for (GenTree* node : *this)
-    {
-        for (GenTree* operand : node->Operands())
-        {
-            AliasSet::NodeInfo operandInfo(compiler, operand);
-            if (operandInfo.IsLclVarRead())
-            {
-                int        count;
-                const bool removed = unconsumedLclVarReads.TryRemove(operandInfo.LclNum(), &count);
-                assert(removed);
-
-                if (count > 1)
-                {
-                    unconsumedLclVarReads.AddOrUpdate(operandInfo.LclNum(), count - 1);
-                }
-            }
-        }
-
-        AliasSet::NodeInfo nodeInfo(compiler, node);
-        if (nodeInfo.IsLclVarRead() && !unusedDefs.Contains(node))
-        {
-            int count = 0;
-            unconsumedLclVarReads.TryGetValue(nodeInfo.LclNum(), &count);
-            unconsumedLclVarReads.AddOrUpdate(nodeInfo.LclNum(), count + 1);
-        }
-
-        // If this node is a lclVar write, it must be to a lclVar that does not have an outstanding read.
-        assert(!nodeInfo.IsLclVarWrite() || !unconsumedLclVarReads.Contains(nodeInfo.LclNum()));
-    }
+    CheckLclVarSemanticsHelper checkLclVarSemanticsHelper(compiler, this, unusedDefs);
+    assert(checkLclVarSemanticsHelper.Check());
 
     return true;
 }
@@ -1696,3 +1768,10 @@ void LIR::InsertBeforeTerminator(BasicBlock* block, LIR::Range&& range)
 
     blockRange.InsertBefore(insertionPoint, std::move(range));
 }
+
+#ifdef DEBUG
+void GenTree::dumpLIRFlags()
+{
+    JITDUMP("[%c%c]", IsUnusedValue() ? 'U' : '-', IsRegOptional() ? 'O' : '-');
+}
+#endif

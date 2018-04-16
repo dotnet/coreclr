@@ -175,7 +175,6 @@
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 #include "disassembler.h"
-#include "gcenv.ee.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -183,7 +182,6 @@
 
 #include "stringarraylist.h"
 #include "stubhelpers.h"
-#include "perfdefaults.h"
 
 #ifdef FEATURE_STACK_SAMPLING
 #include "stacksampler.h"
@@ -210,8 +208,6 @@
 #include "profilinghelper.h"
 #endif // PROFILING_SUPPORTED
 
-#include "newapis.h"
-
 #ifdef FEATURE_COMINTEROP
 #include "synchronizationcontextnative.h"       // For SynchronizationContextNative::Cleanup
 #endif
@@ -233,6 +229,10 @@
 // Included for referencing __security_cookie
 #include "process.h"
 #endif // !FEATURE_PAL
+
+#ifdef FEATURE_GDBJIT
+#include "gdbjit.h"
+#endif // FEATURE_GDBJIT
 
 #ifdef FEATURE_IPCMAN
 static HRESULT InitializeIPCManager(void);
@@ -446,7 +446,13 @@ static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
     }
     else
 #endif // DEBUGGING_SUPPORTED
-    {         
+    {
+        if (dwCtrlType == CTRL_CLOSE_EVENT)
+        {
+            // Initiate shutdown so the ProcessExit handlers run
+            ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
+        }
+
         g_fInControlC = true;     // only for weakening assertions in checked build.
         return FALSE;             // keep looking for a real handler.
     }
@@ -685,6 +691,11 @@ void EEStartupHelper(COINITIEE fFlags)
         EventPipe::Initialize();
 #endif // FEATURE_PERFTRACING
 
+#ifdef FEATURE_GDBJIT
+        // Initialize gdbjit
+        NotifyGdb::Initialize();
+#endif // FEATURE_GDBJIT
+
 #ifdef FEATURE_EVENT_TRACE        
         // Initialize event tracing early so we can trace CLR startup time events.
         InitializeEventTracing();
@@ -899,23 +910,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-        // This isn't done as part of InitializeGarbageCollector() above because thread
-        // creation requires AppDomains to have been set up.
-        FinalizerThread::FinalizerThreadCreate();
-
-#ifndef FEATURE_PAL
-        // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
-        // because on CoreCLR when Waston is enabled, debugging service needs to be enabled and UEF will be used.
-        if (!InitializeWatson(fFlags))
-        {
-            IfFailGo(E_FAIL);
-        }
-       
-        // Note: In Windows 7, the OS will take over the job of error reporting, and so most 
-        // of our watson code should not be used.  In such cases, we will however still need 
-        // to provide some services to windows error reporting, such as computing bucket 
-        // parameters for a managed unhandled exception.  
-        if (RunningOnWin7() && IsWatsonEnabled() && !RegisterOutOfProcessWatsonCallbacks())
+#ifndef FEATURE_PAL      
+        if (!RegisterOutOfProcessWatsonCallbacks())
         {
             IfFailGo(E_FAIL);
         }
@@ -1009,6 +1005,10 @@ void EEStartupHelper(COINITIEE fFlags)
         hr = g_pGCHeap->Initialize();
         IfFailGo(hr);
 
+        // This isn't done as part of InitializeGarbageCollector() above because thread
+        // creation requires AppDomains to have been set up.
+        FinalizerThread::FinalizerThreadCreate();
+
         // Now we really have fully initialized the garbage collector
         SetGarbageCollectorFullyInitialized();
 
@@ -1095,7 +1095,16 @@ void EEStartupHelper(COINITIEE fFlags)
         hr = S_OK;
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
 
-#if defined(_DEBUG) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
+
+#ifdef FEATURE_TIERED_COMPILATION
+        if (g_pConfig->TieredCompilation())
+        {
+            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
+        }
+#endif
+
+#ifdef _DEBUG
 
         //if g_fEEStarted was false when we loaded the System Module, we did not run ExpandAll on it.  In
         //this case, make sure we run ExpandAll here.  The rationale is that if we Jit before g_fEEStarted
@@ -1113,7 +1122,9 @@ void EEStartupHelper(COINITIEE fFlags)
         // Perform mscorlib consistency check if requested
         g_Mscorlib.CheckExtended();
 
-#endif // _DEBUG && !CROSSGEN_COMPILE
+#endif // _DEBUG
+
+#endif // !CROSSGEN_COMPILE
 
 ErrExit: ;
     }
@@ -1623,13 +1634,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Indicate the EE is the shut down phase.
         g_fEEShutDown |= ShutDown_Start;
 
-#ifdef FEATURE_TIERED_COMPILATION
-        {
-            GCX_PREEMP();
-            TieredCompilationManager::ShutdownAllDomains();
-        }
-#endif
-
         fFinalizeOK = TRUE;
 
         // Terminate the BBSweep thread
@@ -2030,8 +2034,6 @@ BOOL IsThreadInSTA()
 }
 #endif
 
-BOOL g_fWeOwnProcess = FALSE;
-
 static LONG s_ActiveShutdownThreadCount = 0;
 
 // ---------------------------------------------------------------------------
@@ -2067,15 +2069,8 @@ DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
     {
         action = eRudeExitProcess;
     }
-    UINT exitCode;
-    if (g_fWeOwnProcess)
-    {
-        exitCode = GetLatchedExitCode();
-    }
-    else
-    {
-        exitCode = HOST_E_EXITPROCESS_TIMEOUT;
-    }
+
+    UINT exitCode = GetLatchedExitCode();
     EEPolicy::HandleExitProcessFromEscalation(action, exitCode);
 
     return 0;
@@ -2169,7 +2164,7 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_COMINTEROP
-    if (!fIsDllUnloading && IsThreadInSTA())
+    if (!fIsDllUnloading && CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) && IsThreadInSTA())
     {
         // #STAShutDown
         // 
@@ -2438,103 +2433,6 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 // Initialize the Garbage Collector
 //
 
-// Prototype for the function that initialzes the garbage collector.
-// Should only be called once: here, during EE startup.
-// Returns true if the initialization was successful, false otherwise.
-//
-// When using a standalone GC, this function is loaded dynamically using
-// GetProcAddress.
-extern "C" bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
-
-#ifdef FEATURE_STANDALONE_GC
-
-void LoadGarbageCollector()
-{
-    CONTRACTL {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    TCHAR *standaloneGc = nullptr;
-    CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStandaloneLocation, &standaloneGc);
-    HMODULE hMod;
-    if (!standaloneGc)
-    {
-#ifdef FEATURE_STANDALONE_GC_ONLY
-        // if the user has set GCUseStandalone but has not given us a standalone location,
-        // try and load the initialization symbol from the current module.
-        hMod = GetModuleInst();
-#else
-        ThrowHR(E_FAIL);
-#endif // FEATURE_STANDALONE_GC_ONLY
-    }
-    else
-    {
-        hMod = CLRLoadLibrary(standaloneGc);
-    }
-
-    if (!hMod)
-    {
-        ThrowHR(E_FAIL);
-    }
-
-    InitializeGarbageCollectorFunction igcf = (InitializeGarbageCollectorFunction)GetProcAddress(hMod, INITIALIZE_GC_FUNCTION_NAME);
-    if (!igcf)
-    {
-        ThrowHR(E_FAIL);
-    }
-
-    // at this point we are committing to using the standalone GC
-    // given to us.
-    IGCToCLR* gcToClr = new (nothrow) standalone::GCToEEInterface();
-    if (!gcToClr)
-    {
-        ThrowOutOfMemory();
-    }
-
-    IGCHandleManager *pGcHandleManager;
-    IGCHeap *pGCHeap;
-    if (!igcf(gcToClr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars))
-    {
-        ThrowOutOfMemory();
-    }
-
-    assert(pGCHeap != nullptr);
-    assert(pGcHandleManager != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
-}
-
-#endif // FEATURE_STANDALONE_GC
-
-#ifndef FEATURE_STANDALONE_GC_ONLY
-void LoadStaticGarbageCollector()
-{
-    CONTRACTL{
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    IGCHandleManager *pGcHandleManager;
-    IGCHeap *pGCHeap;
-
-    if (!InitializeGarbageCollector(nullptr, &pGCHeap, &pGcHandleManager, &g_gc_dac_vars)) 
-    {
-        ThrowOutOfMemory();
-    }
-
-    assert(pGCHeap != nullptr);
-    assert(pGcHandleManager != nullptr);
-    g_pGCHeap = pGCHeap;
-    g_pGCHandleManager = pGcHandleManager;
-    g_gcDacGlobals = &g_gc_dac_vars;
-}
-#endif // FEATURE_STANDALONE_GC_ONLY
-
-
 void InitializeGarbageCollector()
 {
     CONTRACTL{
@@ -2557,21 +2455,10 @@ void InitializeGarbageCollector()
     g_pFreeObjectMethodTable->SetBaseSize(ObjSizeOf (ArrayBase));
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
-#ifdef FEATURE_STANDALONE_GC
-    if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCUseStandalone)
-#ifdef FEATURE_STANDALONE_GC_ONLY
-        || true
-#endif // FEATURE_STANDALONE_GC_ONLY
-        )
+    hr = GCHeapUtilities::LoadAndInitialize();
+    if (hr != S_OK)
     {
-        LoadGarbageCollector();
-    }
-    else
-#endif // FEATURE_STANDALONE_GC
-    {
-#ifndef FEATURE_STANDALONE_GC_ONLY
-        LoadStaticGarbageCollector();
-#endif // FEATURE_STANDALONE_GC_ONLY
+        ThrowHR(hr);
     }
 
     // Apparently the Windows linker removes global variables if they are never
@@ -2705,17 +2592,7 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
                                                                                          , TRUE
 #endif
                                                                                          );
-#ifdef FEATURE_IMPLICIT_TLS
                 Thread* thread = GetThread();
-#else
-                // Don't use GetThread because perhaps we didn't initialize yet, or we
-                // have already shutdown the EE.  Note that there is a race here.  We
-                // might ask for TLS from a slot we just released.  We are assuming that
-                // nobody re-allocates that same slot while we are doing this.  It just
-                // isn't worth locking for such an obscure case.
-                DWORD   tlsVal = GetThreadTLSIndex();
-                Thread  *thread = (tlsVal != (DWORD)-1)?(Thread *) UnsafeTlsGetValue(tlsVal):NULL;
-#endif
                 if (thread)
                 {
 #ifdef FEATURE_COMINTEROP
@@ -3110,7 +2987,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             SIZE_T cchParentCultureName=LOCALE_NAME_MAX_LENGTH;
 #ifdef FEATURE_USE_LCID 
             SIZE_T cchCultureName=LOCALE_NAME_MAX_LENGTH;
-            if (!NewApis::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
+            if (!::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3120,7 +2997,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
 #endif
 
 #ifndef FEATURE_PAL
-            if (!NewApis::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
+            if (!::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
             {
                 hr = HRESULT_FROM_GetLastError();
             }
@@ -3210,7 +3087,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
                 STRINGREF cultureName = pCurrentCulture->GetName();
                 _ASSERT(cultureName != NULL);
 
-                if ((Result = NewApis::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
+                if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
                     Result = (int)UICULTUREID_DONTCARE;
             }
         }
@@ -3288,7 +3165,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
         // This thread isn't set up to use a non-default culture. Let's grab the default
         // one and return that.
 
-        Result = NewApis::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
+        Result = ::GetUserDefaultLocaleName(*pLocale, LOCALE_NAME_MAX_LENGTH);
 
         _ASSERTE(Result != 0);
 #else // !FEATURE_PAL
@@ -3301,107 +3178,6 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 }
 
 #endif // FEATURE_USE_LCID
-// ---------------------------------------------------------------------------
-// Export shared logging code for JIT, et.al.
-// ---------------------------------------------------------------------------
-#ifdef _DEBUG
-
-extern VOID LogAssert( LPCSTR szFile, int iLine, LPCSTR expr);
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_LogAssert( LPCSTR szFile, int iLine, LPCSTR expr)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        ENTRY_POINT;            
-        PRECONDITION(CheckPointer(szFile));
-        PRECONDITION(CheckPointer(expr));
-    }  CONTRACTL_END;
-
-    BEGIN_ENTRYPOINT_VOIDRET;
-    LogAssert(szFile, iLine, expr);
-    END_ENTRYPOINT_VOIDRET;
-
-}
-
-extern "C"
-//__declspec(dllexport)
-BOOL STDMETHODCALLTYPE LogHelp_NoGuiOnAssert()
-{
-    LIMITED_METHOD_CONTRACT;
-    BOOL fRet = FALSE;
-    BEGIN_ENTRYPOINT_VOIDRET;
-    fRet = NoGuiOnAssert();
-    END_ENTRYPOINT_VOIDRET;
-    return fRet;
-}
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_TerminateOnAssert()
-{
-    LIMITED_METHOD_CONTRACT;
-    BEGIN_ENTRYPOINT_VOIDRET;
-//  __asm int 3;
-    TerminateOnAssert();
-    END_ENTRYPOINT_VOIDRET;
-
-}
-
-#else // !_DEBUG
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_LogAssert( LPCSTR szFile, int iLine, LPCSTR expr) {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-}
-
-extern "C"
-//__declspec(dllexport)
-BOOL STDMETHODCALLTYPE LogHelp_NoGuiOnAssert() {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-    return FALSE;
-}
-
-extern "C"
-//__declspec(dllexport)
-VOID STDMETHODCALLTYPE LogHelp_TerminateOnAssert() {
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-}
-
-#endif // _DEBUG
-
-
-#ifndef ENABLE_PERF_COUNTERS
-//
-// perf counter stubs for builds which don't have perf counter support
-// These are needed because we export these functions in our DLL
-
-
-Perf_Contexts* STDMETHODCALLTYPE GetPrivateContextsPerfCounters()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    //BEGIN_ENTRYPOINT_VOIDRET;
-    //END_ENTRYPOINT_VOIDRET;
-
-    return NULL;
-}
-
-#endif
 
 
 #ifdef ENABLE_CONTRACTS_IMPL

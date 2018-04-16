@@ -6,18 +6,22 @@
 #define __EVENTPIPE_H__
 
 #ifdef FEATURE_PERFTRACING
+#include "common.h"
 
 class CrstStatic;
+class CrawlFrame;
 class EventPipeConfiguration;
 class EventPipeEvent;
 class EventPipeFile;
 class EventPipeJsonFile;
 class EventPipeBuffer;
 class EventPipeBufferManager;
+class EventPipeEventSource;
 class EventPipeProvider;
 class MethodDesc;
 class SampleProfilerEventInstance;
 struct EventPipeProviderConfiguration;
+class EventPipeSession;
 
 // Define the event pipe callback to match the ETW callback signature.
 typedef void (*EventPipeCallback)(
@@ -32,7 +36,7 @@ typedef void (*EventPipeCallback)(
 struct EventData
 {
 public:
-    unsigned long Ptr;
+    UINT64 Ptr;
     unsigned int Size;
     unsigned int Reserved;
 };
@@ -41,7 +45,7 @@ class EventPipeEventPayload
 {
 private:
     BYTE *m_pData;
-    EventData **m_pEventData;
+    EventData *m_pEventData;
     unsigned int m_eventDataCount;
     unsigned int m_size;
     bool m_allocatedData;
@@ -54,11 +58,11 @@ public:
     EventPipeEventPayload(BYTE *pData, unsigned int length);
 
     // Build this payload to contain an array of EventData objects
-    EventPipeEventPayload(EventData **pEventData, unsigned int eventDataCount);
+    EventPipeEventPayload(EventData *pEventData, unsigned int eventDataCount);
 
     // If a buffer was allocated internally, delete it
     ~EventPipeEventPayload();
-    
+
     // Copy the data (whether flat or array of objects) into a flat buffer at pDst
     // Assumes that pDst points to an appropriatly sized buffer
     void CopyData(BYTE *pDst);
@@ -84,7 +88,7 @@ public:
         return m_size;
     }
 
-    EventData** GetEventDataArray() const
+    EventData* GetEventDataArray() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -244,7 +248,7 @@ class EventPipe
         static bool Enabled();
 
         // Create a provider.
-        static EventPipeProvider* CreateProvider(const GUID &providerID, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+        static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
 
         // Delete a provider.
         static void DeleteProvider(EventPipeProvider *pProvider);
@@ -255,16 +259,19 @@ class EventPipe
 
         // Write out an event from an EventData array.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(EventPipeEvent &event, EventData **pEventData, unsigned int eventDataCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+        static void WriteEvent(EventPipeEvent &event, EventData *pEventData, unsigned int eventDataCount, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
         // Write out a sample profile event.
         static void WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData = NULL, unsigned int length = 0);
-        
+
         // Get the managed call stack for the current thread.
         static bool WalkManagedStackForCurrentThread(StackContents &stackContents);
 
         // Get the managed call stack for the specified thread.
         static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
+
+        // Save the command line for the current process.
+        static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
     protected:
 
@@ -272,6 +279,13 @@ class EventPipe
         static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
     private:
+
+        // Enable the specified EventPipe session.
+        static void Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+
+        // Get the EnableOnStartup configuration from environment.
+        static void GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession);
+
 
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
@@ -286,8 +300,11 @@ class EventPipe
         static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static EventPipeConfiguration *s_pConfig;
+        static EventPipeSession *s_pSession;
         static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
+        static EventPipeEventSource *s_pEventSource;
+        static LPCWSTR s_pCommandLine;
 #ifdef _DEBUG
         static EventPipeFile *s_pSyncFile;
         static EventPipeJsonFile *s_pJsonFile;
@@ -301,7 +318,7 @@ private:
 
     LPCWSTR m_pProviderName;
     UINT64 m_keywords;
-    unsigned int m_loggingLevel;
+    UINT32 m_loggingLevel;
 
 public:
 
@@ -316,7 +333,7 @@ public:
     EventPipeProviderConfiguration(
         LPCWSTR pProviderName,
         UINT64 keywords,
-        unsigned int loggingLevel)
+        UINT32 loggingLevel)
     {
         LIMITED_METHOD_CONTRACT;
         m_pProviderName = pProviderName;
@@ -336,7 +353,7 @@ public:
         return m_keywords;
     }
 
-    unsigned int GetLevel() const
+    UINT32 GetLevel() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_loggingLevel;
@@ -345,46 +362,60 @@ public:
 
 class EventPipeInternal
 {
+private:
+
+    enum class ActivityControlCode
+    {
+        EVENT_ACTIVITY_CONTROL_GET_ID = 1,
+        EVENT_ACTIVITY_CONTROL_SET_ID = 2,
+        EVENT_ACTIVITY_CONTROL_CREATE_ID = 3,
+        EVENT_ACTIVITY_CONTROL_GET_SET_ID = 4,
+        EVENT_ACTIVITY_CONTROL_CREATE_SET_ID = 5
+    };
 
 public:
 
     static void QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
-        unsigned int circularBufferSizeInMB,
-        long profilerSamplingRateInNanoseconds,
+        UINT32 circularBufferSizeInMB,
+        INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        int numProviders);
+        INT32 numProviders);
 
     static void QCALLTYPE Disable();
 
     static INT_PTR QCALLTYPE CreateProvider(
-        GUID providerID,
+        __in_z LPCWSTR providerName,
         EventPipeCallback pCallbackFunc);
 
     static INT_PTR QCALLTYPE DefineEvent(
         INT_PTR provHandle,
-        unsigned int eventID,
+        UINT32 eventID,
         __int64 keywords,
-        unsigned int eventVersion,
-        unsigned int level,
+        UINT32 eventVersion,
+        UINT32 level,
         void *pMetadata,
-        unsigned int metadataLength);
+        UINT32 metadataLength);
 
     static void QCALLTYPE DeleteProvider(
         INT_PTR provHandle);
 
+    static int QCALLTYPE EventActivityIdControl(
+        uint controlCode,
+        GUID *pActivityId);
+
     static void QCALLTYPE WriteEvent(
         INT_PTR eventHandle,
-        unsigned int eventID,
+        UINT32 eventID,
         void *pData,
-        unsigned int length,
+        UINT32 length,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     static void QCALLTYPE WriteEventData(
         INT_PTR eventHandle,
-        unsigned int eventID,
-        EventData **pEventData,
-        unsigned int eventDataCount,
+        UINT32 eventID,
+        EventData *pEventData,
+        UINT32 eventDataCount,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 };
 

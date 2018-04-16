@@ -4,7 +4,7 @@
 
 using System.Text;
 using System;
-using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
 
 namespace System.Text
 {
@@ -63,15 +63,10 @@ namespace System.Text
             if (chars.Length - index < count)
                 throw new ArgumentOutOfRangeException(nameof(chars),
                       SR.ArgumentOutOfRange_IndexCountBuffer);
-            Contract.EndContractBlock();
-
-            // Avoid empty input problem
-            if (chars.Length == 0)
-                chars = new char[1];
 
             // Just call the pointer version
             int result = -1;
-            fixed (char* pChars = &chars[0])
+            fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
             {
                 result = GetByteCount(pChars + index, count, flush);
             }
@@ -88,7 +83,6 @@ namespace System.Text
             if (count < 0)
                 throw new ArgumentOutOfRangeException(nameof(count),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             _mustFlush = flush;
             _throwOnOverflow = true;
@@ -114,18 +108,12 @@ namespace System.Text
             if (byteIndex < 0 || byteIndex > bytes.Length)
                 throw new ArgumentOutOfRangeException(nameof(byteIndex),
                      SR.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
-
-            if (chars.Length == 0)
-                chars = new char[1];
 
             int byteCount = bytes.Length - byteIndex;
-            if (bytes.Length == 0)
-                bytes = new byte[1];
 
             // Just call pointer version
-            fixed (char* pChars = &chars[0])
-            fixed (byte* pBytes = &bytes[0])
+            fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
 
                 // Remember that charCount is # to decode, not size of array.
                 return GetBytes(pChars + charIndex, charCount,
@@ -142,7 +130,6 @@ namespace System.Text
             if (byteCount < 0 || charCount < 0)
                 throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
                       SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             _mustFlush = flush;
             _throwOnOverflow = true;
@@ -176,18 +163,10 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException(nameof(bytes),
                       SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            Contract.EndContractBlock();
-
-            // Avoid empty input problem
-            if (chars.Length == 0)
-                chars = new char[1];
-            if (bytes.Length == 0)
-                bytes = new byte[1];
-
             // Just call the pointer version (can't do this for non-msft encoders)
-            fixed (char* pChars = &chars[0])
+            fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
             {
-                fixed (byte* pBytes = &bytes[0])
+                fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 {
                     Convert(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, flush,
                         out charsUsed, out bytesUsed, out completed);
@@ -208,7 +187,6 @@ namespace System.Text
             if (charCount < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
-            Contract.EndContractBlock();
 
             // We don't want to throw
             _mustFlush = flush;

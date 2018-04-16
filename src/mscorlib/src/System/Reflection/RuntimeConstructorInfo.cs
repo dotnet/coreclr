@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
@@ -42,8 +41,7 @@ namespace System.Reflection
                     // first take care of all the NO_INVOKE cases. 
                     if (declaringType == typeof(void) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
-                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs) ||
-                         ((Attributes & MethodAttributes.RequireSecObject) == MethodAttributes.RequireSecObject))
+                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
@@ -75,8 +73,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache,
             MethodAttributes methodAttributes, BindingFlags bindingFlags)
         {
-            Contract.Ensures(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));
-
             m_bindingFlags = bindingFlags;
             m_reflectedTypeCache = reflectedTypeCache;
             m_declaringType = declaringType;
@@ -161,7 +157,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -175,7 +170,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -244,7 +238,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [Pure]
         public override ParameterInfo[] GetParameters()
         {
             ParameterInfo[] parameters = GetParametersNoCopy();
@@ -293,7 +286,6 @@ namespace System.Reflection
         {
             if (declaringType == null)
                 throw new ArgumentNullException(nameof(declaringType));
-            Contract.EndContractBlock();
 
             // ctor is ReflectOnly
             if (declaringType is ReflectionOnlyType)
@@ -342,7 +334,6 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Object Invoke(
             Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
@@ -363,16 +354,17 @@ namespace System.Reflection
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
             // if we are here we passed all the previous checks. Time to look at the arguments
+            bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (actualCount > 0)
             {
                 Object[] arguments = CheckArguments(parameters, binder, invokeAttr, culture, sig);
-                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, sig, false);
+                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, sig, false, wrapExceptions);
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
                     parameters[index] = arguments[index];
                 return retValue;
             }
-            return RuntimeMethodHandle.InvokeMethod(obj, null, sig, false);
+            return RuntimeMethodHandle.InvokeMethod(obj, null, sig, false, wrapExceptions);
         }
 
         public override MethodBody GetMethodBody()
@@ -410,7 +402,6 @@ namespace System.Reflection
         #region ConstructorInfo Overrides
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Object Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
@@ -433,16 +424,17 @@ namespace System.Reflection
             // JIT/NGen will insert the call to .cctor in the instance ctor.
 
             // if we are here we passed all the previous checks. Time to look at the arguments
+            bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (actualCount > 0)
             {
                 Object[] arguments = CheckArguments(parameters, binder, invokeAttr, culture, sig);
-                Object retValue = RuntimeMethodHandle.InvokeMethod(null, arguments, sig, true);
+                Object retValue = RuntimeMethodHandle.InvokeMethod(null, arguments, sig, true, wrapExceptions);
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
                     parameters[index] = arguments[index];
                 return retValue;
             }
-            return RuntimeMethodHandle.InvokeMethod(null, null, sig, true);
+            return RuntimeMethodHandle.InvokeMethod(null, null, sig, true, wrapExceptions);
         }
         #endregion
     }

@@ -97,7 +97,6 @@ class Crst;
 class RCWCleanupList;
 #endif // FEATURE_COMINTEROP
 class BBSweep;
-struct IAssemblyUsageLog;
 
 //
 // loader handles are opaque types that track object pointers that have a lifetime
@@ -406,9 +405,10 @@ GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
-//<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
-EXTERN bool                 g_fVerifierOff;
-
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_DECL(DWORD,            g_debuggerWordTLSIndex);
+#endif
+GVAL_DECL(DWORD,            g_TlsIndex);
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -437,12 +437,6 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
-
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-// Note this is not updated in a thread safe way so the value may not be accurate. We get
-// it accurately in full GCs if the handle count is requested.
-extern DWORD g_dwHandles;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
@@ -585,10 +579,6 @@ EXTERN const char g_psBaseLibrary[];
 EXTERN const char g_psBaseLibraryName[];
 EXTERN const char g_psBaseLibrarySatelliteAssemblyName[];
 
-#ifdef FEATURE_COMINTEROP
-EXTERN const WCHAR g_pwBaseLibraryTLB[];
-EXTERN const char g_psBaseLibraryTLB[];
-#endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
 
 //
@@ -845,10 +835,24 @@ extern bool g_fReadyToRunCompilation;
 // Returns true if this is NGen compilation process.
 // This is a superset of CompilationDomain::IsCompilationDomain() as there is more
 // than one AppDomain in ngen (the DefaultDomain)
-BOOL IsCompilationProcess();
+inline BOOL IsCompilationProcess()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Flag for cross-platform ngen: Removes all execution of managed or third-party code in the ngen compilation process.
-BOOL NingenEnabled();
+inline BOOL NingenEnabled()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Passed to JitManager APIs to determine whether to avoid calling into the host. 
 // The profiling API stackwalking uses this to ensure to avoid re-entering the host 

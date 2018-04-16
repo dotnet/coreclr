@@ -394,10 +394,8 @@ public:
     CHECK CheckFullyLoaded();
 #endif
 
-#ifdef FEATURE_HFA
     bool IsHFA() const;   
     CorElementType GetHFAType() const;
-#endif // FEATURE_HFA
 
 #ifdef FEATURE_64BIT_ALIGNMENT
     bool RequiresAlign8() const;
@@ -576,7 +574,7 @@ public:
 
     INDEBUGIMPL(BOOL Verify();)             // DEBUGGING Make certain this is a valid type handle 
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
+#if defined(_DEBUG)
     BOOL IsAppDomainAgile() const;
     BOOL IsCheckAppDomainAgile() const;
 

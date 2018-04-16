@@ -65,15 +65,8 @@ namespace System.Threading
 
         private volatile int m_owner;
 
-        // The multiplier factor for the each spinning iteration
-        // This number has been chosen after trying different numbers on different CPUs (4, 8 and 16 ) and this provided the best results
-        private const int SPINNING_FACTOR = 100;
-
         // After how many yields, call Sleep(1)
         private const int SLEEP_ONE_FREQUENCY = 40;
-
-        // After how many yields, call Sleep(0)
-        private const int SLEEP_ZERO_FREQUENCY = 10;
 
         // After how many yields, check the timeout
         private const int TIMEOUT_CHECK_FREQUENCY = 10;
@@ -91,7 +84,7 @@ namespace System.Threading
         private const int ID_DISABLED_AND_ANONYMOUS_OWNED = unchecked((int)0x80000001); //1000 0000 0000 0000 0000 0000 0000 0001
 
         // If the thread is unowned if:
-        // m_owner zero and the threa tracking is enabled
+        // m_owner zero and the thread tracking is enabled
         // m_owner & LOCK_ANONYMOUS_OWNED = zero and the thread tracking is disabled
         private const int LOCK_UNOWNED = 0;
 
@@ -101,7 +94,7 @@ namespace System.Threading
         private static int MAXIMUM_WAITERS = WAITERS_MASK;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int CompareExchange(ref int location, int value, int comparand, ref bool success)
+        private static int CompareExchange(ref int location, int value, int comparand, ref bool success)
         {
             int result = Interlocked.CompareExchange(ref location, value, comparand);
             success = (result == comparand);
@@ -277,7 +270,7 @@ namespace System.Threading
         /// <summary>
         /// Try acquire the lock with long path, this is usually called after the first path in Enter and
         /// TryEnter failed The reason for short path is to make it inline in the run time which improves the
-        /// performance. This method assumed that the parameter are validated in Enter ir TryENter method
+        /// performance. This method assumed that the parameter are validated in Enter or TryEnter method.
         /// </summary>
         /// <param name="millisecondsTimeout">The timeout milliseconds</param>
         /// <param name="lockTaken">The lockTaken param</param>
@@ -313,7 +306,7 @@ namespace System.Threading
             // In this case there are three ways to acquire the lock
             // 1- the first way the thread either tries to get the lock if it's free or updates the waiters, if the turn >= the processors count then go to 3 else go to 2
             // 2- In this step the waiter threads spins and tries to acquire the lock, the number of spin iterations and spin count is dependent on the thread turn
-            // the late the thread arrives the more it spins and less frequent it check the lock avilability
+            // the late the thread arrives the more it spins and less frequent it check the lock availability
             // Also the spins count is increases each iteration
             // If the spins iterations finished and failed to acquire the lock, go to step 3
             // 3- This is the yielding step, there are two ways of yielding Thread.Yield and Sleep(1)
@@ -329,71 +322,47 @@ namespace System.Threading
             {
                 if (CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
                 {
-                    // Aquired lock
+                    // Acquired lock
                     return;
                 }
 
                 if (millisecondsTimeout == 0)
                 {
-                    // Did not aquire lock in CompareExchange and timeout is 0 so fail fast
+                    // Did not acquire lock in CompareExchange and timeout is 0 so fail fast
                     return;
                 }
             }
             else if (millisecondsTimeout == 0)
             {
-                // Did not aquire lock as owned and timeout is 0 so fail fast
+                // Did not acquire lock as owned and timeout is 0 so fail fast
                 return;
             }
-            else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
+            else //failed to acquire the lock, then try to update the waiters. If the waiters count reached the maximum, just break the loop to avoid overflow
             {
                 if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
+                {
+                    // This can still overflow, but maybe there will never be that many waiters
                     turn = (Interlocked.Add(ref m_owner, 2) & WAITERS_MASK) >> 1;
+                }
             }
 
-            //***Step 2. Spinning
             //lock acquired failed and waiters updated
-            int processorCount = PlatformHelper.ProcessorCount;
-            if (turn < processorCount)
+
+            //*** Step 2, Spinning and Yielding
+            var spinner = new SpinWait();
+            if (turn > PlatformHelper.ProcessorCount)
             {
-                int processFactor = 1;
-                for (int i = 1; i <= turn * SPINNING_FACTOR; i++)
-                {
-                    Thread.SpinWait((turn + i) * SPINNING_FACTOR * processFactor);
-                    if (processFactor < processorCount)
-                        processFactor++;
-                    observedOwner = m_owner;
-                    if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
-                    {
-                        int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                            observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
-                            : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
-                        Debug.Assert((newOwner & WAITERS_MASK) >= 0);
-
-                        if (CompareExchange(ref m_owner, newOwner, observedOwner, ref lockTaken) == observedOwner)
-                        {
-                            return;
-                        }
-                    }
-                }
-
-                // Check the timeout.
-                if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
-                {
-                    DecrementWaiters();
-                    return;
-                }
+                spinner.Count = SpinWait.YieldThreshold;
             }
-
-            //*** Step 3, Yielding
-            //Sleep(1) every 50 yields
-            int yieldsoFar = 0;
             while (true)
             {
+                spinner.SpinOnce(SLEEP_ONE_FREQUENCY);
+
                 observedOwner = m_owner;
                 if ((observedOwner & LOCK_ANONYMOUS_OWNED) == LOCK_UNOWNED)
                 {
                     int newOwner = (observedOwner & WAITERS_MASK) == 0 ? // Gets the number of waiters, if zero
-                           observedOwner | 1 // don't decrement it. just set the lock bit, it is zzero because a previous call of Exit(false) ehich corrupted the waiters
+                           observedOwner | 1 // don't decrement it. just set the lock bit, it is zero because a previous call of Exit(false) which corrupted the waiters
                            : (observedOwner - 2) | 1; // otherwise decrement the waiters and set the lock bit
                     Debug.Assert((newOwner & WAITERS_MASK) >= 0);
 
@@ -403,20 +372,7 @@ namespace System.Threading
                     }
                 }
 
-                if (yieldsoFar % SLEEP_ONE_FREQUENCY == 0)
-                {
-                    Thread.Sleep(1);
-                }
-                else if (yieldsoFar % SLEEP_ZERO_FREQUENCY == 0)
-                {
-                    Thread.Sleep(0);
-                }
-                else
-                {
-                    Thread.Yield();
-                }
-
-                if (yieldsoFar % TIMEOUT_CHECK_FREQUENCY == 0)
+                if (spinner.Count % TIMEOUT_CHECK_FREQUENCY == 0)
                 {
                     //Check the timeout.
                     if (millisecondsTimeout != Timeout.Infinite && TimeoutHelper.UpdateTimeOut(startTime, millisecondsTimeout) <= 0)
@@ -425,8 +381,6 @@ namespace System.Threading
                         return;
                     }
                 }
-
-                yieldsoFar++;
             }
         }
 
@@ -532,8 +486,8 @@ namespace System.Threading
         /// </exception>
         public void Exit(bool useMemoryBarrier)
         {
-            // This is the fast path for the thread tracking is diabled and not to use memory barrier, otherwise go to the slow path
-            // The reason not to add else statement if the usememorybarrier is that it will add more barnching in the code and will prevent
+            // This is the fast path for the thread tracking is disabled and not to use memory barrier, otherwise go to the slow path
+            // The reason not to add else statement if the usememorybarrier is that it will add more branching in the code and will prevent
             // method inlining, so this is optimized for useMemoryBarrier=false and Exit() overload optimized for useMemoryBarrier=true.
             int tmpOwner = m_owner;
             if ((tmpOwner & LOCK_ID_DISABLE_MASK) != 0 & !useMemoryBarrier)

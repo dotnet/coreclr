@@ -4,6 +4,10 @@
 
 #if defined(_TARGET_ARM_)
 
+// This typedef defines the type that we use to hold encoded instructions.
+//
+typedef unsigned int code_t;
+
 /************************************************************************/
 /*         Routines that compute the size of / encode instructions      */
 /************************************************************************/
@@ -16,24 +20,24 @@ struct CnsVal
 
 insSize emitInsSize(insFormat insFmt);
 
-BYTE* emitOutputAM(BYTE* dst, instrDesc* id, size_t code, CnsVal* addc = NULL);
-BYTE* emitOutputSV(BYTE* dst, instrDesc* id, size_t code, CnsVal* addc = NULL);
-BYTE* emitOutputCV(BYTE* dst, instrDesc* id, size_t code, CnsVal* addc = NULL);
+BYTE* emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
+BYTE* emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
+BYTE* emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
 
 BYTE* emitOutputR(BYTE* dst, instrDesc* id);
 BYTE* emitOutputRI(BYTE* dst, instrDesc* id);
 BYTE* emitOutputRR(BYTE* dst, instrDesc* id);
 BYTE* emitOutputIV(BYTE* dst, instrDesc* id);
 #ifdef FEATURE_ITINSTRUCTION
-BYTE* emitOutputIT(BYTE* dst, instruction ins, insFormat fmt, ssize_t condcode);
+BYTE* emitOutputIT(BYTE* dst, instruction ins, insFormat fmt, code_t condcode);
 #endif // FEATURE_ITINSTRUCTION
 BYTE* emitOutputNOP(BYTE* dst, instruction ins, insFormat fmt);
 
 BYTE* emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* id);
 BYTE* emitOutputShortBranch(BYTE* dst, instruction ins, insFormat fmt, ssize_t distVal, instrDescJmp* id);
 
-static unsigned emitOutput_Thumb1Instr(BYTE* dst, ssize_t code);
-static unsigned emitOutput_Thumb2Instr(BYTE* dst, ssize_t code);
+static unsigned emitOutput_Thumb1Instr(BYTE* dst, code_t code);
+static unsigned emitOutput_Thumb2Instr(BYTE* dst, code_t code);
 
 /************************************************************************/
 /*             Debug-only routines to display instructions              */
@@ -106,6 +110,9 @@ bool emitInsIsCompare(instruction ins);
 bool emitInsIsLoad(instruction ins);
 bool emitInsIsStore(instruction ins);
 bool emitInsIsLoadOrStore(instruction ins);
+
+emitter::insFormat emitInsFormat(instruction ins);
+emitter::code_t emitInsCode(instruction ins, insFormat fmt);
 
 // Generate code for a load or store operation and handle the case
 // of contained GT_LEA op1 with [base + index<<scale + offset]
@@ -325,16 +332,13 @@ void emitIns_R_D(instruction ins, emitAttr attr, unsigned offs, regNumber reg);
 
 void emitIns_J_R(instruction ins, emitAttr attr, BasicBlock* dst, regNumber reg);
 
-void emitIns_I_AR(
-    instruction ins, emitAttr attr, int val, regNumber reg, int offs, int memCookie = 0, void* clsCookie = NULL);
+void emitIns_I_AR(instruction ins, emitAttr attr, int val, regNumber reg, int offs);
 
-void emitIns_R_AR(
-    instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs, int memCookie = 0, void* clsCookie = NULL);
+void emitIns_R_AR(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs);
 
 void emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp);
 
-void emitIns_AR_R(
-    instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs, int memCookie = 0, void* clsCookie = NULL);
+void emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, int offs);
 
 void emitIns_R_ARR(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, regNumber rg2, int disp);
 

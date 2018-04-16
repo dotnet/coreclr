@@ -55,8 +55,7 @@ BOOL IsWin32IOError(SCODE scode);
 inline bool SwallowUnhandledExceptions()
 {
     return (eHostDeterminedPolicy == GetEEPolicy()->GetUnhandledExceptionPolicy()) ||
-           g_pConfig->LegacyUnhandledExceptionPolicy() ||
-           GetCompatibilityFlag(compatSwallowUnhandledExceptions);
+           g_pConfig->LegacyUnhandledExceptionPolicy();
 }
 
 // Enums
@@ -242,7 +241,8 @@ void STDMETHODCALLTYPE DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionInfo,
                                            BOOL useLastThrownObject = FALSE,
                                            BOOL isTerminating = FALSE,
                                            BOOL isThreadBaseFilter = FALSE,
-                                           BOOL sendAppDomainEvents = TRUE);
+                                           BOOL sendAppDomainEvents = TRUE,
+                                           BOOL sendWindowsEventLog = FALSE);
 
 void ReplaceExceptionContextRecord(T_CONTEXT *pTarget, T_CONTEXT *pSource);
 

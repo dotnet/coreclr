@@ -46,7 +46,6 @@
 
 #ifdef FEATURE_COMINTEROP
 #include "comtoclrcall.h"
-#include "sxshelpers.h"
 #include "runtimecallablewrapper.h"
 #include "mngstdinterfaces.h"
 #include "olevariant.h"
@@ -64,8 +63,6 @@
 
 #include "nativeoverlapped.h"
 
-#include "compatibilityflags.h"
-
 #ifndef FEATURE_PAL
 #include "dwreport.h"
 #endif // !FEATURE_PAL
@@ -76,14 +73,6 @@
 
 
 #include "clrprivtypecachewinrt.h"
-
-
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
-#pragma warning(push)
-#pragma warning(disable:4324) 
-#include "marvin32.h"
-#pragma warning(pop)
-#endif
 
 // this file handles string conversion errors for itself
 #undef  MAKE_TRANSLATIONFAILED
@@ -709,10 +698,6 @@ OBJECTHANDLE ThreadStaticHandleTable::AllocateHandles(DWORD nRequested)
 //*****************************************************************************
 void BaseDomain::Attach()
 {
-#ifdef  FEATURE_RANDOMIZED_STRING_HASHING
-    // Randomized string hashing is on by default for String.GetHashCode in coreclr.
-    COMNlsHashProvider::s_NlsHashProvider.SetUseRandomHashing((CorHost2::GetStartupFlags() & STARTUP_DISABLE_RANDOMIZED_STRING_HASHING) == 0);
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
     m_SpecialStaticsCrst.Init(CrstSpecialStatics);
 }
 
@@ -2068,8 +2053,6 @@ BOOL AppDomain::GetPreferComInsteadOfManagedRemoting()
     return (GetComOrRemotingFlag() == COMorRemoting_COM);
 }
 
-STDAPI GetXMLObjectEx(IXMLParser **ppv);
-
 COMorRemotingFlag AppDomain::GetPreferComInsteadOfManagedRemotingFromConfigFile()
 {
     CONTRACTL
@@ -2303,9 +2286,6 @@ void SystemDomain::PreallocateSpecialObjects()
     _ASSERTE(g_pPreallocatedSentinelObject == NULL);
 
     OBJECTREF pPreallocatedSentinalObject = AllocateObject(g_pObjectClass);
-#if CHECK_APP_DOMAIN_LEAKS
-    pPreallocatedSentinalObject->SetSyncBlockAppDomainAgile();
-#endif
     g_pPreallocatedSentinelObject = CreatePinningHandle( pPreallocatedSentinalObject );
 
 #ifdef FEATURE_PREJIT
@@ -2357,9 +2337,6 @@ void SystemDomain::CreatePreallocatedExceptions()
 
 
     EXCEPTIONREF pRudeAbortException = (EXCEPTIONREF)AllocateObject(g_pThreadAbortExceptionClass);
-#if CHECK_APP_DOMAIN_LEAKS
-    pRudeAbortException->SetSyncBlockAppDomainAgile();
-#endif
     pRudeAbortException->SetHResult(COR_E_THREADABORTED);
     pRudeAbortException->SetXCode(EXCEPTION_COMPLUS);
     _ASSERTE(g_pPreallocatedRudeThreadAbortException == NULL);
@@ -2367,9 +2344,6 @@ void SystemDomain::CreatePreallocatedExceptions()
 
 
     EXCEPTIONREF pAbortException = (EXCEPTIONREF)AllocateObject(g_pThreadAbortExceptionClass);
-#if CHECK_APP_DOMAIN_LEAKS
-    pAbortException->SetSyncBlockAppDomainAgile();
-#endif
     pAbortException->SetHResult(COR_E_THREADABORTED);
     pAbortException->SetXCode(EXCEPTION_COMPLUS);
     _ASSERTE(g_pPreallocatedThreadAbortException == NULL);
@@ -2410,10 +2384,6 @@ void SystemDomain::Init()
 #endif
     _ASSERTE(curCtx);
     _ASSERTE(curCtx->GetDomain() != NULL);
-#endif
-
-#ifdef _DEBUG
-    g_fVerifierOff = g_pConfig->IsVerifierOff();
 #endif
 
 #ifdef FEATURE_PREJIT
@@ -3096,38 +3066,9 @@ Thread::ApartmentState SystemDomain::GetEntryPointThreadAptState(IMDInternalImpo
     return Thread::AS_Unknown;
 }
 
-void SystemDomain::SetThreadAptState (IMDInternalImport* pScope, Thread::ApartmentState state)
+void SystemDomain::SetThreadAptState (Thread::ApartmentState state)
 {
     STANDARD_VM_CONTRACT;
-
-    BOOL fIsLegacy = FALSE;
-
-    // Check for legacy behavior regarding COM Apartment state of the main thread.
-
-#define METAMODEL_MAJOR_VER_WITH_NEW_BEHAVIOR 2
-#define METAMODEL_MINOR_VER_WITH_NEW_BEHAVIOR 0
-
-    LPCSTR pVer;
-    IfFailThrow(pScope->GetVersionString(&pVer));
-    
-    // Does this look like a version?
-    if (pVer != NULL)
-    {
-        // Is it 'vN.' where N is a digit?
-        if ((pVer[0] == 'v' || pVer[0] == 'V') &&
-            IS_DIGIT(pVer[1]) &&
-            (pVer[2] == '.') )
-        {
-            // Looks like a version.  Is it lesser than v2.0 major version where we start using new behavior?
-            fIsLegacy = DIGIT_TO_INT(pVer[1]) < METAMODEL_MAJOR_VER_WITH_NEW_BEHAVIOR;
-        }
-    }
-
-    if (!fIsLegacy && g_pConfig != NULL)
-    {
-        fIsLegacy = g_pConfig->LegacyApartmentInitPolicy();
-    }
-
 
     Thread* pThread = GetThread();
     _ASSERTE(pThread);
@@ -3137,14 +3078,8 @@ void SystemDomain::SetThreadAptState (IMDInternalImport* pScope, Thread::Apartme
         Thread::ApartmentState pState = pThread->SetApartment(Thread::AS_InSTA, TRUE);
         _ASSERTE(pState == Thread::AS_InSTA);
     }
-    else if ((state == Thread::AS_InMTA) || (!fIsLegacy))
+    else if (state == Thread::AS_InMTA)
     {
-        // If either MTAThreadAttribute is specified or (if no attribute is specified and we are not
-        // running in legacy mode), then
-        // we will set the apartment state to MTA. The reason for this is to ensure the apartment
-        // state is consistent and reliably set. Without this, the apartment state for the main
-        // thread would be undefined and would actually be dependent on if the assembly was
-        // ngen'd, which other type were loaded, etc.
         Thread::ApartmentState pState = pThread->SetApartment(Thread::AS_InMTA, TRUE);
         _ASSERTE(pState == Thread::AS_InMTA);
     }
@@ -6437,22 +6372,6 @@ PVOID AppDomain::GetFriendlyNameNoSet(bool* isUtf8)
 
 #endif // DACCESS_COMPILE
 
-void AppDomain::CacheStringsForDAC()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    //
-    // If the application base, private bin paths, and configuration file are
-    // available, cache them so DAC can read them out of memory
-    //
-}
-
 #ifndef DACCESS_COMPILE
 
 BOOL AppDomain::AddFileToCache(AssemblySpec* pSpec, PEAssembly *pFile, BOOL fAllowFailure)
@@ -7709,8 +7628,6 @@ void AppDomain::InitializeDomainContext(BOOL allowRedirects,
         setupDomain.Call(args);
     }
     GCPROTECT_END();
-
-    CacheStringsForDAC();
 #endif // CROSSGEN_COMPILE
 }
 
@@ -8103,7 +8020,7 @@ void AppDomain::Exit(BOOL fRunFinalizers, BOOL fAsyncExit)
     // have exited the domain.
     //
 #ifdef FEATURE_TIERED_COMPILATION
-    m_tieredCompilationManager.Shutdown(FALSE);
+    m_tieredCompilationManager.Shutdown();
 #endif
 
     //
@@ -8268,12 +8185,6 @@ void AppDomain::Close()
     LOG((LF_APPDOMAIN | LF_CORDB, LL_INFO10, "AppDomain::Domain [%d] %#08x %ls is collected.\n",
          GetId().m_dwId, this, GetFriendlyNameForLogging()));
 
-
-#if CHECK_APP_DOMAIN_LEAKS
-    if (g_pConfig->AppDomainLeaks())
-        // at this point shouldn't have any non-agile objects in the heap because we finalized all the non-agile ones.
-        SyncBlockCache::GetSyncBlockCache()->CheckForUnloadedInstances(GetIndex());
-#endif // CHECK_APP_DOMAIN_LEAKS
     {
         GCX_PREEMP();
         RemoveMemoryPressure();
@@ -9086,7 +8997,43 @@ void AppDomain::HandleAsyncPinHandles()
     // 4. Then we can delete all AsyncPinHandle marked with READYTOCLEAN.
     IGCHandleStore *pBucketInDefault = SystemDomain::System()->DefaultDomain()->m_handleStore;
 
-    pBucket->RelocateAsyncPinnedHandles(pBucketInDefault);
+    auto clearIfComplete = [](Object* object)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        assert(object != nullptr);
+        if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
+        {
+            return;
+        }
+
+        OVERLAPPEDDATAREF overlapped = (OVERLAPPEDDATAREF)(ObjectToOBJECTREF((Object*)object));
+        if (overlapped->HasCompleted())
+        {
+            // IO has finished.  We don't need to pin the user buffer any longer.
+            overlapped->m_userObject = NULL;
+        }
+
+        BashMTForPinnedObject(ObjectToOBJECTREF(object));
+    };
+
+    auto setHandle = [](Object* object, OBJECTHANDLE handle)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        assert(object != nullptr);
+        assert(handle);
+
+        if (object->GetGCSafeMethodTable() != g_pOverlappedDataClass)
+        {
+            return;
+        }
+
+        OverlappedDataObject* overlapped = (OverlappedDataObject*)object;
+        overlapped->m_pinSelf = handle;
+    };
+
+    pBucket->RelocateAsyncPinnedHandles(pBucketInDefault, clearIfComplete, setHandle);
 
     OverlappedDataObject::RequestCleanup();
 }
@@ -10948,22 +10895,6 @@ PTR_MethodTable BaseDomain::LookupType(UINT32 id) {
     return pMT;
 }
 
-#ifndef DACCESS_COMPILE
-
-
-//------------------------------------------------------------------------
-BOOL GetCompatibilityFlag(CompatibilityFlag flag)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    } CONTRACTL_END;
-
-    return FALSE;
-}
-#endif // !DACCESS_COMPILE
-
 //---------------------------------------------------------------------------------------
 // 
 BOOL 
@@ -11920,20 +11851,4 @@ void ZapperSetBindingPaths(ICorCompilationDomain *pDomain, SString &trustedPlatf
 #endif
 }
 
-#endif
-
-#if !defined(CROSSGEN_COMPILE)
-bool IsSingleAppDomain()
-{
-    STARTUP_FLAGS flags = CorHost2::GetStartupFlags();
-    if(flags & STARTUP_SINGLE_APPDOMAIN)
-        return TRUE;
-    else
-        return FALSE;
-}
-#else
-bool IsSingleAppDomain()
-{
-    return FALSE;
-}
 #endif

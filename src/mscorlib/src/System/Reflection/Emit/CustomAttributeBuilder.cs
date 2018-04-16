@@ -21,7 +21,6 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Reflection.Emit
 {
@@ -121,7 +120,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Arg_ArrayLengthsDiffer, "namedProperties, propertyValues");
             if (namedFields.Length != fieldValues.Length)
                 throw new ArgumentException(SR.Arg_ArrayLengthsDiffer, "namedFields, fieldValues");
-            Contract.EndContractBlock();
 
             if ((con.Attributes & MethodAttributes.Static) == MethodAttributes.Static ||
                 (con.Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
@@ -303,7 +301,7 @@ namespace System.Reflection.Emit
             }
             if (passedType == typeof(IntPtr) || passedType == typeof(UIntPtr))
             {
-                throw new ArgumentException(SR.Argument_BadParameterTypeForCAB, paramName);
+                throw new ArgumentException(SR.Format(SR.Argument_BadParameterTypeForCAB, passedType.ToString()), paramName);
             }
         }
 
@@ -350,7 +348,7 @@ namespace System.Reflection.Emit
                         writer.Write((byte)CustomAttributeEncoding.Double);
                         break;
                     default:
-                        Debug.Assert(false, "Invalid primitive type");
+                        Debug.Fail("Invalid primitive type");
                         break;
                 }
             }
@@ -434,7 +432,7 @@ namespace System.Reflection.Emit
                         writer.Write((ulong)value);
                         break;
                     default:
-                        Debug.Assert(false, "Invalid enum base type");
+                        Debug.Fail("Invalid enum base type");
                         break;
                 }
             }
@@ -511,7 +509,7 @@ namespace System.Reflection.Emit
                         writer.Write((double)value);
                         break;
                     default:
-                        Debug.Assert(false, "Invalid primitive type");
+                        Debug.Fail("Invalid primitive type");
                         break;
                 }
             }

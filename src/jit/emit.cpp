@@ -92,7 +92,7 @@ const char* emitter::emitIfName(unsigned f)
 
     static char errBuff[32];
 
-    if (f < sizeof(ifNames) / sizeof(*ifNames))
+    if (f < _countof(ifNames))
     {
         return ifNames[f];
     }
@@ -257,13 +257,13 @@ static unsigned totActualSize;
 unsigned emitter::emitIFcounts[emitter::IF_COUNT];
 
 static unsigned  emitSizeBuckets[] = {100, 1024 * 1, 1024 * 2, 1024 * 3, 1024 * 4, 1024 * 5, 1024 * 10, 0};
-static Histogram emitSizeTable(HostAllocator::getHostAllocator(), emitSizeBuckets);
+static Histogram emitSizeTable(emitSizeBuckets);
 
 static unsigned  GCrefsBuckets[] = {0, 1, 2, 5, 10, 20, 50, 128, 256, 512, 1024, 0};
-static Histogram GCrefsTable(HostAllocator::getHostAllocator(), GCrefsBuckets);
+static Histogram GCrefsTable(GCrefsBuckets);
 
 static unsigned  stkDepthBuckets[] = {0, 1, 2, 5, 10, 16, 32, 128, 1024, 0};
-static Histogram stkDepthTable(HostAllocator::getHostAllocator(), stkDepthBuckets);
+static Histogram stkDepthTable(stkDepthBuckets);
 
 size_t emitter::emitSizeMethod;
 
@@ -1337,7 +1337,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     emitInsCount++;
 
-#if defined(DEBUG) || defined(LATE_DISASM)
+#if defined(DEBUG)
     /* In debug mode we clear/set some additional fields */
 
     instrDescDebugInfo* info = (instrDescDebugInfo*)emitGetMem(sizeof(*info));
@@ -1346,7 +1346,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
     info->idSize       = sz;
     info->idVarRefOffs = 0;
     info->idMemCookie  = 0;
-    info->idClsCookie  = nullptr;
 #ifdef TRANSLATE_PDB
     info->idilStart = emitInstrDescILBase;
 #endif
@@ -1356,7 +1355,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     id->idDebugOnlyInfo(info);
 
-#endif // defined(DEBUG) || defined(LATE_DISASM)
+#endif // defined(DEBUG)
 
     /* Store the size and handle the two special values
        that indicate GCref and ByRef */
@@ -1472,8 +1471,8 @@ void emitter::emitBegProlog()
     /* Nothing is live on entry to the prolog */
 
     // These were initialized to Empty at the start of compilation.
-    VarSetOps::OldStyleClearD(emitComp, emitInitGCrefVars);
-    VarSetOps::OldStyleClearD(emitComp, emitPrevGCrefVars);
+    VarSetOps::ClearD(emitComp, emitInitGCrefVars);
+    VarSetOps::ClearD(emitComp, emitPrevGCrefVars);
     emitInitGCrefRegs = RBM_NONE;
     emitPrevGCrefRegs = RBM_NONE;
     emitInitByrefRegs = RBM_NONE;
@@ -1521,10 +1520,6 @@ void emitter::emitMarkPrologEnd()
 void emitter::emitEndProlog()
 {
     assert(emitComp->compGeneratingProlog);
-
-    size_t prolSz;
-
-    insGroup* tempIG;
 
     emitNoGCIG = false;
 
@@ -2134,7 +2129,7 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
 
     if (emitComp->verbose)
     {
-        unsigned count = (offsHi - offsLo) / sizeof(void*);
+        unsigned count = (offsHi - offsLo) / TARGET_POINTER_SIZE;
         printf("%u tracked GC refs are at stack offsets ", count);
 
         if (offsLo >= 0)
@@ -2169,13 +2164,13 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
 
 #endif // DEBUG
 
-    assert(((offsHi - offsLo) % sizeof(void*)) == 0);
-    assert((offsLo % sizeof(void*)) == 0);
-    assert((offsHi % sizeof(void*)) == 0);
+    assert(((offsHi - offsLo) % TARGET_POINTER_SIZE) == 0);
+    assert((offsLo % TARGET_POINTER_SIZE) == 0);
+    assert((offsHi % TARGET_POINTER_SIZE) == 0);
 
     emitGCrFrameOffsMin = offsLo;
     emitGCrFrameOffsMax = offsHi;
-    emitGCrFrameOffsCnt = (offsHi - offsLo) / sizeof(void*);
+    emitGCrFrameOffsCnt = (offsHi - offsLo) / TARGET_POINTER_SIZE;
 }
 
 /*****************************************************************************
@@ -2340,14 +2335,11 @@ bool emitter::emitNoGChelper(unsigned IHX)
 #endif
 
         case CORINFO_HELP_ASSIGN_REF:
-
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
+        case CORINFO_HELP_ASSIGN_BYREF:
 
         case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_NOCTOR:
-
         case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR:
-
-        case CORINFO_HELP_ASSIGN_BYREF:
 
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
 
@@ -2852,7 +2844,7 @@ void emitter::emitDispVarSet()
     int      of;
     bool     sp = false;
 
-    for (vn = 0, of = emitGCrFrameOffsMin; vn < emitGCrFrameOffsCnt; vn += 1, of += sizeof(void*))
+    for (vn = 0, of = emitGCrFrameOffsMin; vn < emitGCrFrameOffsCnt; vn += 1, of += TARGET_POINTER_SIZE)
     {
         if (emitGCrFrameLiveTab[vn])
         {
@@ -3123,7 +3115,7 @@ const BYTE emitter::emitFmtToOps[] = {
 };
 
 #ifdef DEBUG
-const unsigned emitter::emitFmtCount = sizeof(emitFmtToOps) / sizeof(emitFmtToOps[0]);
+const unsigned emitter::emitFmtCount = _countof(emitFmtToOps);
 #endif
 
 /*****************************************************************************
@@ -3646,19 +3638,17 @@ AGAIN:
 
         if (emitIsCondJump(jmp))
         {
-            ssz = JCC_SIZE_SMALL;
-            nsd = JCC_DIST_SMALL_MAX_NEG;
-            psd = JCC_DIST_SMALL_MAX_POS;
+            ssz         = JCC_SIZE_SMALL;
+            bool isTest = (jmp->idIns() == INS_tbz) || (jmp->idIns() == INS_tbnz);
+
+            nsd = (isTest) ? TB_DIST_SMALL_MAX_NEG : JCC_DIST_SMALL_MAX_NEG;
+            psd = (isTest) ? TB_DIST_SMALL_MAX_POS : JCC_DIST_SMALL_MAX_POS;
         }
         else if (emitIsUncondJump(jmp))
         {
             // Nothing to do; we don't shrink these.
             assert(jmp->idjShort);
             ssz = JMP_SIZE_SMALL;
-        }
-        else if (emitIsCmpJump(jmp))
-        {
-            NYI("branch shortening compare-and-branch instructions");
         }
         else if (emitIsLoadLabel(jmp))
         {
@@ -4535,7 +4525,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     UNATIVE_OFFSET roDataAlignmentDelta = 0;
     if (emitConsDsc.dsdOffs)
     {
-        UNATIVE_OFFSET roDataAlignment = sizeof(void*); // 8 Byte align by default.
+        UNATIVE_OFFSET roDataAlignment = TARGET_POINTER_SIZE; // 8 Byte align by default.
         roDataAlignmentDelta = (UNATIVE_OFFSET)ALIGN_UP(emitTotalHotCodeSize, roDataAlignment) - emitTotalHotCodeSize;
         assert((roDataAlignmentDelta == 0) || (roDataAlignmentDelta == 4));
     }
@@ -4567,7 +4557,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     /* Assume no live GC ref variables on entry */
 
-    VarSetOps::OldStyleClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
+    VarSetOps::ClearD(emitComp, emitThisGCrefVars); // This is initialized to Empty at the start of codegen.
     emitThisGCrefRegs = emitThisByrefRegs = RBM_NONE;
     emitThisGCrefVset                     = true;
 
@@ -4932,7 +4922,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         varPtrDsc** dp;
 
         for (vn = 0, of = emitGCrFrameOffsMin, dp = emitGCrFrameLiveTab; vn < emitGCrFrameOffsCnt;
-             vn++, of += sizeof(void*), dp++)
+             vn++, of += TARGET_POINTER_SIZE, dp++)
         {
             if (*dp)
             {
@@ -5370,6 +5360,69 @@ UNATIVE_OFFSET emitter::emitDataConst(const void* cnsAddr, unsigned cnsSize, boo
     return cnum;
 }
 
+#ifndef LEGACY_BACKEND
+
+//------------------------------------------------------------------------
+// emitAnyConst: Create a data section constant of arbitrary size.
+//
+// Arguments:
+//    cnsAddr  - pointer to the data to be placed in the data section
+//    cnsSize  - size of the data
+//    dblAlign - whether to align the data section to an 8 byte boundary
+//
+// Return Value:
+//    A field handle representing the data offset to access the constant.
+//
+CORINFO_FIELD_HANDLE emitter::emitAnyConst(const void* cnsAddr, unsigned cnsSize, bool dblAlign)
+{
+    UNATIVE_OFFSET cnum = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+
+//------------------------------------------------------------------------
+// emitFltOrDblConst: Create a float or double data section constant.
+//
+// Arguments:
+//    constValue - constant value
+//    attr       - constant size
+//
+// Return Value:
+//    A field handle representing the data offset to access the constant.
+//
+// Notes:
+//    If attr is EA_4BYTE then the double value is converted to a float value.
+//    If attr is EA_8BYTE then 8 byte alignment is automatically requested.
+//
+CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(double constValue, emitAttr attr)
+{
+    assert((attr == EA_4BYTE) || (attr == EA_8BYTE));
+
+    void* cnsAddr;
+    float f;
+    bool  dblAlign;
+
+    if (attr == EA_4BYTE)
+    {
+        f        = forceCastToFloat(constValue);
+        cnsAddr  = &f;
+        dblAlign = false;
+    }
+    else
+    {
+        cnsAddr  = &constValue;
+        dblAlign = true;
+    }
+
+    // Access to inline data is 'abstracted' by a special type of static member
+    // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
+    // to constant data, not a real static field.
+
+    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+#endif
+
 /*****************************************************************************
  *
  *  Output the given data section at the specified address.
@@ -5403,9 +5456,9 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
         {
             JITDUMP("  section %u, size %u, block absolute addr\n", secNum++, dscSize);
 
-            assert(dscSize && dscSize % sizeof(BasicBlock*) == 0);
-            size_t numElems = dscSize / TARGET_POINTER_SIZE;
-            BYTE** bDst     = (BYTE**)dst;
+            assert(dscSize && dscSize % TARGET_POINTER_SIZE == 0);
+            size_t         numElems = dscSize / TARGET_POINTER_SIZE;
+            target_size_t* bDst     = (target_size_t*)dst;
             for (unsigned i = 0; i < numElems; i++)
             {
                 BasicBlock* block = ((BasicBlock**)dsc->dsCont)[i];
@@ -5419,7 +5472,7 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
 #ifdef _TARGET_ARM_
                 target = (BYTE*)((size_t)target | 1); // Or in thumb bit
 #endif
-                bDst[i] = target;
+                bDst[i] = (target_size_t)target;
                 if (emitComp->opts.compReloc)
                 {
                     emitRecordRelocation(&(bDst[i]), target, IMAGE_REL_BASED_HIGHLOW);
@@ -5492,14 +5545,14 @@ void emitter::emitGCvarLiveSet(int offs, GCtype gcType, BYTE* addr, ssize_t disp
 
     varPtrDsc* desc;
 
-    assert((abs(offs) % sizeof(ssize_t)) == 0);
+    assert((abs(offs) % TARGET_POINTER_SIZE) == 0);
     assert(needsGC(gcType));
 
     /* Compute the index into the GC frame table if the caller didn't do it */
 
     if (disp == -1)
     {
-        disp = (offs - emitGCrFrameOffsMin) / sizeof(void*);
+        disp = (offs - emitGCrFrameOffsMin) / TARGET_POINTER_SIZE;
     }
 
     assert((size_t)disp < emitGCrFrameOffsCnt);
@@ -5589,7 +5642,7 @@ void emitter::emitGCvarDeadSet(int offs, BYTE* addr, ssize_t disp)
 
     if (disp == -1)
     {
-        disp = (offs - emitGCrFrameOffsMin) / sizeof(void*);
+        disp = (offs - emitGCrFrameOffsMin) / TARGET_POINTER_SIZE;
     }
 
     assert((unsigned)disp < emitGCrFrameOffsCnt);
@@ -5842,7 +5895,7 @@ void emitter::emitRecordGCcall(BYTE* codePos, unsigned char callInstrSize)
 
             if (needsGC(gcType))
             {
-                call->cdArgTable[gcArgs] = i * sizeof(void*);
+                call->cdArgTable[gcArgs] = i * TARGET_POINTER_SIZE;
 
                 if (gcType == GCT_BYREF)
                 {
@@ -6088,7 +6141,7 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, ssize_t val)
     }
 #endif // DEBUG
 
-    return sizeof(size_t);
+    return TARGET_POINTER_SIZE;
 }
 
 //------------------------------------------------------------------------
@@ -6472,7 +6525,7 @@ void emitter::emitGCvarLiveUpd(int offs, int varNum, GCtype gcType, BYTE* addr)
 
             /* Compute the index into the GC frame table */
 
-            disp = (offs - emitGCrFrameOffsMin) / sizeof(void*);
+            disp = (offs - emitGCrFrameOffsMin) / TARGET_POINTER_SIZE;
             assert(disp < emitGCrFrameOffsCnt);
 
             /* If the variable is currently dead, mark it as live */
@@ -6503,7 +6556,7 @@ void emitter::emitGCvarDeadUpd(int offs, BYTE* addr)
 
         /* Compute the index into the GC frame table */
 
-        disp = (offs - emitGCrFrameOffsMin) / sizeof(void*);
+        disp = (offs - emitGCrFrameOffsMin) / TARGET_POINTER_SIZE;
         assert(disp < emitGCrFrameOffsCnt);
 
         /* If the variable is currently live, mark it as dead */
@@ -7197,7 +7250,6 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
     char*           retbuf;
 
     insGroup*      ig;
-    UNATIVE_OFFSET of;
     UNATIVE_OFFSET nextof = 0;
 
     for (ig = emitIGlist; ig != nullptr; ig = ig->igNext)

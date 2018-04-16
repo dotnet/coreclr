@@ -42,8 +42,8 @@ private:
     static void UnionDLong(Env env, BitSetShortLongRep& bs1, BitSetShortLongRep bs2);
     static void DiffDLong(Env env, BitSetShortLongRep& bs1, BitSetShortLongRep bs2);
     static void AddElemDLong(Env env, BitSetShortLongRep& bs, unsigned i);
+    static bool TryAddElemDLong(Env env, BitSetShortLongRep& bs, unsigned i);
     static void RemoveElemDLong(Env env, BitSetShortLongRep& bs, unsigned i);
-    static void OldStyleClearDLong(Env env, BitSetShortLongRep& bs);
     static void ClearDLong(Env env, BitSetShortLongRep& bs);
     static BitSetShortLongRep MakeUninitArrayBits(Env env);
     static BitSetShortLongRep MakeEmptyArrayBits(Env env);
@@ -121,19 +121,6 @@ public:
     static void AssignNoCopy(Env env, BitSetShortLongRep& lhs, BitSetShortLongRep rhs)
     {
         lhs = rhs;
-    }
-
-    static void OldStyleClearD(Env env, BitSetShortLongRep& bs)
-    {
-        if (IsShort(env))
-        {
-            bs = (BitSetShortLongRep) nullptr;
-        }
-        else
-        {
-            assert(bs != UninitVal());
-            OldStyleClearDLong(env, bs);
-        }
     }
 
     static void ClearD(Env env, BitSetShortLongRep& bs)
@@ -288,6 +275,23 @@ public:
         BitSetShortLongRep res = MakeCopy(env, bs);
         AddElemD(env, res, i);
         return res;
+    }
+
+    static bool TryAddElemD(Env env, BitSetShortLongRep& bs, unsigned i)
+    {
+        assert(i < BitSetTraits::GetSize(env));
+        if (IsShort(env))
+        {
+            size_t mask  = ((size_t)1) << i;
+            size_t bits  = (size_t)bs;
+            bool   added = (bits & mask) == 0;
+            bs           = (BitSetShortLongRep)(bits | mask);
+            return added;
+        }
+        else
+        {
+            return TryAddElemDLong(env, bs, i);
+        }
     }
 
     static bool IsMember(Env env, const BitSetShortLongRep bs, unsigned i)
@@ -659,6 +663,21 @@ void BitSetOps</*BitSetType*/ BitSetShortLongRep,
 }
 
 template <typename Env, typename BitSetTraits>
+bool BitSetOps</*BitSetType*/ BitSetShortLongRep,
+               /*Brand*/ BSShortLong,
+               /*Env*/ Env,
+               /*BitSetTraits*/ BitSetTraits>::TryAddElemDLong(Env env, BitSetShortLongRep& bs, unsigned i)
+{
+    assert(!IsShort(env));
+    unsigned index = i / BitsInSizeT;
+    size_t   mask  = ((size_t)1) << (i % BitsInSizeT);
+    size_t   bits  = bs[index];
+    bool     added = (bits & mask) == 0;
+    bs[index]      = bits | mask;
+    return added;
+}
+
+template <typename Env, typename BitSetTraits>
 void BitSetOps</*BitSetType*/ BitSetShortLongRep,
                /*Brand*/ BSShortLong,
                /*Env*/ Env,
@@ -669,18 +688,6 @@ void BitSetOps</*BitSetType*/ BitSetShortLongRep,
     size_t   mask  = ((size_t)1) << (i % BitsInSizeT);
     mask           = ~mask;
     bs[index] &= mask;
-}
-
-template <typename Env, typename BitSetTraits>
-void BitSetOps</*BitSetType*/ BitSetShortLongRep,
-               /*Brand*/ BSShortLong,
-               /*Env*/ Env,
-               /*BitSetTraits*/ BitSetTraits>::OldStyleClearDLong(Env env, BitSetShortLongRep& bs)
-{
-    assert(!IsShort(env));
-    // Recall that OldStyleClearD does *not* require "bs" to be of the current epoch.
-    // Therefore, we must allocate a new representation.
-    bs = MakeEmptyArrayBits(env);
 }
 
 template <typename Env, typename BitSetTraits>

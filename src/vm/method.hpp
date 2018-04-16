@@ -284,7 +284,7 @@ public:
         }
         CONTRACTL_END
 
-        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub();
+        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub() || IsVersionableWithPrecode();
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -704,7 +704,6 @@ public:
         InterlockedUpdateFlags(mdcNotInline, set);
     }
 
-
     BOOL IsIntrospectionOnly();
 #ifndef DACCESS_COMPILE
     VOID EnsureActive();
@@ -1006,6 +1005,18 @@ public:
             && GetSlot() < pMT->GetNumVirtuals();
     }
 
+    // Is this a default interface method (virtual non-abstract instance method)
+    inline BOOL IsDefaultInterfaceMethod()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+        return (GetMethodTable()->IsInterface() && !IsStatic() && IsVirtual() && !IsAbstract());
+#else
+        return false;
+#endif // FEATURE_DEFAULT_INTERFACES
+    }
+
     inline BOOL HasNonVtableSlot();
 
     void SetHasNonVtableSlot()
@@ -1232,11 +1243,6 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        // This policy will need to change some more before tiered compilation feature
-        // can be properly supported across a broad range of scenarios. For instance it 
-        // wouldn't interact correctly with debugging at the moment because we enable
-        // it too aggresively and it conflicts with the operations of those features.
-
         // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         // to ensure native slots are available where needed.
         return g_pConfig->TieredCompilation() &&
@@ -1244,10 +1250,11 @@ public:
             !IsEnCMethod() &&
             HasNativeCodeSlot() &&
             !IsUnboxingStub() &&
-            !IsInstantiatingStub();
-
-        // We should add an exclusion for modules with debuggable code gen flags
-
+            !IsInstantiatingStub() &&
+            !IsDynamicMethod() &&
+            !GetLoaderAllocator()->IsCollectible() &&
+            !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
+            !CORProfilerDisableTieredCompilation();
     }
 #endif
 
@@ -1690,7 +1697,8 @@ protected:
         enum_flag2_IsUnboxingStub           = 0x04,
         enum_flag2_HasNativeCodeSlot        = 0x08,   // Has slot for native code
 
-        // unused                           = 0x10,
+        enum_flag2_IsJitIntrinsic           = 0x10,   // Jit may expand method as an intrinsic
+
         // unused                           = 0x20,
         // unused                           = 0x40,
         // unused                           = 0x80, 
@@ -1741,6 +1749,18 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         m_bFlags2 |= enum_flag2_HasNativeCodeSlot;
+    }
+
+    inline BOOL IsJitIntrinsic()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return (m_bFlags2 & enum_flag2_IsJitIntrinsic) != 0;
+    }
+
+    inline void SetIsJitIntrinsic()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_bFlags2 |= enum_flag2_IsJitIntrinsic;
     }
 
     static const SIZE_T s_ClassificationSizeTable[];
@@ -1846,8 +1866,8 @@ public:
 private:
     PCODE PrepareILBasedCode(PrepareCodeConfig* pConfig);
     PCODE GetPrecompiledCode(PrepareCodeConfig* pConfig);
-    PCODE GetPrecompiledNgenCode();
-    PCODE GetPrecompiledR2RCode();
+    PCODE GetPrecompiledNgenCode(PrepareCodeConfig* pConfig);
+    PCODE GetPrecompiledR2RCode(PrepareCodeConfig* pConfig);
     PCODE GetMulticoreJitCode();
     COR_ILMETHOD_DECODER* GetAndVerifyILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
     COR_ILMETHOD_DECODER* GetAndVerifyMetadataILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
@@ -1872,12 +1892,18 @@ public:
     virtual BOOL SetNativeCode(PCODE pCode, PCODE * ppAlternateCodeToUse);
     virtual COR_ILMETHOD* GetILHeader();
     virtual CORJIT_FLAGS GetJitCompilationFlags();
+    BOOL ProfilerRejectedPrecompiledCode();
+    BOOL ReadyToRunRejectedPrecompiledCode();
+    void SetProfilerRejectedPrecompiledCode();
+    void SetReadyToRunRejectedPrecompiledCode();
     
 protected:
     MethodDesc* m_pMethodDesc;
     NativeCodeVersion m_nativeCodeVersion;
     BOOL m_needsMulticoreJitNotification;
     BOOL m_mayUsePrecompiledCode;
+    BOOL m_ProfilerRejectedPrecompiledCode;
+    BOOL m_ReadyToRunRejectedPrecompiledCode;
 };
 
 #ifdef FEATURE_CODE_VERSIONING

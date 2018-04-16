@@ -24,7 +24,6 @@ set(MCS_SOURCES
     verbinteg.cpp
     verbmerge.cpp
     verbremovedup.cpp
-    verbsmarty.cpp
     verbstat.cpp
     verbstrip.cpp
     verbtoc.cpp
@@ -50,7 +49,7 @@ add_precompiled_header(
     MCS_SOURCES
 )
 
-add_executable(mcs
+_add_executable(mcs
     ${MCS_SOURCES}
 )
 
@@ -68,7 +67,7 @@ else()
         ${STATIC_MT_CPP_LIB}
     )
 
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mcs.pdb DESTINATION PDB)
+    _install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mcs.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS mcs DESTINATION .)
+_install (TARGETS mcs DESTINATION .)

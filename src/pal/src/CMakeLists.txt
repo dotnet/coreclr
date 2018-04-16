@@ -1,6 +1,22 @@
 cmake_minimum_required(VERSION 2.8.12.2)
 
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  # On OSX, we use the libunwind that's part of the OS
+  set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
+endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+
 include_directories(SYSTEM /usr/local/include)
+
+add_compile_options(-fPIC)
+
+if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+  include_directories(libunwind/include)
+  include_directories(libunwind/include/tdep)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/libunwind/include)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/libunwind/include/tdep)
+
+  add_subdirectory(libunwind)
+endif(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
 
 include(configure.cmake)
 
@@ -101,12 +117,13 @@ endif(PAL_CMAKE_PLATFORM_ARCH_AMD64 AND CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT
 if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
   # Setting RLIMIT_NOFILE breaks debugging of coreclr on Alpine Linux for some reason
   add_definitions(-DDONT_SET_RLIMIT_NOFILE)
+  # On Alpine Linux, we need to ensure that the reported stack range for the primary thread is
+  # larger than the initial committed stack size.
+  add_definitions(-DENSURE_PRIMARY_STACK_SIZE)
 endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
 
 # turn off capability to remove unused functions (which was enabled in debug build with sanitizers)
 set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no-gc-sections")
-
-add_compile_options(-fPIC)
 
 set(ARCH_SOURCES
   arch/${PAL_ARCH_SOURCES_DIR}/context2.S
@@ -149,12 +166,10 @@ set(SOURCES
   exception/signal.cpp
   exception/remote-unwind.cpp
   file/directory.cpp
-  file/disk.cpp
   file/file.cpp
   file/filetime.cpp
   file/find.cpp
   file/path.cpp
-  file/shmfilelockmgr.cpp
   handlemgr/handleapi.cpp
   handlemgr/handlemgr.cpp
   init/pal.cpp
@@ -175,11 +190,13 @@ set(SOURCES
   misc/error.cpp
   misc/errorstrings.cpp
   misc/fmtmessage.cpp
+  misc/jitsupport.cpp
   misc/miscpalapi.cpp
   misc/msgbox.cpp
   misc/strutil.cpp
   misc/sysinfo.cpp
   misc/time.cpp
+  misc/tracepointprovider.cpp
   misc/utils.cpp
   numa/numa.cpp
   objmgr/palobjbase.cpp
@@ -232,16 +249,16 @@ set(SOURCES
   thread/tls.cpp
 )
 
+if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+  set(LIBUNWIND_OBJECTS $<TARGET_OBJECTS:libunwind>)
+endif(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+
 add_library(coreclrpal
   STATIC
   ${SOURCES}
   ${ARCH_SOURCES}
   ${PLATFORM_SOURCES}
-)
-
-add_library(tracepointprovider
-  STATIC
-  misc/tracepointprovider.cpp
+  ${LIBUNWIND_OBJECTS}
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
@@ -258,7 +275,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  find_library(UNWIND unwind)
+  if(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+    find_library(UNWIND unwind)
+  endif()
   find_library(INTL intl)
   target_link_libraries(coreclrpal
     pthread
@@ -269,18 +288,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux)
-  if(PAL_CMAKE_PLATFORM_ARCH_ARM)
-    find_library(UNWIND_ARCH NAMES unwind-arm)
-  endif()
-
-  if(PAL_CMAKE_PLATFORM_ARCH_ARM64)
-    find_library(UNWIND_ARCH NAMES unwind-aarch64)
-  endif()
-
-  if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-    find_library(UNWIND_ARCH NAMES unwind-x86_64)
-  endif()
-
   if(CLR_CMAKE_PLATFORM_ALPINE_LINUX OR CLR_CMAKE_PLATFORM_ANDROID)
     find_library(INTL intl)
   endif()
@@ -308,22 +315,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
       ${LZMA})
   endif()
 
-  find_library(UNWIND NAMES unwind)
-
-  if(UNWIND STREQUAL UNWIND-NOTFOUND)
-    message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev and libunwind8.")
-  endif(UNWIND STREQUAL UNWIND-NOTFOUND)
-
-  target_link_libraries(coreclrpal ${UNWIND})
-
   if(CLR_MAKE_PLATFORM_ANDROID)
     find_library(ANDROID_SUPPORT NAMES android-support)
     find_library(ANDROID_GLOB NAMES android-glob)
     find_library(INTL NAMES intl)
-
-    if(UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
-      message(FATAL_ERROR "Cannot find libunwind.")
-    endif()
 
     if(ANDROID_SUPPORT STREQUAL ANDROID_SUPPORT-NOTFOUND)
       message(FATAL_ERROR "Cannot find android-support.")
@@ -338,30 +333,54 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     endif()
   endif()
 
-  find_library(UNWIND_GENERIC NAMES unwind-generic)
-
   target_link_libraries(coreclrpal
     dl
-    uuid
   )
-
-  if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
-    target_link_libraries(coreclrpal ${UNWIND_GENERIC})
-  endif(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
-
-  if(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
-    target_link_libraries(coreclrpal ${UNWIND_ARCH})
-  endif(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
 
   if(NOT INTL STREQUAL INTL-NOTFOUND)
     target_link_libraries(coreclrpal ${INTL})
   endif(NOT INTL STREQUAL INTL-NOTFOUND)
 
+  if(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+    if(PAL_CMAKE_PLATFORM_ARCH_ARM)
+      find_library(UNWIND_ARCH NAMES unwind-arm)
+    endif()
+
+    if(PAL_CMAKE_PLATFORM_ARCH_ARM64)
+      find_library(UNWIND_ARCH NAMES unwind-aarch64)
+    endif()
+
+    if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+      find_library(UNWIND_ARCH NAMES unwind-x86_64)
+    endif()
+
+    if(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+      target_link_libraries(coreclrpal ${UNWIND_ARCH})
+    endif()
+
+    find_library(UNWIND_GENERIC NAMES unwind-generic)
+
+    if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+      target_link_libraries(coreclrpal ${UNWIND_GENERIC})
+    endif()
+
+    find_library(UNWIND NAMES unwind)
+
+    if(UNWIND STREQUAL UNWIND-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev or libunwind-devel.")
+    endif()
+
+    target_link_libraries(coreclrpal ${UNWIND})
+
+  endif(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  if (CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+    find_library(UNWIND unwind)
+  endif()
   add_definitions(-D_KMEMUSER)
-  find_library(UNWIND unwind)
   find_library(INTL intl)
   find_library(KVM kvm)
   target_link_libraries(coreclrpal
@@ -373,16 +392,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 
-if(HAVE_NUMA_H)
-  target_link_libraries(coreclrpal
-    numa
-  )
-endif(HAVE_NUMA_H)
-
 add_subdirectory(examples)
 
 if(FEATURE_EVENT_TRACE)
-    add_subdirectory($ENV{__IntermediatesDir}/Generated/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
 endif(FEATURE_EVENT_TRACE)
 
 # Install the static PAL library for VS

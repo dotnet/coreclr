@@ -16,29 +16,30 @@ using System.Runtime.Serialization;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class RankException : SystemException
     {
         public RankException()
             : base(SR.Arg_RankException)
         {
-            HResult = __HResults.COR_E_RANK;
+            HResult = HResults.COR_E_RANK;
         }
 
         public RankException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_RANK;
+            HResult = HResults.COR_E_RANK;
         }
 
         public RankException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_RANK;
+            HResult = HResults.COR_E_RANK;
         }
 
         protected RankException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
     }
 }

@@ -11,18 +11,19 @@
 **
 ===========================================================*/
 
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public struct Single : IComparable, IConvertible, IFormattable, IComparable<Single>, IEquatable<Single>
+    public struct Single : IComparable, IConvertible, IFormattable, IComparable<Single>, IEquatable<Single>, ISpanFormattable
     {
         private float m_value; // Do not rename (binary serialization)
 
@@ -40,7 +41,6 @@ namespace System
         internal const float NegativeZero = (float)-0.0;
 
         /// <summary>Determines whether the specified value is finite (zero, subnormal, or normal).</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsFinite(float f)
@@ -50,49 +50,44 @@ namespace System
         }
 
         /// <summary>Determines whether the specified value is infinite.</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool IsInfinity(float f)
+        public static unsafe bool IsInfinity(float f)
         {
             var bits = BitConverter.SingleToInt32Bits(f);
             return (bits & 0x7FFFFFFF) == 0x7F800000;
         }
 
         /// <summary>Determines whether the specified value is NaN.</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool IsNaN(float f)
+        public static unsafe bool IsNaN(float f)
         {
             var bits = BitConverter.SingleToInt32Bits(f);
             return (bits & 0x7FFFFFFF) > 0x7F800000;
         }
 
         /// <summary>Determines whether the specified value is negative.</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool IsNegative(float f)
+        public static unsafe bool IsNegative(float f)
         {
             var bits = unchecked((uint)BitConverter.SingleToInt32Bits(f));
             return (bits & 0x80000000) == 0x80000000;
         }
 
         /// <summary>Determines whether the specified value is negative infinity.</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool IsNegativeInfinity(float f)
+        public static unsafe bool IsNegativeInfinity(float f)
         {
             return (f == float.NegativeInfinity);
         }
 
         /// <summary>Determines whether the specified value is normal.</summary>
-        [Pure]
         [NonVersionable]
         // This is probably not worth inlining, it has branches and should be rarely called
-        public unsafe static bool IsNormal(float f)
+        public static unsafe bool IsNormal(float f)
         {
             var bits = BitConverter.SingleToInt32Bits(f);
             bits &= 0x7FFFFFFF;
@@ -100,19 +95,17 @@ namespace System
         }
 
         /// <summary>Determines whether the specified value is positive infinity.</summary>
-        [Pure]
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool IsPositiveInfinity(float f)
+        public static unsafe bool IsPositiveInfinity(float f)
         {
             return (f == float.PositiveInfinity);
         }
 
         /// <summary>Determines whether the specified value is subnormal.</summary>
-        [Pure]
         [NonVersionable]
         // This is probably not worth inlining, it has branches and should be rarely called
-        public unsafe static bool IsSubnormal(float f)
+        public static unsafe bool IsSubnormal(float f)
         {
             var bits = BitConverter.SingleToInt32Bits(f);
             bits &= 0x7FFFFFFF;
@@ -222,40 +215,43 @@ namespace System
             return IsNaN(obj) && IsNaN(m_value);
         }
 
-        public unsafe override int GetHashCode()
+        public override int GetHashCode()
         {
-            float f = m_value;
-            if (f == 0)
+            var bits = Unsafe.As<float, int>(ref m_value);
+
+            // Optimized check for IsNan() || IsZero()
+            if (((bits - 1) & 0x7FFFFFFF) >= 0x7F800000)
             {
-                // Ensure that 0 and -0 have the same hash code
-                return 0;
+                // Ensure that all NaNs and both zeros have the same hash code
+                bits &= 0x7F800000;
             }
-            int v = *(int*)(&f);
-            return v;
+
+            return bits;
         }
 
         public override String ToString()
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatSingle(m_value, null, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatSingle(m_value, null, NumberFormatInfo.GetInstance(provider));
         }
 
         public String ToString(String format)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatSingle(m_value, format, NumberFormatInfo.CurrentInfo);
         }
 
         public String ToString(String format, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatSingle(m_value, format, NumberFormatInfo.GetInstance(provider));
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
+        {
+            return Number.TryFormatSingle(m_value, format, NumberFormatInfo.GetInstance(provider), destination, out charsWritten);
         }
 
         // Parses a float from a String in the given style.  If
@@ -269,30 +265,30 @@ namespace System
         public static float Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseSingle(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo);
+            return Number.ParseSingle(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo);
         }
 
         public static float Parse(String s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseSingle(s.AsSpan(), style, NumberFormatInfo.CurrentInfo);
+            return Number.ParseSingle(s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static float Parse(String s, IFormatProvider provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseSingle(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseSingle(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.GetInstance(provider));
         }
 
         public static float Parse(String s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseSingle(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseSingle(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        public static float Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        public static float Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Float | NumberStyles.AllowThousands, IFormatProvider provider = null)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             return Number.ParseSingle(s, style, NumberFormatInfo.GetInstance(provider));
@@ -306,7 +302,12 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsSpan(), NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo, out result);
+            return TryParse((ReadOnlySpan<char>)s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo, out result);
+        }
+
+        public static bool TryParse(ReadOnlySpan<char> s, out float result)
+        {
+            return TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, NumberFormatInfo.CurrentInfo, out result);
         }
 
         public static Boolean TryParse(String s, NumberStyles style, IFormatProvider provider, out Single result)
@@ -319,10 +320,10 @@ namespace System
                 return false;
             }
 
-            return TryParse(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+            return TryParse((ReadOnlySpan<char>)s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
-        public static Boolean TryParse(ReadOnlySpan<char> s, out Single result, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider, out float result)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             return TryParse(s, style, NumberFormatInfo.GetInstance(provider), out result);
@@ -334,15 +335,15 @@ namespace System
             if (!success)
             {
                 ReadOnlySpan<char> sTrim = s.Trim();
-                if (StringSpanHelpers.Equals(sTrim, info.PositiveInfinitySymbol))
+                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
                 {
                     result = PositiveInfinity;
                 }
-                else if (StringSpanHelpers.Equals(sTrim, info.NegativeInfinitySymbol))
+                else if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
                 {
                     result = NegativeInfinity;
                 }
-                else if (StringSpanHelpers.Equals(sTrim, info.NaNSymbol))
+                else if (sTrim.EqualsOrdinal(info.NaNSymbol))
                 {
                     result = NaN;
                 }

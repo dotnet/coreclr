@@ -52,29 +52,6 @@ namespace System.Diagnostics.Tracing.Internal
 
 #if ES_BUILD_AGAINST_DOTNET_V35
 
-namespace Microsoft.Diagnostics.Contracts.Internal
-{
-    internal class Contract
-    {
-        public static void Assert(bool invariant)
-        {
-            Assert(invariant, string.Empty);
-        }
-        public static void Assert(bool invariant, string message)
-        {
-            if (!invariant)
-            {
-                if (System.Diagnostics.Debugger.IsAttached)
-                    System.Diagnostics.Debugger.Break();
-                throw new Exception("Assertion failed: " + message);
-            }
-        }
-        public static void EndContractBlock()
-        { }
-    }
-}
-
-
 namespace Microsoft.Internal
 {
     using System.Text;
@@ -377,5 +354,20 @@ namespace System
             return Internal.Runtime.Augments.RuntimeThread.CurrentThread.ManagedThreadId;
         }
     }    
+}
+#endif
+
+#if ES_BUILD_STANDALONE
+namespace Microsoft.Win32
+{
+    using System.Runtime.InteropServices;
+    using System.Security;
+
+    [SuppressUnmanagedCodeSecurityAttribute()]
+    internal static class Win32Native
+    {
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        internal static extern uint GetCurrentProcessId();
+    }
 }
 #endif

@@ -4,7 +4,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
@@ -15,6 +14,8 @@ namespace Internal.Runtime.Augments
 {
     public class RuntimeThread : CriticalFinalizerObject
     {
+        private static int s_optimalMaxSpinWaitsPerSpinIteration;
+
         internal RuntimeThread() { }
 
         public static RuntimeThread Create(ThreadStart start) => new Thread(start);
@@ -186,6 +187,78 @@ namespace Internal.Runtime.Augments
         private extern bool JoinInternal(int millisecondsTimeout);
 
         public static void Sleep(int millisecondsTimeout) => Thread.Sleep(millisecondsTimeout);
+
+        [DllImport(JitHelpers.QCall)]
+        private static extern int GetOptimalMaxSpinWaitsPerSpinIterationInternal();
+
+        /// <summary>
+        /// Max value to be passed into <see cref="SpinWait(int)"/> for optimal delaying. This value is normalized to be
+        /// appropriate for the processor.
+        /// </summary>
+        internal static int OptimalMaxSpinWaitsPerSpinIteration
+        {
+            get
+            {
+                if (s_optimalMaxSpinWaitsPerSpinIteration != 0)
+                {
+                    return s_optimalMaxSpinWaitsPerSpinIteration;
+                }
+
+                // This is done lazily because the first call to the function below in the process triggers a measurement that
+                // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
+                // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
+                s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
+                Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
+                return s_optimalMaxSpinWaitsPerSpinIteration;
+            }
+        }
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern int GetCurrentProcessorNumber();
+
+        // The upper bits of t_currentProcessorIdCache are the currentProcessorId. The lower bits of
+        // the t_currentProcessorIdCache are counting down to get it periodically refreshed.
+        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar 
+        // actions that are likely to result in changing the executing core
+        [ThreadStatic]
+        private static int t_currentProcessorIdCache;
+
+        private const int ProcessorIdCacheShift = 16;
+        private const int ProcessorIdCacheCountDownMask = (1 << ProcessorIdCacheShift) - 1;
+        private const int ProcessorIdRefreshRate = 5000;
+
+        private static int RefreshCurrentProcessorId()
+        {
+            int currentProcessorId = GetCurrentProcessorNumber();
+
+            // On Unix, GetCurrentProcessorNumber() is implemented in terms of sched_getcpu, which
+            // doesn't exist on all platforms.  On those it doesn't exist on, GetCurrentProcessorNumber()
+            // returns -1.  As a fallback in that case and to spread the threads across the buckets
+            // by default, we use the current managed thread ID as a proxy.
+            if (currentProcessorId < 0) currentProcessorId = Environment.CurrentManagedThreadId;
+
+            // Add offset to make it clear that it is not guaranteed to be 0-based processor number
+            currentProcessorId += 100;
+
+            Debug.Assert(ProcessorIdRefreshRate <= ProcessorIdCacheCountDownMask);
+
+            // Mask with Int32.MaxValue to ensure the execution Id is not negative
+            t_currentProcessorIdCache = ((currentProcessorId << ProcessorIdCacheShift) & Int32.MaxValue) | ProcessorIdRefreshRate;
+
+            return currentProcessorId;
+        }
+
+        // Cached processor id used as a hint for which per-core stack to access. It is periodically
+        // refreshed to trail the actual thread core affinity.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetCurrentProcessorId()
+        {
+            int currentProcessorIdCache = t_currentProcessorIdCache--;
+            if ((currentProcessorIdCache & ProcessorIdCacheCountDownMask) == 0)
+                return RefreshCurrentProcessorId();
+            return (currentProcessorIdCache >> ProcessorIdCacheShift);
+        }
+
         public static void SpinWait(int iterations) => Thread.SpinWait(iterations);
         public static bool Yield() => Thread.Yield();
 

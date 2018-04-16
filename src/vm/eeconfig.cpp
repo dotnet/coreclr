@@ -166,7 +166,6 @@ void *EEConfig::operator new(size_t size)
     RETURN g_EEConfigMemory;
 }
 
-
 /**************************************************************/
 HRESULT EEConfig::Init()
 {
@@ -212,6 +211,7 @@ HRESULT EEConfig::Init()
     dwSpinLimitProcFactor = 0x4E20;
     dwSpinLimitConstant = 0x0;
     dwSpinRetryCount = 0xA;
+    dwMonitorSpinCount = 0;
 
     iJitOptimizeType = OPT_DEFAULT;
     fJitFramed = false;
@@ -222,10 +222,8 @@ HRESULT EEConfig::Init()
 
     fLegacyNullReferenceExceptionPolicy = false;
     fLegacyUnhandledExceptionPolicy = false;
-    fLegacyApartmentInitPolicy = false;
     fLegacyComHierarchyVisibility = false;
     fLegacyComVTableLayout = false;
-    fLegacyVirtualMethodCallVerification = false;
     fNewComVTableLayout = false;
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
@@ -330,8 +328,6 @@ HRESULT EEConfig::Init()
     dwADURetryCount=1000;
 
 #ifdef _DEBUG
-    fAppDomainLeaks = DEFAULT_APP_DOMAIN_LEAKS;
-
     // interop logging
     m_pTraceIUnknown = NULL;
     m_TraceWrapper = 0;
@@ -379,6 +375,10 @@ HRESULT EEConfig::Init()
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = false;
+    fTieredCompilation_CallCounting = false;
+    fTieredCompilation_OptimizeTier0 = false;
+    tieredCompilation_tier1CallCountThreshold = 1;
+    tieredCompilation_tier1CallCountingDelayMs = 0;
 #endif
     
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -393,7 +393,6 @@ HRESULT EEConfig::Init()
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
     CLRConfig::RegisterGetConfigValueCallback(&GetConfigValueCallback);
-
 
     return S_OK;
 }
@@ -760,10 +759,6 @@ HRESULT EEConfig::sync()
     if (IsCompilationProcess())
         iGCconcurrent = FALSE;
     
-#ifdef _DEBUG
-    fAppDomainLeaks = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AppDomainAgilityChecked, DEFAULT_APP_DOMAIN_LEAKS) == 1;
-#endif
-
 #if defined(STRESS_HEAP) || defined(_DEBUG)
     iGCStress           =  CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCStress);
 #endif
@@ -785,11 +780,6 @@ HRESULT EEConfig::sync()
     if (iGCStress)
     {
         LPWSTR pszGCStressExe = NULL;
-
-#ifdef _DEBUG
-        // If GCStress is turned on, then perform AppDomain agility checks in debug builds
-        fAppDomainLeaks = 1;
-#endif
 
         IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_RestrictedGCStressExe, &pszGCStressExe));
         if (pszGCStressExe != NULL)
@@ -1014,11 +1004,20 @@ HRESULT EEConfig::sync()
 #endif
 
     dwSpinInitialDuration = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinInitialDuration);
+    if (dwSpinInitialDuration < 1)
+    {
+        dwSpinInitialDuration = 1;
+    }
     dwSpinBackoffFactor = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinBackoffFactor);
+    if (dwSpinBackoffFactor < 2)
+    {
+        dwSpinBackoffFactor = 2;
+    }
     dwSpinLimitProcCap = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitProcCap);
     dwSpinLimitProcFactor = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitProcFactor);
     dwSpinLimitConstant = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinLimitConstant);
     dwSpinRetryCount = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_SpinRetryCount);
+    dwMonitorSpinCount = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Monitor_SpinCount);
 
     fJitFramed = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitFramed, fJitFramed) != 0);
     fJitAlignLoops = (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_JitAlignLoops, fJitAlignLoops) != 0);
@@ -1241,7 +1240,21 @@ HRESULT EEConfig::sync()
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
 
 #if defined(FEATURE_TIERED_COMPILATION)
-    fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation) != 0;
+    fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_TieredCompilation) != 0 ||
+        //this older name is deprecated, but still accepted for a time. Preserving it is a very small overhead not to needlessly break things.
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_LEGACY_TieredCompilation) != 0;
+
+    fTieredCompilation_CallCounting = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_CallCounting) != 0;
+    fTieredCompilation_OptimizeTier0 = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Test_OptimizeTier0) != 0;
+
+    tieredCompilation_tier1CallCountThreshold =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountThreshold);
+    if (tieredCompilation_tier1CallCountThreshold < 1)
+    {
+        tieredCompilation_tier1CallCountThreshold = 1;
+    }
+    tieredCompilation_tier1CallCountingDelayMs =
+        CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs);
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

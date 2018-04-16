@@ -20,6 +20,8 @@ using System.Runtime.Serialization;
 
 namespace System.Resources
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class MissingSatelliteAssemblyException : SystemException
     {
         private String _cultureName;
@@ -27,32 +29,31 @@ namespace System.Resources
         public MissingSatelliteAssemblyException()
             : base(SR.MissingSatelliteAssembly_Default)
         {
-            HResult = System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY;
+            HResult = System.HResults.COR_E_MISSINGSATELLITEASSEMBLY;
         }
 
         public MissingSatelliteAssemblyException(string message)
             : base(message)
         {
-            HResult = System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY;
+            HResult = System.HResults.COR_E_MISSINGSATELLITEASSEMBLY;
         }
 
         public MissingSatelliteAssemblyException(string message, String cultureName)
             : base(message)
         {
-            HResult = System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY;
+            HResult = System.HResults.COR_E_MISSINGSATELLITEASSEMBLY;
             _cultureName = cultureName;
         }
 
         public MissingSatelliteAssemblyException(string message, Exception inner)
             : base(message, inner)
         {
-            HResult = System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY;
+            HResult = System.HResults.COR_E_MISSINGSATELLITEASSEMBLY;
         }
 
         protected MissingSatelliteAssemblyException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
 
         public String CultureName

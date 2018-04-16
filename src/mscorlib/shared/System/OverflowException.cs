@@ -6,7 +6,7 @@
 **
 **
 **
-** Purpose: Exception class for Arthimatic Overflows.
+** Purpose: Exception class for Arithmetic Overflows.
 **
 **
 =============================================================================*/
@@ -15,29 +15,30 @@ using System.Runtime.Serialization;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class OverflowException : ArithmeticException
     {
         public OverflowException()
             : base(SR.Arg_OverflowException)
         {
-            HResult = __HResults.COR_E_OVERFLOW;
+            HResult = HResults.COR_E_OVERFLOW;
         }
 
         public OverflowException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_OVERFLOW;
+            HResult = HResults.COR_E_OVERFLOW;
         }
 
         public OverflowException(String message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_OVERFLOW;
+            HResult = HResults.COR_E_OVERFLOW;
         }
 
         protected OverflowException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
     }
 }

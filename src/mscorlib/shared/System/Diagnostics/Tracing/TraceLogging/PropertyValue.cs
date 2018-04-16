@@ -1,4 +1,9 @@
-﻿using System.Reflection;
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -8,7 +13,11 @@ using Contract = System.Diagnostics.Contracts.Contract;
 using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
 #endif
 
+#if ES_BUILD_STANDALONE
+namespace Microsoft.Diagnostics.Tracing
+#else
 namespace System.Diagnostics.Tracing
+#endif
 {
     /// <summary>
     /// Holds property values of any type.  For common value types, we have inline storage so that we don't need
@@ -22,7 +31,7 @@ namespace System.Diagnostics.Tracing
 #else
     internal
 #endif
-    unsafe struct PropertyValue
+    unsafe readonly struct PropertyValue
     {
         /// <summary>
         /// Union of well-known value types, to avoid boxing those types.

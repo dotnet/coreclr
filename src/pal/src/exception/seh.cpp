@@ -39,37 +39,7 @@ Abstract:
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
-
-// Define the std::move so that we don't have to include the <utility> header
-// which on some platforms pulls in STL stuff that collides with PAL stuff.
-// The std::move is needed to enable using move constructor and assignment operator
-// for PAL_SEHException.
-namespace std
-{
-    template<typename T>
-    struct remove_reference
-    {
-        typedef T type;
-    };
-
-    template<typename T>
-    struct remove_reference<T&>
-    {
-        typedef T type;
-    };
-
-    template<typename T>
-    struct remove_reference<T&&>
-    {
-        typedef T type;
-    };
-
-    template<class T> inline
-    typename remove_reference<T>::type&& move(T&& arg)
-    {   // forward arg as movable
-        return ((typename remove_reference<T>::type&&)arg);
-    }
-}
+#include <utility>
 
 using namespace CorUnix;
 
@@ -234,6 +204,38 @@ void ThrowExceptionHelper(PAL_SEHException* ex)
 
 /*++
 Function:
+    EnsureExceptionRecordsOnHeap
+
+    Helper function to move records from stack to heap.
+
+Parameters:
+    PAL_SEHException* exception
+--*/
+static void EnsureExceptionRecordsOnHeap(PAL_SEHException* exception)
+{
+    if( !exception->RecordsOnStack ||
+        exception->ExceptionPointers.ExceptionRecord == NULL )
+    {
+        return;
+    }
+
+    CONTEXT* contextRecord = exception->ExceptionPointers.ContextRecord;
+    EXCEPTION_RECORD* exceptionRecord = exception->ExceptionPointers.ExceptionRecord;
+
+    CONTEXT* contextRecordCopy;
+    EXCEPTION_RECORD* exceptionRecordCopy;
+    AllocateExceptionRecords(&exceptionRecordCopy, &contextRecordCopy);
+
+    *exceptionRecordCopy = *exceptionRecord;
+    *contextRecordCopy = *contextRecord;
+
+    exception->ExceptionPointers.ExceptionRecord = exceptionRecordCopy;
+    exception->ExceptionPointers.ContextRecord = contextRecordCopy;
+    exception->RecordsOnStack = false;
+}
+
+/*++
+Function:
     SEHProcessException
 
     Send the PAL exception to any handler registered.
@@ -280,6 +282,7 @@ SEHProcessException(PAL_SEHException* exception)
                     }
                 }
 
+                EnsureExceptionRecordsOnHeap(exception);
                 if (g_hardwareExceptionHandler(exception))
                 {
                     // The exception happened in managed code and the execution should continue.
@@ -292,6 +295,7 @@ SEHProcessException(PAL_SEHException* exception)
 
         if (CatchHardwareExceptionHolder::IsEnabled())
         {
+            EnsureExceptionRecordsOnHeap(exception);
             PAL_ThrowExceptionFromContext(exception->GetContextRecord(), exception);
         }
     }
@@ -374,8 +378,8 @@ CatchHardwareExceptionHolder::~CatchHardwareExceptionHolder()
 
 bool CatchHardwareExceptionHolder::IsEnabled()
 {
-    CPalThread *pThread = InternalGetCurrentThread();
-    return pThread->IsHardwareExceptionsEnabled();
+    CPalThread *pThread = GetCurrentPalThread();
+    return pThread ? pThread->IsHardwareExceptionsEnabled() : false;
 }
 
 /*++

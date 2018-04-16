@@ -1451,6 +1451,25 @@ bool EECodeManager::IsGcSafe( EECodeInfo     *pCodeInfo,
     return gcInfoDecoder.IsInterruptible();
 }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+bool EECodeManager::HasTailCalls( EECodeInfo     *pCodeInfo)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+
+    GcInfoDecoder gcInfoDecoder(
+            gcInfoToken,
+            DECODE_HAS_TAILCALLS,
+            0
+            );
+
+    return gcInfoDecoder.HasTailCalls();
+}
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 
@@ -2383,11 +2402,18 @@ FINISHED:
    this function is called to find all live objects (pushed arguments)
    and to get the stack base for fully interruptible methods.
    Returns size of things pushed on the stack for ESP frames
+
+   Arguments:
+      table       - The pointer table
+      curOffsRegs - The current code offset that should be used for reporting registers
+      curOffsArgs - The current code offset that should be used for reporting args
+      info        - Incoming arg used to determine if there's a frame, and to save results
  */
 
 static
-unsigned scanArgRegTableI(PTR_CBYTE     table,
-                          unsigned     curOffs,
+unsigned scanArgRegTableI(PTR_CBYTE    table,
+                          unsigned     curOffsRegs,
+                          unsigned     curOffsArgs,
                           hdrInfo   *  info)
 {
     CONTRACTL {
@@ -2397,17 +2423,21 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
     } CONTRACTL_END;
 
     regNum thisPtrReg = REGI_NA;
-    unsigned  ptrRegs    = 0;
-    unsigned iptrRegs    = 0;
-    unsigned  ptrOffs    = 0;
-    unsigned  argCnt     = 0;
+    unsigned  ptrRegs    = 0;    // The mask of registers that contain pointers
+    unsigned iptrRegs    = 0;    // The subset of ptrRegs that are interior pointers
+    unsigned  ptrOffs    = 0;    // The code offset of the table entry we are currently looking at
+    unsigned  argCnt     = 0;    // The number of args that have been pushed
 
-    ptrArgTP  ptrArgs(0);
-    ptrArgTP iptrArgs(0);
-    ptrArgTP  argHigh(0);
+    ptrArgTP  ptrArgs(0);        // The mask of stack values that contain pointers.
+    ptrArgTP iptrArgs(0);        // The subset of ptrArgs that are interior pointers.
+    ptrArgTP  argHigh(0);        // The current mask position that corresponds to the top of the stack.
 
     bool      isThis     = false;
     bool      iptr       = false;
+
+    // The comment before the call to scanArgRegTableI in EnumGCRefs
+    // describes why curOffsRegs can be smaller than curOffsArgs.
+    _ASSERTE(curOffsRegs <= curOffsArgs);
 
 #if VERIFY_GC_TABLES
     _ASSERTE(*castto(table, unsigned short *)++ == 0xBABE);
@@ -2482,7 +2512,7 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
 
     /* Have we reached the instruction we're looking for? */
 
-    while (ptrOffs <= curOffs)
+    while (ptrOffs <= curOffsArgs)
     {
         unsigned    val;
 
@@ -2519,9 +2549,13 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
             regNum       reg;
 
             ptrOffs += (val     ) & 0x7;
-            if (ptrOffs > curOffs) {
+            if (ptrOffs > curOffsArgs) {
                 iptr = isThis = false;
                 goto REPORT_REFS;
+            }
+            else if (ptrOffs > curOffsRegs) {
+                iptr = isThis = false;
+                continue;
             }
 
             reg     = (regNum)((val >> 3) & 0x7);
@@ -2582,7 +2616,7 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
             /* A small argument encoding */
 
             ptrOffs += (val & 0x07);
-            if (ptrOffs > curOffs) {
+            if (ptrOffs > curOffsArgs) {
                 iptr = isThis = false;
                 goto REPORT_REFS;
             }
@@ -2640,8 +2674,14 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
 
                 if (hasPartialArgInfo)
                 {
+                    // We always leave argHigh pointing to the next ptr arg.
+                    // So, while argHigh is non-zero, and not a ptrArg, we shift right (and subtract
+                    // one arg from our argCnt) until it is a ptrArg.
                     while (!intersect(argHigh, ptrArgs) && (!isZero(argHigh)))
+                    {
                         argHigh >>= 1;
+                        argCnt--;
+                    }
                 }
 
             }
@@ -2706,7 +2746,7 @@ unsigned scanArgRegTableI(PTR_CBYTE     table,
                 /* non-ptr arg push */
                 _ASSERTE(!hasPartialArgInfo);
                 ptrOffs += (val & 0x07);
-                if (ptrOffs > curOffs) {
+                if (ptrOffs > curOffsArgs) {
                     iptr = isThis = false;
                     goto REPORT_REFS;
                 }
@@ -2828,6 +2868,7 @@ unsigned GetPushedArgSize(hdrInfo * info, PTR_CBYTE table, DWORD curOffs)
     if  (info->interruptible)
     {
         sz = scanArgRegTableI(skipToArgReg(*info, table),
+                              curOffs,
                               curOffs,
                               info);
     }
@@ -3832,8 +3873,27 @@ bool UnwindEbpDoubleAlignFrame(
             baseSP = curESP;
             // Set baseSP as initial SP
             baseSP += GetPushedArgSize(info, table, curOffs);
+
             // 16-byte stack alignment padding (allocated in genFuncletProlog)
-            baseSP += 12;
+            // Current funclet frame layout (see CodeGen::genFuncletProlog() and genFuncletEpilog()):
+            //   prolog: sub esp, 12
+            //   epilog: add esp, 12
+            //           ret
+            // SP alignment padding should be added for all instructions except the first one and the last one.
+            TADDR funcletStart = pCodeInfo->GetJitManager()->GetFuncletStartAddress(pCodeInfo);
+
+            const ULONG32 funcletLastInstSize = 1; // 0xc3, ret
+            BOOL atFuncletLastInst = (pCodeInfo->GetRelOffset() + funcletLastInstSize) >= info->methodSize;
+            if (!atFuncletLastInst)
+            {
+                EECodeInfo nextCodeInfo;
+                nextCodeInfo.Init(pCodeInfo->GetCodeAddress() + funcletLastInstSize);
+                atFuncletLastInst = !nextCodeInfo.IsValid() || !nextCodeInfo.IsFunclet() ||
+                    nextCodeInfo.GetJitManager()->GetFuncletStartAddress(&nextCodeInfo) != funcletStart;
+            }
+
+            if (!atFuncletLastInst && funcletStart != pCodeInfo->GetCodeAddress())
+                baseSP += 12;
 
             pContext->PCTAddr = baseSP;
             pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
@@ -4387,7 +4447,15 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
     if  (info.interruptible)
     {
-        pushedSize = scanArgRegTableI(skipToArgReg(info, table), curOffs, &info);
+        // If we are not on the active stack frame, we need to report gc registers
+        // that are live before the call. The reason is that the liveness of gc registers
+        // may change across a call to a method that does not return. In this case the instruction
+        // after the call may be a jump target and a register that didn't have a live gc pointer
+        // before the call may have a live gc pointer after the jump. To make sure we report the
+        // registers that have live gc pointers before the call we subtract 1 from curOffs.
+        unsigned curOffsRegs = (flags & ActiveStackFrame) != 0 ? curOffs : curOffs - 1;
+
+        pushedSize = scanArgRegTableI(skipToArgReg(info, table), curOffsRegs, curOffs, &info);
 
         RegMask   regs  = info.regMaskResult;
         RegMask  iregs  = info.iregMaskResult;
@@ -5293,7 +5361,7 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
 
     if  (info.interruptible)
     {
-        stackDepth = scanArgRegTableI(skipToArgReg(info, table), (unsigned)relOffset, &info);
+        stackDepth = scanArgRegTableI(skipToArgReg(info, table), relOffset, relOffset, &info);
     }
     else
     {
@@ -5997,6 +6065,7 @@ TADDR EECodeManager::GetAmbientSP(PREGDISPLAY     pContext,
     if  (stateBuf->hdrInfoBody.interruptible)
     {
         baseSP += scanArgRegTableI(skipToArgReg(stateBuf->hdrInfoBody, table),
+                                   dwRelOffset,
                                    dwRelOffset,
                                    &stateBuf->hdrInfoBody);
     }

@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System
 {
@@ -97,7 +96,7 @@ namespace System
     // When passed Value.DBNull, the Value.ToXXX() methods all throw an
     // InvalidCastException.
 
-    public static class Convert
+    public static partial class Convert
     {
         //A typeof operation is fairly expensive (does a system call), so we'll cache these here
         //statically.  These are exactly lined up with the TypeCode, eg. ConvertType[TypeCode.Int16]
@@ -135,7 +134,7 @@ namespace System
 
         private const Int32 base64LineBreakPosition = 76;
 
-#if _DEBUG
+#if DEBUG
         private static bool TriggerAsserts = DoAsserts();
         private static bool DoAsserts()
         {
@@ -158,7 +157,6 @@ namespace System
         // the object does not implement IConvertible), the result is TypeCode.Object.
         // Otherwise, the result is the type code of the object, as determined by
         // the object's implementation of IConvertible.
-        [Pure]
         public static TypeCode GetTypeCode(object value)
         {
             if (value == null) return TypeCode.Empty;
@@ -172,7 +170,6 @@ namespace System
 
         // Returns true if the given object is a database null. This operation
         // corresponds to "value.GetTypeCode() == TypeCode.DBNull".
-        [Pure]
         public static bool IsDBNull(object value)
         {
             if (value == System.DBNull.Value) return true;
@@ -263,7 +260,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(targetType));
             }
-            Contract.EndContractBlock();
 
             if (ReferenceEquals(value.GetType(), targetType))
             {
@@ -324,7 +320,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(conversionType));
             }
-            Contract.EndContractBlock();
 
             if (value == null)
             {
@@ -541,7 +536,6 @@ namespace System
         public static char ToChar(sbyte value)
         {
             if (value < 0) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
@@ -553,7 +547,6 @@ namespace System
         public static char ToChar(short value)
         {
             if (value < 0) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
@@ -566,7 +559,6 @@ namespace System
         public static char ToChar(int value)
         {
             if (value < 0 || value > Char.MaxValue) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
@@ -574,14 +566,12 @@ namespace System
         public static char ToChar(uint value)
         {
             if (value > Char.MaxValue) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
         public static char ToChar(long value)
         {
             if (value < 0 || value > Char.MaxValue) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
@@ -589,7 +579,6 @@ namespace System
         public static char ToChar(ulong value)
         {
             if (value > Char.MaxValue) ThrowCharOverflowException();
-            Contract.EndContractBlock();
             return (char)value;
         }
 
@@ -606,7 +595,6 @@ namespace System
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
-            Contract.EndContractBlock();
 
             if (value.Length != 1)
                 throw new FormatException(SR.Format_NeedSingleChar);
@@ -674,7 +662,6 @@ namespace System
         public static sbyte ToSByte(char value)
         {
             if (value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -682,7 +669,6 @@ namespace System
         public static sbyte ToSByte(byte value)
         {
             if (value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -690,7 +676,6 @@ namespace System
         public static sbyte ToSByte(short value)
         {
             if (value < SByte.MinValue || value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -698,7 +683,6 @@ namespace System
         public static sbyte ToSByte(ushort value)
         {
             if (value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -706,7 +690,6 @@ namespace System
         public static sbyte ToSByte(int value)
         {
             if (value < SByte.MinValue || value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -714,7 +697,6 @@ namespace System
         public static sbyte ToSByte(uint value)
         {
             if (value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -722,7 +704,6 @@ namespace System
         public static sbyte ToSByte(long value)
         {
             if (value < SByte.MinValue || value > SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -730,7 +711,6 @@ namespace System
         public static sbyte ToSByte(ulong value)
         {
             if (value > (ulong)SByte.MaxValue) ThrowSByteOverflowException();
-            Contract.EndContractBlock();
             return (sbyte)value;
         }
 
@@ -800,7 +780,6 @@ namespace System
         public static byte ToByte(char value)
         {
             if (value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
@@ -808,14 +787,12 @@ namespace System
         public static byte ToByte(sbyte value)
         {
             if (value < Byte.MinValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
         public static byte ToByte(short value)
         {
             if (value < Byte.MinValue || value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
@@ -823,14 +800,12 @@ namespace System
         public static byte ToByte(ushort value)
         {
             if (value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
         public static byte ToByte(int value)
         {
             if (value < Byte.MinValue || value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
@@ -838,14 +813,12 @@ namespace System
         public static byte ToByte(uint value)
         {
             if (value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
         public static byte ToByte(long value)
         {
             if (value < Byte.MinValue || value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
@@ -853,7 +826,6 @@ namespace System
         public static byte ToByte(ulong value)
         {
             if (value > Byte.MaxValue) ThrowByteOverflowException();
-            Contract.EndContractBlock();
             return (byte)value;
         }
 
@@ -915,7 +887,6 @@ namespace System
         public static short ToInt16(char value)
         {
             if (value > Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
@@ -934,14 +905,12 @@ namespace System
         public static short ToInt16(ushort value)
         {
             if (value > Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
         public static short ToInt16(int value)
         {
             if (value < Int16.MinValue || value > Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
@@ -949,7 +918,6 @@ namespace System
         public static short ToInt16(uint value)
         {
             if (value > Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
@@ -961,7 +929,6 @@ namespace System
         public static short ToInt16(long value)
         {
             if (value < Int16.MinValue || value > Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
@@ -969,7 +936,6 @@ namespace System
         public static short ToInt16(ulong value)
         {
             if (value > (ulong)Int16.MaxValue) ThrowInt16OverflowException();
-            Contract.EndContractBlock();
             return (short)value;
         }
 
@@ -1042,7 +1008,6 @@ namespace System
         public static ushort ToUInt16(sbyte value)
         {
             if (value < 0) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1056,7 +1021,6 @@ namespace System
         public static ushort ToUInt16(short value)
         {
             if (value < 0) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1064,7 +1028,6 @@ namespace System
         public static ushort ToUInt16(int value)
         {
             if (value < 0 || value > UInt16.MaxValue) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1078,7 +1041,6 @@ namespace System
         public static ushort ToUInt16(uint value)
         {
             if (value > UInt16.MaxValue) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1087,7 +1049,6 @@ namespace System
         public static ushort ToUInt16(long value)
         {
             if (value < 0 || value > UInt16.MaxValue) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1095,7 +1056,6 @@ namespace System
         public static ushort ToUInt16(ulong value)
         {
             if (value > UInt16.MaxValue) ThrowUInt16OverflowException();
-            Contract.EndContractBlock();
             return (ushort)value;
         }
 
@@ -1191,7 +1151,6 @@ namespace System
         public static int ToInt32(uint value)
         {
             if (value > Int32.MaxValue) ThrowInt32OverflowException();
-            Contract.EndContractBlock();
             return (int)value;
         }
 
@@ -1203,7 +1162,6 @@ namespace System
         public static int ToInt32(long value)
         {
             if (value < Int32.MinValue || value > Int32.MaxValue) ThrowInt32OverflowException();
-            Contract.EndContractBlock();
             return (int)value;
         }
 
@@ -1211,7 +1169,6 @@ namespace System
         public static int ToInt32(ulong value)
         {
             if (value > Int32.MaxValue) ThrowInt32OverflowException();
-            Contract.EndContractBlock();
             return (int)value;
         }
 
@@ -1304,7 +1261,6 @@ namespace System
         public static uint ToUInt32(sbyte value)
         {
             if (value < 0) ThrowUInt32OverflowException();
-            Contract.EndContractBlock();
             return (uint)value;
         }
 
@@ -1318,7 +1274,6 @@ namespace System
         public static uint ToUInt32(short value)
         {
             if (value < 0) ThrowUInt32OverflowException();
-            Contract.EndContractBlock();
             return (uint)value;
         }
 
@@ -1332,7 +1287,6 @@ namespace System
         public static uint ToUInt32(int value)
         {
             if (value < 0) ThrowUInt32OverflowException();
-            Contract.EndContractBlock();
             return (uint)value;
         }
 
@@ -1346,7 +1300,6 @@ namespace System
         public static uint ToUInt32(long value)
         {
             if (value < 0 || value > UInt32.MaxValue) ThrowUInt32OverflowException();
-            Contract.EndContractBlock();
             return (uint)value;
         }
 
@@ -1354,7 +1307,6 @@ namespace System
         public static uint ToUInt32(ulong value)
         {
             if (value > UInt32.MaxValue) ThrowUInt32OverflowException();
-            Contract.EndContractBlock();
             return (uint)value;
         }
 
@@ -1468,7 +1420,6 @@ namespace System
         public static long ToInt64(ulong value)
         {
             if (value > Int64.MaxValue) ThrowInt64OverflowException();
-            Contract.EndContractBlock();
             return (long)value;
         }
 
@@ -1546,7 +1497,6 @@ namespace System
         public static ulong ToUInt64(sbyte value)
         {
             if (value < 0) ThrowUInt64OverflowException();
-            Contract.EndContractBlock();
             return (ulong)value;
         }
 
@@ -1560,7 +1510,6 @@ namespace System
         public static ulong ToUInt64(short value)
         {
             if (value < 0) ThrowUInt64OverflowException();
-            Contract.EndContractBlock();
             return (ulong)value;
         }
 
@@ -1574,7 +1523,6 @@ namespace System
         public static ulong ToUInt64(int value)
         {
             if (value < 0) ThrowUInt64OverflowException();
-            Contract.EndContractBlock();
             return (ulong)value;
         }
 
@@ -1588,7 +1536,6 @@ namespace System
         public static ulong ToUInt64(long value)
         {
             if (value < 0) ThrowUInt64OverflowException();
-            Contract.EndContractBlock();
             return (ulong)value;
         }
 
@@ -2075,189 +2022,159 @@ namespace System
 
         public static string ToString(bool value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(bool value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(char value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return Char.ToString(value);
         }
 
         public static string ToString(char value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         [CLSCompliant(false)]
         public static string ToString(sbyte value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(sbyte value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(byte value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(byte value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(short value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(short value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ushort value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ushort value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(int value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(int value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(uint value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(uint value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(long value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(long value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ulong value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         [CLSCompliant(false)]
         public static string ToString(ulong value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(float value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(float value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(double value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(double value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(decimal value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(CultureInfo.CurrentCulture);
         }
 
         public static string ToString(Decimal value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static string ToString(DateTime value)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString();
         }
 
         public static string ToString(DateTime value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() != null);
             return value.ToString(provider);
         }
 
         public static String ToString(String value)
         {
-            Contract.Ensures(Contract.Result<string>() == value);  // We were always skipping the null check here.
             return value;
         }
 
         public static String ToString(String value, IFormatProvider provider)
         {
-            Contract.Ensures(Contract.Result<string>() == value);  // We were always skipping the null check here.
             return value; // avoid the null check
         }
 
@@ -2275,8 +2192,13 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            int r = ParseNumbers.StringToInt(value, fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsUnsigned);
+
+            if (value == null)
+            {
+                return 0;
+            }
+
+            int r = ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsUnsigned);
             if (r < Byte.MinValue || r > Byte.MaxValue)
                 ThrowByteOverflowException();
             return (byte)r;
@@ -2293,8 +2215,13 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            int r = ParseNumbers.StringToInt(value, fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsI1);
+
+            if (value == null)
+            {
+                return 0;
+            }
+
+            int r = ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsI1);
             if (fromBase != 10 && r <= Byte.MaxValue)
                 return (sbyte)r;
 
@@ -2313,8 +2240,13 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            int r = ParseNumbers.StringToInt(value, fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsI2);
+
+            if (value == null)
+            {
+                return 0;
+            }
+
+            int r = ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsI2);
             if (fromBase != 10 && r <= UInt16.MaxValue)
                 return (short)r;
 
@@ -2334,8 +2266,13 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            int r = ParseNumbers.StringToInt(value, fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsUnsigned);
+
+            if (value == null)
+            {
+                return 0;
+            }
+
+            int r = ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight | ParseNumbers.TreatAsUnsigned);
             if (r < UInt16.MinValue || r > UInt16.MaxValue)
                 ThrowUInt16OverflowException();
             return (ushort)r;
@@ -2351,8 +2288,9 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            return ParseNumbers.StringToInt(value, fromBase, ParseNumbers.IsTight);
+            return value != null ?
+                ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
+                0;
         }
 
         // Parses value in base fromBase.  fromBase can only
@@ -2366,8 +2304,9 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            return (uint)ParseNumbers.StringToInt(value, fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight);
+            return value != null ?
+                (uint)ParseNumbers.StringToInt(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
+                0;
         }
 
         // Parses value in base fromBase.  fromBase can only
@@ -2380,8 +2319,9 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            return ParseNumbers.StringToLong(value, fromBase, ParseNumbers.IsTight);
+            return value != null ?
+                ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.IsTight) :
+                0;
         }
 
         // Parses value in base fromBase.  fromBase can only
@@ -2395,8 +2335,9 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
-            return (ulong)ParseNumbers.StringToLong(value, fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight);
+            return value != null ?
+                (ulong)ParseNumbers.StringToLong(value.AsSpan(), fromBase, ParseNumbers.TreatAsUnsigned | ParseNumbers.IsTight) :
+                0;
         }
 
         // Convert the byte value to a string in base fromBase
@@ -2406,7 +2347,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
             return ParseNumbers.IntToString((int)value, toBase, -1, ' ', ParseNumbers.PrintAsI1);
         }
 
@@ -2417,7 +2357,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
             return ParseNumbers.IntToString((int)value, toBase, -1, ' ', ParseNumbers.PrintAsI2);
         }
 
@@ -2428,7 +2367,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
             return ParseNumbers.IntToString(value, toBase, -1, ' ', 0);
         }
 
@@ -2439,7 +2377,6 @@ namespace System
             {
                 throw new ArgumentException(SR.Arg_InvalidBase);
             }
-            Contract.EndContractBlock();
             return ParseNumbers.LongToString(value, toBase, -1, ' ', 0);
         }
 
@@ -2449,9 +2386,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
-            Contract.Ensures(Contract.Result<string>() != null);
-            Contract.EndContractBlock();
-            return ToBase64String(inArray, 0, inArray.Length, Base64FormattingOptions.None);
+            return ToBase64String(new ReadOnlySpan<byte>(inArray), Base64FormattingOptions.None);
         }
 
         public static String ToBase64String(byte[] inArray, Base64FormattingOptions options)
@@ -2460,9 +2395,7 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(inArray));
             }
-            Contract.Ensures(Contract.Result<string>() != null);
-            Contract.EndContractBlock();
-            return ToBase64String(inArray, 0, inArray.Length, options);
+            return ToBase64String(new ReadOnlySpan<byte>(inArray), options);
         }
 
         public static String ToBase64String(byte[] inArray, int offset, int length)
@@ -2470,52 +2403,50 @@ namespace System
             return ToBase64String(inArray, offset, length, Base64FormattingOptions.None);
         }
 
-        public static unsafe String ToBase64String(byte[] inArray, int offset, int length, Base64FormattingOptions options)
+        public static String ToBase64String(byte[] inArray, int offset, int length, Base64FormattingOptions options)
         {
-            //Do data verfication
             if (inArray == null)
                 throw new ArgumentNullException(nameof(inArray));
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
             if (offset < 0)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_GenericPositive);
-            if (options < Base64FormattingOptions.None || options > Base64FormattingOptions.InsertLineBreaks)
-                throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options));
-            Contract.Ensures(Contract.Result<string>() != null);
-            Contract.EndContractBlock();
-
-            int inArrayLength;
-            int stringLength;
-
-            inArrayLength = inArray.Length;
-            if (offset > (inArrayLength - length))
+            if (offset > (inArray.Length - length))
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_OffsetLength);
 
-            if (inArrayLength == 0)
-                return String.Empty;
+            return ToBase64String(new ReadOnlySpan<byte>(inArray, offset, length), options);
+        }
+
+        public static string ToBase64String(ReadOnlySpan<byte> bytes, Base64FormattingOptions options = Base64FormattingOptions.None)
+        {
+            if (options < Base64FormattingOptions.None || options > Base64FormattingOptions.InsertLineBreaks)
+            {
+                throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options), nameof(options));
+            }
+
+            if (bytes.Length == 0)
+            {
+                return string.Empty;
+            }
 
             bool insertLineBreaks = (options == Base64FormattingOptions.InsertLineBreaks);
-            //Create the new string.  This is the maximally required length.
-            stringLength = ToBase64_CalculateAndValidateOutputLength(length, insertLineBreaks);
+            string result = string.FastAllocateString(ToBase64_CalculateAndValidateOutputLength(bytes.Length, insertLineBreaks));
 
-            string returnString = string.FastAllocateString(stringLength);
-            fixed (char* outChars = returnString)
+            unsafe
             {
-                fixed (byte* inData = &inArray[0])
+                fixed (byte* bytesPtr = &MemoryMarshal.GetReference(bytes))
+                fixed (char* charsPtr = result)
                 {
-                    int j = ConvertToBase64Array(outChars, inData, offset, length, insertLineBreaks);
-                    Debug.Assert(returnString.Length == j, "returnString.Length == j");
-                    return returnString;
+                    int charsWritten = ConvertToBase64Array(charsPtr, bytesPtr, 0, bytes.Length, insertLineBreaks);
+                    Debug.Assert(result.Length == charsWritten, $"Expected {result.Length} == {charsWritten}");
                 }
             }
+
+            return result;
         }
 
         public static int ToBase64CharArray(byte[] inArray, int offsetIn, int length, char[] outArray, int offsetOut)
         {
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= outArray.Length);
-            Contract.EndContractBlock();
-
             return ToBase64CharArray(inArray, offsetIn, length, outArray, offsetOut, Base64FormattingOptions.None);
         }
 
@@ -2535,11 +2466,8 @@ namespace System
 
             if (options < Base64FormattingOptions.None || options > Base64FormattingOptions.InsertLineBreaks)
             {
-                throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options));
+                throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options), nameof(options));
             }
-            Contract.Ensures(Contract.Result<int>() >= 0);
-            Contract.Ensures(Contract.Result<int>() <= outArray.Length);
-            Contract.EndContractBlock();
 
 
             int retVal;
@@ -2575,6 +2503,36 @@ namespace System
             }
 
             return retVal;
+        }
+
+        public static unsafe bool TryToBase64Chars(ReadOnlySpan<byte> bytes, Span<char> chars, out int charsWritten, Base64FormattingOptions options = Base64FormattingOptions.None)
+        {
+            if (options < Base64FormattingOptions.None || options > Base64FormattingOptions.InsertLineBreaks)
+            {
+                throw new ArgumentException(string.Format(SR.Arg_EnumIllegalVal, (int)options), nameof(options));
+            }
+
+            if (bytes.Length == 0)
+            {
+                charsWritten = 0;
+                return true;
+            }
+
+            bool insertLineBreaks = (options == Base64FormattingOptions.InsertLineBreaks);
+
+            int charLengthRequired = ToBase64_CalculateAndValidateOutputLength(bytes.Length, insertLineBreaks);
+            if (charLengthRequired > chars.Length)
+            {
+                charsWritten = 0;
+                return false;
+            }
+
+            fixed (char* outChars = &MemoryMarshal.GetReference(chars))
+            fixed (byte* inData = &MemoryMarshal.GetReference(bytes))
+            {
+                charsWritten = ConvertToBase64Array(outChars, inData, 0, bytes.Length, insertLineBreaks);
+                return true;
+            }
         }
 
         private static unsafe int ConvertToBase64Array(char* outChars, byte* inData, int offset, int length, bool insertLineBreaks)
@@ -2670,7 +2628,7 @@ namespace System
         /// Converts the specified string, which encodes binary data as Base64 digits, to the equivalent byte array.
         /// </summary>
         /// <param name="s">The string to convert</param>
-        /// <returns>The array of bytes represented by the specifed Base64 string.</returns>
+        /// <returns>The array of bytes represented by the specified Base64 string.</returns>
         public static Byte[] FromBase64String(String s)
         {
             // "s" is an unfortunate parameter name, but we need to keep it for backward compat.
@@ -2678,7 +2636,6 @@ namespace System
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
 
-            Contract.EndContractBlock();
 
             unsafe
             {
@@ -2689,6 +2646,133 @@ namespace System
             }
         }
 
+        public static bool TryFromBase64String(string s, Span<byte> bytes, out int bytesWritten)
+        {
+            if (s == null)
+            {
+                throw new ArgumentNullException(nameof(s));
+            }
+
+            return TryFromBase64Chars(s.AsSpan(), bytes, out bytesWritten);
+        }
+
+        public static bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
+        {
+            // This is actually local to one of the nested blocks but is being declared at the top as we don't want multiple stackallocs
+            // for each iteraton of the loop. 
+            Span<char> tempBuffer = stackalloc char[4];  // Note: The tempBuffer size could be made larger than 4 but the size must be a multiple of 4.
+
+            bytesWritten = 0;
+
+            while (chars.Length != 0)
+            {
+                // Attempt to decode a segment that doesn't contain whitespace.
+                bool complete = TryDecodeFromUtf16(chars, bytes, out int consumedInThisIteration, out int bytesWrittenInThisIteration);
+                bytesWritten += bytesWrittenInThisIteration;
+                if (complete)
+                    return true;
+
+                chars = chars.Slice(consumedInThisIteration);
+                bytes = bytes.Slice(bytesWrittenInThisIteration);
+
+                Debug.Assert(chars.Length != 0); // If TryDecodeFromUtf16() consumed the entire buffer, it could not have returned false.
+                if (chars[0].IsSpace())
+                {
+                    // If we got here, the very first character not consumed was a whitespace. We can skip past any consecutive whitespace, then continue decoding.
+
+                    int indexOfFirstNonSpace = 1;
+                    for (; ; )
+                    {
+                        if (indexOfFirstNonSpace == chars.Length)
+                            break;
+                        if (!chars[indexOfFirstNonSpace].IsSpace())
+                            break;
+                        indexOfFirstNonSpace++;
+                    }
+
+                    chars = chars.Slice(indexOfFirstNonSpace);
+
+                    if ((bytesWrittenInThisIteration % 3) != 0 && chars.Length != 0)
+                    {
+                        // If we got here, the last successfully decoded block encountered an end-marker, yet we have trailing non-whitespace characters.
+                        // That is not allowed.
+                        bytesWritten = default;
+                        return false;
+                    }
+
+                    // We now loop again to decode the next run of non-space characters. 
+                }
+                else
+                {
+                    Debug.Assert(chars.Length != 0 && !chars[0].IsSpace());
+
+                    // If we got here, it is possible that there is whitespace that occurred in the middle of a 4-byte chunk. That is, we still have
+                    // up to three Base64 characters that were left undecoded by the fast-path helper because they didn't form a complete 4-byte chunk.
+                    // This is hopefully the rare case (multiline-formatted base64 message with a non-space character width that's not a multiple of 4.)
+                    // We'll filter out whitespace and copy the remaining characters into a temporary buffer.
+                    CopyToTempBufferWithoutWhiteSpace(chars, tempBuffer, out int consumedFromChars, out int charsWritten);
+                    if ((charsWritten & 0x3) != 0)
+                    {
+                        // Even after stripping out whitespace, the number of characters is not divisible by 4. This cannot be a legal Base64 string.
+                        bytesWritten = default;
+                        return false;
+                    }
+
+                    tempBuffer = tempBuffer.Slice(0, charsWritten);
+                    if (!TryDecodeFromUtf16(tempBuffer, bytes, out int consumedFromTempBuffer, out int bytesWrittenFromTempBuffer))
+                    {
+                        bytesWritten = default;
+                        return false;
+                    }
+                    bytesWritten += bytesWrittenFromTempBuffer;
+                    chars = chars.Slice(consumedFromChars);
+                    bytes = bytes.Slice(bytesWrittenFromTempBuffer);
+
+                    if ((bytesWrittenFromTempBuffer % 3) != 0)
+                    {
+                        // If we got here, this decode contained one or more padding characters ('='). We can accept trailing whitespace after this
+                        // but nothing else.
+                        for (int i = 0; i < chars.Length; i++)
+                        {
+                            if (!chars[i].IsSpace())
+                            {
+                                bytesWritten = default;
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+
+                    // We now loop again to decode the next run of non-space characters. 
+                }
+            }
+
+            return true;
+        }
+
+        private static void CopyToTempBufferWithoutWhiteSpace(ReadOnlySpan<char> chars, Span<char> tempBuffer, out int consumed, out int charsWritten)
+        {
+            Debug.Assert(tempBuffer.Length != 0); // We only bound-check after writing a character to the tempBuffer.
+
+            charsWritten = 0;
+            for (int i = 0; i < chars.Length; i++)
+            {
+                char c = chars[i];
+                if (!c.IsSpace())
+                {
+                    tempBuffer[charsWritten++] = c;
+                    if (charsWritten == tempBuffer.Length)
+                    {
+                        consumed = i + 1;
+                        return;
+                    }
+                }
+            }
+            consumed = chars.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsSpace(this char c) => c == ' ' || c == '\t' || c == '\r' || c == '\n';
 
         /// <summary>
         /// Converts the specified range of a Char array, which encodes binary data as Base64 digits, to the equivalent byte array.     
@@ -2711,7 +2795,6 @@ namespace System
             if (offset > inArray.Length - length)
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_OffsetLength);
 
-            Contract.EndContractBlock();
 
             if (inArray.Length == 0)
             {
@@ -2726,8 +2809,6 @@ namespace System
                 }
             }
         }
-
-
 
         /// <summary>
         /// Convert Base64 encoding characters to bytes:
@@ -2766,210 +2847,16 @@ namespace System
             Byte[] decodedBytes = new Byte[resultLength];
 
             // Convert Base64 chars into bytes:
-            Int32 actualResultLength;
-            fixed (Byte* decodedBytesPtr = decodedBytes)
-                actualResultLength = FromBase64_Decode(inputPtr, inputLength, decodedBytesPtr, resultLength);
+            if (!TryFromBase64Chars(new ReadOnlySpan<char>(inputPtr, inputLength), decodedBytes, out int _))
+                throw new FormatException(SR.Format_BadBase64Char);
 
-            // Note that actualResultLength can differ from resultLength if the caller is modifying the array
+            // Note that the number of bytes written can differ from resultLength if the caller is modifying the array
             // as it is being converted. Silently ignore the failure.
             // Consider throwing exception in an non in-place release.
 
             // We are done:
             return decodedBytes;
         }
-
-
-        /// <summary>
-        /// Decode characters representing a Base64 encoding into bytes:
-        /// Walk the input. Every time 4 chars are read, convert them to the 3 corresponding output bytes.
-        /// This method is a bit lengthy on purpose. We are trying to avoid jumps to helpers in the loop
-        /// to aid performance.
-        /// </summary>
-        /// <param name="inputPtr">Pointer to first input char</param>
-        /// <param name="inputLength">Number of input chars</param>
-        /// <param name="destPtr">Pointer to location for the first result byte</param>
-        /// <param name="destLength">Max length of the preallocated result buffer</param>
-        /// <returns>If the result buffer was not large enough to write all result bytes, return -1;
-        /// Otherwise return the number of result bytes actually produced.</returns>
-        private static unsafe Int32 FromBase64_Decode(Char* startInputPtr, Int32 inputLength, Byte* startDestPtr, Int32 destLength)
-        {
-            // You may find this method weird to look at. It's written for performance, not aesthetics.
-            // You will find unrolled loops label jumps and bit manipulations.
-
-            const UInt32 intA = (UInt32)'A';
-            const UInt32 inta = (UInt32)'a';
-            const UInt32 int0 = (UInt32)'0';
-            const UInt32 intEq = (UInt32)'=';
-            const UInt32 intPlus = (UInt32)'+';
-            const UInt32 intSlash = (UInt32)'/';
-            const UInt32 intSpace = (UInt32)' ';
-            const UInt32 intTab = (UInt32)'\t';
-            const UInt32 intNLn = (UInt32)'\n';
-            const UInt32 intCRt = (UInt32)'\r';
-            const UInt32 intAtoZ = (UInt32)('Z' - 'A');  // = ('z' - 'a')
-            const UInt32 int0to9 = (UInt32)('9' - '0');
-
-            Char* inputPtr = startInputPtr;
-            Byte* destPtr = startDestPtr;
-
-            // Pointers to the end of input and output:
-            Char* endInputPtr = inputPtr + inputLength;
-            Byte* endDestPtr = destPtr + destLength;
-
-            // Current char code/value:
-            UInt32 currCode;
-
-            // This 4-byte integer will contain the 4 codes of the current 4-char group.
-            // Eeach char codes for 6 bits = 24 bits.
-            // The remaining byte will be FF, we use it as a marker when 4 chars have been processed.            
-            UInt32 currBlockCodes = 0x000000FFu;
-
-            unchecked
-            {
-                while (true)
-                {
-                    // break when done:
-                    if (inputPtr >= endInputPtr)
-                        goto _AllInputConsumed;
-
-                    // Get current char:
-                    currCode = (UInt32)(*inputPtr);
-                    inputPtr++;
-
-                    // Determine current char code:
-
-                    if (currCode - intA <= intAtoZ)
-                        currCode -= intA;
-
-                    else if (currCode - inta <= intAtoZ)
-                        currCode -= (inta - 26u);
-
-                    else if (currCode - int0 <= int0to9)
-                        currCode -= (int0 - 52u);
-
-                    else
-                    {
-                        // Use the slower switch for less common cases:
-                        switch (currCode)
-                        {
-                            // Significant chars:
-                            case intPlus:
-                                currCode = 62u;
-                                break;
-
-                            case intSlash:
-                                currCode = 63u;
-                                break;
-
-                            // Legal no-value chars (we ignore these):
-                            case intCRt:
-                            case intNLn:
-                            case intSpace:
-                            case intTab:
-                                continue;
-
-                            // The equality char is only legal at the end of the input.
-                            // Jump after the loop to make it easier for the JIT register predictor to do a good job for the loop itself:
-                            case intEq:
-                                goto _EqualityCharEncountered;
-
-                            // Other chars are illegal:
-                            default:
-                                throw new FormatException(SR.Format_BadBase64Char);
-                        }
-                    }
-
-                    // Ok, we got the code. Save it:
-                    currBlockCodes = (currBlockCodes << 6) | currCode;
-
-                    // Last bit in currBlockCodes will be on after in shifted right 4 times:
-                    if ((currBlockCodes & 0x80000000u) != 0u)
-                    {
-                        if ((Int32)(endDestPtr - destPtr) < 3)
-                            return -1;
-
-                        *(destPtr) = (Byte)(currBlockCodes >> 16);
-                        *(destPtr + 1) = (Byte)(currBlockCodes >> 8);
-                        *(destPtr + 2) = (Byte)(currBlockCodes);
-                        destPtr += 3;
-
-                        currBlockCodes = 0x000000FFu;
-                    }
-                }
-            }  // unchecked while
-
-        // 'd be nice to have an assert that we never get here, but CS0162: Unreachable code detected.
-        // Debug.Assert(false, "We only leave the above loop by jumping; should never get here.");
-
-        // We jump here out of the loop if we hit an '=':
-        _EqualityCharEncountered:
-
-            Debug.Assert(currCode == intEq);
-
-            // Recall that inputPtr is now one position past where '=' was read.
-            // '=' can only be at the last input pos:
-            if (inputPtr == endInputPtr)
-            {
-                // Code is zero for trailing '=':
-                currBlockCodes <<= 6;
-
-                // The '=' did not complete a 4-group. The input must be bad:
-                if ((currBlockCodes & 0x80000000u) == 0u)
-                    throw new FormatException(SR.Format_BadBase64CharArrayLength);
-
-                if ((int)(endDestPtr - destPtr) < 2)  // Autch! We underestimated the output length!
-                    return -1;
-
-                // We are good, store bytes form this past group. We had a single "=", so we take two bytes:
-                *(destPtr++) = (Byte)(currBlockCodes >> 16);
-                *(destPtr++) = (Byte)(currBlockCodes >> 8);
-
-                currBlockCodes = 0x000000FFu;
-            }
-            else
-            { // '=' can also be at the pre-last position iff the last is also a '=' excluding the white spaces:
-                // We need to get rid of any intermediate white spaces.
-                // Otherwise we would be rejecting input such as "abc= =":
-                while (inputPtr < (endInputPtr - 1))
-                {
-                    Int32 lastChar = *(inputPtr);
-                    if (lastChar != (Int32)' ' && lastChar != (Int32)'\n' && lastChar != (Int32)'\r' && lastChar != (Int32)'\t')
-                        break;
-                    inputPtr++;
-                }
-
-                if (inputPtr == (endInputPtr - 1) && *(inputPtr) == '=')
-                {
-                    // Code is zero for each of the two '=':
-                    currBlockCodes <<= 12;
-
-                    // The '=' did not complete a 4-group. The input must be bad:
-                    if ((currBlockCodes & 0x80000000u) == 0u)
-                        throw new FormatException(SR.Format_BadBase64CharArrayLength);
-
-                    if ((Int32)(endDestPtr - destPtr) < 1)  // Autch! We underestimated the output length!
-                        return -1;
-
-                    // We are good, store bytes form this past group. We had a "==", so we take only one byte:
-                    *(destPtr++) = (Byte)(currBlockCodes >> 16);
-
-                    currBlockCodes = 0x000000FFu;
-                }
-                else  // '=' is not ok at places other than the end:
-                    throw new FormatException(SR.Format_BadBase64Char);
-            }
-
-        // We get here either from above or by jumping out of the loop:
-        _AllInputConsumed:
-
-            // The last block of chars has less than 4 items
-            if (currBlockCodes != 0x000000FFu)
-                throw new FormatException(SR.Format_BadBase64CharArrayLength);
-
-            // Return how many bytes were actually recovered:
-            return (Int32)(destPtr - startDestPtr);
-        } // Int32 FromBase64_Decode(...)
-
 
         /// <summary>
         /// Compute the number of bytes encoded in the specified Base 64 char array:

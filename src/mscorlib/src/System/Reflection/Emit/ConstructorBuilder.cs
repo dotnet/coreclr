@@ -13,7 +13,6 @@ namespace System.Reflection.Emit
     using System.Diagnostics.SymbolStore;
     using System.Security;
     using System.Runtime.InteropServices;
-    using System.Diagnostics.Contracts;
 
     public sealed class ConstructorBuilder : ConstructorInfo
     {
@@ -21,10 +20,6 @@ namespace System.Reflection.Emit
         internal bool m_isDefaultConstructor;
 
         #region Constructor
-
-        private ConstructorBuilder()
-        {
-        }
 
         internal ConstructorBuilder(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type[] parameterTypes, Type[][] requiredCustomModifiers, Type[][] optionalCustomModifiers, ModuleBuilder mod, TypeBuilder type)
@@ -105,7 +100,6 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        [Pure]
         public override ParameterInfo[] GetParameters()
         {
             ConstructorInfo rci = GetTypeBuilder().GetConstructor(m_methodBuilder.m_parameterTypes);

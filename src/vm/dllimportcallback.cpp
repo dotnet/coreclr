@@ -33,39 +33,84 @@ struct UM2MThunk_Args
     int argLen;
 };
 
+class UMEntryThunkFreeList
+{
+public:
+    UMEntryThunkFreeList(size_t threshold) :
+        m_threshold(threshold),
+        m_count(0),
+        m_pHead(NULL),
+        m_pTail(NULL)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_crst.Init(CrstLeafLock, CRST_UNSAFE_ANYMODE);
+    }
+
+    UMEntryThunk *GetUMEntryThunk()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (m_count < m_threshold)
+            return NULL;
+
+        CrstHolder ch(&m_crst);
+
+        UMEntryThunk *pThunk = m_pHead;
+
+        if (pThunk == NULL)
+            return NULL;
+
+        m_pHead = m_pHead->m_pNextFreeThunk;
+        --m_count;
+
+        return pThunk;
+    }
+
+    void AddToList(UMEntryThunk *pThunk)
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+        }
+        CONTRACTL_END;
+
+        CrstHolder ch(&m_crst);
+
+        if (m_pHead == NULL)
+        {
+            m_pHead = pThunk;
+            m_pTail = pThunk;
+        }
+        else
+        {
+            m_pTail->m_pNextFreeThunk = pThunk;
+            m_pTail = pThunk;
+        }
+
+        pThunk->m_pNextFreeThunk = NULL;
+
+        ++m_count;
+    }
+
+private:
+    // Used to delay reusing freed thunks
+    size_t m_threshold;
+    size_t m_count;
+    UMEntryThunk *m_pHead;
+    UMEntryThunk *m_pTail;
+    CrstStatic m_crst;
+};
+
+#define DEFAULT_THUNK_FREE_LIST_THRESHOLD 64
+
+static UMEntryThunkFreeList s_thunkFreeList(DEFAULT_THUNK_FREE_LIST_THRESHOLD);
+
 EXTERN_C void STDCALL UM2MThunk_WrapperHelper(void *pThunkArgs,
                                               int argLen,
                                               void *pAddr,
                                               UMEntryThunk *pEntryThunk,
                                               Thread *pThread);
-
-#ifdef MDA_SUPPORTED
-EXTERN_C void __fastcall CallbackOnCollectedDelegateHelper(UMEntryThunk *pEntryThunk)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pEntryThunk));
-    }
-    CONTRACTL_END;
-
-    MdaCallbackOnCollectedDelegate* pProbe = MDA_GET_ASSISTANT(CallbackOnCollectedDelegate);
-    
-    // This MDA must be active if we generated a call to CallbackOnCollectedDelegateHelper
-    _ASSERTE(pProbe);
-
-    if (pEntryThunk->IsCollected())
-    {
-        INSTALL_UNWIND_AND_CONTINUE_HANDLER;
-        pProbe->ReportViolation(pEntryThunk->GetMethod());
-        COMPlusThrow(kNullReferenceException);
-        UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    }
-}
-#endif // MDA_SUPPORTED
 
 // This is used as target of callback from DoADCallBack. It sets up the environment and effectively
 // calls back into the thunk that needed to switch ADs.
@@ -338,25 +383,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // without coordinating with the GC.  During shutdown, such coordination
     // would deadlock).
     pcpusl->EmitLabel(pDoADCallBackStartLabel);
-
-
-#ifdef MDA_SUPPORTED
-    if ((pInfo->m_wFlags & umtmlSkipStub) && !(pInfo->m_wFlags & umtmlIsStatic) && 
-        MDA_GET_ASSISTANT(CallbackOnCollectedDelegate))
-    {
-        // save registers
-        pcpusl->X86EmitPushReg(kEAXentryThunk);
-        pcpusl->X86EmitPushReg(kECXthread);
-
-        // CallbackOnCollectedDelegateHelper is a fast call
-        pcpusl->X86EmitMovRegReg(kECX, kEAXentryThunk);
-        pcpusl->X86EmitCall(pcpusl->NewExternalCodeLabel((LPVOID)CallbackOnCollectedDelegateHelper), 0);
-
-        // restore registers
-        pcpusl->X86EmitPopReg(kECXthread);
-        pcpusl->X86EmitPopReg(kEAXentryThunk);
-    }
-#endif
 
     // save the thread pointer
     pcpusl->X86EmitPushReg(kECXthread);
@@ -1111,20 +1137,25 @@ UMEntryThunk* UMEntryThunk::CreateUMEntryThunk()
 
     UMEntryThunk * p;
 
-    // On the phone, use loader heap to save memory commit of regular executable heap
-    p = (UMEntryThunk *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunk)));
+    p = s_thunkFreeList.GetUMEntryThunk();
+
+    if (p == NULL)
+        p = (UMEntryThunk *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunk)));
 
     RETURN p;
 }
 
 void UMEntryThunk::Terminate()
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
 
-    _ASSERTE(!SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->IsZeroInit());
     m_code.Poison();
 
-    SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(this, sizeof(UMEntryThunk));
+    s_thunkFreeList.AddToList(this);
 }
 
 VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
@@ -1138,34 +1169,46 @@ VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
     }
     CONTRACTL_END;
 
-#ifdef MDA_SUPPORTED
-    MdaCallbackOnCollectedDelegate* pProbe = MDA_GET_ASSISTANT(CallbackOnCollectedDelegate);
-    if (pProbe)
-    {
-        if (p->GetObjectHandle())
-        {
-            DestroyLongWeakHandle(p->GetObjectHandle());
-            p->m_pObjectHandle = NULL;
-
-            // We are intentionally not reseting m_pManagedTarget here so that
-            // it is available for diagnostics of call on collected delegate crashes.
-        }
-        else
-        {
-            p->m_pManagedTarget = NULL;
-        }
-
-        // Add this to the array of delegates to be cleaned up.
-        pProbe->AddToList(p);
-
-        return;
-    }
-#endif
-
     p->Terminate();
 }
 
 #endif // CROSSGEN_COMPILE
+
+//-------------------------------------------------------------------------
+// This function is used to report error when we call collected delegate.
+// But memory that was allocated for thunk can be reused, due to it this
+// function will not be called in all cases of the collected delegate call,
+// also it may crash while trying to report the problem.
+//-------------------------------------------------------------------------
+VOID __fastcall UMEntryThunk::ReportViolation(UMEntryThunk* pEntryThunk)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pEntryThunk));
+    }
+    CONTRACTL_END;
+
+    MethodDesc* pMethodDesc = pEntryThunk->GetMethod();
+
+    SString namespaceOrClassName;
+    SString methodName;
+    SString moduleName;
+
+    pMethodDesc->GetMethodInfoNoSig(namespaceOrClassName, methodName);
+    moduleName.SetUTF8(pMethodDesc->GetModule()->GetSimpleName());
+
+    SString message;
+
+    message.Printf(W("A callback was made on a garbage collected delegate of type '%s!%s::%s'."),
+        moduleName.GetUnicode(),
+        namespaceOrClassName.GetUnicode(),
+        methodName.GetUnicode());
+
+    EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_FAILFAST, message.GetUnicode());
+}
 
 UMThunkMarshInfo::~UMThunkMarshInfo()
 {

@@ -18,7 +18,6 @@ namespace System.Reflection.Emit
     using System.IO;
     using System.Runtime.Versioning;
     using System.Diagnostics.SymbolStore;
-    using System.Diagnostics.Contracts;
 
     // This is a package private class. This class hold all of the managed
     // data member for AssemblyBuilder. Note that what ever data members added to
@@ -98,7 +97,6 @@ namespace System.Reflection.Emit
         // Helper to ensure the type name is unique underneath assemblyBuilder
         internal void CheckTypeNameConflict(String strTypeName, TypeBuilder enclosingType)
         {
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilderData.CheckTypeNameConflict( " + strTypeName + " )");
             for (int i = 0; i < m_moduleBuilderList.Count; i++)
             {
                 ModuleBuilder curModule = m_moduleBuilderList[i];

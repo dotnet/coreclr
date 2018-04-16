@@ -25,7 +25,6 @@ namespace System
     using System.Reflection;
     using System.Collections;
     using System.Globalization;
-    using System.Diagnostics.Contracts;
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
@@ -36,7 +35,7 @@ namespace System
             _message = null;
             _stackTrace = null;
             _dynamicMethods = null;
-            HResult = __HResults.COR_E_EXCEPTION;
+            HResult = HResults.COR_E_EXCEPTION;
             _xcode = _COMPlusExceptionCode;
             _xptrs = (IntPtr)0;
 
@@ -74,7 +73,6 @@ namespace System
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
 
             _className = info.GetString("ClassName"); // Do not rename (binary serialization)
             _message = info.GetString("Message"); // Do not rename (binary serialization)
@@ -185,7 +183,7 @@ namespace System
             }
         }
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         internal void AddExceptionDataForRestrictedErrorInfo(
             string restrictedError,
             string restrictedErrorReference,
@@ -260,7 +258,7 @@ namespace System
 
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static extern private IRuntimeMethodInfo GetMethodFromStackTrace(Object stackTrace);
+        static private extern IRuntimeMethodInfo GetMethodFromStackTrace(Object stackTrace);
 
         private MethodBase GetExceptionMethodFromStackTrace()
         {
@@ -337,7 +335,7 @@ namespace System
             return remoteStackTraceString + tempStackTraceString;
         }
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         internal void SetErrorCode(int hr)
         {
             HResult = hr;
@@ -439,7 +437,6 @@ namespace System
             {
                 throw new ArgumentNullException(nameof(info));
             }
-            Contract.EndContractBlock();
 
             String tempStackTraceString = _stackTraceString;
 
@@ -657,7 +654,6 @@ namespace System
 
         private String _className;  //Needed for serialization.  
         private MethodBase _exceptionMethod;  //Needed for serialization.  
-        private String _exceptionMethodString; //Needed for serialization.
         internal String _message;
         private IDictionary _data;
         private Exception _innerException;
@@ -729,7 +725,7 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern static bool nIsTransient(int hr);
+        private static extern bool nIsTransient(int hr);
 
 
         // This piece of infrastructure exists to help avoid deadlocks 
@@ -757,7 +753,6 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetMessageFromNativeResources(ExceptionMessageKind kind, StringHandleOnStack retMesg);
     }
 

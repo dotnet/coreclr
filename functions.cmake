@@ -44,11 +44,11 @@ endfunction(get_include_directories)
 # Build a list of include directories for consumption by the assembler
 function(get_include_directories_asm IncludeDirectories)
     get_directory_property(dirs INCLUDE_DIRECTORIES)
-    
+
     if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
         list(APPEND INC_DIRECTORIES "-I ")
     endif()
-    
+
     foreach(dir IN LISTS dirs)
       if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
         list(APPEND INC_DIRECTORIES ${dir};)
@@ -141,7 +141,7 @@ function(strip_symbols targetName outputFilename)
         add_custom_command(
           TARGET ${targetName}
           POST_BUILD
-          VERBATIM 
+          VERBATIM
           COMMAND ${DSYMUTIL} --flat --minimize ${strip_source_file}
           COMMAND ${STRIP} -S ${strip_source_file}
           COMMENT Stripping symbols from ${strip_source_file} into file ${strip_destination_file}
@@ -152,7 +152,7 @@ function(strip_symbols targetName outputFilename)
         add_custom_command(
           TARGET ${targetName}
           POST_BUILD
-          VERBATIM 
+          VERBATIM
           COMMAND ${OBJCOPY} --only-keep-debug ${strip_source_file} ${strip_destination_file}
           COMMAND ${OBJCOPY} --strip-debug ${strip_source_file}
           COMMAND ${OBJCOPY} --add-gnu-debuglink=${strip_destination_file} ${strip_source_file}
@@ -166,43 +166,62 @@ function(strip_symbols targetName outputFilename)
 endfunction()
 
 function(install_clr targetName)
-  list(FIND CLR_CROSS_COMPONENTS_LIST ${targetName} INDEX)  
-  if (NOT DEFINED CLR_CROSS_COMPONENTS_LIST OR NOT ${INDEX} EQUAL -1)  
-    strip_symbols(${targetName} strip_destination_file) 
-    # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE  
-    # generator expression doesn't work correctly returning the wrong path and on  
-    # the newer cmake versions the LOCATION property isn't supported anymore.  
-    if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)  
-       set(install_source_file $<TARGET_FILE:${targetName}>)  
-    else()  
-        get_property(install_source_file TARGET ${targetName} PROPERTY LOCATION)  
-    endif()  
-  
-    install(PROGRAMS ${install_source_file} DESTINATION .)  
-    if(WIN32)  
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION PDB)  
-    else()  
-        install(FILES ${strip_destination_file} DESTINATION .)  
-    endif()  
+  list(FIND CLR_CROSS_COMPONENTS_LIST ${targetName} INDEX)
+  if (NOT DEFINED CLR_CROSS_COMPONENTS_LIST OR NOT ${INDEX} EQUAL -1)
+    strip_symbols(${targetName} strip_destination_file)
+    # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
+    # generator expression doesn't work correctly returning the wrong path and on
+    # the newer cmake versions the LOCATION property isn't supported anymore.
+    if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
+       set(install_source_file $<TARGET_FILE:${targetName}>)
+    else()
+        get_property(install_source_file TARGET ${targetName} PROPERTY LOCATION)
+    endif()
+
+    install(PROGRAMS ${install_source_file} DESTINATION .)
+    if(WIN32)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION PDB)
+    else()
+        install(FILES ${strip_destination_file} DESTINATION .)
+    endif()
     if(CLR_CMAKE_PGO_INSTRUMENT)
         if(WIN32)
             install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pgd DESTINATION PGD OPTIONAL)
         endif()
     endif()
-  endif()  
+  endif()
+endfunction()
+
+# Disable PAX mprotect that would prevent JIT and other codegen in coreclr from working.
+# PAX mprotect prevents:
+# - changing the executable status of memory pages that were
+#   not originally created as executable,
+# - making read-only executable pages writable again,
+# - creating executable pages from anonymous memory,
+# - making read-only-after-relocations (RELRO) data pages writable again.
+function(disable_pax_mprotect targetName)
+  if (NOT PAXCTL STREQUAL "PAXCTL-NOTFOUND")
+    add_custom_command(
+      TARGET ${targetName}
+      POST_BUILD
+      VERBATIM
+      COMMAND ${PAXCTL} -c -m $<TARGET_FILE:${targetName}>
+    )
+  endif()
 endfunction()
 
 function(_add_executable)
     if(NOT WIN32)
       add_executable(${ARGV} ${VERSION_FILE_PATH})
+      disable_pax_mprotect(${ARGV})
     else()
       add_executable(${ARGV})
     endif(NOT WIN32)
-    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
-    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
-     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
+    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)
+    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)
+     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)
     endif()
-endfunction()  
+endfunction()
 
 function(_add_library)
     if(NOT WIN32)
@@ -210,10 +229,10 @@ function(_add_library)
     else()
       add_library(${ARGV})
     endif(NOT WIN32)
-    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
-    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
-     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
-    endif()  
+    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)
+    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)
+     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)
+    endif()
 endfunction()
 
 function(_install)
@@ -223,15 +242,29 @@ function(_install)
 endfunction()
 
 function(verify_dependencies targetName errorMessage)
+    set(SANITIZER_BUILD OFF)
+
+    if (CLR_CMAKE_PLATFORM_UNIX)
+        if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
+            string(FIND "$ENV{DEBUG_SANITIZERS}" "asan" __ASAN_POS)
+            string(FIND "$ENV{DEBUG_SANITIZERS}" "ubsan" __UBSAN_POS)
+            if ((${__ASAN_POS} GREATER -1) OR (${__UBSAN_POS} GREATER -1))
+                set(SANITIZER_BUILD ON)
+            endif()
+        endif()
+    endif()
+
     # We don't need to verify dependencies on OSX, since missing dependencies
     # result in link error over there.
-    if (NOT CLR_CMAKE_PLATFORM_DARWIN AND NOT CLR_CMAKE_PLATFORM_ANDROID)
+    # Also don't verify dependencies for Asan build because in this case shared
+    # libraries can contain undefined symbols
+    if (NOT CLR_CMAKE_PLATFORM_DARWIN AND NOT CLR_CMAKE_PLATFORM_ANDROID AND NOT SANITIZER_BUILD)
         add_custom_command(
             TARGET ${targetName}
             POST_BUILD
             VERBATIM
-            COMMAND ${CMAKE_SOURCE_DIR}/verify-so.sh 
-                $<TARGET_FILE:${targetName}> 
+            COMMAND ${CMAKE_SOURCE_DIR}/verify-so.sh
+                $<TARGET_FILE:${targetName}>
                 ${errorMessage}
             COMMENT "Verifying ${targetName} dependencies"
         )
@@ -239,28 +272,9 @@ function(verify_dependencies targetName errorMessage)
 endfunction()
 
 function(add_library_clr)
-    if(NOT WIN32)
-      add_library(${ARGV} ${VERSION_FILE_PATH})
-    else()
-      add_library(${ARGV})
-    endif(NOT WIN32)
-    add_dependencies(${ARGV0} GeneratedEventingFiles)
-    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
-    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
-     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
-    endif()  
+    _add_library(${ARGV})
 endfunction()
 
 function(add_executable_clr)
-    if(NOT WIN32)
-      add_executable(${ARGV} ${VERSION_FILE_PATH})
-    else()
-      add_executable(${ARGV})
-    endif(NOT WIN32)
-    add_dependencies(${ARGV0} GeneratedEventingFiles)
-    list(FIND CLR_CROSS_COMPONENTS_LIST ${ARGV0} INDEX)  
-    if (DEFINED CLR_CROSS_COMPONENTS_LIST AND ${INDEX} EQUAL -1)  
-     set_target_properties(${ARGV0} PROPERTIES EXCLUDE_FROM_ALL 1)  
-    endif()  
+    _add_executable(${ARGV})
 endfunction()
-

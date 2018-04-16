@@ -10,11 +10,7 @@
 #ifdef USE_GC_INFO_DECODER
 
 #ifndef CHECK_APP_DOMAIN
-#if CHECK_APP_DOMAIN_LEAKS
-#define CHECK_APP_DOMAIN    GC_CALL_CHECK_APP_DOMAIN
-#else
 #define CHECK_APP_DOMAIN    0
-#endif
 #endif
 
 #ifndef GCINFODECODER_CONTRACT
@@ -129,7 +125,11 @@ GcInfoDecoder::GcInfoDecoder(
     m_GenericSecretParamIsMD   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MD;
     m_GenericSecretParamIsMT   = (headerFlags & GC_INFO_HAS_GENERICS_INST_CONTEXT_MASK) == GC_INFO_HAS_GENERICS_INST_CONTEXT_MT;
     int hasStackBaseRegister   = headerFlags & GC_INFO_HAS_STACK_BASE_REGISTER;
+#ifdef _TARGET_AMD64_
     m_WantsReportOnlyLeaf      = ((headerFlags & GC_INFO_WANTS_REPORT_ONLY_LEAF) != 0);
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    m_HasTailCalls             = ((headerFlags & GC_INFO_HAS_TAILCALLS) != 0);
+#endif // _TARGET_AMD64_
     int hasSizeOfEditAndContinuePreservedArea = headerFlags & GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS;
     
     int hasReversePInvokeFrame = false;
@@ -531,9 +531,22 @@ bool GcInfoDecoder::GetIsVarArg()
     return m_IsVarArg;
 }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+bool GcInfoDecoder::HasTailCalls()
+{
+    _ASSERTE( m_Flags & DECODE_HAS_TAILCALLS );
+    return m_HasTailCalls;
+}
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
 bool GcInfoDecoder::WantsReportOnlyLeaf()
 {
+    // Only AMD64 with JIT64 can return false here.
+#ifdef _TARGET_AMD64_
     return m_WantsReportOnlyLeaf;
+#else
+    return true;
+#endif    
 }
 
 UINT32 GcInfoDecoder::GetCodeLength()

@@ -12,7 +12,12 @@
 #include "errorhandling.h"
 #include "spmiutil.h"
 
-JitInstance* JitInstance::InitJit(char* nameOfJit, bool breakOnAssert, SimpleTimer* st1, MethodContext* firstContext)
+JitInstance* JitInstance::InitJit(char*          nameOfJit,
+                                  bool           breakOnAssert,
+                                  SimpleTimer*   st1,
+                                  MethodContext* firstContext,
+                                  LightWeightMap<DWORD, DWORD>* forceOptions,
+                                  LightWeightMap<DWORD, DWORD>* options)
 {
     JitInstance* jit = new JitInstance();
     if (jit == nullptr)
@@ -20,6 +25,10 @@ JitInstance* JitInstance::InitJit(char* nameOfJit, bool breakOnAssert, SimpleTim
         LogError("Failed to allocate a JitInstance");
         return nullptr;
     }
+
+    jit->forceOptions = forceOptions;
+
+    jit->options = options;
 
     if (st1 != nullptr)
         st1->Start();
@@ -33,6 +42,7 @@ JitInstance* JitInstance::InitJit(char* nameOfJit, bool breakOnAssert, SimpleTim
     }
     if (st1 != nullptr)
         LogVerbose("Jit startup took %fms", st1->GetMilliseconds());
+
     return jit;
 }
 
@@ -53,7 +63,7 @@ HRESULT JitInstance::StartUp(char*          PathToJit,
     char szTempFileName[MAX_PATH];
 
     // Get an allocator instance
-     //Note: we do this to keep cleanup somewhat simple...
+    // Note: we do this to keep cleanup somewhat simple...
     ourHeap = ::HeapCreate(0, 0, 0);
     if (ourHeap == nullptr)
     {
@@ -180,7 +190,11 @@ HRESULT JitInstance::StartUp(char*          PathToJit,
     {
         mc      = firstContext;
         jitHost = new JitHost(*this);
-        pnjitStartup(jitHost);
+        if (!callJitStartup(jitHost))
+        {
+            LogError("jitStartup failed");
+            return -1;
+        }
     }
 
     pJitInstance = pngetJit();
@@ -246,7 +260,11 @@ bool JitInstance::reLoad(MethodContext* firstContext)
     {
         mc      = firstContext;
         jitHost = new JitHost(*this);
-        pnjitStartup(jitHost);
+        if (!callJitStartup(jitHost))
+        {
+            LogError("jitStartup failed");
+            return false;
+        }
     }
 
     pJitInstance = pngetJit();
@@ -284,7 +302,6 @@ JitInstance::Result JitInstance::CompileMethod(MethodContext* MethodToCompile, i
     times[0] = 0;
     times[1] = 0;
 
-    mc->repEnvironmentSet(); // Sets envvars
     stj.Start();
 
     PAL_TRY(Param*, pParam, &param)
@@ -349,7 +366,6 @@ JitInstance::Result JitInstance::CompileMethod(MethodContext* MethodToCompile, i
         // If we get here, we know it compiles
         timeResult(param.info, param.flags);
     }
-    mc->repEnvironmentUnset(); // Unsets envvars
 
     mc->cr->secondsToCompile = stj.GetSeconds();
 
@@ -398,6 +414,33 @@ void JitInstance::timeResult(CORINFO_METHOD_INFO info, unsigned flags)
 
 /*-------------------------- Misc ---------------------------------------*/
 
+const wchar_t* JitInstance::getForceOption(const wchar_t* key)
+{
+    return getOption(key, forceOptions);
+}
+
+const wchar_t* JitInstance::getOption(const wchar_t* key)
+{
+    return getOption(key, options);
+}
+
+const wchar_t* JitInstance::getOption(const wchar_t* key, LightWeightMap<DWORD, DWORD>* options)
+{
+    if (options == nullptr)
+    {
+        return nullptr;
+    }
+
+    size_t keyLenInBytes = sizeof(wchar_t) * (wcslen(key) + 1);
+    int    keyIndex      = options->Contains((unsigned char*)key, (unsigned int)keyLenInBytes);
+    if (keyIndex == -1)
+    {
+        return nullptr;
+    }
+
+    return (const wchar_t*)options->GetBuffer(options->Get(keyIndex));
+}
+
 // Used to allocate memory that needs to handed to the EE.
 // For eg, use this to allocated memory for reporting debug info,
 // which will be handed to the EE by setVars() and setBoundaries()
@@ -428,4 +471,58 @@ void JitInstance::freeArray(void* array)
 void JitInstance::freeLongLivedArray(void* array)
 {
     HeapFree(ourHeap, 0, array);
+}
+
+// Helper for calling pnjitStartup. Needed to allow SEH here.
+bool JitInstance::callJitStartup(ICorJitHost* jithost)
+{
+    // Calling into the collection, which could fail, especially
+    // for altjits. So protect the call.
+
+    struct Param : FilterSuperPMIExceptionsParam_CaptureException
+    {
+        JitInstance* pThis;
+        ICorJitHost* jithost;
+        bool         result;
+    } param;
+    param.pThis   = this;
+    param.jithost = jithost;
+    param.result  = false;
+
+    PAL_TRY(Param*, pParam, &param)
+    {
+        pParam->pThis->pnjitStartup(pParam->jithost);
+        pParam->result = true;
+    }
+    PAL_EXCEPT_FILTER(FilterSuperPMIExceptions_CaptureExceptionAndStop)
+    {
+        SpmiException e(&param.exceptionPointers);
+
+        LogError("failed to call jitStartup.");
+        e.ShowAndDeleteMessage();
+    }
+    PAL_ENDTRY
+
+    return param.result;
+}
+
+// Reset JitConfig, that stores Enviroment variables.
+bool JitInstance::resetConfig(MethodContext* firstContext)
+{
+    if (pnjitStartup == nullptr)
+    {
+        return false;
+    }
+
+    mc = firstContext;
+    ICorJitHost* newHost = new JitHost(*this);
+
+    if (!callJitStartup(newHost))
+    {
+        return false;
+    }
+
+    delete static_cast<JitHost*>(jitHost);
+    jitHost = newHost;
+    return true;
 }

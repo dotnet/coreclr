@@ -60,8 +60,6 @@ public:
 
     Thread* GetThread(void);
 
-    void SetEEThreadPtr(VOID* newPtr);
-
     StackWalkAction StackWalkFramesEx(Thread* pThread,
                                              PREGDISPLAY pRD,
                                              PSTACKWALKFRAMESCALLBACK pCallback,
@@ -115,12 +113,15 @@ public:
 
     T_CONTEXT *GetThreadFilterContext(Thread *thread);
 
-    VOID *GetThreadDebuggerWord(Thread *thread);
+#ifdef FEATURE_INTEROP_DEBUGGING
+    VOID *GetThreadDebuggerWord();
 
-    void SetThreadDebuggerWord(Thread *thread,
-                               VOID *dw);
+    VOID SetThreadDebuggerWord(VOID *dw);
+#endif
 
     BOOL IsManagedNativeCode(const BYTE *address);
+
+    PCODE GetNativeCodeStartAddress(PCODE address) DAC_UNEXPECTED();
 
     MethodDesc *GetNativeCodeMethodDesc(const PCODE address) DAC_UNEXPECTED();
 
@@ -272,12 +273,10 @@ public:
     void GetRuntimeOffsets(SIZE_T *pTLSIndex,
                            SIZE_T *pTLSIsSpecialIndex,
                            SIZE_T *pTLSCantStopIndex,
-                           SIZE_T *pTLSIndexOfPredefs,
                            SIZE_T *pEEThreadStateOffset,
                            SIZE_T *pEEThreadStateNCOffset,
                            SIZE_T *pEEThreadPGCDisabledOffset,
                            DWORD  *pEEThreadPGCDisabledValue,
-                           SIZE_T *pEEThreadDebuggerWordOffset,
                            SIZE_T *pEEThreadFrameOffset,
                            SIZE_T *pEEThreadMaxNeededSize,
                            DWORD  *pEEThreadSteppingStateMask,

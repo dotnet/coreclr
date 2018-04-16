@@ -94,9 +94,9 @@ Also do your best to factor commits appropriately, not too large with unrelated 
 Contributor License Agreement
 -----------------------------
 
-You must sign a [.NET Foundation Contribution License Agreement (CLA)](http://cla2.dotnetfoundation.org) before your PR will be merged. This is a one-time requirement for projects in the .NET Foundation. You can read more about [Contribution License Agreements (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) on Wikipedia.
+You must sign a [.NET Foundation Contribution License Agreement (CLA)](https://cla.dotnetfoundation.org) before your PR will be merged. This is a one-time requirement for projects in the .NET Foundation. You can read more about [Contribution License Agreements (CLA)](http://en.wikipedia.org/wiki/Contributor_License_Agreement) on Wikipedia.
 
-The agreement: [net-foundation-contribution-license-agreement.pdf](https://cla2.dotnetfoundation.org/cladoc/net-foundation-contribution-license-agreement.pdf)
+The agreement: [net-foundation-contribution-license-agreement.pdf](https://github.com/dotnet/home/blob/master/guidance/net-foundation-contribution-license-agreement.pdf)
 
 You don't have to do this up-front. You can simply clone, fork, and submit your pull-request as usual. When your pull-request is created, it is classified by a CLA bot. If the change is trivial (for example, you just fixed a typo), then the PR is labelled with `cla-not-required`. Otherwise it's classified as `cla-required`. Once you signed a CLA, the current and all future pull-requests will be labelled as `cla-signed`.
 
@@ -112,7 +112,7 @@ The following file header is the used for .NET Core. Please use it for new files
 ```
 
 - See [class.cpp](../../src/vm/class.cpp) for an example of the header in a C++ file.
-- See [List.cs](../../src/mscorlib/src/System/Collections/Generic/List.cs) for an example of the header in a C# file.
+- See [List.cs](../../src/mscorlib/shared/System/Collections/Generic/List.cs) for an example of the header in a C# file.
 
 Contributing Ports
 ------------------
@@ -145,9 +145,9 @@ The following rules must be followed for PRs that include files from another pro
 
 - The license of the file is [permissive](https://en.wikipedia.org/wiki/Permissive_free_software_licence).
 - The license of the file is left in-tact.
-- The contribution is correctly attributed in the [3rd party notices](../../THIRD-PARTY-NOTICES) file in the repository, as needed.
+- The contribution is correctly attributed in the [3rd party notices](../../THIRD-PARTY-NOTICES.TXT) file in the repository, as needed.
 
-See [IdnMapping.cs](../../src/mscorlib/src/System/Globalization/IdnMapping.cs) for an example of a file copied from another project and attributed in the [CoreCLR 3rd party notices](../../THIRD-PARTY-NOTICES) file. 
+See [IdnMapping.cs](../../src/mscorlib/shared/System/Globalization/IdnMapping.cs) for an example of a file copied from another project and attributed in the [CoreCLR 3rd party notices](../../THIRD-PARTY-NOTICES.TXT) file. 
 
 Porting Files from Other Projects
 ---------------------------------

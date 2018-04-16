@@ -1471,7 +1471,15 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
 
     FLOATING_SAVE_AREA currentFPUState;
 
+#ifdef _MSC_VER
     __asm fnsave currentFPUState // save the current FPU state.
+#else
+    __asm__ __volatile__
+    (
+        "  fnsave %0\n" \
+        : "=m"(currentFPUState)
+    );
+#endif
 
     floatarea.StatusWord &= 0xFF00; // remove any error codes.
     floatarea.ControlWord |= 0x3F; // mask all exceptions.
@@ -1482,12 +1490,22 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
     // @dbgtodo Microsoft crossplat: the conversion from a series of bytes to a floating 
     // point value will need to be done with an explicit conversion routine to unpack
     // the IEEE format and compute the real number value represented. 
-    
+
+#ifdef _MSC_VER
     __asm
     {
         fninit
         frstor floatarea          ;; reload the threads FPU state.
     }
+#else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(floatarea)
+    );
+#endif
 
     unsigned int i;
 
@@ -1498,11 +1516,21 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
         m_floatValues[i] = td;
     }
 
+#ifdef _MSC_VER
     __asm
     {
         fninit
         frstor currentFPUState    ;; restore our saved FPU state.
     }
+#else
+    __asm__
+    (
+        "  fninit\n" \
+        "  frstor %0\n" \
+        : /* no outputs */
+        : "m"(currentFPUState)
+    );
+#endif
 
     m_fFloatStateValid = true;
     m_floatStackTop = floatStackTop;
@@ -2968,12 +2996,7 @@ HRESULT CordbUnmanagedThread::RestoreLeafSeh()
 //    return value == 0 (assumed default, *pRead = false
 REMOTE_PTR CordbUnmanagedThread::GetPreDefTlsSlot(SIZE_T slot, bool * pRead)
 {
-#ifdef FEATURE_IMPLICIT_TLS
     REMOTE_PTR pBlock = (REMOTE_PTR) GetEETlsDataBlock();
-#else
-    DebuggerIPCRuntimeOffsets *pRO = &(GetProcess()->m_runtimeOffsets);
-    REMOTE_PTR pBlock = (REMOTE_PTR) GetTlsSlot(pRO->m_TLSIndexOfPredefs);
-#endif
 
     REMOTE_PTR data = 0;
 
@@ -3008,19 +3031,15 @@ REMOTE_PTR CordbUnmanagedThread::GetPreDefTlsSlot(SIZE_T slot, bool * pRead)
     return 0;
 }
 
-#ifndef FEATURE_IMPLICIT_TLS
-
 // Read the contents from a LS threads's TLS slot.
-DWORD_PTR CordbUnmanagedThread::GetTlsSlot(SIZE_T slot)
+HRESULT CordbUnmanagedThread::GetTlsSlot(DWORD slot, REMOTE_PTR * pValue)
 {
-    DWORD_PTR ret = 0;
-
     // Compute the address of the necessary TLS value.
-    if (FAILED(LoadTLSArrayPtr()))
+    HRESULT hr = LoadTLSArrayPtr();
+    if (FAILED(hr))
     {
-            return NULL;
+        return hr;
     }
-
 
     void * pBase = NULL;
     SIZE_T slotAdjusted = slot;
@@ -3038,42 +3057,35 @@ DWORD_PTR CordbUnmanagedThread::GetTlsSlot(SIZE_T slot)
         // then the TLS slot is still the default value, which is 0 (NULL).
         if (pBase == NULL)
         {
-            return NULL;
+            *pValue = NULL;
+            return S_OK;
         }
     }
     else
     {
         // Slot is out of range. Shouldn't happen unless debuggee is corrupted.
         _ASSERTE(!"Invalid TLS slot");
-        return NULL;
+       return E_UNEXPECTED;
     }
 
-    void *pEEThreadTLS = (BYTE*) pBase + (slotAdjusted * sizeof(void*));
-
+    void *pEEThreadTLS = (BYTE*)pBase + (slotAdjusted * sizeof(void*));
 
     // Read the thread's TLS value.
-    HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), &ret);    
+    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), pValue);
     if (FAILED(hr))
     {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETV: failed to read TLS value: computed addr=0x%p index=%d, err=%x\n",
-             pEEThreadTLS, slot, hr));
-
-        return NULL;
+        LOG((LF_CORDB, LL_INFO1000, "CUT::GTS: failed to read TLS value: computed addr=0x%p index=%d, err=%x\n", 
+           pEEThreadTLS, slot, hr));
+        return hr;
     }
 
-    LOG((LF_CORDB, LL_INFO1000000, "CUT::GEETV: EE Thread TLS value is 0x%p for thread 0x%x, slot 0x%x\n", ret, m_id, slot));
-
-    return ret;
+    LOG((LF_CORDB, LL_INFO1000000, "CUT::GTS: EE Thread TLS value is 0x%p for thread 0x%x, slot 0x%x\n", *pValue, m_id, slot));
+    return S_OK;
 }
 
-// This does a WriteProcessMemory to write to the debuggee's TLS slot allotted to EEThread
+// This does a WriteProcessMemory to write to the debuggee's TLS slot
 // 
-// Arguments:
-//   EETlsValue - the value to write to the remote TLS slot.
-//   
 // Notes:
-//   The TLS slot is m_TLSIndex. 
-//   
 //   This is very brittle because the OS can lazily allocates storage for TLS slots.
 //   In order to gaurantee the storage is available, it must have been written to by the debuggee.
 //   For managed threads, that's easy because the Thread* is already written to the slot.
@@ -3088,12 +3100,9 @@ DWORD_PTR CordbUnmanagedThread::GetTlsSlot(SIZE_T slot)
 //   
 //   This is brittle reasoning, but so is the rest of interop-debugging.
 //   
-HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
+HRESULT CordbUnmanagedThread::SetTlsSlot(DWORD slot, REMOTE_PTR value)
 {
     FAIL_IF_NEUTERED(this);
-
-    // Compute the address of the necessary TLS value.
-    DebuggerIPCRuntimeOffsets *pRO = &(GetProcess()->m_runtimeOffsets);
 
     // Compute the address of the necessary TLS value.
     HRESULT hr = LoadTLSArrayPtr();
@@ -3102,16 +3111,13 @@ HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
         return hr;
     }
 
-    
-    DWORD slot = (DWORD) pRO->m_TLSIndex;
-
     void * pBase = NULL;
     SIZE_T slotAdjusted = slot;
     if (slot < TLS_MINIMUM_AVAILABLE)
     {
         pBase = m_pTLSArray;
     }
-    else if (slot < TLS_MINIMUM_AVAILABLE+TLS_EXPANSION_SLOTS)
+    else if (slot < TLS_MINIMUM_AVAILABLE + TLS_EXPANSION_SLOTS)
     {
         pBase = m_pTLSExtendedArray;
         slotAdjusted -= TLS_MINIMUM_AVAILABLE;
@@ -3132,70 +3138,19 @@ HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
         return E_INVALIDARG;
     }
 
-
-    void *pEEThreadTLS = (BYTE*) pBase + (slotAdjusted * sizeof(void*));
-
+    void *pEEThreadTLS = (BYTE*)pBase + (slotAdjusted * sizeof(void*));
 
     // Write the thread's TLS value.
-    hr = GetProcess()->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), &EETlsValue);
+    hr = GetProcess()->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pEEThreadTLS), &value);
 
     if (FAILED(hr))
     {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::SEETV: failed to set TLS value: "
-             "computed addr=0x%p index=%d, err=%x\n",
-             pEEThreadTLS, pRO->m_TLSIndex, hr));
-
+        LOG((LF_CORDB, LL_INFO1000, "CUT::SEETV: failed to set TLS value: computed addr=0x%p slot=%d, err=%x\n", pEEThreadTLS, slot, hr));
         return hr;
     }
 
-    LOG((LF_CORDB, LL_INFO1000000,
-        "CUT::SEETV: EE Thread TLS value is now 0x%p for thread 0x%x\n",
-        EETlsValue, m_id));
-
+    LOG((LF_CORDB, LL_INFO1000000, "CUT::SEETV: EE Thread TLS value is now 0x%p for 0x%x\n", value, m_id));
     return S_OK;
-}
-#else // FEATURE_IMPLICIT_TLS
-
-#ifdef DBG_TARGET_X86
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x2c
-#elif defined(DBG_TARGET_AMD64)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
-#elif defined(DBG_TARGET_ARM)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x2c
-#elif defined(DBG_TARGET_ARM64)
-#define WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer  0x58
-#endif
-
-// sets the value of gCurrentThreadInfo.m_pThread
-HRESULT CordbUnmanagedThread::SetEEThreadValue(REMOTE_PTR EETlsValue)
-{
-    FAIL_IF_NEUTERED(this);
-
-    HRESULT hr = S_OK;
-    _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
-
-    REMOTE_PTR EEThreadAddr = (BYTE*) GetClrModuleTlsDataAddress() + OFFSETOF__TLS__tls_CurrentThread;   
-    if(EEThreadAddr == NULL)
-        return E_FAIL;
-
-    // Write the thread's TLS value.
-    hr = GetProcess()->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(EEThreadAddr), &EETlsValue);
-
-    if (FAILED(hr))
-    {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::SEETV: failed to set TLS value: "
-             "computed addr=0x%p index=%d, err=%x\n",
-             EEThreadAddr, GetProcess()->m_runtimeOffsets.m_TLSIndex, hr));
-
-        return hr;
-    }
-
-    LOG((LF_CORDB, LL_INFO1000000,
-        "CUT::SEETV: EE Thread TLS value is now 0x%p for thread 0x%x\n",
-        EETlsValue, m_id));
-
-    return S_OK;
-
 }
 
 // gets the value of gCurrentThreadInfo.m_pThread
@@ -3203,153 +3158,89 @@ DWORD_PTR CordbUnmanagedThread::GetEEThreadValue()
 {
     DWORD_PTR ret = NULL;
 
-    REMOTE_PTR EEThreadAddr = (BYTE*) GetClrModuleTlsDataAddress() + OFFSETOF__TLS__tls_CurrentThread;
-    if(EEThreadAddr == NULL)
-        return NULL;
-
-    // Read the thread's TLS value.
-    HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(EEThreadAddr), &ret);
-
+    REMOTE_PTR tlsDataAddress;
+    HRESULT hr = GetClrModuleTlsDataAddress(&tlsDataAddress);
     if (FAILED(hr))
     {
-        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETV: failed to get TLS value: "
-             "computed addr=0x%p index=%d, err=%x\n",
-             EEThreadAddr, GetProcess()->m_runtimeOffsets.m_TLSIndex, hr));
-
+        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETV: GetClrModuleTlsDataAddress FAILED %x for 0x%x\n", hr, m_id));
         return NULL;
     }
 
-    LOG((LF_CORDB, LL_INFO1000000,
-        "CUT::GEETV: EE Thread TLS value is 0x%p for thread 0x%x\n",
-        ret, m_id));
+    // Read the thread's TLS value.
+    REMOTE_PTR EEThreadAddr = (BYTE*)tlsDataAddress + OFFSETOF__TLS__tls_CurrentThread;   
+    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(EEThreadAddr), &ret);
+    if (FAILED(hr))
+    {
+        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETV: failed to get TLS value: computed addr=0x%p index=%d, err=%x\n",
+             EEThreadAddr, GetProcess()->m_runtimeOffsets.m_TLSIndex, hr));
+        return NULL;
+    }
 
+    LOG((LF_CORDB, LL_INFO1000000, "CUT::GEETV: EE Thread TLS value is 0x%p for 0x%x\n", ret, m_id));
     return ret;
 }
 
 // returns the remote address of gCurrentThreadInfo
-REMOTE_PTR CordbUnmanagedThread::GetClrModuleTlsDataAddress()
+HRESULT CordbUnmanagedThread::GetClrModuleTlsDataAddress(REMOTE_PTR* pAddress)
 {
-    HRESULT hr = S_OK;
+    *pAddress = NULL;
 
     REMOTE_PTR tlsArrayAddr;
-    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)m_threadLocalBase + WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer), &tlsArrayAddr);
+    HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)m_threadLocalBase + WINNT_OFFSETOF__TEB__ThreadLocalStoragePointer), &tlsArrayAddr);
     if (FAILED(hr))
     {
-        return NULL;
+        return hr;
     }
 
+    // This is the special break-in thread case: TEB.ThreadLocalStoragePointer == NULL
     if (tlsArrayAddr == NULL)
     {
-        _ASSERTE(!"ThreadLocalStoragePointer is NULL");
-        return NULL;
+        return E_FAIL;
     }
 
     DWORD slot = (DWORD)(GetProcess()->m_runtimeOffsets.m_TLSIndex);
 
     REMOTE_PTR clrModuleTlsDataAddr; 
-    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)tlsArrayAddr + slot * sizeof(void*)), &clrModuleTlsDataAddr);
+    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)tlsArrayAddr + (slot & 0xFFFF) * sizeof(void*)), &clrModuleTlsDataAddr);
     if (FAILED(hr))
     {
-        return NULL;
+        return hr;
     }
 
     if (clrModuleTlsDataAddr == NULL)
     {
         _ASSERTE(!"No clr module data present at _tls_index for this thread");
-        return NULL;
+        return E_FAIL;
     }
 
-    return clrModuleTlsDataAddr;
+    *pAddress = (BYTE*) clrModuleTlsDataAddr + ((slot & 0x7FFF0000) >> 16);
+    return S_OK;
 }
 
-// gets the value of gCurrentThreadInfo.m_EETlsData
+// Gets the value of gCurrentThreadInfo.m_EETlsData
 REMOTE_PTR CordbUnmanagedThread::GetEETlsDataBlock()
 {
     REMOTE_PTR ret;
 
-    REMOTE_PTR blockAddr = (BYTE*) GetClrModuleTlsDataAddress() + OFFSETOF__TLS__tls_EETlsData;
+    REMOTE_PTR tlsDataAddress;
+    HRESULT hr = GetClrModuleTlsDataAddress(&tlsDataAddress);
+    if (FAILED(hr)) 
+    {
+        LOG((LF_CORDB, LL_INFO1000, "CUT::GEETDB: GetClrModuleTlsDataAddress FAILED %x for 0x%x\n", hr, m_id));
+        return NULL;
+    }
 
-    
-    HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(blockAddr), &ret);
+    REMOTE_PTR blockAddr = (BYTE*)tlsDataAddress + OFFSETOF__TLS__tls_EETlsData;
+    hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(blockAddr), &ret);
     if (FAILED(hr))
     {
         LOG((LF_CORDB, LL_INFO1000, "CUT::GEETDB: failed to read EETlsData address: computed addr=0x%p offset=%d, err=%x\n",
              blockAddr, OFFSETOF__TLS__tls_EETlsData, hr));
-
         return NULL;
     }
 
-    LOG((LF_CORDB, LL_INFO1000000, "CUT::GEETDB: EETlsData address value is 0x%p for thread 0x%x\n", ret, m_id));
-
+    LOG((LF_CORDB, LL_INFO1000000, "CUT::GEETDB: EETlsData address value is 0x%p for 0x%x\n", ret, m_id));
     return ret;
-}
-
-#endif // FEATURE_IMPLICIT_TLS
-
-/*
- * CacheEEDebuggerWord
- *
- * NOTE: This routine is inappropriately named at this time because we dont
- * actually cache any values.  This is because we dont have a way to invalidate
- * the cache between purely-native continues.
- *
- * This routine grabs two pieces of information from the target process via
- * ReadProcessMemory.  First, if the runtime does not have a thread object for
- * this thread it grabs the debugger's value from the TLS slot.  If there is a
- * runtime thread object, then it saves that away and grabs the debugger's value
- * from the thread object.
- *
- * Parameters:
- *  None.
- *
- * Returns:
- *  None.  If it fails, then the Get/Set functions will fail.
- */
-void CordbUnmanagedThread::CacheEEDebuggerWord()
-{
-    LOG((LF_CORDB, LL_INFO1000, "CacheEEDW: Entered\n"));
-
-#ifdef FEATURE_IMPLICIT_TLS
-    REMOTE_PTR value = (REMOTE_PTR)GetEEThreadValue();
-#else
-    REMOTE_PTR value = (REMOTE_PTR)GetTlsSlot(GetProcess()->m_runtimeOffsets.m_TLSIndex);
-#endif
-
-    if ((((DWORD)value) & 0x1) == 1)
-    {
-        m_pEEThread = NULL;
-        m_pdwTlsValue = (REMOTE_PTR)((BYTE*)value - 0x1);
-        m_fValidTlsData = TRUE;
-    }
-    else if (value != NULL)
-    {
-        m_pEEThread = value;
-
-        // Compute the address of the debugger word #2.
-        void *pEEDebuggerWord = (BYTE*)m_pEEThread + GetProcess()->m_runtimeOffsets.m_EEThreadDebuggerWordOffset;
-
-        // Update the word.
-        HRESULT hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pEEDebuggerWord), &m_pdwTlsValue);
-        m_fValidTlsData = SUCCEEDED(hr);
-
-        if (!m_fValidTlsData)
-        {
-            LOG((LF_CORDB, LL_INFO1000, "EEDW: failed to read debugger word: 0x%08x + 0x%x = 0x%p, err=%d\n",
-                 m_pEEThread, GetProcess()->m_runtimeOffsets.m_EEThreadDebuggerWordOffset, pEEDebuggerWord, GetLastError()));
-        }
-        else
-        {
-            LOG((LF_CORDB, LL_INFO1000, "CacheEEDW: Debugger word is 0x%p\n", m_pdwTlsValue));
-        }
-    }
-    else
-    {
-        m_fValidTlsData = TRUE;
-        m_pEEThread = NULL;
-        m_pdwTlsValue = NULL;
-    }
-
-    LOG((LF_CORDB, LL_INFO1000, "CacheEEDW: Exited\n"));
 }
 
 /*
@@ -3365,22 +3256,12 @@ void CordbUnmanagedThread::CacheEEDebuggerWord()
  */
 HRESULT CordbUnmanagedThread::GetEEDebuggerWord(REMOTE_PTR *pValue)
 {
+    LOG((LF_CORDB, LL_INFO1000, "CUT::GEEDW: Entered\n"));
     if (pValue == NULL)
     {
         return E_INVALIDARG;
     }
-
-    CacheEEDebuggerWord();
-
-    if (!m_fValidTlsData)
-    {
-        *pValue = NULL;
-        return E_FAIL;
-    }
-
-    *pValue = m_pdwTlsValue;
-
-    return S_OK;
+    return GetTlsSlot(GetProcess()->m_runtimeOffsets.m_debuggerWordTLSIndex, pValue);
 }
 
 // SetEEDebuggerWord
@@ -3398,53 +3279,7 @@ HRESULT CordbUnmanagedThread::GetEEDebuggerWord(REMOTE_PTR *pValue)
 HRESULT CordbUnmanagedThread::SetEEDebuggerWord(REMOTE_PTR value)
 {
     LOG((LF_CORDB, LL_INFO1000, "CUT::SEEDW: Entered - value is 0x%p\n", value));
-
-    CacheEEDebuggerWord();
-
-    if (!m_fValidTlsData)
-    {
-        return E_FAIL;
-    }
-
-    m_pdwTlsValue = value;
-
-    //
-    // If the thread is NULL, bit-or on a 1 and store that.
-    //
-    if (m_pEEThread == NULL)
-    {
-        REMOTE_PTR pdwTemp = m_pdwTlsValue;
-
-        if (pdwTemp != 0)
-        {
-            // actually we add 1, but we only use it for pointers which are
-            // 8 byte aligned so it is the same thing
-            _ASSERTE( ((UINT_PTR)pdwTemp & 0x1) == 0);
-            pdwTemp = (REMOTE_PTR) ((BYTE*)pdwTemp + 0x01);
-        }
-        // This will write to the TLS slot. It's only safe to do this after a Flare has been sent from the
-        // LS (since that's what guarantees the slot is allocated). 
-        return SetEEThreadValue(pdwTemp);
-    }
-    else
-    {
-        // Compute the address of the debugger word #2.
-        void *pEEDebuggerWord = (BYTE*)m_pEEThread + GetProcess()->m_runtimeOffsets.m_EEThreadDebuggerWordOffset;
-
-        // Update the word.
-        HRESULT hr = GetProcess()->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pEEDebuggerWord), &m_pdwTlsValue);
-
-        if (FAILED(hr))
-        {
-            LOG((LF_CORDB, LL_INFO1000, "CUT::SEETDW: failed to write debugger word: 0x%08x + 0x%x = 0x%08x, err=%x\n",
-                 m_pEEThread, GetProcess()->m_runtimeOffsets.m_EEThreadDebuggerWordOffset, pEEDebuggerWord, hr));
-
-            return hr;
-        }
-    }
-
-    LOG((LF_CORDB, LL_INFO1000, "CUT::SEEDW: Exited\n"));
-    return S_OK;
+    return SetTlsSlot(GetProcess()->m_runtimeOffsets.m_debuggerWordTLSIndex, value);
 }
 
 /*
@@ -3467,19 +3302,10 @@ HRESULT CordbUnmanagedThread::GetEEThreadPtr(REMOTE_PTR *ppEEThread)
         return E_INVALIDARG;
     }
 
-    CacheEEDebuggerWord();
-
-    if (!m_fValidTlsData)
-    {
-        *ppEEThread = NULL;
-        return E_FAIL;
-    }
-
-    *ppEEThread = m_pEEThread;
+    *ppEEThread = (REMOTE_PTR)GetEEThreadValue();
 
     return S_OK;
 }
-
 
 
 void CordbUnmanagedThread::GetEEState(bool *threadStepping, bool *specialManagedException)
@@ -3501,12 +3327,10 @@ void CordbUnmanagedThread::GetEEState(bool *threadStepping, bool *specialManaged
     // Grab the thread state out of the EE Thread.
     DWORD EEThreadStateNC;
     hr = GetProcess()->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pEEThreadStateNC), &EEThreadStateNC);
-
     if (FAILED(hr))
     {
         LOG((LF_CORDB, LL_INFO1000, "CUT::GEETS: failed to read thread state NC: 0x%p + 0x%x = 0x%p, err=%d\n",
              pEEThread, pRO->m_EEThreadStateNCOffset, pEEThreadStateNC, GetLastError()));
-
         return;
     }
 
@@ -3589,14 +3413,13 @@ bool CordbUnmanagedThread::IsCantStop()
     }
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
 
-    if(IsRaiseExceptionHijacked())
+    if (IsRaiseExceptionHijacked())
     {
         return true;
     }
 
     REMOTE_PTR pEEThread;
     HRESULT hr = this->GetEEThreadPtr(&pEEThread);
-
     if (FAILED(hr))
     {
         _ASSERTE(!"Failed to EEThreadPtr in IsCantStop");
@@ -5839,11 +5662,11 @@ const DT_CONTEXT * CordbRuntimeUnwindableFrame::GetContext() const
 // default constructor to make the compiler happy
 CordbMiscFrame::CordbMiscFrame()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     this->parentIP       = 0;
     this->fpParentOrSelf = LEAF_MOST_FRAME;
     this->fIsFilterFunclet = false;
-#endif // _WIN64
+#endif // WIN64EXCEPTIONS
 }
 
 // the real constructor which stores the funclet-related information in the CordbMiscFrame
@@ -6313,7 +6136,7 @@ HRESULT CordbNativeFrame::IsMatchingParentFrame(ICorDebugNativeFrame2 * pPotenti
             ThrowHR(CORDBG_E_NOT_CHILD_FRAME);
         }
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
         CordbNativeFrame * pFrameToCheck = static_cast<CordbNativeFrame *>(pPotentialParentFrame);
         if (pFrameToCheck->IsFunclet())
         {
@@ -6327,7 +6150,7 @@ HRESULT CordbNativeFrame::IsMatchingParentFrame(ICorDebugNativeFrame2 * pPotenti
             IDacDbiInterface * pDAC = GetProcess()->GetDAC();
             *pIsParent = pDAC->IsMatchingParentFrame(fpToCheck, fpParent);
         }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
     }
     EX_CATCH_HRESULT(hr);
 
@@ -7416,14 +7239,14 @@ bool CordbNativeFrame::IsLeafFrame() const
 
 SIZE_T CordbNativeFrame::GetInspectionIP()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     // On 64-bit, if this is a funclet, then return the offset of the parent method frame at which 
     // the exception occurs.  Otherwise just return the normal offset.
     return (IsFunclet() ? GetParentIP() : m_ip);
 #else
     // Always return the normal offset on all other platforms.
     return m_ip;
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 //---------------------------------------------------------------------------------------
@@ -7436,11 +7259,11 @@ SIZE_T CordbNativeFrame::GetInspectionIP()
 
 bool CordbNativeFrame::IsFunclet()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     return (m_misc.parentIP != NULL);
-#else  // !DBG_TARGET_WIN64 && !DBG_TARGET_ARM
+#else
     return false;
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 //---------------------------------------------------------------------------------------
@@ -7453,15 +7276,15 @@ bool CordbNativeFrame::IsFunclet()
 
 bool CordbNativeFrame::IsFilterFunclet()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     return (IsFunclet() && m_misc.fIsFilterFunclet);
-#else  // !DBG_TARGET_WIN64 && !DBG_TARGET_ARM
+#else
     return false;
-#endif // DBG_TARGET_WIN64
+#endif // WIN64EXCEPTIONS
 }
 
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
 //---------------------------------------------------------------------------------------
 //
 // Return the offset of the parent method frame at which the exception occurs.
@@ -7474,7 +7297,7 @@ SIZE_T CordbNativeFrame::GetParentIP()
 {
     return m_misc.parentIP;
 }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 
 // Accessor for the shim private hook code:CordbThread::ConvertFrameForILMethodWithoutMetadata.
 // Refer to that function for comments on the return value, the argument, etc.
@@ -8502,7 +8325,7 @@ HRESULT CordbJITILFrame::GetNativeVariable(CordbType *type,
 
     HRESULT hr = S_OK;
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     if (m_nativeFrame->IsFunclet())
     {
         if ( (pNativeVarInfo->loc.vlType != ICorDebugInfo::VLT_STK) &&
@@ -8514,7 +8337,7 @@ HRESULT CordbJITILFrame::GetNativeVariable(CordbType *type,
             return E_FAIL;
         }
     }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 
     switch (pNativeVarInfo->loc.vlType)
     {

@@ -41,11 +41,7 @@
 
 #include "argdestination.h"
 
-#if CHECK_APP_DOMAIN_LEAKS
-#define CHECK_APP_DOMAIN    GC_CALL_CHECK_APP_DOMAIN
-#else
 #define CHECK_APP_DOMAIN    0
-#endif
 
 //-----------------------------------------------------------------------
 #if _DEBUG
@@ -1626,7 +1622,7 @@ void HelperMethodFrame::Push()
     // Push the frame
     Frame::Push(pThread);
 
-    if (!pThread->HasThreadStateOpportunistic((Thread::ThreadState)(Thread::TS_YieldRequested | Thread::TS_AbortRequested)))
+    if (!pThread->HasThreadStateOpportunistic(Thread::TS_AbortRequested))
         return;
 
     // Outline the slow path for better perf
@@ -1674,11 +1670,6 @@ NOINLINE void HelperMethodFrame::PushSlowHelper()
             m_pThread->HandleThreadAbort();
         }
 
-    }
-
-    if (m_pThread->IsYieldRequested())
-    {
-        __SwitchToThread(0, CALLER_LIMITS_SPINNING);
     }
 }
 

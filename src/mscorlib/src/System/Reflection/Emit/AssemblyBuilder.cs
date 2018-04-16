@@ -27,7 +27,6 @@ namespace System.Reflection.Emit
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Diagnostics.SymbolStore;
     using CultureInfo = System.Globalization.CultureInfo;
     using System.IO;
@@ -44,7 +43,7 @@ namespace System.Reflection.Emit
     // This InternalAssemblyBuilder can be retrieved via a call to Assembly.GetAssemblies() by untrusted code.
     // In the past, when InternalAssemblyBuilder was AssemblyBuilder, the untrusted user could down cast the
     // Assembly to an AssemblyBuilder and emit code with the elevated permissions of the trusted code which 
-    // origionally created the AssemblyBuilder via DefineDynamicAssembly. Today, this can no longer happen
+    // originally created the AssemblyBuilder via DefineDynamicAssembly. Today, this can no longer happen
     // because the Assembly returned via AssemblyGetAssemblies() will be an InternalAssemblyBuilder.
 
     // Only the caller of DefineDynamicAssembly will get an AssemblyBuilder. 
@@ -164,7 +163,7 @@ namespace System.Reflection.Emit
 
         internal ModuleBuilder GetModuleBuilder(InternalModuleBuilder module)
         {
-            Contract.Requires(module != null);
+            Debug.Assert(module != null);
             Debug.Assert(this.InternalAssembly == module.Assembly);
 
             lock (SyncRoot)
@@ -283,8 +282,6 @@ namespace System.Reflection.Emit
             AssemblyName name,
             AssemblyBuilderAccess access)
         {
-            Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name, access,
                                                  ref stackMark, null);
@@ -296,8 +293,6 @@ namespace System.Reflection.Emit
             AssemblyBuilderAccess access,
             IEnumerable<CustomAttributeBuilder> assemblyAttributes)
         {
-            Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name,
                                                  access,
@@ -344,8 +339,6 @@ namespace System.Reflection.Emit
         public ModuleBuilder DefineDynamicModule(
             String name)
         {
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
@@ -355,8 +348,6 @@ namespace System.Reflection.Emit
             String name,
             bool emitSymbolInfo)         // specify if emit symbol info or not
         {
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
-
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
         }
@@ -383,10 +374,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             if (name[0] == '\0')
                 throw new ArgumentException(SR.Argument_InvalidName, nameof(name));
-            Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
-            Contract.EndContractBlock();
-
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.DefineDynamicModule( " + name + " )");
 
             Debug.Assert(m_assemblyData != null, "m_assemblyData is null in DefineDynamicModuleInternal");
 
@@ -682,9 +669,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            Contract.EndContractBlock();
 
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.GetDynamicModule( " + name + " )");
             int size = m_assemblyData.m_moduleBuilderList.Count;
             for (int i = 0; i < size; i++)
             {
@@ -707,7 +692,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {
@@ -742,7 +726,6 @@ namespace System.Reflection.Emit
             {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
-            Contract.EndContractBlock();
 
             lock (SyncRoot)
             {
@@ -762,17 +745,5 @@ namespace System.Reflection.Emit
                 m_assemblyData.AddCustomAttribute(customBuilder);
             }
         }
-
-        /**********************************************
-         * 
-         * Private methods
-         * 
-         **********************************************/
-
-        /**********************************************
-         * Make a private constructor so these cannot be constructed externally.
-         * @internonly
-         **********************************************/
-        private AssemblyBuilder() { }
     }
 }

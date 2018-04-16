@@ -12,30 +12,31 @@ namespace System.IO
      * the Win32 errorcode-as-HRESULT ERROR_PATH_NOT_FOUND (0x80070003) 
      * and STG_E_PATHNOTFOUND (0x80030003).
      */
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class DirectoryNotFoundException : IOException
     {
         public DirectoryNotFoundException()
             : base(SR.Arg_DirectoryNotFoundException)
         {
-            HResult = __HResults.COR_E_DIRECTORYNOTFOUND;
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
 
         public DirectoryNotFoundException(string message)
             : base(message)
         {
-            HResult = __HResults.COR_E_DIRECTORYNOTFOUND;
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
 
         public DirectoryNotFoundException(string message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_DIRECTORYNOTFOUND;
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
 
         protected DirectoryNotFoundException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
     }
 }

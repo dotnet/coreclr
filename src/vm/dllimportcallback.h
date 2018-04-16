@@ -250,6 +250,7 @@ class UMEntryThunk
 {
     friend class CheckAsmOffsets;
     friend class NDirectStubLinker;
+    friend class UMEntryThunkFreeList;
 
 private:
 #ifdef _DEBUG
@@ -423,13 +424,7 @@ public:
             MODE_ANY;
             SUPPORTS_DAC;
             PRECONDITION(m_state == kRunTimeInited || m_state == kLoadTimeInited);
-#ifdef MDA_SUPPORTED
-            // We can return NULL here if the CollectedDelegate probe is on because
-            // a collected delegate will have set this field to NULL.
-            POSTCONDITION(g_pDebugInterface->ThisIsHelperThread() || MDA_GET_ASSISTANT(CallbackOnCollectedDelegate) || CheckPointer(RETVAL));
-#else
             POSTCONDITION(CheckPointer(RETVAL));
-#endif
         }
         CONTRACT_END;
     
@@ -502,14 +497,7 @@ public:
 
     static UMEntryThunk* Decode(LPVOID pCallback);
 
-#ifdef MDA_SUPPORTED
-    BOOL IsCollected() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_pMD != NULL && m_pMD->IsEEImpl());
-        return m_pObjectHandle == NULL;
-    }
-#endif
+    static VOID __fastcall ReportViolation(UMEntryThunk* p);
 
 private:
     // The start of the managed code.
@@ -524,8 +512,13 @@ private:
     // Field is NULL for a static method.
     OBJECTHANDLE            m_pObjectHandle;
 
-    // Pointer to the shared structure containing everything else
-    PTR_UMThunkMarshInfo    m_pUMThunkMarshInfo;
+    union
+    {
+        // Pointer to the shared structure containing everything else
+        PTR_UMThunkMarshInfo    m_pUMThunkMarshInfo;
+        // Pointer to the next UMEntryThunk in the free list. Used when it is freed.
+        UMEntryThunk *m_pNextFreeThunk;
+    };
 
     ADID                    m_dwDomainId;   // appdomain of module (cached for fast access)
 #ifdef _DEBUG
@@ -604,9 +597,5 @@ EXTERN_C void UMThunkStub(void);
 #ifdef _DEBUG
 void STDCALL LogUMTransition(UMEntryThunk* thunk);
 #endif
-
-#ifdef MDA_SUPPORTED
-EXTERN_C void __fastcall CallbackOnCollectedDelegateHelper(UMEntryThunk *pEntryThunk);
-#endif // MDA_SUPPORTED
 
 #endif //__dllimportcallback_h__

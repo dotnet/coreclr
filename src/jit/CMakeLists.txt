@@ -4,9 +4,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 include_directories("./jitstd")
 include_directories("../inc")
 
-if (CLR_CMAKE_TARGET_ARCH_AMD64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
+if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
   add_definitions(-DFEATURE_SIMD)
-  add_definitions(-DFEATURE_AVX_SUPPORT)
+  add_definitions(-DFEATURE_HW_INTRINSICS)
 endif ()
 
 # JIT_BUILD disables certain PAL_TRY debugging features
@@ -38,6 +38,7 @@ set( JIT_SOURCES
   gentree.cpp
   gschecks.cpp
   hashbv.cpp
+  hwintrinsic.cpp
   hostallocator.cpp
   importer.cpp
   inline.cpp
@@ -52,6 +53,7 @@ set( JIT_SOURCES
   loopcloning.cpp
   lower.cpp
   lsra.cpp
+  lsrabuild.cpp
   morph.cpp
   objectalloc.cpp
   optcse.cpp
@@ -73,7 +75,124 @@ set( JIT_SOURCES
   unwind.cpp
   utils.cpp
   valuenum.cpp
+  stacklevelsetter.cpp
 )
+
+# Add header files to Visual Studio vcxproj, not required for unixes
+# change has effect on editor experience and has no impact on build
+if (WIN32)
+  set( JIT_HEADERS
+    _typeinfo.h
+    alloc.h
+    arraystack.h
+    bitset.h
+    bitsetasshortlong.h
+    bitsetasuint64.h
+    bitsetasuint64inclass.h
+    bitsetops.h
+    bitvec.h
+    block.h
+    blockset.h
+    codegen.h
+    codegenclassic.h
+    codegeninterface.h
+    codegenlinear.h
+    compiler.h
+    compiler.hpp
+    compilerbitsettraits.h
+    compilerbitsettraits.hpp
+    compmemkind.h
+    compphases.h
+    dataflow.h
+    decomposelongs.h
+    disasm.h
+    emit.h
+    emitarm.h
+    emitarm64.h
+    emitdef.h
+    emitfmts.h
+    emitfmtsarm.h
+    emitfmtsarm64.h
+    emitfmtsxarch.h
+    emitinl.h
+    emitjmps.h
+    emitpub.h
+    emitxarch.h
+    error.h
+    fp.h
+    gentree.h
+    gtlist.h
+    gtstructs.h
+    hashbv.h
+    host.h
+    hostallocator.h
+    hwintrinsiclistxarch.h
+    ICorJitInfo_API_names.h
+    ICorJitInfo_API_wrapper.hpp
+    inline.h
+    inlinepolicy.h
+    instr.h
+    instrs.h
+    instrsarm.h
+    instrsarm64.h
+    instrsxarch.h
+    jit.h
+    jitconfig.h
+    jitconfigvalues.h
+    jitee.h
+    jiteh.h
+    jitexpandarray.h
+    jitgcinfo.h
+    jithashtable.h
+    jitpch.h
+    jitstd.h
+    jittelemetry.h
+    lir.h
+    loopcloning.h
+    loopcloningopts.h
+    lower.h
+    lsra_reftypes.h
+    lsra.h
+    namedintrinsiclist.h
+    nodeinfo.h
+    objectalloc.h
+    opcode.h
+    phase.h
+    rangecheck.h
+    rationalize.h
+    regalloc.h
+    register_arg_convention.h
+    register.h
+    registerarm.h
+    registerarm64.h
+    registerfp.h
+    registerxmm.h
+    reglist.h
+    regpair.h
+    regset.h
+    sideeffects.h
+    simd.h
+    simdintrinsiclist.h
+    sm.h
+    smallhash.h
+    smcommon.h
+    smopenum.h
+    ssabuilder.h
+    ssaconfig.h
+    ssarenamestate.h
+    target.h
+    tinyarray.h
+    titypes.h
+    typelist.h
+    unwind.h
+    utils.h
+    valuenum.h
+    valuenumtype.h
+    varset.h
+    vartype.h
+    x86_instrs.h
+  )
+endif(WIN32)
 
 # The following defines all the source files used by the "legacy" back-end (#ifdef LEGACY_BACKEND).
 # It is always safe to include both legacy and non-legacy files in the build, as everything is properly
@@ -100,6 +219,8 @@ set( JIT_AMD64_SOURCES
   simdcodegenxarch.cpp
   targetamd64.cpp
   unwindamd64.cpp
+  hwintrinsicxarch.cpp
+  hwintrinsiccodegenxarch.cpp
 )
 
 set( JIT_ARM_SOURCES
@@ -127,6 +248,8 @@ set( JIT_I386_SOURCES
   simdcodegenxarch.cpp
   targetx86.cpp
   unwindx86.cpp
+  hwintrinsicxarch.cpp
+  hwintrinsiccodegenxarch.cpp
 )
 
 set( JIT_ARM64_SOURCES
@@ -137,9 +260,11 @@ set( JIT_ARM64_SOURCES
   lowerarm64.cpp
   lsraarmarch.cpp
   lsraarm64.cpp
+  simd.cpp
   targetarm64.cpp
   unwindarm.cpp
   unwindarm64.cpp
+  hwintrinsicArm64.cpp
 )
 
 if(CLR_CMAKE_TARGET_ARCH_AMD64)
@@ -156,6 +281,7 @@ endif()
 
 set( SOURCES
   ${JIT_SOURCES}
+  ${JIT_HEADERS}
   ${JIT_RESOURCES}
 )
 
@@ -249,14 +375,20 @@ endif (FEATURE_MERGE_JIT_AND_ENGINE)
 
 add_subdirectory(standalone)
 
-if (CLR_CMAKE_PLATFORM_ARCH_ARM)
-    add_subdirectory(protojit)
-endif (CLR_CMAKE_PLATFORM_ARCH_ARM)
+if (CLR_CMAKE_TARGET_ARCH_ARM)
+    # Build arm32 legacy_backend to run on both x86 host (crossgen build) and arm host (native).
+    add_subdirectory(legacyjit)
+endif (CLR_CMAKE_TARGET_ARCH_ARM)
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64)
     # On x86, build RyuJIT/ARM32 cross-compiling altjit.
     # On amd64, build RyuJIT/ARM64 cross-compiling altjit.
     add_subdirectory(protononjit)
+endif ()
+
+if (CLR_CMAKE_PLATFORM_ARCH_I386)
+     # On x86, build RyuJIT/ARM32 cross-compiling altjit for ARM_SOFTFP (armel).
+    add_subdirectory(armelnonjit)
 endif ()
 
 if ((CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64) AND WIN32)
@@ -267,7 +399,6 @@ if ((CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64) AND WIN32)
 endif ()
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
-    add_subdirectory(legacyjit)
     # On Windows x86, build altjit generating Windows/ARM32 code using LEGACY_BACKEND.
     # (Note: we could also create linuxlegacynonjit for generating Linux/ARM32 code using LEGACY_BACKEND, if needed.)
     add_subdirectory(legacynonjit)

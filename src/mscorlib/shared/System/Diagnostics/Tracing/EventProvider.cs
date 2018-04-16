@@ -87,7 +87,8 @@ namespace System.Diagnostics.Tracing
         private long m_allKeywordMask;                   // Match all keyword
         private List<SessionInfo> m_liveSessions;        // current live sessions (Tuple<sessionIdBit, etwSessionId>)
         private bool m_enabled;                          // Enabled flag from Trace callback
-        private Guid m_providerId;                       // Control Guid 
+        private string m_providerName;                   // Control name
+        private Guid m_providerId;                       // Control Guid
         internal bool m_disposed;                        // when true provider has unregistered
 
         [ThreadStatic]
@@ -140,16 +141,19 @@ namespace System.Diagnostics.Tracing
         // <SatisfiesLinkDemand Name="Win32Exception..ctor(System.Int32)" />
         // <ReferencesCritical Name="Method: EtwEnableCallBack(Guid&, Int32, Byte, Int64, Int64, Void*, Void*):Void" Ring="1" />
         // </SecurityKernel>
-        internal unsafe void Register(Guid providerGuid)
+        internal unsafe void Register(EventSource eventSource)
         {
-            m_providerId = providerGuid;
             uint status;
             m_etwCallback = new UnsafeNativeMethods.ManifestEtw.EtwEnableCallback(EtwEnableCallBack);
 
-            status = EventRegister(ref m_providerId, m_etwCallback);
+            status = EventRegister(eventSource, m_etwCallback);
             if (status != 0)
             {
-                throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
+#if PLATFORM_WINDOWS && !ES_BUILD_STANDALONE
+                throw new ArgumentException(Interop.Kernel32.GetMessage(unchecked((int)status)));
+#else
+                throw new ArgumentException(Convert.ToString(unchecked((int)status)));
+#endif
             }
         }
 
@@ -178,7 +182,7 @@ namespace System.Diagnostics.Tracing
             //
 
             //
-            // check if the object has been allready disposed
+            // check if the object has been already disposed
             //
             if (m_disposed) return;
 
@@ -255,12 +259,6 @@ namespace System.Diagnostics.Tracing
                     m_anyKeywordMask = anyKeyword;
                     m_allKeywordMask = allKeyword;
 
-                    // ES_SESSION_INFO is a marker for additional places we #ifdeffed out to remove
-                    // references to EnumerateTraceGuidsEx.  This symbol is actually not used because
-                    // today we use FEATURE_ACTIVITYSAMPLING to determine if this code is there or not.
-                    // However we put it in the #if so that we don't lose the fact that this feature
-                    // switch is at least partially independent of FEATURE_ACTIVITYSAMPLING
-
                     List<Tuple<SessionInfo, bool>> sessionsChanged = GetSessions();
                     foreach (var session in sessionsChanged)
                     {
@@ -333,7 +331,7 @@ namespace System.Diagnostics.Tracing
         protected EventKeywords MatchAnyKeyword { get { return (EventKeywords)m_anyKeywordMask; } set { m_anyKeywordMask = unchecked((long)value); } }
         protected EventKeywords MatchAllKeyword { get { return (EventKeywords)m_allKeywordMask; } set { m_allKeywordMask = unchecked((long)value); } }
 
-        static private int FindNull(byte[] buffer, int idx)
+        private static int FindNull(byte[] buffer, int idx)
         {
             while (idx < buffer.Length && buffer[idx] != 0)
                 idx++;
@@ -488,7 +486,7 @@ namespace System.Diagnostics.Tracing
             // at least some of the time.  
 
             // Determine our session from what is in the registry.  
-            string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId + "}";
+            string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerName + "}";
             if (System.Runtime.InteropServices.Marshal.SizeOf(typeof(IntPtr)) == 8)
                 regKey = @"Software" + @"\Wow6432Node" + regKey;
             else
@@ -960,6 +958,8 @@ namespace System.Diagnostics.Tracing
                     List<int> refObjPosition = new List<int>(s_etwAPIMaxRefObjCount);
                     List<object> dataRefObj = new List<object>(s_etwAPIMaxRefObjCount);
                     EventData* userData = stackalloc EventData[2 * argCount];
+                    for (int i = 0; i < 2 * argCount; i++)
+                        userData[i] = default(EventData);
                     EventData* userDataPtr = (EventData*)userData;
                     byte* dataBuffer = stackalloc byte[s_basicTypeAllocationBufferSize * 2 * argCount]; // Assume 16 chars for non-string argument
                     byte* currentBuffer = dataBuffer;
@@ -1133,7 +1133,7 @@ namespace System.Diagnostics.Tracing
         // <CallsSuppressUnmanagedCode Name="UnsafeNativeMethods.ManifestEtw.EventWrite(System.Int64,EventDescriptor&,System.UInt32,System.Void*):System.UInt32" />
         // </SecurityKernel>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
-        internal unsafe protected bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
+        internal protected unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
         {
             if (childActivityID != null)
             {
@@ -1157,6 +1157,7 @@ namespace System.Diagnostics.Tracing
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
         internal unsafe bool WriteEventRaw(
             ref EventDescriptor eventDescriptor,
+            IntPtr eventHandle,
             Guid* activityID,
             Guid* relatedActivityID,
             int dataCount,
@@ -1167,7 +1168,7 @@ namespace System.Diagnostics.Tracing
             status = m_eventProvider.EventWriteTransferWrapper(
                 m_regHandle,
                 ref eventDescriptor,
-                IntPtr.Zero,
+                eventHandle,
                 activityID,
                 relatedActivityID,
                 dataCount,
@@ -1184,11 +1185,12 @@ namespace System.Diagnostics.Tracing
 
         // These are look-alikes to the Manifest based ETW OS APIs that have been shimmed to work
         // either with Manifest ETW or Classic ETW (if Manifest based ETW is not available).  
-        private unsafe uint EventRegister(ref Guid providerId, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
+        private unsafe uint EventRegister(EventSource eventSource, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
         {
-            m_providerId = providerId;
+            m_providerName = eventSource.Name;
+            m_providerId = eventSource.Guid;
             m_etwCallback = enableCallback;
-            return m_eventProvider.EventRegister(ref providerId, enableCallback, null, ref m_regHandle);
+            return m_eventProvider.EventRegister(eventSource, enableCallback, null, ref m_regHandle);
         }
 
         private uint EventUnregister(long registrationHandle)
@@ -1221,11 +1223,12 @@ namespace System.Diagnostics.Tracing
     {
         // Register an event provider.
         unsafe uint IEventProvider.EventRegister(
-            ref Guid providerId,
+            EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)
         {
+            Guid providerId = eventSource.Guid;
             return UnsafeNativeMethods.ManifestEtw.EventRegister(
                 ref providerId,
                 enableCallback,
@@ -1278,7 +1281,7 @@ namespace System.Diagnostics.Tracing
     internal sealed class NoOpEventProvider : IEventProvider
     {
         unsafe uint IEventProvider.EventRegister(
-            ref Guid providerId,
+            EventSource eventSource,
             UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback,
             void* callbackContext,
             ref long registrationHandle)

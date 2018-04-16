@@ -126,8 +126,9 @@ public:
 
     // Static method on RuntimeTypeHandle
     static FCDECL1(Object*, Allocate, ReflectClassBaseObject *refType) ; //A.CI work	
-    static FCDECL4(Object*, CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
+    static FCDECL5(Object*, CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
                                             CLR_BOOL publicOnly,
+                                            CLR_BOOL wrapExceptions,
                                             CLR_BOOL *pbCanBeCached,
                                             MethodDesc** pConstructor);
 
@@ -247,7 +248,7 @@ public:
     void QCALLTYPE VerifyInterfaceIsImplemented(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pIFaceHandle);
 
     static
-    INT32 QCALLTYPE GetInterfaceMethodImplementationSlot(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD);
+    MethodDesc* QCALLTYPE GetInterfaceMethodImplementation(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD);
 
     static FCDECL3(FC_BOOL_RET, GetFields, ReflectClassBaseObject *pType, INT32 **result, INT32 *pCount);
 
@@ -266,7 +267,7 @@ class RuntimeMethodHandle {
 public:  
     static FCDECL1(ReflectMethodObject*, GetCurrentMethod, StackCrawlMark* stackMark);
 
-    static FCDECL4(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor);
+    static FCDECL5(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions);
 	
     struct StreamingContextData {
         Object * additionalContext;  // additionalContex was changed from OBJECTREF to Object to avoid having a
@@ -337,6 +338,9 @@ public:
 
     static
     void QCALLTYPE StripMethodInstantiation(MethodDesc * pMethod, QCall::ObjectHandleOnStack refMethod);
+
+    static
+    FCDECL1(INT32, GetGenericParameterCount, MethodDesc * pMethod);
 
     // see comment in the cpp file
     static FCDECL3(MethodDesc*, GetStubIfNeeded, MethodDesc *pMethod, ReflectClassBaseObject *pType, PtrArray* instArray);

@@ -7,21 +7,17 @@ set __VCBuildArch=x86_amd64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
-:: Default to highest Visual Studio version available
-::
-:: For VS2015 (and prior), only a single instance is allowed to be installed on a box
-:: and VS140COMNTOOLS is set as a global environment variable by the installer. This
-:: allows users to locate where the instance of VS2015 is installed.
-::
-:: For VS2017, multiple instances can be installed on the same box SxS and VS150COMNTOOLS
-:: is no longer set as a global environment variable and is instead only set if the user
-:: has launched the VS2017 Developer Command Prompt.
-::
-:: Following this logic, we will default to the VS2017 toolset if VS150COMNTOOLS tools is
-:: set, as this indicates the user is running from the VS2017 Developer Command Prompt and
-:: is already configured to use that toolset. Otherwise, we will fallback to using the VS2015
-:: toolset if it is installed. Finally, we will fail the script if no supported VS instance
-:: can be found.
+set "__ProjectDir=%~dp0"
+
+:: Define a prefix for most output progress messages that come from this script. That makes
+:: it easier to see where these are coming from. Note that there is a trailing space here.
+set "__MsgPrefix=BUILDTEST: "
+
+call "%__ProjectDir%"\setup_vs_tools.cmd
+
+REM setup_vs_tools.cmd will correctly echo error message.
+if NOT '%ERRORLEVEL%' == '0' exit /b 1
+
 if defined VS150COMNTOOLS (
   set "__VSToolsRoot=%VS150COMNTOOLS%"
   set "__VCToolsRoot=%VS150COMNTOOLS%\..\..\VC\Auxiliary\Build"
@@ -32,11 +28,6 @@ if defined VS150COMNTOOLS (
   set __VSVersion=vs2015
 )
 
-:: Define a prefix for most output progress messages that come from this script. That makes
-:: it easier to see where these are coming from. Note that there is a trailing space here.
-set __MsgPrefix=BUILDTEST: 
-
-set "__ProjectDir=%~dp0"
 :: remove trailing slash
 if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
@@ -60,6 +51,12 @@ set __ZipTests=
 set __TargetsWindows=1
 set __DoCrossgen=
 
+@REM CMD has a nasty habit of eating "=" on the argument list, so passing:
+@REM    -priority=1
+@REM appears to CMD parsing as "-priority 1". Handle -priority specially to avoid problems,
+@REM and allow the "-priority=1" syntax.
+set __Priority=0
+
 :Arg_Loop
 if "%1" == "" goto ArgsDone
 
@@ -70,7 +67,7 @@ if /i "%1" == "-help" goto Usage
 if /i "%1" == "x64"                   (set __BuildArch=x64&set __VCBuildArch=x86_amd64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "x86"                   (set __BuildArch=x86&set __VCBuildArch=x86&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "arm"                   (set __BuildArch=arm&set __VCBuildArch=x86_arm&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "arm64"                 (set __BuildArch=arm64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "arm64"                 (set __BuildArch=arm64&set __VCBuildArch=x86_arm64&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if /i "%1" == "debug"                 (set __BuildType=Debug&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "release"               (set __BuildType=Release&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -84,6 +81,7 @@ if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!pro
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
@@ -96,6 +94,9 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
+@REM Special handling for -priority=N argument.
+if %__Priority% GTR 0 (set "__UnprocessedBuildArgs=!__UnprocessedBuildArgs! -priority=%__Priority%")
+
 if defined __BuildAgainstPackagesArg (
     if not defined __RuntimeID (
         echo %__MsgPrefix%Error: When building against packages, you must supply a target Runtime ID.
@@ -103,14 +104,15 @@ if defined __BuildAgainstPackagesArg (
     )
 )
 
-echo %__MsgPrefix%Using environment: "%__VSToolsRoot%\VsDevCmd.bat"
-call                                 "%__VSToolsRoot%\VsDevCmd.bat"
+@if defined _echo @echo on
 
 set __RunArgs=-BuildOS=%__BuildOS% -BuildType=%__BuildType% -BuildArch=%__BuildArch%
 
-rem arm64 builds currently use private toolset which has not been released yet
-REM TODO, remove once the toolset is open.
-if /i "%__BuildArch%" == "arm64" call :PrivateToolSet
+if defined __ToolsetDir (
+    rem arm64 builds currently use private toolset which has not been released yet
+    REM TODO, remove once the toolset is open.
+    call :PrivateToolSet
+)
 
 echo %__MsgPrefix%Commencing CoreCLR repo test build
 
@@ -147,6 +149,7 @@ REM === Restore Build Tools
 REM ===
 REM =========================================================================================
 call "%__ProjectDir%\init-tools.cmd"
+@if defined _echo @echo on
 
 REM =========================================================================================
 REM ===
@@ -155,6 +158,7 @@ REM ===
 REM =========================================================================================
 
 call "%__TestDir%\setup-stress-dependencies.cmd" /arch %__BuildArch% /outputdir %__BinDir%
+@if defined _echo @echo on
 
 REM =========================================================================================
 REM ===
@@ -165,8 +169,8 @@ REM ============================================================================
 echo %__MsgPrefix%Commencing build of native test components for %__BuildArch%/%__BuildType%
 
 if defined __ToolsetDir (
- echo %__MsgPrefix%ToolsetDir is defined to be :%__ToolsetDir%
- goto GenVSSolution :: Private ToolSet is Defined
+    echo %__MsgPrefix%ToolsetDir is defined to be %__ToolsetDir%
+    goto GenVSSolution :: Private ToolSet is Defined
 )
 
 :: Set the environment for the native build
@@ -219,14 +223,6 @@ if errorlevel 1 (
 
 :skipnative
 
-set __BuildLogRootName=Restore_Product
-set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
-set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
-set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-
 set "__TestWorkingDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
 
 if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
@@ -239,9 +235,23 @@ REM ============================================================================
 if not defined XunitTestBinBase       set  XunitTestBinBase=%__TestWorkingDir%
 set "CORE_ROOT=%XunitTestBinBase%\Tests\Core_Root"
 
+set __BuildLogRootName=Restore_Product
+set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
+set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
+set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
+set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
+set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
+set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
+set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
+set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct -RuntimeId="%__RuntimeId%" -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
@@ -255,14 +265,6 @@ echo %__MsgPrefix% Restored CoreCLR product from packages
 
 if defined __SkipManaged exit /b 0
 
-set __BuildLogRootName=Tests_Managed
-set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
-set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
-set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-
 REM =========================================================================================
 REM ===
 REM === Managed test build section
@@ -272,24 +274,53 @@ REM ============================================================================
 echo %__MsgPrefix%Starting the Managed Tests Build
 
 if not defined VSINSTALLDIR (
-    echo %__MsgPrefix%Error: buildtest.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
+    echo %__MsgPrefix%Error: build-test.cmd should be run from a Visual Studio Command Prompt.  Please see https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/developer-guide.md for build instructions.
     exit /b 1
 )
+set __AppendToLog=false
+set __BuildLogRootName=Tests_Managed
+set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
+set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
-if errorlevel 1 (
-    echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
-    echo     %__BuildLog%
-    echo     %__BuildWrn%
-    echo     %__BuildErr%
-    exit /b 1
+REM Execute msbuild test build in stages - workaround for excessive data retention in MSBuild ConfigCache
+REM See https://github.com/Microsoft/msbuild/issues/2993
+
+set __SkipPackageRestore=false
+set __SkipTargetingPackBuild=false
+set __BuildLoopCount=2
+set __TestGroupToBuild=1
+
+if %__Priority% GTR 0 (set __BuildLoopCount=16&set __TestGroupToBuild=2)
+echo %__MsgPrefix%Building tests group %__TestGroupToBuild% with %__BuildLoopCount% subgroups
+
+for /l %%G in (1, 1, %__BuildLoopCount%) do (
+
+    set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%";Append=!__AppendToLog!
+    set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%";Append=!__AppendToLog!
+    set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
+
+    set TestBuildSlice=%%G
+    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
+
+    if errorlevel 1 (
+        echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
+        echo     %__BuildLog%
+        echo     %__BuildWrn%
+        echo     %__BuildErr%
+        exit /b 1
+    )
+
+    set __SkipPackageRestore=true
+    set __SkipTargetingPackBuild=true
+    set __AppendToLog=true
 )
 
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
-powershell "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
+powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
 REM Cleans up any lock folder used for synchronization from last run
-powershell "Get-ChildItem -path %__TestWorkingDir% -Include 'lock' -Recurse -Force |  where {$_.Attributes -eq 'Directory'}| Remove-Item -force -Recurse"
+powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include 'lock' -Recurse -Force |  where {$_.Attributes -eq 'Directory'}| Remove-Item -force -Recurse"
 
 set CORE_ROOT=%__TestBinDir%\Tests\Core_Root
 set CORE_ROOT_STAGE=%__TestBinDir%\Tests\Core_Root_Stage
@@ -447,8 +478,6 @@ echo -priority=^<N^> : specify a set of test that will be built and run, with pr
 echo     0: Build only priority 0 cases as essential testcases (default)
 echo     1: Build all tests with priority 0 and 1
 echo     666: Build all tests with priority 0, 1 ... 666
-echo -sequential: force a non-parallel build ^(default is to build in parallel
-echo     using all processors^).
 echo -verbose: enables detailed file logging for the msbuild tasks into the msbuild log file.
 exit /b 1
 
@@ -466,7 +495,7 @@ exit /b 1
 
 :PrivateToolSet
 
-echo %__MsgPrefix% Setting Up the usage of __ToolsetDir:%__ToolsetDir%
+echo %__MsgPrefix%Setting up the usage of __ToolsetDir:%__ToolsetDir%
 
 if /i "%__ToolsetDir%" == "" (
     echo %__MsgPrefix%Error: A toolset directory is required for the Arm64 Windows build. Use the toolset_dir argument.

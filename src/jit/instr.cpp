@@ -72,7 +72,7 @@ const char* CodeGen::genInsName(instruction ins)
     };
     // clang-format on
 
-    assert((unsigned)ins < sizeof(insNames) / sizeof(insNames[0]));
+    assert((unsigned)ins < _countof(insNames));
     assert(insNames[ins] != nullptr);
 
     return insNames[ins];
@@ -213,7 +213,7 @@ void CodeGen::instGen(instruction ins)
 // static inline
 bool CodeGenInterface::instIsFP(instruction ins)
 {
-    assert((unsigned)ins < sizeof(instInfo) / sizeof(instInfo[0]));
+    assert((unsigned)ins < _countof(instInfo));
 
     return (instInfo[ins] & INST_FP) != 0;
 }
@@ -440,7 +440,7 @@ void CodeGen::inst_RV_RV_RV(instruction ins,
 {
 #ifdef _TARGET_ARM_
     getEmitter()->emitIns_R_R_R(ins, size, reg1, reg2, reg3, flags);
-#elif defined(_TARGET_XARCH_) && defined(FEATURE_AVX_SUPPORT)
+#elif defined(_TARGET_XARCH_)
     getEmitter()->emitIns_R_R_R(ins, size, reg1, reg2, reg3);
 #else
     NYI("inst_RV_RV_RV");
@@ -536,7 +536,7 @@ void CodeGenInterface::inst_FN(instruction ins, unsigned stk)
  *  Display a stack frame reference.
  */
 
-void CodeGen::inst_set_SV_var(GenTreePtr tree)
+void CodeGen::inst_set_SV_var(GenTree* tree)
 {
 #ifdef DEBUG
     assert(tree && (tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_VAR_ADDR || tree->gtOper == GT_STORE_LCL_VAR));
@@ -632,7 +632,7 @@ void CodeGen::inst_RV_IV(
  *  On return, *baseReg, *indScale, *indReg, and *cns are set.
  */
 
-void CodeGen::instGetAddrMode(GenTreePtr addr, regNumber* baseReg, unsigned* indScale, regNumber* indReg, unsigned* cns)
+void CodeGen::instGetAddrMode(GenTree* addr, regNumber* baseReg, unsigned* indScale, regNumber* indReg, unsigned* cns)
 {
     if (addr->gtOper == GT_ARR_ELEM)
     {
@@ -655,9 +655,9 @@ void CodeGen::instGetAddrMode(GenTreePtr addr, regNumber* baseReg, unsigned* ind
     else if (addr->gtOper == GT_LEA)
     {
         GenTreeAddrMode* lea  = addr->AsAddrMode();
-        GenTreePtr       base = lea->Base();
+        GenTree*         base = lea->Base();
         assert(!base || (base->InReg()));
-        GenTreePtr index = lea->Index();
+        GenTree* index = lea->Index();
         assert(!index || (index->InReg()));
 
         *baseReg  = base ? base->gtRegNum : REG_NA;
@@ -670,9 +670,9 @@ void CodeGen::instGetAddrMode(GenTreePtr addr, regNumber* baseReg, unsigned* ind
     {
         /* Figure out what complex address mode to use */
 
-        GenTreePtr rv1 = NULL;
-        GenTreePtr rv2 = NULL;
-        bool       rev = false;
+        GenTree* rv1 = NULL;
+        GenTree* rv2 = NULL;
+        bool     rev = false;
 
         INDEBUG(bool yes =)
         genCreateAddrMode(addr, -1, true, RBM_NONE, &rev, &rv1, &rv2,
@@ -759,7 +759,7 @@ void CodeGen::sched_AM(instruction ins,
                        emitAttr    size,
                        regNumber   ireg,
                        bool        rdst,
-                       GenTreePtr  addr,
+                       GenTree*    addr,
                        unsigned    offs,
                        bool        cons,
                        int         imm,
@@ -1078,7 +1078,7 @@ void CodeGen::sched_AM(instruction ins,
                        emitAttr    size,
                        regNumber   ireg,
                        bool        rdst,
-                       GenTreePtr  addr,
+                       GenTree*    addr,
                        unsigned    offs,
                        bool        cons,
                        int         imm,
@@ -1214,35 +1214,17 @@ void CodeGen::sched_AM(instruction ins,
         assert(baseReg != REG_NA);
         reg = baseReg;
 
-#ifdef LATE_DISASM
-        /*
-            Keep in mind that non-static data members (GT_FIELD nodes) were
-            transformed into GT_IND nodes - we keep the CLS/CPX information
-            in the GT_CNS_INT node representing the field offset of the
-            class member
-         */
-
-        if (addr->gtOper != GT_LEA && (addr->gtOp.gtOp2->gtOper == GT_CNS_INT) &&
-            addr->gtOp.gtOp2->IsIconHandle(GTF_ICON_FIELD_HDL))
-        {
-            /* This is a field offset - set the CPX/CLS values to emit a fixup */
-
-            cpx = addr->gtOp.gtOp2->gtIntCon.gtIconFld.gtIconCPX;
-            cls = addr->gtOp.gtOp2->gtIntCon.gtIconFld.gtIconCls;
-        }
-#endif
-
         if (cons)
         {
-            getEmitter()->emitIns_I_AR(ins, size, imm, reg, offs, cpx, cls);
+            getEmitter()->emitIns_I_AR(ins, size, imm, reg, offs);
         }
         else if (rdst)
         {
-            getEmitter()->emitIns_R_AR(ins, size, ireg, reg, offs, cpx, cls);
+            getEmitter()->emitIns_R_AR(ins, size, ireg, reg, offs);
         }
         else
         {
-            getEmitter()->emitIns_AR_R(ins, size, ireg, reg, offs, cpx, cls);
+            getEmitter()->emitIns_AR_R(ins, size, ireg, reg, offs);
         }
     }
 }
@@ -1261,7 +1243,7 @@ void CodeGen::instEmit_indCall(GenTreeCall* call,
                                MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize))
 // clang-format on
 {
-    GenTreePtr addr;
+    GenTree* addr;
 
     emitter::EmitCallType emitCallType;
 
@@ -1398,8 +1380,8 @@ void CodeGen::instEmit_indCall(GenTreeCall* call,
         {
             bool rev = false;
 
-            GenTreePtr rv1 = nullptr;
-            GenTreePtr rv2 = nullptr;
+            GenTree* rv1 = nullptr;
+            GenTree* rv2 = nullptr;
 
             /* Figure out what complex address mode to use */
 
@@ -1453,7 +1435,7 @@ void CodeGen::instEmit_indCall(GenTreeCall* call,
  *  Emit an "op [r/m]" instruction (the r/m operand given by a tree).
  */
 
-void CodeGen::instEmit_RM(instruction ins, GenTreePtr tree, GenTreePtr addr, unsigned offs)
+void CodeGen::instEmit_RM(instruction ins, GenTree* tree, GenTree* addr, unsigned offs)
 {
     emitAttr size;
 
@@ -1470,7 +1452,7 @@ void CodeGen::instEmit_RM(instruction ins, GenTreePtr tree, GenTreePtr addr, uns
  *  Emit an "op [r/m], reg" instruction (the r/m operand given by a tree).
  */
 
-void CodeGen::instEmit_RM_RV(instruction ins, emitAttr size, GenTreePtr tree, regNumber reg, unsigned offs)
+void CodeGen::instEmit_RM_RV(instruction ins, emitAttr size, GenTree* tree, regNumber reg, unsigned offs)
 {
 #ifdef _TARGET_XARCH_
     assert(instIsFP(ins) == 0);
@@ -1485,7 +1467,7 @@ void CodeGen::instEmit_RM_RV(instruction ins, emitAttr size, GenTreePtr tree, re
  *  been made addressable).
  */
 
-void CodeGen::inst_TT(instruction ins, GenTreePtr tree, unsigned offs, int shfv, emitAttr size)
+void CodeGen::inst_TT(instruction ins, GenTree* tree, unsigned offs, int shfv, emitAttr size)
 {
     bool sizeInferred = false;
 
@@ -1650,7 +1632,7 @@ AGAIN:
 #ifndef LEGACY_BACKEND
             assert(!"inst_TT not supported for GT_IND, GT_NULLCHECK or GT_ARR_ELEM in !LEGACY_BACKEND");
 #else  // LEGACY_BACKEND
-            GenTreePtr addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
+            GenTree* addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
             if (shfv)
                 sched_AM(ins, size, REG_NA, false, addr, offs, true, shfv);
             else
@@ -1687,7 +1669,7 @@ AGAIN:
  *  been made addressable) and another that is a register.
  */
 
-void CodeGen::inst_TT_RV(instruction ins, GenTreePtr tree, regNumber reg, unsigned offs, emitAttr size, insFlags flags)
+void CodeGen::inst_TT_RV(instruction ins, GenTree* tree, regNumber reg, unsigned offs, emitAttr size, insFlags flags)
 {
     assert(reg != REG_STK);
 
@@ -1872,7 +1854,7 @@ AGAIN:
 #ifndef LEGACY_BACKEND
             assert(!"inst_TT_RV not supported for GT_IND, GT_NULLCHECK or GT_ARR_ELEM in RyuJIT Backend");
 #else  // LEGACY_BACKEND
-            GenTreePtr addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
+            GenTree* addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
             sched_AM(ins, size, reg, false, addr, offs, false, 0, flags);
 #endif // LEGACY_BACKEND
         }
@@ -1888,18 +1870,13 @@ AGAIN:
     }
 }
 
+#ifdef LEGACY_BACKEND
 regNumber CodeGen::genGetZeroRegister()
 {
-    regNumber zeroReg = REG_NA;
-
-#if REDUNDANT_LOAD
-
     // Is the constant already in some register?
 
-    zeroReg = regTracker.rsIconIsInReg(0);
-#endif
+    regNumber zeroReg = regTracker.rsIconIsInReg(0);
 
-#ifdef LEGACY_BACKEND
     if (zeroReg == REG_NA)
     {
         regMaskTP freeMask = regSet.rsRegMaskFree();
@@ -1924,7 +1901,6 @@ regNumber CodeGen::genGetZeroRegister()
             genSetRegToIcon(zeroReg, 0, TYP_INT);
         }
     }
-#endif // !LEGACY_BACKEND
 
     return zeroReg;
 }
@@ -1934,8 +1910,7 @@ regNumber CodeGen::genGetZeroRegister()
  *  Generate an instruction that has one operand given by a tree (which has
  *  been made addressable) and another that is an integer constant.
  */
-#ifdef LEGACY_BACKEND
-void CodeGen::inst_TT_IV(instruction ins, GenTreePtr tree, ssize_t val, unsigned offs, emitAttr size, insFlags flags)
+void CodeGen::inst_TT_IV(instruction ins, GenTree* tree, ssize_t val, unsigned offs, emitAttr size, insFlags flags)
 {
     bool sizeInferred = false;
 
@@ -2251,7 +2226,7 @@ AGAIN:
         case GT_NULLCHECK:
         case GT_ARR_ELEM:
         {
-            GenTreePtr addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
+            GenTree* addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
             sched_AM(ins, size, REG_NA, false, addr, offs, true, ival, flags);
         }
             return;
@@ -2265,9 +2240,7 @@ AGAIN:
             assert(!"invalid address");
     }
 }
-#endif // LEGACY_BACKEND
 
-#ifdef LEGACY_BACKEND
 /*****************************************************************************
  *
  *  Generate an instruction that has one operand given by a register and the
@@ -2275,7 +2248,7 @@ AGAIN:
  */
 
 void CodeGen::inst_RV_AT(
-    instruction ins, emitAttr size, var_types type, regNumber reg, GenTreePtr tree, unsigned offs, insFlags flags)
+    instruction ins, emitAttr size, var_types type, regNumber reg, GenTree* tree, unsigned offs, insFlags flags)
 {
 #ifdef _TARGET_XARCH_
 #ifdef DEBUG
@@ -2296,7 +2269,7 @@ void CodeGen::inst_RV_AT(
     if (EA_SIZE(size) > EA_PTRSIZE && !instIsFP(ins))
         EA_SET_SIZE(size, EA_PTRSIZE);
 
-    GenTreePtr addr = tree;
+    GenTree* addr = tree;
     sched_AM(ins, size, reg, true, addr, offs, false, 0, flags);
 }
 
@@ -2306,7 +2279,7 @@ void CodeGen::inst_RV_AT(
  *  (which has been made addressable) and an integer constant.
  */
 
-void CodeGen::inst_AT_IV(instruction ins, emitAttr size, GenTreePtr baseTree, int icon, unsigned offs)
+void CodeGen::inst_AT_IV(instruction ins, emitAttr size, GenTree* baseTree, int icon, unsigned offs)
 {
     sched_AM(ins, size, REG_NA, false, baseTree, offs, true, icon);
 }
@@ -2320,7 +2293,7 @@ void CodeGen::inst_AT_IV(instruction ins, emitAttr size, GenTreePtr baseTree, in
 
 void CodeGen::inst_RV_TT(instruction ins,
                          regNumber   reg,
-                         GenTreePtr  tree,
+                         GenTree*    tree,
                          unsigned    offs,
                          emitAttr    size,
                          insFlags    flags /* = INS_FLAGS_DONT_CARE */)
@@ -2615,7 +2588,7 @@ AGAIN:
 #ifndef LEGACY_BACKEND
             assert(!"inst_RV_TT not supported for GT_IND, GT_NULLCHECK, GT_ARR_ELEM or GT_LEA in !LEGACY_BACKEND");
 #else  // LEGACY_BACKEND
-            GenTreePtr addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
+            GenTree* addr = tree->OperIsIndir() ? tree->gtOp.gtOp1 : tree;
             inst_RV_AT(ins, size, tree->TypeGet(), reg, addr, offs, flags);
 #endif // LEGACY_BACKEND
         }
@@ -2667,7 +2640,7 @@ AGAIN:
  *  which is reg=[tree]*icon
  */
 #ifdef LEGACY_BACKEND
-void CodeGen::inst_RV_TT_IV(instruction ins, regNumber reg, GenTreePtr tree, int val)
+void CodeGen::inst_RV_TT_IV(instruction ins, regNumber reg, GenTree* tree, int val)
 {
     assert(tree->gtType <= TYP_I_IMPL);
 
@@ -2733,7 +2706,7 @@ void CodeGen::inst_RV_SH(
  *  Generate a "shift [r/m], icon" instruction.
  */
 
-void CodeGen::inst_TT_SH(instruction ins, GenTreePtr tree, unsigned val, unsigned offs)
+void CodeGen::inst_TT_SH(instruction ins, GenTree* tree, unsigned val, unsigned offs)
 {
 #ifdef _TARGET_XARCH_
     if (val == 0)
@@ -2763,7 +2736,7 @@ void CodeGen::inst_TT_SH(instruction ins, GenTreePtr tree, unsigned val, unsigne
  *  Generate a "shift [addr], cl" instruction.
  */
 
-void CodeGen::inst_TT_CL(instruction ins, GenTreePtr tree, unsigned offs)
+void CodeGen::inst_TT_CL(instruction ins, GenTree* tree, unsigned offs)
 {
     inst_TT(ins, tree, offs, 0, emitTypeSize(tree->TypeGet()));
 }
@@ -2778,7 +2751,8 @@ void CodeGen::inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regN
 {
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
     assert(ins == INS_shld || ins == INS_shrd || ins == INS_shufps || ins == INS_shufpd || ins == INS_pshufd ||
-           ins == INS_cmpps || ins == INS_cmppd || ins == INS_dppd || ins == INS_dpps || ins == INS_insertps);
+           ins == INS_cmpps || ins == INS_cmppd || ins == INS_dppd || ins == INS_dpps || ins == INS_insertps ||
+           ins == INS_roundps || ins == INS_roundss || ins == INS_roundpd || ins == INS_roundsd);
 #else  // !_TARGET_XARCH_
     assert(ins == INS_shld || ins == INS_shrd);
 #endif // !_TARGET_XARCH_
@@ -2847,7 +2821,7 @@ void CodeGen::inst_SA_IV(instruction ins, unsigned ofs, int val, var_types type)
  *  or short (e.g. something like "movzx eax, byte ptr [edx]").
  */
 
-void CodeGen::inst_RV_ST(instruction ins, emitAttr size, regNumber reg, GenTreePtr tree)
+void CodeGen::inst_RV_ST(instruction ins, emitAttr size, regNumber reg, GenTree* tree)
 {
     assert(size == EA_1BYTE || size == EA_2BYTE);
 
@@ -2913,7 +2887,7 @@ void CodeGen::inst_RV_ST(instruction ins, regNumber reg, TempDsc* tmp, unsigned 
 #endif // !_TARGET_ARM_
 }
 
-void CodeGen::inst_mov_RV_ST(regNumber reg, GenTreePtr tree)
+void CodeGen::inst_mov_RV_ST(regNumber reg, GenTree* tree)
 {
     /* Figure out the size of the value being loaded */
 
@@ -3149,9 +3123,11 @@ instruction CodeGen::ins_Move_Extend(var_types srcType, bool srcInReg)
         // TODO-CQ: based on whether src type is aligned use movaps instead
 
         return (srcInReg) ? INS_movaps : INS_movups;
-#else  // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#elif defined(_TARGET_ARM64_)
+        return (srcInReg) ? INS_mov : ins_Load(srcType);
+#else  // !defined(_TARGET_ARM64_) && !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
         assert(!"unhandled SIMD type");
-#endif // !defined(_TARGET_XARCH_) || defined(LEGACY_BACKEND)
+#endif // !defined(_TARGET_ARM64_) && !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
     }
 
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
@@ -3299,7 +3275,7 @@ instruction CodeGenInterface::ins_Load(var_types srcType, bool aligned /*=false*
         }
         else
 #endif // FEATURE_SIMD
-            if (compiler->canUseAVX())
+            if (compiler->canUseVexEncoding())
         {
             return (aligned) ? INS_movapd : INS_movupd;
         }
@@ -3310,6 +3286,8 @@ instruction CodeGenInterface::ins_Load(var_types srcType, bool aligned /*=false*
             // latter.
             return (aligned) ? INS_movaps : INS_movups;
         }
+#elif defined(_TARGET_ARM64_)
+        return INS_ldr;
 #else
         assert(!"ins_Load with SIMD type");
 #endif
@@ -3462,7 +3440,7 @@ instruction CodeGenInterface::ins_Store(var_types dstType, bool aligned /*=false
         }
         else
 #endif // FEATURE_SIMD
-            if (compiler->canUseAVX())
+            if (compiler->canUseVexEncoding())
         {
             return (aligned) ? INS_movapd : INS_movupd;
         }
@@ -3585,19 +3563,24 @@ instruction CodeGen::ins_MathOp(genTreeOps oper, var_types type)
     switch (oper)
     {
         case GT_ADD:
+#ifdef LEGACY_BACKEND
         case GT_ASG_ADD:
+#endif
             return type == TYP_DOUBLE ? INS_addsd : INS_addss;
-            break;
         case GT_SUB:
+#ifdef LEGACY_BACKEND
         case GT_ASG_SUB:
+#endif
             return type == TYP_DOUBLE ? INS_subsd : INS_subss;
-            break;
         case GT_MUL:
+#ifdef LEGACY_BACKEND
         case GT_ASG_MUL:
+#endif
             return type == TYP_DOUBLE ? INS_mulsd : INS_mulss;
-            break;
         case GT_DIV:
+#ifdef LEGACY_BACKEND
         case GT_ASG_DIV:
+#endif
             return type == TYP_DOUBLE ? INS_divsd : INS_divss;
         case GT_AND:
             return type == TYP_DOUBLE ? INS_andpd : INS_andps;
@@ -3714,14 +3697,32 @@ instruction CodeGen::ins_FloatCopy(var_types type)
 
 instruction CodeGen::ins_CopyIntToFloat(var_types srcType, var_types dstType)
 {
-    // Not used and not implemented
-    unreached();
+    assert((dstType == TYP_FLOAT) || (dstType == TYP_DOUBLE));
+    assert((srcType == TYP_INT) || (srcType == TYP_UINT) || (srcType == TYP_LONG) || (srcType == TYP_ULONG));
+
+    if ((srcType == TYP_LONG) || (srcType == TYP_ULONG))
+    {
+        return INS_vmov_i2d;
+    }
+    else
+    {
+        return INS_vmov_i2f;
+    }
 }
 
 instruction CodeGen::ins_CopyFloatToInt(var_types srcType, var_types dstType)
 {
-    // Not used and not implemented
-    unreached();
+    assert((srcType == TYP_FLOAT) || (srcType == TYP_DOUBLE));
+    assert((dstType == TYP_INT) || (dstType == TYP_UINT) || (dstType == TYP_LONG) || (dstType == TYP_ULONG));
+
+    if ((dstType == TYP_LONG) || (dstType == TYP_ULONG))
+    {
+        return INS_vmov_d2i;
+    }
+    else
+    {
+        return INS_vmov_f2i;
+    }
 }
 
 instruction CodeGen::ins_FloatCompare(var_types type)
@@ -3741,19 +3742,25 @@ instruction CodeGen::ins_MathOp(genTreeOps oper, var_types type)
     switch (oper)
     {
         case GT_ADD:
+#ifdef LEGACY_BACKEND
         case GT_ASG_ADD:
+#endif
             return INS_vadd;
-            break;
         case GT_SUB:
+#ifdef LEGACY_BACKEND
         case GT_ASG_SUB:
+#endif
             return INS_vsub;
-            break;
         case GT_MUL:
+#ifdef LEGACY_BACKEND
         case GT_ASG_MUL:
+#endif
             return INS_vmul;
             break;
         case GT_DIV:
+#ifdef LEGACY_BACKEND
         case GT_ASG_DIV:
+#endif
             return INS_vdiv;
         case GT_NEG:
             return INS_vneg;

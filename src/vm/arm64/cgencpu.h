@@ -24,6 +24,7 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 
 class ComCallMethodDesc;
 
+extern PCODE GetPreStubEntryPoint();
 
 #define COMMETHOD_PREPAD                        24   // # extra bytes to allocate in addition to sizeof(ComCallMethodDesc)
 #ifdef FEATURE_COMINTEROP
@@ -79,17 +80,17 @@ typedef INT64 StackElemType;
 // !! This expression assumes STACK_ELEM_SIZE is a power of 2.
 #define StackElemSize(parmSize) (((parmSize) + STACK_ELEM_SIZE - 1) & ~((ULONG)(STACK_ELEM_SIZE - 1)))
 
-
-#ifdef FEATURE_PAL // TODO-ARM64-WINDOWS Add JIT_Stelem_Ref support
 //
 // JIT HELPERS.
 //
 // Create alias for optimized implementations of helpers provided on this platform
 //
-// optimized static helpers
-#define JIT_Stelem_Ref                      JIT_Stelem_Ref
-#endif
+#define JIT_GetSharedGCStaticBase           JIT_GetSharedGCStaticBase_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBase        JIT_GetSharedNonGCStaticBase_SingleAppDomain
+#define JIT_GetSharedGCStaticBaseNoCtor     JIT_GetSharedGCStaticBaseNoCtor_SingleAppDomain
+#define JIT_GetSharedNonGCStaticBaseNoCtor  JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain
 
+#define JIT_Stelem_Ref                      JIT_Stelem_Ref
 
 //**********************************************************************
 // Frames
@@ -439,10 +440,8 @@ public:
     void EmitUnboxMethodStub(MethodDesc* pRealMD);
     void EmitCallManagedMethod(MethodDesc *pMD, BOOL fTailCall);
     void EmitCallLabel(CodeLabel *target, BOOL fTailCall, BOOL fIndirect);
-    void EmitSecureDelegateInvoke(UINT_PTR hash);
-    static UINT_PTR HashMulticastInvoke(MetaSig* pSig);
+
     void EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
-    void EmitGetThreadInlined(IntReg Xt);
 
 #ifdef _DEBUG
     void EmitNop() { Emit32(0xD503201F); }
@@ -574,6 +573,19 @@ struct StubPrecode {
         return m_pTarget;
     }
 
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange64((LONGLONG*)&m_pTarget, (TADDR)GetPreStubEntryPoint());
+    }
+
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
     {
         CONTRACTL
@@ -685,6 +697,19 @@ struct FixupPrecode {
     {
         LIMITED_METHOD_DAC_CONTRACT;
         return m_pTarget;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange64((LONGLONG*)&m_pTarget, (TADDR)GetEEFuncEntryPoint(PrecodeFixupThunk));
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)

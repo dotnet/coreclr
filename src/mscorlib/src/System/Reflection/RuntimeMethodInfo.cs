@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Security;
 using System.Text;
@@ -44,8 +43,7 @@ namespace System.Reflection
                     if (ContainsGenericParameters ||
                          ReturnType.IsByRef ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
-                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs) ||
-                         ((Attributes & MethodAttributes.RequireSecObject) == MethodAttributes.RequireSecObject))
+                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
@@ -69,8 +67,6 @@ namespace System.Reflection
             RuntimeMethodHandleInternal handle, RuntimeType declaringType,
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
         {
-            Contract.Ensures(!m_handle.IsNull());
-
             Debug.Assert(!handle.IsNullHandle());
             Debug.Assert(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));
 
@@ -184,6 +180,7 @@ namespace System.Reflection
             return m_declaringType;
         }
 
+        internal sealed override int GenericParameterCount => RuntimeMethodHandle.GetGenericParameterCount(this);
         #endregion
 
         #region Object Overrides
@@ -257,7 +254,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -271,7 +267,6 @@ namespace System.Reflection
         {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
-            Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
@@ -355,7 +350,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Diagnostics.Contracts.Pure]
         public override ParameterInfo[] GetParameters()
         {
             FetchNonReturnParameters();
@@ -460,32 +454,16 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
-            return UnsafeInvokeInternal(obj, parameters, arguments);
-        }
-
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        internal object UnsafeInvoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
-            object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
-
-            return UnsafeInvokeInternal(obj, parameters, arguments);
-        }
-
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        private object UnsafeInvokeInternal(Object obj, Object[] parameters, Object[] arguments)
-        {
+            bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (arguments == null || arguments.Length == 0)
-                return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false);
+                return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions);
             else
             {
-                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, Signature, false);
+                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, Signature, false, wrapExceptions);
 
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
@@ -542,8 +520,6 @@ namespace System.Reflection
         {
             get
             {
-                Contract.Ensures(m_returnParameter != null);
-
                 FetchReturnParameter();
                 return m_returnParameter as ParameterInfo;
             }
@@ -577,8 +553,6 @@ namespace System.Reflection
 
         public override Delegate CreateDelegate(Type delegateType)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
             // This API existed in v1/v1.1 and only expected to create closed
             // instance delegates. Constrain the call to BindToMethodInfo to
             // open delegates only for backwards compatibility. But we'll allow
@@ -590,14 +564,11 @@ namespace System.Reflection
             return CreateDelegateInternal(
                 delegateType,
                 null,
-                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature,
-                ref stackMark);
+                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature);
         }
 
         public override Delegate CreateDelegate(Type delegateType, Object target)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
             // This API is new in Whidbey and allows the full range of delegate
             // flexability (open or closed delegates binding to static or
             // instance methods with relaxed signature checking). The delegate
@@ -606,16 +577,14 @@ namespace System.Reflection
             return CreateDelegateInternal(
                 delegateType,
                 target,
-                DelegateBindingFlags.RelaxedSignature,
-                ref stackMark);
+                DelegateBindingFlags.RelaxedSignature);
         }
 
-        private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags, ref StackCrawlMark stackMark)
+        private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags)
         {
             // Validate the parameters.
             if (delegateType == null)
                 throw new ArgumentNullException(nameof(delegateType));
-            Contract.EndContractBlock();
 
             RuntimeType rtType = delegateType as RuntimeType;
             if (rtType == null)
@@ -624,7 +593,7 @@ namespace System.Reflection
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(delegateType));
 
-            Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags, ref stackMark);
+            Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags);
             if (d == null)
             {
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
@@ -640,7 +609,6 @@ namespace System.Reflection
         {
             if (methodInstantiation == null)
                 throw new ArgumentNullException(nameof(methodInstantiation));
-            Contract.EndContractBlock();
 
             RuntimeType[] methodInstantionRuntimeType = new RuntimeType[methodInstantiation.Length];
 
@@ -709,7 +677,6 @@ namespace System.Reflection
         {
             if (!IsGenericMethod)
                 throw new InvalidOperationException();
-            Contract.EndContractBlock();
 
             return RuntimeType.GetMethodBase(m_declaringType, RuntimeMethodHandle.StripMethodInstantiation(this)) as MethodInfo;
         }

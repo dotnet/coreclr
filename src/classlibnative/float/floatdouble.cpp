@@ -60,6 +60,15 @@ FCIMPL1_V(double, COMDouble::Acos, double x)
     return (double)acos(x);
 FCIMPLEND
 
+/*=====================================Acosh====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Acosh, double x)
+    FCALL_CONTRACT;
+
+    return (double)acosh(x);
+FCIMPLEND
+
 /*=====================================Asin=====================================
 **
 ==============================================================================*/
@@ -67,6 +76,15 @@ FCIMPL1_V(double, COMDouble::Asin, double x)
     FCALL_CONTRACT;
 
     return (double)asin(x);
+FCIMPLEND
+
+/*=====================================Asinh====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Asinh, double x)
+    FCALL_CONTRACT;
+
+    return (double)asinh(x);
 FCIMPLEND
 
 /*=====================================Atan=====================================
@@ -78,6 +96,15 @@ FCIMPL1_V(double, COMDouble::Atan, double x)
     return (double)atan(x);
 FCIMPLEND
 
+/*=====================================Atanh====================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Atanh, double x)
+    FCALL_CONTRACT;
+
+    return (double)atanh(x);
+FCIMPLEND
+
 /*=====================================Atan2====================================
 **
 ==============================================================================*/
@@ -85,6 +112,15 @@ FCIMPL2_VV(double, COMDouble::Atan2, double y, double x)
     FCALL_CONTRACT;
 
     return (double)atan2(y, x);
+FCIMPLEND
+
+/*====================================Cbrt======================================
+**
+==============================================================================*/
+FCIMPL1_V(double, COMDouble::Cbrt, double x)
+    FCALL_CONTRACT;
+
+    return (double)cbrt(x);
 FCIMPLEND
 
 /*====================================Ceil======================================
@@ -132,6 +168,15 @@ FCIMPL1_V(double, COMDouble::Floor, double x)
     return (double)floor(x);
 FCIMPLEND
 
+/*=====================================FMod=====================================
+**
+==============================================================================*/
+FCIMPL2_VV(double, COMDouble::FMod, double x, double y)
+    FCALL_CONTRACT;
+
+    return (double)fmod(x, y);
+FCIMPLEND
+
 /*=====================================Log======================================
 **
 ==============================================================================*/
@@ -153,10 +198,10 @@ FCIMPLEND
 /*=====================================ModF=====================================
 **
 ==============================================================================*/
-FCIMPL1(double, COMDouble::ModF, double* iptr)
+FCIMPL2_VI(double, COMDouble::ModF, double x, double* intptr)
     FCALL_CONTRACT;
 
-    return (double)modf(*iptr, iptr);
+    return (double)modf(x, intptr);
 FCIMPLEND
 
 /*=====================================Pow======================================
@@ -166,30 +211,6 @@ FCIMPL2_VV(double, COMDouble::Pow, double x, double y)
     FCALL_CONTRACT;
 
     return (double)pow(x, y);
-FCIMPLEND
-
-/*====================================Round=====================================
-**
-==============================================================================*/
-FCIMPL1_V(double, COMDouble::Round, double x)
-    FCALL_CONTRACT;
-
-    // If the number has no fractional part do nothing
-    // This shortcut is necessary to workaround precision loss in borderline cases on some platforms
-    if (x == (double)((INT64)x)) {
-        return x;
-    }
-
-    // We had a number that was equally close to 2 integers.
-    // We need to return the even one.
-
-    double flrTempVal = floor(x + 0.5);
-
-    if ((x == (floor(x) + 0.5)) && (fmod(flrTempVal, 2.0) != 0)) {
-        flrTempVal -= 1.0;
-    }
-
-    return _copysign(flrTempVal, x);
 FCIMPLEND
 
 /*=====================================Sin======================================

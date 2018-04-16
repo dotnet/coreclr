@@ -31,16 +31,6 @@
 #include "array.h"
 #include "eepolicy.h"
 
-
-#ifdef FEATURE_WINDOWSPHONE
-Volatile<BOOL> g_fGetPhoneVersionInitialized;
-
-// This is the API to query the phone version information
-typedef BOOL (*pfnGetPhoneVersion)(LPOSVERSIONINFO lpVersionInformation);
-
-pfnGetPhoneVersion g_pfnGetPhoneVersion = NULL;
-#endif
-
 typedef void(WINAPI *pfnGetSystemTimeAsFileTime)(LPFILETIME lpSystemTimeAsFileTime);
 extern pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime;
 
@@ -53,6 +43,33 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
     if (hKernel32 != NULL)
     {
         func = (pfnGetSystemTimeAsFileTime)GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
+        if (func != NULL)
+        {
+            // GetSystemTimePreciseAsFileTime exists and we'd like to use it.  However, on
+            // misconfigured systems, it's possible for the "precise" time to be inaccurate:
+            //     https://github.com/dotnet/coreclr/issues/14187
+            // If it's inaccurate, though, we expect it to be wildly inaccurate, so as a
+            // workaround/heuristic, we get both the "normal" and "precise" times, and as
+            // long as they're close, we use the precise one. This workaround can be removed
+            // when we better understand what's causing the drift and the issue is no longer
+            // a problem or can be better worked around on all targeted OSes.
+
+            FILETIME systemTimeResult;
+            ::GetSystemTimeAsFileTime(&systemTimeResult);
+
+            FILETIME preciseSystemTimeResult;
+            func(&preciseSystemTimeResult);
+
+            LONG64 systemTimeLong100ns = (LONG64)((((ULONG64)systemTimeResult.dwHighDateTime) << 32) | (ULONG64)systemTimeResult.dwLowDateTime);
+            LONG64 preciseSystemTimeLong100ns = (LONG64)((((ULONG64)preciseSystemTimeResult.dwHighDateTime) << 32) | (ULONG64)preciseSystemTimeResult.dwLowDateTime);
+
+            const INT32 THRESHOLD_100NS = 1000000; // 100ms
+            if (abs(preciseSystemTimeLong100ns - systemTimeLong100ns) > THRESHOLD_100NS)
+            {
+                // Too much difference.  Don't use GetSystemTimePreciseAsFileTime.
+                func = NULL;
+            }
+        }
     }
     if (func == NULL)
 #endif
@@ -81,15 +98,6 @@ FCIMPL0(INT64, SystemNative::__GetSystemTimeAsFileTime)
 }
 FCIMPLEND;
 
-
-
-FCIMPL0(UINT32, SystemNative::GetCurrentProcessorNumber)
-{
-    FCALL_CONTRACT;
-
-    return ::GetCurrentProcessorNumber();
-}
-FCIMPLEND;
 
 
 
@@ -209,49 +217,6 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(strArray); 
-}
-FCIMPLEND
-
-
-FCIMPL1(FC_BOOL_RET, SystemNative::_GetCompatibilityFlag, int flag)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(GetCompatibilityFlag((CompatibilityFlag)flag));
-}
-FCIMPLEND
-
-// Note: Arguments checked in IL.
-FCIMPL1(Object*, SystemNative::_GetEnvironmentVariable, StringObject* strVarUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal;
-    STRINGREF strVar;
-
-    refRetVal   = NULL;
-    strVar      = ObjectToSTRINGREF(strVarUNSAFE);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(refRetVal, strVar);
-
-    int len;
-
-    // Get the length of the environment variable.
-    PathString envPath;    // prefix complains if pass a null ptr in, so rely on the final length parm instead
-    len = WszGetEnvironmentVariable(strVar->GetBuffer(), envPath);
-
-    if (len != 0)
-    {
-        // Allocate the string.
-        refRetVal = StringObject::NewString(len);
- 
-        wcscpy_s(refRetVal->GetBuffer(), len + 1, envPath);
-        
-    }
-
-    HELPER_METHOD_FRAME_END();
-
-    return OBJECTREFToObject(refRetVal);
 }
 FCIMPLEND
 
@@ -403,7 +368,7 @@ WCHAR g_szFailFastBuffer[256];
 
 // This is the common code for FailFast processing that is wrapped by the two
 // FailFast FCalls below.
-void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode)
+void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExceptionForWatsonBucketing, UINT_PTR retAddress, UINT exitCode, STRINGREF refErrorSourceString)
 {
     CONTRACTL
     {
@@ -417,6 +382,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     {
         STRINGREF refMesgString;
         EXCEPTIONREF refExceptionForWatsonBucketing;
+        STRINGREF refErrorSourceString;
     } gc;
     ZeroMemory(&gc, sizeof(gc));
 
@@ -424,6 +390,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     
     gc.refMesgString = refMesgString;
     gc.refExceptionForWatsonBucketing = refExceptionForWatsonBucketing;
+    gc.refErrorSourceString = refErrorSourceString;
 
     // Managed code injected FailFast maps onto the unmanaged version
     // (EEPolicy::HandleFatalError) in the following manner: the exit code is
@@ -448,6 +415,20 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     // just this problem.
     WCHAR  *pszMessage = NULL;
     DWORD   cchMessage = (gc.refMesgString == NULL) ? 0 : gc.refMesgString->GetStringLength();
+
+    WCHAR * errorSourceString = NULL;
+
+    if (gc.refErrorSourceString != NULL) 
+    {
+        DWORD cchErrorSource = gc.refErrorSourceString->GetStringLength();
+        errorSourceString = new (nothrow) WCHAR[cchErrorSource + 1];
+
+        if (errorSourceString != NULL) 
+        {
+            memcpyNoGCRefs(errorSourceString, gc.refErrorSourceString->GetBuffer(), cchErrorSource * sizeof(WCHAR));
+            errorSourceString[cchErrorSource] = W('\0');
+        }
+    }
 
     if (cchMessage < FAIL_FAST_STATIC_BUFFER_LENGTH)
     {
@@ -477,6 +458,14 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         WszOutputDebugString(W("CLR: Managed code called FailFast, saying \""));
         WszOutputDebugString(pszMessage);
         WszOutputDebugString(W("\"\r\n"));
+    }
+
+    LPCWSTR argExceptionString = NULL;
+    StackSString msg;
+    if (gc.refExceptionForWatsonBucketing != NULL)
+    {
+        GetExceptionMessage(gc.refExceptionForWatsonBucketing, msg);
+        argExceptionString = msg.GetUnicode();
     }
 
     Thread *pThread = GetThread();
@@ -509,7 +498,7 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
 
-    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage);
+    EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage, NULL, errorSourceString, argExceptionString);
 
     GCPROTECT_END();
 }
@@ -528,7 +517,7 @@ FCIMPL1(VOID, SystemNative::FailFast, StringObject* refMessageUNSAFE)
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, NULL, retaddr, COR_E_FAILFAST);
+    GenericFailFast(refMessage, NULL, retaddr, COR_E_FAILFAST, NULL);
 
     HELPER_METHOD_FRAME_END();
 }
@@ -546,7 +535,7 @@ FCIMPL2(VOID, SystemNative::FailFastWithExitCode, StringObject* refMessageUNSAFE
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, NULL, retaddr, exitCode);
+    GenericFailFast(refMessage, NULL, retaddr, exitCode, NULL);
 
     HELPER_METHOD_FRAME_END();
 }
@@ -565,7 +554,27 @@ FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAF
     UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
     
     // Call the actual worker to perform failfast
-    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST);
+    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, NULL);
+
+    HELPER_METHOD_FRAME_END();
+}
+FCIMPLEND
+
+FCIMPL3(VOID, SystemNative::FailFastWithExceptionAndSource, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE, StringObject* errorSourceUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    STRINGREF refMessage = (STRINGREF)refMessageUNSAFE;
+    EXCEPTIONREF refException = (EXCEPTIONREF)refExceptionUNSAFE;
+    STRINGREF errorSource = (STRINGREF)errorSourceUNSAFE;
+
+    HELPER_METHOD_FRAME_BEGIN_3(refMessage, refException, errorSource);
+
+    // The HelperMethodFrame knows how to get the return address.
+    UINT_PTR retaddr = HELPER_METHOD_FRAME_GET_RETURN_ADDRESS();
+    
+    // Call the actual worker to perform failfast
+    GenericFailFast(refMessage, refException, retaddr, COR_E_FAILFAST, errorSource);
 
     HELPER_METHOD_FRAME_END();
 }

@@ -83,6 +83,8 @@ int CacheLineSize;
 #include <kvm.h>
 #endif
 
+#include <algorithm>
+
 using namespace CorUnix;
 
 //
@@ -172,7 +174,7 @@ PAL_InitializeDLL()
     return Initialize(0, NULL, PAL_INITIALIZE_DLL);
 }
 
-#ifndef __GLIBC__
+#ifdef ENSURE_PRIMARY_STACK_SIZE
 /*++
 Function:
   EnsureStackSize
@@ -195,7 +197,7 @@ EnsureStackSize(SIZE_T stackSize)
     volatile uint8_t *s = (uint8_t *)_alloca(stackSize);
     *s = 0;
 }
-#endif // __GLIBC__
+#endif // ENSURE_PRIMARY_STACK_SIZE
 
 /*++
 Function:
@@ -218,18 +220,18 @@ InitializeDefaultStackSize()
 
         if (errno == 0)
         {
-            g_defaultStackSize = max(size, PTHREAD_STACK_MIN);
+            g_defaultStackSize = std::max(size, (long int)PTHREAD_STACK_MIN);
         }
     }
 
-#ifndef __GLIBC__
+#ifdef ENSURE_PRIMARY_STACK_SIZE
     if (g_defaultStackSize == 0)
     {
         // Set the default minimum stack size for MUSL to the same value as we
         // use on Windows.
         g_defaultStackSize = 1536 * 1024;
     }
-#endif // __GLIBC__
+#endif // ENSURE_PRIMARY_STACK_SIZE
 }
 
 /*++
@@ -310,9 +312,12 @@ Initialize(
 
         InitializeDefaultStackSize();
 
-#ifndef __GLIBC__
-        EnsureStackSize(g_defaultStackSize);
-#endif // __GLIBC__
+#ifdef ENSURE_PRIMARY_STACK_SIZE
+        if (flags & PAL_INITIALIZE_ENSURE_STACK_SIZE)
+        {
+            EnsureStackSize(g_defaultStackSize);
+        }
+#endif // ENSURE_PRIMARY_STACK_SIZE
 
         // Initialize the TLS lookaside cache
         if (FALSE == TLSInitialize())
@@ -1065,6 +1070,14 @@ static BOOL INIT_IncreaseDescriptorLimit(void)
     // Set our soft limit for file descriptors to be the same
     // as the max limit.
     rlp.rlim_cur = rlp.rlim_max;
+#ifdef __APPLE__
+    // Based on compatibility note in setrlimit(2) manpage for OSX,
+    // trim the limit to OPEN_MAX.
+    if (rlp.rlim_cur > OPEN_MAX)
+    {
+        rlp.rlim_cur = OPEN_MAX;
+    }
+#endif
     result = setrlimit(RLIMIT_NOFILE, &rlp);
     if (result != 0)
     {

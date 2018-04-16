@@ -728,6 +728,15 @@ typedef Wrapper<void *, DoNothing, VoidCLRUnmapViewOfFile> CLRMapViewHolder;
 typedef Wrapper<void *, DoNothing, DoNothing> CLRMapViewHolder;
 #endif
 
+#ifdef FEATURE_PAL
+#ifndef DACCESS_COMPILE
+FORCEINLINE void VoidPALUnloadPEFile(void *ptr) { PAL_LOADUnloadPEFile(ptr); }
+typedef Wrapper<void *, DoNothing, VoidPALUnloadPEFile> PALPEFileHolder;
+#else
+typedef Wrapper<void *, DoNothing, DoNothing> PALPEFileHolder;
+#endif
+#endif // FEATURE_PAL
+
 void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX);
 
 void ProcessEventForHost(EClrEvent event, void *data);
@@ -1075,10 +1084,11 @@ public:
         EXCEPTION_NOTIFICATION=5,
         GC_NOTIFICATION= 6,
         CATCH_ENTER_NOTIFICATION = 7,
+        JIT_NOTIFICATION2=8,
     };
     
     // called from the runtime
-    static void DoJITNotification(MethodDesc *MethodDescPtr);
+    static void DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLocation);
     static void DoJITPitchingNotification(MethodDesc *MethodDescPtr);
     static void DoModuleLoadNotification(Module *Module);
     static void DoModuleUnloadNotification(Module *Module);
@@ -1088,7 +1098,7 @@ public:
 
     // called from the DAC
     static int GetType(TADDR Args[]);
-    static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr);
+    static BOOL ParseJITNotification(TADDR Args[], TADDR& MethodDescPtr, TADDR& NativeCodeLocation);
     static BOOL ParseJITPitchingNotification(TADDR Args[], TADDR& MethodDescPtr);
     static BOOL ParseModuleLoadNotification(TADDR Args[], TADDR& ModulePtr);
     static BOOL ParseModuleUnloadNotification(TADDR Args[], TADDR& ModulePtr);

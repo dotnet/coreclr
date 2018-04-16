@@ -48,7 +48,7 @@ if (WIN32)
     list(APPEND SUPERPMI_SHIM_SIMPLE_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/superpmi-shim-simple.def)
 endif (WIN32)
 
-add_library(superpmi-shim-simple
+_add_library(superpmi-shim-simple
     SHARED
     ${SUPERPMI_SHIM_SIMPLE_SOURCES}
 )
@@ -67,7 +67,7 @@ else()
         ${STATIC_MT_CPP_LIB}
     )
 
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-simple.pdb DESTINATION PDB)
+    _install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/superpmi-shim-simple.pdb DESTINATION PDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-install (TARGETS superpmi-shim-simple DESTINATION .)
+_install (TARGETS superpmi-shim-simple DESTINATION .)

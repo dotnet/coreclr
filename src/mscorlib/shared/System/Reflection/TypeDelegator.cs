@@ -105,11 +105,16 @@ namespace System.Reflection
         protected override bool IsArrayImpl() => typeImpl.IsArray;
         protected override bool IsPrimitiveImpl() => typeImpl.IsPrimitive;
         protected override bool IsByRefImpl() => typeImpl.IsByRef;
+        public override bool IsGenericTypeParameter => typeImpl.IsGenericTypeParameter;
+        public override bool IsGenericMethodParameter => typeImpl.IsGenericMethodParameter;
         protected override bool IsPointerImpl() => typeImpl.IsPointer;
         protected override bool IsValueTypeImpl() => typeImpl.IsValueType;
         protected override bool IsCOMObjectImpl() => typeImpl.IsCOMObject;
         public override bool IsByRefLike => typeImpl.IsByRefLike;
         public override bool IsConstructedGenericType => typeImpl.IsConstructedGenericType;
+
+        public override bool IsCollectible => typeImpl.IsCollectible;
+
         public override Type GetElementType() => typeImpl.GetElementType();
         protected override bool HasElementTypeImpl() => typeImpl.HasElementType;
 

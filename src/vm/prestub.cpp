@@ -205,7 +205,7 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
 #pragma optimize("", off)
 #endif
 
-void DACNotifyCompilationFinished(MethodDesc *methodDesc)
+void DACNotifyCompilationFinished(MethodDesc *methodDesc, PCODE pCode)
 {
     CONTRACTL
     {
@@ -231,7 +231,7 @@ void DACNotifyCompilationFinished(MethodDesc *methodDesc)
         if (jnt & CLRDATA_METHNOTIFY_GENERATED)
         {
             // If so, throw an exception!
-            DACNotify::DoJITNotification(methodDesc);
+            DACNotify::DoJITNotification(methodDesc, (TADDR)pCode);
         }
     }
 }
@@ -319,13 +319,13 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
     PCODE pCode = NULL;
 
 #ifdef FEATURE_PREJIT 
-    pCode = GetPrecompiledNgenCode();
+    pCode = GetPrecompiledNgenCode(pConfig);
 #endif
 
 #ifdef FEATURE_READYTORUN
     if (pCode == NULL)
     {
-        pCode = GetPrecompiledR2RCode();
+        pCode = GetPrecompiledR2RCode(pConfig);
         if (pCode != NULL)
         {
             pConfig->SetNativeCode(pCode, &pCode);
@@ -336,7 +336,7 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
     return pCode;
 }
 
-PCODE MethodDesc::GetPrecompiledNgenCode()
+PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
 {
     STANDARD_VM_CONTRACT;
     PCODE pCode = NULL;
@@ -371,6 +371,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode()
         {
             SetNativeCodeInterlocked(NULL, pCode);
             _ASSERTE(!IsPreImplemented());
+            pConfig->SetProfilerRejectedPrecompiledCode();
             pCode = NULL;
         }
     }
@@ -423,7 +424,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode()
 }
 
 
-PCODE MethodDesc::GetPrecompiledR2RCode()
+PCODE MethodDesc::GetPrecompiledR2RCode(PrepareCodeConfig* pConfig)
 {
     STANDARD_VM_CONTRACT;
 
@@ -432,7 +433,7 @@ PCODE MethodDesc::GetPrecompiledR2RCode()
     Module * pModule = GetModule();
     if (pModule->IsReadyToRun())
     {
-        pCode = pModule->GetReadyToRunInfo()->GetEntryPoint(this);
+        pCode = pModule->GetReadyToRunInfo()->GetEntryPoint(this, pConfig, TRUE /* fFixups */);
     }
 #endif
     return pCode;
@@ -491,13 +492,6 @@ COR_ILMETHOD_DECODER* MethodDesc::GetAndVerifyMetadataILHeader(PrepareCodeConfig
     {
         COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
     }
-
-#ifdef _VER_EE_VERIFICATION_ENABLED 
-    static ConfigDWORD peVerify;
-
-    if (peVerify.val(CLRConfig::EXTERNAL_PEVerify))
-        m_pMethod->Verify(pHeader, TRUE, FALSE);   // Throws a VerifierException if verification fails
-#endif // _VER_EE_VERIFICATION_ENABLED
 
     return pHeader;
 }
@@ -732,10 +726,21 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
                 &methodName,
                 &methodSignature,
                 pCode,
-                pConfig->GetCodeVersion().GetVersionId());
+                pConfig->GetCodeVersion().GetVersionId(),
+                pConfig->ProfilerRejectedPrecompiledCode(),
+                pConfig->ReadyToRunRejectedPrecompiledCode());
         }
 
     }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (g_pConfig->TieredCompilation() && flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
+    {
+        // The flag above is only set (in TieredCompilationManager::GetJitFlags()) when this method was eligible for tiered
+        // compilation at the time when it was checked, and a tier 0 JIT was requested for this method
+        GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
+    }
+#endif // FEATURE_TIERED_COMPILATION
 
 #ifdef FEATURE_STACK_SAMPLING
     StackSampler::RecordJittingInfo(this, flags);
@@ -813,7 +818,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
 #endif
     {
         // The notification will only occur if someone has registered for this method.
-        DACNotifyCompilationFinished(this);
+        DACNotifyCompilationFinished(this, pCode);
     }
 
     return pCode;
@@ -884,7 +889,7 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
 #if defined(FEATURE_JIT_PITCHING)
         else
         {
-            SavePitchingCandidate(this, sizeOfCode);
+            SavePitchingCandidate(this, *pSizeOfCode);
         }
 #endif
     }
@@ -910,7 +915,9 @@ PrepareCodeConfig::PrepareCodeConfig(NativeCodeVersion codeVersion, BOOL needsMu
     m_pMethodDesc(codeVersion.GetMethodDesc()),
     m_nativeCodeVersion(codeVersion),
     m_needsMulticoreJitNotification(needsMulticoreJitNotification),
-    m_mayUsePrecompiledCode(mayUsePrecompiledCode)
+    m_mayUsePrecompiledCode(mayUsePrecompiledCode),
+    m_ProfilerRejectedPrecompiledCode(FALSE),
+    m_ReadyToRunRejectedPrecompiledCode(FALSE)
 {}
 
 MethodDesc* PrepareCodeConfig::GetMethodDesc()
@@ -929,6 +936,30 @@ BOOL PrepareCodeConfig::NeedsMulticoreJitNotification()
 {
     LIMITED_METHOD_CONTRACT;
     return m_needsMulticoreJitNotification;
+}
+
+BOOL PrepareCodeConfig::ProfilerRejectedPrecompiledCode()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_ProfilerRejectedPrecompiledCode;
+}
+
+void PrepareCodeConfig::SetProfilerRejectedPrecompiledCode()
+{
+    LIMITED_METHOD_CONTRACT;
+    m_ProfilerRejectedPrecompiledCode = TRUE;
+}
+
+BOOL PrepareCodeConfig::ReadyToRunRejectedPrecompiledCode()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_ReadyToRunRejectedPrecompiledCode;
+}
+
+void PrepareCodeConfig::SetReadyToRunRejectedPrecompiledCode()
+{
+    LIMITED_METHOD_CONTRACT;
+    m_ReadyToRunRejectedPrecompiledCode = TRUE;
 }
 
 NativeCodeVersion PrepareCodeConfig::GetCodeVersion()
@@ -1705,12 +1736,20 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // When the TieredCompilationManager has received enough call notifications
     // for this method only then do we back-patch it.
     BOOL fCanBackpatchPrestub = TRUE;
+    BOOL fEligibleForCallCounting = FALSE;
 #ifdef FEATURE_TIERED_COMPILATION
+    TieredCompilationManager* pTieredCompilationManager = nullptr;
     BOOL fEligibleForTieredCompilation = IsEligibleForTieredCompilation();
+    BOOL fWasPromotedToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
-        CallCounter * pCallCounter = GetCallCounter();
-        fCanBackpatchPrestub = pCallCounter->OnMethodCalled(this);
+        fEligibleForCallCounting = g_pConfig->TieredCompilation_CallCounting();
+        if (fEligibleForCallCounting)
+        {
+            pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
+            CallCounter * pCallCounter = GetCallCounter();
+            pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);
+        }
     }
 #endif
 
@@ -1722,6 +1761,12 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
     {
         pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
+
+        if (pTieredCompilationManager != nullptr && fEligibleForCallCounting && fCanBackpatchPrestub && pCode != NULL && !fWasPromotedToTier1)
+        {
+            pTieredCompilationManager->OnMethodCallCountingStoppedWithoutTier1Promotion(this);
+        }
+
         fIsPointingToPrestub = IsPointingToPrestub();
     }
 #endif
@@ -1740,10 +1785,10 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     
     if (pCode)
     {
-        // The only reason we are still pointing to prestub is because the call counter
-        // prevented it. We should still short circuit and return the code without
+        // The only reasons we are still pointing to prestub is because the call counter
+        // prevented it or this thread lost the race with another thread in updating the
+        // entry point. We should still short circuit and return the code without
         // backpatching.
-        _ASSERTE(!fCanBackpatchPrestub);
         RETURN pCode;
     }
     

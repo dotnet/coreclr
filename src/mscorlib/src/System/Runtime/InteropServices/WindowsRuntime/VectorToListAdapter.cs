@@ -9,9 +9,9 @@ using System.Security;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -27,7 +27,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private VectorToListAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // T this[int index] { get }
@@ -36,7 +36,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
+            IVector<T> _this = Unsafe.As<IVector<T>>(this);
             return GetAt(_this, (uint)index);
         }
 
@@ -46,14 +46,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
+            IVector<T> _this = Unsafe.As<IVector<T>>(this);
             SetAt(_this, (uint)index, value);
         }
 
         // int IndexOf(T item)
         internal int IndexOf<T>(T item)
         {
-            IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
+            IVector<T> _this = Unsafe.As<IVector<T>>(this);
 
             uint index;
             bool exists = _this.IndexOf(item, out index);
@@ -75,7 +75,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
+            IVector<T> _this = Unsafe.As<IVector<T>>(this);
             InsertAtHelper<T>(_this, (uint)index, item);
         }
 
@@ -85,7 +85,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
-            IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
+            IVector<T> _this = Unsafe.As<IVector<T>>(this);
             RemoveAtHelper<T>(_this, (uint)index);
         }
 
@@ -102,7 +102,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -120,7 +120,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -138,7 +138,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
@@ -156,7 +156,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (Exception ex)
             {
-                if (__HResults.E_BOUNDS == ex._HResult)
+                if (HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;

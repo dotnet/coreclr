@@ -6,7 +6,6 @@ using System.Text;
 using System;
 using System.Runtime;
 using System.Runtime.CompilerServices;
-using System.Diagnostics.Contracts;
 using System.Globalization;
 
 namespace System
@@ -29,7 +28,7 @@ namespace System
     // an appropriate custom ILMarshaler to keep WInRT interop scenarios enabled.
     //
     [Serializable]
-    public struct TimeSpan : IComparable, IComparable<TimeSpan>, IEquatable<TimeSpan>, IFormattable
+    public struct TimeSpan : IComparable, IComparable<TimeSpan>, IEquatable<TimeSpan>, IFormattable, ISpanFormattable
     {
         public const long TicksPerMillisecond = 10000;
         private const double MillisecondsPerTick = 1.0 / TicksPerMillisecond;
@@ -207,7 +206,6 @@ namespace System
         {
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_Duration);
-            Contract.EndContractBlock();
             return new TimeSpan(_ticks >= 0 ? _ticks : -_ticks);
         }
 
@@ -244,7 +242,6 @@ namespace System
         {
             if (Double.IsNaN(value))
                 throw new ArgumentException(SR.Arg_CannotBeNaN);
-            Contract.EndContractBlock();
             double tmp = value * scale;
             double millis = tmp + (value >= 0 ? 0.5 : -0.5);
             if ((millis > Int64.MaxValue / TicksPerMillisecond) || (millis < Int64.MinValue / TicksPerMillisecond))
@@ -266,7 +263,6 @@ namespace System
         {
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
-            Contract.EndContractBlock();
             return new TimeSpan(-_ticks);
         }
 
@@ -316,22 +312,39 @@ namespace System
         }
         public static TimeSpan Parse(String s)
         {
+            if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
             /* Constructs a TimeSpan from a string.  Leading and trailing white space characters are allowed. */
             return TimeSpanParse.Parse(s, null);
         }
         public static TimeSpan Parse(String input, IFormatProvider formatProvider)
         {
+            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            return TimeSpanParse.Parse(input, formatProvider);
+        }
+        public static TimeSpan Parse(ReadOnlySpan<char> input, IFormatProvider formatProvider = null)
+        {
             return TimeSpanParse.Parse(input, formatProvider);
         }
         public static TimeSpan ParseExact(String input, String format, IFormatProvider formatProvider)
         {
+            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
             return TimeSpanParse.ParseExact(input, format, formatProvider, TimeSpanStyles.None);
         }
         public static TimeSpan ParseExact(String input, String[] formats, IFormatProvider formatProvider)
         {
+            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
             return TimeSpanParse.ParseExactMultiple(input, formats, formatProvider, TimeSpanStyles.None);
         }
         public static TimeSpan ParseExact(String input, String format, IFormatProvider formatProvider, TimeSpanStyles styles)
+        {
+            ValidateStyles(styles, nameof(styles));
+            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
+            return TimeSpanParse.ParseExact(input, format, formatProvider, styles);
+        }
+
+        public static TimeSpan ParseExact(ReadOnlySpan<char> input, ReadOnlySpan<char> format, IFormatProvider formatProvider, TimeSpanStyles styles = TimeSpanStyles.None)
         {
             ValidateStyles(styles, nameof(styles));
             return TimeSpanParse.ParseExact(input, format, formatProvider, styles);
@@ -339,30 +352,98 @@ namespace System
         public static TimeSpan ParseExact(String input, String[] formats, IFormatProvider formatProvider, TimeSpanStyles styles)
         {
             ValidateStyles(styles, nameof(styles));
+            if (input == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.input);
+            return TimeSpanParse.ParseExactMultiple(input, formats, formatProvider, styles);
+        }
+        public static TimeSpan ParseExact(ReadOnlySpan<char> input, string[] formats, IFormatProvider formatProvider, TimeSpanStyles styles = TimeSpanStyles.None)
+        {
+            ValidateStyles(styles, nameof(styles));
             return TimeSpanParse.ParseExactMultiple(input, formats, formatProvider, styles);
         }
         public static Boolean TryParse(String s, out TimeSpan result)
         {
+            if (s == null)
+            {
+                result = default(TimeSpan);
+                return false;
+            }
             return TimeSpanParse.TryParse(s, null, out result);
         }
+        public static bool TryParse(ReadOnlySpan<char> s, out TimeSpan result)
+        {
+            return TimeSpanParse.TryParse(s, null, out result);
+        }
+
         public static Boolean TryParse(String input, IFormatProvider formatProvider, out TimeSpan result)
+        {
+            if (input == null)
+            {
+                result = default(TimeSpan);
+                return false;
+            }
+            return TimeSpanParse.TryParse(input, formatProvider, out result);
+        }
+        public static bool TryParse(ReadOnlySpan<char> input, IFormatProvider formatProvider, out TimeSpan result)
         {
             return TimeSpanParse.TryParse(input, formatProvider, out result);
         }
         public static Boolean TryParseExact(String input, String format, IFormatProvider formatProvider, out TimeSpan result)
         {
+            if (input == null || format == null)
+            {
+                result = default;
+                return false;
+            }
+            return TimeSpanParse.TryParseExact(input, format, formatProvider, TimeSpanStyles.None, out result);
+        }
+
+        public static bool TryParseExact(ReadOnlySpan<char> input, ReadOnlySpan<char> format, IFormatProvider formatProvider, out TimeSpan result)
+        {
             return TimeSpanParse.TryParseExact(input, format, formatProvider, TimeSpanStyles.None, out result);
         }
         public static Boolean TryParseExact(String input, String[] formats, IFormatProvider formatProvider, out TimeSpan result)
         {
+            if (input == null)
+            {
+                result = default(TimeSpan);
+                return false;
+            }
             return TimeSpanParse.TryParseExactMultiple(input, formats, formatProvider, TimeSpanStyles.None, out result);
         }
+        public static bool TryParseExact(ReadOnlySpan<char> input, string[] formats, IFormatProvider formatProvider, out TimeSpan result)
+        {
+            return TimeSpanParse.TryParseExactMultiple(input, formats, formatProvider, TimeSpanStyles.None, out result);
+        }
+
         public static Boolean TryParseExact(String input, String format, IFormatProvider formatProvider, TimeSpanStyles styles, out TimeSpan result)
+        {
+            ValidateStyles(styles, nameof(styles));
+            if (input == null || format == null)
+            {
+                result = default;
+                return false;
+            }
+
+            return TimeSpanParse.TryParseExact(input, format, formatProvider, styles, out result);
+        }
+
+        public static bool TryParseExact(ReadOnlySpan<char> input, ReadOnlySpan<char> format, IFormatProvider formatProvider, TimeSpanStyles styles, out TimeSpan result)
         {
             ValidateStyles(styles, nameof(styles));
             return TimeSpanParse.TryParseExact(input, format, formatProvider, styles, out result);
         }
         public static Boolean TryParseExact(String input, String[] formats, IFormatProvider formatProvider, TimeSpanStyles styles, out TimeSpan result)
+        {
+            ValidateStyles(styles, nameof(styles));
+            if (input == null)
+            {
+                result = default(TimeSpan);
+                return false;
+            }
+            return TimeSpanParse.TryParseExactMultiple(input, formats, formatProvider, styles, out result);
+        }
+
+        public static bool TryParseExact(ReadOnlySpan<char> input, string[] formats, IFormatProvider formatProvider, TimeSpanStyles styles, out TimeSpan result)
         {
             ValidateStyles(styles, nameof(styles));
             return TimeSpanParse.TryParseExactMultiple(input, formats, formatProvider, styles, out result);
@@ -378,6 +459,11 @@ namespace System
         public String ToString(String format, IFormatProvider formatProvider)
         {
             return TimeSpanFormat.Format(this, format, formatProvider);
+        }
+
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider formatProvider = null)
+        {
+            return TimeSpanFormat.TryFormat(this, destination, out charsWritten, format, formatProvider);
         }
         #endregion
 

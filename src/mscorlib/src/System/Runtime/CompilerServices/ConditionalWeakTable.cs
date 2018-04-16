@@ -64,6 +64,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.CompilerServices
 {
@@ -585,7 +586,7 @@ namespace System.Runtime.CompilerServices
             {
                 object secondary;
                 int entryIndex = FindEntry(key, out secondary);
-                value = JitHelpers.UnsafeCast<TValue>(secondary);
+                value = Unsafe.As<TValue>(secondary);
                 return entryIndex != -1;
             }
 
@@ -627,8 +628,8 @@ namespace System.Runtime.CompilerServices
 
                     if (oKey != null)
                     {
-                        key = JitHelpers.UnsafeCast<TKey>(oKey);
-                        value = JitHelpers.UnsafeCast<TValue>(oValue);
+                        key = Unsafe.As<TKey>(oKey);
+                        value = Unsafe.As<TValue>(oValue);
                         return true;
                     }
                 }

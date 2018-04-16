@@ -214,6 +214,32 @@ public:
 
 #endif
 
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+// Return an index of argument slot. First indices are reserved for general purpose registers,
+// the following ones for float registers and then the rest for stack slots.
+// This index is independent of how many registers are actually used to pass arguments.
+int GetNormalizedArgumentSlotIndex(UINT16 offset)
+{
+    int index;
+
+    if (offset & ShuffleEntry::FPREGMASK)
+    {
+        index = NUM_ARGUMENT_REGISTERS + (offset & ShuffleEntry::OFSREGMASK);
+    }
+    else if (offset & ShuffleEntry::REGMASK)
+    {
+        index = offset & ShuffleEntry::OFSREGMASK;
+    }
+    else
+    {
+        // stack slot
+        index = NUM_ARGUMENT_REGISTERS + NUM_FLOAT_ARGUMENT_REGISTERS + (offset & ShuffleEntry::OFSMASK);
+    }
+
+    return index;
+}
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
 VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<ShuffleEntry> * pShuffleEntryArray)
 {
     STANDARD_VM_CONTRACT;
@@ -352,6 +378,10 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     ArgLocDesc sArgSrc;
     ArgLocDesc sArgDst;
 
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    int argSlots = NUM_FLOAT_ARGUMENT_REGISTERS + NUM_ARGUMENT_REGISTERS + sArgPlacerSrc.SizeOfArgStack() / sizeof(size_t);
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
     // If the target method in non-static (this happens for open instance delegates), we need to account for
     // the implicit this parameter.
     if (sSigDst.HasThis())
@@ -367,7 +397,6 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
 
         entry.srcofs = iteratorSrc.GetNextOfs();
         entry.dstofs = iteratorDst.GetNextOfs();
-
         pShuffleEntryArray->Append(entry);
     }
 
@@ -392,77 +421,80 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             pShuffleEntryArray->Append(entry);
     }
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    // The shuffle entries are produced in two passes on Unix AMD64. The first pass generates shuffle entries for
-    // all cases except of shuffling struct argument from stack to registers, which is performed in the second pass
-    // The reason is that if such structure argument contained floating point field and it was followed by a 
-    // floating point argument, generating code for transferring the structure from stack into registers would
-    // overwrite the xmm register of the floating point argument before it could actually be shuffled.
-    // For example, consider this case:
-    // struct S { int x; float y; };
-    // void fn(long a, long b, long c, long d, long e, S f, float g);
-    // src: rdi = this, rsi = a, rdx = b, rcx = c, r8 = d, r9 = e, stack: f, xmm0 = g
-    // dst: rdi = a, rsi = b, rdx = c, rcx = d, r8 = e, r9 = S.x, xmm0 = s.y, xmm1 = g
-    for (int pass = 0; pass < 2; pass++)
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+    // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
+    // destination locations.
+    while ((ofsSrc = sArgPlacerSrc.GetNextOffset()) != TransitionBlock::InvalidOffset)
     {
-        // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
-        // destination locations.
-        while ((ofsSrc = sArgPlacerSrc.GetNextOffset()) != TransitionBlock::InvalidOffset)
+        ofsDst = sArgPlacerDst.GetNextOffset();
+
+        // Find the argument location mapping for both source and destination signature. A single argument can
+        // occupy a floating point register, a general purpose register, a pair of registers of any kind or
+        // a stack slot.
+        sArgPlacerSrc.GetArgLoc(ofsSrc, &sArgSrc);
+        sArgPlacerDst.GetArgLoc(ofsDst, &sArgDst);
+
+        ShuffleIterator iteratorSrc(&sArgSrc);
+        ShuffleIterator iteratorDst(&sArgDst);
+
+        // Shuffle each slot in the argument (register or stack slot) from source to destination.
+        while (iteratorSrc.HasNextOfs())
         {
-            ofsDst = sArgPlacerDst.GetNextOffset();
+            // Locate the next slot to shuffle in the source and destination and encode the transfer into a
+            // shuffle entry.
+            entry.srcofs = iteratorSrc.GetNextOfs();
+            entry.dstofs = iteratorDst.GetNextOfs();
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-            bool shuffleStructFromStackToRegs = (ofsSrc != TransitionBlock::StructInRegsOffset) && (ofsDst == TransitionBlock::StructInRegsOffset);
-            if (((pass == 0) && shuffleStructFromStackToRegs) || 
-                ((pass == 1) && !shuffleStructFromStackToRegs))
-            {
-                continue;
-            }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
-            // Find the argument location mapping for both source and destination signature. A single argument can
-            // occupy a floating point register (in which case we don't need to do anything, they're not shuffled)
-            // or some combination of general registers and the stack.
-            sArgPlacerSrc.GetArgLoc(ofsSrc, &sArgSrc);
-            sArgPlacerDst.GetArgLoc(ofsDst, &sArgDst);
-
-            ShuffleIterator iteratorSrc(&sArgSrc);
-            ShuffleIterator iteratorDst(&sArgDst);
-
-            // Shuffle each slot in the argument (register or stack slot) from source to destination.
-            while (iteratorSrc.HasNextOfs())
-            {
-                // Locate the next slot to shuffle in the source and destination and encode the transfer into a
-                // shuffle entry.
-                entry.srcofs = iteratorSrc.GetNextOfs();
-                entry.dstofs = iteratorDst.GetNextOfs();
-
-                // Only emit this entry if it's not a no-op (i.e. the source and destination locations are
-                // different).
-                if (entry.srcofs != entry.dstofs)
-                    pShuffleEntryArray->Append(entry);
-            }
-
-            // We should have run out of slots to shuffle in the destination at the same time as the source.
-            _ASSERTE(!iteratorDst.HasNextOfs());
+            // Only emit this entry if it's not a no-op (i.e. the source and destination locations are
+            // different).
+            if (entry.srcofs != entry.dstofs)
+                pShuffleEntryArray->Append(entry);
         }
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-        if (pass == 0)
-        {
-            // Reset the iterator for the 2nd pass
-            sSigSrc.Reset();
-            sSigDst.Reset();
 
-            sArgPlacerSrc = ArgIterator(&sSigSrc);
-            sArgPlacerDst = ArgIterator(&sSigDst);
-
-            if (sSigDst.HasThis())
-            {
-                sArgPlacerSrc.GetNextOffset();
-            }
-        }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+        // We should have run out of slots to shuffle in the destination at the same time as the source.
+        _ASSERTE(!iteratorDst.HasNextOfs());
     }
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    // The Unix AMD64 ABI can cause a struct to be passed on stack for the source and in registers for the destination.
+    // That can cause some arguments that are passed on stack for the destination to be passed in registers in the source.
+    // An extreme example of that is e.g.:
+    //   void fn(int, int, int, int, int, struct {int, double}, double, double, double, double, double, double, double, double, double, double)
+    // For this signature, the shuffle needs to move slots as follows (please note the "forward" movement of xmm registers):
+    //   RDI->RSI, RDX->RCX, R8->RDX, R9->R8, stack[0]->R9, xmm0->xmm1, xmm1->xmm2, ... xmm6->xmm7, xmm7->stack[0], stack[1]->xmm0, stack[2]->stack[1], stack[3]->stack[2]
+    // To prevent overwriting of slots before they are moved, we need to sort the move operations.
+
+    NewArrayHolder<bool> filledSlots = new bool[argSlots];
+
+    bool reordered;
+    do
+    {
+        reordered = false;
+
+        for (int i = 0; i < argSlots; i++)
+        {
+            filledSlots[i] = false;
+        }
+        for (int i = 0; i < pShuffleEntryArray->GetCount(); i++)
+        {
+            entry = (*pShuffleEntryArray)[i];
+
+            // If the slot that we are moving the argument to was filled in already, we need to move this entry in front
+            // of the entry that filled it in.
+            if (filledSlots[GetNormalizedArgumentSlotIndex(entry.srcofs)])
+            {
+                int j;
+                for (j = i; (*pShuffleEntryArray)[j].dstofs != entry.srcofs; j--)
+                    (*pShuffleEntryArray)[j] = (*pShuffleEntryArray)[j - 1];
+
+                (*pShuffleEntryArray)[j] = entry;
+                reordered = true;
+            }
+
+            filledSlots[GetNormalizedArgumentSlotIndex(entry.dstofs)] = true;
+        }
+    }
+    while (reordered);
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     entry.srcofs = ShuffleEntry::SENTINEL;
     entry.dstofs = 0;
@@ -1050,126 +1082,6 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
     GCPROTECT_END();
 }
 
-// On the CoreCLR, we don't allow non-fulltrust delegates to be marshaled out (or created: CorHost::CreateDelegate ensures that)
-// This helper function checks if we have a full-trust delegate with AllowReversePInvokeCallsAttribute targets.
-BOOL COMDelegate::IsFullTrustDelegate(DELEGATEREF pDelegate)
-{
-    CONTRACTL
-    { 
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_WINDOWSPHONE
-    // we always allow reverse p/invokes on the phone.  The OS provides the sandbox.
-    return TRUE;
-#else
-    if (IsSecureDelegate(pDelegate))
-    {
-        // A secure delegate implies => creator and target are different, and creator is not fully-trusted
-        return FALSE;
-    }
-    else
-    {
-        // Suffices to look at the target assembly and check if that is fully-trusted.
-        // if creator is same as target, we're done.
-        // if creator is not same as target, then the only interesting case is when it's not FT, 
-        // and that's captured by the SecureDelegate case above.
-        // The target method yields the target assembly. Target method is not determinable for certain cases:
-        //    - Open Virtual Delegates
-        // For those cases we play it safe and return FALSE from this function
-        if (pDelegate->GetInvocationCount() != 0)
-        {
-            // From MulticastDelegate.cs (MulticastDelegate.Equals):
-            // there are 4 kind of delegate kinds that fall into this bucket
-            // 1- Multicast (_invocationList is Object[])
-            // 2- Secure (_invocationList is Delegate)
-            // 3- Unmanaged FntPtr (_invocationList == null)
-            // 4- Open virtual (_invocationCount == MethodDesc of target)
-            //                 (_invocationList == null, or _invocationList is a LoaderAllocator or DynamicResolver)
-
-            OBJECTREF invocationList = pDelegate->GetInvocationList();
-            if (invocationList != NULL)
-            {
-                
-                MethodTable *pMT;
-                pMT = invocationList->GetTrueMethodTable();
-                // Has to be a multicast delegate, or inner open virtual delegate of collectible secure delegate 
-                // since we already checked for secure delegates above
-                _ASSERTE(!pMT->IsDelegate());
-
-                if (!pMT->IsArray())
-                {
-                    // open Virtual delegate: conservatively return FALSE
-                    return FALSE;
-                }
-
-                // Given a multicast delegate we walk the list and make sure all targets are FullTrust.
-                // Yes, this is a recursive call to IsFullTrustDelegate. But we should hit stackoverflow 
-                // only for the same cases where invoking that delegate would hit stackoverflow.
-                PTRARRAYREF delegateArrayRef = (PTRARRAYREF) invocationList;
-                
-                int numDelegates = delegateArrayRef->GetNumComponents();
-                for(int i = 0; i< numDelegates; i++)
-                {
-                    DELEGATEREF innerDel = (DELEGATEREF)delegateArrayRef->GetAt(i);
-                    _ASSERTE(innerDel->GetMethodTable()->IsDelegate());
-                    if (!IsFullTrustDelegate(innerDel))
-                    {
-                        // If we find even one non full-trust target in the list, return FALSE
-                        return FALSE;
-                    }
-                }
-                // All targets in the multicast delegate are FullTrust, so this multicast delegate is 
-                // also FullTrust
-                return TRUE;
-            }
-            else
-            {
-                if (pDelegate->GetInvocationCount() == DELEGATE_MARKER_UNMANAGEDFPTR)
-                {
-                    // Delegate to unmanaged function pointer - FullTrust
-                    return TRUE;
-                }
-
-                // 
-                // open Virtual delegate: conservatively return FALSE
-                return FALSE;
-            }
-        }
-        // Regular delegate. Let's just look at the target Method
-        MethodDesc* pMD = GetMethodDesc((OBJECTREF)pDelegate);
-        if (pMD != NULL)
-        {
-            // The target must be decorated with AllowReversePInvokeCallsAttribute
-            if (!IsMethodAllowedToSinkReversePInvoke(pMD)) return FALSE;
-
-            return TRUE;
-        }
-    }
-    // Default: 
-    return FALSE;
-#endif //FEATURE_WINDOWSPHONE
-}
-
-// Checks whether the method is decorated with AllowReversePInvokeCallsAttribute.
-BOOL COMDelegate::IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD)
-{
-    WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_WINDOWSPHONE
-    // we always allow reverse p/invokes on the phone.  The OS provides the sandbox.
-    return TRUE;
-#else
-    return (S_OK == pMD->GetMDImport()->GetCustomAttributeByName(
-                        pMD->GetMemberDef(),
-                        "System.Runtime.InteropServices.AllowReversePInvokeCallsAttribute",
-                        NULL,
-                        NULL));
-#endif // FEATURE_WINDOWSPHONE
-}
-
 // Marshals a managed method to an unmanaged callback provided the 
 // managed method is static and it's parameters require no marshalling.
 PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
@@ -1261,14 +1173,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
 
     MethodTable* pMT = pDelegate->GetMethodTable();
     DelegateEEClass* pClass = (DelegateEEClass*)(pMT->GetClass());
-
-    // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
-    if (!IsFullTrustDelegate(pDelegate))
-    {        
-        StackSString strDelegateType;
-        TypeString::AppendType(strDelegateType, pMT, TypeString::FormatNamespace | TypeString::FormatAngleBrackets| TypeString::FormatSignature);
-        COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_1, strDelegateType.GetUnicode());
-    }
 
     if (pMT->HasInstantiation())
         COMPlusThrowArgumentException(W("delegate"), W("Argument_NeedNonGenericType"));
@@ -1450,12 +1354,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
             COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
-        // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
-        if (!IsFullTrustDelegate((DELEGATEREF)pDelegate))
-        {
-            COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
-        }
-
         GCPROTECT_END();
         return pDelegate;
     }
@@ -1557,12 +1455,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
 
     GCPROTECT_END();
 #endif // defined(_TARGET_X86_)
-
-    // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
-    if (!IsFullTrustDelegate(delObj))
-    {
-        COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
-    }
 
     return delObj;
 }
@@ -1875,9 +1767,6 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
     // we can do some basic verification up front to prevent EE exceptions.
     if (method == NULL)
         COMPlusThrowArgumentNull(W("method"));
-
-    void* pRetAddr = _ReturnAddress();
-    MethodDesc * pCreatorMethod = ExecutionManager::GetCodeMethodDesc((PCODE)pRetAddr);
 
     _ASSERTE(gc.refThis);
     _ASSERTE(method);

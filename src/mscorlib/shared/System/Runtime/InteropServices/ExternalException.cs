@@ -20,25 +20,26 @@ namespace System.Runtime.InteropServices
 {
     // Base exception for COM Interop errors &; Structured Exception Handler
     // exceptions.
-    // 
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class ExternalException : SystemException
     {
         public ExternalException()
             : base(SR.Arg_ExternalException)
         {
-            HResult = __HResults.E_FAIL;
+            HResult = HResults.E_FAIL;
         }
 
         public ExternalException(string message)
             : base(message)
         {
-            HResult = __HResults.E_FAIL;
+            HResult = HResults.E_FAIL;
         }
 
         public ExternalException(string message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.E_FAIL;
+            HResult = HResults.E_FAIL;
         }
 
         public ExternalException(string message, int errorCode)
@@ -50,7 +51,6 @@ namespace System.Runtime.InteropServices
         protected ExternalException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
         }
 
         public virtual int ErrorCode

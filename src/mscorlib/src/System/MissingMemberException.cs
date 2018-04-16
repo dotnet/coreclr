@@ -12,38 +12,38 @@
 =============================================================================*/
 
 
-using System;
 using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
-using System.Globalization;
-using System.Runtime.Versioning;
-using System.Diagnostics.Contracts;
 
 namespace System
 {
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class MissingMemberException : MemberAccessException, ISerializable
     {
         public MissingMemberException()
             : base(SR.Arg_MissingMemberException)
         {
-            HResult = __HResults.COR_E_MISSINGMEMBER;
+            HResult = HResults.COR_E_MISSINGMEMBER;
         }
 
         public MissingMemberException(String message)
             : base(message)
         {
-            HResult = __HResults.COR_E_MISSINGMEMBER;
+            HResult = HResults.COR_E_MISSINGMEMBER;
         }
 
         public MissingMemberException(String message, Exception inner)
             : base(message, inner)
         {
-            HResult = __HResults.COR_E_MISSINGMEMBER;
+            HResult = HResults.COR_E_MISSINGMEMBER;
         }
 
         protected MissingMemberException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            ClassName = info.GetString("MMClassName");
+            MemberName = info.GetString("MMMemberName");
+            Signature = (byte[])info.GetValue("MMSignature", typeof(byte[]));
         }
 
         public override String Message
@@ -75,6 +75,9 @@ namespace System
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("MMClassName", ClassName, typeof(string));
+            info.AddValue("MMMemberName", MemberName, typeof(string));
+            info.AddValue("MMSignature", Signature, typeof(byte[]));
         }
 
 

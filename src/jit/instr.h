@@ -85,7 +85,7 @@ enum GCtype : unsigned
     GCT_BYREF
 };
 
-// TODO-Cleanup:  Move 'insFlags' under _TARGET_ARM_ 
+// TODO-Cleanup:  Move 'insFlags' under _TARGET_ARM_
 enum insFlags: unsigned
 {
     INS_FLAGS_NOT_SET,
@@ -142,13 +142,13 @@ enum insOpts : unsigned
     INS_OPTS_MSL,     // Vector Immediate (shifting ones variant)
 
     INS_OPTS_S_TO_4BYTE,  // Single to INT32
-    INS_OPTS_D_TO_4BYTE,  // Double to INT32  
+    INS_OPTS_D_TO_4BYTE,  // Double to INT32
 
     INS_OPTS_S_TO_8BYTE,  // Single to INT64
     INS_OPTS_D_TO_8BYTE,  // Double to INT64
 
     INS_OPTS_4BYTE_TO_S,  // INT32 to Single
-    INS_OPTS_4BYTE_TO_D,  // INT32 to Double  
+    INS_OPTS_4BYTE_TO_D,  // INT32 to Double
 
     INS_OPTS_8BYTE_TO_S,  // INT64 to Single
     INS_OPTS_8BYTE_TO_D,  // INT64 to Double
@@ -274,18 +274,55 @@ enum emitAttr : unsigned
 
 #define EmitSize(x)                 (EA_ATTR(genTypeSize(TypeGet(x))))
 
-// Enum specifying the instruction set for generating floating point or SIMD code.
-// These enums are ordered such that each one is inclusive of previous instruction sets
-// and the VM ensures this as well when setting the CONFIG flags.
 enum InstructionSet
 {
+    InstructionSet_ILLEGAL = 0,
 #ifdef _TARGET_XARCH_
-    InstructionSet_SSE2,      // SSE2 Instruction set
-    InstructionSet_SSE3_4,    // SSE3, SSSE3, SSE4.1 and SSE4.2 instruction set
-    InstructionSet_AVX,       // AVX2 instruction set
-                              // TODO-Cleaup - This should be named as InstructionSet_AVX2
+    // Start linear order SIMD instruction sets
+    // These ISAs have strictly generation to generation order.
+    InstructionSet_SSE     = 1,
+    InstructionSet_SSE2    = 2,
+    InstructionSet_SSE3    = 3,
+    InstructionSet_SSSE3   = 4,
+    InstructionSet_SSE41   = 5,
+    InstructionSet_SSE42   = 6,
+    InstructionSet_AVX     = 7,
+    InstructionSet_AVX2    = 8,
+    // Reserve values <32 for future SIMD instruction sets (i.e., AVX512),
+    // End linear order SIMD instruction sets.
+
+    InstructionSet_AES     = 32,
+    InstructionSet_BMI1    = 33,
+    InstructionSet_BMI2    = 34,
+    InstructionSet_FMA     = 35,
+    InstructionSet_LZCNT   = 36,
+    InstructionSet_PCLMULQDQ  = 37,
+    InstructionSet_POPCNT  = 38,
 #elif defined(_TARGET_ARM_)
     InstructionSet_NEON,
+#elif defined(_TARGET_ARM64_)
+    InstructionSet_Base,      // Base instructions available on all Arm64 platforms
+    InstructionSet_Aes,       // ID_AA64ISAR0_EL1.AES is 1 or better
+    InstructionSet_Atomics,   // ID_AA64ISAR0_EL1.Atomic is 2 or better
+    InstructionSet_Crc32,     // ID_AA64ISAR0_EL1.CRC32 is 1 or better
+    InstructionSet_Dcpop,     // ID_AA64ISAR1_EL1.DPB is 1 or better
+    InstructionSet_Dp,        // ID_AA64ISAR0_EL1.DP is 1 or better
+    InstructionSet_Fcma,      // ID_AA64ISAR1_EL1.FCMA is 1 or better
+    InstructionSet_Fp,        // ID_AA64PFR0_EL1.FP is 0 or better
+    InstructionSet_Fp16,      // ID_AA64PFR0_EL1.FP is 1 or better
+    InstructionSet_Jscvt,     // ID_AA64ISAR1_EL1.JSCVT is 1 or better
+    InstructionSet_Lrcpc,     // ID_AA64ISAR1_EL1.LRCPC is 1 or better
+    InstructionSet_Pmull,     // ID_AA64ISAR0_EL1.AES is 2 or better
+    InstructionSet_Sha1,      // ID_AA64ISAR0_EL1.SHA1 is 1 or better
+    InstructionSet_Sha256,    // ID_AA64ISAR0_EL1.SHA2 is 1 or better
+    InstructionSet_Sha512,    // ID_AA64ISAR0_EL1.SHA2 is 2 or better
+    InstructionSet_Sha3,      // ID_AA64ISAR0_EL1.SHA3 is 1 or better
+    InstructionSet_Simd,      // ID_AA64PFR0_EL1.AdvSIMD is 0 or better
+    InstructionSet_Simd_v81,  // ID_AA64ISAR0_EL1.RDM is 1 or better
+    InstructionSet_Simd_fp16, // ID_AA64PFR0_EL1.AdvSIMD is 1 or better
+    InstructionSet_Sm3,       // ID_AA64ISAR0_EL1.SM3 is 1 or better
+    InstructionSet_Sm4,       // ID_AA64ISAR0_EL1.SM4 is 1 or better
+    InstructionSet_Sve,       // ID_AA64PFR0_EL1.SVE is 1 or better
 #endif
     InstructionSet_NONE       // No instruction set is available indicating an invalid value
 };

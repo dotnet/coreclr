@@ -16,6 +16,10 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
+            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
+                # remove the last version digit
+                VERSION_ID=${VERSION_ID%.*}
+            fi
             __HostDistroRid="$ID.$VERSION_ID-$__Arch"
         elif [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
@@ -24,9 +28,13 @@ initHostDistroRid()
             fi
         fi
     fi
+    if [ "$__HostOS" == "FreeBSD" ]; then
+        __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
+        __HostDistroRid="freebsd.$__freebsd_version-$__Arch"
+    fi
 
     if [ "$__HostDistroRid" == "" ]; then
-        echo "WARNING: Can not determine runtime id for current distro."
+        echo "WARNING: Cannot determine runtime id for current distro."
     fi
 }
 
@@ -113,7 +121,7 @@ else
     export __DistroRid="$__HostDistroRid"
 fi
 
-$__ProjectRoot/run.sh build-packages -Project=$__ProjectRoot/src/.nuget/packages.builds -DistroRid=$__DistroRid -UseSharedCompilation=false -BuildNugetPackage=false $unprocessedBuildArgs
+$__ProjectRoot/run.sh build-packages -Project=$__ProjectRoot/src/.nuget/packages.builds -DistroRid=$__DistroRid -UseSharedCompilation=false -BuildNugetPackage=false -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" $unprocessedBuildArgs
 if [ $? -ne 0 ]
 then
     echo "ERROR: An error occurred while building packages; See build-packages.log for more details."

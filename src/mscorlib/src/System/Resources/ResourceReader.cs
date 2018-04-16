@@ -106,16 +106,11 @@ namespace System.Resources
         // Version number of .resources file, for compatibility
         private int _version;
 
-#if RESOURCE_FILE_FORMAT_DEBUG
-        private bool _debug;   // Whether this file has debugging stuff in it.
-#endif
-
 
         public ResourceReader(String fileName)
         {
             _resCache = new Dictionary<String, ResourceLocator>(FastResourceComparer.Default);
             _store = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultFileStreamBufferSize, FileOptions.RandomAccess), Encoding.UTF8);
-            BCLDebug.Log("RESMGRFILEFORMAT", "ResourceReader .ctor(String).  UnmanagedMemoryStream: " + (_ums != null));
 
             try
             {
@@ -134,14 +129,12 @@ namespace System.Resources
                 throw new ArgumentNullException(nameof(stream));
             if (!stream.CanRead)
                 throw new ArgumentException(SR.Argument_StreamNotReadable);
-            Contract.EndContractBlock();
 
             _resCache = new Dictionary<String, ResourceLocator>(FastResourceComparer.Default);
             _store = new BinaryReader(stream, Encoding.UTF8);
             // We have a faster code path for reading resource files from an assembly.
             _ums = stream as UnmanagedMemoryStream;
 
-            BCLDebug.Log("RESMGRFILEFORMAT", "ResourceReader .ctor(Stream).  UnmanagedMemoryStream: " + (_ums != null));
             ReadResources();
         }
 
@@ -151,16 +144,15 @@ namespace System.Resources
         // and values, coupled to this ResourceReader).
         internal ResourceReader(Stream stream, Dictionary<String, ResourceLocator> resCache)
         {
-            Contract.Requires(stream != null, "Need a stream!");
-            Contract.Requires(stream.CanRead, "Stream should be readable!");
-            Contract.Requires(resCache != null, "Need a Dictionary!");
+            Debug.Assert(stream != null, "Need a stream!");
+            Debug.Assert(stream.CanRead, "Stream should be readable!");
+            Debug.Assert(resCache != null, "Need a Dictionary!");
 
             _resCache = resCache;
             _store = new BinaryReader(stream, Encoding.UTF8);
 
             _ums = stream as UnmanagedMemoryStream;
 
-            BCLDebug.Log("RESMGRFILEFORMAT", "ResourceReader .ctor(Stream, Hashtable).  UnmanagedMemoryStream: " + (_ums != null));
             ReadResources();
         }
 
@@ -269,7 +261,7 @@ namespace System.Resources
         {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             int hash = FastResourceComparer.HashFunction(name);
-            BCLDebug.Log("RESMGRFILEFORMAT", "FindPosForResource for " + name + "  hash: " + hash.ToString("x", CultureInfo.InvariantCulture));
+
             // Binary search over the hashes.  Use the _namePositions array to 
             // determine where they exist in the underlying stream.
             int lo = 0;
@@ -289,7 +281,7 @@ namespace System.Resources
                     c = -1;
                 else
                     c = 1;
-                //BCLDebug.Log("RESMGRFILEFORMAT", "  Probing index "+index+"  lo: "+lo+"  hi: "+hi+"  c: "+c);
+
                 if (c == 0)
                 {
                     success = true;
@@ -302,14 +294,6 @@ namespace System.Resources
             }
             if (!success)
             {
-#if RESOURCE_FILE_FORMAT_DEBUG
-                String lastReadString;
-                lock(this) {
-                    _store.BaseStream.Seek(_nameSectionOffset + GetNamePosition(index), SeekOrigin.Begin);
-                    lastReadString = _store.ReadString();
-                }
-                BCLDebug.Log("RESMGRFILEFORMAT", LogLevel.Status, "FindPosForResource for ", name, " failed.  i: ", index, "  lo: ", lo, "  hi: ", hi, "  last read string: \"", lastReadString, '\'');
-#endif
                 return -1;
             }
 
@@ -347,7 +331,6 @@ namespace System.Resources
                     }
                 }
             }
-            BCLDebug.Log("RESMGRFILEFORMAT", "FindPosForResource for " + name + ": Found a hash collision, HOWEVER, neither of these collided values equaled the given string.");
             return -1;
         }
 
@@ -420,20 +403,9 @@ namespace System.Resources
 
                     String s = null;
                     char* charPtr = (char*)_ums.PositionPointer;
-#if IA64
-                    if (((int)charPtr & 1) != 0) {
-                        char[] destArray = new char[byteLen/2];
-                        fixed(char* pDest = destArray) {
-                            Buffer.Memcpy((byte*)pDest, (byte*)charPtr, byteLen);
-                        }
-                        s = new String(destArray);
-                    }
-                    else {
-#endif //IA64
+
                     s = new String(charPtr, 0, byteLen / 2);
-#if IA64
-                    }
-#endif //IA64
+
                     _ums.Position += byteLen;
                     dataOffset = _store.ReadInt32();
                     if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset)
@@ -475,13 +447,13 @@ namespace System.Resources
             {
                 _store.BaseStream.Seek(nameVA + _nameSectionOffset, SeekOrigin.Begin);
                 SkipString();
-                //BCLDebug.Log("RESMGRFILEFORMAT", "GetValueForNameIndex for index: "+index+"  skip (name length): "+skip);
+
                 int dataPos = _store.ReadInt32();
                 if (dataPos < 0 || dataPos >= _store.BaseStream.Length - _dataSectionOffset)
                 {
                     throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dataPos));
                 }
-                BCLDebug.Log("RESMGRFILEFORMAT", "GetValueForNameIndex: dataPos: " + dataPos);
+
                 ResourceTypeCode junk;
                 if (_version == 1)
                     return LoadObjectV1(dataPos);
@@ -523,7 +495,7 @@ namespace System.Resources
                 if (typeCode == ResourceTypeCode.String) // ignore Null
                     s = _store.ReadString();
             }
-            BCLDebug.Log("RESMGRFILEFORMAT", "LoadString(" + pos.ToString("x", CultureInfo.InvariantCulture) + " returned " + (s == null ? "[a null string]" : s));
+
             return s;
         }
 
@@ -579,7 +551,6 @@ namespace System.Resources
             if (typeIndex == -1)
                 return null;
             RuntimeType type = FindType(typeIndex);
-            BCLDebug.Log("RESMGRFILEFORMAT", "LoadObject type: " + type.Name + "  pos: 0x" + _store.BaseStream.Position.ToString("x", CultureInfo.InvariantCulture));
             // Consider putting in logic to see if this type is a 
             // primitive or a value type first, so we can reach the 
             // deserialization code faster for arbitrary objects.
@@ -652,8 +623,6 @@ namespace System.Resources
         {
             _store.BaseStream.Seek(_dataSectionOffset + pos, SeekOrigin.Begin);
             typeCode = (ResourceTypeCode)_store.Read7BitEncodedInt();
-
-            BCLDebug.Log("RESMGRFILEFORMAT", "LoadObjectV2 type: " + typeCode + "  pos: 0x" + _store.BaseStream.Position.ToString("x", CultureInfo.InvariantCulture));
 
             switch (typeCode)
             {
@@ -824,12 +793,10 @@ namespace System.Resources
             }
             if (resMgrHeaderVersion > 1)
             {
-                BCLDebug.Log("RESMGRFILEFORMAT", LogLevel.Status, "ReadResources: Unexpected ResMgr header version: {0}  Skipping ahead {1} bytes.", resMgrHeaderVersion, numBytesToSkip);
                 _store.BaseStream.Seek(numBytesToSkip, SeekOrigin.Current);
             }
             else
             {
-                BCLDebug.Log("RESMGRFILEFORMAT", "ReadResources: Parsing ResMgr header v1.");
                 // We don't care about numBytesToSkip; read the rest of the header
 
                 // Read in type name for a suitable ResourceReader
@@ -852,36 +819,11 @@ namespace System.Resources
                 throw new ArgumentException(SR.Format(SR.Arg_ResourceFileUnsupportedVersion, RuntimeResourceSet.Version, version));
             _version = version;
 
-#if RESOURCE_FILE_FORMAT_DEBUG
-            // Look for ***DEBUG*** to see if this is a debuggable file.
-            long oldPos = _store.BaseStream.Position;
-            _debug = false;
-            try {
-                String debugString = _store.ReadString();
-                _debug = String.Equals("***DEBUG***", debugString);
-            }
-            catch(IOException) {
-            }
-            catch(OutOfMemoryException) {
-            }
-            if (_debug) {
-                Console.WriteLine("ResourceReader is looking at a debuggable .resources file, version {0}", _version);
-            }
-            else {
-                _store.BaseStream.Position = oldPos;
-            }
-#endif
-
             _numResources = _store.ReadInt32();
             if (_numResources < 0)
             {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
-            BCLDebug.Log("RESMGRFILEFORMAT", "ReadResources: Expecting " + _numResources + " resources.");
-#if RESOURCE_FILE_FORMAT_DEBUG
-            if (ResourceManager.DEBUG >= 4)
-                Console.WriteLine("ResourceReader::ReadResources - Reading in "+_numResources+" resources");
-#endif
 
             // Read type positions into type positions array.
             // But delay initialize the type table.
@@ -900,11 +842,6 @@ namespace System.Resources
                 SkipString();
             }
 
-#if RESOURCE_FILE_FORMAT_DEBUG
-                if (ResourceManager.DEBUG >= 5)
-                    Console.WriteLine("ResourceReader::ReadResources - Reading in "+numTypes+" type table entries");
-#endif
-
             // Prepare to read in the array of name hashes
             //  Note that the name hashes array is aligned to 8 bytes so 
             //  we can use pointers into it on 64 bit machines. (4 bytes 
@@ -922,13 +859,6 @@ namespace System.Resources
             }
 
             // Read in the array of name hashes
-#if RESOURCE_FILE_FORMAT_DEBUG
-                //  Skip over "HASHES->"
-                if (_debug) {
-                    _store.BaseStream.Position += 8;
-                }
-#endif
-
             if (_ums == null)
             {
                 _nameHashes = new int[_numResources];
@@ -955,12 +885,6 @@ namespace System.Resources
             }
 
             // Read in the array of relative positions for all the names.
-#if RESOURCE_FILE_FORMAT_DEBUG
-            // Skip over "POS---->"
-            if (_debug) {
-                _store.BaseStream.Position += 8;
-            }
-#endif
             if (_ums == null)
             {
                 _namePositions = new int[_numResources];
@@ -1007,8 +931,6 @@ namespace System.Resources
             {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
-
-            BCLDebug.Log("RESMGRFILEFORMAT", String.Format(CultureInfo.InvariantCulture, "ReadResources: _nameOffset = 0x{0:x}  _dataOffset = 0x{1:x}", _nameSectionOffset, _dataSectionOffset));
         }
 
         // This allows us to delay-initialize the Type[].  This might be a 
@@ -1057,7 +979,6 @@ namespace System.Resources
         {
             if (resourceName == null)
                 throw new ArgumentNullException(nameof(resourceName));
-            Contract.EndContractBlock();
             if (_resCache == null)
                 throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 
@@ -1122,7 +1043,7 @@ namespace System.Resources
 
         private String TypeNameFromTypeCode(ResourceTypeCode typeCode)
         {
-            Contract.Requires(typeCode >= 0, "can't be negative");
+            Debug.Assert(typeCode >= 0, "can't be negative");
             if (typeCode < ResourceTypeCode.StartOfUserTypes)
             {
                 Debug.Assert(!String.Equals(typeCode.ToString(), "LastPrimitive"), "Change ResourceTypeCode metadata order so LastPrimitive isn't what Enum.ToString prefers.");
@@ -1181,8 +1102,8 @@ namespace System.Resources
             {
                 get
                 {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 
                     return _reader.AllocateStringForNameIndex(_currentName, out _dataPosition);
@@ -1210,8 +1131,8 @@ namespace System.Resources
             {
                 get
                 {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 
                     String key;
@@ -1248,8 +1169,8 @@ namespace System.Resources
             {
                 get
                 {
-                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
-                    if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.InvalidOperation_EnumEnded);
+                    if (!_currentIsValid) throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 
                     // Consider using _resCache here, eventually, if

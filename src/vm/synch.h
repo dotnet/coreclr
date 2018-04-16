@@ -177,6 +177,115 @@ private:
     HANDLE m_handle;
 };
 
+class CLRLifoSemaphore
+{
+private:
+    struct Counts
+    {
+        union
+        {
+            struct
+            {
+                UINT32 signalCount;
+                UINT16 waiterCount;
+                UINT8 spinnerCount;
+                UINT8 countOfWaitersSignaledToWake;
+            };
+            UINT64 data;
+        };
+
+        Counts(UINT64 data = 0) : data(data)
+        {
+            LIMITED_METHOD_CONTRACT;
+        }
+
+        operator UINT64() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return data;
+        }
+
+        Counts operator -() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return -(INT64)data;
+        }
+
+        Counts &operator =(UINT64 data)
+        {
+            LIMITED_METHOD_CONTRACT;
+
+            this->data = data;
+            return *this;
+        }
+
+        Counts VolatileLoadWithoutBarrier() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return ::VolatileLoadWithoutBarrier(&data);
+        }
+
+        Counts CompareExchange(Counts toCounts, Counts fromCounts)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT64)InterlockedCompareExchange64((LONG64 *)&data, (LONG64)toCounts, (LONG64)fromCounts);
+        }
+
+        Counts ExchangeAdd(Counts toAdd)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT64)InterlockedExchangeAdd64((LONG64 *)&data, (LONG64)toAdd);
+        }
+    };
+
+public:
+    CLRLifoSemaphore() : m_handle(nullptr)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    ~CLRLifoSemaphore()
+    {
+        WRAPPER_NO_CONTRACT;
+        Close();
+    }
+
+public:
+    void Create(INT32 initialSignalCount, INT32 maximumSignalCount);
+    void Close();
+
+public:
+    BOOL IsValid() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_handle != nullptr;
+    }
+
+private:
+    bool WaitForSignal(DWORD timeoutMs);
+public:
+    bool Wait(DWORD timeoutMs);
+    bool Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorCount);
+    void Release(INT32 releaseCount);
+
+private:
+    BYTE __padding1[MAX_CACHE_LINE_SIZE]; // padding to ensure that m_counts gets its own cache line
+
+    // Take care to use 'm_counts.VolatileLoadWithoutBarrier()` when loading this value into a local variable that will be
+    // reused. See AwareLock::m_lockState for details.
+    Counts m_counts;
+
+    BYTE __padding2[MAX_CACHE_LINE_SIZE]; // padding to ensure that m_counts gets its own cache line
+
+#if defined(DEBUG)
+    UINT32 m_maximumSignalCount;
+#endif // _DEBUG && !FEATURE_PAL
+
+    // When FEATURE_PAL is defined, this is a handle to an instance of the PAL's LIFO semaphore. When FEATURE_PAL is not
+    // defined, this is a handle to an I/O completion port.
+    HANDLE m_handle;
+};
+
 class CLRMutex {
 public:
     CLRMutex()

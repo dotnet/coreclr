@@ -7,37 +7,39 @@ using System.Runtime.Serialization;
 namespace System.IO
 {
     // Thrown when trying to access a file that doesn't exist on disk.
+    [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public partial class FileNotFoundException : IOException
     {
         public FileNotFoundException()
             : base(SR.IO_FileNotFound)
         {
-            HResult = __HResults.COR_E_FILENOTFOUND;
+            HResult = HResults.COR_E_FILENOTFOUND;
         }
 
         public FileNotFoundException(string message)
             : base(message)
         {
-            HResult = __HResults.COR_E_FILENOTFOUND;
+            HResult = HResults.COR_E_FILENOTFOUND;
         }
 
         public FileNotFoundException(string message, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_FILENOTFOUND;
+            HResult = HResults.COR_E_FILENOTFOUND;
         }
 
         public FileNotFoundException(string message, string fileName) 
             : base(message)
         {
-            HResult = __HResults.COR_E_FILENOTFOUND;
+            HResult = HResults.COR_E_FILENOTFOUND;
             FileName = fileName;
         }
 
         public FileNotFoundException(string message, string fileName, Exception innerException)
             : base(message, innerException)
         {
-            HResult = __HResults.COR_E_FILENOTFOUND;
+            HResult = HResults.COR_E_FILENOTFOUND;
             FileName = fileName;
         }
 
@@ -55,7 +57,7 @@ namespace System.IO
             if (_message == null)
             {
                 if ((FileName == null) &&
-                    (HResult == System.__HResults.COR_E_EXCEPTION))
+                    (HResult == System.HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
 
                 else if (FileName != null)
@@ -93,12 +95,15 @@ namespace System.IO
         protected FileNotFoundException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
-            throw new PlatformNotSupportedException();
+            FileName = info.GetString("FileNotFound_FileName");
+            FusionLog = info.GetString("FileNotFound_FusionLog");
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+            info.AddValue("FileNotFound_FileName", FileName, typeof(string));
+            info.AddValue("FileNotFound_FusionLog", FusionLog, typeof(string));
         }
     }
 }

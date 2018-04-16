@@ -8,10 +8,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -29,13 +29,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IterableToEnumerableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable<T>.
         internal IEnumerator<T> GetEnumerator_Stub<T>()
         {
-            IIterable<T> _this = JitHelpers.UnsafeCast<IIterable<T>>(this);
+            IIterable<T> _this = Unsafe.As<IIterable<T>>(this);
             return new IteratorToEnumeratorAdapter<T>(_this.First());
         }
 
@@ -53,12 +53,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (target != null)
             {
-                return (JitHelpers.UnsafeCast<GetEnumerator_Delegate<T>>(target))();
+                return (Unsafe.As<GetEnumerator_Delegate<T>>(target))();
             }
 
             if (fUseString)
             {
-                return JitHelpers.UnsafeCast<IEnumerator<T>>(GetEnumerator_Stub<string>());
+                return Unsafe.As<IEnumerator<T>>(GetEnumerator_Stub<string>());
             }
 
             return GetEnumerator_Stub<T>();
@@ -69,7 +69,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private BindableIterableToEnumerableAdapter()
         {
-            Debug.Assert(false, "This class is never instantiated");
+            Debug.Fail("This class is never instantiated");
         }
 
         private sealed class NonGenericToGenericIterator : IIterator<object>
@@ -88,7 +88,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable.
         internal IEnumerator GetEnumerator_Stub()
         {
-            IBindableIterable _this = JitHelpers.UnsafeCast<IBindableIterable>(this);
+            IBindableIterable _this = Unsafe.As<IBindableIterable>(this);
             return new IteratorToEnumeratorAdapter<object>(new NonGenericToGenericIterator(_this.First()));
         }
     }
@@ -109,7 +109,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal IteratorToEnumeratorAdapter(IIterator<T> iterator)
         {
-            Contract.Requires(iterator != null);
+            Debug.Assert(iterator != null);
             m_iterator = iterator;
             m_hadCurrent = true;
             m_isInitialized = false;
@@ -182,7 +182,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception e)
             {
                 // Translate E_CHANGED_STATE into an InvalidOperationException for an updated enumeration
-                if (Marshal.GetHRForException(e) == __HResults.E_CHANGED_STATE)
+                if (Marshal.GetHRForException(e) == HResults.E_CHANGED_STATE)
                 {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }

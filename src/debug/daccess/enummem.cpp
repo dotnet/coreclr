@@ -256,11 +256,6 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
         // see synblk.cpp, the pointer is pointed to a static byte[]
         SyncBlockCache::s_pSyncBlockCache.EnumMem();
 
-#ifndef FEATURE_IMPLICIT_TLS
-        ReportMem(m_globalBase + g_dacGlobals.dac__gThreadTLSIndex, sizeof(DWORD));
-        ReportMem(m_globalBase + g_dacGlobals.dac__gAppDomainTLSIndex, sizeof(DWORD));
-#endif
-
         ReportMem(m_globalBase + g_dacGlobals.dac__g_FCDynamicallyAssignedImplementations,
                   sizeof(TADDR)*ECall::NUM_DYNAMICALLY_ASSIGNED_FCALL_IMPLEMENTATIONS);
 
@@ -278,10 +273,10 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_runtimeLoadedBaseAddress.EnumMem(); )
 #endif // !FEATURE_PAL
 
-        // These are the structures that are pointed by global pointers and we care.
-        // Some may reside in heap and some may reside as a static byte array in mscorwks.dll
-        // That is ok. We will report them explicitly.
-        //
+    // These are the structures that are pointed by global pointers and we care.
+    // Some may reside in heap and some may reside as a static byte array in mscorwks.dll
+    // That is ok. We will report them explicitly.
+    //
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pConfig.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pPredefinedArrayTypes.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pObjectClass.EnumMem(); )
@@ -300,14 +295,17 @@ HRESULT ClrDataAccess::EnumMemCLRStatic(IN CLRDataEnumMemoryFlags flags)
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pFreeObjectMethodTable.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_fHostConfig.EnumMem(); )
 
-        // These two static pointers are pointed to static data of byte[]
-        // then run constructor in place
-        //
+    // These two static pointers are pointed to static data of byte[]
+    // then run constructor in place
+    //
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( SystemDomain::m_pSystemDomain.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( SharedDomain::m_pSharedDomain.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pDebugger.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pEEInterface.EnumMem(); )
-    CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pDebugInterface.EnumMem(); )
+    if (g_pDebugInterface != nullptr)
+    {
+        CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED(g_pDebugInterface.EnumMem(); )
+    }
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_pEEDbgInterfaceImpl.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_CORDebuggerControlFlags.EnumMem(); )
     CATCH_ALL_EXCEPT_RETHROW_COR_E_OPERATIONCANCELLED( g_Mscorlib.EnumMem(); )

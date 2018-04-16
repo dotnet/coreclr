@@ -18,7 +18,6 @@ using System.Globalization;
 using System.Threading;
 using System.Security;
 using System.Collections.Concurrent;
-using System.Diagnostics.Contracts;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -257,7 +256,7 @@ namespace System.Threading.Tasks
         /// </summary>
         internal void InternalQueueTask(Task task)
         {
-            Contract.Requires(task != null);
+            Debug.Assert(task != null);
 
             if (TplEtwProvider.Log.IsEnabled())
             {
@@ -642,7 +641,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
-        /// Implemetation of <see cref="T:System.Threading.Tasks.TaskScheduler.QueueTask"/> for this scheduler class.
+        /// Implementation of <see cref="T:System.Threading.Tasks.TaskScheduler.QueueTask"/> for this scheduler class.
         /// 
         /// Simply posts the tasks to be executed on the associated <see cref="T:System.Threading.SynchronizationContext"/>.
         /// </summary>
@@ -677,7 +676,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
-        /// Implementes the <see cref="T:System.Threading.Tasks.TaskScheduler.MaximumConcurrencyLevel"/> property for
+        /// Implements the <see cref="T:System.Threading.Tasks.TaskScheduler.MaximumConcurrencyLevel"/> property for
         /// this scheduler class.
         /// 
         /// By default it returns 1, because a <see cref="T:System.Threading.SynchronizationContext"/> based

@@ -97,9 +97,6 @@
 
 //-----------------------------------------------------------------------------------------------------------
 
-#include "compatibilityflags.h"
-extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-
 #include "strongname.h"
 #include "stdmacros.h"
 
@@ -268,10 +265,6 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
     #endif // !defined(memcpy)
-
-    #if !defined(CHECK_APP_DOMAIN_LEAKS)
-    #define CHECK_APP_DOMAIN_LEAKS 1
-    #endif
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
@@ -316,6 +309,7 @@ namespace Loader
 #include "pedecoder.h"
 #include "sstring.h"
 #include "slist.h"
+#include "yieldprocessornormalized.h"
 
 #include "eeconfig.h"
 
@@ -475,33 +469,10 @@ extern DummyGlobalContract ___contract;
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"
-#include "mscorcfg.h"
 #ifdef FEATURE_COMINTEROP
 #include "WinRTRedirector.h"
 #include "winrtredirector.inl"
 #endif // FEATURE_COMINTEROP
-
-inline HRESULT CreateConfigStreamHelper(LPCWSTR filename, IStream** pOutStream)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    HRESULT hr =S_OK;
-
-    EX_TRY
-    {
-        hr = CreateConfigStream( filename, pOutStream);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
 
 #if defined(COMMON_TURNED_FPO_ON)
 #pragma optimize("", on)        // Go back to command line default optimizations
