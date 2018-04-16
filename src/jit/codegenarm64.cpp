@@ -2707,14 +2707,14 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     //                                                # GT_XCHG storeDataReg === dataReg
     //     stxr exResult, storeDataReg, [addrReg]
     //     cbnz exResult, retry
+    //     dmb ish
 
     BasicBlock* labelRetry = genCreateTempLabel();
     genDefineTempLabel(labelRetry);
 
     emitAttr dataSize = emitActualTypeSize(data);
+
     // The following instruction includes a acquire half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
     getEmitter()->emitIns_R_R(INS_ldaxr, dataSize, loadReg, addrReg);
 
     switch (treeNode->OperGet())
@@ -2742,11 +2742,11 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     }
 
     // The following instruction includes a release half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
     getEmitter()->emitIns_R_R_R(INS_stlxr, dataSize, exResultReg, storeDataReg, addrReg);
 
     getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
+
+    instGen_MemoryBarrier(INS_BARRIER_ISH);
 
     gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
 
@@ -2757,7 +2757,7 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
 }
 
 //------------------------------------------------------------------------
-// genCodeForSwap: Produce code for a GT_CMPXCHG node.
+// genCodeForCmpXchg: Produce code for a GT_CMPXCHG node.
 //
 // Arguments:
 //    tree - the GT_CMPXCHG node
@@ -2818,14 +2818,13 @@ void CodeGen::genCodeForCmpXchg(GenTreeCmpXchg* treeNode)
     //     stxr exResult, dataReg, [addrReg]
     //     cbnz exResult, retry
     //   compareFail:
+    //     dmb ish
 
     BasicBlock* labelRetry       = genCreateTempLabel();
     BasicBlock* labelCompareFail = genCreateTempLabel();
     genDefineTempLabel(labelRetry);
 
     // The following instruction includes a acquire half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
     getEmitter()->emitIns_R_R(INS_ldaxr, emitTypeSize(treeNode), targetReg, addrReg);
 
     if (comparand->isContainedIntOrIImmed())
@@ -2848,13 +2847,13 @@ void CodeGen::genCodeForCmpXchg(GenTreeCmpXchg* treeNode)
     }
 
     // The following instruction includes a release half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
     getEmitter()->emitIns_R_R_R(INS_stlxr, emitTypeSize(treeNode), exResultReg, dataReg, addrReg);
 
     getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
 
     genDefineTempLabel(labelCompareFail);
+
+    instGen_MemoryBarrier(INS_BARRIER_ISH);
 
     gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
 
@@ -3006,41 +3005,16 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         // registers are taken care of.
         genConsumeOperands(tree);
 
-#if NOGC_WRITE_BARRIERS
         // At this point, we should not have any interference.
         // That is, 'data' must not be in REG_WRITE_BARRIER_DST_BYREF,
         //  as that is where 'addr' must go.
         noway_assert(data->gtRegNum != REG_WRITE_BARRIER_DST_BYREF);
 
-        // 'addr' goes into x14 (REG_WRITE_BARRIER_DST_BYREF)
-        if (addr->gtRegNum != REG_WRITE_BARRIER_DST_BYREF)
-        {
-            inst_RV_RV(INS_mov, REG_WRITE_BARRIER_DST_BYREF, addr->gtRegNum, addr->TypeGet());
-        }
+        // 'addr' goes into x14 (REG_WRITE_BARRIER_DST)
+        genCopyRegIfNeeded(addr, REG_WRITE_BARRIER_DST);
 
-        // 'data'  goes into x15 (REG_WRITE_BARRIER)
-        if (data->gtRegNum != REG_WRITE_BARRIER)
-        {
-            inst_RV_RV(INS_mov, REG_WRITE_BARRIER, data->gtRegNum, data->TypeGet());
-        }
-#else
-        // At this point, we should not have any interference.
-        // That is, 'data' must not be in REG_ARG_0,
-        //  as that is where 'addr' must go.
-        noway_assert(data->gtRegNum != REG_ARG_0);
-
-        // addr goes in REG_ARG_0
-        if (addr->gtRegNum != REG_ARG_0)
-        {
-            inst_RV_RV(INS_mov, REG_ARG_0, addr->gtRegNum, addr->TypeGet());
-        }
-
-        // data goes in REG_ARG_1
-        if (data->gtRegNum != REG_ARG_1)
-        {
-            inst_RV_RV(INS_mov, REG_ARG_1, data->gtRegNum, data->TypeGet());
-        }
-#endif // NOGC_WRITE_BARRIERS
+        // 'data' goes into x15 (REG_WRITE_BARRIER_SRC)
+        genCopyRegIfNeeded(data, REG_WRITE_BARRIER_SRC);
 
         genGCWriteBarrier(tree, writeBarrierForm);
     }
@@ -3116,6 +3090,8 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
 //
 void CodeGen::genCodeForSwap(GenTreeOp* tree)
 {
+    assert(tree->OperIs(GT_SWAP));
+
     // Swap is only supported for lclVar operands that are enregistered
     // We do not consume or produce any registers.  Both operands remain enregistered.
     // However, the gc-ness may change.

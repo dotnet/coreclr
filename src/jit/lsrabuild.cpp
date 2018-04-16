@@ -664,7 +664,8 @@ regMaskTP LinearScan::getKillSetForStoreInd(GenTreeStoreInd* tree)
         {
             // We can't determine the exact helper to be used at this point, because it depends on
             // the allocated register for the `data` operand. However, all the (x86) optimized
-            // helpers have the same kill set: EDX.
+            // helpers have the same kill set: EDX. And note that currently, only x86 can return
+            // `true` for genUseOptimizedWriteBarriers().
             killMask = RBM_CALLEE_TRASH_NOGC;
         }
         else
@@ -1346,21 +1347,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
             assert(varDsc->lvTracked);
             unsigned varIndex = varDsc->lvVarIndex;
 
-            // We have only approximate last-use information at this point.  This is because the
-            // execution order doesn't actually reflect the true order in which the localVars
-            // are referenced - but the order of the RefPositions will, so we recompute it after
-            // RefPositions are built.
-            // Use the old value for setting currentLiveVars - note that we do this with the
-            // not-quite-correct setting of lastUse.  However, this is OK because
-            // 1) this is only for preferencing, which doesn't require strict correctness, and
-            // 2) the cases where these out-of-order uses occur should not overlap a kill.
-            // TODO-Throughput: clean this up once we have the execution order correct.  At that point
-            // we can update currentLiveVars at the same place that we create the RefPosition.
-            if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
-            {
-                VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
-            }
-
             if (!tree->IsUnusedValue() && !tree->isContained())
             {
                 assert(produce != 0);
@@ -1434,11 +1420,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                     // Preference the source to dest, if src is not a local var.
                     srcInterval->assignRelatedInterval(varDefInterval);
                 }
-            }
-
-            if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
-            {
-                VarSetOps::AddElemD(compiler, currentLiveVars, varIndex);
             }
         }
         else if (store->gtOp1->OperIs(GT_BITCAST))
@@ -1595,9 +1576,34 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
 
         assert((candidates & allRegs(srcInterval->registerType)) != 0);
 
-        // For non-localVar uses we record nothing, as nothing needs to be written back to the tree.
-        GenTree* const refPosNode = srcInterval->isLocalVar ? useNode : nullptr;
-        RefPosition*   pos        = newRefPosition(srcInterval, currentLoc, RefTypeUse, refPosNode, candidates, 0);
+        GenTree* refPosNode;
+        if (srcInterval->isLocalVar)
+        {
+            // We have only approximate last-use information at this point.  This is because the
+            // execution order doesn't actually reflect the true order in which the localVars
+            // are referenced - but the order of the RefPositions will, so we recompute it after
+            // RefPositions are built.
+            // Use the old value for setting currentLiveVars - note that we do this with the
+            // not-quite-correct setting of lastUse.  However, this is OK because
+            // 1) this is only for preferencing, which doesn't require strict correctness, and
+            //    for determing which largeVectors require having their upper-half saved & restored.
+            //    (Issue #17481 tracks the issue that this system results in excessive spills and
+            //    should be changed.)
+            // 2) the cases where these out-of-order uses occur should not overlap a kill (they are
+            //    only known to occur within a single expression).
+            if ((useNode->gtFlags & GTF_VAR_DEATH) != 0)
+            {
+                VarSetOps::RemoveElemD(compiler, currentLiveVars, srcInterval->getVarIndex(compiler));
+            }
+            refPosNode = useNode;
+        }
+        else
+        {
+            // For non-localVar uses we record nothing, as nothing needs to be written back to the tree.
+            refPosNode = nullptr;
+        }
+
+        RefPosition* pos = newRefPosition(srcInterval, currentLoc, RefTypeUse, refPosNode, candidates, 0);
         if (delayRegFree)
         {
             pos->delayRegFree = true;
@@ -1735,6 +1741,11 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
         else
         {
             assert(registerTypesEquivalent(interval->registerType, registerType));
+            assert(interval->isLocalVar);
+            if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
+            {
+                VarSetOps::AddElemD(compiler, currentLiveVars, interval->getVarIndex(compiler));
+            }
         }
 
         if (prefSrcInterval != nullptr)
@@ -3141,22 +3152,18 @@ void LinearScan::BuildGCWriteBarrier(GenTree* tree)
     assert(info->dstCount == 0);
     bool customSourceRegs = false;
 
-#if NOGC_WRITE_BARRIERS
-
 #if defined(_TARGET_ARM64_)
-    // For the NOGC JIT Helper calls
+
+    // the 'addr' goes into x14 (REG_WRITE_BARRIER_DST)
+    // the 'src'  goes into x15 (REG_WRITE_BARRIER_SRC)
     //
-    // the 'addr' goes into x14 (REG_WRITE_BARRIER_DST_BYREF)
-    // the 'src'  goes into x15 (REG_WRITE_BARRIER)
-    //
-    addrInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_DST_BYREF);
-    srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER);
+    addrInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_DST);
+    srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_SRC);
     customSourceRegs = true;
 
-#elif defined(_TARGET_X86_)
+#elif defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     bool useOptimizedWriteBarrierHelper = compiler->codeGen->genUseOptimizedWriteBarriers(tree, src);
-
     if (useOptimizedWriteBarrierHelper)
     {
         // Special write barrier:
@@ -3166,11 +3173,8 @@ void LinearScan::BuildGCWriteBarrier(GenTree* tree)
         srcInfo->info.setSrcCandidates(this, RBM_WRITE_BARRIER_SRC);
         customSourceRegs = true;
     }
-#else // !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
-#error "NOGC_WRITE_BARRIERS is not supported"
-#endif // !defined(_TARGET_X86_)
 
-#endif // NOGC_WRITE_BARRIERS
+#endif // defined(_TARGET_X86_) && NOGC_WRITE_BARRIERS
 
     if (!customSourceRegs)
     {

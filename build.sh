@@ -150,10 +150,10 @@ check_prereqs()
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
 
-    # Minimum required version of clang is version 3.9 for arm/armel cross build
+    # Minimum required version of clang is version 4.0 for arm/armel cross build
     if [[ $__CrossBuild == 1 && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-        if ! [[ "$__ClangMajorVersion" -gt "3" || ( $__ClangMajorVersion == 3 && $__ClangMinorVersion == 9 ) ]]; then
-            echo "Please install clang3.9 or latest for arm/armel cross build"; exit 1;
+        if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
+            echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
         fi
     fi
 
@@ -341,6 +341,9 @@ build_cross_arch_component()
         if [ "$__HostArch" == "x64" ]; then
             export CROSSCOMPILE=1
         fi
+    elif [[ ("$__BuildArch" == "arm64") && "$__CrossArch" == "x64" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
     else
         # not supported
         return
@@ -470,6 +473,8 @@ build_CoreLib()
        fi
     elif [ $__DoCrossArchBuild == 1 ]; then
        if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+       elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
            build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
        fi
     fi
@@ -889,8 +894,13 @@ fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
-    __ClangMajorVersion=3
-    __ClangMinorVersion=9
+	if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+		__ClangMajorVersion=5
+		__ClangMinorVersion=0
+	else
+		__ClangMajorVersion=3
+		__ClangMinorVersion=9
+	fi
 fi
 
 if [[ "$__BuildArch" == "armel" ]]; then

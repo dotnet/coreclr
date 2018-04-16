@@ -968,10 +968,10 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'armem') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-0cd4667-20172211042239"
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180405193556"
             }
             else if (os == 'Ubuntu16.04') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-ef0ac75-20175511035548"
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180404203310"
             }
             else if (os == 'Tizen') {
                 return "hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
@@ -979,7 +979,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180323032140"
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180405193556"
             }
         }
     }
@@ -2397,9 +2397,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
 
                     def dockerImage = getDockerImageName(architecture, os, true)
-                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm ${dockerImage} "
+                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} "
 
-                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross"
+                    buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent"
 
                     // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                     // download the appropriate CoreFX packages.
@@ -3166,15 +3166,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 }
             }
 
-            def runScript = ""
-            if (isUbuntuArmJob) {
-                // Use 'runtesttilstable.sh' to rerun failing tests (in sequential mode);
-                // there are many tests that pass on rerun (currently), and we don't want
-                // that flakiness to affect overall test job robustness.
-                runScript = "${dockerCmd}./tests/runtesttilstable.sh"
-            } else {
-                runScript = "${dockerCmd}./tests/runtest.sh"
-            }
+            def runScript = "${dockerCmd}./tests/runtest.sh"
 
             shell("""\
 ${runScript} \\
