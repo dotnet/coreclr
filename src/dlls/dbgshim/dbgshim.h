@@ -20,12 +20,36 @@ CreateProcessForLaunch(
     __out HANDLE *pResumeHandle);
 
 EXTERN_C HRESULT
+CreateProcessForLaunchEx(
+    __in LPWSTR lpCommandLine,
+    __in BOOL bSuspendProcess,
+    __in LPVOID lpEnvironment,
+    __in LPCWSTR lpCurrentDirectory,
+    __out PDWORD pProcessId,
+    __out HANDLE *pResumeHandle,
+    __out HANDLE *pStdInHandle,
+    __out HANDLE *pStdOutHandle,
+    __out HANDLE *pStdErrHandle);
+
+EXTERN_C HRESULT
 ResumeProcess(
     __in HANDLE hResumeHandle);
 
 EXTERN_C HRESULT
 CloseResumeHandle(
     __in HANDLE hResumeHandle);
+
+EXTERN_C HRESULT
+WriteStandardHandle(
+    __in HANDLE hStdInHandle,
+    __in LPCVOID lpBuffer,
+    __in DWORD dwNumberOfBytesToWrite,
+    __out DWORD *pdwNumberOfBytesWritten
+);
+
+EXTERN_C HRESULT
+CloseStandardHandle(
+    __in HANDLE hStandardHandle);
 
 EXTERN_C HRESULT
 RegisterForRuntimeStartup(
