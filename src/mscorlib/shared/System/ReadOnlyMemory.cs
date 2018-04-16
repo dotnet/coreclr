@@ -184,13 +184,15 @@ namespace System
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // Only use the local 'obj' instead of the _object field directly to avoid issues with struct tearing
+                object obj = _object;
                 if (_index < 0)
                 {
                     Debug.Assert(_length >= 0);
-                    Debug.Assert(_object != null);
-                    return ((MemoryManager<T>)_object).GetSpan().Slice(_index & RemoveFlagsBitMask, _length);
+                    Debug.Assert(obj != null);
+                    return ((MemoryManager<T>)obj).GetSpan().Slice(_index & RemoveFlagsBitMask, _length);
                 }
-                else if (typeof(T) == typeof(char) && _object is string s)
+                else if (typeof(T) == typeof(char) && obj is string s)
                 {
                     Debug.Assert(_length >= 0);
 #if FEATURE_PORTABLE_SPAN
@@ -199,9 +201,12 @@ namespace System
                     return new ReadOnlySpan<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length).Slice(_index, _length);
 #endif // FEATURE_PORTABLE_SPAN
                 }
-                else if (_object != null)
+                else if (obj != null)
                 {
-                    return new ReadOnlySpan<T>((T[])_object, _index, _length & RemoveFlagsBitMask);
+                    // obj is gauranteed to be a T[] here,
+                    // which is why we can use Unsafe.As as a performance optimization instead of an explicit cast
+                    Debug.Assert(obj is T[]);
+                    return new ReadOnlySpan<T>(Unsafe.As<T[]>(obj), _index, _length & RemoveFlagsBitMask);
                 }
                 else
                 {
@@ -240,12 +245,14 @@ namespace System
         /// </summary>
         public unsafe MemoryHandle Pin()
         {
+            // Only use the local 'obj' instead of the _object field directly to avoid issues with struct tearing
+            object obj = _object;
             if (_index < 0)
             {
-                Debug.Assert(_object != null);
-                return ((MemoryManager<T>)_object).Pin((_index & RemoveFlagsBitMask));
+                Debug.Assert(obj != null);
+                return ((MemoryManager<T>)obj).Pin((_index & RemoveFlagsBitMask));
             }
-            else if (typeof(T) == typeof(char) && _object is string s)
+            else if (typeof(T) == typeof(char) && obj is string s)
             {
                 GCHandle handle = GCHandle.Alloc(s, GCHandleType.Pinned);
 #if FEATURE_PORTABLE_SPAN
@@ -255,13 +262,16 @@ namespace System
 #endif // FEATURE_PORTABLE_SPAN
                 return new MemoryHandle(pointer, handle);
             }
-            else if (_object is T[] array)
+            else if (obj != null)
             {
-                GCHandle handle = _length < 0 ? default : GCHandle.Alloc(array, GCHandleType.Pinned);
+                // obj is gauranteed to be a T[] here,
+                // which is why we can use Unsafe.As as a performance optimization instead of an explicit cast
+                Debug.Assert(obj is T[]);
+                GCHandle handle = _length < 0 ? default : GCHandle.Alloc(Unsafe.As<T[]>(obj), GCHandleType.Pinned);
 #if FEATURE_PORTABLE_SPAN
                 void* pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), _index);
 #else
-                void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref array.GetRawSzArrayData()), _index);
+                void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(obj).GetRawSzArrayData()), _index);
 #endif // FEATURE_PORTABLE_SPAN
                 return new MemoryHandle(pointer, handle);
             }
