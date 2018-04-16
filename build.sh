@@ -240,6 +240,9 @@ isMSBuildOnNETCoreSupported()
                 "debian.8-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
+                "debian.9-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
                 "fedora.23-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
@@ -247,6 +250,9 @@ isMSBuildOnNETCoreSupported()
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "fedora.27-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "fedora.28-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "opensuse.13.2-x64")

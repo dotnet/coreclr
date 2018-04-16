@@ -112,7 +112,8 @@ if [ ! -e $__INIT_TOOLS_DONE_MARKER ]; then
     fi
 
     # Replace the binaries restored by the tool runtime script with the portable binaries
-    if [ "$__PKG_RID" == "linux" ]; then
+    if [ "$__DISTRO_NAME" == 'fedora.28' ] ||
+        [ "$__DISTRO_NAME" == 'debian.9' ]; then
          cp -r $__DOTNET_PATH/shared/Microsoft.NETCore.App/*/* $__TOOLRUNTIME_DIR
     fi
 
