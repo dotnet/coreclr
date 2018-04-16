@@ -1098,6 +1098,11 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
         {
             canFold = false;
         }
+        if (typ == TYP_BYREF)
+        {
+            // We don't want to fold expressions that produce TYP_BYREF
+            canFold = false;
+        }
 
         if (canFold)
         {
@@ -1750,12 +1755,6 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
     if (func == VNF_Cast)
     {
         return EvalCastForConstantArgs(typ, func, arg0VN, arg1VN);
-    }
-
-    if (typ == TYP_BYREF)
-    {
-        // We don't want to fold expressions that produce TYP_BYREF
-        return false;
     }
 
     var_types arg0VNtyp = TypeOfVN(arg0VN);
@@ -5633,6 +5632,17 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
     {
         // TODO-CQ: For now hardware intrinsics are not handled by value numbering to be amenable for CSE'ing.
         tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_UNKNOWN));
+
+        GenTreeHWIntrinsic* hwIntrinsicNode = tree->AsHWIntrinsic();
+        assert(hwIntrinsicNode != nullptr);
+
+        // For safety/correctness we must mutate the global heap valuenumber
+        //  for any HW intrinsic that performs a memory store operation
+        if (hwIntrinsicNode->OperIsMemoryStore())
+        {
+            fgMutateGcHeap(tree DEBUGARG("HWIntrinsic - MemoryStore"));
+        }
+
         return;
     }
 #endif // FEATURE_HW_INTRINSICS

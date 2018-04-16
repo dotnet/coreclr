@@ -446,7 +446,13 @@ static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
     }
     else
 #endif // DEBUGGING_SUPPORTED
-    {         
+    {
+        if (dwCtrlType == CTRL_CLOSE_EVENT)
+        {
+            // Initiate shutdown so the ProcessExit handlers run
+            ForceEEShutdown(SCA_ReturnWhenShutdownComplete);
+        }
+
         g_fInControlC = true;     // only for weakening assertions in checked build.
         return FALSE;             // keep looking for a real handler.
     }
@@ -904,19 +910,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifndef FEATURE_PAL
-        // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
-        // because on CoreCLR when Waston is enabled, debugging service needs to be enabled and UEF will be used.
-        if (!InitializeWatson(fFlags))
-        {
-            IfFailGo(E_FAIL);
-        }
-       
-        // Note: In Windows 7, the OS will take over the job of error reporting, and so most 
-        // of our watson code should not be used.  In such cases, we will however still need 
-        // to provide some services to windows error reporting, such as computing bucket 
-        // parameters for a managed unhandled exception.  
-        if (RunningOnWin7() && IsWatsonEnabled() && !RegisterOutOfProcessWatsonCallbacks())
+#ifndef FEATURE_PAL      
+        if (!RegisterOutOfProcessWatsonCallbacks())
         {
             IfFailGo(E_FAIL);
         }

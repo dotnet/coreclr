@@ -25,37 +25,6 @@ bool g_fReadyToRunCompilation;
 
 static bool s_fNGenNoMetaData;
 
-// Event logging helper
-void Zapper::ReportEventNGEN(WORD wType, DWORD dwEventID, LPCWSTR format, ...)
-{
-    SString s;
-    va_list args;
-    va_start(args, format);
-    s.VPrintf(format, args);
-    va_end(args);
-
-    SString message;
-    message.Printf(W(".NET Runtime Optimization Service (%s) - %s"), VER_FILEVERSION_STR_L, s.GetUnicode());
-
-    // Note: We are using the same event log source as the ngen service. This may become problem 
-    // if we ever want to split the ngen service from the rest of the .NET Framework.
-    ClrReportEvent(W(".NET Runtime Optimization Service"),
-        wType,                  // event type 
-        0,                      // category zero
-        dwEventID,              // event identifier
-        NULL,                   // no user security identifier
-        message.GetUnicode());
-
-    // Output the message to the logger as well.
-    if (wType == EVENTLOG_WARNING_TYPE)
-        Warning(W("%s\n"), s.GetUnicode());
-}
-
-
-/* --------------------------------------------------------------------------- *
- * Private fusion entry points
- * --------------------------------------------------------------------------- */
-
 /* --------------------------------------------------------------------------- *
  * Public entry points for ngen
  * --------------------------------------------------------------------------- */
@@ -782,15 +751,13 @@ void Zapper::CleanupAssembly()
 // To be used with GetSpecificCpuInfo()
 #ifdef _TARGET_X86_
 
-BOOL Runtime_Test_For_SSE2();
-
 #define CPU_X86_FAMILY(cpuType)     (((cpuType) & 0x0F00) >> 8)
 #define CPU_X86_MODEL(cpuType)      (((cpuType) & 0x00F0) >> 4)
 // Stepping is masked out by GetSpecificCpuInfo()
 // #define CPU_X86_STEPPING(cpuType)   (((cpuType) & 0x000F)     )
 
 #define CPU_X86_USE_CMOV(cpuFeat)   ((cpuFeat & 0x00008001) == 0x00008001)
-#define CPU_X86_USE_SSE2(cpuFeat)  (((cpuFeat & 0x04000000) == 0x04000000) && Runtime_Test_For_SSE2())
+#define CPU_X86_USE_SSE2(cpuFeat)   ((cpuFeat & 0x04000000) == 0x04000000)
 
 // Values for CPU_X86_FAMILY(cpuType)
 #define CPU_X86_486                 4

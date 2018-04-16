@@ -182,9 +182,9 @@ def run_benchmark(benchname, benchdir, env, sandboxDir, benchmarkOutputDir, test
     myEnv = dict(env)
     benchnameWithExt = benchname + '.' + testFileExt
     fullPath = os.path.join(benchdir, benchnameWithExt)
-    shutil.copy2(fullPath, sandboxDir)
 
-    files = glob.iglob(os.path.join(benchdir, "*.txt"))
+    # Copy all files in the benchmark directory to the sandbox
+    files = glob.iglob(os.path.join(benchdir, "*.*"))
     for filename in files:
         if os.path.isfile(filename):
             shutil.copy2(filename, sandboxDir)
@@ -458,7 +458,7 @@ def main(args):
     if optLevel == 'min_opts':
         myEnv['COMPlus_JITMinOpts'] = '1'
     elif optLevel == 'tiered':
-        myEnv['COMPLUS_EXPERIMENTAL_TieredCompilation'] = '1'
+        myEnv['COMPLUS_TieredCompilation'] = '1'
 
     if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in myEnv:
         myEnv['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'

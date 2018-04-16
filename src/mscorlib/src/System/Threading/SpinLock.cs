@@ -322,22 +322,22 @@ namespace System.Threading
             {
                 if (CompareExchange(ref m_owner, observedOwner | 1, observedOwner, ref lockTaken) == observedOwner)
                 {
-                    // Aquired lock
+                    // Acquired lock
                     return;
                 }
 
                 if (millisecondsTimeout == 0)
                 {
-                    // Did not aquire lock in CompareExchange and timeout is 0 so fail fast
+                    // Did not acquire lock in CompareExchange and timeout is 0 so fail fast
                     return;
                 }
             }
             else if (millisecondsTimeout == 0)
             {
-                // Did not aquire lock as owned and timeout is 0 so fail fast
+                // Did not acquire lock as owned and timeout is 0 so fail fast
                 return;
             }
-            else //failed to acquire the lock,then try to update the waiters. If the waiters count reached the maximum, jsut break the loop to avoid overflow
+            else //failed to acquire the lock, then try to update the waiters. If the waiters count reached the maximum, just break the loop to avoid overflow
             {
                 if ((observedOwner & WAITERS_MASK) != MAXIMUM_WAITERS)
                 {

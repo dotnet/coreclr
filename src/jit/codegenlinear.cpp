@@ -602,6 +602,22 @@ void CodeGen::genCodeForBBlist()
                 {
                     instGen(INS_BREAKPOINT); // This should never get executed
                 }
+                // Do likewise for blocks that end in DOES_NOT_RETURN calls
+                // that were not caught by the above rules. This ensures that
+                // gc register liveness doesn't change across call instructions
+                // in fully-interruptible mode.
+                else
+                {
+                    GenTree* call = block->lastNode();
+
+                    if ((call != nullptr) && (call->gtOper == GT_CALL))
+                    {
+                        if ((call->gtCall.gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0)
+                        {
+                            instGen(INS_BREAKPOINT); // This should never get executed
+                        }
+                    }
+                }
 
                 break;
 
@@ -896,10 +912,15 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 inst_RV_TT(ins_Load(treeType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum)), dstReg, unspillTree);
             }
 #elif defined(_TARGET_ARM64_)
-            var_types   targetType = unspillTree->gtType;
-            instruction ins        = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
-            emitAttr    attr       = emitTypeSize(targetType);
-            emitter*    emit       = getEmitter();
+            var_types targetType = unspillTree->gtType;
+            if (targetType != genActualType(varDsc->lvType) && !varTypeIsGC(targetType) && !varDsc->lvNormalizeOnLoad())
+            {
+                assert(!varTypeIsGC(varDsc));
+                targetType = genActualType(varDsc->lvType);
+            }
+            instruction ins  = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
+            emitAttr    attr = emitTypeSize(targetType);
+            emitter*    emit = getEmitter();
 
             // Fixes Issue #3326
             attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);

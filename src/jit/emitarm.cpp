@@ -1673,7 +1673,7 @@ void emitter::emitIns_R(instruction ins, emitAttr attr, regNumber reg)
  */
 
 void emitter::emitIns_R_I(
-    instruction ins, emitAttr attr, regNumber reg, int imm, insFlags flags /* = INS_FLAGS_DONT_CARE */)
+    instruction ins, emitAttr attr, regNumber reg, ssize_t imm, insFlags flags /* = INS_FLAGS_DONT_CARE */)
 
 {
     insFormat fmt = IF_NONE;
@@ -2985,8 +2985,11 @@ void emitter::emitIns_R_R_R(instruction ins,
             }
             __fallthrough;
 
+#if !defined(USE_HELPERS_FOR_INT_DIV)
         case INS_sdiv:
         case INS_udiv:
+#endif // !USE_HELPERS_FOR_INT_DIV
+
             assert(insDoesNotSetFlags(flags));
             fmt = IF_T2_C5;
             sf  = INS_FLAGS_NOT_SET;
@@ -4464,12 +4467,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     {
         assert(emitNoGChelper(Compiler::eeGetHelperNum(methHnd)));
 
-        // This call will preserve the liveness of most registers
-        //
-        // - On the ARM the NOGC helpers will preserve all registers,
-        //   except for those listed in the RBM_CALLEE_TRASH_NOGC mask
-
-        savedSet = RBM_ALLINT & ~RBM_CALLEE_TRASH_NOGC;
+        // Get the set of registers that this call kills and remove it from the saved set.
+        savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(Compiler::eeGetHelperNum(methHnd));
 
         // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH
         if (isProfLeaveCB)

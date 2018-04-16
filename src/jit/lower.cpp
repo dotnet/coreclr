@@ -276,8 +276,12 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 
         case GT_STORE_LCL_VAR:
-#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
+            WidenSIMD12IfNecessary(node->AsLclVarCommon());
+            __fallthrough;
+
+        case GT_STORE_LCL_FLD:
         {
+#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
             GenTreeLclVarCommon* const store = node->AsLclVarCommon();
             if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
             {
@@ -286,12 +290,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 store->gtOp1 = bitcast;
                 BlockRange().InsertBefore(store, bitcast);
             }
-        }
 #endif // _TARGET_AMD64_
-            WidenSIMD12IfNecessary(node->AsLclVarCommon());
-            __fallthrough;
-
-        case GT_STORE_LCL_FLD:
             // TODO-1stClassStructs: Once we remove the requirement that all struct stores
             // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
             // store under a block store if codegen will require it.
@@ -306,6 +305,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
             }
             LowerStoreLoc(node->AsLclVarCommon());
             break;
+        }
 
 #ifdef _TARGET_ARM64_
         case GT_CMPXCHG:
@@ -748,8 +748,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
             {
                 // SWITCH_TABLE expects the switch value (the index into the jump table) to be TYP_I_IMPL.
                 // Note that the switch value is unsigned so the cast should be unsigned as well.
-                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, TYP_U_IMPL);
-                switchValue->gtFlags |= GTF_UNSIGNED;
+                switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, true, TYP_U_IMPL);
                 switchBlockRange.InsertAtEnd(switchValue);
             }
 #endif
@@ -4720,6 +4719,10 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     const var_types type = divMod->TypeGet();
     assert((type == TYP_INT) || (type == TYP_LONG));
 
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    assert(!"unreachable: GT_DIV/GT_MOD should get morphed into helper calls");
+#endif // USE_HELPERS_FOR_INT_DIV
+
     if (dividend->IsCnsIntOrI())
     {
         // We shouldn't see a divmod with constant operands here but if we do then it's likely
@@ -4779,9 +4782,9 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         {
 #ifdef _TARGET_64BIT_
             magic = MagicDivide::GetSigned64Magic(static_cast<int64_t>(divisorValue), &shift);
-#else
+#else  // !_TARGET_64BIT_
             unreached();
-#endif
+#endif // !_TARGET_64BIT_
         }
 
         divisor->gtIntConCommon.SetIconValue(magic);
@@ -4873,9 +4876,11 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
         }
 
         return mulhi;
-#else
+#elif defined(_TARGET_ARM_)
         // Currently there's no GT_MULHI for ARM32
         return nullptr;
+#else
+#error Unsupported or unset target architecture
 #endif
     }
 

@@ -191,7 +191,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
 #endif // FEATURE_STACK_FP_X87
                 )
         {
-            oper = gtNewCastNode(TYP_DOUBLE, oper, TYP_DOUBLE);
+            oper = gtNewCastNode(TYP_DOUBLE, oper, false, TYP_DOUBLE);
         }
 
         // do we need to do it in two steps R -> I, '-> smallType
@@ -200,14 +200,14 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
 #if defined(_TARGET_ARM64_) || defined(_TARGET_AMD64_)
         if (dstSize < genTypeSize(TYP_INT))
         {
-            oper = gtNewCastNodeL(TYP_INT, oper, TYP_INT);
-            oper->gtFlags |= (tree->gtFlags & (GTF_UNSIGNED | GTF_OVERFLOW | GTF_EXCEPT));
+            oper = gtNewCastNodeL(TYP_INT, oper, tree->IsUnsigned(), TYP_INT);
+            oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
             tree->gtFlags &= ~GTF_UNSIGNED;
         }
 #else
         if (dstSize < TARGET_POINTER_SIZE)
         {
-            oper = gtNewCastNodeL(TYP_I_IMPL, oper, TYP_I_IMPL);
+            oper = gtNewCastNodeL(TYP_I_IMPL, oper, false, TYP_I_IMPL);
             oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
         }
 #endif
@@ -293,8 +293,8 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
     // intermediate cast to native int.
     else if (varTypeIsLong(srcType) && varTypeIsSmall(dstType))
     {
-        oper = gtNewCastNode(TYP_I_IMPL, oper, TYP_I_IMPL);
-        oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT | GTF_UNSIGNED));
+        oper = gtNewCastNode(TYP_I_IMPL, oper, tree->IsUnsigned(), TYP_I_IMPL);
+        oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
         tree->gtFlags &= ~GTF_UNSIGNED;
     }
 #endif //!_TARGET_64BIT_
@@ -322,7 +322,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
             tree->CastToType() = TYP_DOUBLE;
             tree->gtType       = TYP_DOUBLE;
 
-            tree = gtNewCastNode(TYP_FLOAT, tree, TYP_FLOAT);
+            tree = gtNewCastNode(TYP_FLOAT, tree, false, TYP_FLOAT);
 
             return fgMorphTree(tree);
         }
@@ -341,7 +341,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
     // The following conversions are performed as two-step operations using above.
     // U4 -> R4/8 = U4-> Long -> R4/8
     // U8 -> R4   = U8 -> R8 -> R4
-    else if ((tree->gtFlags & GTF_UNSIGNED) && varTypeIsFloating(dstType))
+    else if (tree->IsUnsigned() && varTypeIsFloating(dstType))
     {
         srcType = genUnsignedType(srcType);
 
@@ -356,14 +356,14 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
                 // - recurse into the resulting tree
                 tree->CastToType() = TYP_DOUBLE;
                 tree->gtType       = TYP_DOUBLE;
-                tree               = gtNewCastNode(TYP_FLOAT, tree, TYP_FLOAT);
+                tree               = gtNewCastNode(TYP_FLOAT, tree, false, TYP_FLOAT);
                 return fgMorphTree(tree);
             }
         }
         else if (srcType == TYP_UINT)
         {
-            oper = gtNewCastNode(TYP_LONG, oper, TYP_LONG);
-            oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT | GTF_UNSIGNED));
+            oper = gtNewCastNode(TYP_LONG, oper, true, TYP_LONG);
+            oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
             tree->gtFlags &= ~GTF_UNSIGNED;
         }
     }
@@ -371,7 +371,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
 
 #ifdef _TARGET_X86_
     // Do we have to do two step U4/8 -> R4/8 ?
-    else if ((tree->gtFlags & GTF_UNSIGNED) && varTypeIsFloating(dstType))
+    else if (tree->IsUnsigned() && varTypeIsFloating(dstType))
     {
         srcType = genUnsignedType(srcType);
 
@@ -381,8 +381,8 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
         }
         else if (srcType == TYP_UINT)
         {
-            oper = gtNewCastNode(TYP_LONG, oper, TYP_LONG);
-            oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT | GTF_UNSIGNED));
+            oper = gtNewCastNode(TYP_LONG, oper, true, TYP_LONG);
+            oper->gtFlags |= (tree->gtFlags & (GTF_OVERFLOW | GTF_EXCEPT));
             tree->gtFlags &= ~GTF_UNSIGNED;
 #ifndef LEGACY_BACKEND
             return fgMorphCastIntoHelper(tree, CORINFO_HELP_LNG2DBL, oper);
@@ -413,7 +413,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
         oper->gtType    = srcType;
 
         // do the real cast
-        GenTree* cast = gtNewCastNode(tree->TypeGet(), gtNewLclvNode(lclNum, TYP_I_IMPL), dstType);
+        GenTree* cast = gtNewCastNode(tree->TypeGet(), gtNewLclvNode(lclNum, TYP_I_IMPL), false, dstType);
 
         // Generate the comma tree
         oper = gtNewOperNode(GT_COMMA, tree->TypeGet(), asg, cast);
@@ -537,10 +537,10 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
                 DEBUG_DESTROY_NODE(tree);
 
                 // Insert narrowing casts for op1 and op2
-                oper->gtOp.gtOp1 = gtNewCastNode(TYP_INT, oper->gtOp.gtOp1, dstType);
+                oper->gtOp.gtOp1 = gtNewCastNode(TYP_INT, oper->gtOp.gtOp1, false, dstType);
                 if (oper->gtOp.gtOp2 != nullptr)
                 {
-                    oper->gtOp.gtOp2 = gtNewCastNode(TYP_INT, oper->gtOp.gtOp2, dstType);
+                    oper->gtOp.gtOp2 = gtNewCastNode(TYP_INT, oper->gtOp.gtOp2, false, dstType);
                 }
 
                 // Clear the GT_MUL_64RSLT if it is set
@@ -5810,6 +5810,25 @@ void Compiler::fgMoveOpsLeft(GenTree* tree)
             break;
         }
 
+#if FEATURE_PREVENT_BAD_BYREFS
+
+        // Don't split up a byref calculation and create a new byref. E.g.,
+        // [byref]+ (ref, [int]+ (int, int)) => [byref]+ ([byref]+ (ref, int), int).
+        // Doing this transformation could create a situation where the first
+        // addition (that is, [byref]+ (ref, int) ) creates a byref pointer that
+        // no longer points within the ref object. If a GC happens, the byref won't
+        // get updated. This can happen, for instance, if one of the int components
+        // is negative. It also requires the address generation be in a fully-interruptible
+        // code region.
+        //
+        if (varTypeIsGC(op1->TypeGet()) && op2->TypeGet() == TYP_I_IMPL)
+        {
+            assert(varTypeIsGC(tree->TypeGet()) && (oper == GT_ADD));
+            break;
+        }
+
+#endif // FEATURE_PREVENT_BAD_BYREFS
+
         /* Change "(x op (y op z))" to "(x op y) op z" */
         /* ie.    "(op1 op (ad1 op ad2))" to "(op1 op ad1) op ad2" */
 
@@ -5951,7 +5970,7 @@ BasicBlock* Compiler::fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, u
             const unsigned theStkDepth = fgGlobalMorph ? fgPtrArgCntCur : *stkDepth;
 #else
             // only x86 pushes args
-            const unsigned theStkDepth   = 0;
+            const unsigned theStkDepth = 0;
 #endif
 
             // Create/find the appropriate "range-fail" label
@@ -6162,7 +6181,7 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
 
         if (bndsChkType != TYP_INT)
         {
-            arrLen = gtNewCastNode(bndsChkType, arrLen, bndsChkType);
+            arrLen = gtNewCastNode(bndsChkType, arrLen, false, bndsChkType);
         }
 
         GenTreeBoundsChk* arrBndsChk = new (this, GT_ARR_BOUNDS_CHECK)
@@ -6198,7 +6217,7 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
         }
         else
         {
-            index = gtNewCastNode(TYP_I_IMPL, index, TYP_I_IMPL);
+            index = gtNewCastNode(TYP_I_IMPL, index, false, TYP_I_IMPL);
         }
     }
 #endif // _TARGET_64BIT_
@@ -6224,6 +6243,27 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
         addr = index;
     }
 
+#if FEATURE_PREVENT_BAD_BYREFS
+
+    // Be careful to only create the byref pointer when the full index expression is added to the array reference.
+    // We don't want to create a partial byref address expression that doesn't include the full index offset:
+    // a byref must point within the containing object. It is dangerous (especially when optimizations come into
+    // play) to create a "partial" byref that doesn't point exactly to the correct object; there is risk that
+    // the partial byref will not point within the object, and thus not get updated correctly during a GC.
+    // This is mostly a risk in fully-interruptible code regions.
+
+    /* Add the first element's offset */
+
+    GenTree* cns = gtNewIconNode(elemOffs, TYP_I_IMPL);
+
+    addr = gtNewOperNode(GT_ADD, TYP_I_IMPL, addr, cns);
+
+    /* Add the object ref to the element's offset */
+
+    addr = gtNewOperNode(GT_ADD, TYP_BYREF, arrRef, addr);
+
+#else // !FEATURE_PREVENT_BAD_BYREFS
+
     /* Add the object ref to the element's offset */
 
     addr = gtNewOperNode(GT_ADD, TYP_BYREF, arrRef, addr);
@@ -6233,6 +6273,8 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     GenTree* cns = gtNewIconNode(elemOffs, TYP_I_IMPL);
 
     addr = gtNewOperNode(GT_ADD, TYP_BYREF, addr, cns);
+
+#endif // !FEATURE_PREVENT_BAD_BYREFS
 
 #if SMALL_TREE_NODES
     assert((tree->gtDebugFlags & GTF_DEBUG_NODE_LARGE) || GenTree::s_gtNodeSizes[GT_IND] == TREE_NODE_SZ_SMALL);
@@ -6329,6 +6371,35 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     GenTree* cnsOff = nullptr;
     if (addr->OperGet() == GT_ADD)
     {
+
+#if FEATURE_PREVENT_BAD_BYREFS
+
+        assert(addr->TypeGet() == TYP_BYREF);
+        assert(addr->gtOp.gtOp1->TypeGet() == TYP_REF);
+
+        addr = addr->gtOp.gtOp2;
+
+        // Look for the constant [#FirstElem] node here, or as the RHS of an ADD.
+
+        if (addr->gtOper == GT_CNS_INT)
+        {
+            cnsOff = addr;
+            addr   = nullptr;
+        }
+        else
+        {
+            if ((addr->OperGet() == GT_ADD) && (addr->gtOp.gtOp2->gtOper == GT_CNS_INT))
+            {
+                cnsOff = addr->gtOp.gtOp2;
+                addr   = addr->gtOp.gtOp1;
+            }
+
+            // Label any constant array index contributions with #ConstantIndex and any LclVars with GTF_VAR_ARR_INDEX
+            addr->LabelIndex(this);
+        }
+
+#else // !FEATURE_PREVENT_BAD_BYREFS
+
         if (addr->gtOp.gtOp2->gtOper == GT_CNS_INT)
         {
             cnsOff = addr->gtOp.gtOp2;
@@ -6346,6 +6417,8 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
             addr = addr->gtOp.gtOp1;
         }
         assert(addr->TypeGet() == TYP_REF);
+
+#endif // !FEATURE_PREVENT_BAD_BYREFS
     }
     else if (addr->OperGet() == GT_CNS_INT)
     {
@@ -6492,7 +6565,7 @@ GenTree* Compiler::fgMorphLocalVar(GenTree* tree, bool forceRemorph)
 
         tree->gtType = TYP_INT;
         fgMorphTreeDone(tree);
-        tree = gtNewCastNode(TYP_INT, tree, varType);
+        tree = gtNewCastNode(TYP_INT, tree, false, varType);
         fgMorphTreeDone(tree);
         return tree;
     }
@@ -11228,13 +11301,15 @@ GenTree* Compiler::fgMorphForRegisterFP(GenTree* tree)
             GenTree* op1 = tree->gtOp.gtOp1;
             GenTree* op2 = tree->gtGetOp2();
 
+            assert(varTypeIsFloating(op1->TypeGet()) && varTypeIsFloating(op2->TypeGet()));
+
             if (op1->TypeGet() != tree->TypeGet())
             {
-                tree->gtOp.gtOp1 = gtNewCastNode(tree->TypeGet(), op1, tree->TypeGet());
+                tree->gtOp.gtOp1 = gtNewCastNode(tree->TypeGet(), op1, false, tree->TypeGet());
             }
             if (op2->TypeGet() != tree->TypeGet())
             {
-                tree->gtOp.gtOp2 = gtNewCastNode(tree->TypeGet(), op2, tree->TypeGet());
+                tree->gtOp.gtOp2 = gtNewCastNode(tree->TypeGet(), op2, false, tree->TypeGet());
             }
         }
     }
@@ -11253,12 +11328,12 @@ GenTree* Compiler::fgMorphForRegisterFP(GenTree* tree)
                 if (op1->TypeGet() == TYP_FLOAT)
                 {
                     assert(op2->TypeGet() == TYP_DOUBLE);
-                    tree->gtOp.gtOp1 = gtNewCastNode(TYP_DOUBLE, op1, TYP_DOUBLE);
+                    tree->gtOp.gtOp1 = gtNewCastNode(TYP_DOUBLE, op1, false, TYP_DOUBLE);
                 }
                 else if (op2->TypeGet() == TYP_FLOAT)
                 {
                     assert(op1->TypeGet() == TYP_DOUBLE);
-                    tree->gtOp.gtOp2 = gtNewCastNode(TYP_DOUBLE, op2, TYP_DOUBLE);
+                    tree->gtOp.gtOp2 = gtNewCastNode(TYP_DOUBLE, op2, false, TYP_DOUBLE);
                 }
             }
         }
@@ -11832,7 +11907,11 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             }
 
 #if USE_HELPERS_FOR_INT_DIV
-            if (typ == TYP_INT && !fgIsSignedDivOptimizable(op2))
+            if (typ == TYP_INT
+#if defined(LEGACY_BACKEND)
+                && !fgIsSignedDivOptimizable(op2)
+#endif // LEGACY_BACKEND
+                    )
             {
                 helper = CORINFO_HELP_DIV;
                 goto USE_HELPER_FOR_ARITH;
@@ -11857,7 +11936,11 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 goto USE_HELPER_FOR_ARITH;
             }
 #if USE_HELPERS_FOR_INT_DIV
-            if (typ == TYP_INT && !fgIsUnsignedDivOptimizable(op2))
+            if (typ == TYP_INT
+#if defined(LEGACY_BACKEND)
+                && !fgIsUnsignedDivOptimizable(op2)
+#endif // LEGACY_BACKEND
+                    )
             {
                 helper = CORINFO_HELP_UDIV;
                 goto USE_HELPER_FOR_ARITH;
@@ -11880,12 +11963,12 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                     }
                     else
                     {
-                        tree->gtOp.gtOp1 = op1 = gtNewCastNode(TYP_DOUBLE, op1, TYP_DOUBLE);
+                        tree->gtOp.gtOp1 = op1 = gtNewCastNode(TYP_DOUBLE, op1, false, TYP_DOUBLE);
                     }
                 }
                 else if (op2->TypeGet() == TYP_FLOAT)
                 {
-                    tree->gtOp.gtOp2 = op2 = gtNewCastNode(TYP_DOUBLE, op2, TYP_DOUBLE);
+                    tree->gtOp.gtOp2 = op2 = gtNewCastNode(TYP_DOUBLE, op2, false, TYP_DOUBLE);
                 }
                 goto USE_HELPER_FOR_ARITH;
             }
@@ -11972,12 +12055,20 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 #if USE_HELPERS_FOR_INT_DIV
             if (typ == TYP_INT)
             {
-                if (oper == GT_UMOD && !fgIsUnsignedModOptimizable(op2))
+                if (oper == GT_UMOD
+#if defined(LEGACY_BACKEND)
+                    && !fgIsUnsignedModOptimizable(op2)
+#endif // LEGACY_BACKEND
+                        )
                 {
                     helper = CORINFO_HELP_UMOD;
                     goto USE_HELPER_FOR_ARITH;
                 }
-                else if (oper == GT_MOD && !fgIsSignedModOptimizable(op2))
+                else if (oper == GT_MOD
+#if defined(LEGACY_BACKEND)
+                         && !fgIsSignedModOptimizable(op2)
+#endif // LEGACY_BACKEND
+                             )
                 {
                     helper = CORINFO_HELP_MOD;
                     goto USE_HELPER_FOR_ARITH;
@@ -12050,7 +12141,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                     op2  = tree->gtOp.gtOp2;
                 }
             }
-#endif //_TARGET_ARM64_
+#endif // !_TARGET_ARM64_
 #endif // !LEGACY_BACKEND
             break;
 
@@ -12091,7 +12182,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
                 fgCastNeeded(op1, info.compRetType))
             {
                 // Small-typed return values are normalized by the callee
-                op1 = gtNewCastNode(TYP_INT, op1, info.compRetType);
+                op1 = gtNewCastNode(TYP_INT, op1, false, info.compRetType);
 
                 // Propagate GTF_COLON_COND
                 op1->gtFlags |= (tree->gtFlags & GTF_COLON_COND);
@@ -13046,7 +13137,7 @@ DONE_MORPHING_CHILDREN:
 
             /* Now we know that we can cast gtOp.gtOp1 of AND to int */
 
-            op1->gtOp.gtOp1 = gtNewCastNode(TYP_INT, op1->gtOp.gtOp1, TYP_INT);
+            op1->gtOp.gtOp1 = gtNewCastNode(TYP_INT, op1->gtOp.gtOp1, false, TYP_INT);
 
             /* now replace the mask node (gtOp.gtOp2 of AND node) */
 
@@ -13459,9 +13550,25 @@ DONE_MORPHING_CHILDREN:
                 if (op2->IsCnsIntOrI() && varTypeIsIntegralOrI(typ))
                 {
                     /* Fold "((x+icon1)+icon2) to (x+(icon1+icon2))" */
+                    CLANG_FORMAT_COMMENT_ANCHOR;
+
+#if FEATURE_PREVENT_BAD_BYREFS
+
+                    if (op1->gtOper == GT_ADD &&                          //
+                        !gtIsActiveCSE_Candidate(op1) &&                  //
+                        !op1->gtOverflow() &&                             //
+                        op1->gtOp.gtOp2->IsCnsIntOrI() &&                 //
+                        (op1->gtOp.gtOp2->OperGet() == op2->OperGet()) && //
+                        (op1->gtOp.gtOp2->TypeGet() != TYP_REF) &&        // Don't fold REFs
+                        (op2->TypeGet() != TYP_REF))                      // Don't fold REFs
+
+#else // !FEATURE_PREVENT_BAD_BYREFS
 
                     if (op1->gtOper == GT_ADD && !gtIsActiveCSE_Candidate(op1) && op1->gtOp.gtOp2->IsCnsIntOrI() &&
                         !op1->gtOverflow() && op1->gtOp.gtOp2->OperGet() == op2->OperGet())
+
+#endif // !FEATURE_PREVENT_BAD_BYREFS
+
                     {
                         cns1 = op1->gtOp.gtOp2;
                         op2->gtIntConCommon.SetIconValue(cns1->gtIntConCommon.IconValue() +
@@ -18408,31 +18515,29 @@ Compiler::fgWalkResult Compiler::fgMorphLocalField(GenTree* tree, fgWalkData* fg
 #endif
                 )
         {
-            // There is an existing sub-field we can use
+            // There is an existing sub-field we can use.
             tree->gtLclFld.SetLclNum(fieldLclIndex);
 
-            // We need to keep the types 'compatible'.  If we can switch back to a GT_LCL_VAR
-            CLANG_FORMAT_COMMENT_ANCHOR;
+            // The field must be an enregisterable type; otherwise it would not be a promoted field.
+            // The tree type may not match, e.g. for return types that have been morphed, but both
+            // must be enregisterable types.
+            // TODO-Cleanup: varTypeCanReg should presumably return true for SIMD types, but
+            // there may be places where that would violate existing assumptions.
+            var_types treeType  = tree->TypeGet();
+            var_types fieldType = fldVarDsc->TypeGet();
+            assert((varTypeCanReg(treeType) || varTypeIsSIMD(treeType)) &&
+                   (varTypeCanReg(fieldType) || varTypeIsSIMD(fieldType)));
 
-#ifdef _TARGET_ARM_
-            assert(varTypeIsIntegralOrI(tree->TypeGet()) || varTypeIsFloating(tree->TypeGet()));
-#else
-            assert(varTypeIsIntegralOrI(tree->TypeGet()));
-#endif
-            if (varTypeCanReg(fldVarDsc->TypeGet()))
-            {
-                // If the type is integer-ish, then we can use it as-is
-                tree->ChangeOper(GT_LCL_VAR);
-                assert(tree->gtLclVarCommon.gtLclNum == fieldLclIndex);
-                tree->gtType = fldVarDsc->TypeGet();
+            tree->ChangeOper(GT_LCL_VAR);
+            assert(tree->gtLclVarCommon.gtLclNum == fieldLclIndex);
+            tree->gtType = fldVarDsc->TypeGet();
 #ifdef DEBUG
-                if (verbose)
-                {
-                    printf("Replacing the GT_LCL_FLD in promoted struct with a local var:\n");
-                    fgWalkPre->printModified = true;
-                }
-#endif // DEBUG
+            if (verbose)
+            {
+                printf("Replacing the GT_LCL_FLD in promoted struct with a local var:\n");
+                fgWalkPre->printModified = true;
             }
+#endif // DEBUG
 
             GenTree* parent = fgWalkPre->parentStack->Index(1);
             if ((parent->gtOper == GT_ASG) && (parent->gtOp.gtOp1 == tree))

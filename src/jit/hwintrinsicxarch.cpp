@@ -20,8 +20,10 @@ struct HWIntrinsicInfo
 };
 
 static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
+// clang-format off
 #define HARDWARE_INTRINSIC(id, name, isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag) \
-    {NI_##id, name, InstructionSet_##isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag},
+    {NI_##id, name, InstructionSet_##isa, ival, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, static_cast<HWIntrinsicFlag>(flag)},
+// clang-format on
 #include "hwintrinsiclistxarch.h"
 };
 
@@ -540,15 +542,14 @@ GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* last
 // Arguments:
 //    isa - Instruction set
 // Return Value:
-//    true - all the hardware intrinsics of "isa" are implemented in RyuJIT.
+//    true - all the hardware intrinsics of "isa" exposed in CoreFX
+//    System.Runtime.Intrinsics.Experimental assembly are implemented in RyuJIT.
 //
 bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
 {
     switch (isa)
     {
-        case InstructionSet_SSE42:
-        case InstructionSet_AVX:
-        case InstructionSet_AVX2:
+        // These ISAs have no implementation
         case InstructionSet_AES:
         case InstructionSet_BMI1:
         case InstructionSet_BMI2:
@@ -556,6 +557,13 @@ bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
         case InstructionSet_PCLMULQDQ:
             return false;
 
+        // These ISAs are partially implemented
+        case InstructionSet_AVX:
+        case InstructionSet_AVX2:
+        case InstructionSet_SSE42:
+            return true;
+
+        // These ISAs are fully implemented
         case InstructionSet_SSE:
         case InstructionSet_SSE2:
         case InstructionSet_SSE3:
@@ -808,9 +816,9 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         assert(insOfHWIntrinsic(intrinsic, baseType) != INS_invalid);
         assert(simdSize == 32 || simdSize == 16);
 
-        GenTree* retNode = nullptr;
-        GenTree* op1     = nullptr;
-        GenTree* op2     = nullptr;
+        GenTreeHWIntrinsic* retNode = nullptr;
+        GenTree*            op1     = nullptr;
+        GenTree*            op2     = nullptr;
 
         switch (numArgs)
         {
@@ -856,6 +864,22 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
             }
             default:
                 unreached();
+        }
+
+        bool isMemoryStore = retNode->OperIsMemoryStore();
+        if (isMemoryStore || retNode->OperIsMemoryLoad())
+        {
+            if (isMemoryStore)
+            {
+                // A MemoryStore operation is an assignment
+                retNode->gtFlags |= GTF_ASG;
+            }
+
+            // This operation contains an implicit indirection
+            //   it could point into the gloabal heap or
+            //   it could throw a null reference exception.
+            //
+            retNode->gtFlags |= (GTF_GLOB_REF | GTF_EXCEPT);
         }
         return retNode;
     }
@@ -1227,6 +1251,16 @@ GenTree* Compiler::impAvxOrAvx2Intrinsic(NamedIntrinsic        intrinsic,
 #endif
             GenTree* arg = impPopStack().val;
             retNode      = gtNewSimdHWIntrinsicNode(TYP_SIMD32, arg, NI_AVX_SetAllVector256, baseType, 32);
+            break;
+        }
+
+        case NI_AVX_SetHighLow:
+        {
+            baseType              = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+            GenTree* lowerVector  = impSIMDPopStack(TYP_SIMD16);
+            GenTree* higherVector = impSIMDPopStack(TYP_SIMD16);
+            retNode               = gtNewSimdHWIntrinsicNode(TYP_SIMD32, lowerVector, higherVector, gtNewIconNode(1),
+                                               NI_AVX_InsertVector128, baseType, 32);
             break;
         }
 

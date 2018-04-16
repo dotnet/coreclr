@@ -229,11 +229,6 @@ namespace System
             throw new ObjectDisposedException(null, GetResourceString(resource));
         }
 
-        internal static void ThrowObjectDisposedException_MemoryDisposed()
-        {
-            throw new ObjectDisposedException("OwnedMemory<T>", GetResourceString(ExceptionResource.MemoryDisposed));
-        }
-
         internal static void ThrowNotSupportedException()
         {
             throw new NotSupportedException();
@@ -477,7 +472,6 @@ namespace System
         s,
         keyValuePair,
         input,
-        ownedMemory,
         pointer,
         start,
         format,
@@ -485,7 +479,8 @@ namespace System
         comparable,
         source,
         state,
-        comparisonType
+        comparisonType,
+        manager
     }
 
     //

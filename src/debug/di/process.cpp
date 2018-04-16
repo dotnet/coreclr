@@ -156,6 +156,39 @@ STDAPI OpenVirtualProcessImpl(
 };
 
 //---------------------------------------------------------------------------------------
+//
+// OpenVirtualProcessImpl2 method called by the dbgshim to get an ICorDebugProcess4 instance
+//
+// Arguments:
+//    clrInstanceId - target pointer identifying which CLR in the Target to debug.
+//    pDataTarget - data target abstraction.
+//    pDacModulePath - the module path of the appropriate DAC dll for this runtime
+//    riid - interface ID to query for.
+//    ppProcessOut - new object for target, interface ID matches riid.
+//    ppFlagsOut - currently only has 1 bit to indicate whether or not this runtime
+//                 instance will send a managed event after attach
+//
+// Return Value:
+//    S_OK on success. Else failure
+//---------------------------------------------------------------------------------------
+STDAPI OpenVirtualProcessImpl2(
+    ULONG64 clrInstanceId,
+    IUnknown * pDataTarget,
+    LPCWSTR pDacModulePath,
+    CLR_DEBUGGING_VERSION * pMaxDebuggerSupportedVersion,
+    REFIID riid,
+    IUnknown ** ppInstance,
+    CLR_DEBUGGING_PROCESS_FLAGS* pFlagsOut)
+{
+    HMODULE hDac = LoadLibraryW(pDacModulePath);
+    if (hDac == NULL)
+    {
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+    return OpenVirtualProcessImpl(clrInstanceId, pDataTarget, hDac, pMaxDebuggerSupportedVersion, riid, ppInstance, pFlagsOut);
+}
+
+//---------------------------------------------------------------------------------------
 // DEPRECATED - use OpenVirtualProcessImpl
 // OpenVirtualProcess method used by the shim in CLR v4 Beta1
 // We'd like a beta1 shim/VS to still be able to open dumps using a CLR v4 Beta2+ mscordbi.dll, 
@@ -8889,10 +8922,10 @@ CordbProcess::GetVersion(COR_VERSION* pVersion)
     //
     // Because we require a matching version of mscordbi.dll to debug a certain version of the runtime,
     // we can just use constants found in this particular mscordbi.dll to determine the version of the left side.
-    pVersion->dwMajor = VER_MAJORVERSION;
-    pVersion->dwMinor = VER_MINORVERSION;
-    pVersion->dwBuild = VER_PRODUCTBUILD;
-    pVersion->dwSubBuild = VER_PRODUCTBUILD_QFE;
+    pVersion->dwMajor = CLR_MAJOR_VERSION;
+    pVersion->dwMinor = CLR_MINOR_VERSION;
+    pVersion->dwBuild = CLR_BUILD_VERSION;
+    pVersion->dwSubBuild = CLR_BUILD_VERSION_QFE;
 
     return S_OK;
 }
@@ -11582,54 +11615,6 @@ void CordbProcess::HandleSyncCompleteRecieved()
 
 #ifdef FEATURE_INTEROP_DEBUGGING
 
-// Get a Thread's _user_ starting address (the real starting address may be some
-// OS shim.)
-// This may return NULL for the Async-Break thread.
-void* GetThreadUserStartAddr(const DEBUG_EVENT* pCreateThreadEvent)
-{
-    // On Win7 and above, we can trust the lpStartAddress field of the CREATE_THREAD_DEBUG_EVENT
-    // to be the user start address (the actual OS start address is an implementation detail that 
-    // doesn't need to be exposed to users). Note that we are assuming that the target process
-    // is running on Win7 if mscordbi is. If we ever have some remoting scenario where the target
-    // can run on a different windows machine with a different OS version we will need a way to
-    // determine the target's OS version
-    if(RunningOnWin7())
-    {
-        return pCreateThreadEvent->u.CreateThread.lpStartAddress;
-    }
-    
-    // On pre-Win7 OSes, we rely on an OS implementation detail to get the real user thread start:
-    // it exists in EAX at thread start time.
-    // Note that for a brief period of time there was a GetThreadStartInformation API in Longhorn 
-    // we could use for this, but it was removed during the Longhorn reset.  
-    HANDLE hThread = pCreateThreadEvent->u.CreateThread.hThread;
-#if defined(DBG_TARGET_X86)
-    // Grab the thread's context.
-    DT_CONTEXT c;
-    c.ContextFlags = DT_CONTEXT_FULL;
-    BOOL succ = DbiGetThreadContext(hThread, &c);
-
-    if (succ)
-    {
-        return (void*) c.Eax;
-    }
-#elif defined(DBG_TARGET_AMD64)
-    DT_CONTEXT c;
-    c.ContextFlags = DT_CONTEXT_FULL;
-    BOOL succ = DbiGetThreadContext(hThread, &c);
-
-    if (succ)
-    {
-        return (void*) c.Rcx;
-    }
-#else
-    PORTABILITY_ASSERT("port GetThreadUserStartAddr");
-#endif
-
-    return NULL;
-}
-
-
 //---------------------------------------------------------------------------------------
 //
 // Get (create if needed) the unmanaged thread for an unmanaged debug event.
@@ -11706,7 +11691,7 @@ CordbUnmanagedThread * CordbProcess::GetUnmanagedThreadFromEvent(const DEBUG_EVE
                 UpdateRightSideDCB();
                 if ((this->GetDCB()->m_helperThreadStartAddr != NULL) && (pUnmanagedThread != NULL))
                 {
-                    void * pStartAddr = GetThreadUserStartAddr(pEvent);
+                    void * pStartAddr = pEvent->u.CreateThread.lpStartAddress;
 
                     if (pStartAddr == this->GetDCB()->m_helperThreadStartAddr)
                     {

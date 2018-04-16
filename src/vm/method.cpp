@@ -2414,7 +2414,11 @@ BOOL MethodDesc::RequiresMethodDescCallingConvention(BOOL fEstimateForChunk /*=F
 BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
 {
     LIMITED_METHOD_CONTRACT;
-
+    
+    // Create precodes for versionable methods
+    if (IsVersionableWithPrecode())
+        return TRUE;
+    
     // Create precodes for edit and continue to make methods updateable
     if (IsEnCMethod() || IsEnCAddedMethod())
         return TRUE;
@@ -4409,7 +4413,10 @@ BOOL MethodDescChunk::IsCompactEntryPointAtAddress(PCODE addr)
     if (fSpeculative INDEBUG(|| TRUE))
     {
 #ifdef _TARGET_ARM_
-        if (!IsCompactEntryPointAtAddress(addr))
+        TADDR instrCodeAddr = PCODEToPINSTR(addr);
+        if (!IsCompactEntryPointAtAddress(addr) ||
+            *PTR_BYTE(instrCodeAddr) != TEP_ENTRY_INSTR1_BYTE1 ||
+            *PTR_BYTE(instrCodeAddr+1) != TEP_ENTRY_INSTR1_BYTE2)
 #else // _TARGET_ARM_
         if ((addr & 3) != 1 ||
             *PTR_BYTE(addr) != X86_INSTR_MOV_AL ||

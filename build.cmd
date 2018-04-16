@@ -22,6 +22,11 @@ if defined VS150COMNTOOLS (
   set __VSVersion=vs2015
 )
 
+:: Work around Jenkins CI + msbuild problem: Jenkins sometimes creates very large environment
+:: variables, and msbuild can't handle environment blocks with such large variables. So clear
+:: out the variables that might be too large.
+set ghprbCommentBody=
+
 :: Note that the msbuild project files (specifically, dir.proj) will use the following variables, if set:
 ::      __BuildArch         -- default: x64
 ::      __BuildType         -- default: Debug
@@ -320,7 +325,7 @@ REM ============================================================================
 
 if %__RestoreOptData% EQU 1 if %__BuildTypeRelease% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
-    @call %__ProjectDir%\run.cmd sync -optdata %__UnprocessedBuildArgs%
+    @call %__ProjectDir%\run.cmd build -optdata %__RunArgs% %__UnprocessedBuildArgs%
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: Failed to restore the optimization data package.
         exit /b 1

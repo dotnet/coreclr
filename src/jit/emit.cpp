@@ -2335,14 +2335,11 @@ bool emitter::emitNoGChelper(unsigned IHX)
 #endif
 
         case CORINFO_HELP_ASSIGN_REF:
-
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
+        case CORINFO_HELP_ASSIGN_BYREF:
 
         case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_NOCTOR:
-
         case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR:
-
-        case CORINFO_HELP_ASSIGN_BYREF:
 
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
 
@@ -5460,8 +5457,8 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
             JITDUMP("  section %u, size %u, block absolute addr\n", secNum++, dscSize);
 
             assert(dscSize && dscSize % TARGET_POINTER_SIZE == 0);
-            size_t numElems = dscSize / TARGET_POINTER_SIZE;
-            BYTE** bDst     = (BYTE**)dst;
+            size_t         numElems = dscSize / TARGET_POINTER_SIZE;
+            target_size_t* bDst     = (target_size_t*)dst;
             for (unsigned i = 0; i < numElems; i++)
             {
                 BasicBlock* block = ((BasicBlock**)dsc->dsCont)[i];
@@ -5475,7 +5472,7 @@ void emitter::emitOutputDataSec(dataSecDsc* sec, BYTE* dst)
 #ifdef _TARGET_ARM_
                 target = (BYTE*)((size_t)target | 1); // Or in thumb bit
 #endif
-                bDst[i] = target;
+                bDst[i] = (target_size_t)target;
                 if (emitComp->opts.compReloc)
                 {
                     emitRecordRelocation(&(bDst[i]), target, IMAGE_REL_BASED_HIGHLOW);

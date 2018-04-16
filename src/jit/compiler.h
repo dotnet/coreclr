@@ -2128,9 +2128,9 @@ public:
 
     GenTree* gtUnusedValNode(GenTree* expr);
 
-    GenTree* gtNewCastNode(var_types typ, GenTree* op1, var_types castType);
+    GenTreeCast* gtNewCastNode(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
-    GenTree* gtNewCastNodeL(var_types typ, GenTree* op1, var_types castType);
+    GenTreeCast* gtNewCastNodeL(var_types typ, GenTree* op1, bool fromUnsigned, var_types castType);
 
     GenTree* gtNewAllocObjNode(unsigned int helper, CORINFO_CLASS_HANDLE clsHnd, var_types type, GenTree* op1);
 
@@ -3100,10 +3100,14 @@ protected:
     bool isScalarISA(InstructionSet isa);
     static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
     unsigned simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_INFO* sig);
-    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
     static GenTree* lastOpOfHWIntrinsic(GenTreeHWIntrinsic* node, int numArgs);
     static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
+
+public:
     static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
+
+protected:
     static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     static int immUpperBoundOfHWIntrinsic(NamedIntrinsic intrinsic);
@@ -5143,11 +5147,13 @@ private:
 
     bool fgIsBigOffset(size_t offset);
 
+#if defined(LEGACY_BACKEND)
     // The following are used when morphing special cases of integer div/mod operations and also by codegen
     bool fgIsSignedDivOptimizable(GenTree* divisor);
     bool fgIsUnsignedDivOptimizable(GenTree* divisor);
     bool fgIsSignedModOptimizable(GenTree* divisor);
     bool fgIsUnsignedModOptimizable(GenTree* divisor);
+#endif // LEGACY_BACKEND
 
     bool fgNeedReturnSpillTemp();
 
@@ -10526,7 +10532,7 @@ const instruction INS_ADDC            = INS_adc;
 const instruction INS_SUBC            = INS_sbb;
 const instruction INS_NOT             = INS_not;
 
-#endif
+#endif // _TARGET_XARCH_
 
 #ifdef _TARGET_ARM_
 
@@ -10548,22 +10554,20 @@ const instruction INS_ADDC            = INS_adc;
 const instruction INS_SUBC            = INS_sbc;
 const instruction INS_NOT             = INS_mvn;
 
-const instruction INS_ABS   = INS_vabs;
-const instruction INS_ROUND = INS_invalid;
-const instruction INS_SQRT  = INS_vsqrt;
+const instruction INS_ABS  = INS_vabs;
+const instruction INS_SQRT = INS_vsqrt;
 
-#endif
+#endif // _TARGET_ARM_
 
 #ifdef _TARGET_ARM64_
 
 const instruction INS_MULADD     = INS_madd;
 const instruction INS_BREAKPOINT = INS_bkpt;
 
-const instruction INS_ABS   = INS_fabs;
-const instruction INS_ROUND = INS_frintn;
-const instruction INS_SQRT  = INS_fsqrt;
+const instruction INS_ABS  = INS_fabs;
+const instruction INS_SQRT = INS_fsqrt;
 
-#endif
+#endif // _TARGET_ARM64_
 
 /*****************************************************************************/
 

@@ -48,8 +48,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pal.h"
 #include <dlfcn.h>
 
-#define UNW_LOCAL_ONLY
+// Sub-headers included from the libunwind.h contain an empty struct
+// and clang issues a warning. Until the libunwind is fixed, disable
+// the warning.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wextern-c-compat"
 #include <libunwind.h>
+#pragma clang diagnostic pop
 
 SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
