@@ -1580,13 +1580,6 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
         _ASSERTE(g_pEEInterface->GetNativeCodeMethodDesc(startAddr) == fd);
     }
 
-#ifdef _TARGET_ARM_
-    if (startAddr != NULL)
-    {
-        startAddr |= THUMB_CODE;
-    }
-#endif
-
     // Check the lsit to see if we've already populated an entry for this JitInfo.
     // If we didn't have a JitInfo before, lazily create it now.
     // We don't care if we were prejitted or not.
