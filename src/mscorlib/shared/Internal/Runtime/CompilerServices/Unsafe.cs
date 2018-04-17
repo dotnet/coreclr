@@ -358,6 +358,20 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
+        /// Reinterprets the given location as a reference to a value of type <typeparamref name="T"/>.
+        /// </summary>
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AsRef<T>(in T source)
+        {
+            throw new PlatformNotSupportedException();
+
+            // ldarg.0
+            // ret
+        }
+
+        /// <summary>
         /// Determines the byte offset from origin to target from the given references.
         /// </summary>
         [Intrinsic]
