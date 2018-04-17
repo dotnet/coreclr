@@ -239,6 +239,9 @@ namespace System.IO
         /// Returns a cryptographically strong random 8.3 string that can be
         /// used as either a folder name or a file name.
         /// </summary>
+        /// <remarks>
+        /// charsWritten can be only zero or 12.
+        /// </remarks>
         public static unsafe bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
         {
             charsWritten = 0;
