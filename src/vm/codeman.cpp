@@ -4166,13 +4166,7 @@ PCODE ExecutionManager::GetCodeStartAddress(PCODE currentPC)
     EECodeInfo codeInfo(currentPC);
     if (!codeInfo.IsValid())
         return NULL;
-    TADDR startAddr = codeInfo.GetStartAddress();
-
-#ifdef _TARGET_ARM_
-    if (startAddr != NULL)
-        startAddr |= THUMB_CODE;
-#endif
-    return (PCODE)startAddr;
+    return PINSTRToPCODE(codeInfo.GetStartAddress());
 }
 
 //**************************************************************************
