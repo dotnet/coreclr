@@ -1227,6 +1227,8 @@ do
     esac
 done
 
+export COMPlus_TieredCompilation=1
+
 if [ -n "$coreOverlayDir" ] && [ "$buildOverlayOnly" == "ON" ]; then
     echo "Can not use \'--coreOverlayDir=<path>\' and \'--build-overlay-only\' at the same time."
     exit $EXIT_CODE_EXCEPTION
