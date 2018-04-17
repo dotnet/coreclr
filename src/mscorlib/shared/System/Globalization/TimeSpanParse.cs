@@ -463,14 +463,34 @@ namespace System.Globalization
                 _originalTimeSpanString = originalTimeSpanString;
             }
 
-            internal bool SetFailure(string resourceKey, object messageArgument = null)
+            internal bool SetNoFormatSpecifierFailure()
             {
                 if (!_throwOnFailure)
                 {
                     return false;
                 }
 
-                throw new FormatException(SR.Format(SR.GetResourceString(resourceKey), messageArgument));
+                throw new FormatException(SR.Format_NoFormatSpecifier);
+            }
+
+            internal bool SetBadQuoteFailure(char failingCharacter)
+            {
+                if (!_throwOnFailure)
+                {
+                    return false;
+                }
+
+                throw new FormatException(SR.Format(SR.Format_BadQuote, failingCharacter));
+            }
+
+            internal bool SetInvalidStringFailure()
+            {
+                if (!_throwOnFailure)
+                {
+                    return false;
+                }
+
+                throw new FormatException(SR.Format_InvalidString);
             }
 
             internal bool SetArgumentNullFailure(string argumentName)
@@ -1248,7 +1268,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenHH || !ParseExactDigits(ref tokenizer, tokenLen, out hh))
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         seenHH = true;
                         break;
@@ -1257,7 +1277,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenMM || !ParseExactDigits(ref tokenizer, tokenLen, out mm))
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         seenMM = true;
                         break;
@@ -1266,7 +1286,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2 || seenSS || !ParseExactDigits(ref tokenizer, tokenLen, out ss))
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         seenSS = true;
                         break;
@@ -1275,7 +1295,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits || seenFF || !ParseExactDigits(ref tokenizer, tokenLen, tokenLen, out leadingZeroes, out ff))
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         seenFF = true;
                         break;
@@ -1284,7 +1304,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits || seenFF)
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         ParseExactDigits(ref tokenizer, tokenLen, tokenLen, out leadingZeroes, out ff);
                         seenFF = true;
@@ -1295,7 +1315,7 @@ namespace System.Globalization
                         int tmp = 0;
                         if (tokenLen > 8 || seenDD || !ParseExactDigits(ref tokenizer, (tokenLen < 2) ? 1 : tokenLen, (tokenLen < 2) ? 8 : tokenLen, out tmp, out dd))
                         {
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         seenDD = true;
                         break;
@@ -1306,12 +1326,12 @@ namespace System.Globalization
                         if (!DateTimeParse.TryParseQuoteString(format, i, enquotedString, out tokenLen))
                         {
                             StringBuilderCache.Release(enquotedString);
-                            return result.SetFailure(nameof(SR.Format_BadQuote), ch);
+                            return result.SetBadQuoteFailure(ch);
                         }
                         if (!ParseExactLiteral(ref tokenizer, enquotedString))
                         {
                             StringBuilderCache.Release(enquotedString);
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         StringBuilderCache.Release(enquotedString);
                         break;
@@ -1333,7 +1353,7 @@ namespace System.Globalization
                         {
                             // This means that '%' is at the end of the format string or
                             // "%%" appears in the format string.
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
 
                     case '\\':
@@ -1348,12 +1368,12 @@ namespace System.Globalization
                         else
                         {
                             // This means that '\' is at the end of the format string or the literal match failed.
-                            return result.SetFailure(nameof(SR.Format_InvalidString));
+                            return result.SetInvalidStringFailure();
                         }
                         break;
 
                     default:
-                        return result.SetFailure(nameof(SR.Format_InvalidString));
+                        return result.SetInvalidStringFailure();
                 }
 
                 i += tokenLen;
@@ -1656,7 +1676,7 @@ namespace System.Globalization
 
             if (formats.Length == 0)
             {
-                return result.SetFailure(nameof(SR.Format_NoFormatSpecifier));
+                return result.SetNoFormatSpecifierFailure();
             }
 
             // Do a loop through the provided formats and see if we can parse succesfully in
