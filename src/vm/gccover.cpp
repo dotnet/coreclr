@@ -144,9 +144,29 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     }
 #endif
 
-    // We should be the first and only thread to instrument this
-    // method for gc coverage.
-    _ASSERTE(!pMD->m_GcCover);
+    // Ideally we would assert here that m_GcCover is NULL.
+    //
+    // However, we can't do that (at least not yet), because we may
+    // invoke this method more than once on a given
+    // MethodDesc. Examples include prejitted methods and rejitted
+    // methods.
+    //
+    // In the prejit case, we can't safely re-instrument an already
+    // instrumented method. By bailing out here, we will use the
+    // original instrumentation, which should still be valid as
+    // the method code has not changed.
+    //
+    // In the rejit case, the old method code may still be active and
+    // instrumented, so we need to preserve that gc cover info.  By
+    // bailing out here we will skip instrumenting the rejitted native
+    // code, and since the rejitted method does not get instrumented
+    // we should be able to tolerate that the gc cover info does not
+    // match.
+    if (pMD->m_GcCover)
+    {
+        return;
+    }
+
     PCODE codeStart = (PCODE) methodStartPtr;
     SetupAndSprinkleBreakpointsForJittedMethod(pMD, codeStart);
 }
