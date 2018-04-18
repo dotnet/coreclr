@@ -1217,6 +1217,7 @@ namespace System
         {
             // Jn
             // This specifies the Julian day, with n between 1 and 365.February 29 is never counted, even in leap years.
+            Debug.Assert(date[0] == 'J');
             Debug.Assert(!String.IsNullOrEmpty(date));
             month = day = 0;
 
