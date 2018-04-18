@@ -1165,11 +1165,31 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     // if we have the magic Value Class return, we need to allocate that class
     // and place a pointer to it on the stack.
 
+    BOOL hasRefReturnAndNeedsBoxing = FALSE; // Indicates that the method has a BYREF return type and the target type needs to be copied into a preallocated boxed object.
+    CorElementType refReturnTargetType = ELEMENT_TYPE_VOID; // Valid only if retType == ELEMENT_TYPE_BYREF. Caches the CorElementType of the byref target.
+
     TypeHandle retTH = gc.pSig->GetReturnTypeHandle();
     BOOL fHasRetBuffArg = argit.HasRetBuffArg();
     CorElementType retType = retTH.GetInternalCorElementType();
     if (retType == ELEMENT_TYPE_VALUETYPE || fHasRetBuffArg) {
         gc.retVal = retTH.GetMethodTable()->Allocate();
+    }
+    else if (retType == ELEMENT_TYPE_BYREF)
+    {
+        TypeHandle targetTH = retTH.AsTypeDesc()->GetTypeParam();
+        refReturnTargetType = targetTH.GetInternalCorElementType();
+
+        // If the target of the byref is a valuetype or function pointer, we need to preallocate a boxed object to hold the managed return value.
+        if (targetTH.IsValueType())
+        {
+            hasRefReturnAndNeedsBoxing = TRUE;
+            gc.retVal = targetTH.GetMethodTable()->Allocate();
+        }
+        else if (refReturnTargetType == ELEMENT_TYPE_FNPTR)
+        {
+            hasRefReturnAndNeedsBoxing = TRUE;
+            gc.retVal = MscorlibBinder::GetElementType(ELEMENT_TYPE_I)->Allocate();
+        }
     }
 
     // Copy "this" pointer
@@ -1396,13 +1416,23 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         gc.retVal = Nullable::NormalizeBox(gc.retVal);
     }
     else
-    if (retType == ELEMENT_TYPE_VALUETYPE)
+    if (retType == ELEMENT_TYPE_VALUETYPE || hasRefReturnAndNeedsBoxing)
     {
         _ASSERTE(gc.retVal != NULL);
 
+        if (hasRefReturnAndNeedsBoxing)
+        {
+            // Method has BYREF return and the target type is one that needs boxing. We need to copy into the boxed object we have allocated for this purpose.
+            LPVOID pReturnedReference = *(LPVOID*)&callDescrData.returnValue;
+            if (pReturnedReference == NULL)
+            {
+                COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
+            }
+            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+        }
         // if the structure is returned by value, then we need to copy in the boxed object
         // we have allocated for this purpose.
-        if (!fHasRetBuffArg) 
+        else if (!fHasRetBuffArg) 
         {
             CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
         }
@@ -1416,6 +1446,39 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             // TODO this creates two objects which is inefficient
             // If the return type is a Nullable<T> box it into the correct form
         gc.retVal = Nullable::NormalizeBox(gc.retVal);
+    }
+    else if (retType == ELEMENT_TYPE_BYREF)
+    {
+        // WARNING: pReturnedReference is an unprotected inner reference so we must not trigger a GC until the referenced value has been safely captured.
+        LPVOID pReturnedReference = *(LPVOID*)&callDescrData.returnValue;
+        if (pReturnedReference == NULL)
+        {
+            COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
+        }
+
+        // If the target was a value type, that scenario was handled above as part of the code path that copies value types into preallocated boxed objects.
+        // We'll cover the rest of the cases here.
+        switch (refReturnTargetType)
+        {
+            case ELEMENT_TYPE_CLASS:        // Class
+            case ELEMENT_TYPE_SZARRAY:      // Single Dim, Zero
+            case ELEMENT_TYPE_ARRAY:        // General Array
+            case ELEMENT_TYPE_STRING:
+            case ELEMENT_TYPE_OBJECT:
+                gc.retVal = *(OBJECTREF*)pReturnedReference;
+                break;
+
+            case ELEMENT_TYPE_PTR:
+                {
+                    TypeHandle targetTH = retTH.AsTypeDesc()->GetTypeParam();
+                    gc.retVal = InvokeUtil::CreatePointer(targetTH, *(LPVOID*)pReturnedReference);
+                }
+                break;
+
+            default:
+                COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefReturn"));
+                break;
+        }
     }
     else 
     {

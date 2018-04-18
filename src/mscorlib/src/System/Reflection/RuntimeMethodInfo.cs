@@ -41,7 +41,7 @@ namespace System.Reflection
                     //
                     // first take care of all the NO_INVOKE cases. 
                     if (ContainsGenericParameters ||
-                         ReturnType.IsByRef ||
+                         (ReturnType.IsByRef && ReturnType.GetElementType().IsByRefLike) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
