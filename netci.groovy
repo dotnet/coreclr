@@ -802,8 +802,8 @@ def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, is
     }
 
     if (configuration == 'Debug') {
-        // Debug runs can be very slow. Add an hour.
-        timeout += 60
+        // Debug runs can be very slow. Add 3 hours.
+        timeout += 180
     }
 
     if (architecture == 'x86_arm_altjit' || architecture == 'x64_arm64_altjit') {
