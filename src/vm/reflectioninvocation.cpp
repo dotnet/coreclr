@@ -1166,9 +1166,9 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     // and place a pointer to it on the stack.
 
     BOOL hasRefReturnAndNeedsBoxing = FALSE; // Indicates that the method has a BYREF return type and the target type needs to be copied into a preallocated boxed object.
-    CorElementType refReturnTargetType = ELEMENT_TYPE_VOID; // Valid only if retType == ELEMENT_TYPE_BYREF. Caches the CorElementType of the byref target.
 
     TypeHandle retTH = gc.pSig->GetReturnTypeHandle();
+    TypeHandle refReturnTargetTH;  // Valid only if retType == ELEMENT_TYPE_BYREF. Caches the TypeHandle of the byref target.
     BOOL fHasRetBuffArg = argit.HasRetBuffArg();
     CorElementType retType = retTH.GetInternalCorElementType();
     if (retType == ELEMENT_TYPE_VALUETYPE || fHasRetBuffArg) {
@@ -1176,19 +1176,15 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     }
     else if (retType == ELEMENT_TYPE_BYREF)
     {
-        TypeHandle targetTH = retTH.AsTypeDesc()->GetTypeParam();
-        refReturnTargetType = targetTH.GetInternalCorElementType();
+        refReturnTargetTH = retTH.AsTypeDesc()->GetTypeParam();
+        CorElementType refReturnTargetType = refReturnTargetTH.GetInternalCorElementType();
 
-        // If the target of the byref is a valuetype or function pointer, we need to preallocate a boxed object to hold the managed return value.
-        if (targetTH.IsValueType())
+        // If the target of the byref is a general valuetype (i.e. not one of the primitives), we need to preallocate a boxed object
+        // to hold the managed return value.
+        if (refReturnTargetType == ELEMENT_TYPE_VALUETYPE)
         {
             hasRefReturnAndNeedsBoxing = TRUE;
-            gc.retVal = targetTH.GetMethodTable()->Allocate();
-        }
-        else if (refReturnTargetType == ELEMENT_TYPE_FNPTR)
-        {
-            hasRefReturnAndNeedsBoxing = TRUE;
-            gc.retVal = MscorlibBinder::GetElementType(ELEMENT_TYPE_I)->Allocate();
+            gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
         }
     }
 
@@ -1456,33 +1452,11 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
         }
 
-        // If the target was a value type, that scenario was handled above as part of the code path that copies value types into preallocated boxed objects.
-        // We'll cover the rest of the cases here.
-        switch (refReturnTargetType)
-        {
-            case ELEMENT_TYPE_CLASS:        // Class
-            case ELEMENT_TYPE_SZARRAY:      // Single Dim, Zero
-            case ELEMENT_TYPE_ARRAY:        // General Array
-            case ELEMENT_TYPE_STRING:
-            case ELEMENT_TYPE_OBJECT:
-                gc.retVal = *(OBJECTREF*)pReturnedReference;
-                break;
-
-            case ELEMENT_TYPE_PTR:
-                {
-                    TypeHandle targetTH = retTH.AsTypeDesc()->GetTypeParam();
-                    gc.retVal = InvokeUtil::CreatePointer(targetTH, *(LPVOID*)pReturnedReference);
-                }
-                break;
-
-            default:
-                COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefReturn"));
-                break;
-        }
+        gc.retVal = InvokeUtil::CreateObjectAfterInvoke(refReturnTargetTH, pReturnedReference);
     }
     else 
     {
-        gc.retVal = InvokeUtil::CreateObject(retTH, &callDescrData.returnValue);
+        gc.retVal = InvokeUtil::CreateObjectAfterInvoke(retTH, &callDescrData.returnValue);
     }
 
     while (byRefToNullables != NULL) {
