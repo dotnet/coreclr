@@ -38,6 +38,12 @@
       </ItemsToPush>
     </ItemGroup>
 
+    <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
+
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
@@ -68,6 +74,12 @@
         <RelativeBlobPath>$(RelativePathWithSlash)$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\' ,'/'))</RelativeBlobPath>
       </ItemsToPush>
     </ItemGroup>
+
+   <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
@@ -100,6 +112,12 @@
         <RelativeBlobPath>$(RelativePath)/$([System.String]::Copy('%(RecursiveDir)%(Filename)%(Extension)').Replace('\' ,'/'))</RelativeBlobPath>
       </ItemsToPush>
     </ItemGroup>
+
+    <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
