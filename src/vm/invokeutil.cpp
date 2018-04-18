@@ -653,8 +653,8 @@ void InvokeUtil::ValidField(TypeHandle th, OBJECTREF* value)
 // CreateObjectAfterInvoke
 // This routine will create the specified object from the value returned by the Invoke target. 
 //
-// This does not handle the ELEMENT_TYPE_VALUETYPE case. There is no way for this function to handle that case in a GC-safe way.
-// The caller must preallocate the box object and copy the value type into it afterward.
+// This does not handle the ELEMENT_TYPE_VALUETYPE case. The caller must preallocate the box object and
+// copy the value type into it afterward.
 //
 OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
     CONTRACTL {
@@ -733,8 +733,6 @@ OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
         }
         break;
     
-    case ELEMENT_TYPE_BYREF:
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefReturn"));
     case ELEMENT_TYPE_END:
     default:
         _ASSERTE(!"Unknown Type");
