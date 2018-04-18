@@ -443,10 +443,10 @@ namespace System.Reflection
             {
                 throw new MemberAccessException();
             }
-            // ByRef return are not allowed in reflection
-            else if (ReturnType.IsByRef)
+            // ByRef to ByRefLike returns are not allowed in reflection
+            else if (ReturnType.IsByRef && ReturnType.GetElementType().IsByRefLike)
             {
-                throw new NotSupportedException(SR.NotSupported_ByRefReturn);
+                throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);
             }
 
             throw new TargetException();
