@@ -1227,7 +1227,7 @@ namespace System
                 return false;
             }
 
-            int i = 0;
+            int i = 1;
             while (i < days.Length && julianDay > days[i])
             {
                 i++;
