@@ -1228,7 +1228,7 @@ namespace System
             }
 
             int i = 0;
-            while (julianDay > days[i] && i < days.Length)
+            while (i < days.Length && julianDay > days[i])
             {
                 i++;
             }
