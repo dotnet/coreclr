@@ -1173,13 +1173,36 @@ namespace System
             }
             else
             {
-                // Julian day
-                int month, day;
-                if (!TZif_ParseJulianDay(date, out month, out day))
+                if (date[0] != 'J')
                 {
-                    throw new InvalidTimeZoneException(SR.InvalidTimeZone_InvalidJulianDay);
+                    // should be n Julian day format which we don't support. 
+                    // 
+                    // This specifies the Julian day, with n between 0 and 365. February 29 is counted in leap years.
+                    //
+                    // n would be a relative number from the begining of the year. which should handle if the 
+                    // the year is a leap year ot not.
+                    // 
+                    // In leap year, n would be counted as:
+                    // 
+                    // 0                30 31              59 60              90      335            365
+                    // |-------Jan--------|-------Feb--------|-------Mar--------|....|-------Dec--------|
+                    //
+                    // while in non leap year we'll have 
+                    // 
+                    // 0                30 31              58 59              89      334            364
+                    // |-------Jan--------|-------Feb--------|-------Mar--------|....|-------Dec--------|
+                    //
+                    // 
+                    // For example if n is specified as 60, this means in leap year the rule will start at Mar 1,
+                    // while in non leap year the rule will start at Mar 2.
+                    // 
+                    // If we need to support n format, we'll have to have a floating adjustment rule support this case.
+                    
+                    throw new InvalidTimeZoneException(SR.InvalidTimeZone_NJulianDayNotSupported);
                 }
-
+                
+                // 'J' Julian day
+                TZif_ParseJulianDay(date, out int month, out int day);
                 return TransitionTime.CreateFixedDateRule(ParseTimeOfDay(time), month, day);
             }
         }
@@ -1190,26 +1213,18 @@ namespace System
         /// <returns>
         /// true if the parsing succeeded; otherwise, false.
         /// </returns>
-        private static bool TZif_ParseJulianDay(string date, out int month, out int day)
+        private static void TZif_ParseJulianDay(string date, out int month, out int day)
         {
             // Jn
             // This specifies the Julian day, with n between 1 and 365.February 29 is never counted, even in leap years.
-            // n
-            // This specifies the Julian day, with n between 0 and 365.February 29 is counted in leap years.
             Debug.Assert(!String.IsNullOrEmpty(date));
             month = day = 0;
 
-            int index = 0;
-            bool isLeapYear = true;
-            if (date[index] == 'J')
-            {
-                isLeapYear = false;
-                index++;
-            }
+            int index = 1;
 
             if (index >= date.Length || ((uint)(date[index] - '0') > '9'-'0'))
             {
-                return false;
+                throw new InvalidTimeZoneException(SR.InvalidTimeZone_InvalidJulianDay);
             }
 
             int julianDay = 0;
@@ -1220,11 +1235,11 @@ namespace System
                 index++;
             } while (index < date.Length && ((uint)(date[index] - '0') <= '9'-'0'));
 
-            int[] days = isLeapYear ? GregorianCalendarHelper.DaysToMonth366 : GregorianCalendarHelper.DaysToMonth365;
+            int[] days = GregorianCalendarHelper.DaysToMonth365;
 
             if (julianDay == 0 || julianDay > days[days.Length - 1])
             {
-                return false;
+                throw new InvalidTimeZoneException(SR.InvalidTimeZone_InvalidJulianDay);
             }
 
             int i = 1;
@@ -1237,8 +1252,6 @@ namespace System
 
             month = i;
             day = julianDay - days[i - 1];
-
-            return true;
         }
 
         /// <summary>
