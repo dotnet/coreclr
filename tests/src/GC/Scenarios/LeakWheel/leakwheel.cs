@@ -120,6 +120,8 @@ namespace DefaultNamespace {
             GC.WaitForPendingFinalizers();
             GC.Collect(2);
             GC.WaitForPendingFinalizers();
+            GC.Collect(2);
+            GC.WaitForPendingFinalizers();
 
             Console.WriteLine("When test finished: {0}", GC.GetTotalMemory(false));
             Console.WriteLine("Created VarAry objects: {0} Finalized VarAry Objects: {1}", Node.iVarAryCreat, Node.iVarAryFinal);
@@ -166,11 +168,13 @@ namespace DefaultNamespace {
 
                     iIter -= i;  // Reduce the iteration count by how far we went
                     return false;
-                } } 
+                } 
+            } 
             DestroyLstNode();
             return true;
         }
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void SpinWheel( Dictionary<int, WeakReference> oTable,  Node node, Random r )
         {
             int iKey;//the index which the new node will be set at
@@ -209,6 +213,7 @@ namespace DefaultNamespace {
             //}
         }
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void DeleteNode( int iKey, Dictionary<int, WeakReference> oTable)
         {
             //iSwitch is 0, delete one child Node at iKey;
