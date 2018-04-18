@@ -1180,7 +1180,7 @@ namespace System
                     // This specifies the Julian day, with n between 0 and 365. February 29 is counted in leap years.
                     //
                     // n would be a relative number from the begining of the year. which should handle if the 
-                    // the year is a leap year ot not.
+                    // the year is a leap year or not.
                     // 
                     // In leap year, n would be counted as:
                     // 
@@ -1201,7 +1201,7 @@ namespace System
                     throw new InvalidTimeZoneException(SR.InvalidTimeZone_NJulianDayNotSupported);
                 }
                 
-                // 'J' Julian day
+                // Julian day
                 TZif_ParseJulianDay(date, out int month, out int day);
                 return TransitionTime.CreateFixedDateRule(ParseTimeOfDay(time), month, day);
             }
