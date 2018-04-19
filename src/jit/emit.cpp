@@ -7254,7 +7254,9 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 
     for (ig = emitIGlist; ig != nullptr; ig = ig->igNext)
     {
-        assert(nextof == ig->igOffs);
+        // There is an eventual unused space after the last actual hot block
+        // before the first allocated cold block.
+        assert((nextof == ig->igOffs) || (ig == emitFirstColdIG));
 
         if (ig->igOffs == offs)
         {
