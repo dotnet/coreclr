@@ -185,38 +185,6 @@
       ]
     },
     {
-      "Name": "Trusted-All-Debug",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Debug",
-        "PublishFlat": "true"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Debug"
-      },
-      "DefinitionGroupRefs": [
-        "Product-Build"
-      ]
-    },
-    {
-      "Name": "Trusted-All-Checked",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Checked",
-        "PublishFlat": "true"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Checked"
-      },
-      "DefinitionGroupRefs": [
-        "Product-Build"
-      ]
-    },
-    {
       "Name": "Trusted-Crossbuild-Release",
       "Parameters": {
         "TreatWarningsAsErrors": "false"
@@ -227,38 +195,6 @@
       },
       "ReportingParameters": {
         "PB_BuildType": "Release"
-      },
-      "DefinitionGroupRefs": [
-        "Linux-CrossBuild"
-      ]
-    },
-    {
-      "Name": "Trusted-Crossbuild-Debug",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Debug",
-        "PublishFlat": "true"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Debug"
-      },
-      "DefinitionGroupRefs": [
-        "Linux-CrossBuild"
-      ]
-    },
-    {
-      "Name": "Trusted-Crossbuild-Checked",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Checked",
-        "PublishFlat": "true"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Checked"
       },
       "DefinitionGroupRefs": [
         "Linux-CrossBuild"
@@ -293,34 +229,6 @@
       ]
     },
     {
-      "Name": "Publish Packages to Drop - Debug",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Debug"
-      },
-      "Definitions": [
-        {
-          "Name": "DotNet-Trusted-Publish",
-          "SkipBranchAndVersionOverrides": "true",
-          "Parameters": {
-            "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
-            "GitHubRepositoryName": "coreclr"
-          },
-          "ReportingParameters": {
-            "TaskName": "Publish",
-            "Type": "build/publish/",
-            "ConfigurationGroup": "Debug"
-          }
-        }
-      ],
-      "DependsOn": [
-        "Trusted-All-Debug",
-        "Trusted-Crossbuild-Debug"
-      ]
-    },
-    {
       "Name": "Publish Symbols - Release",
       "Parameters": {
         "TreatWarningsAsErrors": "false"
@@ -344,34 +252,6 @@
       "DependsOn": [
         "Trusted-All-Release",
         "Trusted-Crossbuild-Release"
-      ]
-    },
-    {
-      "Name": "Publish Packages to Drop - Checked",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Checked"
-      },
-      "Definitions": [
-        {
-          "Name": "DotNet-Trusted-Publish",
-          "SkipBranchAndVersionOverrides": "true",
-          "Parameters": {
-            "VstsRepositoryName": "DotNet-CoreCLR-Trusted",
-            "GitHubRepositoryName": "coreclr"
-          },
-          "ReportingParameters": {
-            "TaskName": "Publish",
-            "Type": "build/publish/",
-            "ConfigurationGroup": "Checked"
-          }
-        }
-      ],
-      "DependsOn": [
-        "Trusted-All-Checked",
-        "Trusted-Crossbuild-Checked"
       ]
     }
   ]
