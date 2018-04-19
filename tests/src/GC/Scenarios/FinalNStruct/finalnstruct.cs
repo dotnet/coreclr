@@ -16,28 +16,21 @@ namespace NStruct {
     internal class FinalNStruct
     {
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public static STRMAP[] CreateObj(int iObj)
         {
-
             STRMAP []strmap = new STRMAP[iObj];
             for (int i=0; i< iObj; i++ ) //allocate 3100KB
             {
                 strmap[i] = new STRMAP();
             }
-            return strmap;
-
-        }
-
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static void DeleteStrmap()
-        {
             for( int i=0; i< iObj; i++ )
             {
                 strmap[i] = null;
             }
         }
 
-        public static bool RunTest(int iObj,STRMAP []strmap)
+        public static bool RunTest()
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -47,14 +40,13 @@ namespace NStruct {
         }
 
         public static int Main(String [] args){
-
             int iObj = 100;
-            STRMAP []strmaptemp;
 
             Console.WriteLine("Test should return with ExitCode 100 ...");
 
-            strmaptemp = CreateObj(iObj);
-            if (RunTest(iObj,strmaptemp))
+            CreateObj(iObj);
+
+            if (RunTest())
             {
                 Console.WriteLine( "Created objects number is same with finalized objects." );
                 Console.WriteLine( "Test Passed !" );
