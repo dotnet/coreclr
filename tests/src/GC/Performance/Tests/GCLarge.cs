@@ -46,7 +46,6 @@ internal class List
         SmallGC [] sgc;
         sgc = new SmallGC [LOOP];
 
-        AllocateSmallObjects();
         for (int j = 0; j < LOOP; j++)
             sgc[j] = new SmallGC(0);
 
@@ -57,6 +56,7 @@ internal class List
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
+        GC.Collect();
                     
         for(long i = 0; i < iterations; i++)
         {
