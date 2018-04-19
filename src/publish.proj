@@ -52,8 +52,7 @@
     <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          ContainerName="$(ContainerName)"/>
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -90,8 +89,7 @@
     <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          ContainerName="$(ContainerName)" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -125,8 +123,7 @@
     <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          ContainerName="$(ContainerName)" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
