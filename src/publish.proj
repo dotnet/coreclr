@@ -38,12 +38,6 @@
       </ItemsToPush>
     </ItemGroup>
 
-    <!-- create the container if it doesn't exist -->
-    <CreateAzureContainer AccountKey="$(AccountKey)"
-                          AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
-
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
@@ -53,6 +47,13 @@
                     ManifestBuildId="$(ManifestBuildId)"
                     ManifestBranch="$(ManifestBranch)"
                     ManifestCommit="$(ManifestCommit)" />
+
+    <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
+                          AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -75,12 +76,6 @@
       </ItemsToPush>
     </ItemGroup>
 
-   <!-- create the container if it doesn't exist -->
-    <CreateAzureContainer AccountKey="$(AccountKey)"
-                          AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
-
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
@@ -90,6 +85,13 @@
                     ManifestBuildId="$(ManifestBuildId)"
                     ManifestBranch="$(ManifestBranch)"
                     ManifestCommit="$(ManifestCommit)" />
+
+    <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
+                          AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -113,17 +115,18 @@
       </ItemsToPush>
     </ItemGroup>
 
-    <!-- create the container if it doesn't exist -->
-    <CreateAzureContainer AccountKey="$(AccountKey)"
-                          AccountName="$(AccountName)"
-                          ContainerName="$(ContainerName)"
-                          IsPublic="true" />
-
     <PushToBlobFeed Condition="'$(PublishFlatContainer)' == 'false'"
                     ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(ItemsToPush)"
                     Overwrite="$(OverwriteOnPublish)" />
+
+    <!-- create the container if it doesn't exist -->
+    <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
+                          AccountKey="$(AccountKey)"
+                          AccountName="$(AccountName)"
+                          ContainerName="$(ContainerName)"
+                          IsPublic="true" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
