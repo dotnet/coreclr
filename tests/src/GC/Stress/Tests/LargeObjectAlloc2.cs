@@ -9,6 +9,7 @@
 
 
 using System;
+using System.Runtime.CompilerServices;
 
 namespace LargeObjectTest
 {
@@ -54,6 +55,25 @@ namespace LargeObjectTest
     {
         public static int ExitCode = -1;
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public static bool AllocAndCollect()
+        {
+            try
+            {
+                largeobj = new LargeObject();
+                TestLibrary.Logging.WriteLine("Allocated LargeObject");
+            }
+            catch (Exception e)
+            {
+                TestLibrary.Logging.WriteLine("Failure to allocate at loop {0}\n", loop);
+                TestLibrary.Logging.WriteLine("Caught Exception: {0}", e);
+                return false;
+            }
+
+            largeobj = null;
+            return true;
+        }
+
         public static int Main()
         {
             int loop = 0;
@@ -64,26 +84,21 @@ namespace LargeObjectTest
 
             while (loop <= 200)
             {
-                loop++;
                 TestLibrary.Logging.Write(String.Format("LOOP: {0}\n", loop));
-                try
+
+                if (!AllocAndCollect())
                 {
-                    largeobj = new LargeObject();
-                    TestLibrary.Logging.WriteLine("Allocated LargeObject");
-                }
-                catch (Exception e)
-                {
-                    TestLibrary.Logging.WriteLine("Failure to allocate at loop {0}\n", loop);
-                    TestLibrary.Logging.WriteLine("Caught Exception: {0}", e);
                     return 1;
                 }
-                largeobj = null;
+
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 TestLibrary.Logging.WriteLine("LargeObject Collected\n");
             }
+
             TestLibrary.Logging.WriteLine("Test Passed");
             GC.Collect();
+            GC.WaitForPendingFinalizers();
 
             return ExitCode;
         }

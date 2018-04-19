@@ -11,6 +11,7 @@
 
 namespace NStruct {
     using System;
+    using System.Runtime.CompilerServices;
 
     internal class FinalNStruct
     {
@@ -27,20 +28,22 @@ namespace NStruct {
 
         }
 
-        public static bool RunTest(int iObj,STRMAP []strmap)
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public static void DeleteStrmap()
         {
-
             for( int i=0; i< iObj; i++ )
             {
                 strmap[i] = null;
             }
+        }
 
+        public static bool RunTest(int iObj,STRMAP []strmap)
+        {
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
             return ( FinalizeCount.icFinal == FinalizeCount.icCreat );
-
         }
 
         public static int Main(String [] args){

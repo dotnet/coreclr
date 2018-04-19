@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // the class that holds the HandleCollectors
@@ -46,6 +47,18 @@ public class Usage
     private int _numInstances = 100;
     private const int deltaPercent = 10;
 
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    private void CreateObjCase1()
+    {
+        HandleCollectorTest h;
+
+        // create objects and let them go out of scope
+        for (int i = 0; i < _numInstances; i++)
+            h = new HandleCollectorTest();
+
+        h = null;
+    }
+
     // ensures GC Collections occur when handle count exceeds maximum
     private bool Case1()
     {
@@ -56,15 +69,13 @@ public class Usage
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        HandleCollectorTest h;
         int original = GC.CollectionCount(0);
 
-        // create objects and let them go out of scope
-        for (int i = 0; i < _numInstances; i++)
-            h = new HandleCollectorTest();
+        CreateObjCase1();
 
-        h = null;
+        GC.Collect();
         GC.WaitForPendingFinalizers();
+        GC.Collect();
 
         // Collection should not have occurred
         if (GC.CollectionCount(0) != original)
@@ -96,7 +107,11 @@ public class Usage
         for (int i = 0; i < _numInstances; i++)
         {
             new HandleCollectorTest();
+
+            GC.Collect();
             GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             handleCount = HandleCollectorTest.Count;
             //Note that the GC should occur when handle count is 101 but it will happen at anytime after a creation and we stick to the previous
             //count to avoid error
