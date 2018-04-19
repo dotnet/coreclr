@@ -835,6 +835,7 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
     COR_ILMETHOD_DECODER ilDecoderTemp;
     COR_ILMETHOD_DECODER *pilHeader = GetAndVerifyILHeader(pConfig, &ilDecoderTemp);
     *pFlags = pConfig->GetJitCompilationFlags();
+    pFlags->Add(CORJIT_FLAGS::CORJIT_FLAG_TIER1);
     PCODE pOtherCode = NULL;
     EX_TRY
     {
