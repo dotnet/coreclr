@@ -48,6 +48,7 @@ public class Test
 
         GC.Collect(); 
         GC.WaitForPendingFinalizers();  // makes sure Finalize() is called.
+        GC.Collect(); 
 
         if (Dummy.visited)
         {

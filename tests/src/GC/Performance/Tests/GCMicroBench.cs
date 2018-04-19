@@ -261,6 +261,7 @@ namespace GC_Microbenchmarks
                 m_list = null;
                 return ( (m_list.Count > 0) && (m_list[0] is FNode));
             }
+            return false;
         }
 
 

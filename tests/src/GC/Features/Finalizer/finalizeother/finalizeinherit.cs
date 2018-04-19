@@ -18,7 +18,8 @@ namespace One
     {
         ~B()
         {
-            Console.WriteLine("In Finalize of B"); }
+            Console.WriteLine("In Finalize of B");
+        }
     }
 
     class C: B
