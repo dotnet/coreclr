@@ -281,16 +281,17 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_STORE_LCL_FLD:
         {
-#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
             GenTreeLclVarCommon* const store = node->AsLclVarCommon();
-            if ((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8))
+            if (((store->TypeGet() == TYP_SIMD8) != (store->gtOp1->TypeGet() == TYP_SIMD8)) &&
+                (store->gtOp1->TypeGet() != TYP_STRUCT))
             {
                 GenTreeUnOp* bitcast =
                     new (comp, GT_BITCAST) GenTreeOp(GT_BITCAST, store->TypeGet(), store->gtOp1, nullptr);
                 store->gtOp1 = bitcast;
                 BlockRange().InsertBefore(store, bitcast);
             }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
             // TODO-1stClassStructs: Once we remove the requirement that all struct stores
             // are block stores (GT_STORE_BLK or GT_STORE_OBJ), here is where we would put the local
             // store under a block store if codegen will require it.
@@ -1428,7 +1429,7 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
             }
         }
     }
-#elif defined(_TARGET_AMD64_)
+#elif (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
     // TYP_SIMD8 parameters that are passed as longs
     if (type == TYP_SIMD8 && genIsValidIntReg(info->regNum))
     {
@@ -3065,7 +3066,7 @@ void Lowering::LowerRet(GenTree* ret)
     DISPNODE(ret);
     JITDUMP("============");
 
-#if defined(_TARGET_AMD64_) && defined(FEATURE_SIMD)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
     GenTreeUnOp* const unOp = ret->AsUnOp();
     if ((unOp->TypeGet() == TYP_LONG) && (unOp->gtOp1->TypeGet() == TYP_SIMD8))
     {
@@ -3073,7 +3074,7 @@ void Lowering::LowerRet(GenTree* ret)
         unOp->gtOp1          = bitcast;
         BlockRange().InsertBefore(unOp, bitcast);
     }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_ARM64_
 
     // Method doing PInvokes has exactly one return block unless it has tail calls.
     if (comp->info.compCallUnmanaged && (comp->compCurBB == comp->genReturnBB))
