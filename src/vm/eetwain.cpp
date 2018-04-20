@@ -6022,7 +6022,8 @@ TADDR EECodeManager::GetAmbientSP(PREGDISPLAY     pContext,
 #endif // _DEBUG && !DACCESS_COMPILE
 
     if ((stateBuf->hdrInfoBody.prologOffs != hdrInfo::NOT_IN_PROLOG) ||
-        (stateBuf->hdrInfoBody.epilogOffs != hdrInfo::NOT_IN_EPILOG))
+        (stateBuf->hdrInfoBody.epilogOffs != hdrInfo::NOT_IN_EPILOG) ||
+        (GetRegdisplayFPAddress(pContext) == NULL))
     {
         return NULL;
     }
