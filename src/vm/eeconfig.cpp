@@ -389,6 +389,8 @@ HRESULT EEConfig::Init()
     fGDBJitEmitDebugFrame = false;
 #endif
 
+    fAvoidCoopTransitionOnFatalErrorDuringGC = true;
+
     // After initialization, register the code:#GetConfigValueCallback method with code:CLRConfig to let
     // CLRConfig access config files. This is needed because CLRConfig lives outside the VM and can't
     // statically link to EEConfig.
@@ -1238,6 +1240,8 @@ HRESULT EEConfig::sync()
 #endif
 
     dwSleepOnExit = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_SleepOnExit);
+
+    fAvoidCoopTransitionOnFatalErrorDuringGC = (0 != CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_AvoidCoopTransitionOnFatalErrorDuringGC));
 
 #if defined(FEATURE_TIERED_COMPILATION)
     fTieredCompilation = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_TieredCompilation) != 0 ||

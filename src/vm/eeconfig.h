@@ -1192,6 +1192,12 @@ private:
 public:
     DWORD GetSleepOnExit()
     { return dwSleepOnExit; }
+
+private:
+    BOOL fAvoidCoopTransitionOnFatalErrorDuringGC;
+
+public:
+    BOOL GetAvoidCoopTransitionOnFatalErrorDuringGC() { return fAvoidCoopTransitionOnFatalErrorDuringGC; }
 };
 
 
