@@ -85,7 +85,7 @@ Line 23
 ******************* END *****************************");
         }
 
-        RunTest();
+        temp.RunTest();
 
         GC.Collect();
         GC.WaitForPendingFinalizers();  // makes sure Finalize() is called.

@@ -21,7 +21,7 @@ public class Test {
 	}
 
     [MethodImplAttribute(MethodImplOptions.NoInlining)]
-    public bool RunTest()
+    public static void RunTest()
     {
         Dummy obj = new Dummy();
 		
@@ -41,7 +41,6 @@ public class Test {
 		GC.Collect();
 		
 		if(Dummy.flag == 0) {
-			
 			Console.WriteLine("Test for GCHandleType.Normal passed!");
             return 100;
 		}

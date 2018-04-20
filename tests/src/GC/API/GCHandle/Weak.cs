@@ -6,6 +6,7 @@
 // will be collected.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 public class Test

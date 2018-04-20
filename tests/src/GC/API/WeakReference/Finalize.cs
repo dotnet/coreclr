@@ -33,7 +33,7 @@ public class Test {
         }
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public bool RunTest() 
+        public void RunTest() 
         {
             WeakReference weak1 = new WeakReference(dummy1);
             GCHandle handle = GCHandle.Alloc(dummy1,GCHandleType.Normal); // Strong Reference

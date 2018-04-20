@@ -39,7 +39,7 @@ public class Test
         }
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public bool DestroyObj()
+        public void DestroyObj()
         {
             obj = null;
         }    

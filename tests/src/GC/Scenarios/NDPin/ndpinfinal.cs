@@ -66,9 +66,9 @@ namespace DefaultNamespace {
 
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static void RemovePinList()
+        public static void RemovePinList(int iObj)
         {
-            for( int i=0; i< iObj; i++ )
+            for ( int i=0; i< iObj; i++ )
             {
                 pinList[i] = null;
             }
@@ -90,7 +90,7 @@ namespace DefaultNamespace {
             GC.WaitForPendingFinalizers();
             GC.Collect();
             
-            RemovePinList();
+            RemovePinList(iObj);
 
             GC.Collect();
             GC.WaitForPendingFinalizers();

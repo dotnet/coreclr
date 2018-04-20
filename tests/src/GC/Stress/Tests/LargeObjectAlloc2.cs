@@ -56,8 +56,9 @@ namespace LargeObjectTest
         public static int ExitCode = -1;
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static bool AllocAndCollect()
+        public static bool AllocAndCollect(int loop)
         {
+            LargeObject largeobj;
             try
             {
                 largeobj = new LargeObject();
@@ -77,22 +78,24 @@ namespace LargeObjectTest
         public static int Main()
         {
             int loop = 0;
-            LargeObject largeobj;
 
             TestLibrary.Logging.WriteLine("Test should pass with ExitCode 100\n");
 
 
             while (loop <= 200)
             {
+                loop++;
                 TestLibrary.Logging.Write(String.Format("LOOP: {0}\n", loop));
 
-                if (!AllocAndCollect())
+                if (!AllocAndCollect(loop))
                 {
                     return 1;
                 }
 
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
+                GC.Collect();
+
                 TestLibrary.Logging.WriteLine("LargeObject Collected\n");
             }
 
