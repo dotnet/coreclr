@@ -1216,6 +1216,8 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
     EX_END_CATCH(SwallowAllExceptions)
 }
 
+//This starts FALSE and then converts to true if HandleFatalError has ever been called by a GC thread
+BOOL g_fFatalErrorOccuredOnGCThread = FALSE;
 //
 // Log an error to the event log if possible, then throw up a dialog box.
 //
@@ -1493,8 +1495,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
 
 
 
-//This starts FALSE and then converts to true if HandleFatalError has ever been called by a GC thread
-BOOL g_fFatalErrorOccuredOnGCThread = FALSE;
+
 void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
