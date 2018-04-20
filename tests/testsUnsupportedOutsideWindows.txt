@@ -340,3 +340,4 @@ managed/Compilation/Compilation/Compilation.sh
 readytorun/r2rdump/R2RDumpTest/R2RDumpTest.sh
 Regressions/coreclr/0584/Test584/Test584.sh
 tracing/eventsource/eventpipeandetw/eventpipeandetw/eventpipeandetw.sh
+JIT/Directed/arglist/vararg.sh

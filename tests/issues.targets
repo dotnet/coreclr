@@ -1,3 +1,4 @@
+
 <?xml version="1.0" ?>
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <!-- All OS/Arch common excludes -->
@@ -1955,6 +1956,19 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/eventpipeandetw/eventpipeandetw/*">
             <Issue>by design Windows only</Issue>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\arglist\vararg.cmd">
+            <Issue>needs triage</Issue>
+        </ExcludeList>
+    </ItemGroup>
+
+    <!-- The following are tests that fail on Windows -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\eventsourcetrace\eventsourcetrace.cmd">
+            <Issue>15494</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\tracevalidation\tracelogging\tracelogging\tracelogging.cmd">
+            <Issue>15494</Issue>
         </ExcludeList>
     </ItemGroup>
 
