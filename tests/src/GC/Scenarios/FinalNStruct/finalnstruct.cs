@@ -17,7 +17,7 @@ namespace NStruct {
     {
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static STRMAP[] CreateObj(int iObj)
+        public static void CreateObj(int iObj)
         {
             STRMAP []strmap = new STRMAP[iObj];
             for (int i=0; i< iObj; i++ ) //allocate 3100KB
