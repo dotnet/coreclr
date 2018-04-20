@@ -153,7 +153,9 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
             }
 
-            return new ReadOnlyMemory<T>(_object, _index + start, actualLength - start);
+            int newLength = actualLength - start;
+            // If current _length is negative, negate the new length to retain Pinned info
+            return new ReadOnlyMemory<T>(_object, _index + start, _length < 0 ? -newLength : newLength);
         }
 
         /// <summary>
@@ -173,7 +175,8 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
             }
 
-            return new ReadOnlyMemory<T>(_object, _index + start, length);
+            // If current _length is negative, negate the new length to retain Pinned info
+            return new ReadOnlyMemory<T>(_object, _index + start, _length < 0 ? -length : length);
         }
 
         /// <summary>
