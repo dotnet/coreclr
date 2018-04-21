@@ -2688,13 +2688,14 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
     } CONTRACTL_END;
 
     INT32 hashCode = 0;
-    INT32 *pObj = (INT32*)pObjRef;
+
+    GCPROTECT_BEGININTERIOR(pObjRef);
 
     // While we shouln't get here directly from ValueTypeHelper::GetHashCode, if we recurse we need to 
     // be able to handle getting the hashcode for an embedded structure whose hashcode is computed by the fast path.
     if (CanUseFastGetHashCodeHelper(mt))
     {
-        return FastGetValueTypeHashCodeHelper(mt, pObjRef);
+        hashCode = FastGetValueTypeHashCodeHelper(mt, pObjRef);
     }
     else
     {
@@ -2715,13 +2716,12 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
             {
                 FieldDesc *field = fdIterator.Next();
                 _ASSERTE(!field->IsRVA());
-                void *pFieldValue = (BYTE *)pObj + field->GetOffsetUnsafe();
+                void *pFieldValue = (BYTE *)pObjRef + field->GetOffsetUnsafe();
                 if (field->IsObjRef())
                 {
                     // if we get an object reference we get the hash code out of that
                     if (*(Object**)pFieldValue != NULL)
                     {
-
                         OBJECTREF fieldObjRef = ObjectToOBJECTREF(*(Object **) pFieldValue);
                         GCPROTECT_BEGIN(fieldObjRef);
 
@@ -2752,7 +2752,7 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
                     else
                     {
                         // got another value type. Get the type
-                        TypeHandle fieldTH = field->LookupFieldTypeHandle(); // the type was loaded already
+                        TypeHandle fieldTH = field->GetFieldTypeHandleThrowing();
                         _ASSERTE(!fieldTH.IsNull());
                         hashCode = RegularGetValueTypeHashCode(fieldTH.GetMethodTable(), pValue);
                     }
@@ -2761,6 +2761,8 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
             }
         }
     }
+    GCPROTECT_END();
+
     return hashCode;
 }
 
