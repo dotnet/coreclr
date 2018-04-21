@@ -1534,10 +1534,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
 
         // Setting g_fFatalErrorOccuredOnGCThread allows code to avoid attempting to make GC mode transitions which could
         // block indefinately if the fatal error occured during the GC.
-        // Because this was done as a servicing change we also have a config switch to disable this behavior in case we did
-        // the fix wrong / it has bad side effects for some customer. The switch is on by default and we hope nobody ever needs
-        // to disable it.
-        if (g_pConfig->GetAvoidCoopTransitionOnFatalErrorDuringGC() && IsGCSpecialThread() && GCHeapUtilities::IsGCInProgress())
+        if (IsGCSpecialThread() && GCHeapUtilities::IsGCInProgress())
         {
             g_fFatalErrorOccuredOnGCThread = TRUE;
         }

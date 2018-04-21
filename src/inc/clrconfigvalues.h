@@ -272,7 +272,6 @@ CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_AssertOnFailFast, W("AssertOnFailFast")
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_legacyCorruptedStateExceptionsPolicy, W("legacyCorruptedStateExceptionsPolicy"), 0, "Enabled Pre-V4 CSE behavior", CLRConfig::FavorConfigFile)
 CONFIG_DWORD_INFO_EX(INTERNAL_SuppressLostExceptionTypeAssert, W("SuppressLostExceptionTypeAssert"), 0, "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_FailFastOnCorruptedStateException, W("FailFastOnCorruptedStateException"), 0, "Failfast if a CSE is encountered", CLRConfig::FavorConfigFile)
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_AvoidCoopTransitionOnFatalErrorDuringGC, W("AvoidCoopTransitionsOnFatalErrorDuringGC"), 1, "Disable select parts of the fatal error handling that require a co-op transition when we expect such a transition to hang")
 
 ///
 /// Garbage collector
