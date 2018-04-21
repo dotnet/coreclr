@@ -2464,6 +2464,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
+                        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
 
                         // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
                         // the cleanup task in Jenkins can't remove.
