@@ -14,7 +14,7 @@ namespace System.Collections
         // This is the maximum prime smaller than Array.MaxArrayLength
         public const int MaxPrimeArrayLength = 0x7FEFFFFD;
 
-        private const int HashPrime = 101;
+        public const int HashPrime = 101;
 
         // Table of prime numbers to use as hash table sizes. 
         // A typical resize algorithm would pick the smallest prime number in this array

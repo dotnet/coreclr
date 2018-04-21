@@ -61,7 +61,7 @@ namespace System.Collections
     {
         /*
           This Hashtable uses double hashing.  There are hashsize buckets in the 
-          table, and each bucket can contain 0 or 1 element.  We assign a bit to mark
+          table, and each bucket can contain 0 or 1 element.  We use a bit to mark
           whether there's been a collision when we inserted multiple elements
           (ie, an inserted item was hashed at least a second time and we probed 
           this bucket, but it was already in use).  Using the collision bit, we
@@ -110,7 +110,6 @@ namespace System.Collections
            -- 
         */
 
-        internal const Int32 HashPrime = 101;
         private const Int32 InitialSize = 3;
 
         private const String LoadFactorName = "LoadFactor"; // Do not rename (binary serialization)
@@ -416,7 +415,7 @@ namespace System.Collections
             // visit every bucket in the table exactly once within hashsize
             // iterations.  Violate this and it'll cause obscure bugs forever.
             // If you change this calculation for h2(key), update putEntry too!
-            incr = (uint)(1 + ((seed * HashPrime) % ((uint)hashsize - 1)));
+            incr = (uint)(1 + ((seed * HashHelpers.HashPrime) % ((uint)hashsize - 1)));
             return hashcode;
         }
 
@@ -1004,7 +1003,7 @@ namespace System.Collections
             Debug.Assert(hashcode >= 0, "hashcode >= 0");  // make sure collision bit (sign bit) wasn't set.
 
             uint seed = (uint)hashcode;
-            uint incr = unchecked((uint)(1 + ((seed * HashPrime) % ((uint)newBuckets.Length - 1))));
+            uint incr = unchecked((uint)(1 + ((seed * HashHelpers.HashPrime) % ((uint)newBuckets.Length - 1))));
             int bucketNumber = (int)(seed % (uint)newBuckets.Length);
             do
             {
