@@ -114,14 +114,13 @@ public partial class FunctionPtr
         IntPtr pNativeMemory = IntPtr.Zero;
         try
         {
+            // Allocate a piece of native memory which in no way resembles valid function entry point.
+            // CLR will read the first couple of bytes and try to match it to known patterns. We need something
+            // which doesn't look like a reverse pinvoke thunk.
             pNativeMemory = Marshal.AllocCoTaskMem(64);
             Marshal.WriteInt32(pNativeMemory, 0);
             Marshal.WriteInt32(pNativeMemory + 4, 0);
 
-            // Intentionally using the fcnptr but moved by 1 byte. We need a native pointer which is readable (since CLR assumes this is a function pointer which can be called
-            // and reads the first few instructions to check if it's something it knows about).
-            // But we need something which is NOT a reverse-pinvoke thunk so that CLR won't be able to match/find it.
-            // Note that it really doesn't matter where the address comes from as long as it's readable and not one of the thunks.
             VoidDelegate del = (VoidDelegate)Marshal.GetDelegateForFunctionPointer(pNativeMemory, typeof(VoidDelegate));
             if (del.Target != null)
             {
