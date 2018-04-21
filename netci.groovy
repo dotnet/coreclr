@@ -2458,11 +2458,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         buildCommands += "${dockerCmd}python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName} -no_run_tests"
 
-                        buildCommands += "zip -r ${workspaceRelativeFxRootLinux}/fxruntime.zip ${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture}"
-                        buildCommands += "zip -r ${workspaceRelativeFxRootLinux}/fxtests.zip ${workspaceRelativeFxRootLinux}/bin/tests"
+                        // Docker creates files with root permission, so we need to zip in docker also, or else we'll get permission errors.
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxruntime.zip ${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture}"
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeFxRootLinux}/fxtests.zip ${workspaceRelativeFxRootLinux}/bin/tests"
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
+
+                        // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
+                        // the cleanup task in Jenkins can't remove.
+                        newJob.with {
+                            publishers {
+                                azureVMAgentPostBuildAction {
+                                    agentPostBuildAction('Delete agent after build execution (when idle).')
+                                }
+                            }
+                        }
                     }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
