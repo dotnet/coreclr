@@ -2716,9 +2716,10 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
             {
                 FieldDesc *field = fdIterator.Next();
                 _ASSERTE(!field->IsRVA());
-                void *pFieldValue = (BYTE *)pObjRef + field->GetOffsetUnsafe();
                 if (field->IsObjRef())
                 {
+                    void *pFieldValue = (BYTE *)pObjRef + field->GetOffsetUnsafe();
+
                     // if we get an object reference we get the hash code out of that
                     if (*(Object**)pFieldValue != NULL)
                     {
@@ -2741,11 +2742,11 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
                 }
                 else
                 {
-                    UINT fieldSize = field->LoadSize();
-                    INT32 *pValue = (INT32*)pFieldValue;
                     CorElementType fieldType = field->GetFieldType();
                     if (fieldType != ELEMENT_TYPE_VALUETYPE)
                     {
+                        UINT fieldSize = field->LoadSize();
+                        INT32 *pValue = (INT32*)((BYTE *)pObjRef + field->GetOffsetUnsafe());
                         for (INT32 j = 0; j < (INT32)(fieldSize / sizeof(INT32)); j++)
                             hashCode ^= *pValue++;
                     }
@@ -2754,7 +2755,7 @@ static INT32 RegularGetValueTypeHashCode(MethodTable *mt, void *pObjRef)
                         // got another value type. Get the type
                         TypeHandle fieldTH = field->GetFieldTypeHandleThrowing();
                         _ASSERTE(!fieldTH.IsNull());
-                        hashCode = RegularGetValueTypeHashCode(fieldTH.GetMethodTable(), pValue);
+                        hashCode = RegularGetValueTypeHashCode(fieldTH.GetMethodTable(), (BYTE *)pObjRef + field->GetOffsetUnsafe());
                     }
                 }
                 break;
