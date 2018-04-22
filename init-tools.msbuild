@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp1.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <BaseIntermediateOutputPath>$(ToolsDir)/$(BuildToolsPackageVersion)</BaseIntermediateOutputPath>
+    <PackageTargetFallback>$(PackageTargetFallback);netframework</PackageTargetFallback>
+  </PropertyGroup>
+  <Import Project="dependencies.props" />
+  <ItemGroup>
+    <PackageReference Include="microsoft.dotnet.buildtools">
+      <Version>$(BuildToolsPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="microsoft.dotnet.buildtools.coreclr">
+      <Version>1.0.4-prerelease</Version>
+    </PackageReference>
+    <PackageReference Include="$(FeedTasksPackage)">
+      <Version>$(FeedTasksPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="$(PublishSymbolsPackage)">
+      <Version>$(PublishSymbolsPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="$(ILLinkTasksPackage)">
+      <Version>$(ILLinkTasksPackageVersion)</Version>
+    </PackageReference>
+  </ItemGroup>
+</Project>

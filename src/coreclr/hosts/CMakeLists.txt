@@ -1,0 +1,13 @@
+include_directories(inc)
+
+if(WIN32)
+  add_subdirectory(corerun)
+  add_subdirectory(coreconsole)
+else(WIN32)
+  add_subdirectory(unixcoreruncommon)
+  add_subdirectory(unixcorerun)
+  add_subdirectory(unixcoreconsole)
+  if(CLR_CMAKE_PLATFORM_DARWIN)
+    add_subdirectory(osxbundlerun)
+  endif(CLR_CMAKE_PLATFORM_DARWIN)
+endif(WIN32)
