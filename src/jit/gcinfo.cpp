@@ -229,10 +229,8 @@ void GCInfo::gcMarkRegPtrVal(regNumber reg, var_types type)
 
 /*****************************************************************************/
 
-GCInfo::WriteBarrierForm GCInfo::gcIsWriteBarrierCandidate(GenTreePtr tgt, GenTreePtr assignVal)
+GCInfo::WriteBarrierForm GCInfo::gcIsWriteBarrierCandidate(GenTree* tgt, GenTree* assignVal)
 {
-#if FEATURE_WRITE_BARRIER
-
     /* Are we storing a GC ptr? */
 
     if (!varTypeIsGC(tgt->TypeGet()))
@@ -292,12 +290,11 @@ GCInfo::WriteBarrierForm GCInfo::gcIsWriteBarrierCandidate(GenTreePtr tgt, GenTr
     }
 
     assert(!"Missing case in gcIsWriteBarrierCandidate");
-#endif
 
     return WBF_NoBarrier;
 }
 
-bool GCInfo::gcIsWriteBarrierAsgNode(GenTreePtr op)
+bool GCInfo::gcIsWriteBarrierAsgNode(GenTree* op)
 {
     if (op->gtOper == GT_ASG)
     {
@@ -322,7 +319,7 @@ bool GCInfo::gcIsWriteBarrierAsgNode(GenTreePtr op)
  */
 
 #ifdef LEGACY_BACKEND
-void GCInfo::gcMarkRegPtrVal(GenTreePtr tree)
+void GCInfo::gcMarkRegPtrVal(GenTree* tree)
 {
     if (varTypeIsGC(tree->TypeGet()))
     {
@@ -515,7 +512,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
         }
         else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
-            unsigned slots  = compiler->lvaLclSize(varNum) / sizeof(void*);
+            unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
             BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 
             // walk each member of the array
@@ -672,7 +669,7 @@ void GCInfo::gcRegPtrSetInit()
 
 #endif // JIT32_GCENCODER
 
-GCInfo::WriteBarrierForm GCInfo::gcWriteBarrierFormFromTargetAddress(GenTreePtr tgtAddr)
+GCInfo::WriteBarrierForm GCInfo::gcWriteBarrierFormFromTargetAddress(GenTree* tgtAddr)
 {
     GCInfo::WriteBarrierForm result = GCInfo::WBF_BarrierUnknown; // Default case, we have no information.
 

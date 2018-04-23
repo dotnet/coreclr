@@ -531,6 +531,51 @@ namespace System.Reflection.Emit
             PutInteger4(modBuilder.GetSignatureToken(sig).Token);
         }
 
+        public virtual void EmitCalli(OpCode opcode, CallingConvention unmanagedCallConv, Type returnType, Type[] parameterTypes)
+        {
+            int stackchange = 0;
+            int cParams = 0;
+            int i;
+            SignatureHelper sig;
+
+            ModuleBuilder modBuilder = (ModuleBuilder)m_methodBuilder.Module;
+
+            if (parameterTypes != null)
+            {
+                cParams = parameterTypes.Length;
+            }
+
+            sig = SignatureHelper.GetMethodSigHelper(
+                modBuilder,
+                unmanagedCallConv,
+                returnType);
+
+            if (parameterTypes != null)
+            {
+                for (i = 0; i < cParams; i++)
+                {
+                    sig.AddArgument(parameterTypes[i]);
+                }
+            }
+
+            // If there is a non-void return type, push one.
+            if (returnType != typeof(void))
+                stackchange++;
+
+            // Pop off arguments if any.
+            if (parameterTypes != null)
+                stackchange -= cParams;
+
+            // Pop the native function pointer.
+            stackchange--;
+            UpdateStackSize(OpCodes.Calli, stackchange);
+
+            EnsureCapacity(7);
+            Emit(OpCodes.Calli);
+            RecordTokenFixup();
+            PutInteger4(modBuilder.GetSignatureToken(sig).Token);
+        }
+
         public virtual void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
             if (methodInfo == null)
@@ -682,7 +727,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(arg >> 56);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, float arg)
+        public unsafe virtual void Emit(OpCode opcode, float arg)
         {
             EnsureCapacity(7);
             InternalEmit(opcode);
@@ -693,7 +738,7 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte)(tempVal >> 24);
         }
 
-        unsafe public virtual void Emit(OpCode opcode, double arg)
+        public unsafe virtual void Emit(OpCode opcode, double arg)
         {
             EnsureCapacity(11);
             InternalEmit(opcode);
@@ -1125,9 +1170,7 @@ namespace System.Reflection.Emit
 
         private static Type GetConsoleType()
         {
-            return Type.GetType(
-                "System.Console, System.Console, Version=4.0.0.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-                throwOnError: true);
+            return Type.GetType("System.Console, System.Console", throwOnError: true);
         }
 
         public virtual void EmitWriteLine(String value)
@@ -1357,22 +1400,6 @@ namespace System.Reflection.Emit
         internal int m_currentCatch;
 
         private int m_currentState;
-
-
-        //This will never get called.  The values exist merely to keep the
-        //compiler happy.
-        private __ExceptionInfo()
-        {
-            m_startAddr = 0;
-            m_filterAddr = null;
-            m_catchAddr = null;
-            m_catchEndAddr = null;
-            m_endAddr = 0;
-            m_currentCatch = 0;
-            m_type = null;
-            m_endFinally = -1;
-            m_currentState = State_Try;
-        }
 
         internal __ExceptionInfo(int startAddr, Label endLabel)
         {

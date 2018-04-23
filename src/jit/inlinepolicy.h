@@ -56,6 +56,13 @@ public:
     // Handle an observation that must cause inlining to fail.
     void NoteFatal(InlineObservation obs) override;
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+
+    // Record observation for prior failure
+    void NotePriorFailure(InlineObservation obs) override;
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 protected:
     // Helper methods
     void NoteInternal(InlineObservation obs);
@@ -84,6 +91,7 @@ public:
         , m_CallsiteFrequency(InlineCallsiteFrequency::UNUSED)
         , m_InstructionCount(0)
         , m_LoadStoreCount(0)
+        , m_ArgFeedsTest(0)
         , m_ArgFeedsConstantTest(0)
         , m_ArgFeedsRangeCheck(0)
         , m_ConstantArgFeedsConstantTest(0)
@@ -148,6 +156,7 @@ protected:
     InlineCallsiteFrequency m_CallsiteFrequency;
     unsigned                m_InstructionCount;
     unsigned                m_LoadStoreCount;
+    unsigned                m_ArgFeedsTest;
     unsigned                m_ArgFeedsConstantTest;
     unsigned                m_ArgFeedsRangeCheck;
     unsigned                m_ConstantArgFeedsConstantTest;

@@ -35,12 +35,11 @@ namespace System.Threading
 #if FEATURE_COMINTEROP && FEATURE_APPX
     //
     // This is implemented in System.Runtime.WindowsRuntime, allowing us to ask that assembly for a WinRT-specific SyncCtx.
-    // I'd like this to be an interface, or at least an abstract class - but neither seems to play nice with FriendAccessAllowed.
     //
-    [FriendAccessAllowed]
-    internal class WinRTSynchronizationContextFactoryBase
+    // [FriendAccessAllowed]
+    internal abstract class WinRTSynchronizationContextFactoryBase
     {
-        public virtual SynchronizationContext Create(object coreDispatcher) { return null; }
+        public abstract SynchronizationContext Create(object coreDispatcher);
     }
 #endif //FEATURE_COMINTEROP
 
@@ -109,7 +108,7 @@ namespace System.Threading
 
         public virtual void Post(SendOrPostCallback d, Object state)
         {
-            ThreadPool.QueueUserWorkItem(new WaitCallback(d), state);
+            ThreadPool.QueueUserWorkItem(s => s.d(s.state), (d, state), preferLocal: false);
         }
 
 
@@ -172,16 +171,6 @@ namespace System.Threading
             }
         }
 
-        // Get the last SynchronizationContext that was set explicitly (not flowed via ExecutionContext.Capture/Run)        
-        internal static SynchronizationContext CurrentNoFlow
-        {
-            [FriendAccessAllowed]
-            get
-            {
-                return Current; // SC never flows
-            }
-        }
-
 #if FEATURE_APPX
         private static SynchronizationContext GetWinRTContext()
         {
@@ -217,14 +206,13 @@ namespace System.Threading
             WinRTSynchronizationContextFactoryBase factory = s_winRTContextFactory;
             if (factory == null)
             {
-                Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, " + AssemblyRef.SystemRuntimeWindowsRuntime, true);
+                Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, System.Runtime.WindowsRuntime", throwOnError: true);
                 s_winRTContextFactory = factory = (WinRTSynchronizationContextFactoryBase)Activator.CreateInstance(factoryType, true);
             }
             return factory;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         [return: MarshalAs(UnmanagedType.Interface)]
         private static extern object GetWinRTDispatcherForCurrentThread();
 #endif //FEATURE_APPX

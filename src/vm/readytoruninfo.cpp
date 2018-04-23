@@ -15,6 +15,7 @@
 #include "compile.h"
 #include "versionresilienthashcode.h"
 #include "typehashingalgorithms.h"
+#include "method.hpp"
 
 using namespace NativeFormat;
 
@@ -543,7 +544,8 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 }
 
 ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader, AllocMemTracker *pamTracker)
-    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstLeafLock), m_pPersistentInlineTrackingMap(NULL)
+    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstReadyToRunEntryPointToMethodDescMap),
+    m_pPersistentInlineTrackingMap(NULL)
 {
     STANDARD_VM_CONTRACT;
 
@@ -673,7 +675,7 @@ static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pMod
     return true;
 }
 
-PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
+PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig, BOOL fFixups)
 {
     STANDARD_VM_CONTRACT;
 
@@ -727,6 +729,7 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
         }
         if (!fShouldSearchCache)
         {
+            pConfig->SetProfilerRejectedPrecompiledCode();
             return NULL;
         }
 #endif // PROFILING_SUPPORTED
@@ -747,7 +750,12 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
         if (fFixups)
         {
             if (!m_pModule->FixupDelayList(dac_cast<TADDR>(m_pLayout->GetBase()) + offset))
+            {
+#ifndef CROSSGEN_COMPILE
+                pConfig->SetReadyToRunRejectedPrecompiledCode();
+#endif // CROSSGEN_COMPILE
                 return NULL;
+            }
         }
 
         id >>= 2;
@@ -857,7 +865,7 @@ PCODE ReadyToRunInfo::MethodIterator::GetMethodStartAddress()
 {
     STANDARD_VM_CONTRACT;
 
-    PCODE ret = m_pInfo->GetEntryPoint(GetMethodDesc(), FALSE);
+    PCODE ret = m_pInfo->GetEntryPoint(GetMethodDesc(), NULL, FALSE);
     _ASSERTE(ret != NULL);
     return ret;
 }

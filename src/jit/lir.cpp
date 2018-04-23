@@ -1434,7 +1434,7 @@ public:
     //
     CheckLclVarSemanticsHelper(Compiler*         compiler,
                                const LIR::Range* range,
-                               SmallHashTable<GenTreePtr, bool, 32U>& unusedDefs)
+                               SmallHashTable<GenTree*, bool, 32U>& unusedDefs)
         : compiler(compiler), range(range), unusedDefs(unusedDefs), unusedLclVarReads(compiler)
     {
     }
@@ -1445,7 +1445,7 @@ public:
     //    'true' if the Local variables semantics for the specified range is legal.
     bool Check()
     {
-        for (GenTreePtr node : *range)
+        for (GenTree* node : *range)
         {
             if (!node->isContained()) // a contained node reads operands in the parent.
             {
@@ -1473,9 +1473,9 @@ private:
     //
     // Arguments:
     //    node - the node to use operands from.
-    void UseNodeOperands(GenTreePtr node)
+    void UseNodeOperands(GenTree* node)
     {
-        for (GenTreePtr operand : node->Operands())
+        for (GenTree* operand : node->Operands())
         {
             if (!operand->IsLIR())
             {
@@ -1581,6 +1581,11 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         // Verify that the node is allowed in LIR.
         assert(node->IsLIR());
 
+        // Some nodes should never be marked unused, as they must be contained in the backend.
+        // These may be marked as unused during dead code elimination traversal, but they *must* be subsequently
+        // removed.
+        assert(!node->IsUnusedValue() || !node->OperIs(GT_FIELD_LIST, GT_LIST, GT_INIT_VAL));
+
         // Verify that the REVERSE_OPS flag is not set. NOTE: if we ever decide to reuse the bit assigned to
         // GTF_REVERSE_OPS for an LIR-only flag we will need to move this check to the points at which we
         // insert nodes into an LIR range.
@@ -1664,6 +1669,7 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         {
             GenTree* node = kvp.Key();
             assert(node->IsUnusedValue() && "found an unmarked unused value");
+            assert(!node->isContained() && "a contained node should have a user");
         }
     }
 
@@ -1762,3 +1768,10 @@ void LIR::InsertBeforeTerminator(BasicBlock* block, LIR::Range&& range)
 
     blockRange.InsertBefore(insertionPoint, std::move(range));
 }
+
+#ifdef DEBUG
+void GenTree::dumpLIRFlags()
+{
+    JITDUMP("[%c%c]", IsUnusedValue() ? 'U' : '-', IsRegOptional() ? 'O' : '-');
+}
+#endif

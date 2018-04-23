@@ -45,7 +45,7 @@ public:
         bool    signCheckOnly; // For converting between unsigned/signed int
     };
 
-    static void getCastDescription(GenTreePtr treeNode, CastInfo* castInfo);
+    static void getCastDescription(GenTree* treeNode, CastInfo* castInfo);
 
     // This variant of LowerRange is called from outside of the main Lowering pass,
     // so it creates its own instance of Lowering to do so.
@@ -120,6 +120,9 @@ private:
 #ifdef FEATURE_SIMD
     void ContainCheckSIMD(GenTreeSIMD* simdNode);
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+    void ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node);
+#endif // FEATURE_HW_INTRINSICS
 
 #ifdef DEBUG
     static void CheckCallArg(GenTree* arg);
@@ -137,7 +140,11 @@ private:
     // Call Lowering
     // ------------------------------
     void LowerCall(GenTree* call);
-    GenTree* LowerCompare(GenTree* tree);
+#ifndef _TARGET_64BIT_
+    GenTree* DecomposeLongCompare(GenTree* cmp);
+#endif
+    GenTree* OptimizeConstCompare(GenTree* cmp);
+    GenTree* LowerCompare(GenTree* cmp);
     GenTree* LowerJTrue(GenTreeOp* jtrue);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
@@ -151,18 +158,18 @@ private:
     GenTree* LowerVirtualVtableCall(GenTreeCall* call);
     GenTree* LowerVirtualStubCall(GenTreeCall* call);
     void LowerArgsForCall(GenTreeCall* call);
-    void ReplaceArgWithPutArgOrBitcast(GenTreePtr* ppChild, GenTreePtr newNode);
-    GenTree* NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryPtr info, var_types type);
-    void LowerArg(GenTreeCall* call, GenTreePtr* ppTree);
+    void ReplaceArgWithPutArgOrBitcast(GenTree** ppChild, GenTree* newNode);
+    GenTree* NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* info, var_types type);
+    void LowerArg(GenTreeCall* call, GenTree** ppTree);
 #ifdef _TARGET_ARMARCH_
-    GenTree* LowerFloatArg(GenTree* arg, fgArgTabEntry* info);
+    GenTree* LowerFloatArg(GenTree** pArg, fgArgTabEntry* info);
     GenTree* LowerFloatArgReg(GenTree* arg, regNumber regNum);
 #endif
 
     void InsertPInvokeCallProlog(GenTreeCall* call);
     void InsertPInvokeCallEpilog(GenTreeCall* call);
     void InsertPInvokeMethodProlog();
-    void InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTreePtr lastExpr));
+    void InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTree* lastExpr));
     GenTree* SetGCState(int cns);
     GenTree* CreateReturnTrapSeq();
     enum FrameLinkAction
@@ -220,22 +227,6 @@ private:
     bool IsCallTargetInRange(void* addr);
 
 #if defined(_TARGET_XARCH_)
-    //----------------------------------------------------------------------
-    // SetRegOptional - sets a bit to indicate to LSRA that register
-    // for a given tree node is optional for codegen purpose.  If no
-    // register is allocated to such a tree node, its parent node treats
-    // it as a contained memory operand during codegen.
-    //
-    // Arguments:
-    //    tree    -   GenTree node
-    //
-    // Returns
-    //    None
-    void SetRegOptional(GenTree* tree)
-    {
-        tree->gtLsraInfo.regOptional = true;
-    }
-
     GenTree* PreferredRegOptionalOperand(GenTree* tree);
 
     // ------------------------------------------------------------------
@@ -269,13 +260,18 @@ private:
         const bool op1Legal = tree->OperIsCommutative() && (operatorSize == genTypeSize(op1->TypeGet()));
         const bool op2Legal = operatorSize == genTypeSize(op2->TypeGet());
 
+        GenTree* regOptionalOperand = nullptr;
         if (op1Legal)
         {
-            SetRegOptional(op2Legal ? PreferredRegOptionalOperand(tree) : op1);
+            regOptionalOperand = op2Legal ? PreferredRegOptionalOperand(tree) : op1;
         }
         else if (op2Legal)
         {
-            SetRegOptional(op2);
+            regOptionalOperand = op2;
+        }
+        if (regOptionalOperand != nullptr)
+        {
+            regOptionalOperand->SetRegOptional();
         }
     }
 #endif // defined(_TARGET_XARCH_)
@@ -293,12 +289,15 @@ private:
     void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
 
     GenTree* LowerSwitch(GenTree* node);
+    bool TryLowerSwitchToBitTest(
+        BasicBlock* jumpTable[], unsigned jumpCount, unsigned targetCount, BasicBlock* bbSwitch, GenTree* switchValue);
+
     void LowerCast(GenTree* node);
 
 #if !CPU_LOAD_STORE_ARCH
     bool IsRMWIndirCandidate(GenTree* operand, GenTree* storeInd);
-    bool IsBinOpInRMWStoreInd(GenTreePtr tree);
-    bool IsRMWMemOpRootedAtStoreInd(GenTreePtr storeIndTree, GenTreePtr* indirCandidate, GenTreePtr* indirOpSource);
+    bool IsBinOpInRMWStoreInd(GenTree* tree);
+    bool IsRMWMemOpRootedAtStoreInd(GenTree* storeIndTree, GenTree** indirCandidate, GenTree** indirOpSource);
     bool LowerRMWMemOp(GenTreeIndir* storeInd);
 #endif
 
@@ -310,17 +309,15 @@ private:
 #ifdef FEATURE_SIMD
     void LowerSIMD(GenTreeSIMD* simdNode);
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+    void LowerHWIntrinsic(GenTreeHWIntrinsic* node);
+#endif // FEATURE_HW_INTRINSICS
 
     // Utility functions
-    void MorphBlkIntoHelperCall(GenTreePtr pTree, GenTreePtr treeStmt);
+    void MorphBlkIntoHelperCall(GenTree* pTree, GenTree* treeStmt);
 
 public:
-    static bool IndirsAreEquivalent(GenTreePtr pTreeA, GenTreePtr pTreeB);
-
-private:
-    static bool NodesAreEquivalentLeaves(GenTreePtr candidate, GenTreePtr storeInd);
-
-    bool AreSourcesPossiblyModifiedLocals(GenTree* addr, GenTree* base, GenTree* index);
+    static bool IndirsAreEquivalent(GenTree* pTreeA, GenTree* pTreeB);
 
     // return true if 'childNode' is an immediate that can be contained
     //  by the 'parentNode' (i.e. folded into an instruction)
@@ -333,8 +330,18 @@ private:
         return m_lsra->isContainableMemoryOp(node);
     }
 
+#ifdef FEATURE_HW_INTRINSICS
+    // Return true if 'node' is a containable HWIntrinsic op.
+    bool IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, GenTree* node);
+#endif // FEATURE_HW_INTRINSICS
+
+private:
+    static bool NodesAreEquivalentLeaves(GenTree* candidate, GenTree* storeInd);
+
+    bool AreSourcesPossiblyModifiedLocals(GenTree* addr, GenTree* base, GenTree* index);
+
     // Makes 'childNode' contained in the 'parentNode'
-    void MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode);
+    void MakeSrcContained(GenTree* parentNode, GenTree* childNode);
 
     // Checks and makes 'childNode' contained in the 'parentNode'
     bool CheckImmedAndMakeContained(GenTree* parentNode, GenTree* childNode);

@@ -45,9 +45,6 @@ class TestHelper
     {
         int snapshot = m_iSharedData;
         Delayer.Delay(Delayer.RandomShortDelay(m_rng));
-#if (DEBUG)
-        Console.WriteLine("Entering Monitor: " + m_iSharedData);
-#endif
         m_iSharedData++;
         Delayer.Delay(Delayer.RandomShortDelay(m_rng));
         if(m_iSharedData != snapshot + 1)
@@ -55,12 +52,10 @@ class TestHelper
             Error = true;
             Console.WriteLine("Failure!!!");
         }
-#if (DEBUG)
-        Console.WriteLine("Leaving Monitor: " + m_iSharedData);        
-#endif
         if(m_iSharedData == m_iRequestedEntries)
             m_Event.Set();
-    }    
+    }
+
     public void Consumer(object monitor)
     {
         lock(monitor)
@@ -68,19 +63,21 @@ class TestHelper
             DoWork();
         }    
     }
-    public void ConsumerTryEnter(object monitor,int timeout)
+
+    public void ConsumerTryEnter(object monitor, int timeout)
     {
+        bool tookLock = false;
+
+        Monitor.TryEnter(monitor, timeout, ref tookLock);
+
+        while (!tookLock)
+        {
+            Thread.Sleep(0);
+            Monitor.TryEnter(monitor, timeout, ref tookLock);
+        }
+
         try
         {
-            bool tookLock = false;
-            
-            Monitor.TryEnter(monitor,timeout, ref tookLock);
-
-            while(!tookLock) {                
-                Thread.Sleep(0);
-                Monitor.TryEnter(monitor,timeout, ref tookLock);
-            }
-
             DoWork();
         }
         finally

@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#ifndef __GCENV_OBJECT_H__
+#define __GCENV_OBJECT_H__
+
 //-------------------------------------------------------------------------------------------------
 //
 // Low-level types describing GC object layouts.
@@ -33,11 +36,12 @@ public:
 
 static_assert(sizeof(ObjHeader) == sizeof(uintptr_t), "this assumption is made by the VM!");
 
-#define MTFlag_ContainsPointers 0x0100
-#define MTFlag_HasFinalizer     0x0010
-#define MTFlag_IsArray          0x0008
-#define MTFlag_Collectible      0x1000
-#define MTFlag_HasComponentSize 0x8000
+#define MTFlag_ContainsPointers     0x0100
+#define MTFlag_HasCriticalFinalizer 0x0800
+#define MTFlag_HasFinalizer         0x0010
+#define MTFlag_IsArray              0x0008
+#define MTFlag_Collectible          0x1000
+#define MTFlag_HasComponentSize     0x8000
 
 class MethodTable
 {
@@ -100,7 +104,7 @@ public:
 
     bool HasCriticalFinalizer()
     {
-        return false;
+        return (m_flags & MTFlag_HasCriticalFinalizer) != 0;
     }
 
     bool IsArray()
@@ -117,12 +121,6 @@ public:
     bool SanityCheck()
     {
         return true;
-    }
-
-    uint8_t* GetLoaderAllocatorObjectForGC()
-    {
-        // [LOCALGC TODO] this is not correct
-        return nullptr;
     }
 };
 
@@ -168,3 +166,5 @@ public:
         return offsetof(ArrayBase, m_dwLength);
     }
 };
+
+#endif // __GCENV_OBJECT_H__

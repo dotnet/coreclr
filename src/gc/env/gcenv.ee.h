@@ -44,20 +44,19 @@ public:
     static void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
     static void SyncBlockCacheDemote(int max_gen);
     static void SyncBlockCachePromotionsGranted(int max_gen);
+    static uint32_t GetActiveSyncBlockCount();
 
     // Thread functions
-    static bool IsPreemptiveGCDisabled(Thread * pThread);
-    static void EnablePreemptiveGC(Thread * pThread);
-    static void DisablePreemptiveGC(Thread * pThread);
-    static bool TrapReturningThreads();
+    static bool IsPreemptiveGCDisabled();
+    static bool EnablePreemptiveGC();
+    static void DisablePreemptiveGC();
     static Thread* GetThread();
 
-    static gc_alloc_context * GetAllocContext(Thread * pThread);
-    static bool CatchAtSafePoint(Thread * pThread);
+    static gc_alloc_context * GetAllocContext();
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
 
-    static Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
+    static uint8_t* GetLoaderAllocatorObjectForGC(Object* pObject);
 
     // Diagnostics methods.
     static void DiagGCStart(int gen, bool isInduced);
@@ -81,7 +80,11 @@ public:
     static bool GetStringConfigValue(const char* key, const char** value);
     static void FreeStringConfigValue(const char* key);
     static bool IsGCThread();
-    static bool IsGCSpecialThread();
+    static bool WasCurrentThreadCreatedByGC();
+    static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    static void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
+    static void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    static IGCToCLREventSink* EventSink();
 };
 
 #endif // __GCENV_EE_H__

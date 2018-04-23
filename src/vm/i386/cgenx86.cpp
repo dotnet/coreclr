@@ -84,73 +84,6 @@ void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
 
 #ifndef DACCESS_COMPILE
 
-//=============================================================================
-// Runtime test to see if the OS has enabled support for the SSE2 instructions
-//
-//
-BOOL Runtime_Test_For_SSE2()
-{
-#ifdef FEATURE_CORESYSTEM
-    return TRUE;
-#else
-
-    BOOL result = IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE);
-
-    if (result == FALSE)
-        return FALSE;
-
-    // **********************************************************************
-    // ***                                                                ***
-    // ***   IMPORTANT NOTE:                                              ***
-    // ***                                                                ***
-    // ***     All of these RunningOnXXX APIs return true when            ***
-    // ***     the OS that you are running on is that OS or later.        ***
-    // ***     For example RunningOnWin2003() will return true            ***
-    // ***     when you are running on Win2k3, Vista, Win7 or later.      ***
-    // ***                                                                ***
-    // **********************************************************************
-
-
-    // Windows 7 and later should alwys be using SSE2 instructions
-    //  this is true for both for native and Wow64
-    //
-    if (RunningOnWin7())
-        return TRUE;
-
-    if (RunningInWow64())
-    {
-        // There is an issue with saving/restoring the SSE2 registers under wow64 
-        // So we figure out if we are running on an impacted OS and Service Pack level
-        //     See DevDiv Bugs 89587 for the wow64 bug.
-        //
-
-        _ASSERTE(ExOSInfoAvailable());  // This is always available on Vista and later
-
-        //
-        // The issue is fixed in Windows Server 2008 or Vista/SP1
-        //
-        // It is not fixed in Vista/RTM, so check for that case
-        // 
-        if ((ExOSInfoRunningOnServer() == FALSE))
-        {
-            OSVERSIONINFOEX osvi;
-
-            ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-            osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-            osvi.wServicePackMajor = 0;
-
-            DWORDLONG dwlConditionMask = 0;
-            VER_SET_CONDITION( dwlConditionMask, CLR_VER_SERVICEPACKMAJOR, VER_EQUAL);
-                
-            if (VerifyVersionInfo(&osvi, CLR_VER_SERVICEPACKMAJOR, dwlConditionMask))
-                result = FALSE;
-        }
-    }
-
-    return result;
-#endif
-}
-
 //---------------------------------------------------------------
 // Returns the type of CPU (the value of x of x86)
 // (Please note, that it returns 6 for P5-II)
@@ -390,9 +323,11 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         pRD->pCurrentContext->Eip = pRD->ControlPC = pUnwoundState->GetRetAddr();
         pRD->pCurrentContext->Esp = pRD->SP        = pUnwoundState->esp();
 
-#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *((DWORD*) pUnwoundState->p##regname());
-        ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
+        // Do not use pUnwoundState->p##regname() here because it returns NULL in this case
+        pRD->pCurrentContext->Edi = pUnwoundState->_edi;
+        pRD->pCurrentContext->Esi = pUnwoundState->_esi;
+        pRD->pCurrentContext->Ebx = pUnwoundState->_ebx;
+        pRD->pCurrentContext->Ebp = pUnwoundState->_ebp;
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = (DWORD*) pUnwoundState->p##regname();
         ENUM_CALLEE_SAVED_REGISTERS();
@@ -1511,89 +1446,6 @@ extern "C" DWORD __stdcall xmmYmmStateSupport()
 
 #endif // !FEATURE_PAL
 
-// This function returns the number of logical processors on a given physical chip.  If it cannot
-// determine the number of logical cpus, or the machine is not populated uniformly with the same
-// type of processors, this function returns 1.
-DWORD GetLogicalCpuCount()
-{
-    // No CONTRACT possible because GetLogicalCpuCount uses SEH
-
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-
-    static DWORD val = 0;
-
-    // cache value for later re-use
-    if (val)
-    {
-        return val;
-    }
-
-    struct Param : DefaultCatchFilterParam
-    {
-        DWORD retVal;
-    } param;
-    param.pv = COMPLUS_EXCEPTION_EXECUTE_HANDLER;
-    param.retVal = 1;
-
-    PAL_TRY(Param *, pParam, &param)
-    {
-        unsigned char buffer[16];
-        DWORD* dwBuffer = NULL;
-
-        DWORD maxCpuId = getcpuid(0, buffer);
-
-        if (maxCpuId < 1)
-            goto lDone;
-
-        dwBuffer = (DWORD*)buffer;
-
-        if (dwBuffer[1] == 'uneG') {
-            if (dwBuffer[3] == 'Ieni') {
-                if (dwBuffer[2] == 'letn')  {  // get SMT/multicore enumeration for Intel EM64T 
-
-                    // TODO: Currently GetLogicalCpuCountFromOS() and GetLogicalCpuCountFallback() are broken on 
-                    // multi-core processor, but we never call into those two functions since we don't halve the
-                    // gen0size when it's prescott and above processor. We keep the old version here for earlier
-                    // generation system(Northwood based), perf data suggests on those systems, halve gen0 size 
-                    // still boost the performance(ex:Biztalk boosts about 17%). So on earlier systems(Northwood) 
-                    // based, we still go ahead and halve gen0 size.  The logic in GetLogicalCpuCountFromOS() 
-                    // and GetLogicalCpuCountFallback() works fine for those earlier generation systems. 
-                    // If it's a Prescott and above processor or Multi-core, perf data suggests not to halve gen0 
-                    // size at all gives us overall better performance. 
-                    // This is going to be fixed with a new version in orcas time frame. 
-
-                    if( (maxCpuId > 3) && (maxCpuId < 0x80000000) ) 
-                        goto lDone;
-
-                    val = GetLogicalCpuCountFromOS(); //try to obtain HT enumeration from OS API
-                    if (val )
-                    {
-                        pParam->retVal = val;     // OS API HT enumeration successful, we are Done        
-                        goto lDone;
-                    }
-
-                    val = GetLogicalCpuCountFallback();    // OS API failed, Fallback to HT enumeration using CPUID
-                    if( val )
-                        pParam->retVal = val;
-                }
-            }
-        }
-lDone: ;
-    }
-    PAL_EXCEPT_FILTER(DefaultCatchFilter)
-    {
-    }
-    PAL_ENDTRY
-
-    if (val == 0)
-    {
-        val = param.retVal;
-    }
-
-    return param.retVal;
-}
-
 void UMEntryThunkCode::Encode(BYTE* pTargetCode, void* pvSecretParam)
 {
     LIMITED_METHOD_CONTRACT;
@@ -1614,7 +1466,12 @@ void UMEntryThunkCode::Poison()
 {
     LIMITED_METHOD_CONTRACT;
 
-    m_movEAX = X86_INSTR_INT3;
+    m_execstub = (BYTE*) ((BYTE*)UMEntryThunk::ReportViolation - (4+((BYTE*)&m_execstub)));
+
+    // mov ecx, imm32
+    m_movEAX = 0xb9;
+
+    ClrFlushInstructionCache(GetEntryPoint(),sizeof(UMEntryThunkCode));
 }
 
 UMEntryThunk* UMEntryThunk::Decode(LPVOID pCallback)

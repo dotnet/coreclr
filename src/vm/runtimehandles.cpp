@@ -114,12 +114,6 @@ static BOOL CheckCAVisibilityFromDecoratedType(MethodTable* pCAMT, MethodDesc* p
 
     if (pCACtor != NULL)
     {
-        // Allowing a dangerous method to be called in custom attribute instantiation is, well, dangerous.
-        // E.g. a malicious user can craft a custom attribute record that fools us into creating a DynamicMethod
-        // object attached to typeof(System.Reflection.CustomAttribute) and thus gain access to mscorlib internals.
-        if (InvokeUtil::IsDangerousMethod(pCACtor))
-            return FALSE;
-
         _ASSERTE(pCACtor->IsCtor());
 
         dwAttr = pCACtor->GetAttrs();
@@ -1012,7 +1006,6 @@ RuntimeTypeHandle::IsVisible(
 } // RuntimeTypeHandle::IsVisible
 
 FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsComObject, ReflectClassBaseObject *pTypeUNSAFE, CLR_BOOL isGenericCOM) {
-#ifdef FEATURE_COMINTEROP
     CONTRACTL {
         FCALL_CHECK;
     }
@@ -1037,17 +1030,6 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsComObject, ReflectClassBaseObject *pTy
     HELPER_METHOD_FRAME_END();
 
     FC_RETURN_BOOL(ret);
-#else
-    CONTRACTL {
-        DISABLED(NOTHROW);
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pTypeUNSAFE));
-    }
-    CONTRACTL_END;
-    FCUnique(0x37);
-    FC_RETURN_BOOL(FALSE);
-#endif
 }
 FCIMPLEND
 
@@ -1181,11 +1163,11 @@ void QCALLTYPE RuntimeTypeHandle::VerifyInterfaceIsImplemented(EnregisteredTypeH
     END_QCALL;
 }
 
-INT32 QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementationSlot(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD)
+MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD)
 {
     QCALL_CONTRACT;
 
-    INT32 slotNumber = -1;
+    MethodDesc* pResult = nullptr;
 
     BEGIN_QCALL;
 
@@ -1199,11 +1181,11 @@ INT32 QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementationSlot(Enregist
         //@TODO:              be done faster - just need to make a function FindDispatchDecl.
         DispatchSlot slot(typeHandle.GetMethodTable()->FindDispatchSlotForInterfaceMD(thOwnerOfMD, pMD));
     if (!slot.IsNull())
-            slotNumber = slot.GetMethodDesc()->GetSlot();
+            pResult = slot.GetMethodDesc();
 
     END_QCALL;
     
-    return slotNumber;
+    return pResult;
     }
     
 void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod)

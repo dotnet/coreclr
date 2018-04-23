@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace System
 {
@@ -21,20 +22,6 @@ namespace System
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public T[] Items
-        {
-            // This is a work around since we cannot use _memory.ToArray() due to
-            // https://devdiv.visualstudio.com/DevDiv/_workitems?id=286592
-            get
-            {
-                if (_memory.DangerousTryGetArray(out ArraySegment<T> segment))
-                {
-                    T[] array = new T[_memory.Length];
-                    Array.Copy(segment.Array, segment.Offset, array, 0, array.Length);
-                    return array;
-                }
-                return Array.Empty<T>();
-            }
-        }
+        public T[] Items => _memory.ToArray();
     }
 }

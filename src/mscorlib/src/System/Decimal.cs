@@ -60,7 +60,7 @@ namespace System
     [Serializable]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public struct Decimal : IFormattable, IComparable, IConvertible, IComparable<Decimal>, IEquatable<Decimal>, IDeserializationCallback
+    public partial struct Decimal : IFormattable, IComparable, IConvertible, IComparable<Decimal>, IEquatable<Decimal>, IDeserializationCallback, ISpanFormattable
     {
         // Sign mask for the flags field. A value of zero in this bit indicates a
         // positive Decimal value, and a value of one in this bit indicates a
@@ -140,6 +140,9 @@ namespace System
         private int lo;
         private int mid;
 
+        internal uint High => (uint)hi;
+        internal uint Low => (uint)lo;
+        internal uint Mid => (uint)mid;
 
         // Constructs a zero Decimal.
         //public Decimal() {
@@ -350,7 +353,7 @@ namespace System
         // positive, the result is d. If d is negative, the result
         // is -d.
         //
-        internal static Decimal Abs(Decimal d)
+        internal static Decimal Abs(ref Decimal d)
         {
             return new Decimal(d.lo, d.mid, d.hi, d.flags & ~SignMask);
         }
@@ -362,6 +365,10 @@ namespace System
             FCallAddSub(ref d1, ref d2, DECIMAL_ADD);
             return d1;
         }
+
+        internal bool IsNegative => (flags & SignMask) != 0;
+
+        internal int Scale => (byte)((uint)flags >> ScaleShift);
 
         // FCallAddSub adds or subtracts two decimal values.  On return, d1 contains the result
         // of the operation.  Passing in DECIMAL_ADD or DECIMAL_NEG for bSign indicates
@@ -494,6 +501,10 @@ namespace System
             return Number.FormatDecimal(this, format, NumberFormatInfo.GetInstance(provider));
         }
 
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format = default, IFormatProvider provider = null)
+        {
+            return Number.TryFormatDecimal(this, format, NumberFormatInfo.GetInstance(provider), destination, out charsWritten);
+        }
 
         // Converts a string to a Decimal. The string must consist of an optional
         // minus sign ("-") followed by a sequence of digits ("0" - "9"). The
@@ -505,30 +516,30 @@ namespace System
         public static Decimal Parse(String s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseDecimal(s.AsReadOnlySpan(), NumberStyles.Number, NumberFormatInfo.CurrentInfo);
+            return Number.ParseDecimal(s, NumberStyles.Number, NumberFormatInfo.CurrentInfo);
         }
 
         public static Decimal Parse(String s, NumberStyles style)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseDecimal(s.AsReadOnlySpan(), style, NumberFormatInfo.CurrentInfo);
+            return Number.ParseDecimal(s, style, NumberFormatInfo.CurrentInfo);
         }
 
         public static Decimal Parse(String s, IFormatProvider provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseDecimal(s.AsReadOnlySpan(), NumberStyles.Number, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseDecimal(s, NumberStyles.Number, NumberFormatInfo.GetInstance(provider));
         }
 
         public static Decimal Parse(String s, NumberStyles style, IFormatProvider provider)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return Number.ParseDecimal(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider));
+            return Number.ParseDecimal(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        public static decimal Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Integer, IFormatProvider provider = null)
+        public static decimal Parse(ReadOnlySpan<char> s, NumberStyles style = NumberStyles.Number, IFormatProvider provider = null)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
             return Number.ParseDecimal(s, style, NumberFormatInfo.GetInstance(provider));
@@ -542,7 +553,7 @@ namespace System
                 return false;
             }
 
-            return Number.TryParseDecimal(s.AsReadOnlySpan(), NumberStyles.Number, NumberFormatInfo.CurrentInfo, out result);
+            return Number.TryParseDecimal(s, NumberStyles.Number, NumberFormatInfo.CurrentInfo, out result);
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, out decimal result)
@@ -560,7 +571,7 @@ namespace System
                 return false;
             }
 
-            return Number.TryParseDecimal(s.AsReadOnlySpan(), style, NumberFormatInfo.GetInstance(provider), out result);
+            return Number.TryParseDecimal(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider provider, out decimal result)
@@ -703,14 +714,14 @@ namespace System
 
         // Returns the larger of two Decimal values.
         //
-        internal static Decimal Max(Decimal d1, Decimal d2)
+        internal static Decimal Max(ref Decimal d1, ref Decimal d2)
         {
             return FCallCompare(ref d1, ref d2) >= 0 ? d1 : d2;
         }
 
         // Returns the smaller of two Decimal values.
         //
-        internal static Decimal Min(Decimal d1, Decimal d2)
+        internal static Decimal Min(ref Decimal d1, ref Decimal d2)
         {
             return FCallCompare(ref d1, ref d2) < 0 ? d1 : d2;
         }
@@ -726,7 +737,7 @@ namespace System
             // This piece of code is to work around the fact that Dividing a decimal with 28 digits number by decimal which causes
             // causes the result to be 28 digits, can cause to be incorrectly rounded up.
             // eg. Decimal.MaxValue / 2 * Decimal.MaxValue will overflow since the division by 2 was rounded instead of being truncked.
-            if (Abs(d1) < Abs(d2))
+            if (Math.Abs(d1) < Math.Abs(d2))
             {
                 return d1;
             }

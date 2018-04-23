@@ -38,6 +38,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # There are constants of type BOOL used in a condition. But BOOL is defined as int
   # and so the compiler thinks that there is a mistake.
   add_compile_options(-Wno-constant-logical-operand)
+  # We use pshpack1/2/4/8.h and poppack.h headers to set and restore packing. However
+  # clang 6.0 complains when the packing change lifetime is not contained within 
+  # a header file.
+  add_compile_options(-Wno-pragma-pack)
 
   add_compile_options(-Wno-unknown-warning-option)
 
@@ -58,12 +62,10 @@ if(CLR_CMAKE_PLATFORM_UNIX_ARM)
    # we have to set the triple by adding a compiler argument
    add_compile_options(-mthumb)
    add_compile_options(-mfpu=vfpv3)
+   add_compile_options(-march=armv7-a)
    if(ARM_SOFTFP)
      add_definitions(-DARM_SOFTFP)
      add_compile_options(-mfloat-abi=softfp)
-     add_compile_options(-target armv7-linux-gnueabi)
-   else()
-     add_compile_options(-target armv7-linux-gnueabihf)
    endif(ARM_SOFTFP)
 endif(CLR_CMAKE_PLATFORM_UNIX_ARM)
 

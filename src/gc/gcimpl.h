@@ -91,6 +91,10 @@ public:
 
     bool RuntimeStructuresValid();
 
+    void SetSuspensionPending(bool fSuspensionPending);
+    
+    void SetYieldProcessorScalingFactor(uint32_t yieldProcessorScalingFactor);
+
     void SetWaitForGCEvent();
     void ResetWaitForGCEvent();
 
@@ -166,6 +170,12 @@ public:
 
     unsigned GetCondemnedGeneration();
 
+    void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
+                       uint64_t* totalPhysicalMem, 
+                       uint32_t* lastRecordedMemLoad,
+                       size_t* lastRecordedHeapSize,
+                       size_t* lastRecordedFragmentation);
+
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);
 
@@ -230,6 +240,10 @@ public:	// FIX
     virtual segment_handle RegisterFrozenSegment(segment_info *pseginfo);
     virtual void UnregisterFrozenSegment(segment_handle seg);
 
+    // Event control functions
+    void ControlEvents(GCEventKeyword keyword, GCEventLevel level);
+    void ControlPrivateEvents(GCEventKeyword keyword, GCEventLevel level);
+
     void    WaitUntilConcurrentGCComplete ();                               // Use in managd threads
 #ifndef DACCESS_COMPILE    
     HRESULT WaitUntilConcurrentGCCompleteAsync(int millisecondsTimeout);    // Use in native threads. TRUE if succeed. FALSE if failed or timeout
@@ -254,7 +268,7 @@ private:
         // to threads returning to cooperative mode is down after gc.
         // In other words, if the sequence in GCHeap::RestartEE changes,
         // the condition here may have to change as well.
-        return !GCToEEInterface::TrapReturningThreads();
+        return g_fSuspensionPending == 0;
     }
 public:
     //return TRUE if GC actually happens, otherwise FALSE

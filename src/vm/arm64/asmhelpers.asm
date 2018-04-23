@@ -381,12 +381,12 @@ shadowupdateend
         adrp     x12,  g_ephemeral_low
         ldr      x12,  [x12, g_ephemeral_low]
         cmp      x15,  x12
-        blt      Exit
+        blo      Exit
 
         adrp     x12, g_ephemeral_high 
         ldr      x12, [x12, g_ephemeral_high]
         cmp      x15,  x12
-        bgt      Exit
+        bhi      Exit
 
         ; Check if we need to update the card table        
         adrp     x12, g_card_table
@@ -985,8 +985,6 @@ UM2MThunk_WrapperHelper_RegArgumentsSetup
         GenerateRedirectedHandledJITCaseStub DbgThreadControl
 ;; ------------------------------------------------------------------
         GenerateRedirectedHandledJITCaseStub UserSuspend
-;; ------------------------------------------------------------------
-        GenerateRedirectedHandledJITCaseStub YieldTask
 
 #ifdef _DEBUG
 ; ------------------------------------------------------------------

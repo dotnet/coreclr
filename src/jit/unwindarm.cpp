@@ -371,7 +371,6 @@ void Compiler::unwindPushMaskInt(regMaskTP maskInt)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        unwindPushMaskCFI(maskInt, false);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -388,7 +387,6 @@ void Compiler::unwindPushMaskFloat(regMaskTP maskFloat)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        unwindPushMaskCFI(maskFloat, true);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -401,6 +399,7 @@ void Compiler::unwindPopMaskInt(regMaskTP maskInt)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
+        unwindPushPopMaskCFI(maskInt, false);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -429,6 +428,7 @@ void Compiler::unwindPopMaskFloat(regMaskTP maskFloat)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
+        unwindPushPopMaskCFI(maskFloat, true);
         return;
     }
 #endif // _TARGET_UNIX_
@@ -443,7 +443,7 @@ void Compiler::unwindAllocStack(unsigned size)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        if (compGeneratingProlog)
+        if (compGeneratingEpilog)
         {
             unwindAllocStackCFI(size);
         }
@@ -497,7 +497,7 @@ void Compiler::unwindSetFrameReg(regNumber reg, unsigned offset)
 #if defined(_TARGET_UNIX_)
     if (generateCFIUnwindCodes())
     {
-        if (compGeneratingProlog)
+        if (compGeneratingEpilog)
         {
             unwindSetFrameRegCFI(reg, offset);
         }
@@ -2314,7 +2314,7 @@ void DumpUnwindInfo(Compiler*         comp,
     else
     {
         printf("  --- One epilog, unwind codes at %u\n", epilogCount);
-        assert(epilogCount < sizeof(epilogStartAt) / sizeof(epilogStartAt[0]));
+        assert(epilogCount < _countof(epilogStartAt));
         epilogStartAt[epilogCount] = true; // the one and only epilog starts its unwind codes at this offset
     }
 

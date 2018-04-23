@@ -9,9 +9,8 @@ function print_usage {
     echo 'coreclr/tests/runtest.sh'
     echo '    --testRootDir="temp/Windows_NT.x64.Debug"'
     echo '    --testNativeBinDir="coreclr/bin/obj/Linux.x64.Debug/tests"'
-    echo '    --coreClrBinDir="coreclr/bin/Product/Linux.x64.Debug"'
-    echo '    --mscorlibDir="windows/coreclr/bin/Product/Linux.x64.Debug"'
-    echo '    --coreFxBinDir="corefx/bin/runtime/netcoreapp-Linux-Debug-x64'
+    echo '    --coreOverlayDir="coreclr/bin/tests/Linux.x64.Debug/Tests/Core_Root"'
+    echo '    --copyNativeTestBin'
     echo ''
     echo 'Required arguments:'
     echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
@@ -44,6 +43,7 @@ function print_usage {
     echo '  -h|--help                        : Show usage information.'
     echo '  --useServerGC                    : Enable server GC for this test run'
     echo '  --test-env                       : Script to set environment variables for tests'
+    echo '  --copyNativeTestBin              : Explicitly copy native test components into the test dir'
     echo '  --crossgen                       : Precompiles the framework managed assemblies'
     echo '  --runcrossgentests               : Runs the ready to run tests' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
@@ -52,13 +52,14 @@ function print_usage {
     echo '  --jitforcerelocs                 : Runs the tests with COMPlus_ForceRelocs=1'
     echo '  --jitdisasm                      : Runs jit-dasm on the tests'
     echo '  --gcstresslevel=<n>              : Runs the tests with COMPlus_GCStress=n'
+    echo '  --gcname=<n>                     : Runs the tests with COMPlus_GCName=n'
     echo '  --ilasmroundtrip                 : Runs ilasm round trip on the tests'
     echo '    0: None                                1: GC on all allocs and '"'easy'"' places'
     echo '    2: GC on transitions to preemptive GC  4: GC on every allowable JITed instr'
     echo '    8: GC on every allowable NGEN instr   16: GC only on a unique stack trace'
     echo '  --long-gc                        : Runs the long GC tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
-    echo '  --tieredcompilation              : Runs the tests with COMPlus_EXPERIMENTAL_TieredCompilation=1'
+    echo '  --tieredcompilation              : Runs the tests with COMPlus_TieredCompilation=1'
     echo '  --link <ILlink>                  : Runs the tests after linking via ILlink'
     echo '  --show-time                      : Print execution sequence and running time for each test'
     echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
@@ -98,6 +99,12 @@ countSkippedTests=0
 # Variables for xUnit-style XML output. XML format: https://xunit.github.io/docs/format-xml-v2.html
 xunitOutputPath=
 xunitTestOutputPath=
+
+# Variables for text file output. These can be passed back to runtest.sh using the "--playlist" argument
+# to rerun specific tests.
+testsPassOutputPath=
+testsFailOutputPath=
+testsSkipOutputPath=
 
 # libExtension determines extension for dynamic library files
 # runtimeName determines where CoreFX Runtime files will be located
@@ -300,6 +307,49 @@ function xunit_output_end {
     echo '</assemblies>' >>"$xunitOutputPath"
 }
 
+function text_file_output_begin {
+    if [ -z "$testsPassOutputPath" ]; then
+        testsPassOutputPath=$testRootDir/coreclrtests.pass.txt
+    fi
+    if ! [ -e $(basename "$testsPassOutputPath") ]; then
+        testsPassOutputPath=$testRootDir/coreclrtests.pass.txt
+    fi
+    if [ -e "$testsPassOutputPath" ]; then
+        rm -f "$testsPassOutputPath"
+    fi
+    if [ -z "$testsFailOutputPath" ]; then
+        testsFailOutputPath=$testRootDir/coreclrtests.fail.txt
+    fi
+    if ! [ -e $(basename "$testsFailOutputPath") ]; then
+        testsFailOutputPath=$testRootDir/coreclrtests.fail.txt
+    fi
+    if [ -e "$testsFailOutputPath" ]; then
+        rm -f "$testsFailOutputPath"
+    fi
+    if [ -z "$testsSkipOutputPath" ]; then
+        testsSkipOutputPath=$testRootDir/coreclrtests.skip.txt
+    fi
+    if ! [ -e $(basename "$testsSkipOutputPath") ]; then
+        testsSkipOutputPath=$testRootDir/coreclrtests.skip.txt
+    fi
+    if [ -e "$testsSkipOutputPath" ]; then
+        rm -f "$testsSkipOutputPath"
+    fi
+}
+
+function text_file_output_add_test {
+    local scriptFilePath=$1
+    local testResult=$2 # Pass, Fail, or Skip
+
+    if [ "$testResult" == "Pass" ]; then
+        echo "$scriptFilePath" >>"$testsPassOutputPath"
+    elif [ "$testResult" == "Skip" ]; then
+        echo "$scriptFilePath" >>"$testsSkipOutputPath"
+    else
+        echo "$scriptFilePath" >>"$testsFailOutputPath"
+    fi
+}
+
 function exit_with_error {
     local errorSource=$1
     local errorMessage=$2
@@ -337,6 +387,11 @@ function create_core_overlay {
 
     if [ -n "$coreOverlayDir" ]; then
         export CORE_ROOT="$coreOverlayDir"
+
+        if [ -n "$copyNativeTestBin" ]; then
+            copy_test_native_bin_to_test_root $coreOverlayDir
+        fi
+
         return
     fi
 
@@ -379,7 +434,7 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
-    copy_test_native_bin_to_test_root
+    copy_test_native_bin_to_test_root $coreOverlayDir
 }
 
 declare -a skipCrossGenFiles
@@ -437,6 +492,7 @@ function precompile_overlay_assemblies {
 
 function copy_test_native_bin_to_test_root {
     local errorSource='copy_test_native_bin_to_test_root'
+    local coreRootDir=$1
 
     if [ -z "$testNativeBinDir" ]; then
         exit_with_error "$errorSource" "--testNativeBinDir is required."
@@ -447,14 +503,10 @@ function copy_test_native_bin_to_test_root {
     fi
 
     # Copy native test components from the native test build into the respective test directory in the test root directory
-    find "$testNativeBinDir" -type f -iname '*.$libExtension' |
+    find "$testNativeBinDir" -type f -iname "*.$libExtension" |
         while IFS='' read -r filePath || [ -n "$filePath" ]; do
             local dirPath=$(dirname "$filePath")
-            local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
-            if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
-            fi
-            cp -f "$filePath" "$destinationDirPath/"
+            cp -f "$filePath" "$coreRootDir"
         done
 }
 
@@ -468,10 +520,17 @@ declare -a playlistTests
 function read_array {
     local theArray=()
 
+    if [ ! -f "$1" ]; then
+        return
+    fi
+
     # bash in Mac OS X doesn't support 'readarray', so using alternate way instead.
     # readarray -t theArray < "$1"
+    # Any line that starts with '#' is ignored.
     while IFS='' read -r line || [ -n "$line" ]; do
-        theArray[${#theArray[@]}]=$line
+        if [[ $line != "#"* ]]; then
+            theArray[${#theArray[@]}]=$line
+        fi
     done < "$1"
     echo ${theArray[@]}
 }
@@ -479,18 +538,13 @@ function read_array {
 function load_unsupported_tests {
     # Load the list of tests that are not supported on this platform. These tests are disabled (skipped) permanently.
     unsupportedTests=($(read_array "$(dirname "$0")/testsUnsupportedOutsideWindows.txt"))
-    if [ "$ARCH" == "arm" ]; then
-        unsupportedTests+=($(read_array "$(dirname "$0")/testsUnsupportedOnARM32.txt"))
-    fi
+    unsupportedTests+=($(read_array "$(dirname "$0")/testsUnsupported.$ARCH.txt"))
 }
 
 function load_failing_tests {
     # Load the list of tests that fail on this platform. These tests are disabled (skipped) temporarily, pending investigation.
     failingTests=($(read_array "$(dirname "$0")/testsFailingOutsideWindows.txt"))
-   
-    if [ "$ARCH" == "arm64" ]; then
-        failingTests+=($(read_array "$(dirname "$0")/testsFailingOnArm64.txt"))
-    fi
+    failingTests+=($(read_array "$(dirname "$0")/testsFailing.$ARCH.txt"))
 }
 
 function load_playlist_tests {
@@ -815,11 +869,11 @@ function finish_test {
         header=$header$(printf "[%4ds]" $testRunningTime)
     fi
 
-    local xunitTestResult
+    local testResult
     case $testScriptExitCode in
         0)
             let countPassedTests++
-            xunitTestResult='Pass'
+            testResult='Pass'
             if ((verbose == 1 || runFailingTestsOnly == 1)); then
                 echo "PASSED   - ${header}${scriptFilePath}"
             else
@@ -828,12 +882,12 @@ function finish_test {
             ;;
         2)
             let countSkippedTests++
-            xunitTestResult='Skip'
+            testResult='Skip'
             echo "SKIPPED  - ${header}${scriptFilePath}"
             ;;
         *)
             let countFailedTests++
-            xunitTestResult='Fail'
+            testResult='Fail'
             echo "FAILED   - ${header}${scriptFilePath}"
             ;;
     esac
@@ -845,7 +899,8 @@ function finish_test {
         done <"$outputFilePath"
     fi
 
-    xunit_output_add_test "$scriptFilePath" "$outputFilePath" "$xunitTestResult" "$testScriptExitCode" "$testRunningTime"
+    xunit_output_add_test "$scriptFilePath" "$outputFilePath" "$testResult" "$testScriptExitCode" "$testRunningTime"
+    text_file_output_add_test "$scriptFilePath" "$testResult"
 }
 
 function finish_remaining_tests {
@@ -1061,6 +1116,9 @@ do
         --jitminopts)
             export COMPlus_JITMinOpts=1
             ;;
+        --copyNativeTestBin)
+            export copyNativeTestBin=1
+            ;;
         --jitforcerelocs)
             export COMPlus_ForceRelocs=1
             ;;
@@ -1069,7 +1127,7 @@ do
             export DoLink=true
             ;;
         --tieredcompilation)
-            export COMPlus_EXPERIMENTAL_TieredCompilation=1
+            export COMPlus_TieredCompilation=1
             ;;
         --jitdisasm)
             jitdisasm=1
@@ -1143,6 +1201,9 @@ do
         --gcstresslevel=*)
             export COMPlus_GCStress=${i#*=}
             ;;            
+        --gcname=*)
+            export COMPlus_GCName=${i#*=}
+            ;;
         --show-time)
             showTime=ON
             ;;
@@ -1247,6 +1308,7 @@ then
 fi
 
 xunit_output_begin
+text_file_output_begin
 create_core_overlay
 precompile_overlay_assemblies
 
@@ -1271,11 +1333,8 @@ if [ "$ARCH" == "x64" ]
 then
     scriptPath=$(dirname $0)
     ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
-else
-    if [ "$ARCH" != "arm64" ]
-    then
-        echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
-    fi
+elif [ "$ARCH" != "arm64" ] && [ "$ARCH" != "arm" ]; then
+    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
 fi
 
 export __TestEnv=$testEnv

@@ -7,52 +7,53 @@ using System.Runtime.InteropServices;
 
 namespace System.Buffers
 {
+    /// <summary>
+    /// A handle for the memory.
+    /// </summary>
     public unsafe struct MemoryHandle : IDisposable
     {
-        private IRetainable _owner;
         private void* _pointer;
         private GCHandle _handle;
+        private IPinnable _pinnable;
 
+        /// <summary>
+        /// Creates a new memory handle for the memory.
+        /// </summary>
+        /// <param name="pointer">pointer to memory</param>
+        /// <param name="pinnable">reference to manually managed object, or default if there is no memory manager</param>
+        /// <param name="handle">handle used to pin array buffers</param>
         [CLSCompliant(false)]
-        public MemoryHandle(IRetainable owner, void* pointer = null, GCHandle handle = default(GCHandle))
+        public MemoryHandle(void* pointer, GCHandle handle = default, IPinnable pinnable = default)
         {
-            _owner = owner;
             _pointer = pointer;
             _handle = handle;
+            _pinnable = pinnable;
         }
 
-        internal void AddOffset(int offset)
-        {
-            if (_pointer == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pointer);
-            }
-            else
-            {
-                _pointer = (void*)((byte*)_pointer + offset);
-            }
-        }
-
+        /// <summary>
+        /// Returns the pointer to memory, where the memory is assumed to be pinned and hence the address won't change.
+        /// </summary>
         [CLSCompliant(false)]
         public void* Pointer => _pointer;
 
-        public bool HasPointer => _pointer != null;
-
+        /// <summary>
+        /// Frees the pinned handle and releases IPinnable.
+        /// </summary>
         public void Dispose()
-        { 
-            if (_handle.IsAllocated) 
+        {
+            if (_handle.IsAllocated)
             {
                 _handle.Free();
             }
 
-            if (_owner != null) 
+            if (_pinnable != null)
             {
-                _owner.Release();
-                _owner = null;
+                _pinnable.Unpin();
+                _pinnable = null;
             }
 
-            _pointer = null;           
+            _pointer = null;
         }
-        
+
     }
 }

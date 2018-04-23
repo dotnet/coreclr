@@ -418,23 +418,9 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
         }
 #endif // DEBUGGING_SUPPORTED
 
-#if CHECK_APP_DOMAIN_LEAKS
-        if (g_pConfig->AppDomainLeaks())
-        {
-            // See if we are in the correct domain to call on the object
-            if (m_methodSig.HasThis() && !m_pMD->GetMethodTable()->IsValueType())
-            {
-                CONTRACT_VIOLATION(ThrowsViolation|GCViolation|FaultViolation);
-                OBJECTREF pThis = ArgSlotToObj(pArguments[0]);
-                if (!pThis->AssignAppDomain(GetAppDomain()))
-                    _ASSERTE(!"Attempt to call method on object in wrong domain");
-            }
-        }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
 #ifdef _DEBUG
         {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
             // Validate that the return value is not too big for the buffer passed
             if (m_pMD->GetMethodTable()->IsRegPassedStruct())
             {
@@ -444,7 +430,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                     _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
                 }
             }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
             // The metasig should be reset
             _ASSERTE(m_methodSig.GetArgNum() == 0);
@@ -547,24 +533,13 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
             }
 #endif
 
-#if CHECK_APP_DOMAIN_LEAKS
-            // Make sure the arg is in the right app domain
-            if (g_pConfig->AppDomainLeaks() && m_argIt.GetArgType() == ELEMENT_TYPE_CLASS)
-            {
-                CONTRACT_VIOLATION(ThrowsViolation|GCViolation|FaultViolation);
-                OBJECTREF objRef = ArgSlotToObj(pArguments[arg]);
-                if (!objRef->AssignAppDomain(GetAppDomain()))
-                    _ASSERTE(!"Attempt to pass object in wrong app domain to method");
-            }
-#endif // CHECK_APP_DOMAIN_LEAKS
-
             ArgDestination argDest(pTransitionBlock, ofs, m_argIt.GetArgLocDescForStructInRegs());
 
             UINT32 stackSize = m_argIt.GetArgSize();
             // We need to pass in a pointer, but be careful of the ARG_SLOT calling convention. We might already have a pointer in the ARG_SLOT.
             PVOID pSrc = stackSize > sizeof(ARG_SLOT) ? (LPVOID)ArgSlotToPtr(pArguments[arg]) : (LPVOID)ArgSlotEndianessFixup((ARG_SLOT*)&pArguments[arg], stackSize);
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             if (argDest.IsStructPassedInRegs())
             {
                 TypeHandle th;
@@ -573,7 +548,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 argDest.CopyStructToRegisters(pSrc, th.AsMethodTable()->GetNumInstanceFieldBytes(), 0);
             }
             else
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
             {
                 PVOID pDest = argDest.GetDestinationAddress();
 

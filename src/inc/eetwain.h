@@ -40,11 +40,7 @@
 #define HAS_QUICKUNWIND
 #endif
 
-#if CHECK_APP_DOMAIN_LEAKS
-#define CHECK_APP_DOMAIN    GC_CALL_CHECK_APP_DOMAIN
-#else
 #define CHECK_APP_DOMAIN    0
-#endif
 
 #define NO_OVERRIDE_OFFSET (DWORD)-1
 
@@ -217,6 +213,10 @@ virtual bool UnwindStackFrame(PREGDISPLAY     pContext,
 */
 virtual bool IsGcSafe(EECodeInfo     *pCodeInfo,
                       DWORD           dwRelOffset) = 0;
+
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+virtual bool HasTailCalls(EECodeInfo *pCodeInfo) = 0;
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 /*
@@ -473,6 +473,11 @@ void QuickUnwindStackFrame(
 virtual
 bool IsGcSafe(  EECodeInfo     *pCodeInfo,
                 DWORD           dwRelOffset);
+
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+virtual
+bool HasTailCalls(EECodeInfo *pCodeInfo);
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 /*

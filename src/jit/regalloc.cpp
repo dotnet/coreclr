@@ -219,7 +219,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
     if (varTypeIsFloating(regType))
     {
         static const regNumber raRegVarOrderFlt[]   = {REG_VAR_ORDER_FLT};
-        const unsigned         raRegVarOrderFltSize = sizeof(raRegVarOrderFlt) / sizeof(raRegVarOrderFlt[0]);
+        const unsigned         raRegVarOrderFltSize = _countof(raRegVarOrderFlt);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderFltSize;
@@ -230,7 +230,7 @@ const regNumber* Compiler::raGetRegVarOrder(var_types regType, unsigned* wbVarOr
 #endif
     {
         static const regNumber raRegVarOrder[]   = {REG_VAR_ORDER};
-        const unsigned         raRegVarOrderSize = sizeof(raRegVarOrder) / sizeof(raRegVarOrder[0]);
+        const unsigned         raRegVarOrderSize = _countof(raRegVarOrder);
 
         if (wbVarOrderSize != NULL)
             *wbVarOrderSize = raRegVarOrderSize;
@@ -356,11 +356,11 @@ void Compiler::raAdjustVarIntf()
 /* Determine register mask for a call/return from type.
  */
 
-inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
+inline regMaskTP Compiler::genReturnRegForTree(GenTree* tree)
 {
     var_types type = tree->TypeGet();
 
-    if (type == TYP_STRUCT && IsHfa(tree))
+    if (varTypeIsStruct(type) && IsHfa(tree))
     {
         int retSlots = GetHfaCount(tree);
         return ((1 << retSlots) - 1) << REG_FLOATRET;
@@ -370,7 +370,6 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_ILLEGAL,   // TYP_UNDEF,
         RBM_NONE,      // TYP_VOID,
         RBM_INTRET,    // TYP_BOOL,
-        RBM_INTRET,    // TYP_CHAR,
         RBM_INTRET,    // TYP_BYTE,
         RBM_INTRET,    // TYP_UBYTE,
         RBM_INTRET,    // TYP_SHORT,
@@ -383,16 +382,13 @@ inline regMaskTP Compiler::genReturnRegForTree(GenTreePtr tree)
         RBM_DOUBLERET, // TYP_DOUBLE,
         RBM_INTRET,    // TYP_REF,
         RBM_INTRET,    // TYP_BYREF,
-        RBM_INTRET,    // TYP_ARRAY,
         RBM_ILLEGAL,   // TYP_STRUCT,
         RBM_ILLEGAL,   // TYP_BLK,
         RBM_ILLEGAL,   // TYP_LCLBLK,
-        RBM_ILLEGAL,   // TYP_PTR,
-        RBM_ILLEGAL,   // TYP_FNC,
         RBM_ILLEGAL,   // TYP_UNKNOWN,
     };
 
-    assert((unsigned)type < sizeof(returnMap) / sizeof(returnMap[0]));
+    assert((unsigned)type < _countof(returnMap));
     assert(returnMap[TYP_LONG] == RBM_LNGRET);
     assert(returnMap[TYP_DOUBLE] == RBM_DOUBLERET);
     assert(returnMap[TYP_REF] == RBM_INTRET);
@@ -468,7 +464,7 @@ void Compiler::raDispFPlifeInfo()
 
     for (block = fgFirstBB; block; block = block->bbNext)
     {
-        GenTreePtr stmt;
+        GenTree* stmt;
 
         printf("BB%02u: in  = [ ", block->bbNum);
         dispLifeSet(this, optAllFloatVars, block->bbLiveIn);
@@ -477,7 +473,7 @@ void Compiler::raDispFPlifeInfo()
         VARSET_TP life(VarSetOps::MakeCopy(this, block->bbLiveIn));
         for (stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
         {
-            GenTreePtr tree;
+            GenTree* tree;
 
             noway_assert(stmt->gtOper == GT_STMT);
 
@@ -751,7 +747,7 @@ regNumber Compiler::raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc
 #endif // _TARGET_ARM_
 
 #if FEATURE_MULTIREG_ARGS
-    if (argDsc->lvType == TYP_STRUCT)
+    if (varTypeIsStruct(argDsc->lvType))
     {
         if (argDsc->lvIsHfaRegArg())
         {
@@ -845,6 +841,7 @@ void Compiler::raAssignVars()
                  varNum++)
             {
                 noway_assert(lvaTable[varNum].lvRefCnt == 0);
+                lvaTable[varNum].lvIsStructField = false;
             }
         }
         else
@@ -1064,7 +1061,7 @@ inline regMaskTP Compiler::rpPredictRegMask(rpPredictReg predictReg, var_types t
     if (rpHasVarIndexForPredict(predictReg))
         predictReg = PREDICT_REG;
 
-    noway_assert((unsigned)predictReg < sizeof(rpPredictMap) / sizeof(rpPredictMap[0]));
+    noway_assert((unsigned)predictReg < _countof(rpPredictMap));
     noway_assert(rpPredictMap[predictReg] != RBM_ILLEGAL);
 
     regMaskTP regAvailForType = rpPredictMap[predictReg];
@@ -1131,7 +1128,7 @@ regMaskTP Compiler::rpPredictRegPick(var_types type, rpPredictReg predictReg, re
         case TYP_BYTE:
         case TYP_UBYTE:
         case TYP_SHORT:
-        case TYP_CHAR:
+        case TYP_USHORT:
         case TYP_INT:
         case TYP_UINT:
         case TYP_REF:
@@ -1386,11 +1383,11 @@ RET:
  */
 
 regMaskTP Compiler::rpPredictAddressMode(
-    GenTreePtr tree, var_types type, regMaskTP lockedRegs, regMaskTP rsvdRegs, GenTreePtr lenCSE)
+    GenTree* tree, var_types type, regMaskTP lockedRegs, regMaskTP rsvdRegs, GenTree* lenCSE)
 {
-    GenTreePtr op1;
-    GenTreePtr op2;
-    GenTreePtr opTemp;
+    GenTree*   op1;
+    GenTree*   op2;
+    GenTree*   opTemp;
     genTreeOps oper = tree->OperGet();
     regMaskTP  op1Mask;
     regMaskTP  op2Mask;
@@ -1712,7 +1709,7 @@ void Compiler::rpPredictRefAssign(unsigned lclNum)
  *                 the rpLastUseVars set should be saved and restored
  *                 so that we don't add any new variables to rpLastUseVars.
  */
-regMaskTP Compiler::rpPredictBlkAsgRegUse(GenTreePtr   tree,
+regMaskTP Compiler::rpPredictBlkAsgRegUse(GenTree*     tree,
                                           rpPredictReg predictReg,
                                           regMaskTP    lockedRegs,
                                           regMaskTP    rsvdRegs)
@@ -1725,8 +1722,8 @@ regMaskTP Compiler::rpPredictBlkAsgRegUse(GenTreePtr   tree,
     bool        useMemHelper  = false;
     bool        useBarriers   = false;
     GenTreeBlk* dst           = tree->gtGetOp1()->AsBlk();
-    GenTreePtr  dstAddr       = dst->Addr();
-    GenTreePtr  srcAddrOrFill = tree->gtGetOp2IfPresent();
+    GenTree*    dstAddr       = dst->Addr();
+    GenTree*    srcAddrOrFill = tree->gtGetOp2IfPresent();
 
     size_t blkSize = dst->gtBlkSize;
 
@@ -1835,8 +1832,8 @@ regMaskTP Compiler::rpPredictBlkAsgRegUse(GenTreePtr   tree,
     }
 #endif
     // What order should the Dest, Val/Src, and Size be calculated
-    GenTreePtr opsPtr[3];
-    regMaskTP  regsPtr[3];
+    GenTree*  opsPtr[3];
+    regMaskTP regsPtr[3];
 
 #if defined(_TARGET_XARCH_)
     fgOrderBlockOps(tree, RBM_EDI, (isInitBlk) ? RBM_EAX : RBM_ESI, RBM_ECX, opsPtr, regsPtr);
@@ -1938,7 +1935,7 @@ regMaskTP Compiler::rpPredictBlkAsgRegUse(GenTreePtr   tree,
 #pragma warning(push)
 #pragma warning(disable : 21000) // Suppress PREFast warning about overly large function
 #endif
-regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
+regMaskTP Compiler::rpPredictTreeRegUse(GenTree*     tree,
                                         rpPredictReg predictReg,
                                         regMaskTP    lockedRegs,
                                         regMaskTP    rsvdRegs)
@@ -1986,7 +1983,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
         unsigned varIndex = rpGetVarIndexForPredict(predictReg);
         unsigned lclNum   = lvaTrackedToVarNum[varIndex];
         bool     found    = false;
-        for (GenTreePtr nextTree = tree->gtNext; nextTree != NULL && !found; nextTree = nextTree->gtNext)
+        for (GenTree* nextTree = tree->gtNext; nextTree != NULL && !found; nextTree = nextTree->gtNext)
         {
             if (nextTree->gtOper == GT_LCL_VAR && nextTree->gtLclVarCommon.gtLclNum == lclNum)
             {
@@ -2479,11 +2476,11 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
     if (kind & GTK_SMPOP)
     {
-        GenTreePtr op1 = tree->gtOp.gtOp1;
-        GenTreePtr op2 = tree->gtGetOp2IfPresent();
+        GenTree* op1 = tree->gtOp.gtOp1;
+        GenTree* op2 = tree->gtGetOp2IfPresent();
 
-        GenTreePtr opsPtr[3];
-        regMaskTP  regsPtr[3];
+        GenTree*  opsPtr[3];
+        regMaskTP regsPtr[3];
 
         VARSET_TP startAsgUseInPlaceVars(VarSetOps::UninitVal());
 
@@ -2829,9 +2826,10 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                         if (op1->gtOper == GT_IND)
                         {
-                            GenTreePtr rv1, rv2;
-                            unsigned   mul, cns;
-                            bool       rev;
+                            GenTree* rv1;
+                            GenTree* rv2;
+                            unsigned mul, cns;
+                            bool     rev;
 
                             /* Special handling of indirect assigns for write barrier */
 
@@ -3247,7 +3245,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                     rsvdRegs |= RBM_LASTUSE;
                 }
 
-                GenTreePtr lenCSE;
+                GenTree* lenCSE;
                 lenCSE = NULL;
 
                 /* check for address mode */
@@ -3452,7 +3450,8 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 if (regMask == RBM_NONE)
                 {
                     rpPredictReg op1xPredictReg, op2xPredictReg;
-                    GenTreePtr   op1x, op2x;
+                    GenTree*     op1x;
+                    GenTree*     op2x;
                     if (tree->gtFlags & GTF_REVERSE_OPS) // TODO: do we really need to handle this case?
                     {
                         op1xPredictReg = op2PredictReg;
@@ -3820,7 +3819,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 #endif
 
                 /* set the lvPref reg if possible */
-                GenTreePtr dest;
+                GenTree* dest;
                 /*
                  *  Walking the gtNext link twice from here should get us back
                  *  to our parent node, if this is an simple assignment tree.
@@ -4127,8 +4126,8 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                         //
                         predictReg = PREDICT_SCRATCH_REG;
                     }
-                    GenTreePtr elseTree = op2->AsColon()->ElseNode();
-                    GenTreePtr thenTree = op2->AsColon()->ThenNode();
+                    GenTree* elseTree = op2->AsColon()->ElseNode();
+                    GenTree* thenTree = op2->AsColon()->ThenNode();
 
                     noway_assert(thenTree != NULL && elseTree != NULL);
 
@@ -4392,7 +4391,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 }
                 tree->gtUsedRegs = (regMaskSmall)(regMask | tmpMask);
                 goto RETURN_CHECK;
-#else  // !_TARGET_ARM
+#else  // !_TARGET_ARM_
                 goto GENERIC_UNARY;
 #endif // _TARGET_ARM_
             }
@@ -4479,7 +4478,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
     switch (oper)
     {
-        GenTreePtr      args;
+        GenTree*        args;
         GenTreeArgList* list;
         regMaskTP       keepMask;
         unsigned        regArgsNum;
@@ -4614,7 +4613,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
 
                 assert(!args->IsArgPlaceHolderNode()); // No place holders nodes are in gtCallLateArgs;
 
-                fgArgTabEntryPtr curArgTabEntry = gtArgEntryByNode(tree->AsCall(), args);
+                fgArgTabEntry* curArgTabEntry = gtArgEntryByNode(tree->AsCall(), args);
                 assert(curArgTabEntry);
 
                 regNumber regNum = curArgTabEntry->regNum; // first register use to pass this argument
@@ -4649,8 +4648,8 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 }
                 else if (args->TypeGet() == TYP_STRUCT)
                 {
-                    GenTreePtr argx       = args;
-                    GenTreePtr lclVarTree = NULL;
+                    GenTree* argx       = args;
+                    GenTree* lclVarTree = NULL;
 
                     /* The GT_OBJ may be be a child of a GT_COMMA */
                     while (argx->gtOper == GT_COMMA)
@@ -4814,7 +4813,7 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 // for the duration of the OBJ.
                 if (args->OperGet() == GT_OBJ && (args->gtFlags & GTF_VAR_DEATH))
                 {
-                    GenTreePtr lclVarTree = fgIsIndirOfAddrOfLocal(args);
+                    GenTree* lclVarTree = fgIsIndirOfAddrOfLocal(args);
                     assert(lclVarTree != NULL); // Or else would not be marked with GTF_VAR_DEATH.
                     compUpdateLifeVar</*ForCodeGen*/ false>(lclVarTree);
                 }
@@ -6433,7 +6432,7 @@ void Compiler::rpPredictRegUse()
 
         for (BasicBlock* block = fgFirstBB; block != NULL; block = block->bbNext)
         {
-            GenTreePtr stmt;
+            GenTree* stmt;
             compCurBB       = block;
             compCurLifeTree = NULL;
             VarSetOps::Assign(this, compCurLife, block->bbLiveIn);
@@ -6448,7 +6447,7 @@ void Compiler::rpPredictRegUse()
                 VarSetOps::AssignNoCopy(this, rpLastUseVars, VarSetOps::MakeEmpty(this));
                 VarSetOps::AssignNoCopy(this, rpUseInPlace, VarSetOps::MakeEmpty(this));
 
-                GenTreePtr tree = stmt->gtStmt.gtStmtExpr;
+                GenTree* tree = stmt->gtStmt.gtStmtExpr;
                 stmtNum++;
 #ifdef DEBUG
                 if (verbose && 1)

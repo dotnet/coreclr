@@ -129,14 +129,15 @@ fi
 if [[ -n "$CROSSCOMPONENT" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DCLR_CROSS_COMPONENTS_BUILD=1"
 fi
-if [[ -n "$CROSSCOMPILE" ]]; then
+if [ "$CROSSCOMPILE" == "1" ]; then
     if ! [[ -n "$ROOTFS_DIR" ]]; then
         echo "ROOTFS_DIR not set for crosscompile"
         exit 1
     fi
     if [[ -z $CONFIG_DIR ]]; then
-        CONFIG_DIR="$1/cross/$build_arch"
+        CONFIG_DIR="$1/cross"
     fi
+    export TARGET_BUILD_ARCH=$build_arch
     cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
     cmake_extra_defines="$cmake_extra_defines -DCLR_UNIX_CROSS_BUILD=1"

@@ -1141,7 +1141,7 @@ StackWalkAction LogCallstackForLogCallback(
 // A worker to save managed stack trace.
 //
 // Arguments:
-//    reporter - EventReporter object for EventLog
+//    None
 //
 // Return Value:
 //    None
@@ -1176,21 +1176,38 @@ inline void LogCallstackForLogWorker()
 // Return Value:
 //    None
 //
-inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
 {
     WRAPPER_NO_CONTRACT;
 
     Thread *pThread = GetThread();
     EX_TRY
     {
-        PrintToStdErrA("FailFast: ");
+        if (errorSource == NULL)
+        {
+            PrintToStdErrA("FailFast:");
+        }
+        else 
+        {
+            PrintToStdErrW((WCHAR*)errorSource);
+        }
+
+        PrintToStdErrA("\n");
         PrintToStdErrW((WCHAR*)pszMessage);
         PrintToStdErrA("\n");
 
-        if (pThread)
+        if (pThread && errorSource == NULL)
         {
             PrintToStdErrA("\n");
             LogCallstackForLogWorker();
+
+            if (argExceptionString != NULL) {
+                PrintToStdErrA("\n");
+                PrintToStdErrA("Exception details:");
+                PrintToStdErrA("\n");
+                PrintToStdErrW((WCHAR*)argExceptionString);
+                PrintToStdErrA("\n");
+            }
         }
     }
     EX_CATCH
@@ -1199,11 +1216,13 @@ inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pE
     EX_END_CATCH(SwallowAllExceptions)
 }
 
+//This starts FALSE and then converts to true if HandleFatalError has ever been called by a GC thread
+BOOL g_fFatalErrorOccuredOnGCThread = FALSE;
 //
 // Log an error to the event log if possible, then throw up a dialog box.
 //
 
-void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -1214,7 +1233,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
     // Log FailFast exception to StdErr
     if (exitCode == (UINT)COR_E_FAILFAST)
     {
-        DoLogForFailFastException(pszMessage, pExceptionInfo);
+        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, argExceptionString);
     }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
@@ -1245,13 +1264,18 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
             else if (exitCode == (UINT)COR_E_CODECONTRACTFAILED)
                 failureType = EventReporter::ERT_CodeContractFailed;
             EventReporter reporter(failureType);
-
+            StackSString s(argExceptionString);
 
             if ((exitCode == (UINT)COR_E_FAILFAST) || (exitCode == (UINT)COR_E_CODECONTRACTFAILED) || (exitCode == (UINT)CLR_E_GC_OOM))
             {
                 if (pszMessage)
                 {
                     reporter.AddDescription((WCHAR*)pszMessage);
+                }
+
+                if (argExceptionString)
+                {
+                    reporter.AddFailFastStackTrace(s);
                 }
 
                 if (exitCode != (UINT)CLR_E_GC_OOM)
@@ -1327,7 +1351,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
         //Give a managed debugger a chance if this fatal error is on a managed thread.
         Thread *pThread = GetThread();
 
-        if (pThread)
+        if (pThread && !g_fFatalErrorOccuredOnGCThread)
         {
             GCX_COOP();
 
@@ -1450,7 +1474,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
         }
 
 #ifndef FEATURE_PAL        
-        if (RunningOnWin7() && IsWatsonEnabled() && (g_pDebugInterface != NULL))
+        if (IsWatsonEnabled() && (g_pDebugInterface != NULL))
         {
             _ASSERTE(pExceptionInfo != NULL);
 
@@ -1469,7 +1493,10 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */)
+
+
+
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1504,6 +1531,14 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         // All of the code from here on out is robust to any failures in any API's that are called.
         CONTRACT_VIOLATION(GCViolation | ModeViolation | SOToleranceViolation | FaultNotFatal | TakesLockViolation);
 
+
+        // Setting g_fFatalErrorOccuredOnGCThread allows code to avoid attempting to make GC mode transitions which could
+        // block indefinately if the fatal error occured during the GC.
+        if (IsGCSpecialThread() && GCHeapUtilities::IsGCInProgress())
+        {
+            g_fFatalErrorOccuredOnGCThread = TRUE;
+        }
+
         // ThreadStore lock needs to be released before continuing with the FatalError handling should 
         // because debugger is going to take CrstDebuggerMutex, whose lock level is higher than that of 
         // CrstThreadStore.  It should be safe to release the lock since execution will not be resumed 
@@ -1519,11 +1554,11 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         switch (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime))
         {
         case eRudeExitProcess:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
 	        SafeExitProcess(exitCode, TRUE);
             break;
         case eDisableRuntime:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
             DisableRuntime(SCA_ExitProcessWhenShutdownComplete);
             break;
         default:

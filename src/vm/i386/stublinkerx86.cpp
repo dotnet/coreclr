@@ -16,7 +16,6 @@
 #include "field.h"
 #include "stublink.h"
 
-#include "tls.h"
 #include "frames.h"
 #include "excep.h"
 #include "dllimport.h"
@@ -3834,28 +3833,56 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
     {
         if (pEntry->srcofs & ShuffleEntry::REGMASK)
         {
-            // If source is present in register then destination must also be a register
-            _ASSERTE(pEntry->dstofs & ShuffleEntry::REGMASK);
-            // Both the srcofs and dstofs must be of the same kind of registers - float or general purpose.
-            _ASSERTE((pEntry->dstofs & ShuffleEntry::FPREGMASK) == (pEntry->srcofs & ShuffleEntry::FPREGMASK));
-
-            int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
+            // Source in a general purpose or float register, destination in the same kind of a register or on stack
             int srcRegIndex = pEntry->srcofs & ShuffleEntry::OFSREGMASK;
 
-            if (pEntry->srcofs & ShuffleEntry::FPREGMASK) 
+            if (pEntry->dstofs & ShuffleEntry::REGMASK)
             {
-                // movdqa dstReg, srcReg
-                X64EmitMovXmmXmm((X86Reg)(kXMM0 + dstRegIndex), (X86Reg)(kXMM0 + srcRegIndex));
+                // Source in register, destination in register
+
+                // Both the srcofs and dstofs must be of the same kind of registers - float or general purpose.
+                _ASSERTE((pEntry->dstofs & ShuffleEntry::FPREGMASK) == (pEntry->srcofs & ShuffleEntry::FPREGMASK));
+                int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
+
+                if (pEntry->srcofs & ShuffleEntry::FPREGMASK) 
+                {
+                    // movdqa dstReg, srcReg
+                    X64EmitMovXmmXmm((X86Reg)(kXMM0 + dstRegIndex), (X86Reg)(kXMM0 + srcRegIndex));
+                }
+                else
+                {
+                    // mov dstReg, srcReg
+                    X86EmitMovRegReg(c_argRegs[dstRegIndex], c_argRegs[srcRegIndex]);
+                }
             }
             else
             {
-                // mov dstReg, srcReg
-                X86EmitMovRegReg(c_argRegs[dstRegIndex], c_argRegs[srcRegIndex]);
+                // Source in register, destination on stack
+                int dstOffset = (pEntry->dstofs + 1) * sizeof(void*);
+
+                if (pEntry->srcofs & ShuffleEntry::FPREGMASK) 
+                {
+                    if (pEntry->dstofs & ShuffleEntry::FPSINGLEMASK)
+                    {
+                        // movss [rax + dst], srcReg
+                        X64EmitMovSSToMem((X86Reg)(kXMM0 + srcRegIndex), SCRATCH_REGISTER_X86REG, dstOffset);
+                    }
+                    else
+                    {
+                        // movsd [rax + dst], srcReg
+                        X64EmitMovSDToMem((X86Reg)(kXMM0 + srcRegIndex), SCRATCH_REGISTER_X86REG, dstOffset);
+                    }
+                }
+                else
+                {
+                    // mov [rax + dst], srcReg
+                    X86EmitIndexRegStore (SCRATCH_REGISTER_X86REG, dstOffset, c_argRegs[srcRegIndex]);
+                }
             }
         }
         else if (pEntry->dstofs & ShuffleEntry::REGMASK)
         {
-            // source must be on the stack
+            // Source on stack, destination in register
             _ASSERTE(!(pEntry->srcofs & ShuffleEntry::REGMASK));
 
             int dstRegIndex = pEntry->dstofs & ShuffleEntry::OFSREGMASK;
@@ -3882,10 +3909,8 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
         }
         else
         {
-            // source must be on the stack
+            // Source on stack, destination on stack
             _ASSERTE(!(pEntry->srcofs & ShuffleEntry::REGMASK));
-
-            // dest must be on the stack
             _ASSERTE(!(pEntry->dstofs & ShuffleEntry::REGMASK));
 
             // mov r10, [rax + src]
@@ -5925,14 +5950,40 @@ static void AppendGCLayout(ULONGARRAY &gcLayout, size_t baseOffset, BOOL fIsType
         _ASSERTE(pMT);
         _ASSERTE(pMT->IsValueType());
 
-        if (pMT->IsByRefLike())
+        BOOL isByRefLike = pMT->IsByRefLike();
+        if (isByRefLike)
         {
             FindByRefPointerOffsetsInByRefLikeObject(
                 pMT,
-                baseOffset,
+                0 /* baseOffset */,
                 [&](size_t pointerOffset)
                 {
-                    *gcLayout.AppendThrowing() = (ULONG)(pointerOffset | 1); // "| 1" to mark it as an interior pointer
+                    // 'gcLayout' requires stack offsets relative to the top of the stack to be recorded, such that subtracting
+                    // the offset from the stack top yields the address of the field, given that subtracting 'baseOffset' from
+                    // the stack top yields the address of the first field in this struct. See TailCallFrame::GcScanRoots() for
+                    // how these offsets are used to calculate stack addresses for fields.
+                    _ASSERTE(pointerOffset < baseOffset);
+                    size_t stackOffsetFromTop = baseOffset - pointerOffset;
+                    _ASSERTE(FitsInU4(stackOffsetFromTop));
+
+                    // Offsets in 'gcLayout' are expected to be in increasing order
+                    int gcLayoutInsertIndex = gcLayout.Count();
+                    _ASSERTE(gcLayoutInsertIndex >= 0);
+                    for (; gcLayoutInsertIndex != 0; --gcLayoutInsertIndex)
+                    {
+                        ULONG prevStackOffsetFromTop = gcLayout[gcLayoutInsertIndex - 1] & ~(ULONG)1;
+                        if (stackOffsetFromTop > prevStackOffsetFromTop)
+                        {
+                            break;
+                        }
+                        if (stackOffsetFromTop == prevStackOffsetFromTop)
+                        {
+                            return;
+                        }
+                    }
+
+                    _ASSERTE(gcLayout.Count() == 0 || stackOffsetFromTop > (gcLayout[gcLayout.Count() - 1] & ~(ULONG)1));
+                    *gcLayout.InsertThrowing(gcLayoutInsertIndex) = (ULONG)(stackOffsetFromTop | 1); // "| 1" to mark it as an interior pointer
                 });
         }
 
@@ -5962,9 +6013,24 @@ static void AppendGCLayout(ULONGARRAY &gcLayout, size_t baseOffset, BOOL fIsType
                 size_t stop = start - (cur->GetSeriesSize() + size);
                 for (size_t off = stop + sizeof(void*); off <= start; off += sizeof(void*))
                 {
-                    _ASSERTE(gcLayout.Count() == 0 || off > gcLayout[gcLayout.Count() - 1]);
                     _ASSERTE(FitsInU4(off));
-                    *gcLayout.AppendThrowing() = (ULONG)off;
+
+                    int gcLayoutInsertIndex = gcLayout.Count();
+                    _ASSERTE(gcLayoutInsertIndex >= 0);
+                    if (isByRefLike)
+                    {
+                        // Offsets in 'gcLayout' are expected to be in increasing order and for by-ref-like types the by-refs would
+                        // have already been inserted into 'gcLayout' above. Find the appropriate index at which to insert this
+                        // offset.
+                        while (gcLayoutInsertIndex != 0 && off < gcLayout[gcLayoutInsertIndex - 1])
+                        {
+                            --gcLayoutInsertIndex;
+                            _ASSERTE(off != (gcLayout[gcLayoutInsertIndex] & ~(ULONG)1));
+                        }
+                    }
+
+                    _ASSERTE(gcLayoutInsertIndex == 0 || off > (gcLayout[gcLayoutInsertIndex - 1] & ~(ULONG)1));
+                    *gcLayout.InsertThrowing(gcLayoutInsertIndex) = (ULONG)off;
                 }
                 cur++;
 
@@ -6387,16 +6453,43 @@ TADDR FixupPrecode::GetMethodDesc()
 #endif
 
 #ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+PCODE FixupPrecode::GetDynamicMethodPrecodeFixupJumpStub()
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(((PTR_MethodDesc)GetMethodDesc())->IsLCGMethod());
+
+    // The precode fixup jump stub is shared by all fixup precodes in a chunk, and immediately follows the MethodDesc. Jump
+    // stubs cannot be reused currently for the same method:
+    //   - The jump stub's target would change separately from the precode being updated from "call Func" to "jmp Func", both
+    //     changes would have to be done atomically with runtime suspension, which is not done currently
+    //   - When changing the entry point from one version of jitted code to another, the jump stub's target pointer is not
+    //     aligned to 8 bytes in order to be able to do an interlocked update of the target address
+    // So, when initially the precode intends to be of the form "call PrecodeFixupThunk", if the target address happens to be
+    // too far for a relative 32-bit jump, it will use the shared precode fixup jump stub. When changing the entry point to
+    // jitted code, the jump stub associated with the precode is patched, and the precode is updated to use that jump stub.
+    //
+    // Notes:
+    // - Dynamic method descs, and hence their precodes and preallocated jump stubs, may be reused for a different method
+    //   (along with reinitializing the precode), but only with a transition where the original method is no longer accessible
+    //   to user code
+    // - Concurrent calls to a dynamic method that has not yet been jitted may trigger multiple writes to the jump stub
+    //   associated with the precode, but only to the same target address (and while the precode is still pointing to
+    //   PrecodeFixupThunk)
+    return GetBase() + sizeof(PTR_MethodDesc);
+}
+
 PCODE FixupPrecode::GetDynamicMethodEntryJumpStub()
 {
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(((PTR_MethodDesc)GetMethodDesc())->IsLCGMethod());
 
     // m_PrecodeChunkIndex has a value inverted to the order of precodes in memory (the precode at the lowest address has the
     // highest index, and the precode at the highest address has the lowest index). To map a precode to its jump stub by memory
-    // order, invert the precode index to get the jump stub index.
+    // order, invert the precode index to get the jump stub index. Also skip the precode fixup jump stub (see
+    // GetDynamicMethodPrecodeFixupJumpStub()).
     UINT32 count = ((PTR_MethodDesc)GetMethodDesc())->GetMethodDescChunk()->GetCount();
     _ASSERTE(m_PrecodeChunkIndex < count);
-    SIZE_T jumpStubIndex = count - 1 - m_PrecodeChunkIndex;
+    SIZE_T jumpStubIndex = count - m_PrecodeChunkIndex;
 
     return GetBase() + sizeof(PTR_MethodDesc) + jumpStubIndex * BACK_TO_BACK_JUMP_ALLOCATE_SIZE;
 }
@@ -6415,6 +6508,21 @@ void FixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 #endif // HAS_FIXUP_PRECODE
 
 #ifndef DACCESS_COMPILE
+
+void rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, MethodDesc* pMD)
+{
+    CONTRACTL
+    {
+        THROWS;         // Creating a JumpStub could throw OutOfMemory
+        GC_TRIGGERS;
+    }
+    CONTRACTL_END;
+
+    INT32 targetRel32 = rel32UsingJumpStub((INT32*)pRel32, target, pMD);
+
+    _ASSERTE(IS_ALIGNED(pRel32, sizeof(INT32)));
+    FastInterlockExchange((LONG*)pRel32, (LONG)targetRel32);
+}
 
 BOOL rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, TADDR expected, MethodDesc* pMD)
 {
@@ -6525,7 +6633,7 @@ void FixupPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator, int 
 #ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
     if (pMD->IsLCGMethod())
     {
-        m_rel32 = rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodEntryJumpStub());
+        m_rel32 = rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodPrecodeFixupJumpStub(), false /* emitJump */);
         return;
     }
 #endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
@@ -6533,6 +6641,36 @@ void FixupPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator, int 
     {
         m_rel32 = rel32UsingJumpStub(&m_rel32, target, NULL /* pMD */, pLoaderAllocator);
     }
+}
+
+void FixupPrecode::ResetTargetInterlocked()
+{
+    CONTRACTL
+    {
+        THROWS;         // Creating a JumpStub could throw OutOfMemory
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    FixupPrecode newValue = *this;
+    newValue.m_op = X86_INSTR_CALL_REL32; // call PrecodeFixupThunk
+    newValue.m_type = FixupPrecode::TypePrestub;
+
+    PCODE target = (PCODE)GetEEFuncEntryPoint(PrecodeFixupThunk);
+    MethodDesc* pMD = (MethodDesc*)GetMethodDesc();
+#ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+    // The entry point of LCG methods cannot revert back to the original entry point, as their jump stubs would have to be
+    // reused, which is currently not supported. This method is intended for resetting the entry point while the method is
+    // callable, which implies that the entry point may later be changed again to something else. Currently, this is not done
+    // for LCG methods. See GetDynamicMethodPrecodeFixupJumpStub() for more.
+    _ASSERTE(!pMD->IsLCGMethod());
+#endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+
+    newValue.m_rel32 = rel32UsingJumpStub(&m_rel32, target, pMD);
+
+    _ASSERTE(IS_ALIGNED(this, sizeof(INT64)));
+    EnsureWritableExecutablePages(this, sizeof(INT64));
+    FastInterlockExchangeLong((INT64*)this, *(INT64*)&newValue);
 }
 
 BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
@@ -6550,6 +6688,11 @@ BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
     MethodDesc * pMD = (MethodDesc*)GetMethodDesc();
     g_IBCLogger.LogMethodPrecodeWriteAccess(pMD);
     
+#ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+    // A different jump stub is used for this case, see Init(). This call is unexpected for resetting the entry point.
+    _ASSERTE(!pMD->IsLCGMethod() || target != (TADDR)GetEEFuncEntryPoint(PrecodeFixupThunk));
+#endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+
     INT64 newValue = oldValue;
     BYTE* pNewValue = (BYTE*)&newValue;
 
@@ -6578,7 +6721,7 @@ BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
     *(INT32*)(&pNewValue[offsetof(FixupPrecode, m_rel32)]) =
 #ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
         pMD->IsLCGMethod() ?
-            rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodEntryJumpStub()) :
+            rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodEntryJumpStub(), true /* emitJump */) :
 #endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
             rel32UsingJumpStub(&m_rel32, target, pMD);
 
@@ -6685,8 +6828,10 @@ BOOL ThisPtrRetBufPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
     _ASSERTE(m_rel32 == REL32_JMP_SELF);
 
     // Use pMD == NULL to allocate the jump stub in non-dynamic heap that has the same lifetime as the precode itself
-    m_rel32 = rel32UsingJumpStub(&m_rel32, target, NULL /* pMD */, ((MethodDesc *)GetMethodDesc())->GetLoaderAllocatorForCode());
+    INT32 newRel32 = rel32UsingJumpStub(&m_rel32, target, NULL /* pMD */, ((MethodDesc *)GetMethodDesc())->GetLoaderAllocatorForCode());
 
+    _ASSERTE(IS_ALIGNED(&m_rel32, sizeof(INT32)));
+    FastInterlockExchange((LONG *)&m_rel32, (LONG)newRel32);
     return TRUE;
 }
 #endif // !DACCESS_COMPILE

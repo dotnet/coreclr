@@ -12,7 +12,6 @@
 #define __cgencpu_h__
 
 #include "utilcode.h"
-#include "tls.h"
 
 // preferred alignment for data
 #define DATA_ALIGNMENT 4
@@ -29,7 +28,11 @@ class BaseDomain;
 class ZapNode;
 struct ArgLocDesc;
 
+extern PCODE GetPreStubEntryPoint();
+
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 // CPU-dependent functions
 Stub * GenerateInitPInvokeFrameHelper();
@@ -1113,6 +1116,19 @@ struct StubPrecode {
         return m_pTarget;
     }
 
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetPreStubEntryPoint());
+    }
+
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
     {
         CONTRACTL
@@ -1204,6 +1220,19 @@ struct FixupPrecode {
     {
         LIMITED_METHOD_DAC_CONTRACT; 
         return m_pTarget;
+    }
+
+    void ResetTargetInterlocked()
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        InterlockedExchange((LONG*)&m_pTarget, (LONG)GetEEFuncEntryPoint(PrecodeFixupThunk));
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)

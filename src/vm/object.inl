@@ -109,8 +109,40 @@ inline void Object::EnumMemoryRegions(void)
     // the enumeration to the MethodTable.
 }
 
-#endif // #ifdef DACCESS_COMPILE
-    
+#else // !DACCESS_COMPILE
+
+FORCEINLINE bool Object::TryEnterObjMonitorSpinHelper()
+{
+    CONTRACTL{
+        SO_TOLERANT;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    } CONTRACTL_END;
+
+    Thread *pCurThread = GetThread();
+    if (pCurThread->CatchAtSafePointOpportunistic())
+    {
+        return false;
+    }
+
+    AwareLock::EnterHelperResult result = EnterObjMonitorHelper(pCurThread);
+    if (result == AwareLock::EnterHelperResult_Entered)
+    {
+        return true;
+    }
+    if (result == AwareLock::EnterHelperResult_Contention)
+    {
+        result = EnterObjMonitorHelperSpin(pCurThread);
+        if (result == AwareLock::EnterHelperResult_Entered)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+#endif // DACCESS_COMPILE
 
 inline TypeHandle ArrayBase::GetTypeHandle() const
 { 
@@ -357,8 +389,7 @@ inline void FindByRefPointerOffsetsInByRefLikeObject(PTR_MethodTable pMT, SIZE_T
             continue;
         }
 
-        SIZE_T fieldStartIndex = pFD->GetOffset() / sizeof(void *);
-        FindByRefPointerOffsetsInByRefLikeObject(pFieldMT, baseOffset + fieldStartIndex, processPointerOffset);
+        FindByRefPointerOffsetsInByRefLikeObject(pFieldMT, baseOffset + pFD->GetOffset(), processPointerOffset);
     }
 }
 

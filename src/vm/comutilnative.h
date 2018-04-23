@@ -26,15 +26,6 @@
 #include "windows.h"
 #undef GetCurrentTime
 
-
-#pragma warning(push)
-#pragma warning(disable:4324)
-#if !defined(CROSS_COMPILE) && defined(_TARGET_ARM_) && !defined(PLATFORM_UNIX)
-#include "arm_neon.h"
-#endif
-#include "marvin32.h"
-#pragma warning(pop)
-
 //
 //
 // EXCEPTION NATIVE
@@ -89,7 +80,6 @@ public:
     // This method from one primitive array to another based
     //      upon an offset into each an a byte count.
     static FCDECL5(VOID, BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, int dstOffset, int count);
-    static FCDECL5(VOID, InternalBlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, int dstOffset, int count);
     static FCDECL2(FC_UINT8_RET, GetByte, ArrayBase *arrayUNSAFE, INT32 index);
     static FCDECL3(VOID, SetByte, ArrayBase *arrayUNSAFE, INT32 index, UINT8 bData);
     static FCDECL1(FC_BOOL_RET, IsPrimitiveTypeArray, ArrayBase *arrayUNSAFE);
@@ -121,6 +111,7 @@ public:
     static FORCEINLINE UINT64 InterlockedAdd(UINT64 *pAugend, UINT64 addend);
     static FORCEINLINE UINT64 InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend);
 
+    static FCDECL5(void,    GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation);
     static FCDECL0(int,     GetGcLatencyMode);
     static FCDECL1(int,     SetGcLatencyMode, int newLatencyMode);
     static FCDECL0(int,     GetLOHCompactionMode);
@@ -194,8 +185,6 @@ public:
         static FCDECL3(LPVOID, CompareExchangeObject, LPVOID* location, LPVOID value, LPVOID comparand);
         static FCDECL2(INT32, ExchangeAdd32, INT32 *location, INT32 value);
         static FCDECL2_IV(INT64, ExchangeAdd64, INT64 *location, INT64 value);
-        static FCDECL2_VV(void, ExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value);
-        static FCDECL3_VVI(void, CompareExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value, LPVOID comparand);
 
         static FCDECL0(void, FCMemoryBarrier);
         static void QCALLTYPE MemoryBarrierProcessWide();
@@ -208,34 +197,6 @@ public:
     static FCDECL1(INT32, GetHashCode, Object* objRef);
     static FCDECL1(INT32, GetHashCodeOfPtr, LPVOID ptr);
 };
-
-
-typedef const BYTE  * PCBYTE;
-
-class COMNlsHashProvider {
-public:
-    COMNlsHashProvider();
-
-    INT32 HashString(LPCWSTR szStr, SIZE_T strLen);
-    INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc);
-
-    static COMNlsHashProvider s_NlsHashProvider;
-
-private:
-    PBYTE pEntropy;
-    PCSYMCRYPT_MARVIN32_EXPANDED_SEED pDefaultSeed;
-
-    PCBYTE GetEntropy();
-    PCSYMCRYPT_MARVIN32_EXPANDED_SEED GetDefaultSeed();
-    void InitializeDefaultSeed();
-};
-
-#ifdef FEATURE_COREFX_GLOBALIZATION
-class CoreFxGlobalization {
-public:
-  static INT32 QCALLTYPE HashSortKey(PCBYTE pSortKey, INT32 cbSortKey);
-};
-#endif // FEATURE_COREFX_GLOBALIZATION
 
 class StreamNative {
 public:

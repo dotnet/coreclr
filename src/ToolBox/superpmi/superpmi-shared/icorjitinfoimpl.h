@@ -271,6 +271,10 @@ CorInfoType asCorInfoType(CORINFO_CLASS_HANDLE cls);
 // for completeness
 const char* getClassName(CORINFO_CLASS_HANDLE cls);
 
+const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName);
+
+CORINFO_CLASS_HANDLE getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index);
+
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
 // If fNamespace=TRUE, include the namespace/enclosing classes
 // If fFullInst=TRUE (regardless of fNamespace and fAssembly), include namespace and assembly for any type parameters
@@ -425,6 +429,10 @@ CORINFO_CLASS_HANDLE getBuiltinClass(CorInfoClassId classId);
 
 // "System.Int32" ==> CORINFO_TYPE_INT..
 CorInfoType getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE cls);
+
+// "System.Int32" ==> CORINFO_TYPE_INT..
+// "System.UInt32" ==> CORINFO_TYPE_UINT..
+CorInfoType getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls);
 
 // TRUE if child is a subtype of parent
 // if parent is an interface, then does child implement / extend parent

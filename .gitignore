@@ -19,8 +19,6 @@ syntax: glob
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
-x64/
-x86/
 build/
 bld/
 [Bb]in/
@@ -29,6 +27,8 @@ msbuild.log
 
 # add back architecture directories ignored in 'Build results'
 !tests/x86
+!src/mscorlib/src/System/Runtime/Intrinsics/X86
+!tests/src/JIT/HardwareIntrinsics/X86
 
 # Visual Studio 2015
 .vs/
@@ -52,7 +52,6 @@ dlldata.c
 
 *_i.c
 *_p.c
-*_i.h
 *.ilk
 *.meta
 *.obj
@@ -151,6 +150,7 @@ publish/
 *.nupkg
 *.nuget.g.props
 *.nuget.g.targets
+*.nuget.cache
 **/packages/*
 project.lock.json
 project.assets.json
@@ -236,6 +236,7 @@ $RECYCLE.BIN/
 
 # Common binary extensions on Windows
 *.exe
+*.exe.stackdump
 *.dll
 *.lib
 

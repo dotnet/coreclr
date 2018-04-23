@@ -11,7 +11,6 @@
 
 #include "common.h"
 
-#include "tls.h"
 #include "frames.h"
 #include "threads.h"
 #include "stackwalk.h"
@@ -64,8 +63,6 @@ CONTEXT *ThreadStore::s_pOSContext = NULL;
 CLREvent *ThreadStore::s_pWaitForStackCrawlEvent;
 
 #ifndef DACCESS_COMPILE
-
-
 
 BOOL Thread::s_fCleanFinalizedThread = FALSE;
 
@@ -297,10 +294,12 @@ ThreadLocalInfo gCurrentThreadInfo =
                                                   NULL,    // m_EETlsData
                                               };
 } // extern "C"
+
 // index into TLS Array. Definition added by compiler
 EXTERN_C UINT32 _tls_index;
 
 #ifndef DACCESS_COMPILE
+
 BOOL SetThread(Thread* t)
 {
     LIMITED_METHOD_CONTRACT
@@ -732,6 +731,11 @@ Thread* SetupThread(BOOL fInternal)
     fOK = SetAppDomain(pThread->GetDomain());
     _ASSERTE (fOK);
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+    // Ensure that debugger word slot is allocated
+    UnsafeTlsSetValue(g_debuggerWordTLSIndex, 0);
+#endif
+
     // We now have a Thread object visable to the RS. unmark special status.
     hCantStop.Release();
 
@@ -902,12 +906,6 @@ void DestroyThread(Thread *th)
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
-    if (g_fEEShutDown == 0) 
-    {
-        th->SetThreadState(Thread::TS_ReportDead);
-        th->OnThreadTerminate(FALSE);
-    }
-
 #ifdef FEATURE_PERFTRACING
     // Before the thread dies, mark its buffers as no longer owned
     // so that they can be cleaned up after the thread dies.
@@ -917,6 +915,12 @@ void DestroyThread(Thread *th)
         pBufferList->SetOwnedByThread(false);
     }
 #endif // FEATURE_PERFTRACING
+
+    if (g_fEEShutDown == 0) 
+    {
+        th->SetThreadState(Thread::TS_ReportDead);
+        th->OnThreadTerminate(FALSE);
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -1122,7 +1126,6 @@ void InitThreadManager()
     }
 
 #ifndef FEATURE_PAL
-
     _ASSERTE(GetThread() == NULL);
 
     PTEB Teb = NtCurrentTeb();
@@ -1139,6 +1142,12 @@ void InitThreadManager()
 
     _ASSERTE(g_TrapReturningThreads == 0);
 #endif // !FEATURE_PAL
+
+#ifdef FEATURE_INTEROP_DEBUGGING
+    g_debuggerWordTLSIndex = UnsafeTlsAlloc();
+    if (g_debuggerWordTLSIndex == TLS_OUT_OF_INDEXES)
+        COMPlusThrowWin32();
+#endif
 
     __ClrFlsGetBlock = CExecutionEngine::GetTlsData;
 
@@ -1241,11 +1250,11 @@ void Dbg_TrackSyncStack::EnterSync(UINT_PTR caller, void *pAwareLock)
 {
     LIMITED_METHOD_CONTRACT;
 
-    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
+    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::EnterSync, IP=%p, Recursion=%u, LockState=%x, HoldingThread=%p.\n",
                     caller,
-                    ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
-                    ((AwareLock*)pAwareLock)->m_HoldingThread );
+                    ((AwareLock*)pAwareLock)->GetRecursionLevel(),
+                    ((AwareLock*)pAwareLock)->GetLockState(),
+                    ((AwareLock*)pAwareLock)->GetHoldingThread());
 
     if (m_Active)
     {
@@ -1267,11 +1276,11 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
 {
     WRAPPER_NO_CONTRACT;
 
-    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%d, MonitorHeld=%d, HoldingThread=%p.\n",
+    STRESS_LOG4(LF_SYNC, LL_INFO100, "Dbg_TrackSyncStack::LeaveSync, IP=%p, Recursion=%u, LockState=%x, HoldingThread=%p.\n",
                     caller,
-                    ((AwareLock*)pAwareLock)->m_Recursion,
-                    ((AwareLock*)pAwareLock)->m_MonitorHeld.LoadWithoutBarrier(),
-                    ((AwareLock*)pAwareLock)->m_HoldingThread );
+                    ((AwareLock*)pAwareLock)->GetRecursionLevel(),
+                    ((AwareLock*)pAwareLock)->GetLockState(),
+                    ((AwareLock*)pAwareLock)->GetHoldingThread());
 
     if (m_Active)
     {
@@ -1455,7 +1464,6 @@ Thread::Thread()
 
     m_debuggerFilterContext = NULL;
     m_debuggerCantStop = 0;
-    m_debuggerWord = NULL;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH
@@ -1607,9 +1615,9 @@ Thread::Thread()
 #ifdef HAVE_GCCOVER
     m_pbDestCode = NULL;
     m_pbSrcCode = NULL;
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     m_pLastAVAddress = NULL;
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
     m_fCompletionPortDrained = FALSE;
@@ -1687,6 +1695,7 @@ Thread::Thread()
 #ifdef FEATURE_PERFTRACING
     m_pEventPipeBufferList = NULL;
     m_eventWriteInProgress = false;
+    memset(&m_activityId, 0, sizeof(m_activityId));
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
 }
@@ -3867,7 +3876,6 @@ WaitCompleted:
     return ret;
 }
 
-#ifndef FEATURE_PAL
 //--------------------------------------------------------------------
 // Only one style of wait for DoSignalAndWait since we don't support this on STA Threads
 //--------------------------------------------------------------------
@@ -4013,7 +4021,6 @@ WaitCompleted:
 
     return ret;
 }
-#endif // !FEATURE_PAL
 
 DWORD Thread::DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis)
 {
@@ -7549,11 +7556,6 @@ void CommonTripThread()
 
     thread->HandleThreadAbort ();
 
-    if (thread->IsYieldRequested())
-    {
-        __SwitchToThread(0, CALLER_LIMITS_SPINNING);
-    }
-
     if (thread->CatchAtSafePoint())
     {
         _ASSERTE(!ThreadStore::HoldingThreadStore(thread));
@@ -8826,7 +8828,7 @@ static void ManagedThreadBase_DispatchInner(ManagedThreadCallState *pCallState)
         // This also implies that there will be no exception object marshalling (and it may not be required after all) 
         // as well and once the holder reverts the AD context, the LastThrownObject in Thread will be set to NULL.
 #ifndef FEATURE_PAL
-        BOOL fSetupEHAtTransition = !(RunningOnWin7());            
+        BOOL fSetupEHAtTransition = FALSE;
 #else // !FEATURE_PAL
         BOOL fSetupEHAtTransition = TRUE;
 #endif // !FEATURE_PAL
@@ -10212,10 +10214,6 @@ void Thread::InternalSwitchOut()
         m_ThreadHandleForClose = hThread;
     }
 
-    // The host is getting control of this thread, so if we were trying
-    // to yield this thread, we can stop those attempts now.
-    ResetThreadState(TS_YieldRequested);
-
     _ASSERTE (!fNoTLS ||
               (CExecutionEngine::CheckThreadStateNoCreate(0) == NULL));
     }
@@ -10438,11 +10436,6 @@ HRESULT Thread::Reset(BOOL fFull)
         IfFailGo(E_UNEXPECTED);
     }
 
-    if (HasThreadState(Thread::TS_YieldRequested))
-    {
-        ResetThreadState(Thread::TS_YieldRequested);
-    }
-
     _ASSERTE (!PreemptiveGCDisabled());
     _ASSERTE (m_pFrame == FRAME_TOP);
     // A host should not recycle a CLRTask if the task is created by us through CreateNewThread.
@@ -10534,11 +10527,6 @@ HRESULT Thread::ExitTask ()
     //_ASSERTE (m_UnmanagedRefCount == 0);
     if (this != GetThread())
         IfFailGo(HOST_E_INVALIDOPERATION);
-
-    if (HasThreadState(Thread::TS_YieldRequested))
-    {
-        ResetThreadState(Thread::TS_YieldRequested);
-    }
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     if (IsCoInitialized())

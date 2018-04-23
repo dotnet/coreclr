@@ -19,13 +19,15 @@ def windowsBuild(String arch, String config, String pgo, boolean isBaseline) {
     }
 
     bat "set __TestIntermediateDir=int&&.\\build.cmd -${config} -${arch} -skipbuildpackages ${pgoBuildFlag}"
+    bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
+    bat "rd /s /q bin\\obj"
 
     // Stash build artifacts. Stash tests in an additional stash to be used by Linux test runs
     stash name: "nt-${arch}-${pgo}${baselineString}-build-artifacts", includes: 'bin/**'
     stash name: "nt-${arch}-${pgo}${baselineString}-test-artifacts", includes: 'bin/tests/**'
 }
 
-def windowsPerf(String arch, String config, String uploadString, String runType, String opt_level, String jit, String pgo, String scenario, boolean isBaseline) {
+def windowsPerf(String arch, String config, String uploadString, String runType, String opt_level, String jit, String pgo, String scenario, boolean isBaseline, boolean isProfileOn, int slice) {
     withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')]) {
         checkout scm
         String baselineString = ""
@@ -33,7 +35,7 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
             baselineString = "-baseline"
         }
         dir ('.') {
-            unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
+            unstash "nt-${arch}-${pgo}${baselineString}-test-artifacts"
             unstash "benchview-tools"
             unstash "metadata"
         }
@@ -52,41 +54,58 @@ def windowsPerf(String arch, String config, String uploadString, String runType,
 
         bat "py \".\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\""
         bat ".\\init-tools.cmd"
-        bat "run.cmd build -Project=\"tests\\build.proj\" -BuildOS=Windows_NT -BuildType=${config} -BuildArch=${arch} -BatchRestorePackages"
-        bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
 
         // We run run-xunit-perf differently for each of the different job types
-        if (scenario == 'perf') {
-            String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} -runtype ${runType} ${testEnv} -optLevel ${opt_level} ${pgoTestFlag} -jitName ${jit} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2\""
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality"
 
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi"
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi"
+        String profileArg = isProfileOn ? "BranchMispredictions+CacheMisses+InstructionRetired" : "stopwatch"
+
+        String runXUnitCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -outputdir \"%WORKSPACE%\\bin\\sandbox_logs\""
+        if (scenario == 'perf') {
+            String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \\\"CORECLR_PERF_RUN\\\" /B /WAIT /HIGH /AFFINITY 0x2\""
+            if (slice == -1)
+            {
+                String runXUnitPerflabArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\perflab\\Perflab -library"
+
+                profileArg = isProfileOn ? "default+${profileArg}+gcapi" : profileArg
+                bat "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerflabArgs} -collectionFlags ${profileArg}"
+
+                String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\Jit\\Performance\\CodeQuality\\"
+                bat "py tests\\scripts\\run-xunit-perf.py ${runXUnitCodeQualityArgs} -collectionFlags ${profileArg}"
+            }
+
+            else {
+                String runXUnitCodeQualityArgs = "${runXUnitPerfCommonArgs} -slice ${slice} -sliceConfigFile \"%WORKSPACE%\\tests\\scripts\\perf-slices.json\" -testBinLoc bin\\tests\\${os}.${arch}.${config}"
+                bat "py tests\\scripts\\run-xunit-perf.py ${runXUnitCodeQualityArgs} -collectionFlags ${profileArg}"
+            }
         }
         else if (scenario == 'jitbench') {
-            String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios || (echo [ERROR] JitBench failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
+            String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -stabilityPrefix \"START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH\" -scenarioTest"
+            runXUnitPerfCommonArgs = "${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios"
+
+            if (!(opt_level == 'min_opt' && isProfileOn)) {
+                bat "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -collectionFlags ${profileArgs}"
+            }
         }
         else if (scenario == 'illink') {
-            String runXUnitPerfCommonArgs = "-arch ${arch} -configuration ${config} -generateBenchviewData \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} ${testEnv} -optLevel ${opt_level} -jitName ${jit} -scenarioTest"
-            bat "tests\\scripts\\run-xunit-perf.cmd ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup || (echo [ERROR] IlLink failed. 1>>\"${failedOutputLogFilename}\" && exit /b 1)"
+            String runXUnitPerfCommonArgs = "${runXUnitCommonArgs} -scenarioTest"
+            bat "\"%VS140COMNTOOLS%\\..\\..\\VC\\vcvarsall.bat\" x86_amd64\n" +
+                "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${arch}.${config}\\performance\\linkbench\\linkbench -group ILLink -nowarmup"
         }
-        archiveArtifacts allowEmptyArchive: false, artifacts:'bin/toArchive/**,machinedata.json'
+        archiveArtifacts allowEmptyArchive: false, artifacts:'bin/sandbox_logs/**,machinedata.json', onlyIfSuccessful: false
     }
 }
 
 def windowsThroughput(String arch, String os, String config, String runType, String optLevel, String jit, String pgo, boolean isBaseline) {
     withCredentials([string(credentialsId: 'CoreCLR Perf BenchView Sas', variable: 'BV_UPLOAD_SAS_TOKEN')]) {
         checkout scm
-        
+
         String baselineString = ""
         if (isBaseline) {
             baselineString = "-baseline"
         }
 
         String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
-        
+
         dir ('.') {
             unstash "nt-${arch}-${pgo}${baselineString}-build-artifacts"
             unstash "benchview-tools"
@@ -102,9 +121,8 @@ def windowsThroughput(String arch, String os, String config, String runType, Str
 
         bat "py \".\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\""
         bat ".\\init-tools.cmd"
-        bat "tests\\runtest.cmd ${config} ${arch} GenerateLayoutOnly"
         bat "py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${config} -opt_level ${optLevel} -jit_name ${jit} ${pgoTestFlag} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\${arch}ThroughputBenchmarks\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}"
-        archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json'
+        archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json', onlyIfSuccessful: false
     }
 }
 
@@ -135,7 +153,7 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
             baselineString = "-baseline"
         }
 
-        String pgoTestFlag = ((pgo == 'nopgo') ? '--nopgo' : '')
+        String pgoTestFlag = ((pgo == 'nopgo') ? '-nopgo' : '')
 
         dir ('.') {
             unstash "linux-${arch}-${pgo}${baselineString}-build-artifacts"
@@ -152,10 +170,14 @@ def linuxPerf(String arch, String os, String config, String uploadString, String
             sh "mv -f submission-metadata-baseline.json submission-metadata.json"
         }
 
-        sh "./tests/scripts/perf-prep.sh"
+        sh "./tests/scripts/perf-prep.sh --nocorefx"
         sh "./init-tools.sh"
-        sh "./tests/scripts/run-xunit-perf.sh --testRootDir=\"\${WORKSPACE}/bin/tests/Windows_NT.${arch}.${config}\" --optLevel=${optLevel} ${pgoTestFlag} --testNativeBinDir=\"\${WORKSPACE}/bin/obj/Linux.${arch}.${config}/tests\" --coreClrBinDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --mscorlibDir=\"\${WORKSPACE}/bin/Product/Linux.${arch}.${config}\" --coreFxBinDir=\"\${WORKSPACE}/corefx\" --runType=\"${runType}\" --benchViewOS=\"${os}\" --stabilityPrefix=\"taskset 0x00000002 nice --adjustment=-10\" --uploadToBenchview --generatebenchviewdata=\"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
-        archiveArtifacts allowEmptyArchive: false, artifacts:'bin/toArchive/**,machinedata.json'
+        sh "./build-test.sh release $arch generatelayoutonly"
+
+        String runXUnitCommonArgs = "-arch ${arch} -os Ubuntu16.04 -configuration ${config} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} ${pgoTestFlag} -runtype ${runType} -optLevel ${optLevel} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
+
+        sh "python3 ./tests/scripts/run-xunit-perf.py -testBinLoc bin/tests/Windows_NT.${arch}.${config}/JIT/Performance/CodeQuality ${runXUnitCommonArgs}"
+        archiveArtifacts allowEmptyArchive: false, artifacts:'bin/toArchive/**,machinedata.json', onlyIfSuccessful: false
     }
 }
 
@@ -188,7 +210,7 @@ def linuxThroughput(String arch, String os, String config, String uploadString, 
         sh "./tests/scripts/perf-prep.sh --throughput"
         sh "./init-tools.sh"
         sh "python3 ./tests/scripts/run-throughput-perf.py -arch \"${arch}\" -os \"${os}\" -configuration \"${config}\" -opt_level ${optLevel} ${pgoTestFlag} -clr_root \"\${WORKSPACE}\" -assembly_root \"\${WORKSPACE}/${arch}ThroughputBenchmarks/lib\" -run_type \"${runType}\"  -benchview_path \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\""
-        archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json'
+        archiveArtifacts allowEmptyArchive: false, artifacts:'throughput-*.csv,machinedata.json', onlyIfSuccessful: false
     }
 }
 
@@ -214,7 +236,7 @@ stage ('Get Metadata and download Throughput Benchmarks') {
             "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py\" --name \"${benchViewName}\" --user-email \"${benchViewUser}\"\n" +
             "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\build.py\" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type ${runType}\n" +
             "py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\submission-metadata.py\" --name \"${benchViewName}-baseline\" --user-email \"${benchViewUser}\" -o submission-metadata-baseline.json\n"
-        
+
         // TODO: revisit these moves. Originally, stash could not find the directories as currently named
         bat "move Microsoft.BenchView.ThroughputBenchmarks.x64.Windows_NT x64ThroughputBenchmarks"
         bat "move Microsoft.BenchView.ThroughputBenchmarks.x86.Windows_NT x86ThroughputBenchmarks"
@@ -268,7 +290,7 @@ if (!isPR()) {
     ]
 }
 
-def baselineBuilds = [:]
+/*def baselineBuilds = [:]
 
 if (isPR()) {
    baselineBuilds = [
@@ -281,17 +303,12 @@ if (isPR()) {
            simpleNode('Windows_NT','latest') {
                windowsBuild('x86', config, 'pgo', true)
            }
-       },
-       "linux x64 pgo baseline build": {
-           simpleNode('RHEL7.2', 'latest-or-auto') {
-               linuxBuild('x64', config, 'pgo', true)
-           }
        }
    ]
-}
+}*/
 
 stage ('Build Product') {
-    parallel innerLoopBuilds + outerLoopBuilds + baselineBuilds
+    parallel innerLoopBuilds //+ outerLoopBuilds //+ baselineBuilds
 }
 
 // Pipeline builds don't allow outside scripts (ie ArrayList.Add) if running from a script from SCM, so manually list these for now.
@@ -300,24 +317,29 @@ stage ('Build Product') {
 def innerLoopTests = [:]
 
 ['x64', 'x86'].each { arch ->
-    [true,false].each { isBaseline ->
-        String baseline = ""
-        if (isBaseline) {
-            baseline = " baseline"
-        }
-        if (isPR() || !isBaseline) {
-            innerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} perf"] = {
-               simpleNode('windows_server_2016_clr_perf', 180) {
-                   windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'perf', isBaseline)
-               }
+    ['full_opt'].each { opt_level ->
+        [false].each { isBaseline ->
+            [0,1,2,3,4,5].each { slice ->
+                String baseline = ""
+                if (isBaseline) {
+                    baseline = " baseline"
+                }
+                if (isPR() || !isBaseline) {
+                    innerLoopTests["windows ${arch} ryujit ${opt_level} pgo ${slice}${baseline} perf"] = {
+                        simpleNode('windows_server_2016_clr_perf', 180) {
+                            windowsPerf(arch, config, uploadString, runType, opt_level, 'ryujit', 'pgo', 'perf', isBaseline, true, slice)
+                        }
+                    }
+
+                }
             }
 
             if (arch == 'x64') {
-               innerLoopTests["linux ${arch} ryujit full_opt pgo${baseline} perf"] = {
-                   simpleNode('linux_clr_perf', 180) {
-                       linuxPerf('x64', 'Ubuntu14.04', config, uploadString, runType, 'full_opt', 'pgo', isBaseline)
-                   }
-               }
+                innerLoopTests["linux ${arch} ryujit ${opt_level} pgo perf"] = {
+                    simpleNode('ubuntu_1604_clr_perf', 180) {
+                        linuxPerf(arch, 'Ubuntu16.04', config, uploadString, runType, opt_level, 'pgo', false)
+                    }
+                }
             }
         }
     }
@@ -327,15 +349,17 @@ def innerLoopTests = [:]
 def outerLoopTests = [:]
 
 if (!isPR()) {
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
-        simpleNode('windows_server_2016_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false)
+    ['x64', 'x86'].each { arch ->
+        outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} jitbench"] = {
+            simpleNode('windows_server_2016_clr_perf', 180) {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'jitbench', false, false, -1)
+            }
         }
-    }
 
-    outerLoopTests["windows ${arch} ryujit full_opt pgo${baseline} illink"] = {
-        simpleNode('windows_server_2015_clr_perf', 180) {
-            windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false)
+        outerLoopTests["windows ${arch} ryujit full_opt pgo illink"] = {
+            simpleNode('Windows_NT', '20170427-elevated') {
+                windowsPerf(arch, config, uploadString, runType, 'full_opt', 'ryujit', 'pgo', 'illink', false, false, -1)
+            }
         }
     }
 
@@ -343,15 +367,17 @@ if (!isPR()) {
         ['min_opt', 'full_opt'].each { opt_level ->
             ['ryujit'].each { jit ->
                 ['pgo', 'nopgo'].each { pgo_enabled ->
-                    outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
-                        simpleNode('windows_server_2016_clr_perf', 180) {
-                            windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false)
+                    [true, false].each { isProfileOn ->
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} perf"] = {
+                            simpleNode('windows_server_2016_clr_perf', 180) {
+                                windowsPerf(arch, config, uploadString, runType, opt_level, jit, pgo_enabled, 'perf', false, isProfileOn, -1)
+                            }
                         }
-                    }
 
-                    outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
-                        simpleNode('windows_server_2016_clr_perf', 180) {
-                            windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false)
+                        outerLoopTests["windows ${arch} ${jit} ${opt_level} ${pgo_enabled} throughput"] = {
+                            simpleNode('windows_server_2016_clr_perf', 180) {
+                                windowsThroughput(arch, 'Windows_NT', config, runType, opt_level, jit, pgo_enabled, false, isProfileOn)
+                            }
                         }
                     }
                 }
@@ -363,14 +389,14 @@ if (!isPR()) {
         ['min_opt', 'full_opt'].each { opt_level ->
             ['pgo', 'nopgo'].each { pgo_enabled ->
                 outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} perf"] = {
-                    simpleNode('linux_clr_perf', 180) {
-                        linuxPerf(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
+                    simpleNode('ubuntu_1604_clr_perf', 180) {
+                        linuxPerf(arch, 'Ubuntu16.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                     }
                 }
 
                 outerLoopTests["linux ${arch} ryujit ${opt_level} ${pgo_enabled} throughput"] = {
-                    simpleNode('linux_clr_perf', 180) {
-                        linuxThroughput(arch, 'Ubuntu14.04', config, uploadString, runType, opt_level, pgo_enabled, false)
+                    simpleNode('ubuntu_1604_clr_perf', 180) {
+                        linuxThroughput(arch, 'Ubuntu16.04', config, uploadString, runType, opt_level, pgo_enabled, false)
                     }
                 }
             }
@@ -379,5 +405,5 @@ if (!isPR()) {
 }
 
 stage ('Run testing') {
-    parallel innerLoopTests + outerLoopTests
+    parallel innerLoopTests //+ outerLoopTests
 }

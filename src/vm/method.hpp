@@ -284,7 +284,7 @@ public:
         }
         CONTRACTL_END
 
-        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub();
+        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub() || IsVersionableWithPrecode();
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -1005,6 +1005,18 @@ public:
             && GetSlot() < pMT->GetNumVirtuals();
     }
 
+    // Is this a default interface method (virtual non-abstract instance method)
+    inline BOOL IsDefaultInterfaceMethod()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+        return (GetMethodTable()->IsInterface() && !IsStatic() && IsVirtual() && !IsAbstract());
+#else
+        return false;
+#endif // FEATURE_DEFAULT_INTERFACES
+    }
+
     inline BOOL HasNonVtableSlot();
 
     void SetHasNonVtableSlot()
@@ -1240,6 +1252,7 @@ public:
             !IsUnboxingStub() &&
             !IsInstantiatingStub() &&
             !IsDynamicMethod() &&
+            !GetLoaderAllocator()->IsCollectible() &&
             !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
             !CORProfilerDisableTieredCompilation();
     }
@@ -1853,8 +1866,8 @@ public:
 private:
     PCODE PrepareILBasedCode(PrepareCodeConfig* pConfig);
     PCODE GetPrecompiledCode(PrepareCodeConfig* pConfig);
-    PCODE GetPrecompiledNgenCode();
-    PCODE GetPrecompiledR2RCode();
+    PCODE GetPrecompiledNgenCode(PrepareCodeConfig* pConfig);
+    PCODE GetPrecompiledR2RCode(PrepareCodeConfig* pConfig);
     PCODE GetMulticoreJitCode();
     COR_ILMETHOD_DECODER* GetAndVerifyILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
     COR_ILMETHOD_DECODER* GetAndVerifyMetadataILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
@@ -1863,6 +1876,14 @@ private:
     PCODE JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, JitListLockEntry* pEntry);
     PCODE JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEntry* pLockEntry, ULONG* pSizeOfCode, CORJIT_FLAGS* pFlags);
 #endif // DACCESS_COMPILE
+
+#ifdef HAVE_GCCOVER
+private:
+    static CrstStatic m_GCCoverCrst;
+
+public:
+    static void Init();
+#endif
 };
 
 #ifndef DACCESS_COMPILE
@@ -1879,12 +1900,18 @@ public:
     virtual BOOL SetNativeCode(PCODE pCode, PCODE * ppAlternateCodeToUse);
     virtual COR_ILMETHOD* GetILHeader();
     virtual CORJIT_FLAGS GetJitCompilationFlags();
+    BOOL ProfilerRejectedPrecompiledCode();
+    BOOL ReadyToRunRejectedPrecompiledCode();
+    void SetProfilerRejectedPrecompiledCode();
+    void SetReadyToRunRejectedPrecompiledCode();
     
 protected:
     MethodDesc* m_pMethodDesc;
     NativeCodeVersion m_nativeCodeVersion;
     BOOL m_needsMulticoreJitNotification;
     BOOL m_mayUsePrecompiledCode;
+    BOOL m_ProfilerRejectedPrecompiledCode;
+    BOOL m_ReadyToRunRejectedPrecompiledCode;
 };
 
 #ifdef FEATURE_CODE_VERSIONING

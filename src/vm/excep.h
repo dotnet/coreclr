@@ -241,7 +241,8 @@ void STDMETHODCALLTYPE DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionInfo,
                                            BOOL useLastThrownObject = FALSE,
                                            BOOL isTerminating = FALSE,
                                            BOOL isThreadBaseFilter = FALSE,
-                                           BOOL sendAppDomainEvents = TRUE);
+                                           BOOL sendAppDomainEvents = TRUE,
+                                           BOOL sendWindowsEventLog = FALSE);
 
 void ReplaceExceptionContextRecord(T_CONTEXT *pTarget, T_CONTEXT *pSource);
 
@@ -765,7 +766,7 @@ void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThr
 #endif // _TARGET_X86_
 
 DWORD GetGcMarkerExceptionCode(LPVOID ip);
-bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
+bool IsGcMarker(T_CONTEXT *pContext, EXCEPTION_RECORD *pExceptionRecord);
 
 void InitSavedExceptionInfo();
 

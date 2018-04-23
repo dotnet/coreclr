@@ -386,7 +386,7 @@ namespace System.Threading
         {
             if (disposing && !_disposed)
             {
-                // We specifically tolerate that a callback can be deregistered
+                // We specifically tolerate that a callback can be unregistered
                 // after the CTS has been disposed and/or concurrently with cts.Dispose().
                 // This is safe without locks because Dispose doesn't interact with values
                 // in the callback partitions, only nulling out the ref to existing partitions.
@@ -924,9 +924,10 @@ namespace System.Threading
 
             public void ExecuteCallback()
             {
-                if (ExecutionContext != null)
+                ExecutionContext context = ExecutionContext;
+                if (context != null)
                 {
-                    ExecutionContext.Run(ExecutionContext, s =>
+                    ExecutionContext.RunInternal(context, s =>
                     {
                         CallbackNode n = (CallbackNode)s;
                         n.Callback(n.CallbackState);

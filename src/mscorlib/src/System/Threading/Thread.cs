@@ -46,9 +46,9 @@ namespace System.Threading
             _executionContext = ec;
         }
 
-        static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
+        internal static ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
 
-        static private void ThreadStart_Context(Object state)
+        private static void ThreadStart_Context(Object state)
         {
             ThreadHelper t = (ThreadHelper)state;
             if (t._start is ThreadStart)
@@ -65,9 +65,10 @@ namespace System.Threading
         internal void ThreadStart(object obj)
         {
             _startArg = obj;
-            if (_executionContext != null)
+            ExecutionContext context = _executionContext;
+            if (context != null)
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.RunInternal(context, _ccb, (Object)this);
             }
             else
             {
@@ -78,9 +79,10 @@ namespace System.Threading
         // call back helper
         internal void ThreadStart()
         {
-            if (_executionContext != null)
+            ExecutionContext context = _executionContext;
+            if (context != null)
             {
-                ExecutionContext.Run(_executionContext, _ccb, (Object)this);
+                ExecutionContext.RunInternal(context, _ccb, (Object)this);
             }
             else
             {
@@ -137,10 +139,6 @@ namespace System.Threading
 #pragma warning restore 414
 #pragma warning restore 169
 
-        private bool m_ExecutionContextBelongsToOuterScope;
-#if DEBUG
-        private bool m_ForbidExecutionContextMutation;
-#endif
 
         // Do not move! Order of above fields needs to be preserved for alignment
         // with native code
@@ -203,7 +201,7 @@ namespace System.Threading
             return _managedThreadId;
         }
 
-        extern public new int ManagedThreadId
+        public extern new int ManagedThreadId
         {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
@@ -215,9 +213,9 @@ namespace System.Threading
             IntPtr thread = DONT_USE_InternalThread;
 
             // This should never happen under normal circumstances. m_assembly is always assigned before it is handed out to the user.
-            // There are ways how to create an unitialized objects through remoting, etc. Avoid AVing in the EE by throwing a nice
+            // There are ways how to create an uninitialized objects through remoting, etc. Avoid AVing in the EE by throwing a nice
             // exception here.
-            if (thread.IsNull())
+            if (thread == IntPtr.Zero)
                 throw new ArgumentException(null, SR.Argument_InvalidHandle);
 
             return new ThreadHandle(thread);
@@ -231,14 +229,6 @@ namespace System.Threading
         **
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public new void Start()
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Start(ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public new void Start(object parameter)
         {
             //In the case of a null delegate (second call to start on same thread)
@@ -251,11 +241,10 @@ namespace System.Threading
                 throw new InvalidOperationException(SR.InvalidOperation_ThreadWrongThreadStart);
             }
             m_ThreadStartArg = parameter;
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Start(ref stackMark);
+            Start();
         }
 
-        private void Start(ref StackCrawlMark stackMark)
+        public new void Start()
         {
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             // Eagerly initialize the COM Apartment state of the thread if we're allowed to.
@@ -268,13 +257,13 @@ namespace System.Threading
             if (m_Delegate != null)
             {
                 // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
-                // reporting an error. Just make sure we dont try to dereference a null delegate.
+                // reporting an error. Just make sure we don't try to dereference a null delegate.
                 ThreadHelper t = (ThreadHelper)(m_Delegate.Target);
                 ExecutionContext ec = ExecutionContext.Capture();
                 t.SetExecutionContextHelper(ec);
             }
 
-            StartInternal(ref stackMark);
+            StartInternal();
         }
 
         internal ExecutionContext ExecutionContext
@@ -290,18 +279,18 @@ namespace System.Threading
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern void StartInternal(ref StackCrawlMark stackMark);
+        private extern void StartInternal();
 
 
         // Helper method to get a logical thread ID for StringBuilder (for
         // correctness) and for FileStream's async code path (for perf, to
         // avoid creating a Thread instance).
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static IntPtr InternalGetCurrentThread();
+        internal static extern IntPtr InternalGetCurrentThread();
 
         /*=========================================================================
         ** Suspends the current thread for timeout milliseconds. If timeout == 0,
-        ** forces the thread to give up the remainer of its timeslice.  If timeout
+        ** forces the thread to give up the remainder of its timeslice.  If timeout
         ** == Timeout.Infinite, no timeout will occur.
         **
         ** Exceptions: ArgumentException if timeout < 0.
@@ -324,9 +313,9 @@ namespace System.Threading
         }
 
 
-        /* wait for a length of time proportial to 'iterations'.  Each iteration is should
+        /* wait for a length of time proportional to 'iterations'.  Each iteration is should
            only take a few machine instructions.  Calling this API is preferable to coding
-           a explict busy loop because the hardware can be informed that it is busy waiting. */
+           a explicit busy loop because the hardware can be informed that it is busy waiting. */
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void SpinWaitInternal(int iterations);
@@ -337,7 +326,6 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern bool YieldInternal();
 
         internal static new bool Yield()
@@ -390,7 +378,6 @@ namespace System.Threading
         private extern void InternalFinalize();
 
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
@@ -482,7 +469,6 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void nativeInitCultureAccessors();
 
         /*======================================================================
@@ -537,13 +523,12 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void InformThreadNameChange(ThreadHandle t, String name, int len);
 
     } // End of class Thread
 
     // declaring a local var of this enum type and passing it by ref into a function that needs to do a
-    // stack crawl will both prevent inlining of the calle and pass an ESP point to stack crawl to
+    // stack crawl will both prevent inlining of the callee and pass an ESP point to stack crawl to
     // Declaring these in EH clauses is illegal; they must declared in the main method body
     internal enum StackCrawlMark
     {

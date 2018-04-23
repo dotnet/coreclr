@@ -43,6 +43,9 @@
 #endif // !FEATURE_PAL
 
 #include "stringarraylist.h"
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_COMINTEROP
 #include "winrttypenameconverter.h"
@@ -107,8 +110,6 @@ typedef DPTR(CONNID)   PTR_CONNID;
 
 
 // *** ICorRuntimeHost methods ***
-
-extern BOOL g_fWeOwnProcess;
 
 CorHost2::CorHost2()
 {
@@ -195,18 +196,7 @@ STDMETHODIMP CorHost2::Start()
             // So, if you want to do that, just make sure you are the first host to load the
             // specific version of CLR in memory AND start it.
             m_fFirstToLoadCLR = TRUE;
-            if (FastInterlockIncrement(&m_RefCount) != 1)
-            {
-            }
-            else
-            {
-                if (g_fWeOwnProcess)
-                {
-                    // Runtime is started by a managed exe.  Bump the ref-count, so that
-                    // matching Start/Stop does not stop runtime.
-                    FastInterlockIncrement(&m_RefCount);
-                }
-            }
+            FastInterlockIncrement(&m_RefCount);
         }
     }
 
@@ -381,6 +371,12 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     }
     CONTRACTL_END;
 
+    // Send the command line to EventPipe.
+#ifdef FEATURE_PERFTRACING
+    EventPipe::SaveCommandLine(pwzAssemblyPath, argc, argv);
+#endif // FEATURE_PERFTRACING
+
+    // Send the command line to System.Environment.
     struct _gc
     {
         PTRARRAYREF cmdLineArgs;
@@ -663,10 +659,6 @@ HRESULT CorHost2::_CreateAppDomain(
     if (dwFlags & APPDOMAIN_FORCE_TRIVIAL_WAIT_OPERATIONS)
         pDomain->SetForceTrivialWaitOperations();
 
-        
-#ifdef PROFILING_SUPPORTED
-    EX_TRY
-#endif    
     {
         GCX_COOP();
     
@@ -716,8 +708,6 @@ HRESULT CorHost2::_CreateAppDomain(
 
 
         pDomain->DoSetup(&_gc.setupInfo);
-
-        pDomain->CacheStringsForDAC();
         
         GCPROTECT_END();
 
@@ -725,28 +715,6 @@ HRESULT CorHost2::_CreateAppDomain(
 
         m_fAppDomainCreated = TRUE;
     }
-#ifdef PROFILING_SUPPORTED
-    EX_HOOK
-    {
-        // Need the first assembly loaded in to get any data on an app domain.
-        {
-            BEGIN_PIN_PROFILER(CORProfilerTrackAppDomainLoads());
-            GCX_PREEMP();
-            g_profControlBlock.pProfInterface->AppDomainCreationFinished((AppDomainID)(AppDomain*) pDomain, GET_EXCEPTION()->GetHR());
-            END_PIN_PROFILER();
-        }
-    }
-    EX_END_HOOK;
-
-    // Need the first assembly loaded in to get any data on an app domain.
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackAppDomainLoads());
-        GCX_PREEMP();
-        g_profControlBlock.pProfInterface->AppDomainCreationFinished((AppDomainID)(AppDomain*) pDomain, S_OK);
-        END_PIN_PROFILER();
-    }        
-#endif // PROFILING_SUPPORTED
-
     // DoneCreating releases ownership of AppDomain.  After this call, there should be no access to pDomain.
     pDomain.DoneCreating();
 
@@ -2984,14 +2952,6 @@ void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX)
     pMSEX->dwLength = sizeof(MEMORYSTATUSEX);
     BOOL fRet = GlobalMemoryStatusEx(pMSEX);
     _ASSERTE (fRet);
-
-
-    // If the machine has more RAM than virtual address limit, let us cap it.
-    // Our GC can never use more than virtual address limit.
-    if (pMSEX->ullAvailPhys > pMSEX->ullTotalVirtual)
-    {
-        pMSEX->ullAvailPhys = pMSEX->ullAvailVirtual;
-    }
 }
 
 // This is the instance that exposes interfaces out to all the other DLLs of the CLR

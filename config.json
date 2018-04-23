@@ -36,6 +36,24 @@
       "values": [],
       "defaultValue": ""
     },
+    "CleanAllProjects": {
+      "description": "MsBuild target that deletes the binary output directory.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "CleanPackages": {
+      "description": "MsBuild target that deletes the repo-local nuget package directory.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "CleanPackagesCache": {
+      "description": "MsBuild target that deletes the user-local nuget package cache.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
     "ContainerName": {
       "description": "Container name for Azure upload.",
       "valueType": "property",
@@ -66,8 +84,8 @@
       "values": [ "Windows_NT", "Linux", "Unix", "OSX", "Android" ],
       "defaultValue": "${OSName}"
     },
-    "RestoreNETCorePlatforms": {
-      "description": "MsBuild target that restores the NETCore packages.",
+    "Sync": {
+      "description": "MsBuild target that restores the packages.",
       "valueType": "target",
       "values": [],
       "defaultValue": ""
@@ -164,6 +182,12 @@
     },
     "__TestWorkingDir": {
       "description": "Test working directory.",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "__DoCrossArchBuild": {
+      "description": "Specifies if we build cross-architecture components on Linux.",
       "valueType": "property",
       "values": [],
       "defaultValue": ""
@@ -503,6 +527,14 @@
           "settings": {
             "Build": "default"
           }
+        },
+        "optdata": {
+          "description": "Restores optimization profile data for the repository.",
+          "settings": {
+            "Project": "./build.proj",
+            "RestoreOptData": "default",
+            "MsBuildEventLogging": " ",
+          }
         }
       },
       "defaultValues": {
@@ -519,6 +551,34 @@
         }
       }
     },
+    "clean": {
+      "alias": {
+        "b": {
+          "description": "Deletes the binary output directory.",
+          "settings": {
+            "CleanAllProjects": "default"
+          }
+        },
+        "p": {
+          "description": "Deletes the repo-local nuget package directory.",
+          "settings": {
+            "CleanPackages": "default"
+            }
+        },
+        "c": {
+          "description": "Deletes the user-local nuget package cache.",
+          "settings": {
+            "CleanPackagesCache": "default"
+          }
+        }
+      },
+      "defaultValues": {
+        "toolName": "msbuild",
+        "settings": {
+          "MsBuildLog":"/flp:v=normal;LogFile=clean.log"
+        }
+      }
+    },
     "sync": {
       "alias": {
         "p": {
@@ -526,15 +586,7 @@
           "settings": {
             "Project": "./build.proj",
             "RestoreDuringBuild": true,
-            "RestoreNETCorePlatforms": "default"
-          }
-        },
-        "optdata": {
-          "description": "Restores optimization profile data for the repository.",
-          "settings": {
-            "Project": "./build.proj",
-            "RestoreDuringBuild": true,
-            "RestoreOptData": "default"
+            "Sync": "default"
           }
         },
         "ab": {
@@ -596,6 +648,12 @@
           "description": "To download a specific group of product packages, specify build number. The value for -BuildMajor required.",
           "settings": {
             "BuildNumberMinor": "default"
+          }
+        },
+        "buildType": {
+          "description": "Sets buildtype.",
+          "settings": {
+            "__BuildType": "default"
           }
         }
       },
@@ -674,7 +732,7 @@
         "settings": {
           "__BuildOS": "default",
           "Project": "./src/publish.proj",
-          "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log"
+          "MsBuildFileLogging": "/flp:v=detailed;LogFile=publish-packages.log /clp:v=detailed"
         }
       }
     },

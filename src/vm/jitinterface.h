@@ -464,6 +464,8 @@ public:
     void LongLifetimeFree(void* obj);
     size_t getClassModuleIdForStatics(CORINFO_CLASS_HANDLE clsHnd, CORINFO_MODULE_HANDLE *pModuleHandle, void **ppIndirection);
     const char* getClassName (CORINFO_CLASS_HANDLE cls);
+    const char* getClassNameFromMetadata (CORINFO_CLASS_HANDLE cls, const char** namespaceName);
+    CORINFO_CLASS_HANDLE getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index);
     const char* getHelperName(CorInfoHelpFunc ftnNum);
     int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
                                   int* pnBufLen,
@@ -546,6 +548,12 @@ public:
 
     // "System.Int32" ==> CORINFO_TYPE_INT..
     CorInfoType getTypeForPrimitiveValueClass(
+            CORINFO_CLASS_HANDLE        cls
+            );
+
+    // "System.Int32" ==> CORINFO_TYPE_INT..
+    // "System.UInt32" ==> CORINFO_TYPE_UINT..
+    CorInfoType getTypeForPrimitiveNumericClass(
             CORINFO_CLASS_HANDLE        cls
             );
 
@@ -736,7 +744,8 @@ public:
     void getMethodSigInternal (
             CORINFO_METHOD_HANDLE ftnHnd,
             CORINFO_SIG_INFO* sigInfo,
-            CORINFO_CLASS_HANDLE owner = NULL
+            CORINFO_CLASS_HANDLE owner = NULL,
+            BOOL isCallSite = FALSE
             );
 
     void getEHinfo(
@@ -1342,29 +1351,49 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_fAllowRel32 = fAllowRel32;
     }
+#endif
 
-    void SetRel32Overflow(BOOL fRel32Overflow)
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    void SetJumpStubOverflow(BOOL fJumpStubOverflow)
     {
         LIMITED_METHOD_CONTRACT;
-        m_fRel32Overflow = fRel32Overflow;
+        m_fJumpStubOverflow = fJumpStubOverflow;
     }
 
-    BOOL IsRel32Overflow()
+    BOOL IsJumpStubOverflow()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_fRel32Overflow;
+        return m_fJumpStubOverflow;
     }
 
     BOOL JitAgain()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_fRel32Overflow;
+        return m_fJumpStubOverflow;
+    }
+
+    size_t GetReserveForJumpStubs()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_reserveForJumpStubs;
+    }
+
+    void SetReserveForJumpStubs(size_t value)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_reserveForJumpStubs = value;
     }
 #else
     BOOL JitAgain()
     {
         LIMITED_METHOD_CONTRACT;
         return FALSE;
+    }
+
+    size_t GetReserveForJumpStubs()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return 0;
     }
 #endif
 
@@ -1384,7 +1413,10 @@ public:
 #endif
 #ifdef _TARGET_AMD64_
           m_fAllowRel32(FALSE),
-          m_fRel32Overflow(FALSE),
+#endif
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+          m_fJumpStubOverflow(FALSE),
+          m_reserveForJumpStubs(0),
 #endif
           m_GCinfo_len(0),
           m_EHinfo_len(0),
@@ -1467,8 +1499,11 @@ protected :
 
 #ifdef _TARGET_AMD64_
     BOOL                    m_fAllowRel32;      // Use 32-bit PC relative address modes
-    BOOL                    m_fRel32Overflow;   // Overflow while trying to use encode 32-bit PC relative address. 
-                                                // The code will need to be regenerated with m_fRel32Allowed == FALSE.
+#endif
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    BOOL                    m_fJumpStubOverflow;   // Overflow while trying to alocate jump stub slot within PC relative branch region
+                                                   // The code will need to be regenerated (with m_fRel32Allowed == FALSE for AMD64).
+    size_t                  m_reserveForJumpStubs; // Space to reserve for jump stubs when allocating code
 #endif
 
 #if defined(_DEBUG)

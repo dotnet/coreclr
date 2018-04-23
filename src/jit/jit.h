@@ -161,8 +161,19 @@
 #endif
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#ifndef _TARGET_64BIT_
 #define _TARGET_64BIT_
-#endif
+#endif // _TARGET_64BIT_
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+#ifdef _TARGET_64BIT_
+#ifdef _TARGET_X86_
+#error Cannot define both _TARGET_X86_ and _TARGET_64BIT_
+#endif // _TARGET_X86_
+#ifdef _TARGET_ARM_
+#error Cannot define both _TARGET_ARM_ and _TARGET_64BIT_
+#endif // _TARGET_ARM_
+#endif // _TARGET_64BIT_
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 #define _TARGET_XARCH_
@@ -253,22 +264,22 @@
 #define INDEBUG_LDISASM_COMMA(x)
 #endif
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(x) , x
-#define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY(x) x
-#else // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(x)
-#define FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY(x)
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
+#define UNIX_AMD64_ABI_ONLY_ARG(x) , x
+#define UNIX_AMD64_ABI_ONLY(x) x
+#else // !defined(UNIX_AMD64_ABI)
+#define UNIX_AMD64_ABI_ONLY_ARG(x)
+#define UNIX_AMD64_ABI_ONLY(x)
+#endif // defined(UNIX_AMD64_ABI)
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND))
+#if defined(UNIX_AMD64_ABI) || (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND))
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
+#else // !(defined(UNIX_AMD64_ABI)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
+#endif // !(defined(UNIX_AMD64_ABI)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -282,11 +293,11 @@
 #define MULTIREG_HAS_SECOND_GC_RET 1
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(x) , x
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY(x) x
-#else // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#else // !defined(UNIX_AMD64_ABI)
 #define MULTIREG_HAS_SECOND_GC_RET 0
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(x)
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY(x)
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
 // To get rid of warning 4701 : local variable may be used without being initialized
 #define DUMMY_INIT(x) (x)
@@ -591,29 +602,13 @@ struct JitOptions
 
 extern JitOptions jitOpts;
 
-/*****************************************************************************
-*
-*  Returns a word filled with the JITs allocator CHK fill value.
-*
-*/
+// Forward declarations for UninitializedWord and IsUninitialized are needed by alloc.h
 template <typename T>
-inline T UninitializedWord()
-{
-    __int64 word = 0x0101010101010101LL * (JitConfig.JitDefaultFill() & 0xFF);
-    return (T)word;
-}
-
-/*****************************************************************************
-*
-*  Determines whether this value is coming from uninitialized JIT memory
-*
-*/
+inline T UninitializedWord(Compiler* comp);
 
 template <typename T>
-inline bool IsUninitialized(T data)
-{
-    return data == UninitializedWord<T>();
-}
+inline bool IsUninitialized(T data);
+
 #endif // DEBUG
 
 /*****************************************************************************/
@@ -695,11 +690,12 @@ inline size_t unsigned_abs(ssize_t x)
 
 #if CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE || MEASURE_MEM_ALLOC
 
+#define HISTOGRAM_MAX_SIZE_COUNT 64
+
 class Histogram
 {
 public:
-    Histogram(HostAllocator* allocator, const unsigned* const sizeTable);
-    ~Histogram();
+    Histogram(const unsigned* const sizeTable);
 
     void dump(FILE* output);
     void record(unsigned size);
@@ -707,10 +703,9 @@ public:
 private:
     void ensureAllocated();
 
-    HostAllocator*        m_allocator;
     unsigned              m_sizeCount;
     const unsigned* const m_sizeTable;
-    unsigned*             m_counts;
+    unsigned              m_counts[HISTOGRAM_MAX_SIZE_COUNT];
 };
 
 #endif // CALL_ARG_STATS || COUNT_BASIC_BLOCKS || COUNT_LOOPS || EMITTER_STATS || MEASURE_NODE_SIZE
@@ -731,7 +726,6 @@ private:
 #pragma warning(push)
 #pragma warning(default : 4820) // 'bytes' bytes padding added after construct 'member_name'
 #endif                          // CHECK_STRUCT_PADDING
-
 #include "alloc.h"
 #include "target.h"
 
@@ -947,9 +941,49 @@ public:
 };
 
 #if defined(DEBUG)
-
+//  Include the definition of Compiler for use by these template functions
+//
 #include "compiler.h"
 
+//****************************************************************************
+//
+//  Returns a word filled with the JITs allocator default fill value.
+//
+template <typename T>
+inline T UninitializedWord(Compiler* comp)
+{
+    unsigned char defaultFill = 0xdd;
+    if (comp == nullptr)
+    {
+        comp = JitTls::GetCompiler();
+    }
+    defaultFill = comp->compGetJitDefaultFill();
+    assert(defaultFill <= 0xff);
+    __int64 word = 0x0101010101010101LL * defaultFill;
+    return (T)word;
+}
+
+//****************************************************************************
+//
+//  Tries to determine if this value is coming from uninitialized JIT memory
+//    - Returns true if the value matches what we initialized the memory to.
+//
+//  Notes:
+//    - Asserts that use this are assuming that the UninitializedWord value
+//      isn't a legal value for 'data'.  Thus using a default fill value of
+//      0x00 will often trigger such asserts.
+//
+template <typename T>
+inline bool IsUninitialized(T data)
+{
+    return data == UninitializedWord<T>(JitTls::GetCompiler());
+}
+
+//****************************************************************************
+//
+//  Debug template definitions for dspPtr, dspOffset
+//    - Used to format pointer/offset values for diffable Disasm
+//
 template <typename T>
 T dspPtr(T p)
 {
@@ -964,6 +998,11 @@ T dspOffset(T o)
 
 #else // !defined(DEBUG)
 
+//****************************************************************************
+//
+//  Non-Debug template definitions for dspPtr, dspOffset
+//    - This is a nop in non-Debug builds
+//
 template <typename T>
 T dspPtr(T p)
 {

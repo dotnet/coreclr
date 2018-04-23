@@ -65,7 +65,7 @@ namespace System
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
 
-            if (target.IsGenericType && target.ContainsGenericParameters)
+            if (target.ContainsGenericParameters)
                 throw new ArgumentException(SR.Arg_UnboundGenParam, nameof(target));
 
             if (method == null)
@@ -109,7 +109,7 @@ namespace System
             RuntimeMethodHandleInternal method = new RuntimeMethodHandleInternal(GetInvokeMethod());
             RuntimeMethodInfo invoke = (RuntimeMethodInfo)RuntimeType.GetMethodBase((RuntimeType)this.GetType(), method);
 
-            return invoke.UnsafeInvoke(this, BindingFlags.Default, null, args, null);
+            return invoke.Invoke(this, BindingFlags.Default, null, args, null);
         }
 
 
@@ -130,9 +130,9 @@ namespace System
             // It may also happen that the method pointer was not jitted when creating one delegate and jitted in the other 
             // if that's the case the delegates may still be equals but we need to make a more complicated check
 
-            if (_methodPtrAux.IsNull())
+            if (_methodPtrAux == IntPtr.Zero)
             {
-                if (!d._methodPtrAux.IsNull())
+                if (d._methodPtrAux != IntPtr.Zero)
                     return false; // different delegate kind
                 // they are both closed over the first arg
                 if (_target != d._target)
@@ -141,7 +141,7 @@ namespace System
             }
             else
             {
-                if (d._methodPtrAux.IsNull())
+                if (d._methodPtrAux == IntPtr.Zero)
                     return false; // different delegate kind
 
                 // Ignore the target as it will be the delegate instance, though it may be a different one
@@ -170,12 +170,12 @@ namespace System
             // in that case the delegate is the same and Equals will return true but GetHashCode returns a
             // different hashcode which is not true.
             /*
-            if (_methodPtrAux.IsNull())
+            if (_methodPtrAux == IntPtr.Zero)
                 return unchecked((int)((long)this._methodPtr));
             else
                 return unchecked((int)((long)this._methodPtrAux));
             */
-            if (_methodPtrAux.IsNull())
+            if (_methodPtrAux == IntPtr.Zero)
                 return ( _target != null ? RuntimeHelpers.GetHashCode(_target) * 33 : 0) + GetType().GetHashCode();
             else
                 return GetType().GetHashCode();
@@ -229,7 +229,7 @@ namespace System
                     bool isStatic = (RuntimeMethodHandle.GetAttributes(method) & MethodAttributes.Static) != (MethodAttributes)0;
                     if (!isStatic)
                     {
-                        if (_methodPtrAux == (IntPtr)0)
+                        if (_methodPtrAux == IntPtr.Zero)
                         {
                             // The target may be of a derived type that doesn't have visibility onto the
                             // target method. We don't want to call RuntimeType.GetMethodBase below with that
@@ -394,7 +394,7 @@ namespace System
                 throw new ArgumentNullException(nameof(type));
             if (target == null)
                 throw new ArgumentNullException(nameof(target));
-            if (target.IsGenericType && target.ContainsGenericParameters)
+            if (target.ContainsGenericParameters)
                 throw new ArgumentException(SR.Arg_UnboundGenParam, nameof(target));
             if (method == null)
                 throw new ArgumentNullException(nameof(method));
@@ -427,7 +427,6 @@ namespace System
         }
 
         // V1 API.
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Delegate CreateDelegate(Type type, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
@@ -455,13 +454,11 @@ namespace System
             // pass us a static method or a method with a non-exact signature
             // and the only change in behavior from v1.1 there is that we won't
             // fail the call).
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             Delegate d = CreateDelegateInternal(
                 rtType,
                 rmi,
                 null,
-                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature,
-                ref stackMark);
+                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature);
 
             if (d == null && throwOnBindFailure)
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
@@ -476,7 +473,6 @@ namespace System
         }
 
         // V2 API.
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Delegate CreateDelegate(Type type, Object firstArgument, MethodInfo method, bool throwOnBindFailure)
         {
             // Validate the parameters.
@@ -501,13 +497,11 @@ namespace System
             // instance methods with relaxed signature checking. The delegate
             // can also be closed over null. There's no ambiguity with all these
             // options since the caller is providing us a specific MethodInfo.
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             Delegate d = CreateDelegateInternal(
                 rtType,
                 rmi,
                 firstArgument,
-                DelegateBindingFlags.RelaxedSignature,
-               ref stackMark);
+                DelegateBindingFlags.RelaxedSignature);
 
             if (d == null && throwOnBindFailure)
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);
@@ -546,7 +540,7 @@ namespace System
 
         // V2 internal API.
         // This is Critical because it skips the security check when creating the delegate.
-        internal unsafe static Delegate CreateDelegateNoSecurityCheck(Type type, Object target, RuntimeMethodHandle method)
+        internal static unsafe Delegate CreateDelegateNoSecurityCheck(Type type, Object target, RuntimeMethodHandle method)
         {
             // Validate the parameters.
             if (type == null)
@@ -602,7 +596,7 @@ namespace System
             // signature changes). We explicitly skip security checks here --
             // we're not really constructing a delegate, we're cloning an
             // existing instance which already passed its checks.
-            Delegate d = UnsafeCreateDelegate(type, rtMethod, firstArgument,
+            Delegate d = CreateDelegateInternal(type, rtMethod, firstArgument,
                                               DelegateBindingFlags.SkipSecurityChecks |
                                               DelegateBindingFlags.RelaxedSignature);
 
@@ -618,14 +612,7 @@ namespace System
             return CreateDelegate(type, method, true);
         }
 
-        internal static Delegate CreateDelegateInternal(RuntimeType rtType, RuntimeMethodInfo rtMethod, Object firstArgument, DelegateBindingFlags flags, ref StackCrawlMark stackMark)
-        {
-            Debug.Assert((flags & DelegateBindingFlags.SkipSecurityChecks) == 0);
-
-            return UnsafeCreateDelegate(rtType, rtMethod, firstArgument, flags);
-        }
-
-        internal static Delegate UnsafeCreateDelegate(RuntimeType rtType, RuntimeMethodInfo rtMethod, Object firstArgument, DelegateBindingFlags flags)
+        internal static Delegate CreateDelegateInternal(RuntimeType rtType, RuntimeMethodInfo rtMethod, Object firstArgument, DelegateBindingFlags flags)
         {
             Delegate d = InternalAlloc(rtType);
 
@@ -646,13 +633,13 @@ namespace System
         private extern bool BindToMethodInfo(Object target, IRuntimeMethodInfo method, RuntimeType methodType, DelegateBindingFlags flags);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern static MulticastDelegate InternalAlloc(RuntimeType type);
+        private static extern MulticastDelegate InternalAlloc(RuntimeType type);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static MulticastDelegate InternalAllocLike(Delegate d);
+        internal static extern MulticastDelegate InternalAllocLike(Delegate d);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static bool InternalEqualTypes(object a, object b);
+        internal static extern bool InternalEqualTypes(object a, object b);
 
         // Used by the ctor. Do not call directly.
         // The name of this function will appear in managed stacktraces as delegate constructor.
@@ -669,7 +656,7 @@ namespace System
         internal extern IRuntimeMethodInfo FindMethodHandle();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static bool InternalEqualMethodHandles(Delegate left, Delegate right);
+        internal static extern bool InternalEqualMethodHandles(Delegate left, Delegate right);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern IntPtr AdjustTarget(Object target, IntPtr methodPtr);
@@ -679,11 +666,11 @@ namespace System
 
         internal virtual Object GetTarget()
         {
-            return (_methodPtrAux.IsNull()) ? _target : null;
+            return (_methodPtrAux == IntPtr.Zero) ? _target : null;
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static bool CompareUnmanagedFunctionPtrs(Delegate d1, Delegate d2);
+        internal static extern bool CompareUnmanagedFunctionPtrs(Delegate d1, Delegate d2);
     }
 
     // These flags effect the way BindToMethodInfo and BindToMethodName are allowed to bind a delegate to a target method. Their

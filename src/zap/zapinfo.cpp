@@ -1346,9 +1346,6 @@ void ZapInfo::allocUnwindInfo (
 
 BOOL ZapInfo::logMsg(unsigned level, const char *fmt, va_list args)
 {
-    if (m_zapper->m_pOpt->m_legacyMode)
-        return FALSE;
-
     if (HasSvcLogger())
     {
         if (level <= LL_INFO10)
@@ -3024,6 +3021,16 @@ const char* ZapInfo::getClassName(CORINFO_CLASS_HANDLE cls)
     return m_pEEJitInfo->getClassName(cls);
 }
 
+const char* ZapInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    return m_pEEJitInfo->getClassNameFromMetadata(cls, namespaceName);
+}
+
+CORINFO_CLASS_HANDLE ZapInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    return m_pEEJitInfo->getTypeInstantiationArgument(cls, index);
+}
+
 const char* ZapInfo::getHelperName(CorInfoHelpFunc func)
 {
     return m_pEEJitInfo->getHelperName(func);
@@ -3094,6 +3101,11 @@ CORINFO_CLASS_HANDLE ZapInfo::getBuiltinClass(CorInfoClassId classId)
 CorInfoType ZapInfo::getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE cls)
 {
     return m_pEEJitInfo->getTypeForPrimitiveValueClass(cls);
+}
+
+CorInfoType ZapInfo::getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    return m_pEEJitInfo->getTypeForPrimitiveNumericClass(cls);
 }
 
 BOOL ZapInfo::canCast(CORINFO_CLASS_HANDLE child,

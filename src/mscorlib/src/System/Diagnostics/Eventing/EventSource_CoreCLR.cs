@@ -11,13 +11,6 @@ namespace System.Diagnostics.Tracing
 {
     public partial class EventSource
     {
-#if FEATURE_MANAGED_ETW && FEATURE_PERFTRACING
-        // For non-Windows, we use a thread-local variable to hold the activity ID.
-        // On Windows, ETW has it's own thread-local variable and we participate in its use.
-        [ThreadStatic]
-        private static Guid s_currentThreadActivityId;
-#endif // FEATURE_MANAGED_ETW && FEATURE_PERFTRACING
-
         // ActivityID support (see also WriteEventWithRelatedActivityIdCore)
         /// <summary>
         /// When a thread starts work that is on behalf of 'something else' (typically another 
@@ -40,34 +33,22 @@ namespace System.Diagnostics.Tracing
         {
             if (TplEtwProvider.Log != null)
                 TplEtwProvider.Log.SetActivityId(activityId);
-#if FEATURE_MANAGED_ETW
-#if FEATURE_ACTIVITYSAMPLING
-            Guid newId = activityId;
-#endif // FEATURE_ACTIVITYSAMPLING
+
             // We ignore errors to keep with the convention that EventSources do not throw errors.
             // Note we can't access m_throwOnWrites because this is a static method.  
-
+#if FEATURE_MANAGED_ETW
 #if FEATURE_PERFTRACING
-            s_currentThreadActivityId = activityId;
-#elif PLATFORM_WINDOWS
-            if (UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
-                UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
-                ref activityId) == 0)
+            // Set the activity id via EventPipe.
+            EventPipeInternal.EventActivityIdControl(
+                (uint)UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_SET_ID,
+                ref activityId);
 #endif // FEATURE_PERFTRACING
-            {
-#if FEATURE_ACTIVITYSAMPLING
-                var activityDying = s_activityDying;
-                if (activityDying != null && newId != activityId)
-                {
-                    if (activityId == Guid.Empty)
-                    {
-                        activityId = FallbackActivityId;
-                    }
-                    // OutputDebugString(string.Format("Activity dying: {0} -> {1}", activityId, newId));
-                    activityDying(activityId);     // This is actually the OLD activity ID.  
-                }
-#endif // FEATURE_ACTIVITYSAMPLING
-            }
+#if PLATFORM_WINDOWS
+            // Set the activity id via ETW.
+            UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
+                UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_SET_ID,
+                ref activityId);
+#endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
         }
 
@@ -97,14 +78,21 @@ namespace System.Diagnostics.Tracing
             // We ignore errors to keep with the convention that EventSources do not throw errors.
             // Note we can't access m_throwOnWrites because this is a static method.  
 
-#if FEATURE_PERFTRACING
-            oldActivityThatWillContinue = s_currentThreadActivityId;
-            s_currentThreadActivityId = activityId;
-#elif PLATFORM_WINDOWS
+#if FEATURE_PERFTRACING && PLATFORM_WINDOWS
+            EventPipeInternal.EventActivityIdControl(
+                (uint)UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_SET_ID,
+                    ref oldActivityThatWillContinue);
+#elif FEATURE_PERFTRACING
+            EventPipeInternal.EventActivityIdControl(
+                (uint)UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
+                    ref oldActivityThatWillContinue);
+#endif // FEATURE_PERFTRACING && PLATFORM_WINDOWS
+
+#if PLATFORM_WINDOWS
             UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                 UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
                     ref oldActivityThatWillContinue);
-#endif // FEATURE_PERFTRACING
+#endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
 
             // We don't call the activityDying callback here because the caller has declared that
@@ -124,13 +112,15 @@ namespace System.Diagnostics.Tracing
                 // errors. Note we can't access m_throwOnWrites because this is a static method.
                 Guid retVal = new Guid();
 #if FEATURE_MANAGED_ETW
-#if FEATURE_PERFTRACING
-                retVal = s_currentThreadActivityId;
-#elif PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS
                 UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                     UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_ID,
                     ref retVal);
-#endif // FEATURE_PERFTRACING
+#elif FEATURE_PERFTRACING
+                EventPipeInternal.EventActivityIdControl(
+                    (uint)UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_ID,
+                    ref retVal);
+#endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
                 return retVal;
             }

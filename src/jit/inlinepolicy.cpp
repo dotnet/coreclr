@@ -104,6 +104,27 @@ void LegalPolicy::NoteFatal(InlineObservation obs)
     assert(InlDecisionIsFailure(m_Decision));
 }
 
+#if defined(DEBUG) || defined(INLINE_DATA)
+
+//------------------------------------------------------------------------
+// NotePriorFailure: record reason for earlier inline failure
+//
+// Arguments:
+//    obs      - the current obsevation
+//
+// Notes:
+//    Used to "resurrect" failure observations from the early inline
+//    screen when building the inline context tree. Only used during
+//    debug modes.
+
+void LegalPolicy::NotePriorFailure(InlineObservation obs)
+{
+    NoteInternal(obs);
+    assert(InlDecisionIsFailure(m_Decision));
+}
+
+#endif // defined(DEBUG) || defined(INLINE_DATA)
+
 //------------------------------------------------------------------------
 // NoteInternal: helper for handling an observation
 //
@@ -267,37 +288,24 @@ void DefaultPolicy::NoteBool(InlineObservation obs, bool value)
                 break;
 
             case InlineObservation::CALLEE_LOOKS_LIKE_WRAPPER:
-                // DefaultPolicy ignores this for prejit roots.
-                if (!m_IsPrejitRoot)
-                {
-                    m_LooksLikeWrapperMethod = value;
-                }
+                m_LooksLikeWrapperMethod = value;
+                break;
+
+            case InlineObservation::CALLEE_ARG_FEEDS_TEST:
+                m_ArgFeedsTest++;
                 break;
 
             case InlineObservation::CALLEE_ARG_FEEDS_CONSTANT_TEST:
-                // DefaultPolicy ignores this for prejit roots.
-                if (!m_IsPrejitRoot)
-                {
-                    m_ArgFeedsConstantTest++;
-                }
+                m_ArgFeedsConstantTest++;
                 break;
 
             case InlineObservation::CALLEE_ARG_FEEDS_RANGE_CHECK:
-                // DefaultPolicy ignores this for prejit roots.
-                if (!m_IsPrejitRoot)
-                {
-                    m_ArgFeedsRangeCheck++;
-                }
+                m_ArgFeedsRangeCheck++;
                 break;
 
             case InlineObservation::CALLEE_HAS_SWITCH:
             case InlineObservation::CALLEE_UNSUPPORTED_OPCODE:
-                // DefaultPolicy ignores these for prejit roots.
-                if (!m_IsPrejitRoot)
-                {
-                    // Pass these on, they should cause inlining to fail.
-                    propagate = true;
-                }
+                propagate = true;
                 break;
 
             case InlineObservation::CALLSITE_CONSTANT_ARG_FEEDS_TEST:
@@ -476,7 +484,8 @@ void DefaultPolicy::NoteInt(InlineObservation obs, int value)
 
             unsigned basicBlockCount = static_cast<unsigned>(value);
 
-            if (m_IsNoReturn && (basicBlockCount == 1))
+            // CALLEE_IS_FORCE_INLINE overrides CALLEE_DOES_NOT_RETURN
+            if (!m_IsForceInline && m_IsNoReturn && (basicBlockCount == 1))
             {
                 SetNever(InlineObservation::CALLEE_DOES_NOT_RETURN);
             }
@@ -649,6 +658,13 @@ double DefaultPolicy::DetermineMultiplier()
         multiplier += 3.0;
         JITDUMP("\nInline candidate has const arg that feeds a conditional.  Multiplier increased to %g.", multiplier);
     }
+    // For prejit roots we do not see the call sites. To be suitably optimisitic
+    // assume that call sites may pass constants.
+    else if (m_IsPrejitRoot && ((m_ArgFeedsConstantTest > 0) || (m_ArgFeedsTest > 0)))
+    {
+        multiplier += 3.0;
+        JITDUMP("\nPrejit root candidate has arg that feeds a conditional.  Multiplier increased to %g.", multiplier);
+    }
 
     switch (m_CallsiteFrequency)
     {
@@ -764,10 +780,8 @@ int DefaultPolicy::DetermineCallsiteNativeSizeEstimate(CORINFO_METHOD_INFO* meth
 
             callsiteSize += 10; // "lea     EAX, bword ptr [EBP-14H]"
 
-            // NB sizeof (void*) fails to convey intent when cross-jitting.
-
-            unsigned opsz  = (unsigned)(roundUp(comp->getClassSize(verType.GetClassHandle()), sizeof(void*)));
-            unsigned slots = opsz / sizeof(void*);
+            unsigned opsz  = (unsigned)(roundUp(comp->getClassSize(verType.GetClassHandle()), TARGET_POINTER_SIZE));
+            unsigned slots = opsz / TARGET_POINTER_SIZE;
 
             callsiteSize += slots * 20; // "push    gword ptr [EAX+offs]  "
         }
@@ -1158,25 +1172,6 @@ void DiscretionaryPolicy::NoteBool(InlineObservation obs, bool value)
 {
     switch (obs)
     {
-        case InlineObservation::CALLEE_LOOKS_LIKE_WRAPPER:
-            m_LooksLikeWrapperMethod = value;
-            break;
-
-        case InlineObservation::CALLEE_ARG_FEEDS_CONSTANT_TEST:
-            assert(value);
-            m_ArgFeedsConstantTest++;
-            break;
-
-        case InlineObservation::CALLEE_ARG_FEEDS_RANGE_CHECK:
-            assert(value);
-            m_ArgFeedsRangeCheck++;
-            break;
-
-        case InlineObservation::CALLSITE_CONSTANT_ARG_FEEDS_TEST:
-            assert(value);
-            m_ConstantArgFeedsConstantTest++;
-            break;
-
         case InlineObservation::CALLEE_IS_CLASS_CTOR:
             m_IsClassCtor = value;
             break;
@@ -1603,7 +1598,7 @@ void DiscretionaryPolicy::MethodInfoObservations(CORINFO_METHOD_INFO* methodInfo
     const unsigned    argCount = args.numArgs;
     m_ArgCount                 = argCount;
 
-    const unsigned pointerSize = sizeof(void*);
+    const unsigned pointerSize = TARGET_POINTER_SIZE;
     unsigned       i           = 0;
 
     // Implicit arguments

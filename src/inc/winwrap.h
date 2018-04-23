@@ -343,14 +343,6 @@ WszCreateProcess(
     LPPROCESS_INFORMATION lpProcessInformation
     );
 
-DWORD
-WszGetWorkingSet(
-    VOID
-    );
-
-SIZE_T WszGetPagefileUsage();
-DWORD  WszGetProcessHandleCount();
-
 #if defined(_X86_) && defined(_MSC_VER)
 
 //
@@ -469,21 +461,6 @@ __forceinline LONGLONG __InterlockedExchangeAdd64(LONGLONG volatile * Addend, LO
 }
 
 #endif // _X86_
-
-//
-// RtlVerifyVersionInfo() type mask bits
-// Making our copy of type mask bits as the original
-// macro name are redefined in public\internal\NDP\inc\product_version.h
-//
-//
-#define CLR_VER_MINORVERSION                0x0000001
-#define CLR_VER_MAJORVERSION                0x0000002
-#define CLR_VER_BUILDNUMBER                 0x0000004
-#define CLR_VER_PLATFORMID                  0x0000008
-#define CLR_VER_SERVICEPACKMINOR            0x0000010
-#define CLR_VER_SERVICEPACKMAJOR            0x0000020
-#define CLR_VER_SUITENAME                   0x0000040
-#define CLR_VER_PRODUCT_TYPE                0x0000080
 
 // Output printf-style formatted text to the debugger if it's present or stdout otherwise.
 inline void DbgWPrintf(const LPCWSTR wszFormat, ...)

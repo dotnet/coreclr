@@ -180,6 +180,11 @@ typedef  SHash<ZapperLoaderModuleTableTraits> ZapperLoaderModuleTable;
 class CEECompileInfo : public ICorCompileInfo
 {
   public:
+    CEECompileInfo()
+       : m_fGeneratingNgenPDB(FALSE)
+    {
+    }
+
     virtual ~CEECompileInfo()
     {
         WRAPPER_NO_CONTRACT;
@@ -193,8 +198,7 @@ class CEECompileInfo : public ICorCompileInfo
                          IMetaDataAssemblyEmit    *pEmitter,
                          BOOL                     fForceDebug,
                          BOOL                     fForceProfiling,
-                         BOOL                     fForceInstrument,
-                         BOOL                     fForceFulltrustDomain);
+                         BOOL                     fForceInstrument);
 
     HRESULT MakeCrossDomainCallback(
                                     ICorCompilationDomain*  pDomain,
@@ -350,10 +354,6 @@ class CEECompileInfo : public ICorCompileInfo
     HRESULT GetBaseJitFlags(
             IN  CORINFO_METHOD_HANDLE    hMethod,
             OUT CORJIT_FLAGS            *pFlags);
-
-#ifdef _WIN64
-    SIZE_T  getPersonalityValue();
-#endif
 
     void* GetStubSize(void *pStubAddress, DWORD *pSizeToCopy);
 

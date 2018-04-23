@@ -51,6 +51,8 @@ public:
 
     static FCDECL1(void, RunClassConstructor, ReflectClassBaseObject *pTypeUNSAFE);
     static FCDECL1(void, RunModuleConstructor, ReflectModuleBaseObject *pModuleUNSAFE);
+    static FCDECL3(void, PrepareMethod, ReflectMethodObject* pMethodUNSAFE, TypeHandle *pInstantiation, UINT32 cInstantiation);
+    static FCDECL1(void, PrepareDelegate, Object* delegateUNSAFE);
     static FCDECL1(void, PrepareContractedDelegate, Object* delegateUNSAFE);
     static FCDECL0(void, ProbeForSufficientStack);    
     static FCDECL0(void, EnsureSufficientExecutionStack);
@@ -74,7 +76,6 @@ public:
     static FCDECL2_IV(Object*, CreateEnum, ReflectClassBaseObject *pTypeUNSAFE, INT64 value);
 
     // helper fcalls for invocation
-    static FCDECL1(DWORD, GetSpecialSecurityFlags, ReflectMethodObject *pMethodUNSAFE);
     static FCDECL2(FC_BOOL_RET, CanValueSpecialCast, ReflectClassBaseObject *valueType, ReflectClassBaseObject *targetType);
     static FCDECL3(Object*, AllocateValueType, ReflectClassBaseObject *targetType, Object *valueUNSAFE, CLR_BOOL fForceTypeChange);
 

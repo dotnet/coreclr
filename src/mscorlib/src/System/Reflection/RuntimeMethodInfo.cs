@@ -41,18 +41,18 @@ namespace System.Reflection
                     //
                     // first take care of all the NO_INVOKE cases. 
                     if (ContainsGenericParameters ||
-                         ReturnType.IsByRef ||
+                         IsDisallowedByRefType(ReturnType) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
-                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs) ||
-                         ((Attributes & MethodAttributes.RequireSecObject) == MethodAttributes.RequireSecObject))
+                         ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
                     {
                         // We don't need other flags if this method cannot be invoked
                         invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_NO_INVOKE;
                     }
                     else
                     {
-                        // this should be an invocable method, determine the other flags that participate in invocation
-                        invocationFlags = RuntimeMethodHandle.GetSecurityFlags(this);
+                        // Check for byref-like types
+                        if ((declaringType != null && declaringType.IsByRefLike) || ReturnType.IsByRefLike)
+                            invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
                     }
 
                     m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
@@ -60,6 +60,15 @@ namespace System.Reflection
 
                 return m_invocationFlags;
             }
+        }
+
+        private bool IsDisallowedByRefType(Type type)
+        {
+            if (!type.IsByRef)
+                return false;
+
+            Type elementType = type.GetElementType();
+            return elementType.IsByRefLike || elementType == typeof(void);
         }
         #endregion
 
@@ -444,10 +453,13 @@ namespace System.Reflection
             {
                 throw new MemberAccessException();
             }
-            // ByRef return are not allowed in reflection
             else if (ReturnType.IsByRef)
             {
-                throw new NotSupportedException(SR.NotSupported_ByRefReturn);
+                Type elementType = ReturnType.GetElementType();
+                if (elementType.IsByRefLike)
+                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);    
+                if (elementType == typeof(void))
+                    throw new NotSupportedException(SR.NotSupported_ByRefToVoidReturn);
             }
 
             throw new TargetException();
@@ -455,27 +467,10 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
-            return UnsafeInvokeInternal(obj, invokeAttr, parameters, arguments);
-        }
-
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        internal object UnsafeInvoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
-            object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
-
-            return UnsafeInvokeInternal(obj, invokeAttr, parameters, arguments);
-        }
-
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        private object UnsafeInvokeInternal(Object obj, BindingFlags invokeAttr, Object[] parameters, Object[] arguments)
-        {
             bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (arguments == null || arguments.Length == 0)
                 return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions);
@@ -571,8 +566,6 @@ namespace System.Reflection
 
         public override Delegate CreateDelegate(Type delegateType)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
             // This API existed in v1/v1.1 and only expected to create closed
             // instance delegates. Constrain the call to BindToMethodInfo to
             // open delegates only for backwards compatibility. But we'll allow
@@ -584,14 +577,11 @@ namespace System.Reflection
             return CreateDelegateInternal(
                 delegateType,
                 null,
-                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature,
-                ref stackMark);
+                DelegateBindingFlags.OpenDelegateOnly | DelegateBindingFlags.RelaxedSignature);
         }
 
         public override Delegate CreateDelegate(Type delegateType, Object target)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
             // This API is new in Whidbey and allows the full range of delegate
             // flexability (open or closed delegates binding to static or
             // instance methods with relaxed signature checking). The delegate
@@ -600,11 +590,10 @@ namespace System.Reflection
             return CreateDelegateInternal(
                 delegateType,
                 target,
-                DelegateBindingFlags.RelaxedSignature,
-                ref stackMark);
+                DelegateBindingFlags.RelaxedSignature);
         }
 
-        private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags, ref StackCrawlMark stackMark)
+        private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags)
         {
             // Validate the parameters.
             if (delegateType == null)
@@ -617,7 +606,7 @@ namespace System.Reflection
             if (!rtType.IsDelegate())
                 throw new ArgumentException(SR.Arg_MustBeDelegate, nameof(delegateType));
 
-            Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags, ref stackMark);
+            Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags);
             if (d == null)
             {
                 throw new ArgumentException(SR.Arg_DlgtTargMeth);

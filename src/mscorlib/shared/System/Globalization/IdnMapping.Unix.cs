@@ -8,9 +8,10 @@ namespace System.Globalization
 {
     sealed partial class IdnMapping
     {
-        private unsafe string GetAsciiCore(char* unicode, int count)
+        private unsafe string GetAsciiCore(string unicodeString, char* unicode, int count)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(unicodeString != null && unicodeString.Length >= count);
 
             uint flags = Flags;
             CheckInvalidIdnCharacters(unicode, count, flags, nameof(unicode));
@@ -23,15 +24,15 @@ namespace System.Globalization
             if (estimatedLength < StackallocThreshold)
             {
                 char* outputStack = stackalloc char[estimatedLength];
-                actualLength = Interop.GlobalizationInterop.ToAscii(flags, unicode, count, outputStack, estimatedLength);
+                actualLength = Interop.Globalization.ToAscii(flags, unicode, count, outputStack, estimatedLength);
                 if (actualLength > 0 && actualLength <= estimatedLength)
                 {
-                    return new string(outputStack, 0, actualLength);
+                    return GetStringForOutput(unicodeString, unicode, count, outputStack, actualLength);
                 }
             }
             else
             {
-                actualLength = Interop.GlobalizationInterop.ToAscii(flags, unicode, count, null, 0);
+                actualLength = Interop.Globalization.ToAscii(flags, unicode, count, null, 0);
             }
             if (actualLength == 0)
             {
@@ -41,18 +42,19 @@ namespace System.Globalization
             char[] outputHeap = new char[actualLength];
             fixed (char* pOutputHeap = &outputHeap[0])
             {
-                actualLength = Interop.GlobalizationInterop.ToAscii(flags, unicode, count, pOutputHeap, actualLength);
+                actualLength = Interop.Globalization.ToAscii(flags, unicode, count, pOutputHeap, actualLength);
                 if (actualLength == 0 || actualLength > outputHeap.Length)
                 {
                     throw new ArgumentException(SR.Argument_IdnIllegalName, nameof(unicode));
                 }
-                return new string(pOutputHeap, 0, actualLength);
+                return GetStringForOutput(unicodeString, unicode, count, pOutputHeap, actualLength);
             }
         }
 
-        private unsafe string GetUnicodeCore(char* ascii, int count)
+        private unsafe string GetUnicodeCore(string asciiString, char* ascii, int count)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(asciiString != null && asciiString.Length >= count);
 
             uint flags = Flags;
             CheckInvalidIdnCharacters(ascii, count, flags, nameof(ascii));
@@ -61,23 +63,24 @@ namespace System.Globalization
             if (count < StackAllocThreshold)
             {
                 char* output = stackalloc char[count];
-                return GetUnicodeCore(ascii, count, flags, output, count, reattempt: true);
+                return GetUnicodeCore(asciiString, ascii, count, flags, output, count, reattempt: true);
             }
             else
             {
                 char[] output = new char[count];
                 fixed (char* pOutput = &output[0])
                 {
-                    return GetUnicodeCore(ascii, count, flags, pOutput, count, reattempt: true);
+                    return GetUnicodeCore(asciiString, ascii, count, flags, pOutput, count, reattempt: true);
                 }
             }
         }
 
-        private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength, bool reattempt)
+        private unsafe string GetUnicodeCore(string asciiString, char* ascii, int count, uint flags, char* output, int outputLength, bool reattempt)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
+            Debug.Assert(asciiString != null && asciiString.Length >= count);
 
-            int realLen = Interop.GlobalizationInterop.ToUnicode(flags, ascii, count, output, outputLength);
+            int realLen = Interop.Globalization.ToUnicode(flags, ascii, count, output, outputLength);
 
             if (realLen == 0)
             {
@@ -85,14 +88,14 @@ namespace System.Globalization
             }
             else if (realLen <= outputLength)
             {
-                return new string(output, 0, realLen);
+                return GetStringForOutput(asciiString, ascii, count, output, realLen);
             }
             else if (reattempt)
             {
                 char[] newOutput = new char[realLen];
                 fixed (char* pNewOutput = newOutput)
                 {
-                    return GetUnicodeCore(ascii, count, flags, pNewOutput, realLen, reattempt: false);
+                    return GetUnicodeCore(asciiString, ascii, count, flags, pNewOutput, realLen, reattempt: false);
                 }
             }
 
@@ -108,8 +111,8 @@ namespace System.Globalization
             get
             {
                 int flags =
-                    (AllowUnassigned ? Interop.GlobalizationInterop.AllowUnassigned : 0) |
-                    (UseStd3AsciiRules ? Interop.GlobalizationInterop.UseStd3AsciiRules : 0);
+                    (AllowUnassigned ? Interop.Globalization.AllowUnassigned : 0) |
+                    (UseStd3AsciiRules ? Interop.Globalization.UseStd3AsciiRules : 0);
                 return (uint)flags;
             }
         }
@@ -123,7 +126,7 @@ namespace System.Globalization
         /// </summary>
         private static unsafe void CheckInvalidIdnCharacters(char* s, int count, uint flags, string paramName)
         {
-            if ((flags & Interop.GlobalizationInterop.UseStd3AsciiRules) == 0)
+            if ((flags & Interop.Globalization.UseStd3AsciiRules) == 0)
             {
                 for (int i = 0; i < count; i++)
                 {

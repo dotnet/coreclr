@@ -4,6 +4,7 @@
 
 using System.Text;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace System.Globalization
 {
@@ -46,7 +47,7 @@ namespace System.Globalization
             StringBuilderCache.GetStringAndRelease(FormatToBuilder(value, format, formatProvider));
 
         /// <summary>Main method called from TimeSpan.TryFormat.</summary>
-        internal static bool TryFormat(TimeSpan value, Span<char> destination, out int charsWritten, string format, IFormatProvider formatProvider)
+        internal static bool TryFormat(TimeSpan value, Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider formatProvider)
         {
             StringBuilder sb = FormatToBuilder(value, format, formatProvider);
             if (sb.Length <= destination.Length)
@@ -64,9 +65,9 @@ namespace System.Globalization
             }
         }
 
-        private static StringBuilder FormatToBuilder(TimeSpan value, string format, IFormatProvider formatProvider)
+        private static StringBuilder FormatToBuilder(TimeSpan value, ReadOnlySpan<char> format, IFormatProvider formatProvider)
         {
-            if (format == null || format.Length == 0)
+            if (format.Length == 0)
             {
                 format = "c";
             }
@@ -101,11 +102,11 @@ namespace System.Globalization
             }
 
             // Custom formats
-            return FormatCustomized(value, format, DateTimeFormatInfo.GetInstance(formatProvider));
+            return FormatCustomized(value, format, DateTimeFormatInfo.GetInstance(formatProvider), result: null);
         }
 
         /// <summary>Format the TimeSpan instance using the specified format.</summary>
-        private static StringBuilder FormatStandard(TimeSpan value, bool isInvariant, string format, Pattern pattern)
+        private static StringBuilder FormatStandard(TimeSpan value, bool isInvariant, ReadOnlySpan<char> format, Pattern pattern)
         {
             StringBuilder sb = StringBuilderCache.Acquire(InternalGlobalizationHelper.StringBuilderDefaultCapacity);
             int day = (int)(value.Ticks / TimeSpan.TicksPerDay);
@@ -186,9 +187,16 @@ namespace System.Globalization
         }
 
         /// <summary>Format the TimeSpan instance using the specified format.</summary>
-        private static StringBuilder FormatCustomized(TimeSpan value, string format, DateTimeFormatInfo dtfi)
+        private static StringBuilder FormatCustomized(TimeSpan value, ReadOnlySpan<char> format, DateTimeFormatInfo dtfi, StringBuilder result)
         {
             Debug.Assert(dtfi != null);
+
+            bool resultBuilderIsPooled = false;
+            if (result == null)
+            {
+                result = StringBuilderCache.Acquire(InternalGlobalizationHelper.StringBuilderDefaultCapacity);
+                resultBuilderIsPooled = true;
+            }
 
             int day = (int)(value.Ticks / TimeSpan.TicksPerDay);
             long time = value.Ticks % TimeSpan.TicksPerDay;
@@ -206,7 +214,6 @@ namespace System.Globalization
             long tmp = 0;
             int i = 0;
             int tokenLen;
-            StringBuilder result = StringBuilderCache.Acquire(InternalGlobalizationHelper.StringBuilderDefaultCapacity);
 
             while (i < format.Length)
             {
@@ -218,7 +225,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
                         DateTimeFormat.FormatDigits(result, hours, tokenLen);
                         break;
@@ -226,7 +233,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
                         DateTimeFormat.FormatDigits(result, minutes, tokenLen);
                         break;
@@ -234,7 +241,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 2)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
                         DateTimeFormat.FormatDigits(result, seconds, tokenLen);
                         break;
@@ -245,7 +252,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
 
                         tmp = fraction;
@@ -259,7 +266,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > DateTimeFormat.MaxSecondsFractionDigits)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
 
                         tmp = fraction;
@@ -290,7 +297,7 @@ namespace System.Globalization
                         tokenLen = DateTimeFormat.ParseRepeatPattern(format, i, ch);
                         if (tokenLen > 8)
                         {
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
 
                         DateTimeFormat.FormatDigits(result, day, tokenLen, true);
@@ -308,7 +315,9 @@ namespace System.Globalization
                         // Besides, we will not allow "%%" appear in the pattern.
                         if (nextChar >= 0 && nextChar != (int)'%')
                         {
-                            result.Append(TimeSpanFormat.FormatCustomized(value, ((char)nextChar).ToString(), dtfi));
+                            char nextCharChar = (char)nextChar;
+                            StringBuilder origStringBuilder = FormatCustomized(value, MemoryMarshal.CreateReadOnlySpan<char>(ref nextCharChar, 1), dtfi, result);
+                            Debug.Assert(ReferenceEquals(origStringBuilder, result));
                             tokenLen = 2;
                         }
                         else
@@ -317,7 +326,7 @@ namespace System.Globalization
                             // This means that '%' is at the end of the format string or
                             // "%%" appears in the format string.
                             //
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
                         break;
                     case '\\':
@@ -335,10 +344,15 @@ namespace System.Globalization
                             //
                             // This means that '\' is at the end of the formatting string.
                             //
-                            throw new FormatException(SR.Format_InvalidString);
+                            goto default; // to release the builder and throw
                         }
                         break;
                     default:
+                        // Invalid format string
+                        if (resultBuilderIsPooled)
+                        {
+                            StringBuilderCache.Release(result);
+                        }
                         throw new FormatException(SR.Format_InvalidString);
                 }
                 i += tokenLen;
@@ -388,7 +402,7 @@ namespace System.Globalization
             // the constants guaranteed to include DHMSF ordered greatest to least significant.
             // Once the data becomes more complex than this we will need to write a proper tokenizer for
             // parsing and formatting
-            internal void Init(string format, bool useInvariantFieldLengths)
+            internal void Init(ReadOnlySpan<char> format, bool useInvariantFieldLengths)
             {
                 dd = hh = mm = ss = ff = 0;
                 _literals = new string[6];

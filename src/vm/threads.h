@@ -305,7 +305,6 @@ public:
 
     enum ThreadState
     {
-        TS_YieldRequested         = 0x00000040,    // The task should yield
     };
 
     BOOL HasThreadState(ThreadState ts)
@@ -971,7 +970,7 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 //                         ex: Windows/Unix ARM/ARM64, Unix-AMD64.
 //                         
 //                       
-// FEATURE_UNIX_AMD64_STRUCT_PASSING is a specific kind of FEATURE_MULTIREG_RETURN
+// UNIX_AMD64_ABI is a specific kind of FEATURE_MULTIREG_RETURN
 // [GcInfo v1 and v2]       specified by SystemV ABI for AMD64
 //                                   
 
@@ -1100,7 +1099,7 @@ public:
 
         TS_LegalToJoin            = 0x00000020,    // Is it now legal to attempt a Join()
 
-        TS_YieldRequested         = 0x00000040,    // The task should yield
+        // unused                 = 0x00000040,
 
 #ifdef FEATURE_HIJACK
         TS_Hijacked               = 0x00000080,    // Return address has been hijacked
@@ -1157,7 +1156,7 @@ public:
 
         // We require (and assert) that the following bits are less than 0x100.
         TS_CatchAtSafePoint = (TS_UserSuspendPending | TS_AbortRequested |
-                               TS_GCSuspendPending | TS_DebugSuspendPending | TS_GCOnTransitions | TS_YieldRequested),
+                               TS_GCSuspendPending | TS_DebugSuspendPending | TS_GCOnTransitions),
     };
 
     // Thread flags that aren't really states in themselves but rather things the thread
@@ -2349,15 +2348,6 @@ public:
     }
 
     //---------------------------------------------------------------
-    // Expose offset of the debugger word for the debugger
-    //---------------------------------------------------------------
-    static SIZE_T GetOffsetOfDebuggerWord()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (SIZE_T)(offsetof(class Thread, m_debuggerWord));
-    }
-
-    //---------------------------------------------------------------
     // Expose offset of the debugger cant stop count for the debugger
     //---------------------------------------------------------------
     static SIZE_T GetOffsetOfCantStop()
@@ -2966,12 +2956,6 @@ private:
     BOOL           ReadyForAsyncException();
 
 public:
-    inline BOOL IsYieldRequested()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_State & TS_YieldRequested);
-    }
-
     void           UserInterrupt(ThreadInterruptMode mode);
 
     void           SetAbortRequest(EEPolicy::ThreadAbortTypes abortType);  // Should only be called by ADUnload
@@ -3298,19 +3282,15 @@ public:
 
     DWORD          DoAppropriateWait(AppropriateWaitFunc func, void *args, DWORD millis,
                                      WaitMode mode, PendingSync *syncInfo = 0);
-#ifndef FEATURE_PAL
     DWORD          DoSignalAndWait(HANDLE *handles, DWORD millis, BOOL alertable,
                                      PendingSync *syncState = 0);
-#endif // !FEATURE_PAL
 private:
     void           DoAppropriateWaitWorkerAlertableHelper(WaitMode mode);
     DWORD          DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL waitAll,
                                            DWORD millis, WaitMode mode);
     DWORD          DoAppropriateWaitWorker(AppropriateWaitFunc func, void *args,
                                            DWORD millis, WaitMode mode);
-#ifndef FEATURE_PAL
     DWORD          DoSignalAndWaitWorker(HANDLE* pHandles, DWORD millis,BOOL alertable);
-#endif // !FEATURE_PAL
     DWORD          DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL bWaitAll, DWORD timeout, WaitMode mode);
     DWORD          DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis);
 public:
@@ -3520,7 +3500,6 @@ private:
     BOOL CheckForAndDoRedirectForDbg();
     BOOL CheckForAndDoRedirectForGC();
     BOOL CheckForAndDoRedirectForUserSuspend();
-    BOOL CheckForAndDoRedirectForYieldTask();
 
     // Exception handling must be very aware of redirection, so we provide a helper
     // to identifying redirection targets
@@ -3689,7 +3668,6 @@ private:
         RedirectReason_GCSuspension,
         RedirectReason_DebugSuspension,
         RedirectReason_UserSuspension,
-        RedirectReason_YieldTask,
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
         RedirectReason_GCStress,
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
@@ -3698,7 +3676,6 @@ private:
     static void __stdcall RedirectedHandledJITCaseForDbgThreadControl();
     static void __stdcall RedirectedHandledJITCaseForGCThreadControl();
     static void __stdcall RedirectedHandledJITCaseForUserSuspend();
-    static void __stdcall RedirectedHandledJITCaseForYieldTask();
 #if defined(HAVE_GCCOVER) && defined(USE_REDIRECT_FOR_GCSTRESS) // GCCOVER
     static void __stdcall Thread::RedirectedHandledJITCaseForGCStress();
 #endif // defined(HAVE_GCCOVER) && USE_REDIRECT_FOR_GCSTRESS
@@ -4120,12 +4097,6 @@ private:
     // areas that the Interop Debugging Services must know about.
     //---------------------------------------------------------------
     DWORD m_debuggerCantStop;
-
-    //---------------------------------------------------------------
-    // A word reserved for use by the CLR Debugging Services during
-    // managed/unmanaged debugging.
-    //---------------------------------------------------------------
-    VOID*    m_debuggerWord;
 
     //---------------------------------------------------------------
     // The current custom notification data object (or NULL if none
@@ -4842,9 +4813,9 @@ public:
 private:
     BYTE* m_pbDestCode;
     BYTE* m_pbSrcCode;
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     LPVOID m_pLastAVAddress;
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 
 public:
     void CommitGCStressInstructionUpdate();
@@ -4870,7 +4841,7 @@ public:
         m_pbDestCode = NULL;
         m_pbSrcCode = NULL;
     }
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     void SetLastAVAddress(LPVOID address)
     {
         LIMITED_METHOD_CONTRACT;
@@ -4881,7 +4852,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pLastAVAddress;
     }
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
 #if defined(_DEBUG) && defined(FEATURE_STACK_PROBE)
@@ -5266,6 +5237,10 @@ private:
     // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
     Volatile<ULONG> m_gcModeOnSuspension;
 
+    // The activity ID for the current thread.
+    // An activity ID of zero means the thread is not executing in the context of an activity.
+    GUID m_activityId;
+
 public:
     EventPipeBufferList* GetEventPipeBufferList()
     {
@@ -5294,7 +5269,7 @@ public:
     bool GetGCModeOnSuspension()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_gcModeOnSuspension;
+        return m_gcModeOnSuspension != 0;
     }
 
     void SaveGCModeOnSuspension()
@@ -5306,6 +5281,20 @@ public:
     void ClearGCModeOnSuspension()
     {
         m_gcModeOnSuspension = 0;
+    }
+
+    LPCGUID GetActivityId() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_activityId;
+    }
+
+    void SetActivityId(LPCGUID pActivityId)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(pActivityId != NULL);
+
+        m_activityId = *pActivityId;
     }
 #endif // FEATURE_PERFTRACING
 

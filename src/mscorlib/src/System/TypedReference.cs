@@ -16,7 +16,7 @@ namespace System
 
     [CLSCompliant(false)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
-    public struct TypedReference
+    public ref struct TypedReference
     {
         private IntPtr Value;
         private IntPtr Type;
@@ -29,7 +29,7 @@ namespace System
             if (flds == null)
                 throw new ArgumentNullException(nameof(flds));
             if (flds.Length == 0)
-                throw new ArgumentException(SR.Arg_ArrayZeroError);
+                throw new ArgumentException(SR.Arg_ArrayZeroError, nameof(flds));
 
             IntPtr[] fields = new IntPtr[flds.Length];
             // For proper handling of Nullable<T> don't change GetType() to something like 'IsAssignableFrom'
@@ -42,14 +42,14 @@ namespace System
                     throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo);
 
                 if (field.IsInitOnly || field.IsStatic)
-                    throw new ArgumentException(SR.Argument_TypedReferenceInvalidField);
+                    throw new ArgumentException(SR.Format(SR.Argument_TypedReferenceInvalidField, field.Name));
 
                 if (targetType != field.GetDeclaringTypeInternal() && !targetType.IsSubclassOf(field.GetDeclaringTypeInternal()))
                     throw new MissingMemberException(SR.MissingMemberTypeRef);
 
                 RuntimeType fieldType = (RuntimeType)field.FieldType;
                 if (fieldType.IsPrimitive)
-                    throw new ArgumentException(SR.Arg_TypeRefPrimitve);
+                    throw new ArgumentException(SR.Format(SR.Arg_TypeRefPrimitve, field.Name));
 
                 if (i < (flds.Length - 1) && !fieldType.IsValueType)
                     throw new MissingMemberException(SR.MissingMemberNestErr);
@@ -70,7 +70,7 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         // reference to TypedReference is banned, so have to pass result as pointer
-        private unsafe static extern void InternalMakeTypedReference(void* result, Object target, IntPtr[] flds, RuntimeType lastFieldType);
+        private static extern unsafe void InternalMakeTypedReference(void* result, Object target, IntPtr[] flds, RuntimeType lastFieldType);
 
         public override int GetHashCode()
         {
@@ -85,19 +85,19 @@ namespace System
             throw new NotSupportedException(SR.NotSupported_NYI);
         }
 
-        public unsafe static Object ToObject(TypedReference value)
+        public static unsafe Object ToObject(TypedReference value)
         {
             return InternalToObject(&value);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static Object InternalToObject(void* value);
+        internal static extern unsafe Object InternalToObject(void* value);
 
         internal bool IsNull
         {
             get
             {
-                return Value.IsNull() && Type.IsNull();
+                return Value == IntPtr.Zero && Type == IntPtr.Zero;
             }
         }
 
@@ -113,12 +113,12 @@ namespace System
 
         //  This may cause the type to be changed.
         [CLSCompliant(false)]
-        public unsafe static void SetTypedReference(TypedReference target, Object value)
+        public static unsafe void SetTypedReference(TypedReference target, Object value)
         {
             InternalSetTypedReference(&target, value);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe extern static void InternalSetTypedReference(void* target, Object value);
+        internal static extern unsafe void InternalSetTypedReference(void* target, Object value);
     }
 }

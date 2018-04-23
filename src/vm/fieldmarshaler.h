@@ -84,13 +84,11 @@ enum NStructFieldType
 
 //=======================================================================
 // Magic number for default struct packing size.
+//
+// Currently we set this to the packing size of the largest supported
+// fundamental type and let the field marshaller downsize where needed.
 //=======================================================================
-#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
-// A double is 4-byte aligned on GCC (without -malign-dobule)
-#define DEFAULT_PACKING_SIZE 4
-#else // _TARGET_X86_ && UNIX_X86_ABI
-#define DEFAULT_PACKING_SIZE 8
-#endif // !_TARGET_X86_ || !UNIX_X86_ABI
+#define DEFAULT_PACKING_SIZE 32
 
 
 //=======================================================================
@@ -1628,7 +1626,13 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+    // The System V ABI for i386 defines 4-byte alignment for 64-bit types.
+    SCALAR_MARSHALER_IMPL(8, 4)
+#else
     SCALAR_MARSHALER_IMPL(8, 8)
+#endif // _TARGET_X86_
+
     COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const

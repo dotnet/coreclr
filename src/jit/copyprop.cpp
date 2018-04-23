@@ -34,9 +34,9 @@ inline static T* allocate_any(jitstd::allocator<void>& alloc, size_t count = 1)
  */
 void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
-    for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
     {
-        for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
         {
             if (!tree->IsLocal())
             {
@@ -61,6 +61,18 @@ void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrSt
     }
 }
 
+#ifdef DEBUG
+void Compiler::optDumpCopyPropStack(LclNumToGenTreePtrStack* curSsaName)
+{
+    JITDUMP("{ ");
+    for (LclNumToGenTreePtrStack::KeyIterator iter = curSsaName->Begin(); !iter.Equal(curSsaName->End()); ++iter)
+    {
+        GenTree* node = iter.GetValue()->Index(0);
+        JITDUMP("%d-[%06d]:V%02u ", iter.Get(), dspTreeID(node), node->AsLclVarCommon()->gtLclNum);
+    }
+    JITDUMP("}\n\n");
+}
+#endif
 /*******************************************************************************************************
  *
  * Given the "lclVar" and "copyVar" compute if the copy prop will be beneficial.
@@ -121,7 +133,7 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
 //    tree        -  The tree to perform copy propagation on
 //    curSsaName  -  The map from lclNum to its recently live definitions as a stack
 
-void Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, LclNumToGenTreePtrStack* curSsaName)
+void Compiler::optCopyProp(BasicBlock* block, GenTree* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName)
 {
     // TODO-Review: EH successor/predecessor iteration seems broken.
     if (block->bbCatchTyp == BBCT_FINALLY || block->bbCatchTyp == BBCT_FAULT)
@@ -158,7 +170,7 @@ void Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, 
     {
         unsigned newLclNum = iter.Get();
 
-        GenTreePtr op = iter.GetValue()->Index(0);
+        GenTree* op = iter.GetValue()->Index(0);
 
         // Nothing to do if same.
         if (lclNum == newLclNum)
@@ -280,7 +292,7 @@ void Compiler::optCopyProp(BasicBlock* block, GenTreePtr stmt, GenTreePtr tree, 
  *
  * Helper to check if tree is a local that participates in SSA numbering.
  */
-bool Compiler::optIsSsaLocal(GenTreePtr tree)
+bool Compiler::optIsSsaLocal(GenTree* tree)
 {
     return tree->IsLocal() && !fgExcludeFromSsa(tree->AsLclVarCommon()->GetLclNum());
 }
@@ -296,17 +308,24 @@ bool Compiler::optIsSsaLocal(GenTreePtr tree)
 
 void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
+#ifdef DEBUG
     JITDUMP("Copy Assertion for BB%02u\n", block->bbNum);
+    if (verbose)
+    {
+        printf("  curSsaName stack: ");
+        optDumpCopyPropStack(curSsaName);
+    }
+#endif
 
     // There are no definitions at the start of the block. So clear it.
     compCurLifeTree = nullptr;
     VarSetOps::Assign(this, compCurLife, block->bbLiveIn);
-    for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
+    for (GenTree* stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
     {
         VarSetOps::ClearD(this, optCopyPropKillSet);
 
         // Walk the tree to find if any local variable can be replaced with current live definitions.
-        for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
         {
             compUpdateLife</*ForCodeGen*/ false>(tree);
 
@@ -333,7 +352,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
         }
 
         // This logic must be in sync with SSA renaming process.
-        for (GenTreePtr tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
         {
             if (!optIsSsaLocal(tree))
             {
@@ -348,7 +367,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
                 GenTreePtrStack* stack;
                 if (!curSsaName->Lookup(lclNum, &stack))
                 {
-                    stack = new (getAllocator()) GenTreePtrStack(this);
+                    stack = new (curSsaName->GetAllocator()) GenTreePtrStack(this);
                 }
                 stack->Push(tree);
                 curSsaName->Set(lclNum, stack);
@@ -361,7 +380,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
                 GenTreePtrStack* stack;
                 if (!curSsaName->Lookup(lclNum, &stack))
                 {
-                    stack = new (getAllocator()) GenTreePtrStack(this);
+                    stack = new (curSsaName->GetAllocator()) GenTreePtrStack(this);
                     stack->Push(tree);
                     curSsaName->Set(lclNum, stack);
                 }
@@ -408,10 +427,11 @@ void Compiler::optVnCopyProp()
     {
         return;
     }
-    jitstd::allocator<void> allocator(getAllocator());
+
+    CompAllocator allocator(this, CMK_CopyProp);
 
     // Compute the domTree to use.
-    BlkToBlkSetMap* domTree = new (getAllocator()) BlkToBlkSetMap(getAllocator());
+    BlkToBlkVectorMap* domTree = new (&allocator) BlkToBlkVectorMap(&allocator);
     domTree->Reallocate(fgBBcount * 3 / 2); // Prime the allocation
     SsaBuilder::ComputeDominators(this, domTree);
 
@@ -430,10 +450,9 @@ void Compiler::optVnCopyProp()
     VarSetOps::AssignNoCopy(this, optCopyPropKillSet, VarSetOps::MakeEmpty(this));
 
     // The map from lclNum to its recently live definitions as a stack.
-    LclNumToGenTreePtrStack curSsaName(getAllocator());
+    LclNumToGenTreePtrStack curSsaName(&allocator);
 
-    BlockWorkStack* worklist =
-        new (allocate_any<BlockWorkStack>(allocator), jitstd::placement_t()) BlockWorkStack(allocator);
+    BlockWorkStack* worklist = new (&allocator) BlockWorkStack(&allocator);
 
     worklist->push_back(BlockWork(fgFirstBB));
     while (!worklist->empty())
@@ -455,12 +474,12 @@ void Compiler::optVnCopyProp()
         optBlockCopyProp(block, &curSsaName);
 
         // Add dom children to work on.
-        BlkSet* pBlkSet;
-        if (domTree->Lookup(block, &pBlkSet))
+        BlkVector* domChildren = domTree->LookupPointer(block);
+        if (domChildren != nullptr)
         {
-            for (BlkSet::KeyIterator child = pBlkSet->Begin(); !child.Equal(pBlkSet->End()); ++child)
+            for (BasicBlock* child : *domChildren)
             {
-                worklist->push_back(BlockWork(child.Get()));
+                worklist->push_back(BlockWork(child));
             }
         }
     }

@@ -29,7 +29,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "lower.h"
 
 //------------------------------------------------------------------------
-// TreeNodeInfoInit: Set the register requirements for RA.
+// BuildNode: Set the register requirements for RA.
 //
 // Notes:
 //    Takes care of annotating the register requirements
@@ -44,10 +44,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //    requirements needed by LSRA to build the Interval Table (source,
 //    destination and internal [temp] register counts).
 //
-void LinearScan::TreeNodeInfoInit(GenTree* tree)
+void LinearScan::BuildNode(GenTree* tree)
 {
+    TreeNodeInfo* info         = currentNodeInfo;
     unsigned      kind         = tree->OperKind();
-    TreeNodeInfo* info         = &(tree->gtLsraInfo);
     RegisterType  registerType = TypeGet(tree);
 
     if (tree->isContained())
@@ -77,36 +77,23 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         GenTree* op2;
 
         default:
-            if (kind & (GTK_CONST | GTK_LEAF))
-            {
-                info->srcCount = 0;
-            }
-            else if (kind & (GTK_SMPOP))
-            {
-                if (tree->gtGetOp2IfPresent() != nullptr)
-                {
-                    info->srcCount = 2;
-                }
-                else
-                {
-                    info->srcCount = 1;
-                }
-            }
-            else
-            {
-                unreached();
-            }
+            BuildSimple(tree);
             break;
 
         case GT_STORE_LCL_FLD:
         case GT_STORE_LCL_VAR:
             info->srcCount = 1;
             assert(info->dstCount == 0);
-            TreeNodeInfoInitStoreLoc(tree->AsLclVarCommon());
+            BuildStoreLoc(tree->AsLclVarCommon());
+            break;
+
+        case GT_FIELD_LIST:
+            // These should always be contained. We don't correctly allocate or
+            // generate code for a non-contained GT_FIELD_LIST.
+            noway_assert(!"Non-contained GT_FIELD_LIST");
             break;
 
         case GT_LIST:
-        case GT_FIELD_LIST:
         case GT_ARGPLACE:
         case GT_NO_OP:
         case GT_START_NONGC:
@@ -144,7 +131,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_RETURN:
-            TreeNodeInfoInitReturn(tree);
+            BuildReturn(tree);
             break;
 
         case GT_RETFILT:
@@ -161,7 +148,9 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
                 assert(info->dstCount == 0);
 
                 info->setSrcCandidates(this, RBM_INTRET);
-                tree->gtOp.gtOp1->gtLsraInfo.setSrcCandidates(this, RBM_INTRET);
+                LocationInfoListNode* locationInfo = getLocationInfo(tree->gtOp.gtOp1);
+                locationInfo->info.setSrcCandidates(this, RBM_INTRET);
+                useList.Append(locationInfo);
             }
             break;
 
@@ -203,7 +192,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_SWITCH_TABLE:
-            info->srcCount         = 2;
+            info->srcCount         = appendBinaryLocationInfoToList(tree->AsOp());
             info->internalIntCount = 1;
             assert(info->dstCount == 0);
             break;
@@ -223,8 +212,6 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
                 // No implicit conversions at this stage as the expectation is that
                 // everything is made explicit by adding casts.
                 assert(tree->gtOp.gtOp1->TypeGet() == tree->gtOp.gtOp2->TypeGet());
-
-                info->srcCount = 2;
             }
 
             __fallthrough;
@@ -232,13 +219,18 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_AND:
         case GT_OR:
         case GT_XOR:
-            info->srcCount = tree->gtOp.gtOp2->isContained() ? 1 : 2;
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+        case GT_ROR:
+            info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->dstCount == 1);
             break;
 
         case GT_RETURNTRAP:
             // this just turns into a compare of its child with an int
             // + a conditional call
+            appendLocationInfoToList(tree->gtGetOp1());
             info->srcCount = 1;
             assert(info->dstCount == 0);
             break;
@@ -262,7 +254,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_MULHI:
         case GT_UDIV:
         {
-            info->srcCount = 2;
+            info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
             assert(info->dstCount == 1);
         }
         break;
@@ -280,6 +272,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             assert(varTypeIsFloating(op1));
             assert(op1->TypeGet() == tree->TypeGet());
 
+            appendLocationInfoToList(op1);
             info->srcCount = 1;
             assert(info->dstCount == 1);
         }
@@ -287,9 +280,15 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
 
 #ifdef FEATURE_SIMD
         case GT_SIMD:
-            TreeNodeInfoInitSIMD(tree->AsSIMD());
+            BuildSIMD(tree->AsSIMD());
             break;
 #endif // FEATURE_SIMD
+
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            BuildHWIntrinsic(tree->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
 
         case GT_CAST:
         {
@@ -297,6 +296,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             //                register.
             //         see CodeGen::genIntToIntCast()
 
+            appendLocationInfoToList(tree->gtGetOp1());
             info->srcCount = 1;
             assert(info->dstCount == 1);
 
@@ -304,9 +304,9 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             // and that allow the source operand to be either a reg or memop. Given the
             // fact that casts from small int to float/double are done as two-level casts,
             // the source operand is always guaranteed to be of size 4 or 8 bytes.
-            var_types  castToType = tree->CastToType();
-            GenTreePtr castOp     = tree->gtCast.CastOp();
-            var_types  castOpType = castOp->TypeGet();
+            var_types castToType = tree->CastToType();
+            GenTree*  castOp     = tree->gtCast.CastOp();
+            var_types castOpType = castOp->TypeGet();
             if (tree->gtFlags & GTF_UNSIGNED)
             {
                 castOpType = genUnsignedType(castOpType);
@@ -339,20 +339,10 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         break;
 
         case GT_NEG:
-            info->srcCount = 1;
-            assert(info->dstCount == 1);
-            break;
-
         case GT_NOT:
+            appendLocationInfoToList(tree->gtGetOp1());
             info->srcCount = 1;
             assert(info->dstCount == 1);
-            break;
-
-        case GT_LSH:
-        case GT_RSH:
-        case GT_RSZ:
-        case GT_ROR:
-            TreeNodeInfoInitShiftRotate(tree);
             break;
 
         case GT_EQ:
@@ -364,10 +354,11 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_TEST_EQ:
         case GT_TEST_NE:
         case GT_JCMP:
-            TreeNodeInfoInitCmp(tree);
+            BuildCmp(tree);
             break;
 
         case GT_CKFINITE:
+            appendLocationInfoToList(tree->gtOp.gtOp1);
             info->srcCount = 1;
             assert(info->dstCount == 1);
             info->internalIntCount = 1;
@@ -383,11 +374,17 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
 
             // For ARMv8 exclusives the lifetime of the addr and data must be extended because
             // it may be used used multiple during retries
-            cmpXchgNode->gtOpLocation->gtLsraInfo.isDelayFree = true;
-            cmpXchgNode->gtOpValue->gtLsraInfo.isDelayFree    = true;
+            LocationInfoListNode* locationInfo = getLocationInfo(tree->gtCmpXchg.gtOpLocation);
+            locationInfo->info.isDelayFree     = true;
+            useList.Append(locationInfo);
+            LocationInfoListNode* valueInfo = getLocationInfo(tree->gtCmpXchg.gtOpValue);
+            valueInfo->info.isDelayFree     = true;
+            useList.Append(valueInfo);
             if (!cmpXchgNode->gtOpComparand->isContained())
             {
-                cmpXchgNode->gtOpComparand->gtLsraInfo.isDelayFree = true;
+                LocationInfoListNode* comparandInfo = getLocationInfo(tree->gtCmpXchg.gtOpComparand);
+                comparandInfo->info.isDelayFree     = true;
+                useList.Append(comparandInfo);
             }
             info->hasDelayFreeSrc = true;
 
@@ -399,39 +396,52 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_LOCKADD:
         case GT_XADD:
         case GT_XCHG:
+        {
             assert(info->dstCount == (tree->TypeGet() == TYP_VOID) ? 0 : 1);
             info->srcCount         = tree->gtOp.gtOp2->isContained() ? 1 : 2;
             info->internalIntCount = (tree->OperGet() == GT_XCHG) ? 1 : 2;
 
             // For ARMv8 exclusives the lifetime of the addr and data must be extended because
             // it may be used used multiple during retries
-            tree->gtOp.gtOp1->gtLsraInfo.isDelayFree = true;
+            assert(!tree->gtOp.gtOp1->isContained());
+            LocationInfoListNode* op1Info = getLocationInfo(tree->gtOp.gtOp1);
+            useList.Append(op1Info);
+            LocationInfoListNode* op2Info = nullptr;
             if (!tree->gtOp.gtOp2->isContained())
             {
-                tree->gtOp.gtOp2->gtLsraInfo.isDelayFree = true;
+                op2Info = getLocationInfo(tree->gtOp.gtOp2);
+                useList.Append(op2Info);
             }
-            info->hasDelayFreeSrc = true;
-
-            // Internals may not collide with target
-            info->isInternalRegDelayFree = true;
-            break;
+            if (info->dstCount != 0)
+            {
+                op1Info->info.isDelayFree = true;
+                if (op2Info != nullptr)
+                {
+                    op2Info->info.isDelayFree = true;
+                }
+                // Internals may not collide with target
+                info->isInternalRegDelayFree = true;
+                info->hasDelayFreeSrc        = true;
+            }
+        }
+        break;
 
         case GT_PUTARG_STK:
-            TreeNodeInfoInitPutArgStk(tree->AsPutArgStk());
+            BuildPutArgStk(tree->AsPutArgStk());
             break;
 
         case GT_PUTARG_REG:
-            TreeNodeInfoInitPutArgReg(tree->AsUnOp());
+            BuildPutArgReg(tree->AsUnOp());
             break;
 
         case GT_CALL:
-            TreeNodeInfoInitCall(tree->AsCall());
+            BuildCall(tree->AsCall());
             break;
 
         case GT_ADDR:
         {
             // For a GT_ADDR, the child node should not be evaluated into a register
-            GenTreePtr child = tree->gtOp.gtOp1;
+            GenTree* child = tree->gtOp.gtOp1;
             assert(!isCandidateLocalRef(child));
             assert(child->isContained());
             assert(info->dstCount == 1);
@@ -449,7 +459,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
-            TreeNodeInfoInitBlockStore(tree->AsBlk());
+            BuildBlockStore(tree->AsBlk());
             break;
 
         case GT_INIT_VAL:
@@ -481,7 +491,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             hasPspSym = false;
 #endif
 
-            GenTreePtr size = tree->gtOp.gtOp1;
+            GenTree* size = tree->gtOp.gtOp1;
             if (size->IsCnsIntOrI())
             {
                 assert(size->isContained());
@@ -533,6 +543,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             }
             else
             {
+                appendLocationInfoToList(size);
                 info->srcCount = 1;
                 if (!compiler->info.compInitMem)
                 {
@@ -564,19 +575,12 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
         {
             GenTreeBoundsChk* node = tree->AsBoundsChk();
             // Consumes arrLen & index - has no result
-            info->srcCount = 2;
             assert(info->dstCount == 0);
 
             GenTree* intCns = nullptr;
             GenTree* other  = nullptr;
-            if (node->gtIndex->isContained() || node->gtArrLen->isContained())
-            {
-                info->srcCount = 1;
-            }
-            else
-            {
-                info->srcCount = 2;
-            }
+            info->srcCount  = GetOperandInfo(tree->AsBoundsChk()->gtIndex);
+            info->srcCount += GetOperandInfo(tree->AsBoundsChk()->gtArrLen);
         }
         break;
 
@@ -588,6 +592,7 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_ARR_INDEX:
+        {
             info->srcCount = 2;
             assert(info->dstCount == 1);
             info->internalIntCount       = 1;
@@ -595,14 +600,25 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
 
             // For GT_ARR_INDEX, the lifetime of the arrObj must be extended because it is actually used multiple
             // times while the result is being computed.
-            tree->AsArrIndex()->ArrObj()->gtLsraInfo.isDelayFree = true;
-            info->hasDelayFreeSrc                                = true;
-            break;
+            LocationInfoListNode* arrObjInfo = getLocationInfo(tree->AsArrIndex()->ArrObj());
+            arrObjInfo->info.isDelayFree     = true;
+            useList.Append(arrObjInfo);
+            useList.Append(getLocationInfo(tree->AsArrIndex()->IndexExpr()));
+            info->hasDelayFreeSrc = true;
+        }
+        break;
 
         case GT_ARR_OFFSET:
             // This consumes the offset, if any, the arrObj and the effective index,
             // and produces the flattened offset for this dimension.
-            info->srcCount = tree->gtArrOffs.gtOffset->isContained() ? 2 : 3;
+            info->srcCount = 2;
+            if (!tree->gtArrOffs.gtOffset->isContained())
+            {
+                appendLocationInfoToList(tree->AsArrOffs()->gtOffset);
+                info->srcCount++;
+            }
+            appendLocationInfoToList(tree->AsArrOffs()->gtIndex);
+            appendLocationInfoToList(tree->AsArrOffs()->gtArrObj);
             assert(info->dstCount == 1);
             info->internalIntCount = 1;
             break;
@@ -620,10 +636,12 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             if (base != nullptr)
             {
                 info->srcCount++;
+                appendLocationInfoToList(base);
             }
             if (index != nullptr)
             {
                 info->srcCount++;
+                appendLocationInfoToList(index);
             }
             assert(info->dstCount == 1);
 
@@ -649,13 +667,14 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             if (compiler->codeGen->gcInfo.gcIsWriteBarrierAsgNode(tree))
             {
                 info->srcCount = 2;
-                TreeNodeInfoInitGCWriteBarrier(tree);
+                BuildGCWriteBarrier(tree);
                 break;
             }
 
-            TreeNodeInfoInitIndir(tree->AsIndir());
+            BuildIndir(tree->AsIndir());
             if (!tree->gtGetOp2()->isContained())
             {
+                appendLocationInfoToList(tree->gtGetOp2());
                 info->srcCount++;
             }
         }
@@ -666,13 +685,13 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             // is required, and it is not a localDefUse.
             assert(info->dstCount == 0);
             assert(!tree->gtGetOp1()->isContained());
+            appendLocationInfoToList(tree->gtOp.gtOp1);
             info->srcCount = 1;
             break;
 
         case GT_IND:
             assert(info->dstCount == 1);
-            info->srcCount = 1;
-            TreeNodeInfoInitIndir(tree->AsIndir());
+            BuildIndir(tree->AsIndir());
             break;
 
         case GT_CATCH_ARG:
@@ -694,8 +713,8 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_INDEX_ADDR:
-            info->srcCount         = 2;
-            info->dstCount         = 1;
+            assert(info->dstCount == 1);
+            info->srcCount         = appendBinaryLocationInfoToList(tree->AsOp());
             info->internalIntCount = 1;
             break;
     } // end switch (tree->OperGet())
@@ -708,71 +727,12 @@ void LinearScan::TreeNodeInfoInit(GenTree* tree)
     assert((info->dstCount < 2) || tree->IsMultiRegCall());
     assert(info->isLocalDefUse == (tree->IsValue() && tree->IsUnusedValue()));
     assert(!tree->IsUnusedValue() || (info->dstCount != 0));
-}
-
-//------------------------------------------------------------------------
-// TreeNodeInfoInitReturn: Set the NodeInfo for a GT_RETURN.
-//
-// Arguments:
-//    tree      - The node of interest
-//
-// Return Value:
-//    None.
-//
-void LinearScan::TreeNodeInfoInitReturn(GenTree* tree)
-{
-    TreeNodeInfo* info = &(tree->gtLsraInfo);
-
-    GenTree*  op1           = tree->gtGetOp1();
-    regMaskTP useCandidates = RBM_NONE;
-
-    info->srcCount = ((tree->TypeGet() == TYP_VOID) || op1->isContained()) ? 0 : 1;
-    assert(info->dstCount == 0);
-
-    if (varTypeIsStruct(tree))
-    {
-        // op1 has to be either an lclvar or a multi-reg returning call
-        if (op1->OperGet() != GT_LCL_VAR)
-        {
-            noway_assert(op1->IsMultiRegCall());
-
-            ReturnTypeDesc* retTypeDesc = op1->AsCall()->GetReturnTypeDesc();
-            info->srcCount              = retTypeDesc->GetReturnRegCount();
-            useCandidates               = retTypeDesc->GetABIReturnRegs();
-        }
-    }
-    else
-    {
-        // Non-struct type return - determine useCandidates
-        switch (tree->TypeGet())
-        {
-            case TYP_VOID:
-                useCandidates = RBM_NONE;
-                break;
-            case TYP_FLOAT:
-                useCandidates = RBM_FLOATRET;
-                break;
-            case TYP_DOUBLE:
-                useCandidates = RBM_DOUBLERET;
-                break;
-            case TYP_LONG:
-                useCandidates = RBM_LNGRET;
-                break;
-            default:
-                useCandidates = RBM_INTRET;
-                break;
-        }
-    }
-
-    if (useCandidates != RBM_NONE)
-    {
-        tree->gtOp.gtOp1->gtLsraInfo.setSrcCandidates(this, useCandidates);
-    }
+    assert(info->dstCount == tree->GetRegisterDstCount());
 }
 
 #ifdef FEATURE_SIMD
 //------------------------------------------------------------------------
-// TreeNodeInfoInitSIMD: Set the NodeInfo for a GT_SIMD tree.
+// BuildSIMD: Set the NodeInfo for a GT_SIMD tree.
 //
 // Arguments:
 //    tree       - The GT_SIMD node of interest
@@ -780,10 +740,9 @@ void LinearScan::TreeNodeInfoInitReturn(GenTree* tree)
 // Return Value:
 //    None.
 
-void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
+void LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 {
-    TreeNodeInfo* info = &(simdTree->gtLsraInfo);
-
+    TreeNodeInfo* info = currentNodeInfo;
     // Only SIMDIntrinsicInit can be contained
     if (simdTree->isContained())
     {
@@ -791,43 +750,62 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
     }
     assert(info->dstCount == 1);
 
+    GenTree* op1 = simdTree->gtOp.gtOp1;
+    GenTree* op2 = simdTree->gtOp.gtOp2;
+    if (!op1->OperIs(GT_LIST))
+    {
+        info->srcCount += GetOperandInfo(op1);
+    }
+    if ((op2 != nullptr) && !op2->isContained())
+    {
+        info->srcCount += GetOperandInfo(op2);
+    }
+
     switch (simdTree->gtSIMDIntrinsicID)
     {
-        GenTree* op1;
-        GenTree* op2;
+        case SIMDIntrinsicInit:
+            assert(info->srcCount == (simdTree->gtGetOp1()->isContained() ? 0 : 1));
+            break;
 
         case SIMDIntrinsicCast:
-        case SIMDIntrinsicInit:
         case SIMDIntrinsicSqrt:
         case SIMDIntrinsicAbs:
         case SIMDIntrinsicConvertToSingle:
         case SIMDIntrinsicConvertToInt32:
-        case SIMDIntrinsicConvertToUInt32:
         case SIMDIntrinsicConvertToDouble:
         case SIMDIntrinsicConvertToInt64:
-        case SIMDIntrinsicConvertToUInt64:
         case SIMDIntrinsicWidenLo:
         case SIMDIntrinsicWidenHi:
-            info->srcCount = 1;
+            assert(info->srcCount == 1);
             break;
 
         case SIMDIntrinsicGetItem:
-            // We have an object and an item, which may be contained.
-            info->srcCount = simdTree->gtGetOp2()->isContained() ? 1 : 2;
+        {
+            op1 = simdTree->gtGetOp1();
+            op2 = simdTree->gtGetOp2();
 
-            if (!simdTree->gtGetOp2()->IsCnsIntOrI())
+            // We have an object and an index, either of which may be contained.
+            if (!op2->IsCnsIntOrI() && (!op1->isContained() || op1->OperIsLocal()))
             {
-                // If the index is not a constant, we will need a general purpose register
+                // If the index is not a constant and not contained or is a local
+                // we will need a general purpose register to calculate the address
                 info->internalIntCount = 1;
 
-                // If the index is not a constant, we will use the SIMD temp location to store the vector.
-                compiler->getSIMDInitTempVarNum();
-
                 // internal register must not clobber input index
-                simdTree->gtOp.gtOp2->gtLsraInfo.isDelayFree = true;
-                info->hasDelayFreeSrc                        = true;
+                LocationInfoListNode* op2Info =
+                    (op1->isContained()) ? useList.Begin() : useList.GetSecond(INDEBUG(op2));
+                op2Info->info.isDelayFree = true;
+                info->hasDelayFreeSrc     = true;
             }
-            break;
+
+            if (!op2->IsCnsIntOrI() && (!op1->isContained()))
+            {
+                // If vector is not already in memory (contained) and the index is not a constant,
+                // we will use the SIMD temp location to store the vector.
+                compiler->getSIMDInitTempVarNum();
+            }
+        }
+        break;
 
         case SIMDIntrinsicAdd:
         case SIMDIntrinsicSub:
@@ -839,29 +817,41 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
         case SIMDIntrinsicBitwiseXor:
         case SIMDIntrinsicMin:
         case SIMDIntrinsicMax:
-        case SIMDIntrinsicSetX:
-        case SIMDIntrinsicSetY:
-        case SIMDIntrinsicSetZ:
-        case SIMDIntrinsicSetW:
         case SIMDIntrinsicEqual:
         case SIMDIntrinsicLessThan:
         case SIMDIntrinsicGreaterThan:
         case SIMDIntrinsicLessThanOrEqual:
         case SIMDIntrinsicGreaterThanOrEqual:
-            info->srcCount = 2;
+            assert(info->srcCount == 2);
             break;
 
+        case SIMDIntrinsicSetX:
+        case SIMDIntrinsicSetY:
+        case SIMDIntrinsicSetZ:
+        case SIMDIntrinsicSetW:
         case SIMDIntrinsicNarrow:
-            info->srcCount = 2;
+            assert(info->srcCount == 2);
 
             // Op1 will write to dst before Op2 is free
-            simdTree->gtOp.gtOp2->gtLsraInfo.isDelayFree = true;
-            info->hasDelayFreeSrc                        = true;
+            useList.GetSecond(INDEBUG(simdTree->gtGetOp2()))->info.isDelayFree = true;
+            info->hasDelayFreeSrc                                              = true;
             break;
 
         case SIMDIntrinsicInitN:
         {
-            info->srcCount = (short)(simdTree->gtSIMDSize / genTypeSize(simdTree->gtSIMDBaseType));
+            var_types baseType = simdTree->gtSIMDBaseType;
+            info->srcCount     = (short)(simdTree->gtSIMDSize / genTypeSize(baseType));
+            int initCount      = 0;
+            for (GenTree* list = op1; list != nullptr; list = list->gtGetOp2())
+            {
+                assert(list->OperGet() == GT_LIST);
+                GenTree* listItem = list->gtGetOp1();
+                assert(listItem->TypeGet() == baseType);
+                assert(!listItem->isContained());
+                appendLocationInfoToList(listItem);
+                initCount++;
+            }
+            assert(initCount == info->srcCount);
 
             if (varTypeIsFloating(simdTree->gtSIMDBaseType))
             {
@@ -874,28 +864,30 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
 
         case SIMDIntrinsicInitArray:
             // We have an array and an index, which may be contained.
-            info->srcCount = simdTree->gtGetOp2()->isContained() ? 1 : 2;
+            assert(info->srcCount == (simdTree->gtGetOp2()->isContained() ? 1 : 2));
             break;
 
         case SIMDIntrinsicOpEquality:
         case SIMDIntrinsicOpInEquality:
-            info->srcCount = simdTree->gtGetOp2()->isContained() ? 1 : 2;
+            assert(info->srcCount == (simdTree->gtGetOp2()->isContained() ? 1 : 2));
             info->setInternalCandidates(this, RBM_ALLFLOAT);
             info->internalFloatCount = 1;
             break;
 
         case SIMDIntrinsicDotProduct:
-            info->srcCount = 2;
+            assert(info->srcCount == 2);
             info->setInternalCandidates(this, RBM_ALLFLOAT);
             info->internalFloatCount = 1;
             break;
 
         case SIMDIntrinsicSelect:
             // TODO-ARM64-CQ Allow lowering to see SIMDIntrinsicSelect so we can generate BSL VC, VA, VB
-            // bsl target register must be VC.  Reserve a temp in case we need to shuffle things
+            // bsl target register must be VC.  Reserve a temp in case we need to shuffle things.
+            // This will require a different approach, as GenTreeSIMD has only two operands.
+            assert(!"SIMDIntrinsicSelect not yet supported");
+            assert(info->srcCount == 3);
             info->setInternalCandidates(this, RBM_ALLFLOAT);
             info->internalFloatCount = 1;
-            info->srcCount           = 3;
             break;
 
         case SIMDIntrinsicInitArrayX:
@@ -924,6 +916,96 @@ void LinearScan::TreeNodeInfoInitSIMD(GenTreeSIMD* simdTree)
     }
 }
 #endif // FEATURE_SIMD
+
+#ifdef FEATURE_HW_INTRINSICS
+#include "hwintrinsicArm64.h"
+//------------------------------------------------------------------------
+// BuildHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
+//
+// Arguments:
+//    tree       - The GT_HWIntrinsic node of interest
+//
+// Return Value:
+//    None.
+
+void LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
+{
+    TreeNodeInfo*  info        = currentNodeInfo;
+    NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
+
+    GenTreeArgList* argList = nullptr;
+    GenTree*        op1     = intrinsicTree->gtOp.gtOp1;
+    GenTree*        op2     = intrinsicTree->gtOp.gtOp2;
+
+    if (op1->OperIs(GT_LIST))
+    {
+        argList = op1->AsArgList();
+        op1     = argList->Current();
+        op2     = argList->Rest()->Current();
+
+        for (GenTreeArgList* list = argList; list != nullptr; list = list->Rest())
+        {
+            info->srcCount += GetOperandInfo(list->Current());
+        }
+    }
+    else
+    {
+        info->srcCount += GetOperandInfo(op1);
+        if (op2 != nullptr)
+        {
+            info->srcCount += GetOperandInfo(op2);
+        }
+    }
+
+    switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
+    {
+        case HWIntrinsicInfo::Sha1HashOp:
+            info->setInternalCandidates(this, RBM_ALLFLOAT);
+            info->internalFloatCount = 1;
+            if (!op2->isContained())
+            {
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                op2Info->info.isDelayFree     = true;
+                GenTree* op3                  = intrinsicTree->gtOp.gtOp1->AsArgList()->Rest()->Rest()->Current();
+                assert(!op3->isContained());
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op3Info->info.isDelayFree     = true;
+                info->hasDelayFreeSrc         = true;
+                info->isInternalRegDelayFree  = true;
+            }
+            break;
+        case HWIntrinsicInfo::SimdTernaryRMWOp:
+            if (!op2->isContained())
+            {
+                LocationInfoListNode* op2Info = useList.Begin()->Next();
+                op2Info->info.isDelayFree     = true;
+                GenTree* op3                  = intrinsicTree->gtOp.gtOp1->AsArgList()->Rest()->Rest()->Current();
+                assert(!op3->isContained());
+                LocationInfoListNode* op3Info = op2Info->Next();
+                op3Info->info.isDelayFree     = true;
+                info->hasDelayFreeSrc         = true;
+            }
+            break;
+        case HWIntrinsicInfo::Sha1RotateOp:
+            info->setInternalCandidates(this, RBM_ALLFLOAT);
+            info->internalFloatCount = 1;
+            break;
+
+        case HWIntrinsicInfo::SimdExtractOp:
+        case HWIntrinsicInfo::SimdInsertOp:
+            if (!op2->isContained())
+            {
+                // We need a temp to create a switch table
+                info->internalIntCount = 1;
+                info->setInternalCandidates(this, allRegs(TYP_INT));
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+#endif
 
 #endif // _TARGET_ARM64_
 

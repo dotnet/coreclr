@@ -12,7 +12,6 @@
 ** 
 ===========================================================*/
 
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
@@ -96,6 +95,22 @@ namespace System
             return ToString();
         }
 
+        public bool TryFormat(Span<char> destination, out int charsWritten)
+        {
+            string s = m_value ? TrueLiteral : FalseLiteral;
+
+            if (s.AsSpan().TryCopyTo(destination))
+            {
+                charsWritten = s.Length;
+                return true;
+            }
+            else
+            {
+                charsWritten = 0;
+                return false;
+            }
+        }
+
         // Determines whether two Boolean objects are equal.
         public override bool Equals(Object obj)
         {
@@ -165,11 +180,11 @@ namespace System
         public static Boolean Parse(String value)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
-            return Parse(value.AsReadOnlySpan());
+            return Parse(value.AsSpan());
         }
 
         public static bool Parse(ReadOnlySpan<char> value) =>
-            TryParse(value, out bool result) ? result : throw new FormatException(SR.Format_BadBoolean);
+            TryParse(value, out bool result) ? result : throw new FormatException(SR.Format(SR.Format_BadBoolean, new string(value)));
 
         // Determines whether a String represents true or false.
         // 
@@ -181,20 +196,20 @@ namespace System
                 return false;
             }
 
-            return TryParse(value.AsReadOnlySpan(), out result);
+            return TryParse(value.AsSpan(), out result);
         }
 
         public static bool TryParse(ReadOnlySpan<char> value, out bool result)
         {
-            ReadOnlySpan<char> trueSpan = TrueLiteral.AsReadOnlySpan();
-            if (StringSpanHelpers.Equals(trueSpan, value, StringComparison.OrdinalIgnoreCase))
+            ReadOnlySpan<char> trueSpan = TrueLiteral.AsSpan();
+            if (trueSpan.EqualsOrdinalIgnoreCase(value))
             {
                 result = true;
                 return true;
             }
 
-            ReadOnlySpan<char> falseSpan = FalseLiteral.AsReadOnlySpan();
-            if (StringSpanHelpers.Equals(falseSpan, value, StringComparison.OrdinalIgnoreCase))
+            ReadOnlySpan<char> falseSpan = FalseLiteral.AsSpan();
+            if (falseSpan.EqualsOrdinalIgnoreCase(value))
             {
                 result = false;
                 return true;
@@ -203,13 +218,13 @@ namespace System
             // Special case: Trim whitespace as well as null characters.
             value = TrimWhiteSpaceAndNull(value);
 
-            if (StringSpanHelpers.Equals(trueSpan, value, StringComparison.OrdinalIgnoreCase))
+            if (trueSpan.EqualsOrdinalIgnoreCase(value))
             {
                 result = true;
                 return true;
             }
 
-            if (StringSpanHelpers.Equals(falseSpan, value, StringComparison.OrdinalIgnoreCase))
+            if (falseSpan.EqualsOrdinalIgnoreCase(value))
             {
                 result = false;
                 return true;

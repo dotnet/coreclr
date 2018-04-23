@@ -110,6 +110,7 @@ typedef DPTR(struct DebuggerIPCControlBlock) PTR_DebuggerIPCControlBlock;
 
 GPTR_DECL(Debugger,         g_pDebugger);
 GPTR_DECL(EEDebugInterface, g_pEEInterface);
+GVAL_DECL(ULONG,            CLRJitAttachState);
 #ifndef FEATURE_PAL
 GVAL_DECL(HANDLE,           g_hContinueStartupEvent);
 #endif
@@ -1009,7 +1010,7 @@ public:
     DebuggerJitInfo * FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
 
     // Creating the Jit-infos.
-    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd);
+    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, PCODE startAddr);
     DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 
@@ -2025,11 +2026,12 @@ public:
     DebuggerJitInfo *GetLatestJitInfoFromMethodDesc(MethodDesc * pMethodDesc);
 
 
-    HRESULT GetILToNativeMapping(UINT_PTR pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap,
+    HRESULT GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap,
                                  COR_DEBUG_IL_TO_NATIVE_MAP map[]);
 
     HRESULT GetILToNativeMappingIntoArrays(
-        MethodDesc * pMD, 
+        MethodDesc * pMethodDesc,
+        PCODE pCode, 
         USHORT cMapMax, 
         USHORT * pcMap,
         UINT ** prguiILOffset, 
@@ -2848,13 +2850,7 @@ private:
 #endif
     LONG                  m_threadsAtUnsafePlaces;
     Volatile<BOOL>        m_jitAttachInProgress;
-
-    // True if after the jit attach we plan to send a managed non-catchup
-    // debug event
-    BOOL                  m_attachingForManagedEvent;
     BOOL                  m_launchingDebugger;
-    BOOL                  m_userRequestedDebuggerLaunch;
-
     BOOL                  m_LoggingEnabled;
     AppDomainEnumerationIPCBlock    *m_pAppDomainCB;
 
@@ -2972,8 +2968,6 @@ void RedirectedHandledJITCaseForDbgThreadControl_StubEnd();
 void RedirectedHandledJITCaseForUserSuspend_Stub();
 void RedirectedHandledJITCaseForUserSuspend_StubEnd();
 
-void RedirectedHandledJITCaseForYieldTask_Stub();
-void RedirectedHandledJITCaseForYieldTask_StubEnd();
 #if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
 void RedirectedHandledJITCaseForGCStress_Stub();
 void RedirectedHandledJITCaseForGCStress_StubEnd();
@@ -3951,10 +3945,10 @@ protected:
 #if _DEBUG
 
 #define MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT \
-      if (!m_pRCThread->IsRCThreadReady()) { THROWS; } else { NOTHROW; }
+      if ((m_pRCThread == NULL) || !m_pRCThread->IsRCThreadReady()) { THROWS; } else { NOTHROW; }
 
 #define MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT \
-      if (!m_pRCThread->IsRCThreadReady() || (GetThread() != NULL)) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
+      if ((m_pRCThread == NULL) || !m_pRCThread->IsRCThreadReady() || (GetThread() != NULL)) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
 
 #define GC_TRIGGERS_FROM_GETJITINFO if (GetThreadNULLOk() != NULL) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
 

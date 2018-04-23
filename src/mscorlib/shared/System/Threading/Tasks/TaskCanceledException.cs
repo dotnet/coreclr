@@ -24,7 +24,7 @@ namespace System.Threading.Tasks
     public class TaskCanceledException : OperationCanceledException
     {
         [NonSerialized]
-        private Task m_canceledTask; // The task which has been canceled.
+        private readonly Task _canceledTask; // The task which has been canceled.
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Tasks.TaskCanceledException"/> class.
@@ -54,6 +54,18 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="T:System.Threading.Tasks.TaskCanceledException"/>
+        /// class with a specified error message, a reference to the inner exception that is the cause of
+        /// this exception, and the <see cref="CancellationToken"/> that triggered the cancellation.
+        /// </summary>
+        /// <param name="message">The error message that explains the reason for the exception.</param>
+        /// <param name="innerException">The exception that is the cause of the current exception.</param>
+        /// <param name="token">The <see cref="CancellationToken"/> that triggered the cancellation.</param>
+        public TaskCanceledException(string message, Exception innerException, CancellationToken token) : base(message, innerException, token)
+        {
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Tasks.TaskCanceledException"/> class
         /// with a reference to the <see cref="T:System.Threading.Tasks.Task"/> that has been canceled.
         /// </summary>
@@ -61,7 +73,7 @@ namespace System.Threading.Tasks
         public TaskCanceledException(Task task) :
             base(SR.TaskCanceledException_ctor_DefaultMessage, task != null ? task.CancellationToken : new CancellationToken())
         {
-            m_canceledTask = task;
+            _canceledTask = task;
         }
 
         /// <summary>
@@ -82,9 +94,6 @@ namespace System.Threading.Tasks
         /// <see cref="T:System.Threading.Tasks.TaskCanceledException"/>, in which case
         /// this property will return null.
         /// </remarks>
-        public Task Task
-        {
-            get { return m_canceledTask; }
-        }
+        public Task Task => _canceledTask;
     }
 }

@@ -37,7 +37,7 @@ EventPipeBufferManager::~EventPipeBufferManager()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
@@ -80,7 +80,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pThread != NULL);
@@ -97,8 +97,19 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
     EventPipeBufferList *pThreadBufferList = pThread->GetEventPipeBufferList();
     if(pThreadBufferList == NULL)
     {
-        pThreadBufferList = new EventPipeBufferList(this);
-        m_pPerThreadBufferList->InsertTail(new SListElem<EventPipeBufferList*>(pThreadBufferList));
+        pThreadBufferList = new (nothrow) EventPipeBufferList(this);
+        if (pThreadBufferList == NULL)
+        {
+            return NULL;
+        }
+
+        SListElem<EventPipeBufferList*> *pElem = new (nothrow) SListElem<EventPipeBufferList*>(pThreadBufferList);
+        if (pElem == NULL)
+        {
+            return NULL;
+        }
+
+        m_pPerThreadBufferList->InsertTail(pElem);
         pThread->SetEventPipeBufferList(pThreadBufferList);
         allocateNewBuffer = true;
     }
@@ -181,7 +192,24 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
             bufferSize = requestSize;
         }
 
-        pNewBuffer = new EventPipeBuffer(bufferSize);
+        // EX_TRY is used here as opposed to new (nothrow) because
+        // the constructor also allocates a private buffer, which
+        // could throw, and cannot be easily checked
+        EX_TRY
+        {
+            pNewBuffer = new EventPipeBuffer(bufferSize);
+        }
+        EX_CATCH
+        {
+            pNewBuffer = NULL;
+        }
+        EX_END_CATCH(SwallowAllExceptions);
+
+        if (pNewBuffer == NULL)
+        {
+            return NULL;
+        }
+
         m_sizeOfAllBuffers += bufferSize;
 #ifdef _DEBUG
         m_numBuffersAllocated++;
@@ -202,7 +230,7 @@ EventPipeBufferList* EventPipeBufferManager::FindThreadToStealFrom()
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(m_lock.OwnedByCurrentThread());
@@ -261,7 +289,7 @@ void EventPipeBufferManager::DeAllocateBuffer(EventPipeBuffer *pBuffer)
     }
 }
 
-bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
+bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &session, EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread, StackContents *pStack)
 {
     CONTRACTL
     {
@@ -320,7 +348,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
         else
         {
             // Attempt to write the event to the buffer.  If this fails, we should allocate a new buffer.
-            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, payload, pActivityId, pRelatedActivityId, pStack);
+            allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
         }
     }
 
@@ -343,7 +371,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeEvent &event, 
     // This is the second time if this thread did have one or more buffers, but they were full.
     if(allocNewBuffer && pBuffer != NULL)
     {
-        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, event, payload, pActivityId, pRelatedActivityId, pStack);
+        allocNewBuffer = !pBuffer->WriteEvent(pEventThread, session, event, payload, pActivityId, pRelatedActivityId, pStack);
     }
 
     // Mark that the thread is no longer writing an event.
@@ -362,7 +390,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
 {
     CONTRACTL
     {
-        NOTHROW;
+        THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pFile != NULL);
@@ -402,7 +430,7 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
             {
                 // If it's the oldest event we've seen, then save it.
                 if((pOldestInstance == NULL) ||
-                   (pOldestInstance->GetTimeStamp().QuadPart > pNext->GetTimeStamp().QuadPart)) 
+                   (pOldestInstance->GetTimeStamp()->QuadPart > pNext->GetTimeStamp()->QuadPart)) 
                 {
                     pOldestInstance = pNext;
                     pOldestContainingBuffer = pContainingBuffer;

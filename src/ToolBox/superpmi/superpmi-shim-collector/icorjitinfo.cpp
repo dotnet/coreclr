@@ -246,9 +246,8 @@ CORINFO_METHOD_HANDLE interceptor_ICJI::resolveVirtualMethod(CORINFO_METHOD_HAND
 CORINFO_METHOD_HANDLE interceptor_ICJI::getUnboxedEntry(CORINFO_METHOD_HANDLE ftn, bool* requiresInstMethodTableArg)
 {
     mc->cr->AddCall("getUnboxedEntry");
-    bool localRequiresInstMethodTableArg = false;
-    CORINFO_METHOD_HANDLE result =
-        original_ICorJitInfo->getUnboxedEntry(ftn, &localRequiresInstMethodTableArg);
+    bool                  localRequiresInstMethodTableArg = false;
+    CORINFO_METHOD_HANDLE result = original_ICorJitInfo->getUnboxedEntry(ftn, &localRequiresInstMethodTableArg);
     mc->recGetUnboxedEntry(ftn, &localRequiresInstMethodTableArg, result);
     if (requiresInstMethodTableArg != nullptr)
     {
@@ -549,6 +548,22 @@ const char* interceptor_ICJI::getClassName(CORINFO_CLASS_HANDLE cls)
     const char* result = original_ICorJitInfo->getClassName(cls);
     mc->recGetClassName(cls, result);
     return result;
+}
+
+const char* interceptor_ICJI::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
+{
+    mc->cr->AddCall("getClassNameFromMetadata");
+    const char* temp = original_ICorJitInfo->getClassNameFromMetadata(cls, namespaceName);
+    mc->recGetClassNameFromMetadata(cls, (char*)temp, namespaceName);
+    return temp;
+}
+
+CORINFO_CLASS_HANDLE interceptor_ICJI::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
+{
+    mc->cr->AddCall("getTypeInstantiationArgument");
+    CORINFO_CLASS_HANDLE temp = original_ICorJitInfo->getTypeInstantiationArgument(cls, index);
+    mc->recGetTypeInstantiationArgument(cls, temp, index);
+    return temp;
 }
 
 // Append a (possibly truncated) representation of the type cls to the preallocated buffer ppBuf of length pnBufLen
@@ -888,6 +903,16 @@ CorInfoType interceptor_ICJI::getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE
     mc->cr->AddCall("getTypeForPrimitiveValueClass");
     CorInfoType temp = original_ICorJitInfo->getTypeForPrimitiveValueClass(cls);
     mc->recGetTypeForPrimitiveValueClass(cls, temp);
+    return temp;
+}
+
+// "System.Int32" ==> CORINFO_TYPE_INT..
+// "System.UInt32" ==> CORINFO_TYPE_UINT..
+CorInfoType interceptor_ICJI::getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
+{
+    mc->cr->AddCall("getTypeForPrimitiveNumericClass");
+    CorInfoType temp = original_ICorJitInfo->getTypeForPrimitiveNumericClass(cls);
+    mc->recGetTypeForPrimitiveNumericClass(cls, temp);
     return temp;
 }
 

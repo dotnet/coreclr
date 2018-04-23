@@ -28,15 +28,14 @@ public:
     void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
     void SyncBlockCacheDemote(int max_gen);
     void SyncBlockCachePromotionsGranted(int max_gen);
-    bool IsPreemptiveGCDisabled(Thread * pThread);
-    void EnablePreemptiveGC(Thread * pThread);
-    void DisablePreemptiveGC(Thread * pThread);
+    uint32_t GetActiveSyncBlockCount();
+    bool IsPreemptiveGCDisabled();
+    bool EnablePreemptiveGC();
+    void DisablePreemptiveGC();
     Thread* GetThread();
-    bool TrapReturningThreads();
-    gc_alloc_context * GetAllocContext(Thread * pThread);
-    bool CatchAtSafePoint(Thread * pThread);
+    gc_alloc_context * GetAllocContext();
     void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
-    Thread* CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg);
+    uint8_t* GetLoaderAllocatorObjectForGC(Object* pObject);
 
     // Diagnostics methods.
     void DiagGCStart(int gen, bool isInduced);
@@ -59,7 +58,11 @@ public:
     bool GetStringConfigValue(const char* key, const char** value);
     void FreeStringConfigValue(const char* value);
     bool IsGCThread();
-    bool IsGCSpecialThread();
+    bool WasCurrentThreadCreatedByGC();
+    bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
+    void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    IGCToCLREventSink* EventSink();
 };
 
 } // namespace standalone

@@ -286,8 +286,8 @@ HRESULT DebuggerIPCControlBlock::Init(
     memset( this, 0, sizeof( DebuggerIPCControlBlock) );
 
     // Setup version checking info.
-    m_verMajor = VER_PRODUCTBUILD;
-    m_verMinor = VER_PRODUCTBUILD_QFE;
+    m_verMajor = CLR_BUILD_VERSION;
+    m_verMinor = CLR_BUILD_VERSION_QFE;
 
 #ifdef _DEBUG
     m_checkedBuild = true;
@@ -733,6 +733,7 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
     pDebuggerRuntimeOffsets->m_signalHijackCompleteBPAddr = (void*) SignalHijackCompleteFlare;
     pDebuggerRuntimeOffsets->m_excepNotForRuntimeBPAddr = (void*) ExceptionNotForRuntimeFlare;
     pDebuggerRuntimeOffsets->m_notifyRSOfSyncCompleteBPAddr = (void*) NotifyRightSideOfSyncCompleteFlare;
+    pDebuggerRuntimeOffsets->m_debuggerWordTLSIndex = g_debuggerWordTLSIndex;
 
 #if !defined(FEATURE_CORESYSTEM)
     // Grab the address of RaiseException in kernel32 because we have to play some games with exceptions
@@ -767,7 +768,6 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
                                       &pDebuggerRuntimeOffsets->m_EEThreadStateNCOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadPGCDisabledOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadPGCDisabledValue,
-                                      &pDebuggerRuntimeOffsets->m_EEThreadDebuggerWordOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadFrameOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadMaxNeededSize,
                                       &pDebuggerRuntimeOffsets->m_EEThreadSteppingStateMask,

@@ -26,7 +26,6 @@
 //
 #include "arraynative.h"
 #include "stringnative.h"
-#include "stringbuffer.h"
 #include "objectnative.h"
 #include "comdelegate.h"
 #include "customattribute.h"
@@ -95,6 +94,10 @@
 #include "nativeeventsource.h"
 #include "eventpipe.h"
 #endif //defined(FEATURE_EVENTSOURCE_XPLAT)
+
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+#endif //FEATURE_PERFTRACING
 
 #endif // CROSSGEN_MSCORLIB
 

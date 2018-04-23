@@ -316,8 +316,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
-#define ObjectToSTRINGBUFFERREF(obj)    (STRINGBUFFERREF(obj))
-#define STRINGBUFFERREFToObject(objref) (*( (StringBufferObject**) &(objref) ))
 
 #else   // _DEBUG_IMPL
 
@@ -328,8 +326,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
-#define ObjectToSTRINGBUFFERREF(obj)    ((Ptr_StringBufferObject) (obj))
-#define STRINGBUFFERREFToObject(objref) ((Ptr_StringBufferObject) (objref))
 
 #endif // _DEBUG_IMPL
 
@@ -405,6 +401,9 @@ GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_DECL(DWORD,            g_debuggerWordTLSIndex);
+#endif
 GVAL_DECL(DWORD,            g_TlsIndex);
 
 // Global System Information
@@ -434,12 +433,6 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
-
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-// Note this is not updated in a thread safe way so the value may not be accurate. We get
-// it accurately in full GCs if the handle count is requested.
-extern DWORD g_dwHandles;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
@@ -531,6 +524,7 @@ EXTERN BOOL g_fComStarted;
 //
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
+EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
 #ifndef DACCESS_COMPILE
 EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
@@ -582,10 +576,6 @@ EXTERN const char g_psBaseLibrary[];
 EXTERN const char g_psBaseLibraryName[];
 EXTERN const char g_psBaseLibrarySatelliteAssemblyName[];
 
-#ifdef FEATURE_COMINTEROP
-EXTERN const WCHAR g_pwBaseLibraryTLB[];
-EXTERN const char g_psBaseLibraryTLB[];
-#endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
 
 //

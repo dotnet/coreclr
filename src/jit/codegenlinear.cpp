@@ -602,6 +602,22 @@ void CodeGen::genCodeForBBlist()
                 {
                     instGen(INS_BREAKPOINT); // This should never get executed
                 }
+                // Do likewise for blocks that end in DOES_NOT_RETURN calls
+                // that were not caught by the above rules. This ensures that
+                // gc register liveness doesn't change across call instructions
+                // in fully-interruptible mode.
+                else
+                {
+                    GenTree* call = block->lastNode();
+
+                    if ((call != nullptr) && (call->gtOper == GT_CALL))
+                    {
+                        if ((call->gtCall.gtCallMoreFlags & GTF_CALL_M_DOES_NOT_RETURN) != 0)
+                        {
+                            instGen(INS_BREAKPOINT); // This should never get executed
+                        }
+                    }
+                }
 
                 break;
 
@@ -690,7 +706,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Return Value:
 //    The assigned regNumber
 //
-regNumber CodeGenInterface::genGetAssignedReg(GenTreePtr tree)
+regNumber CodeGenInterface::genGetAssignedReg(GenTree* tree)
 {
     return tree->gtRegNum;
 }
@@ -707,7 +723,7 @@ regNumber CodeGenInterface::genGetAssignedReg(GenTreePtr tree)
 // Assumptions:
 //    The lclVar must be a register candidate (lvRegCandidate)
 
-void CodeGen::genSpillVar(GenTreePtr tree)
+void CodeGen::genSpillVar(GenTree* tree)
 {
     unsigned   varNum = tree->gtLclVarCommon.gtLclNum;
     LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
@@ -790,7 +806,7 @@ void CodeGen::genSpillVar(GenTreePtr tree)
 //    tree   - the lclVar node
 //
 // inline
-void CodeGenInterface::genUpdateVarReg(LclVarDsc* varDsc, GenTreePtr tree)
+void CodeGenInterface::genUpdateVarReg(LclVarDsc* varDsc, GenTree* tree)
 {
     assert(tree->OperIsScalarLocal() || (tree->gtOper == GT_COPY));
     varDsc->lvRegNum = tree->gtRegNum;
@@ -816,8 +832,8 @@ GenTree* sameRegAsDst(GenTree* tree, GenTree*& other /*out*/)
         return nullptr;
     }
 
-    GenTreePtr op1 = tree->gtOp.gtOp1;
-    GenTreePtr op2 = tree->gtOp.gtOp2;
+    GenTree* op1 = tree->gtOp.gtOp1;
+    GenTree* op2 = tree->gtOp.gtOp2;
     if (op1->gtRegNum == tree->gtRegNum)
     {
         other = op2;
@@ -896,13 +912,18 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 inst_RV_TT(ins_Load(treeType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum)), dstReg, unspillTree);
             }
 #elif defined(_TARGET_ARM64_)
-            var_types   targetType = unspillTree->gtType;
-            instruction ins        = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
-            emitAttr    attr       = emitTypeSize(targetType);
-            emitter*    emit       = getEmitter();
+            var_types targetType = unspillTree->gtType;
+            if (targetType != genActualType(varDsc->lvType) && !varTypeIsGC(targetType) && !varDsc->lvNormalizeOnLoad())
+            {
+                assert(!varTypeIsGC(varDsc));
+                targetType = genActualType(varDsc->lvType);
+            }
+            instruction ins  = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
+            emitAttr    attr = emitTypeSize(targetType);
+            emitter*    emit = getEmitter();
 
             // Fixes Issue #3326
-            attr = emit->emitInsAdjustLoadStoreAttr(ins, attr);
+            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
             // Load local variable from its home location.
             inst_RV_TT(ins, dstReg, unspillTree, 0, attr);
@@ -1294,6 +1315,10 @@ void CodeGen::genConsumeRegs(GenTree* tree)
         }
 #endif // _TARGET_XARCH_
         else if (tree->OperIsInitVal())
+        {
+            genConsumeReg(tree->gtGetOp1());
+        }
+        else if (tree->OperIsHWIntrinsic())
         {
             genConsumeReg(tree->gtGetOp1());
         }

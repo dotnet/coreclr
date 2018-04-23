@@ -126,7 +126,9 @@ DEFINE_DACVAR(ULONG, BOOL, SystemDomain__s_fForceProfiling, SystemDomain::s_fFor
 DEFINE_DACVAR(ULONG, BOOL, SystemDomain__s_fForceInstrument, SystemDomain::s_fForceInstrument)
 DEFINE_DACVAR(ULONG, PTR_SharedDomain, SharedDomain__m_pSharedDomain, SharedDomain::m_pSharedDomain)
 
-
+#ifdef FEATURE_INTEROP_DEBUGGING
+DEFINE_DACVAR(ULONG, DWORD, dac__g_debuggerWordTLSIndex, g_debuggerWordTLSIndex)
+#endif
 DEFINE_DACVAR(ULONG, DWORD, dac__g_TlsIndex, g_TlsIndex)
 
 #if defined(FEATURE_WINDOWSPHONE)
@@ -212,12 +214,12 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pDebugger, ::g_pDebugger)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pDebugInterface, ::g_pDebugInterface)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pEEDbgInterfaceImpl, ::g_pEEDbgInterfaceImpl)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pEEInterface, ::g_pEEInterface)
+DEFINE_DACVAR(ULONG, ULONG, dac__CLRJitAttachState, ::CLRJitAttachState)
 
 DEFINE_DACVAR(ULONG, BOOL, Debugger__s_fCanChangeNgenFlags, Debugger::s_fCanChangeNgenFlags)
 
 DEFINE_DACVAR(ULONG, PTR_DebuggerPatchTable, DebuggerController__g_patches, DebuggerController::g_patches)
 DEFINE_DACVAR(ULONG, BOOL, DebuggerController__g_patchTableValid, DebuggerController::g_patchTableValid)
-
 
 DEFINE_DACVAR(ULONG, SIZE_T, dac__gLowestFCall, ::gLowestFCall)
 DEFINE_DACVAR(ULONG, SIZE_T, dac__gHighestFCall, ::gHighestFCall)
@@ -256,8 +258,6 @@ DEFINE_DACVAR(ULONG, HRESULT, dac__g_hrFatalError, ::g_hrFatalError)
 #if defined(DEBUGGING_SUPPORTED) && defined (FEATURE_PREJIT)
     DEFINE_DACVAR(ULONG, DWORD, PEFile__s_NGENDebugFlags, PEFile::s_NGENDebugFlags)
 #endif //defined(DEBUGGING_SUPPORTED) && defined (FEATURE_PREJIT)
-
-
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 DEFINE_DACVAR(ULONG, DWORD, dac__g_MiniMetaDataBuffMaxSize, ::g_MiniMetaDataBuffMaxSize)

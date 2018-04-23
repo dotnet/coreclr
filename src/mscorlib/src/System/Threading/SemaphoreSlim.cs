@@ -342,7 +342,7 @@ namespace System.Threading
             bool lockTaken = false;
 
             //Register for cancellation outside of the main lock.
-            //NOTE: Register/deregister inside the lock can deadlock as different lock acquisition orders could
+            //NOTE: Register/unregister inside the lock can deadlock as different lock acquisition orders could
             //      occur for (1)this.m_lockObj and (2)cts.internalLock
             CancellationTokenRegistration cancellationTokenRegistration = cancellationToken.InternalRegisterWithoutEC(s_cancellationTokenCanceledEventHandler, this);
             try
@@ -350,22 +350,23 @@ namespace System.Threading
                 // Perf: first spin wait for the count to be positive.
                 //       This additional amount of spinwaiting in addition
                 //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
-                //
-
-                // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
-                // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
-                // lessen that extra expense of doing a proper wait.
-                int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
-                int sleep1Threshold = SpinWait.Sleep1ThresholdForSpinBeforeWait * 4;
-
-                SpinWait spinner = new SpinWait();
-                while (spinner.Count < spinCount)
+                if (m_currentCount == 0)
                 {
-                    spinner.SpinOnce(sleep1Threshold);
+                    // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
+                    // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
+                    // lessen that extra expense of doing a proper wait.
+                    int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
+                    const int Sleep1Threshold = SpinWait.Sleep1ThresholdForSpinBeforeWait * 4;
 
-                    if (m_currentCount != 0)
+                    var spinner = new SpinWait();
+                    while (spinner.Count < spinCount)
                     {
-                        break;
+                        spinner.SpinOnce(Sleep1Threshold);
+
+                        if (m_currentCount != 0)
+                        {
+                            break;
+                        }
                     }
                 }
 

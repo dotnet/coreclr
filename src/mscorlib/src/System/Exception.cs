@@ -183,7 +183,7 @@ namespace System
             }
         }
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         internal void AddExceptionDataForRestrictedErrorInfo(
             string restrictedError,
             string restrictedErrorReference,
@@ -258,7 +258,7 @@ namespace System
 
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        static extern private IRuntimeMethodInfo GetMethodFromStackTrace(Object stackTrace);
+        static private extern IRuntimeMethodInfo GetMethodFromStackTrace(Object stackTrace);
 
         private MethodBase GetExceptionMethodFromStackTrace()
         {
@@ -335,7 +335,7 @@ namespace System
             return remoteStackTraceString + tempStackTraceString;
         }
 
-        [FriendAccessAllowed]
+        // [FriendAccessAllowed]
         internal void SetErrorCode(int hr)
         {
             HResult = hr;
@@ -654,7 +654,6 @@ namespace System
 
         private String _className;  //Needed for serialization.  
         private MethodBase _exceptionMethod;  //Needed for serialization.  
-        private String _exceptionMethodString; //Needed for serialization.
         internal String _message;
         private IDictionary _data;
         private Exception _innerException;
@@ -726,7 +725,7 @@ namespace System
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern static bool nIsTransient(int hr);
+        private static extern bool nIsTransient(int hr);
 
 
         // This piece of infrastructure exists to help avoid deadlocks 
@@ -754,7 +753,6 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetMessageFromNativeResources(ExceptionMessageKind kind, StringHandleOnStack retMesg);
     }
 

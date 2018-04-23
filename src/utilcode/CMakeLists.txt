@@ -36,7 +36,6 @@ set(UTILCODE_COMMON_SOURCES
   outstring.cpp
   ilformatter.cpp
   opinfo.cpp
-  sortversioning.cpp
   corimage.cpp
   format1.cpp
   prettyprintsig.cpp
@@ -67,9 +66,7 @@ if(WIN32)
     appxutil.cpp
     dacutil.cpp
     dlwrap.cpp
-    downlevel.cpp
     loadrc.cpp
-    newapis.cpp
     securitywrapper.cpp
     securityutil.cpp
     stacktrace.cpp

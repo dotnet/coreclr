@@ -144,69 +144,31 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     }
 #endif
 
+    // Ideally we would assert here that m_GcCover is NULL.
+    //
+    // However, we can't do that (at least not yet), because we may
+    // invoke this method more than once on a given
+    // MethodDesc. Examples include prejitted methods and rejitted
+    // methods.
+    //
+    // In the prejit case, we can't safely re-instrument an already
+    // instrumented method. By bailing out here, we will use the
+    // original instrumentation, which should still be valid as
+    // the method code has not changed.
+    //
+    // In the rejit case, the old method code may still be active and
+    // instrumented, so we need to preserve that gc cover info.  By
+    // bailing out here we will skip instrumenting the rejitted native
+    // code, and since the rejitted method does not get instrumented
+    // we should be able to tolerate that the gc cover info does not
+    // match.
     if (pMD->m_GcCover)
-        return;
-
-    //
-    // In the gcstress=4 case, we can easily piggy-back onto the JITLock because we
-    // have a JIT operation that needs to take that lock already.  But in the case of
-    // gcstress=8, we cannot do this because the code already exists, and if gccoverage
-    // were not in the picture, we're happy to race to do the prestub work because all
-    // threads end up with the same answer and don't leak any resources in the process.
-    // 
-    // However, with gccoverage, we need to exclude all other threads from mucking with
-    // the code while we fill in the breakpoints and make our shadow copy of the code.
-    //
     {
-        BaseDomain* pDomain = pMD->GetDomain();
-        // Enter the global lock which protects the list of all functions being JITd
-        JitListLock::LockHolder pJitLock(pDomain->GetJitLock());
-
-
-        // It is possible that another thread stepped in before we entered the global lock for the first time.
-        if (pMD->m_GcCover)
-        {
-            // We came in to jit but someone beat us so return the jitted method!
-            return;
-        }
-        else
-        {
-            const char *description = "jit lock (gc cover)";
-#ifdef _DEBUG 
-            description = pMD->m_pszDebugMethodName;
-#endif
-            ReleaseHolder<JitListLockEntry> pEntry(JitListLockEntry::Find(pJitLock, pMD->GetInitialCodeVersion(), description));
-
-            // We have an entry now, we can release the global lock
-            pJitLock.Release();
-
-            // Take the entry lock
-            {
-                JitListLockEntry::LockHolder pEntryLock(pEntry, FALSE);
-
-                if (pEntryLock.DeadlockAwareAcquire())
-                {
-                    // we have the lock...
-                }
-                else
-                {
-                    // Note that at this point we don't have the lock, but that's OK because the
-                    // thread which does have the lock is blocked waiting for us.
-                }
-
-                if (pMD->m_GcCover)
-                {
-                    return;
-                }
-
-                PCODE codeStart = (PCODE) methodStartPtr;
-
-                SetupAndSprinkleBreakpointsForJittedMethod(pMD, 
-                                                           codeStart
-                                                          );
-            }
-        }
+        return;
     }
+
+    PCODE codeStart = (PCODE) methodStartPtr;
+    SetupAndSprinkleBreakpointsForJittedMethod(pMD, codeStart);
 }
 
 #ifdef FEATURE_PREJIT
@@ -1293,7 +1255,7 @@ bool IsGcCoverageInterrupt(LPVOID ip)
 // original instruction. Only one instruction must be used, 
 // because multiple threads can be executing the same code stream.
 
-void RemoveGcCoverageInterrupt(Volatile<BYTE>* instrPtr, BYTE * savedInstrPtr)
+void RemoveGcCoverageInterrupt(TADDR instrPtr, BYTE * savedInstrPtr)
 {
 #ifdef _TARGET_ARM_
         if (GetARMInstructionLength(savedInstrPtr) == 2)
@@ -1303,8 +1265,10 @@ void RemoveGcCoverageInterrupt(Volatile<BYTE>* instrPtr, BYTE * savedInstrPtr)
 #elif defined(_TARGET_ARM64_)
         *(DWORD *)instrPtr = *(DWORD *)savedInstrPtr;
 #else
-        *instrPtr = *savedInstrPtr;
+        *(BYTE *)instrPtr = *savedInstrPtr;
 #endif
+
+        FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 4);
 }
 
 BOOL OnGcCoverageInterrupt(PCONTEXT regs)
@@ -1315,12 +1279,12 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
     GCcoverCount++;
     forceStack[0]= &regs;                // This is so I can see it fastchecked
 
-    BYTE* pControlPc = (BYTE*)GetIP(regs);
+    PCODE controlPc = GetIP(regs);
+    TADDR instrPtr = PCODEToPINSTR(controlPc);
 
-    Volatile<BYTE>* instrPtr = (Volatile<BYTE>*)pControlPc;
     forceStack[0] = &instrPtr;            // This is so I can see it fastchecked
 
-    EECodeInfo codeInfo((PCODE)pControlPc);
+    EECodeInfo codeInfo(controlPc);
     if (!codeInfo.IsValid())
         return(FALSE);
 
@@ -1384,19 +1348,19 @@ FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 
 void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 {
-    BYTE* pControlPc = (BYTE*)GetIP(regs);
-    Volatile<BYTE>* instrPtr = (Volatile<BYTE>*)pControlPc;
+    PCODE controlPc = GetIP(regs);
+    TADDR instrPtr = PCODEToPINSTR(controlPc);
 
     if (!pMD)
     {
-        pMD = ExecutionManager::GetCodeMethodDesc((PCODE)pControlPc);
+        pMD = ExecutionManager::GetCodeMethodDesc(controlPc);
         if (!pMD)
             return;
     }
 
     GCCoverageInfo *gcCover = pMD->m_GcCover;
 
-    EECodeInfo codeInfo((TADDR)instrPtr);
+    EECodeInfo codeInfo(controlPc);
     _ASSERTE(codeInfo.GetMethodDesc() == pMD);
     DWORD offset = codeInfo.GetRelOffset();
 
@@ -1404,7 +1368,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-    BYTE instrVal = *instrPtr;
+    BYTE instrVal = *(BYTE *)instrPtr;
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
     
     if (instrVal != INTERRUPT_INSTR && 
@@ -1418,9 +1382,6 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
 
 #elif defined(_TARGET_ARM_)
-
-    _ASSERTE(((TADDR)instrPtr) & THUMB_CODE);
-    instrPtr = instrPtr - THUMB_CODE;
 
     WORD instrVal = *(WORD*)instrPtr;
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
@@ -1680,7 +1641,8 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         }
 
         // Must flush instruction cache before returning as instruction has been modified.
-        FlushInstructionCache(GetCurrentProcess(), instrPtr, 6);
+        // Note this needs to reach beyond the call by up to 4 bytes.
+        FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 10);
 
         // It's not GC safe point, the GC Stress instruction is 
         // already commited and interrupt is already put at next instruction so we just return.
@@ -1770,7 +1732,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         UpdateGCStressInstructionWithoutGC ();
 
     // Must flush instruction cache before returning as instruction has been modified.
-    FlushInstructionCache(GetCurrentProcess(), instrPtr, 4);
+    FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 4);
 
     CONSISTENCY_CHECK(!pThread->HasPendingGCStressInstructionUpdate());
 

@@ -83,23 +83,28 @@ inline void GCToEEInterface::SyncBlockCachePromotionsGranted(int max_gen)
     g_theGCToCLR->SyncBlockCachePromotionsGranted(max_gen);
 }
 
-inline bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
+inline uint32_t GCToEEInterface::GetActiveSyncBlockCount()
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->IsPreemptiveGCDisabled(pThread);
+    return g_theGCToCLR->GetActiveSyncBlockCount();
 }
 
-
-inline void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
+inline bool GCToEEInterface::IsPreemptiveGCDisabled()
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->EnablePreemptiveGC(pThread);
+    return g_theGCToCLR->IsPreemptiveGCDisabled();
 }
 
-inline void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
+inline bool GCToEEInterface::EnablePreemptiveGC()
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->DisablePreemptiveGC(pThread);
+    return  g_theGCToCLR->EnablePreemptiveGC();
+}
+
+inline void GCToEEInterface::DisablePreemptiveGC()
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->DisablePreemptiveGC();
 }
 
 inline Thread* GCToEEInterface::GetThread()
@@ -108,22 +113,10 @@ inline Thread* GCToEEInterface::GetThread()
     return g_theGCToCLR->GetThread();
 }
 
-inline bool GCToEEInterface::TrapReturningThreads()
+inline gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->TrapReturningThreads();
-}
-
-inline gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetAllocContext(pThread);
-}
-
-inline bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CatchAtSafePoint(pThread);
+    return g_theGCToCLR->GetAllocContext();
 }
 
 inline void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* param)
@@ -132,10 +125,10 @@ inline void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, vo
     g_theGCToCLR->GcEnumAllocContexts(fn, param);
 }
 
-inline Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threadStart, void* arg)
+inline uint8_t *GCToEEInterface::GetLoaderAllocatorObjectForGC(Object* pObject)
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CreateBackgroundThread(threadStart, arg);
+    return g_theGCToCLR->GetLoaderAllocatorObjectForGC(pObject);
 }
 
 inline void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
@@ -252,10 +245,34 @@ inline bool GCToEEInterface::IsGCThread()
     return g_theGCToCLR->IsGCThread();
 }
 
-inline bool GCToEEInterface::IsGCSpecialThread()
+inline bool GCToEEInterface::WasCurrentThreadCreatedByGC()
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->IsGCSpecialThread();
+    return g_theGCToCLR->WasCurrentThreadCreatedByGC();
+}
+
+inline bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->CreateThread(threadStart, arg, is_suspendable, name);
+}
+
+inline void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->WalkAsyncPinnedForPromotion(object, sc, callback);
+}
+
+inline void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*))
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->WalkAsyncPinned(object, context, callback);
+}
+
+inline IGCToCLREventSink* GCToEEInterface::EventSink()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->EventSink();
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

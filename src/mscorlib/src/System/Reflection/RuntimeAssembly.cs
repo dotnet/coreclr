@@ -56,7 +56,6 @@ namespace System.Reflection
         private const String s_localFilePrefix = "file:";
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetCodeBase(RuntimeAssembly assembly,
                                                bool copiedName,
                                                StringHandleOnStack retString);
@@ -118,8 +117,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static void GetFullName(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetFullName(RuntimeAssembly assembly, StringHandleOnStack retString);
 
         public override String FullName
         {
@@ -138,7 +136,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetEntryPoint(RuntimeAssembly assembly, ObjectHandleOnStack retMethod);
 
         public override MethodInfo EntryPoint
@@ -156,7 +153,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetType(RuntimeAssembly assembly,
                                                         String name,
                                                         bool throwOnError,
@@ -179,8 +175,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static void GetExportedTypes(RuntimeAssembly assembly, ObjectHandleOnStack retTypes);
+        private static extern void GetExportedTypes(RuntimeAssembly assembly, ObjectHandleOnStack retTypes);
 
         public override Type[] GetExportedTypes()
         {
@@ -380,7 +375,6 @@ namespace System.Reflection
         // Returns the module in this assembly with name 'name'
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetModule(RuntimeAssembly assembly, String name, ObjectHandleOnStack retModule);
 
         public override Module GetModule(String name)
@@ -429,8 +423,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static void GetExecutingAssembly(StackCrawlMarkHandle stackMark, ObjectHandleOnStack retAssembly);
+        private static extern void GetExecutingAssembly(StackCrawlMarkHandle stackMark, ObjectHandleOnStack retAssembly);
 
         internal static RuntimeAssembly GetExecutingAssembly(ref StackCrawlMark stackMark)
         {
@@ -449,7 +442,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern int GetManifestResourceInfo(RuntimeAssembly assembly,
                                                           String resourceName,
                                                           ObjectHandleOnStack assemblyRef,
@@ -475,7 +467,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetLocation(RuntimeAssembly assembly, StringHandleOnStack retString);
 
         public override String Location
@@ -491,8 +482,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static void GetImageRuntimeVersion(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetImageRuntimeVersion(RuntimeAssembly assembly, StringHandleOnStack retString);
 
         public override String ImageRuntimeVersion
         {
@@ -579,8 +569,7 @@ namespace System.Reflection
 
         // GetResource will return a pointer to the resources in memory.
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private static unsafe extern byte* GetResource(RuntimeAssembly assembly,
+        private static extern unsafe byte* GetResource(RuntimeAssembly assembly,
                                                        String resourceName,
                                                        out ulong length,
                                                        StackCrawlMarkHandle stackMark,
@@ -605,7 +594,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetVersion(RuntimeAssembly assembly,
                                               out int majVer,
                                               out int minVer,
@@ -620,7 +608,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetLocale(RuntimeAssembly assembly, StringHandleOnStack retString);
 
         internal CultureInfo GetLocale()
@@ -647,7 +634,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetSimpleName(RuntimeAssembly assembly, StringHandleOnStack retSimpleName);
 
         internal String GetSimpleName()
@@ -658,8 +644,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static AssemblyHashAlgorithm GetHashAlgorithm(RuntimeAssembly assembly);
+        private static extern AssemblyHashAlgorithm GetHashAlgorithm(RuntimeAssembly assembly);
 
         private AssemblyHashAlgorithm GetHashAlgorithm()
         {
@@ -667,8 +652,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static AssemblyNameFlags GetFlags(RuntimeAssembly assembly);
+        private static extern AssemblyNameFlags GetFlags(RuntimeAssembly assembly);
 
         private AssemblyNameFlags GetFlags()
         {
@@ -676,7 +660,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetPublicKey(RuntimeAssembly assembly, ObjectHandleOnStack retPublicKey);
 
         internal byte[] GetPublicKey()
@@ -693,11 +676,9 @@ namespace System.Reflection
             if (moduleResolve == null)
                 return null;
 
-            Delegate[] ds = moduleResolve.GetInvocationList();
-            int len = ds.Length;
-            for (int i = 0; i < len; i++)
+            foreach (ModuleResolveEventHandler handler in moduleResolve.GetInvocationList())
             {
-                RuntimeModule ret = (RuntimeModule)((ModuleResolveEventHandler)ds[i])(this, new ResolveEventArgs(moduleName, this));
+                RuntimeModule ret = (RuntimeModule)handler(this, new ResolveEventArgs(moduleName, this));
                 if (ret != null)
                     return ret;
             }
@@ -766,8 +747,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private extern static void GetModules(RuntimeAssembly assembly,
+        private static extern void GetModules(RuntimeAssembly assembly,
                                               bool loadIfNotFound,
                                               bool getResourceModules,
                                               ObjectHandleOnStack retModuleHandles);
@@ -866,7 +846,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void GetForwardedType(RuntimeAssembly assembly, MetadataToken mdtExternalType, ObjectHandleOnStack type);
     }
 }

@@ -413,7 +413,7 @@
     <value>Search pattern '{0}' cannot contain ".." to move up directories and can be contained only internally in file/directory names, as in "a..b".</value>
   </data>
   <data name="Arg_InvalidTypeInRetType" xml:space="preserve">
-    <value>The return Type contains some invalid type (i.e. null, ByRef)</value>
+    <value>The return Type must be a type provided by the runtime.</value>
   </data>
   <data name="Arg_InvalidTypeInSignature" xml:space="preserve">
     <value>The signature Type array contains some invalid type (i.e. null, void)</value>
@@ -426,6 +426,9 @@
   </data>
   <data name="Arg_KeyNotFound" xml:space="preserve">
     <value>The given key was not present in the dictionary.</value>
+  </data>
+  <data name="Arg_KeyNotFoundWithKey" xml:space="preserve">
+    <value>The given key '{0}' was not present in the dictionary.</value>
   </data>
   <data name="Arg_LongerThanDestArray" xml:space="preserve">
     <value>Destination array was not long enough. Check the destination index, length, and the array's lower bounds.</value>
@@ -528,9 +531,6 @@
   </data>
   <data name="Arg_MustBeString" xml:space="preserve">
     <value>Object must be of type String.</value>
-  </data>
-  <data name="Arg_MustBeStringPtrNotAtom" xml:space="preserve">
-    <value>The pointer passed in as a String must not be in the bottom 64K of the process's address space.</value>
   </data>
   <data name="Arg_MustBeTimeSpan" xml:space="preserve">
     <value>Object must be of type TimeSpan.</value>
@@ -782,7 +782,7 @@
     <value>A null or zero length string does not represent a valid Type.</value>
   </data>
   <data name="Arg_TypeRefPrimitve" xml:space="preserve">
-    <value>TypedReferences cannot be redefined as primitives.</value>
+    <value>TypedReferences cannot be redefined as primitives. Field name '{0}'.</value>
   </data>
   <data name="Arg_TypeUnloadedException" xml:space="preserve">
     <value>Type had been unloaded.</value>
@@ -1237,9 +1237,6 @@
   <data name="Argument_InvalidPathChars" xml:space="preserve">
     <value>Illegal characters in path.</value>
   </data>
-  <data name="Argument_InvalidREG_TZI_FORMAT" xml:space="preserve">
-    <value>The REG_TZI_FORMAT structure is corrupt.</value>
-  </data>
   <data name="Argument_InvalidRegistryViewCheck" xml:space="preserve">
     <value>The specified RegistryView value is invalid.</value>
   </data>
@@ -1408,9 +1405,6 @@
   <data name="Argument_OffsetAndCapacityOutOfBounds" xml:space="preserve">
     <value>Offset and capacity were greater than the size of the view.</value>
   </data>
-  <data name="Argument_OffsetAndLengthOutOfBounds" xml:space="preserve">
-    <value>Offset and length were out of bounds for the array or count is greater than the number of elements from index to the end of the source collection.</value>
-  </data>
   <data name="Argument_OffsetLocalMismatch" xml:space="preserve">
     <value>The UTC Offset of the local dateTime parameter does not match the offset argument.</value>
   </data>
@@ -1526,7 +1520,7 @@
     <value>The DaylightTransitionStart property must not equal the DaylightTransitionEnd property.</value>
   </data>
   <data name="Argument_TypedReferenceInvalidField" xml:space="preserve">
-    <value>Field in TypedReferences cannot be static or init only.</value>
+    <value>Field '{0}' in TypedReferences cannot be static or init only.</value>
   </data>
   <data name="Argument_TypeIsWinRTType" xml:space="preserve">
     <value>The type must not be a Windows Runtime type.</value>
@@ -1577,7 +1571,7 @@
     <value>The unmanaged Version information is too large to persist.</value>
   </data>
   <data name="Argument_WaitHandleNameTooLong" xml:space="preserve">
-    <value>The name can be no more than {0} characters in length.</value>
+    <value>The name '{0}' can be no more than {1} characters in length.</value>
   </data>
   <data name="Argument_WinRTSystemRuntimeType" xml:space="preserve">
     <value>Cannot marshal type '{0}' to Windows Runtime. Only 'System.RuntimeType' is supported.</value>
@@ -1662,9 +1656,6 @@
   </data>
   <data name="ArgumentNull_Waithandles" xml:space="preserve">
     <value>The waitHandles parameter cannot be null.</value>
-  </data>
-  <data name="ArgumentNull_WithParamName" xml:space="preserve">
-    <value>Parameter '{0}' cannot be null.</value>
   </data>
   <data name="ArgumentOutOfRange_ActualValue" xml:space="preserve">
     <value>Actual value was {0}.</value>
@@ -2174,7 +2165,7 @@
     <value>Attempt to define more than the maximum limit of 8 channels for a provider.</value>
   </data>
   <data name="EventSource_MismatchIdToWriteEvent" xml:space="preserve">
-    <value>Event {0} is givien event ID {1} but {2} was passed to WriteEvent.</value>
+    <value>Event {0} was assigned event ID {1} but {2} was passed to WriteEvent.</value>
   </data>
   <data name="EventSource_NeedGuid" xml:space="preserve">
     <value>The Guid of an EventSource must be non zero.</value>
@@ -2306,31 +2297,34 @@
     <value>Invalid length for a Base-64 char array or string.</value>
   </data>
   <data name="Format_BadBoolean" xml:space="preserve">
-    <value>String was not recognized as a valid Boolean.</value>
+    <value>String '{0}' was not recognized as a valid Boolean.</value>
   </data>
   <data name="Format_BadDatePattern" xml:space="preserve">
     <value>Could not determine the order of year, month, and date from '{0}'.</value>
   </data>
   <data name="Format_BadDateTime" xml:space="preserve">
-    <value>String was not recognized as a valid DateTime.</value>
+    <value>String '{0}' was not recognized as a valid DateTime.</value>
   </data>
   <data name="Format_BadDateTimeCalendar" xml:space="preserve">
-    <value>The DateTime represented by the string is not supported in calendar {0}.</value>
+    <value>The DateTime represented by the string '{0}' is not supported in calendar '{1}'.</value>
   </data>
   <data name="Format_BadDayOfWeek" xml:space="preserve">
-    <value>String was not recognized as a valid DateTime because the day of week was incorrect.</value>
+    <value>String '{0}' was not recognized as a valid DateTime because the day of week was incorrect.</value>
   </data>
   <data name="Format_BadFormatSpecifier" xml:space="preserve">
-    <value>Format specifier was invalid.</value>
+    <value>Format specifier '{0}' was invalid.</value>
+  </data>
+  <data name="Format_NoFormatSpecifier" xml:space="preserve">
+    <value>No format specifiers were provided.</value>
   </data>
   <data name="Format_BadQuote" xml:space="preserve">
     <value>Cannot find a matching quote character for the character '{0}'.</value>
   </data>
   <data name="Format_BadTimeSpan" xml:space="preserve">
-    <value>String was not recognized as a valid TimeSpan.</value>
+    <value>String '{0}' was not recognized as a valid TimeSpan.</value>
   </data>
   <data name="Format_DateOutOfRange" xml:space="preserve">
-    <value>The DateTime represented by the string is out of range.</value>
+    <value>The DateTime represented by the string '{0}' is out of range.</value>
   </data>
   <data name="Format_EmptyInputString" xml:space="preserve">
     <value>Input string was either empty or contained only whitespace.</value>
@@ -2369,16 +2363,16 @@
     <value>Index (zero based) must be greater than or equal to zero and less than the size of the argument list.</value>
   </data>
   <data name="Format_InvalidEnumFormatSpecification" xml:space="preserve">
-    <value>Format String can be only "G", "g", "X", "x", "F", "f", "D" or "d".</value>
+    <value>Format string can be only "G", "g", "X", "x", "F", "f", "D" or "d".</value>
   </data>
   <data name="Format_InvalidGuidFormatSpecification" xml:space="preserve">
-    <value>Format String can be only "D", "d", "N", "n", "P", "p", "B", "b", "X" or "x".</value>
+    <value>Format string can be only "D", "d", "N", "n", "P", "p", "B", "b", "X" or "x".</value>
   </data>
   <data name="Format_InvalidString" xml:space="preserve">
     <value>Input string was not in a correct format.</value>
   </data>
   <data name="Format_MissingIncompleteDate" xml:space="preserve">
-    <value>There must be at least a partial date with a year present in the input.</value>
+    <value>There must be at least a partial date with a year present in the input string '{0}'.</value>
   </data>
   <data name="Format_NeedSingleChar" xml:space="preserve">
     <value>String must be exactly one character long.</value>
@@ -2387,7 +2381,7 @@
     <value>Could not find any recognizable digits.</value>
   </data>
   <data name="Format_OffsetOutOfRange" xml:space="preserve">
-    <value>The time zone offset must be within plus or minus 14 hours.</value>
+    <value>The time zone offset of string '{0}' must be within plus or minus 14 hours.</value>
   </data>
   <data name="Format_RepeatDateTimePattern" xml:space="preserve">
     <value>DateTime pattern '{0}' appears more than once with different values.</value>
@@ -2395,11 +2389,11 @@
   <data name="Format_StringZeroLength" xml:space="preserve">
     <value>String cannot have zero length.</value>
   </data>
-  <data name="Format_UnknowDateTimeWord" xml:space="preserve">
-    <value>The string was not recognized as a valid DateTime. There is an unknown word starting at index {0}.</value>
+  <data name="Format_UnknownDateTimeWord" xml:space="preserve">
+    <value>The string '{0}' was not recognized as a valid DateTime. There is an unknown word starting at index '{1}'.</value>
   </data>
   <data name="Format_UTCOutOfRange" xml:space="preserve">
-    <value>The UTC representation of the date falls outside the year range 1-9999.</value>
+    <value>The UTC representation of the date '{0}' falls outside the year range 1-9999.</value>
   </data>
   <data name="Globalization_cp_1200" xml:space="preserve">
     <value>Unicode</value>
@@ -2427,9 +2421,6 @@
   </data>
   <data name="IndexOutOfRange_ArrayRankIndex" xml:space="preserve">
     <value>Array does not have that many dimensions.</value>
-  </data>
-  <data name="IndexOutOfRange_IORaceCondition" xml:space="preserve">
-    <value>Probable I/O race condition detected while copying memory. The I/O package is not thread safe by default. In multithreaded applications, a stream must be accessed in a thread-safe way, such as a thread-safe wrapper returned by TextReader's or TextWriter's Synchronized methods. This also applies to classes like StreamWriter and StreamReader.</value>
   </data>
   <data name="IndexOutOfRange_UMSPosition" xml:space="preserve">
     <value>Unmanaged memory stream position was beyond the capacity of the stream.</value>
@@ -2547,6 +2538,9 @@
   </data>
   <data name="InvalidOperation_CollectionCorrupted" xml:space="preserve">
     <value>A prior operation on this collection was interrupted by an exception. Collection's state is no longer trusted.</value>
+  </data>
+  <data name="InvalidOperation_ConcurrentOperationsNotSupported" xml:space="preserve">
+    <value>Operations that change non-concurrent collections must have exclusive access. A concurrent update was performed on this collection and corrupted its state. The collection's state is no longer correct.</value>
   </data>
   <data name="InvalidOperation_ConstructorNotAllowedOnInterface" xml:space="preserve">
     <value>Interface cannot have constructors.</value>
@@ -2740,8 +2734,11 @@
   <data name="InvalidTimeZone_InvalidRegistryData" xml:space="preserve">
     <value>The time zone ID '{0}' was found on the local computer, but the registry information was corrupt.</value>
   </data>
-  <data name="InvalidTimeZone_JulianDayNotSupported" xml:space="preserve">
-    <value>Julian dates in POSIX strings are unsupported.</value>
+  <data name="InvalidTimeZone_InvalidJulianDay" xml:space="preserve">
+    <value>Invalid Julian day in POSIX strings.</value>
+  </data>
+  <data name="InvalidTimeZone_NJulianDayNotSupported" xml:space="preserve">
+    <value>Julian n day in POSIX strings is not supported.</value>
   </data>
   <data name="InvalidTimeZone_NoTTInfoStructures" xml:space="preserve">
     <value>There are no ttinfo structures in the tzfile.  At least one ttinfo structure is required in order to construct a TimeZoneInfo object.</value>
@@ -2941,8 +2938,11 @@
   <data name="NotSupported_ByRefLikeArray" xml:space="preserve">
     <value>Cannot create arrays of ByRef-like values.</value>
   </data>
-  <data name="NotSupported_ByRefReturn" xml:space="preserve">
-    <value>ByRef return value not supported in reflection invocation.</value>
+  <data name="NotSupported_ByRefToByRefLikeReturn" xml:space="preserve">
+    <value>ByRef to ByRefLike return values not supported in reflection invocation.</value>
+  </data>
+  <data name="NotSupported_ByRefToVoidReturn" xml:space="preserve">
+    <value>ByRef to void return values not supported in reflection invocation.</value>
   </data>
   <data name="NotSupported_CallToVarArg" xml:space="preserve">
     <value>Vararg calling convention not supported.</value>
@@ -2967,9 +2967,6 @@
   </data>
   <data name="NotSupported_CollectibleDelegateMarshal" xml:space="preserve">
     <value>Delegate marshaling for types within collectible assemblies is not supported.</value>
-  </data>
-  <data name="NotSupported_Constructor" xml:space="preserve">
-    <value>Object cannot be created through this constructor.</value>
   </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>
@@ -3148,6 +3145,9 @@
   <data name="ObjectDisposed_ObjectName_Name" xml:space="preserve">
     <value>Object name: '{0}'.</value>
   </data>
+  <data name="ObjectDisposed_WriterClosed" xml:space="preserve">
+    <value>Cannot write to a closed TextWriter.</value>
+  </data>
   <data name="ObjectDisposed_ReaderClosed" xml:space="preserve">
     <value>Cannot read from a closed TextReader.</value>
   </data>
@@ -3209,7 +3209,7 @@
     <value>Value was either too large or too small for a Single.</value>
   </data>
   <data name="Overflow_TimeSpanElementTooLarge" xml:space="preserve">
-    <value>The TimeSpan could not be parsed because at least one of the numeric components is out of range or contains too many digits.</value>
+    <value>The TimeSpan string '{0}' could not be parsed because at least one of the numeric components is out of range or contains too many digits.</value>
   </data>
   <data name="Overflow_TimeSpanTooLong" xml:space="preserve">
     <value>TimeSpan overflowed because the duration is too long.</value>
@@ -3284,7 +3284,7 @@
     <value>The specified arrays must have the same number of dimensions.</value>
   </data>
   <data name="ReflectionTypeLoad_LoadFailed" xml:space="preserve">
-    <value>Unable to load one or more of the requested types. Retrieve the LoaderExceptions property for more information.</value>
+    <value>Unable to load one or more of the requested types.</value>
   </data>
   <data name="Remoting_AppDomainUnloaded_ThreadUnwound" xml:space="preserve">
     <value>The application domain in which the thread was running has been unloaded.</value>
@@ -3685,10 +3685,46 @@
   <data name="NotSupported_SignatureType" xml:space="preserve">
     <value>This method is not supported on signature types.</value>
   </data>
-    <data name="Memory_ThrowIfDisposed" xml:space="preserve">
+  <data name="MemoryDisposed" xml:space="preserve">
     <value>Memory&lt;T&gt; has been disposed.</value>
   </data>
   <data name="Memory_OutstandingReferences" xml:space="preserve">
     <value>Release all references before disposing this instance.</value>
+  </data>
+  <data name="HashCode_HashCodeNotSupported" xml:space="preserve">
+    <value>HashCode is a mutable struct and should not be compared with other HashCodes. Use ToHashCode to retrieve the computed hash code.</value>
+  </data>
+  <data name="HashCode_EqualityNotSupported" xml:space="preserve">
+    <value>HashCode is a mutable struct and should not be compared with other HashCodes.</value>
+  </data>
+  <data name="Arg_TypeNotSupported" xml:space="preserve">
+    <value>Specified type is not supported</value>
+  </data>
+  <data name="IO_InvalidReadLength" xml:space="preserve">
+    <value>The read operation returned an invalid length.</value>
+  </data>
+  <data name="Arg_BasePathNotFullyQualified" xml:space="preserve">
+    <value>Basepath argument is not fully qualified.</value>
+  </data>
+  <data name="Arg_ElementsInSourceIsGreaterThanDestination" xml:space="preserve">
+    <value>Number of elements in source vector is greater than the destination array</value>
+  </data>
+  <data name="Arg_NullArgumentNullRef" xml:space="preserve">
+    <value>The method was called with a null array argument.</value>
+  </data>
+  <data name="Argument_CannotPrepareAbstract" xml:space="preserve">
+    <value>Abstract methods cannot be prepared.</value>
+  </data>
+  <data name="Argument_InvalidGenericInstantiation" xml:space="preserve">
+    <value>The given generic instantiation was invalid.</value>
+  </data>
+  <data name="Argument_OverlapAlignmentMismatch" xml:space="preserve">
+    <value>Overlapping spans have mismatching alignment.</value>
+  </data>
+  <data name="Arg_InsufficientNumberOfElements" xml:space="preserve">
+    <value>At least {0} element(s) are expected in the parameter "{1}".</value>
+  </data>
+  <data name="Arg_MustBeNullTerminatedString" xml:space="preserve">
+    <value>The string must be null-terminated.</value>
   </data>
 </root>

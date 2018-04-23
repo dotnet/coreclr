@@ -28,11 +28,6 @@ const char g_psBaseLibrary[]      = CoreLibName_IL_A;
 const char g_psBaseLibraryName[]  = CoreLibName_A;
 const char g_psBaseLibrarySatelliteAssemblyName[]  = CoreLibSatelliteName_A;
 
-#ifdef FEATURE_COMINTEROP
-const WCHAR g_pwBaseLibraryTLB[]  = CoreLibName_TLB_W;
-const char g_psBaseLibraryTLB[]   = CoreLibName_TLB_A;
-#endif  // FEATURE_COMINTEROP
-
 Volatile<LONG>       g_TrapReturningThreads;
 
 HINSTANCE            g_pMSCorEE;
@@ -107,10 +102,6 @@ GPTR_IMPL(Thread,g_pSuspensionThread);
 // Global SyncBlock cache
 GPTR_IMPL(SyncTableEntry,g_pSyncTable);
 
-#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
-DWORD g_dwHandles = 0;
-#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
-
 #ifdef STRESS_LOG
 GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 #endif
@@ -120,6 +111,9 @@ GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
 GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
 
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_IMPL_INIT(DWORD, g_debuggerWordTLSIndex, TLS_OUT_OF_INDEXES);
+#endif
 GVAL_IMPL_INIT(DWORD, g_TlsIndex, TLS_OUT_OF_INDEXES);
 
 #ifndef DACCESS_COMPILE
@@ -146,7 +140,8 @@ SpinConstants g_SpinConstants = {
     50,        // dwInitialDuration 
     40000,     // dwMaximumDuration - ideally (20000 * max(2, numProc))
     3,         // dwBackoffFactor
-    10         // dwRepetitions
+    10,        // dwRepetitions
+    0          // dwMonitorSpinCount
 };
 
 // support for Event Tracing for Windows (ETW)
@@ -248,8 +243,6 @@ LPWSTR g_pCachedModuleFileName = 0;
 // IJW needs the shim HINSTANCE
 //
 HINSTANCE g_hInstShim = NULL;
-
-char g_Version[] = VER_PRODUCTVERSION_STR;
 
 #endif // #ifndef DACCESS_COMPILE
 
