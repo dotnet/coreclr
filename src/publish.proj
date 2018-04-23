@@ -53,7 +53,7 @@
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
                           ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          IsPublic="false" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -91,7 +91,7 @@
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
                           ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          IsPublic="false" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
@@ -126,7 +126,7 @@
                           AccountKey="$(AccountKey)"
                           AccountName="$(AccountName)"
                           ContainerName="$(ContainerName)"
-                          IsPublic="true" />
+                          IsPublic="false" />
 
     <!-- now upload the items -->
     <UploadToAzure  Condition="'$(PublishFlatContainer)' == 'true'"
