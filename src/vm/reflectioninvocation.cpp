@@ -1100,7 +1100,8 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     BOOL fHasRetBuffArg = argit.HasRetBuffArg();
     CorElementType retType = retTH.GetSignatureCorElementType();
     BOOL hasValueTypeReturn = retTH.IsValueType() && retType != ELEMENT_TYPE_VOID;
-    if (hasValueTypeReturn || fHasRetBuffArg) {
+    _ASSERTE(hasValueTypeReturn || !fHasRetBuffArg); // only valuetypes are returned via a return buffer.
+    if (hasValueTypeReturn) {
         gc.retVal = retTH.GetMethodTable()->Allocate();
     }
     else if (retType == ELEMENT_TYPE_BYREF)
