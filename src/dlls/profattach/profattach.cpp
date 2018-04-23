@@ -12,6 +12,7 @@
 
 // ======================================================================================
 
+#include <Windows.h>
 #include <winwrap.h>
 #include <utilcode.h>
 #include <log.h>
@@ -57,9 +58,9 @@ typedef HRESULT(STDAPICALLTYPE * fpICLRProfilingGetClassObject)(
 HRESULT
 CreateCLRProfiling(
     __in LPCWSTR pCoreCLRFullPath,
-    __out LPVOID * ppCLRProfilingInstance)
+    __out void ** ppCLRProfilingInstance)
 {
-    PUBLIC_CONTRACT;
+    //PUBLIC_CONTRACT;
 
     HRESULT hrIgnore = S_OK; // ignored HResult
     HRESULT hr = S_OK;
@@ -68,7 +69,7 @@ CreateCLRProfiling(
 
     LOG((LF_CORDB, LL_EVERYTHING, "Calling CreateCLRProfiling"));
 
-    EX_TRY
+    //EX_TRY
     {
         SString szFullCoreClrPath;
         szFullCoreClrPath.Set(pCoreCLRFullPath, (COUNT_T)wcslen(pCoreCLRFullPath));
@@ -82,12 +83,13 @@ CreateCLRProfiling(
         hMod = LoadLibraryExW(szFullCoreClrPath, NULL, 0);
 #endif
     }
-    EX_CATCH_HRESULT(hrIgnore); // failure leaves hMod null
+    //EX_CATCH_HRESULT(hrIgnore); // failure leaves hMod null
 
     // Could not load or find coreclr
+    // TODO: probably should try to come up with a set of rules to find coreclr elsewhere
     if (hMod == NULL)
     {
-
+        return E_NOTIMPL;
     }
     
     // Now create instance
@@ -101,6 +103,7 @@ CreateCLRProfiling(
         hr = pFactory->CreateInstance(NULL, CLSID_CLRProfiling, ppCLRProfilingInstance);
         pFactory->Release();
     }
+    DebugBreak();
     
     return hr;
 }
