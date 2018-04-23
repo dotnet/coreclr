@@ -1111,6 +1111,7 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         // If the target of the byref is a value type, we need to preallocate a boxed object to hold the managed return value.
         if (refReturnTargetTH.IsValueType())
         {
+            _ASSERTE(refReturnTargetTH.GetSignatureCorElementType() != ELEMENT_TYPE_VOID); // Managed Reflection layer has a bouncer for "ref void" returns.
             hasRefReturnAndNeedsBoxing = TRUE;
             gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
         }
