@@ -668,7 +668,6 @@ OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
     CONTRACTL_END;
 
     CorElementType type = th.GetSignatureCorElementType();
-    MethodTable *pMT = NULL;
     OBJECTREF obj = NULL;
 
     // WARNING: pValue can be an inner reference into a managed object and it is not protected from GC. You must do nothing that
@@ -685,14 +684,6 @@ OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
         break;
     }
 
-    case ELEMENT_TYPE_FNPTR:
-        pMT = MscorlibBinder::GetElementType(ELEMENT_TYPE_I);
-        goto PrimitiveType;
-
-    case ELEMENT_TYPE_VALUETYPE:
-        _ASSERTE(!"You cannot use this function for arbitrary value types. You must preallocate a box object and copy the value in yourself.");
-        break;
-
     case ELEMENT_TYPE_CLASS:        // Class
     case ELEMENT_TYPE_SZARRAY:      // Single Dim, Zero
     case ELEMENT_TYPE_ARRAY:        // General Array
@@ -702,38 +693,15 @@ OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
         obj = *(OBJECTREF *)pValue;
         break;
     
-    case ELEMENT_TYPE_BOOLEAN:      // boolean
-    case ELEMENT_TYPE_I1:           // byte
-    case ELEMENT_TYPE_U1:
-    case ELEMENT_TYPE_I2:           // short
-    case ELEMENT_TYPE_U2:           
-    case ELEMENT_TYPE_CHAR:         // char
-    case ELEMENT_TYPE_I4:           // int
-    case ELEMENT_TYPE_U4:
-    case ELEMENT_TYPE_I8:           // long
-    case ELEMENT_TYPE_U8:       
-    case ELEMENT_TYPE_R4:           // float
-    case ELEMENT_TYPE_R8:           // double
-    case ELEMENT_TYPE_I:
-    case ELEMENT_TYPE_U:
-        _ASSERTE(!th.IsTypeDesc());
-        pMT = th.AsMethodTable();
-    PrimitiveType:
+    case ELEMENT_TYPE_FNPTR:
         {
-            // Don't use MethodTable::Box here for perf reasons
-            PREFIX_ASSUME(pMT != NULL);
-            DWORD size = pMT->GetNumInstanceFieldBytes();
-
-            UINT64 capturedValue;
-            memcpyNoGCRefs(&capturedValue, pValue, size); // Must capture the primitive value before we allocate the boxed object which can trigger a GC.
-
+            LPVOID capturedValue = *(LPVOID*)pValue;
             INDEBUG(pValue = (LPVOID)0xcccccccc); // We're about to allocate a GC object - can no longer trust pValue
-            obj = AllocateObject(pMT);
-            memcpyNoGCRefs(obj->UnBox(), &capturedValue, size);
+            obj = AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
+            *(LPVOID*)(obj->UnBox()) = capturedValue;
         }
         break;
     
-    case ELEMENT_TYPE_END:
     default:
         _ASSERTE(!"Unknown Type");
         COMPlusThrow(kNotSupportedException);

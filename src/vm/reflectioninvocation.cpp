@@ -1095,20 +1095,20 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     BOOL hasRefReturnAndNeedsBoxing = FALSE; // Indicates that the method has a BYREF return type and the target type needs to be copied into a preallocated boxed object.
 
     TypeHandle retTH = gc.pSig->GetReturnTypeHandle();
+
     TypeHandle refReturnTargetTH;  // Valid only if retType == ELEMENT_TYPE_BYREF. Caches the TypeHandle of the byref target.
     BOOL fHasRetBuffArg = argit.HasRetBuffArg();
-    CorElementType retType = retTH.GetInternalCorElementType();
-    if (retType == ELEMENT_TYPE_VALUETYPE || fHasRetBuffArg) {
+    CorElementType retType = retTH.GetSignatureCorElementType();
+    BOOL hasValueTypeReturn = retTH.IsValueType() && retType != ELEMENT_TYPE_VOID;
+    if (hasValueTypeReturn || fHasRetBuffArg) {
         gc.retVal = retTH.GetMethodTable()->Allocate();
     }
     else if (retType == ELEMENT_TYPE_BYREF)
     {
         refReturnTargetTH = retTH.AsTypeDesc()->GetTypeParam();
-        CorElementType refReturnTargetType = refReturnTargetTH.GetInternalCorElementType();
 
-        // If the target of the byref is a general valuetype (i.e. not one of the primitives), we need to preallocate a boxed object
-        // to hold the managed return value.
-        if (refReturnTargetType == ELEMENT_TYPE_VALUETYPE)
+        // If the target of the byref is a value type, we need to preallocate a boxed object to hold the managed return value.
+        if (refReturnTargetTH.IsValueType())
         {
             hasRefReturnAndNeedsBoxing = TRUE;
             gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
@@ -1339,7 +1339,7 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         gc.retVal = Nullable::NormalizeBox(gc.retVal);
     }
     else
-    if (retType == ELEMENT_TYPE_VALUETYPE || hasRefReturnAndNeedsBoxing)
+    if (hasValueTypeReturn || hasRefReturnAndNeedsBoxing)
     {
         _ASSERTE(gc.retVal != NULL);
 
