@@ -58,6 +58,7 @@ template <typename Dst, typename Src>
 inline bool FitsIn(Src val)
 {
 #ifdef _MSC_VER
+#define static_assert_no_msg( cond ) static_assert( cond, #cond )
     static_assert_no_msg(!__is_class(Dst));
     static_assert_no_msg(!__is_class(Src));
 #endif
