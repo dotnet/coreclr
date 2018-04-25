@@ -16311,6 +16311,7 @@ void gc_heap::update_collection_counts ()
 inline
 BOOL AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
+#ifndef BUILD_AS_STANDALONE
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -16321,11 +16322,13 @@ BOOL AnalyzeSurvivorsRequested(int condemnedGeneration)
             return TRUE;
         }
     }
+#endif // BUILD_AS_STANDALONE
     return FALSE;
 }
 
 void DACNotifyGcMarkEnd(int condemnedGeneration)
 {
+#ifndef BUILD_AS_STANDALONE
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -16336,6 +16339,7 @@ void DACNotifyGcMarkEnd(int condemnedGeneration)
             DACNotify::DoGCNotification(gea);
         }
     }
+#endif // BUILD_AS_STANDALONE
 }
 #endif // HEAP_ANALYZE
 
@@ -34221,10 +34225,6 @@ GCHeap::AllocAlign8Common(void* _hp, alloc_context* acontext, size_t size, uint3
 #endif //COUNT_CYCLES
 #endif //TRACE_GC
 
-#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
-
     if (size < LARGE_OBJECT_SIZE)
     {
 #ifdef TRACE_GC
@@ -34400,10 +34400,6 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
         assert (acontext->get_alloc_heap());
     }
 #endif //MULTIPLE_HEAPS
-
-#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 
 #ifdef MULTIPLE_HEAPS
     gc_heap* hp = acontext->get_alloc_heap()->pGenGCHeap;
