@@ -22,6 +22,136 @@
 #define NOT_DEBUG(x)        x
 #endif
 
+#ifndef _ASSERTE_SAFEMATH
+#ifdef _ASSERTE
+// Use _ASSERTE if we have it (should always be the case in the CLR)
+#define _ASSERTE_SAFEMATH _ASSERTE
+#else
+// Otherwise (eg. we're being used from a tool like SOS) there isn't much
+// we can rely on that is both available everywhere and rotor-safe.  In 
+// several other tools we just take the recourse of disabling asserts,
+// we'll do the same here.  
+// Ideally we'd have a collection of common utilities available evererywhere.
+#define _ASSERTE_SAFEMATH(a) 
+#endif
+#endif
+
+
+//==================================================================
+// Semantics: if val can be represented as the exact same value
+// when cast to Dst type, then FitsIn<Dst>(val) will return true;
+// otherwise FitsIn returns false.
+//
+// Dst and Src must both be integral types.
+//
+// It's important to note that most of the conditionals in this
+// function are based on static type information and as such will
+// be optimized away. In particular, the case where the signs are
+// identical will result in no code branches.
+
+#ifdef _PREFAST_
+#pragma warning(push)
+#pragma warning(disable:6326) // PREfast warning: Potential comparison of a constant with another constant
+#endif // _PREFAST_
+
+template <typename Dst, typename Src>
+inline bool FitsIn(Src val)
+{
+#ifdef _MSC_VER
+    static_assert_no_msg(!__is_class(Dst));
+    static_assert_no_msg(!__is_class(Src));
+#endif
+
+    if (std::is_signed<Src>::value == std::is_signed<Dst>::value)
+    {   // Src and Dst are equally signed
+        if (sizeof(Src) <= sizeof(Dst))
+        {   // No truncation is possible
+            return true;
+        }
+        else
+        {   // Truncation is possible, requiring runtime check
+            return val == (Src)((Dst)val);
+        }
+    }
+    else if (std::is_signed<Src>::value)
+    {   // Src is signed, Dst is unsigned
+#ifdef __GNUC__
+        // Workaround for GCC warning: "comparison is always
+        // false due to limited range of data type."
+        if (!(val == 0 || val > 0))
+#else
+        if (val < 0)
+#endif
+        {   // A negative number cannot be represented by an unsigned type
+            return false;
+        }
+        else
+        {
+            if (sizeof(Src) <= sizeof(Dst))
+            {   // No truncation is possible
+                return true;
+            }
+            else
+            {   // Truncation is possible, requiring runtime check
+                return val == (Src)((Dst)val);
+            }
+        }
+    }
+    else
+    {   // Src is unsigned, Dst is signed
+        if (sizeof(Src) < sizeof(Dst))
+        {   // No truncation is possible. Note that Src is strictly
+            // smaller than Dst.
+            return true;
+        }
+        else
+        {   // Truncation is possible, requiring runtime check
+#ifdef __GNUC__
+            // Workaround for GCC warning: "comparison is always
+            // true due to limited range of data type." If in fact
+            // Dst were unsigned we'd never execute this code
+            // anyway.
+            return ((Dst)val > 0 || (Dst)val == 0) &&
+#else
+            return ((Dst)val >= 0) &&
+#endif
+                   (val == (Src)((Dst)val));
+        }
+    }
+}
+
+// Requires that Dst is an integral type, and that DstMin and DstMax are the
+// minimum and maximum values of that type, respectively.  Returns "true" iff
+// "val" can be represented in the range [DstMin..DstMax] (allowing loss of precision, but
+// not truncation).
+template <int64_t DstMin, uint64_t DstMax>
+inline bool FloatFitsInIntType(float val)
+{
+    float DstMinF = static_cast<float>(DstMin);
+    float DstMaxF = static_cast<float>(DstMax);
+    return DstMinF <= val && val <= DstMaxF;
+}
+
+template <int64_t DstMin, uint64_t DstMax>
+inline bool DoubleFitsInIntType(double val)
+{
+    double DstMinD = static_cast<double>(DstMin);
+    double DstMaxD = static_cast<double>(DstMax);
+    return DstMinD <= val && val <= DstMaxD;
+}
+
+#ifdef _PREFAST_
+#pragma warning(pop)
+#endif //_PREFAST_
+
+#define ovadd_lt(a, b, rhs) (((a) + (b) <  (rhs) ) && ((a) + (b) >= (a)))
+#define ovadd_le(a, b, rhs) (((a) + (b) <= (rhs) ) && ((a) + (b) >= (a)))
+#define ovadd_gt(a, b, rhs) (((a) + (b) >  (rhs) ) || ((a) + (b) < (a)))
+#define ovadd_ge(a, b, rhs) (((a) + (b) >= (rhs) ) || ((a) + (b) < (a)))
+
+#define ovadd3_gt(a, b, c, rhs) (((a) + (b) + (c) > (rhs)) || ((a) + (b) < (a)) || ((a) + (b) + (c) < (c)))
+
+
 template<typename T> class ClrSafeInt
 {
 public:
@@ -424,7 +554,7 @@ public:
             //we're 32-bit
             if(IsSigned())
             {
-                INT64 tmp = (INT64)lhs * (INT64)rhs;
+                int64_t tmp = (int64_t)lhs * (int64_t)rhs;
 
                 //upper 33 bits must be the same
                 //most common case is likely that both are positive - test first
@@ -442,7 +572,7 @@ public:
             }
             else
             {
-                UINT64 tmp = (UINT64)lhs * (UINT64)rhs;
+                uint64_t tmp = (uint64_t)lhs * (uint64_t)rhs;
                 if (tmp & 0xffffffff00000000ULL) //overflow
                 {
                     //overflow
@@ -457,7 +587,7 @@ public:
             //16-bit
             if(IsSigned())
             {
-                INT32 tmp = (INT32)lhs * (INT32)rhs;
+                int32_t tmp = (int32_t)lhs * (int32_t)rhs;
                 //upper 17 bits must be the same
                 //most common case is likely that both are positive - test first
                 if( (tmp & 0xffff8000) == 0 || (tmp & 0xffff8000) == 0xffff8000)
@@ -472,7 +602,7 @@ public:
             }
             else
             {
-                UINT32 tmp = (UINT32)lhs * (UINT32)rhs;
+                uint32_t tmp = (uint32_t)lhs * (uint32_t)rhs;
                 if (tmp & 0xffff0000) //overflow
                 {
                     return false;
@@ -487,7 +617,7 @@ public:
 
             if(IsSigned())
             {
-                INT16 tmp = (INT16)lhs * (INT16)rhs;
+                int16_t tmp = (int16_t)lhs * (int16_t)rhs;
                 //upper 9 bits must be the same
                 //most common case is likely that both are positive - test first
                 if( (tmp & 0xff80) == 0 || (tmp & 0xff80) == 0xff80)
@@ -502,7 +632,7 @@ public:
             }
             else
             {
-                UINT16 tmp = ((UINT16)lhs) * ((UINT16)rhs);
+                uint16_t tmp = ((uint16_t)lhs) * ((uint16_t)rhs);
 
                 if (tmp & 0xff00) //overflow
                 {

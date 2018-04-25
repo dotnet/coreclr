@@ -34221,9 +34221,9 @@ GCHeap::AllocAlign8Common(void* _hp, alloc_context* acontext, size_t size, uint3
 #endif //COUNT_CYCLES
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
+#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
     GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
+#endif // !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 
     if (size < LARGE_OBJECT_SIZE)
     {
@@ -34401,9 +34401,9 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
     }
 #endif //MULTIPLE_HEAPS
 
-#ifndef FEATURE_REDHAWK
+#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
     GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
+#endif // !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 
 #ifdef MULTIPLE_HEAPS
     gc_heap* hp = acontext->get_alloc_heap()->pGenGCHeap;
