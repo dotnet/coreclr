@@ -3632,8 +3632,13 @@ AGAIN:
                 {
                     lstIG = lstIG->igNext;
                     assert(lstIG);
-                    // printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
-                    // lstIG->igOffs - adjIG);
+#ifdef DEBUG
+                    if (EMITVERBOSE)
+                    {
+                        printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
+                               lstIG->igOffs - adjIG);
+                    }
+#endif // DEBUG
                     lstIG->igOffs -= adjIG;
                     assert(IsCodeAligned(lstIG->igOffs));
                 } while (lstIG != jmpIG);
@@ -4100,8 +4105,13 @@ AGAIN:
             {
                 break;
             }
-            // printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
-            // lstIG->igOffs - adjIG);
+#ifdef DEBUG
+            if (EMITVERBOSE)
+            {
+                printf("Adjusted offset of block %02u from %04X to %04X\n", lstIG->igNum, lstIG->igOffs,
+                       lstIG->igOffs - adjIG);
+            }
+#endif // DEBUG
             lstIG->igOffs -= adjIG;
             assert(IsCodeAligned(lstIG->igOffs));
         }
