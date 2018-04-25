@@ -4713,13 +4713,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         /* Is this the first cold block? */
         if (ig == emitFirstColdIG)
         {
-            unsigned actualHotCodeSize = emitCurCodeOffs(cp);
-
-            /* Fill in eventual unused space */
-            while (emitCurCodeOffs(cp) < emitTotalHotCodeSize)
-            {
-                *cp++ = DEFAULT_CODE_BUFFER_INIT;
-            }
+            assert(emitCurCodeOffs(cp) == emitTotalHotCodeSize);
 
             assert(coldCodeBlock);
             cp = coldCodeBlock;
@@ -4852,6 +4846,25 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         emitCurIG = nullptr;
 
         assert(ig->igSize >= cp - bp);
+
+        // Is it the last ig in the hot part?
+        bool lastHotIG = (emitFirstColdIG != nullptr && ig->igNext == emitFirstColdIG);
+        if (lastHotIG)
+        {
+            unsigned actualHotCodeSize    = emitCurCodeOffs(cp);
+            unsigned allocatedHotCodeSize = emitTotalHotCodeSize;
+            assert(actualHotCodeSize <= allocatedHotCodeSize);
+            if (actualHotCodeSize < allocatedHotCodeSize)
+            {
+                // The allocated chunk is bigger than used, fill in unused space in it.
+                while (emitCurCodeOffs(cp) < allocatedHotCodeSize)
+                {
+                    *cp++ = DEFAULT_CODE_BUFFER_INIT;
+                }
+            }
+        }
+
+        assert((ig->igSize >= cp - bp) || lastHotIG);
         ig->igSize = (unsigned short)(cp - bp);
     }
 
@@ -4997,11 +5010,15 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     unsigned actualCodeSize = emitCurCodeOffs(cp);
 
-    /* Fill in eventual unused space */
+    // Fill in eventual unused space, but do not report this space as used.
+    // If you add this padding during the emitIGlist loop, then it will
+    // emit offsets after the loop with wrong value (for example for GC ref variables).
     while (emitCurCodeOffs(cp) < emitTotalCodeSize)
     {
         *cp++ = DEFAULT_CODE_BUFFER_INIT;
     }
+
+    emitTotalCodeSize = actualCodeSize;
 
 #if EMITTER_STATS
     totAllocdSize += emitTotalCodeSize;
