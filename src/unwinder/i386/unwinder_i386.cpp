@@ -30,7 +30,7 @@ BOOL OOPStackUnwinderX86::Unwind(T_CONTEXT* pContextRecord, T_KNONVOLATILE_CONTE
     EECodeInfo codeInfo;
     codeInfo.Init((PCODE) ControlPc);
 
-    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
+    if (!codeInfo.IsValid() || !UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
     {
         return FALSE;
     }
