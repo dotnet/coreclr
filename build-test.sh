@@ -295,28 +295,73 @@ build_Tests_internal()
     __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
-    __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog}\""
-    __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn}\""
-    __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
-    # Generate build command
-    buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} -MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+    if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
+        # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
+        # See https://github.com/Microsoft/msbuild/issues/2993
 
-    echo "Building step '$stepName' via $buildCommand"
+        export __SkipPackageRestore=false
+        export __SkipTargetingPackBuild=false
+        export __BuildLoopCount=2
+        export __TestGroupToBuild=1
 
-    # Invoke MSBuild
-    eval $buildCommand
+        if [ -n __Priority ]; then
+            export __BuildLoopCount=16
+            export __TestGroupToBuild=2
+        fi
 
-    # Invoke MSBuild
-    # $__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog="$__msbuildLog" -MsBuildWrn="$__msbuildWrn" -MsBuildErr="$__msbuildErr" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs
+        for (( slice=1 ; slice < __BuildLoopCount; slice = slice + 1 ))
+        do
+            __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog};Append=${__AppendToLog}\""
+            __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn};Append=${__AppendToLog}\""
+            __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr};Append=${__AppendToLog}\""
 
-    # Make sure everything is OK
-    if [ $? -ne 0 ]; then
-        echo "${__MsgPrefix}Failed to build $stepName. See the build logs:"
-        echo "    $__BuildLog"
-        echo "    $__BuildWrn"
-        echo "    $__BuildErr"
-        exit 1
+            export TestBuildSlice=$slice
+
+            # Generate build command
+            buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} -MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+
+            echo "Building step '$stepName' slice=$slice via $buildCommand"
+
+            # Invoke MSBuild
+            eval $buildCommand
+
+            # Make sure everything is OK
+            if [ $? -ne 0 ]; then
+                echo "${__MsgPrefix}Failed to build $stepName. See the build logs:"
+                echo "    $__BuildLog"
+                echo "    $__BuildWrn"
+                echo "    $__BuildErr"
+                exit 1
+            fi
+            export __SkipPackageRestore=true
+            export __SkipTargetingPackBuild=true
+            __AppendToLog=true
+        done
+    else
+        __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog}\""
+        __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn}\""
+        __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
+
+        # Generate build command
+        buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} -MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+
+        echo "Building step '$stepName' via $buildCommand"
+
+        # Invoke MSBuild
+        eval $buildCommand
+
+        # Invoke MSBuild
+        # $__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog="$__msbuildLog" -MsBuildWrn="$__msbuildWrn" -MsBuildErr="$__msbuildErr" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs
+
+        # Make sure everything is OK
+        if [ $? -ne 0 ]; then
+            echo "${__MsgPrefix}Failed to build $stepName. See the build logs:"
+            echo "    $__BuildLog"
+            echo "    $__BuildWrn"
+            echo "    $__BuildErr"
+            exit 1
+        fi
     fi
 }
 
@@ -614,6 +659,10 @@ while :; do
 
         msbuildonunsupportedplatform)
             __msbuildonunsupportedplatform=1
+            ;;
+        priority)
+            __priority=1
+            __UnprocessedBuildArgs="$__UnprocessedBuildArgs -priority=1"
             ;;
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
