@@ -4153,6 +4153,15 @@ AGAIN:
             goto AGAIN;
         }
     }
+#ifdef DEBUG
+    if (EMIT_INSTLIST_VERBOSE)
+    {
+        printf("\nLabels list after the jump dist binding:\n\n");
+        emitDispIGlist(false);
+    }
+
+    emitCheckIGoffsets();
+#endif // DEBUG
 }
 
 void emitter::emitCheckFuncletBranch(instrDesc* jmp, insGroup* jmpIG)
@@ -5008,7 +5017,15 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     assert(emitInitGCrefRegs == 0xBAADFEED);
     assert(emitInitByrefRegs == 0xBAADFEED);
 
-#endif
+    if (EMIT_INSTLIST_VERBOSE)
+    {
+        printf("\nLabels list after the end of codegen:\n\n");
+        emitDispIGlist(false);
+    }
+
+    emitCheckIGoffsets();
+
+#endif // DEBUG
 
     // Assign the real prolog size
     *prologSize = emitCodeOffset(emitPrologIG, emitPrologEndPos);
