@@ -20,14 +20,12 @@ initHostDistroRid()
         elif [ -e /etc/os-release ]; then
             source /etc/os-release
             if [[ $ID == "alpine" ]]; then
-                # remove the last version digit
-                VERSION_ID=${VERSION_ID%.*}
+                __HostDistroRid="linux-musl-$__HostArch"
             else
                 __PortableBuild=1
+                __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
             fi
-
-            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
-        fi        
+        fi
     elif [ "$__HostOS" == "FreeBSD" ]; then
         __freebsd_version=`sysctl -n kern.osrelease | cut -f1 -d'.'`
         __HostDistroRid="freebsd.$__freebsd_version-$__HostArch"
@@ -240,22 +238,13 @@ build_Tests()
 
     echo "Starting the Managed Tests Build..."
 
-    __ManagedTestBuiltMarker=${__TestBinDir}/managed_test_build
+    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
 
-    if [ ! -f $__ManagedTestBuiltMarker ]; then
-
-        build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
-
-        if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
-            exit 1
-        else
-            echo "Tests have been built."
-            echo "Create marker \"${__ManagedTestBuiltMarker}\""
-            touch $__ManagedTestBuiltMarker
-        fi
+    if [ $? -ne 0 ]; then
+        echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+        exit 1
     else
-        echo "Managed Tests had been built before."
+        echo "Managed tests build success!"
     fi
 
     if [ $__BuildTestWrappers -ne -0 ]; then
