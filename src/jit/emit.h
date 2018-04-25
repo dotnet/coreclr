@@ -371,8 +371,8 @@ struct insGroup
 enum LclVarAddrTag
 {
     LVA_STANDARD_ENCODING = 0,
-    LVA_LARGE_OFFSET      = 1,
-    LVA_COMPILER_TEMP     = 2,
+    LVA_COMPILER_TEMP     = 1,
+    LVA_LARGE_OFFSET      = 2,
     LVA_LARGE_VARNUM      = 3
 };
 
@@ -389,10 +389,25 @@ struct emitLclVarAddr
     // with several other pointer sized types in the instrDesc struct.
     //
 protected:
+#ifdef _TARGET_64BIT_
+
+    // For 64-bit targets, we have enough bits to record the full range of VarNums and Offsets
+    //
+    unsigned _lvaVarNum : 22; // The lvaVarNum
+    unsigned _lvaOffset : 22; // The lvaOffset
+    unsigned _lvaTag    : 2;  // The tag field, only used to record Compiler Temps
+    
+#else  // not _TARGET_64BIT_  (i.e. 32-bit)
+
+    // For 32-bit targets, we use the lvaTag to support large VarNum/Offset with some limitations
+    //
     unsigned _lvaVarNum : 15; // Usually the lvaVarNum
     unsigned _lvaExtra : 15;  // Usually the lvaOffset
     unsigned _lvaTag : 2;     // tag field to support larger varnums
+
+#endif // not _TARGET_64BIT_
 };
+
 
 enum idAddrUnionTag
 {
@@ -888,9 +903,7 @@ protected:
 // TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
 // about reading what we think is here, to avoid unexpected corruption issues.
 
-#ifndef _TARGET_ARM64_
             emitLclVarAddr iiaLclVar;
-#endif
             BasicBlock*  iiaBBlabel;
             insGroup*    iiaIGlabel;
             BYTE*        iiaAddr;
@@ -926,8 +939,6 @@ protected:
             struct
             {
 #ifdef _TARGET_ARM64_
-                // For 64-bit architecture this 32-bit structure can pack with these unsigned bit fields
-                emitLclVarAddr iiaLclVar;
                 unsigned       _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
                 GCtype         _idGCref2 : 2;
 #endif
