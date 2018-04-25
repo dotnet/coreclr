@@ -36,6 +36,7 @@
 #endif
 #endif
 
+#include <type_traits>
 
 //==================================================================
 // Semantics: if val can be represented as the exact same value
