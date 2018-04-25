@@ -3000,6 +3000,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         }
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 #if defined(_TARGET_ARM_)
+        // A non-standard calling convention using secure delegate invoke is used on ARM, only, but not for secure
+        // delegates. It is used for VSD delegate calls where the VSD custom calling convention ABI requires passing
+        // R4, a callee-saved register, with a special value. Since R4 is a callee-saved register, its value needs
+        // to be preserved. Thus, the VM uses a secure delegate IL stub, which preserves R4 and also sets up R4
+        // correctly for the VSD call. The VM is simply reusing an existing mechanism (secure delegate IL stub)
+        // to achieve its goal for delegate VSD call. See COMDelegate::NeedsWrapperDelegate() in the VM for details.
         else if (call->gtCallMoreFlags & GTF_CALL_M_SECURE_DELEGATE_INV)
         {
             GenTree* arg = call->gtCallObjp;
@@ -3520,6 +3526,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
             // This size has now been computed
             assert(size != 0);
+
+            isNonStandard = argEntry->isNonStandard;
         }
         else // !reMorphing
         {
@@ -4151,9 +4159,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             // They should not affect the placement of any other args or stack space required.
             // Example: on AMD64 R10 and R11 are used for indirect VSD (generic interface) and cookie calls.
             isNonStandard = nonStandardArgs.FindReg(argx, &nonStdRegNum);
-            if (isNonStandard && (nonStdRegNum == REG_STK))
+            if (isNonStandard)
             {
-                isRegArg = false;
+                isRegArg = (nonStdRegNum != REG_STK);
             }
 #if defined(_TARGET_X86_)
             else if (call->IsTailCallViaHelper())
@@ -4209,12 +4217,19 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         if (isRegArg)
         {
             regNumber nextRegNum = REG_STK;
+
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             regNumber    nextOtherRegNum = REG_STK;
             unsigned int structFloatRegs = 0;
             unsigned int structIntRegs   = 0;
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-            if (isStructArg && structDesc.passedInRegisters)
+            if (isNonStandard)
+            {
+                nextRegNum = nonStdRegNum;
+            }
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+            else if (isStructArg && structDesc.passedInRegisters)
             {
                 // It is a struct passed in registers. Assign the next available register.
                 assert((structDesc.eightByteCount <= 2) && "Too many eightbytes.");
@@ -4233,8 +4248,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     }
                 }
             }
-            else
 #endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+            else
             {
                 // fill in or update the argInfo table
                 nextRegNum = passUsingFloatRegs ? genMapFloatRegArgNumToRegNum(nextFltArgRegNum)
@@ -4255,11 +4270,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             }
             else
             {
-                if (isNonStandard)
-                {
-                    nextRegNum = nonStdRegNum;
-                }
-
                 // This is a register argument - put it in the table
                 newArgEntry = call->fgArgInfo->AddRegArg(argIndex, argx, args, nextRegNum, size, argAlign
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
