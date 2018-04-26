@@ -44,7 +44,6 @@ namespace System.Diagnostics
         private int[] rgiLineNumber;
         private int[] rgiColumnNumber;
         private bool[] rgiLastFrameFromForeignExceptionStackTrace;
-        private GetSourceLineInfoDelegate getSourceLineInfo;
         private int iFrameCount;
 #pragma warning restore 414
 
@@ -52,8 +51,7 @@ namespace System.Diagnostics
             IntPtr inMemoryPdbAddress, int inMemoryPdbSize, int methodToken, int ilOffset,
             out string sourceFile, out int sourceLine, out int sourceColumn);
 
-        private static Type s_symbolsType = null;
-        private static MethodInfo s_symbolsMethodInfo = null;
+        private static GetSourceLineInfoDelegate s_getSourceLineInfo = null;
 
         [ThreadStatic]
         private static int t_reentrancy = 0;
@@ -74,7 +72,6 @@ namespace System.Diagnostics
             rgFilename = null;
             rgiLineNumber = null;
             rgiColumnNumber = null;
-            getSourceLineInfo = null;
 
             rgiLastFrameFromForeignExceptionStackTrace = null;
 
@@ -107,27 +104,32 @@ namespace System.Diagnostics
             t_reentrancy++;
             try
             {
-                if (s_symbolsMethodInfo == null)
+                if (s_getSourceLineInfo == null)
                 {
-                    s_symbolsType = Type.GetType(
+                    Type symbolsType = Type.GetType(
                         "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                         throwOnError: false);
 
-                    if (s_symbolsType == null)
+                    if (symbolsType == null)
+                    {
                         return;
+                    }
 
-                    s_symbolsMethodInfo = s_symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-                    if (s_symbolsMethodInfo == null)
+                    MethodInfo symbolsMethodInfo = symbolsType.GetMethod("GetSourceLineInfo", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+                    if (symbolsMethodInfo == null)
+                    {
                         return;
-                }
+                    }
 
-                if (getSourceLineInfo == null)
-                {
                     // Create an instance of System.Diagnostics.Stacktrace.Symbols
-                    object target = Activator.CreateInstance(s_symbolsType);
+                    object target = Activator.CreateInstance(symbolsType);
 
                     // Create an instance delegate for the GetSourceLineInfo method
-                    getSourceLineInfo = (GetSourceLineInfoDelegate)s_symbolsMethodInfo.CreateDelegate(typeof(GetSourceLineInfoDelegate), target);
+                    GetSourceLineInfoDelegate getSourceLineInfo = (GetSourceLineInfoDelegate)symbolsMethodInfo.CreateDelegate(typeof(GetSourceLineInfoDelegate), target);
+
+                    // We could race with another thread. It doesn't matter if we win or lose, the losing instance will be GC'ed and all threads including this one will
+                    // use the winning instance
+                    Interlocked.CompareExchange(ref s_getSourceLineInfo, getSourceLineInfo, null);
                 }
 
                 for (int index = 0; index < iFrameCount; index++)
@@ -136,7 +138,7 @@ namespace System.Diagnostics
                     // ENC or the source/line info was already retrieved, the method token is 0.
                     if (rgiMethodToken[index] != 0)
                     {
-                        getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
+                        s_getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
                             rgInMemoryPdbAddress[index], rgiInMemoryPdbSize[index], rgiMethodToken[index],
                             rgiILOffset[index], out rgFilename[index], out rgiLineNumber[index], out rgiColumnNumber[index]);
                     }
@@ -153,14 +155,6 @@ namespace System.Diagnostics
 
         void IDisposable.Dispose()
         {
-            if (getSourceLineInfo != null)
-            {
-                IDisposable disposable = getSourceLineInfo.Target as IDisposable;
-                if (disposable != null)
-                {
-                    disposable.Dispose();
-                }
-            }
         }
 
         public virtual MethodBase GetMethodBase(int i)
