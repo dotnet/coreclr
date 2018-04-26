@@ -32,8 +32,7 @@ namespace NStruct
 
             public bool RunTest()
             {
-                Strmap = null;
-
+                DestoryStrmap();
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
