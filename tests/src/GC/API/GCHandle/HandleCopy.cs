@@ -42,14 +42,12 @@ public class Test
         public void DestroyObj()
         {
             obj = null;
-        }
+        }    
 
         public bool RunTest()
         {
-            // ensuring that GC happens even with /debug mode
-            obj = null;
+            DestroyObj();
             GC.Collect();
-
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
