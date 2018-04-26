@@ -939,7 +939,6 @@ protected:
 
 #endif // _TARGET_ARMARCH_
 
-#ifndef _TARGET_X86_
             struct
             {
                 // Note that these 15-bits are covered by iiaLclVar._reserved
@@ -950,13 +949,11 @@ protected:
 #ifdef _TARGET_ARM64_
                 unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
                 GCtype   _idGCref2 : 2;
-#endif
-#ifdef _TARGET_64BIT_
+
                 unsigned _reserved1 : 17; // reserved for _lvaOffset
                 unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
 #endif
             };
-#endif // not _TARGET_X86_
 
         } _idAddrUnion;
 
@@ -1122,7 +1119,7 @@ protected:
             assert(reg == _idReg2);
         }
 
-#if defined(_TARGET_XARCH_)
+#ifdef _TARGET_XARCH_
         regNumber idReg3() const
         {
             assert(!idIsTiny());
@@ -1149,7 +1146,8 @@ protected:
             idAddr()->_idReg4 = reg;
             assert(reg == idAddr()->_idReg4);
         }
-#endif // defined(_TARGET_XARCH_)
+#endif // _TARGET_XARCH_
+
 #ifdef _TARGET_ARMARCH_
         insOpts idInsOpt() const
         {
