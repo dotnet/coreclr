@@ -525,9 +525,9 @@ void* emitter::emitGetMem(size_t sz)
 void emitLclVarAddr::initLclVarAddr(int varNum, unsigned offset)
 {
 #ifdef _TARGET_64BIT_
-    if (offset >= 0x00400000) // 0x00400000 == 2^22
+    if (offset >= 0x00020000) // 0x00020000 == 2^17
     {
-        IMPL_LIMITATION("JIT doesn't support offsets larger than 2^22 into valuetypes\n");
+        IMPL_LIMITATION("JIT doesn't support offsets larger than 2^17 into valuetypes\n");
     }
 
     if (varNum >= 0) // varNum >= 0, normal LclVar
@@ -538,8 +538,8 @@ void emitLclVarAddr::initLclVarAddr(int varNum, unsigned offset)
         }
 
         _lvaTag    = LVA_STANDARD_ENCODING; // mark as a normal lclVar
-        _lvaVarNum = varNum;                // varNum known to be in [1..2^22-1]
-        _lvaOffset = offset;                // offset known to be in [0..2^22-1]
+        _lvaVarNum = varNum;                // varNum known to be in [1..2^17-1]
+        _lvaOffset = offset;                // offset known to be in [0..2^17-1]
     }
     else // varNum < 0, These are used for Compiler spill temps
     {
@@ -551,7 +551,7 @@ void emitLclVarAddr::initLclVarAddr(int varNum, unsigned offset)
 
         _lvaTag    = LVA_COMPILER_TEMP; // mark as a compiler spill temp
         _lvaVarNum = tmpNum;            // tmpNum known to be in [1..32767]
-        _lvaOffset = offset;            // offset known to be in [0..32767]
+        _lvaOffset = offset;            // offset known to be in [0..2^17-1]
     }
 
 #else // not _TARGET_64BIT_  (i.e. 32-bit)

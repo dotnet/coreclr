@@ -392,9 +392,11 @@ protected:
 #ifdef _TARGET_64BIT_
 
     // For 64-bit targets, we have enough bits to record the full range of VarNums and Offsets
+    // However when packing this struct, a field cannot cross a 32-bit boundry
     //
+    unsigned _reserved0 : 15; // overlaps with _idReg3 _idReg4, etc...
+    unsigned _lvaOffset : 17; // The lvaOffset
     unsigned _lvaVarNum : 22; // The lvaVarNum
-    unsigned _lvaOffset : 22; // The lvaOffset
     unsigned _lvaTag : 2;     // The tag field, only used to record Compiler Temps
 
 #else // not _TARGET_64BIT_  (i.e. 32-bit)
@@ -899,16 +901,14 @@ protected:
         void checkSizes();
 
         union idAddrUnion {
-// TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
-// about reading what we think is here, to avoid unexpected corruption issues.
+            // TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
+            // about reading what we think is here, to avoid unexpected corruption issues.
 
-#ifndef _TARGET_ARM64_
             emitLclVarAddr iiaLclVar;
-#endif
-            BasicBlock*  iiaBBlabel;
-            insGroup*    iiaIGlabel;
-            BYTE*        iiaAddr;
-            emitAddrMode iiaAddrMode;
+            BasicBlock*    iiaBBlabel;
+            insGroup*      iiaIGlabel;
+            BYTE*          iiaAddr;
+            emitAddrMode   iiaAddrMode;
 
             CORINFO_FIELD_HANDLE iiaFieldHnd; // iiaFieldHandle is also used to encode
                                               // an offset into the JIT data constant area
@@ -939,20 +939,27 @@ protected:
 
             struct
             {
-#ifdef _TARGET_ARM64_
-                // For 64-bit architecture this 32-bit structure can pack with these unsigned bit fields
-                emitLclVarAddr iiaLclVar;         // 46 bits in size
-                unsigned       _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
-                GCtype         _idGCref2 : 2;
-#endif
+                // Note that these 15-bits are covered by iiaLclVar._reserved
+                //
                 regNumber _idReg3 : REGNUM_BITS;
                 regNumber _idReg4 : REGNUM_BITS;
+#ifdef _TARGET_ARM64_
+                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
+                GCtype   _idGCref2 : 2;
+#endif
+                unsigned _reserved1 : 17; // reserved for _lvaOffset
+                unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
             };
 #elif defined(_TARGET_XARCH_)
             struct
             {
+                // Note that these 12-bits are covered by the 15 bits of iiaLclVar._reserved
+                //
                 regNumber _idReg3 : REGNUM_BITS;
                 regNumber _idReg4 : REGNUM_BITS;
+
+                unsigned _reserved1 : 17; // reserved for _lvaOffset
+                unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
             };
 #endif // defined(_TARGET_XARCH_)
 
