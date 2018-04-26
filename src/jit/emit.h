@@ -392,7 +392,11 @@ protected:
 #ifdef _TARGET_64BIT_
 
     // For 64-bit targets, we have enough bits to record the full range of VarNums and Offsets
-    // However when packing this struct, a field cannot cross a 32-bit boundry
+    // However when packing this struct, no field cannot cross a 32-bit boundry
+    //
+    // This _reserved0 field is needed because we use the ldp/stp instructions
+    // on ARM64 for loading/storing struct LclVars and these instructions have
+    // three register operands, plus the small constant offset
     //
     unsigned _reserved0 : 15; // overlaps with _idReg3 _idReg4, etc...
     unsigned _lvaOffset : 17; // The lvaOffset
@@ -941,18 +945,23 @@ protected:
 
             struct
             {
-                // Note that these 15-bits are covered by iiaLclVar._reserved
-                //
+// Note that these 15-bits are covered by iiaLclVar._reserved
+//
+#ifdef _TARGET_ARM64_
+                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
+                GCtype   _idGCrefReg2 : 2;  // GCref info for Reg2 of a ldp/stp
+#endif                                      // _TARGET_ARM64_
+
                 regNumber _idReg3 : REGNUM_BITS; // usually 6 bits
                 regNumber _idReg4 : REGNUM_BITS; // usually 6 bits
 
 #ifdef _TARGET_ARM64_
-                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
-                GCtype   _idGCref2 : 2;
-
+                // these unused bit fields will trigger an assert if a change
+                // is made that increases the size of the bitfields above
+                //
                 unsigned _reserved1 : 17; // reserved for _lvaOffset
                 unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
-#endif
+#endif                                    // _TARGET_ARM64_
             };
 
         } _idAddrUnion;
@@ -1099,13 +1108,13 @@ protected:
         {
             assert(!idIsTiny());
             assert(!idIsSmallDsc());
-            return (GCtype)idAddr()->_idGCref2;
+            return (GCtype)idAddr()->_idGCrefReg2;
         }
         void idGCrefReg2(GCtype gctype)
         {
             assert(!idIsTiny());
             assert(!idIsSmallDsc());
-            idAddr()->_idGCref2 = gctype;
+            idAddr()->_idGCrefReg2 = gctype;
         }
 #endif // _TARGET_ARM64_
 
@@ -1119,7 +1128,6 @@ protected:
             assert(reg == _idReg2);
         }
 
-#ifdef _TARGET_XARCH_
         regNumber idReg3() const
         {
             assert(!idIsTiny());
@@ -1146,7 +1154,6 @@ protected:
             idAddr()->_idReg4 = reg;
             assert(reg == idAddr()->_idReg4);
         }
-#endif // _TARGET_XARCH_
 
 #ifdef _TARGET_ARMARCH_
         insOpts idInsOpt() const
@@ -1159,32 +1166,6 @@ protected:
             assert(opt == _idInsOpt);
         }
 
-        regNumber idReg3() const
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            return idAddr()->_idReg3;
-        }
-        void idReg3(regNumber reg)
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            idAddr()->_idReg3 = reg;
-            assert(reg == idAddr()->_idReg3);
-        }
-        regNumber idReg4() const
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            return idAddr()->_idReg4;
-        }
-        void idReg4(regNumber reg)
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            idAddr()->_idReg4 = reg;
-            assert(reg == idAddr()->_idReg4);
-        }
 #ifdef _TARGET_ARM64_
         bool idReg3Scaled() const
         {
