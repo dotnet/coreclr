@@ -937,31 +937,26 @@ protected:
                 iiaEncodedInstrCount = (count << iaut_SHIFT) | iaut_INST_COUNT;
             }
 
+#endif // _TARGET_ARMARCH_
+
+#ifndef _TARGET_X86_
             struct
             {
                 // Note that these 15-bits are covered by iiaLclVar._reserved
                 //
-                regNumber _idReg3 : REGNUM_BITS;
-                regNumber _idReg4 : REGNUM_BITS;
+                regNumber _idReg3 : REGNUM_BITS; // usually 6 bits
+                regNumber _idReg4 : REGNUM_BITS; // usually 6 bits
+
 #ifdef _TARGET_ARM64_
                 unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
                 GCtype   _idGCref2 : 2;
 #endif
+#ifdef _TARGET_64BIT_
                 unsigned _reserved1 : 17; // reserved for _lvaOffset
                 unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
+#endif
             };
-#elif defined(_TARGET_XARCH_)
-            struct
-            {
-                // Note that these 12-bits are covered by the 15 bits of iiaLclVar._reserved
-                //
-                regNumber _idReg3 : REGNUM_BITS;
-                regNumber _idReg4 : REGNUM_BITS;
-
-                unsigned _reserved1 : 17; // reserved for _lvaOffset
-                unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
-            };
-#endif // defined(_TARGET_XARCH_)
+#endif // not _TARGET_X86_
 
         } _idAddrUnion;
 
