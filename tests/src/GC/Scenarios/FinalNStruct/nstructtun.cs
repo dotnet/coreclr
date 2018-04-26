@@ -5,6 +5,7 @@
 namespace NStruct
 {
     using System;
+    using System.Runtime.CompilerServices;
 
     internal class NStructTun
     {
@@ -22,6 +23,12 @@ namespace NStruct
                     Strmap = new STRMAP();
                 }
             }
+
+            [MethodImplAttribute(MethodImplOptions.NoInlining)]
+            public void DestoryStrmap()
+            {
+                Strmap = null;
+            }                       
 
             public bool RunTest()
             {
