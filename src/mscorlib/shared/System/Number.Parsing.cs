@@ -924,7 +924,7 @@ namespace System
             while (true)
             {
                 char cp = p < pEnd ? *p : '\0';
-                if (cp != *str && (*str != '\u00a0' || cp != '\u0020'))
+                if (cp != *str && !(*str == '\u00a0' && cp == '\u0020'))
                 {
                     break;
                 }
