@@ -2011,7 +2011,12 @@ static PCODE PatchNonVirtualExternalMethod(MethodDesc * pMD, PCODE pCode, PTR_CO
     // than code:Precode::TryToSkipFixupPrecode.
     //
 #ifdef HAS_FIXUP_PRECODE
-    if (pMD->HasPrecode() && pMD->GetPrecode()->GetType() == PRECODE_FIXUP
+    if (pMD->HasPrecode()
+        && (pMD->GetPrecode()->GetType() == PRECODE_FIXUP
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+            || pMD->GetPrecode()->GetType() == PRECODE_RELATIVE_FIXUP
+#endif
+            )
         && pMD->IsNativeCodeStableAfterInit()
 #ifndef HAS_REMOTING_PRECODE
         && !pMD->IsRemotingInterceptedViaPrestub()

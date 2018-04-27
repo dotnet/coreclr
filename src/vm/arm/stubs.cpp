@@ -701,6 +701,20 @@ TADDR FixupPrecode::GetMethodDesc()
     return base + (m_MethodDescChunkIndex * MethodDesc::ALIGNMENT);
 }
 
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+TADDR RelativeFixupPrecode::GetMethodDesc()
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    // This lookup is also manually inlined in PrecodeFixupThunk assembly code
+    TADDR baseAddr = GetBase();
+    TADDR base = *PTR_TADDR(baseAddr);
+    if (base == NULL)
+        return NULL;
+    return baseAddr + base + (m_MethodDescChunkIndex * MethodDesc::ALIGNMENT);
+}
+#endif
+
 #ifdef DACCESS_COMPILE
 void FixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
@@ -709,6 +723,16 @@ void FixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
     DacEnumMemoryRegion(GetBase(), sizeof(TADDR));
 }
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+void RelativeFixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
+{
+    SUPPORTS_DAC;
+    DacEnumMemoryRegion(dac_cast<TADDR>(this), sizeof(RelativeFixupPrecode));
+
+    DacEnumMemoryRegion(GetBase(), sizeof(TADDR));
+}
+#endif
 #endif // DACCESS_COMPILE
 
 #ifndef DACCESS_COMPILE
@@ -832,10 +856,38 @@ void FixupPrecode::InitForSave(int iPrecodeChunkIndex)
     // The rest is initialized in code:FixupPrecode::Fixup
 }
 
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+void RelativeFixupPrecode::InitForSave(int iPrecodeChunkIndex)
+{
+    STANDARD_VM_CONTRACT;
+
+    m_InstrLdr[0] = 0xf8df;  // ldr r12, [pc, #16]
+    m_InstrLdr[1] = 0xc00c;
+
+    m_InstrAdd[0] = 0x44fc;  // add r12, pc
+
+    m_InstrPush[0] = 0xf84d; // push {r12}
+    m_InstrPush[1] = 0xcd04;
+
+    m_InstrMov[0] = 0x46fc;  // mov r12, pc
+
+    m_InstrPop[0] = 0xbd00;  // pop {pc}
+
+    _ASSERTE(FitsInU1(iPrecodeChunkIndex));
+    m_PrecodeChunkIndex = static_cast<BYTE>(iPrecodeChunkIndex);
+
+    // The rest is initialized in code:RelativeFixupPrecode::Fixup
+}
+#endif
+
 void FixupPrecode::Fixup(DataImage *image, MethodDesc * pMD)
 {
     STANDARD_VM_CONTRACT;
 
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    // FixupPrecode is not saved to image in this case
+    _ASSERTE(!"FixupPrecode is not saved to NGENed image, RelativeFixupPrecode is instead");
+#else
     // Note that GetMethodDesc() does not return the correct value because of 
     // regrouping of MethodDescs into hot and cold blocks. That's why the caller
     // has to supply the actual MethodDesc
@@ -860,7 +912,48 @@ void FixupPrecode::Fixup(DataImage *image, MethodDesc * pMD)
         image->FixupFieldToNode(this, (BYTE *)GetBase() - (BYTE *)this,
             pMDChunkNode, sizeof(MethodDescChunk));
     }
+#endif
 }
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+void RelativeFixupPrecode::Fixup(DataImage *image, MethodDesc * pMD)
+{
+    STANDARD_VM_CONTRACT;
+
+    // Note that GetMethodDesc() does not return the correct value because of
+    // regrouping of MethodDescs into hot and cold blocks. That's why the caller
+    // has to supply the actual MethodDesc
+
+    SSIZE_T mdChunkOffset;
+    ZapNode * pMDChunkNode = image->GetNodeForStructure(pMD, &mdChunkOffset);
+    ZapNode * pHelperThunk = image->GetHelperThunk(CORINFO_HELP_EE_PRECODE_FIXUP);
+
+    image->FixupFieldToNode(this,
+                            offsetof(RelativeFixupPrecode, m_pTargetOffset),
+                            pHelperThunk,
+                            offsetof(RelativeFixupPrecode, m_pTargetOffset) - RelativeFixupPrecode::GetTargetOffset(),
+                            IMAGE_REL_BASED_RELPTR);
+
+    // Set the actual chunk index
+    RelativeFixupPrecode * pNewPrecode = (RelativeFixupPrecode *)image->GetImagePointer(this);
+
+    size_t mdOffset   = mdChunkOffset - sizeof(MethodDescChunk);
+    size_t chunkIndex = mdOffset / MethodDesc::ALIGNMENT;
+    _ASSERTE(FitsInU1(chunkIndex));
+    pNewPrecode->m_MethodDescChunkIndex = (BYTE) chunkIndex;
+
+    // Fixup the base of MethodDescChunk
+    if (m_PrecodeChunkIndex == 0)
+    {
+        image->FixupFieldToNode(this,
+                                (BYTE *)GetBase() - (BYTE *)this,
+                                pMDChunkNode,
+                                sizeof(MethodDescChunk),
+                                IMAGE_REL_BASED_RELPTR);
+    }
+}
+#endif
+
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
 void ThisPtrRetBufPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator)
@@ -1356,6 +1449,24 @@ BOOL DoesSlotCallPrestub(PCODE pCode)
 
         return pTarget == (TADDR)PrecodeFixupThunk;
     }
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    // RelativeFixupPrecode
+    if (pInstr[0] == 0xf8df && // ldr r12, [pc, #12]
+        pInstr[1] == 0xc00c &&
+        pInstr[2] == 0x44fc)   // add r12, pc
+    {
+        PCODE pTarget = dac_cast<PTR_RelativeFixupPrecode>(pInstr)->GetTarget();
+
+        // Check for jump stub (NGen case)
+        if (isJump(pTarget))
+        {
+            pTarget = decodeJump(pTarget);
+        }
+
+        return pTarget == (TADDR)PrecodeRelativeFixupThunk;
+    }
+#endif
 
     // StubPrecode
     if (pInstr[0] == 0xf8df && // ldr r12, [pc + 8]

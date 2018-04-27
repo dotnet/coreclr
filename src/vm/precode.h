@@ -27,6 +27,9 @@ enum PrecodeType {
 #endif // HAS_REMOTING_PRECODE
 #ifdef HAS_FIXUP_PRECODE
     PRECODE_FIXUP           = FixupPrecode::Type,
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    PRECODE_RELATIVE_FIXUP  = RelativeFixupPrecode::Type,
+#endif
 #endif // HAS_FIXUP_PRECODE
 #ifdef HAS_THISPTR_RETBUF_PRECODE
     PRECODE_THISPTR_RETBUF  = ThisPtrRetBufPrecode::Type,
@@ -81,6 +84,16 @@ private:
 
         return dac_cast<PTR_FixupPrecode>(this);
     }
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+    RelativeFixupPrecode* AsRelativeFixupPrecode()
+    {
+      LIMITED_METHOD_CONTRACT;
+      SUPPORTS_DAC;
+
+      return dac_cast<PTR_RelativeFixupPrecode>(this);
+    }
+#endif
 #endif // HAS_FIXUP_PRECODE
 
 #ifdef HAS_THISPTR_RETBUF_PRECODE
@@ -148,6 +161,11 @@ public:
         // If the precode does not have thumb bit on target, it must be NDirectImportPrecode.
         if (type == StubPrecode::Type && ((AsStubPrecode()->m_pTarget & THUMB_CODE) == 0))
             type = NDirectImportPrecode::Type;
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        if (RelativeFixupPrecode::IsRelativeFixupPrecodeByASM((PCODE)m_data))
+            type = RelativeFixupPrecode::Type;
+#endif
 #endif
 
         return (PrecodeType)type;
@@ -311,6 +329,9 @@ public:
         LIMITED_METHOD_DAC_CONTRACT;
 #ifdef HAS_FIXUP_PRECODE_CHUNKS
         _ASSERTE(t != PRECODE_FIXUP);
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        _ASSERTE(t != PRECODE_RELATIVE_FIXUP);
+#endif
 #endif
         return ALIGN_UP(SizeOf(t), AlignOf(t));
     }
@@ -349,21 +370,6 @@ public:
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
-#endif
-
-#ifdef HAS_FIXUP_PRECODE_CHUNKS
-    static DWORD GetOffsetOfBase(PrecodeType t, DWORD count)
-    {
-        assert(t == PRECODE_FIXUP);
-        return (DWORD)(count * sizeof(FixupPrecode));
-    }
-
-    static DWORD GetOffset(PrecodeType t, DWORD index, DWORD count)
-    {
-        assert(t == PRECODE_FIXUP);
-        assert(index < count); 
-        return (DWORD)((count - index - 1)* sizeof(FixupPrecode));
-    }
 #endif
 };
 

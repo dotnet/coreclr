@@ -1074,6 +1074,11 @@ BOOL PrecodeStubManager::DoTraceStub(PCODE stubStartAddress,
 #ifdef HAS_FIXUP_PRECODE
         case PRECODE_FIXUP:
             break;
+
+#if defined(FEATURE_FNV_MEM_OPTIMIZATIONS) && defined(HAS_RELATIVE_FIXUP_PRECODE)
+        case PRECODE_RELATIVE_FIXUP:
+            break;
+#endif
 #endif // HAS_FIXUP_PRECODE
 
 #ifdef HAS_THISPTR_RETBUF_PRECODE
