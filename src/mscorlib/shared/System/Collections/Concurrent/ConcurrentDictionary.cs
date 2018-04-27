@@ -89,10 +89,6 @@ namespace System.Collections.Concurrent
             {
                 return true;
             }
-            if (valueType.IsEnum)
-            {
-                valueType = Enum.GetUnderlyingType(valueType);
-            }
 
             switch (Type.GetTypeCode(valueType))
             {
@@ -2065,30 +2061,6 @@ namespace System.Collections.Concurrent
             public void Reset()
             {
                 _enumerator.Reset();
-            }
-        }
-    }
-
-    internal sealed class IDictionaryDebugView<K, V>
-    {
-        private readonly IDictionary<K, V> _dictionary;
-
-        public IDictionaryDebugView(IDictionary<K, V> dictionary)
-        {
-            if (dictionary == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.dictionary);
-
-            _dictionary = dictionary;
-        }
-
-        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public KeyValuePair<K, V>[] Items
-        {
-            get
-            {
-                KeyValuePair<K, V>[] items = new KeyValuePair<K, V>[_dictionary.Count];
-                _dictionary.CopyTo(items, 0);
-                return items;
             }
         }
     }

@@ -722,6 +722,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\ConcurrentBag.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\ConcurrentDictionary.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\ConcurrentQueue.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\ConcurrentQueue_Segment.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\ConcurrentStack.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\IProducerConsumerCollection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\Concurrent\SingleProducerConsumerQueue.cs" />
