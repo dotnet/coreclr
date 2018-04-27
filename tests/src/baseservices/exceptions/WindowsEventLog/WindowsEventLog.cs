@@ -53,10 +53,12 @@ class Program
 
         EventLog log = new EventLog("Application");
 
+        Console.WriteLine("Found {0} entries in Event Log", log.Entries.Count);
+
         foreach (EventLogEntry entry in log.Entries)
         {
             int checkCount = 0;
-            if (entry.TimeGenerated > dt)
+            if (entry.TimeGenerated > dt.AddMinutes(-3))  // Grant some leeway in the time error was logged
             {
                 String source = entry.Source;
                 String message = entry.Message;
