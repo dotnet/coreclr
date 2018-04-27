@@ -19,12 +19,6 @@ using System.Diagnostics.Tracing;
 namespace System.Collections.Concurrent
 {
     /// <summary>Provides an event source for tracing CDS collection information.</summary>
-    [EventSource(
-        Name = "System.Collections.Concurrent.ConcurrentCollectionsEventSource",
-        Guid = "35167F8E-49B2-4b96-AB86-435B59336B5E"
-        //TODO:Bug455853:Add support for reading localized string in the EventSource il2il transform
-        //,LocalizationResources = "mscorlib"
-        )]
     internal sealed class CDSCollectionETWBCLProvider : EventSource
     {
         /// <summary>
@@ -33,7 +27,11 @@ namespace System.Collections.Concurrent
         /// </summary>
         public static CDSCollectionETWBCLProvider Log = new CDSCollectionETWBCLProvider();
         /// <summary>Prevent external instantiation.  All logging should go through the Log instance.</summary>
-        private CDSCollectionETWBCLProvider() { }
+        private CDSCollectionETWBCLProvider()
+        : base(new Guid(0x35167F8E, 0x49B2, 0x4b96, 0xAB, 0x86, 0x43, 0x5B, 0x59, 0x33, 0x6B, 0x5E), 
+            "System.Collections.Concurrent.ConcurrentCollectionsEventSource") { }
+            //TODO:Bug455853:Add support for reading localized string in the EventSource il2il transform
+            //,LocalizationResources = "mscorlib"
 
         /// <summary>Enabled for all keywords.</summary>
         private const EventKeywords ALL_KEYWORDS = (EventKeywords)(-1);
