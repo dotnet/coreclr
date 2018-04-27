@@ -21,7 +21,7 @@ namespace System.Diagnostics
     // Modifying the order or fields of this object may require other changes 
     // to the unmanaged definition of the StackFrameHelper class, in 
     // VM\DebugDebugger.h. The binder will catch some of these layout problems.
-    internal class StackFrameHelper : IDisposable
+    internal class StackFrameHelper
     {
         private Thread targetThread;
         private int[] rgiOffset;
@@ -151,10 +151,6 @@ namespace System.Diagnostics
             {
                 t_reentrancy--;
             }
-        }
-
-        void IDisposable.Dispose()
-        {
         }
 
         public virtual MethodBase GetMethodBase(int i)
@@ -356,56 +352,57 @@ namespace System.Diagnostics
         {
             m_iMethodsToSkip += iSkip;
 
-            using (StackFrameHelper StackF = new StackFrameHelper(targetThread))
+            StackFrameHelper StackF = new StackFrameHelper(targetThread);
+            
+            StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
+
+            m_iNumOfFrames = StackF.GetNumberOfFrames();
+
+            if (m_iMethodsToSkip > m_iNumOfFrames)
+                m_iMethodsToSkip = m_iNumOfFrames;
+
+            if (m_iNumOfFrames != 0)
             {
-                StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
+                frames = new StackFrame[m_iNumOfFrames];
 
-                m_iNumOfFrames = StackF.GetNumberOfFrames();
-
-                if (m_iMethodsToSkip > m_iNumOfFrames)
-                    m_iMethodsToSkip = m_iNumOfFrames;
-
-                if (m_iNumOfFrames != 0)
+                for (int i = 0; i < m_iNumOfFrames; i++)
                 {
-                    frames = new StackFrame[m_iNumOfFrames];
+                    bool fDummy1 = true;
+                    bool fDummy2 = true;
+                    StackFrame sfTemp = new StackFrame(fDummy1, fDummy2);
 
-                    for (int i = 0; i < m_iNumOfFrames; i++)
+                    sfTemp.SetMethodBase(StackF.GetMethodBase(i));
+                    sfTemp.SetOffset(StackF.GetOffset(i));
+                    sfTemp.SetILOffset(StackF.GetILOffset(i));
+
+                    sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
+
+                    if (fNeedFileInfo)
                     {
-                        bool fDummy1 = true;
-                        bool fDummy2 = true;
-                        StackFrame sfTemp = new StackFrame(fDummy1, fDummy2);
-
-                        sfTemp.SetMethodBase(StackF.GetMethodBase(i));
-                        sfTemp.SetOffset(StackF.GetOffset(i));
-                        sfTemp.SetILOffset(StackF.GetILOffset(i));
-
-                        sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
-
-                        if (fNeedFileInfo)
-                        {
-                            sfTemp.SetFileName(StackF.GetFilename(i));
-                            sfTemp.SetLineNumber(StackF.GetLineNumber(i));
-                            sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
-                        }
-
-                        frames[i] = sfTemp;
+                        sfTemp.SetFileName(StackF.GetFilename(i));
+                        sfTemp.SetLineNumber(StackF.GetLineNumber(i));
+                        sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
                     }
 
-                    // CalculateFramesToSkip skips all frames in the System.Diagnostics namespace,
-                    // but this is not desired if building a stack trace from an exception.
-                    if (e == null)
-                        m_iMethodsToSkip += CalculateFramesToSkip(StackF, m_iNumOfFrames);
-
-                    m_iNumOfFrames -= m_iMethodsToSkip;
-                    if (m_iNumOfFrames < 0)
-                    {
-                        m_iNumOfFrames = 0;
-                    }
+                    frames[i] = sfTemp;
                 }
 
-                // In case this is the same object being re-used, set frames to null
-                else
-                    frames = null;
+                // CalculateFramesToSkip skips all frames in the System.Diagnostics namespace,
+                // but this is not desired if building a stack trace from an exception.
+                if (e == null)
+                    m_iMethodsToSkip += CalculateFramesToSkip(StackF, m_iNumOfFrames);
+
+                m_iNumOfFrames -= m_iMethodsToSkip;
+                if (m_iNumOfFrames < 0)
+                {
+                    m_iNumOfFrames = 0;
+                }
+            }
+
+            // In case this is the same object being re-used, set frames to null
+            else
+            {
+                frames = null;
             }
         }
 
