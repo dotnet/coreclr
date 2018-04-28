@@ -761,9 +761,16 @@ namespace System
                     if (this.Length != value.Length)
                         return false;
 #if CORECLR
-                    // If both strings are ASCII strings, we can take the fast path.
-                    if (this.IsAscii() && value.IsAscii())
+                    var thisIsAscii = this.IsAscii();
+                    var valueIsAscii = value.IsAscii();
+                    if (thisIsAscii != valueIsAscii)
                     {
+                        // If one string is ASCII and other is not; then they are not equal
+                        return false;
+                    }
+                    else if (thisIsAscii == true && thisIsAscii == valueIsAscii)
+                    {
+                        // If both strings are ASCII strings, we can take the fast path.
                         return EqualsIgnoreCaseAsciiHelper(this, value);
                     }
 #endif
@@ -828,9 +835,16 @@ namespace System
                     if (a.Length != b.Length)
                         return false;
 #if CORECLR
-                    // If both strings are ASCII strings, we can take the fast path.
-                    if (a.IsAscii() && b.IsAscii())
+                    var aIsAscii = a.IsAscii();
+                    var bIsAscii = b.IsAscii();
+                    if (aIsAscii != bIsAscii)
                     {
+                        // If one string is ASCII and other is not; then they are not equal
+                        return false;
+                    }
+                    else if (aIsAscii == true && aIsAscii == bIsAscii)
+                    {
+                        // If both strings are ASCII strings, we can take the fast path.
                         return EqualsIgnoreCaseAsciiHelper(a, b);
                     }
 #endif
