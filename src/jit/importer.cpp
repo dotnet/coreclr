@@ -4753,7 +4753,7 @@ bool Compiler::verCheckTailCallConstraint(
     if (opcode == CEE_CALLI)
     {
         /* Get the call sig */
-        eeGetSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+        eeGetSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
 
         // We don't know the target method, so we have to infer the flags, or
         // assume the worst-case.
@@ -4781,7 +4781,7 @@ bool Compiler::verCheckTailCallConstraint(
 
     if ((sig.callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
     {
-        eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+        eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
     }
 
     // check compatibility of the arguments
@@ -4849,7 +4849,7 @@ bool Compiler::verCheckTailCallConstraint(
         if (methodClassFlgs & CORINFO_FLG_ARRAY)
         {
             assert(opcode != CEE_CALLI);
-            eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+            eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
         }
     }
 
@@ -6097,8 +6097,12 @@ void Compiler::impCheckForPInvokeCall(
     }
     optNativeCallCount++;
 
-    if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) && methHnd == nullptr)
+    if (methHnd == nullptr &&
+            (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) || IsTargetAbi(CORINFO_CORERT_ABI)))
     {
+        // PInvoke in CoreRT ABI must be always inlined. Non-inlineable CALLI cases have been
+        // converted to regular method calls earlier using convertCalliToCall.
+
         // PInvoke CALLI in IL stubs must be inlined
     }
     else
@@ -6967,8 +6971,17 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
     if (opcode == CEE_CALLI)
     {
+        if (IsTargetAbi(CORINFO_CORERT_ABI))
+        {
+            if (info.compCompHnd->convertCalliToCall(pResolvedToken))
+            {
+                eeGetCallInfo(pResolvedToken, NULL, CORINFO_CALLINFO_ALLOWINSTPARAM, callInfo);
+                return impImportCall(CEE_CALL, pResolvedToken, NULL, NULL, prefixFlags, callInfo, rawILOffset);
+            }
+        }
+
         /* Get the call site sig */
-        eeGetSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &calliSig);
+        eeGetSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &calliSig);
 
         callRetTyp = JITtype2varType(calliSig.retType);
 
@@ -7532,7 +7545,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef DEBUG
             unsigned numArgsDef = sig->numArgs;
 #endif
-            eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, sig);
+            eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, sig);
 
 #ifdef DEBUG
             // We cannot lazily obtain the signature of a vararg call because using its method
@@ -13318,6 +13331,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     memset(&callInfo, 0, sizeof(callInfo));
 
                     resolvedToken.token = getU4LittleEndian(codeAddr);
+                    resolvedToken.tokenContext = impTokenLookupContextHandle;
+                    resolvedToken.tokenScope = info.compScopeHnd;
                 }
 
             CALL: // memberRef should be set.

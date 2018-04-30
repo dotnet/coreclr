@@ -13746,6 +13746,11 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
     return ftn;
 }
 
+bool CEEInfo::convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken)
+{
+    return false;
+}
+
 void CEEInfo::allocMem (
         ULONG               hotCodeSize,    /* IN */
         ULONG               coldCodeSize,   /* IN */
