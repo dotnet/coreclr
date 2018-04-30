@@ -887,7 +887,7 @@ namespace System
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor, bool wrapExceptions);
+        internal static extern object InvokeMethod(object target, object[] arguments, Signature sig, bool constructor, bool wrapExceptions, bool propertyGetterCalledThroughSetValue = false, object refReturnPropertySetValue = null);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetMethodInstantiation(RuntimeMethodHandleInternal method, ObjectHandleOnStack types, bool fAsRuntimeTypeArray);

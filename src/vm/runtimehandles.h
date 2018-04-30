@@ -267,7 +267,7 @@ class RuntimeMethodHandle {
 public:  
     static FCDECL1(ReflectMethodObject*, GetCurrentMethod, StackCrawlMark* stackMark);
 
-    static FCDECL5(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions);
+    static FCDECL7(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions, CLR_BOOL fPropertyGetterCalledThroughSetValue, Object *unsafeRefReturnPropertySetValue);
 	
     struct StreamingContextData {
         Object * additionalContext;  // additionalContex was changed from OBJECTREF to Object to avoid having a

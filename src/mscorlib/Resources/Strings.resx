@@ -3733,4 +3733,7 @@
   <data name="Arg_MustBeNullTerminatedString" xml:space="preserve">
     <value>The string must be null-terminated.</value>
   </data>
+  <data name="InvalidOperation_CannotSetAReadOnlyRefProperty" xml:space="preserve">
+    <value>SetValue cannot be invoked on this property as it is marked readonly.</value>
+  </data>
 </root>

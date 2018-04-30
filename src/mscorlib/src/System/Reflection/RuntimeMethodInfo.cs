@@ -469,14 +469,21 @@ namespace System.Reflection
         [Diagnostics.DebuggerHidden]
         public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
         {
+            return InvokeInternal(obj, invokeAttr, binder, parameters, culture, false, null);
+        }
+
+        [DebuggerStepThroughAttribute]
+        [Diagnostics.DebuggerHidden]
+        internal Object InvokeInternal(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture, bool propertyGetterCalledThroughSetValue, Object refReturnPropertySetValue)
+        {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
             bool wrapExceptions = (invokeAttr & BindingFlags.DoNotWrapExceptions) == 0;
             if (arguments == null || arguments.Length == 0)
-                return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions);
+                return RuntimeMethodHandle.InvokeMethod(obj, null, Signature, false, wrapExceptions, propertyGetterCalledThroughSetValue, refReturnPropertySetValue);
             else
             {
-                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, Signature, false, wrapExceptions);
+                Object retValue = RuntimeMethodHandle.InvokeMethod(obj, arguments, Signature, false, wrapExceptions, propertyGetterCalledThroughSetValue, refReturnPropertySetValue);
 
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
