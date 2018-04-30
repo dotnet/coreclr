@@ -23,18 +23,18 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>6bf02f0d943a07b4af784865af6b6438c528c0b2</CoreFxCurrentRef>
-    <CoreClrCurrentRef>6bf02f0d943a07b4af784865af6b6438c528c0b2</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>6bf02f0d943a07b4af784865af6b6438c528c0b2</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>6bf02f0d943a07b4af784865af6b6438c528c0b2</PgoDataCurrentRef>
+    <CoreFxCurrentRef>3ee7598d30c4a8001acf38b3eba039d2adca32f0</CoreFxCurrentRef>
+    <CoreClrCurrentRef>3ee7598d30c4a8001acf38b3eba039d2adca32f0</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>3ee7598d30c4a8001acf38b3eba039d2adca32f0</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>3ee7598d30c4a8001acf38b3eba039d2adca32f0</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-rc1-26419-03</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-rc1-26419-03</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>2.1.0-release-20180419-0038</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-rc1-26419-03</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-rc1-26423-06</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>2.1.0-rc1-26423-06</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>2.1.0-release-20180430-0045</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.0-rc1-26423-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
@@ -51,7 +51,7 @@
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.1.0-rc1-02719-01</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.1.0-rc1-02726-01</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Publish symbol build task package -->
