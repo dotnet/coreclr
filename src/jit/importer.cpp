@@ -19041,6 +19041,17 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
         return;
     }
 
+    /* Check legality of PInvoke callsite (for inlining of marshalling code) */
+
+    if (methAttr & CORINFO_FLG_PINVOKE)
+    {
+        if (!impCanPInvokeInlineCallSite(compCurBB))
+        {
+            inlineResult.NoteFatal(InlineObservation::CALLER_PINVOKE_EH);
+            return;
+        }
+    }
+
     InlineCandidateInfo* inlineCandidateInfo = nullptr;
     impCheckCanInline(call, fncHandle, methAttr, exactContextHnd, &inlineCandidateInfo, &inlineResult);
 
