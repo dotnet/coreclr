@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
+using IsReadOnlyAttribute = System.Runtime.CompilerServices.IsReadOnlyAttribute;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
@@ -25,7 +26,39 @@ namespace System.Reflection
         private BindingFlags m_bindingFlags;
         private Signature m_signature;
         private ParameterInfo[] m_parameters;
+        private volatile RuntimePropertyFlags m_lazyRuntimePropertyFlags;
+
+        [Flags]
+        private enum RuntimePropertyFlags
+        {
+            Computed = 0x00000001,
+            IsByRef = 0x00000002,
+            IsReadOnlyByRef = 0x00000004,
+        }
         #endregion
+
+        private RuntimePropertyFlags Flags
+        {
+            get
+            {
+                RuntimePropertyFlags flags = m_lazyRuntimePropertyFlags;
+                if ((flags & RuntimePropertyFlags.Computed) == 0)
+                {
+                    flags = RuntimePropertyFlags.Computed;
+                    if (PropertyType.IsByRef)
+                    {
+                        flags |= RuntimePropertyFlags.IsByRef;
+
+                        if (IsDefined(typeof(IsReadOnlyAttribute), inherit: false))
+                        {
+                            flags |= RuntimePropertyFlags.IsReadOnlyByRef;
+                        }
+                    }
+                    m_lazyRuntimePropertyFlags = flags;
+                }
+                return flags;
+            }
+        }
 
         #region Constructor
         internal RuntimePropertyInfo(
@@ -417,6 +450,12 @@ namespace System.Reflection
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
         {
+            if ((Flags & RuntimePropertyFlags.IsByRef) != 0)
+            {
+                SetValueOnRefReturningProperty(obj, value, invokeAttr, binder, index, culture);
+                return;
+            }
+
             MethodInfo m = GetSetMethod(true);
 
             if (m == null)
@@ -440,6 +479,23 @@ namespace System.Reflection
             }
 
             m.Invoke(obj, invokeAttr, binder, args, culture);
+        }
+
+        [DebuggerStepThroughAttribute]
+        [Diagnostics.DebuggerHidden]
+        private void SetValueOnRefReturningProperty(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
+        {
+            if ((Flags & RuntimePropertyFlags.IsReadOnlyByRef) != 0)
+                throw new InvalidOperationException(SR.InvalidOperation_CannotSetAReadOnlyRefProperty);
+
+            RuntimeMethodInfo m = (RuntimeMethodInfo)(GetGetMethod(true));
+            if (m == null)
+                throw new ArgumentException(System.SR.Arg_GetMethNotFnd);
+
+            RuntimeType refReturnTargetType = (RuntimeType)(PropertyType.GetElementType());
+            Object refReturnPropertySetValue = refReturnTargetType.CheckValue(value, binder, culture, invokeAttr);
+
+            m.InvokeInternal(obj, invokeAttr, binder, index, culture, true, refReturnPropertySetValue);
         }
         #endregion
 

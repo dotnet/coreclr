@@ -961,9 +961,9 @@ void DECLSPEC_NORETURN ThrowInvokeMethodException(MethodDesc * pMethod, OBJECTRE
     GCPROTECT_END();
 }
 
-FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
+FCIMPL7(Object*, RuntimeMethodHandle::InvokeMethod,
     Object *target, PTRArray *objs, SignatureNative* pSigUNSAFE,
-    CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions)
+    CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions, CLR_BOOL fPropertyGetterCalledThroughSetValue, Object *unsafeRefReturnPropertySetValue)
 {
     FCALL_CONTRACT;
 
@@ -972,12 +972,14 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         PTRARRAYREF args;
         SIGNATURENATIVEREF pSig;
         OBJECTREF retVal;
+        OBJECTREF refReturnPropertySetValue;
     } gc;
 
     gc.target = ObjectToOBJECTREF(target);
     gc.args = (PTRARRAYREF)objs;
     gc.pSig = (SIGNATURENATIVEREF)pSigUNSAFE;
     gc.retVal = NULL;
+    gc.refReturnPropertySetValue = ObjectToOBJECTREF(unsafeRefReturnPropertySetValue);
 
     MethodDesc* pMeth = gc.pSig->GetMethod();
     TypeHandle ownerType = gc.pSig->GetDeclaringType();
@@ -1108,12 +1110,15 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     {
         refReturnTargetTH = retTH.AsTypeDesc()->GetTypeParam();
 
-        // If the target of the byref is a value type, we need to preallocate a boxed object to hold the managed return value.
-        if (refReturnTargetTH.IsValueType())
+        if (!fPropertyGetterCalledThroughSetValue)
         {
-            _ASSERTE(refReturnTargetTH.GetSignatureCorElementType() != ELEMENT_TYPE_VOID); // Managed Reflection layer has a bouncer for "ref void" returns.
-            hasRefReturnAndNeedsBoxing = TRUE;
-            gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
+            // If the target of the byref is a value type, we need to preallocate a boxed object to hold the managed return value.
+            if (refReturnTargetTH.IsValueType())
+            {
+                _ASSERTE(refReturnTargetTH.GetSignatureCorElementType() != ELEMENT_TYPE_VOID); // Managed Reflection layer has a bouncer for "ref void" returns.
+                hasRefReturnAndNeedsBoxing = TRUE;
+                gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
+            }
         }
     }
 
@@ -1381,7 +1386,31 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
         }
 
-        gc.retVal = InvokeUtil::CreateObjectAfterInvoke(refReturnTargetTH, pReturnedReference);
+        if (!fPropertyGetterCalledThroughSetValue)
+        {
+            gc.retVal = InvokeUtil::CreateObjectAfterInvoke(refReturnTargetTH, pReturnedReference);
+        }
+        else
+        {
+            DWORD cbValueTypeSize;
+            if (refReturnTargetTH.IsValueType() && !refReturnTargetTH.AsMethodTable()->ContainsPointers() && (cbValueTypeSize = refReturnTargetTH.AsMethodTable()->GetNumInstanceFieldBytes()) < sizeof(ARG_SLOT))
+            {
+                // We have to use InvokeUtil::CopyArg() because argument transformations expected by Reflection users (such as widening of integer types)
+                // are done there. But CopyArg() expects to copy into argument slots, not refs so when writing enums and primitives, it writes into 
+                // the full ARG_SLOT (8 bytes) even if the underlying data size is less than that. For those cases, we need to copy 
+                // first into a temporary ARG_SLOT, then copy into the final destination.
+                ARG_SLOT tempArgSlot;
+                INDEBUG(memset(&tempArgSlot, 0xcc, sizeof(tempArgSlot)));
+                ArgDestination dest(&tempArgSlot, 0, NULL);
+                InvokeUtil::CopyArg(refReturnTargetTH, &gc.refReturnPropertySetValue, &dest);
+                memcpyNoGCRefs(pReturnedReference, &tempArgSlot, cbValueTypeSize);
+            }
+            else
+            {
+                ArgDestination dest(pReturnedReference, 0, NULL);
+                InvokeUtil::CopyArg(refReturnTargetTH, &gc.refReturnPropertySetValue, &dest);
+            }
+        }
     }
     else 
     {
