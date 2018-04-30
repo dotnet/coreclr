@@ -9,6 +9,7 @@ Name | Description | Type
 `System.GC.Concurrent` | Enable concurrent GC | boolean
 `System.GC.Server` | Enable server GC | boolean
 `System.GC.RetainVM` | Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS | boolean
+`System.Runtime.TieredCompilation` | Enable tiered compilation | boolean
 `System.Threading.ThreadPool.MinThreads` | Override MinThreads for the ThreadPool worker pool | numeric
 `System.Threading.ThreadPool.MaxThreads` | Override MaxThreads for the ThreadPool worker pool | numeric
 
