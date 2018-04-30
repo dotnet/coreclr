@@ -1,40 +1,52 @@
 using System;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
 class Program
 {
-    private static void UnhandledException()
+    private static void UnhandledException(string msg)
     {
-        A();
+        A(msg);
     }
 
-    private static void FailFast()
+    private static void FailFast(string msg)
     {
         try
         {
-            A();
+            A(msg);
         }
         catch (ArgumentException ex)
         {
-            Environment.FailFast("failing fast", ex);
+            Environment.FailFast(msg, ex);
         }
-
     }
 
-    private static void A()
+    private static void A(string msg)
     {
-        B();
+        B(msg);
     }
 
-    private static void B()
+    private static void B(string msg)
     {
-        throw new ArgumentException("my ae");
+        throw new ArgumentException(msg);
     }
 
-    private static bool LaunchTest(string testName, string[] logEntriesToCheck)
+    private static string RandomCookie()
     {
+        // Generate a random cookie to be used as a message to be passed as exception parameter
+        Random random = new Random();
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return new string(Enumerable.Repeat(chars, 10)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+    }
+
+    private static bool LaunchTest(string testName, string[] logEntriesToCheck, string randomCookie)
+    {
+        EventLog logBefore = new EventLog("Application");
+        int logBeforeCount = logBefore.Entries.Count;
+
         DateTime dt = DateTime.Now;
 
         Process testProcess = new Process();
@@ -42,7 +54,7 @@ class Program
         string corerunPath = Environment.GetEnvironmentVariable("CORE_ROOT") + "\\corerun.exe";
 
         testProcess.StartInfo.FileName = corerunPath;
-        testProcess.StartInfo.Arguments = currentPath + "\\WindowsEventLog.exe " + testName;
+        testProcess.StartInfo.Arguments = currentPath + "\\WindowsEventLog.exe " + testName + " " + randomCookie;
         testProcess.StartInfo.EnvironmentVariables["CORE_ROOT"] = Environment.GetEnvironmentVariable("CORE_ROOT");
         testProcess.StartInfo.UseShellExecute = false;
 
@@ -51,11 +63,11 @@ class Program
 
         Thread.Sleep(2000);
 
-        EventLog log = new EventLog("Application");
+        EventLog logAfter = new EventLog("Application");
 
-        Console.WriteLine("Found {0} entries in Event Log", log.Entries.Count);
+        Console.WriteLine("Found {0} entries in Event Log", logAfter.Entries.Count);
 
-        foreach (EventLogEntry entry in log.Entries)
+        foreach (EventLogEntry entry in logAfter.Entries)
         {
             int checkCount = 0;
             if (entry.TimeGenerated > dt.AddMinutes(-3))  // Grant some leeway in the time error was logged
@@ -72,8 +84,10 @@ class Program
                         Console.WriteLine("Couldn't find it in: " + message);
                 }
 
-                if (source.Contains(".NET Runtime") && checkCount == logEntriesToCheck.Length)
+                if (source.Contains(".NET Runtime") && checkCount == logEntriesToCheck.Length && logBeforeCount < logAfter.Entries.Count)
+                {
                     return true;
+                }
                 else if (source.Contains(".NET Runtime"))
                 {
                     Console.WriteLine("***      Event Log       ***");
@@ -86,14 +100,16 @@ class Program
 
     private static bool RunUnhandledExceptionTest()
     {
-        string[] logEntriesToCheck = { "unhandled exception", "my ae", "ArgumentException" };
-        return LaunchTest("UnhandledException", logEntriesToCheck);
+        string cookie = RandomCookie();
+        string[] logEntriesToCheck = { "unhandled exception", "ArgumentException", cookie };
+        return LaunchTest("UnhandledException", logEntriesToCheck, cookie);
     }
 
     private static bool RunFailFastTest()
     {
-        string[] logEntriesToCheck = { "The application requested process termination through System.Environment.FailFast(string message).", "failing fast", "ArgumentException" };
-        return LaunchTest("FailFast", logEntriesToCheck);
+        string cookie = RandomCookie();
+        string[] logEntriesToCheck = { "The application requested process termination through System.Environment.FailFast(string message).", "ArgumentException", cookie };
+        return LaunchTest("FailFast", logEntriesToCheck, cookie);
     }
 
 
@@ -103,6 +119,7 @@ class Program
         {
             if (!System.Runtime.InteropServices.RuntimeInformation.OSDescription.Contains("Windows"))
             {
+                Console.WriteLine("WindowsEventLog Test: Passing on all non-Windows platform");
                 return 100;
             }
 
@@ -121,15 +138,15 @@ class Program
             return 100;
         }
 
-        Debug.Assert(args.Length == 1);
+        Debug.Assert(args.Length == 2);
 
         if (args[0] == "UnhandledException")
         {
-            UnhandledException();
+            UnhandledException(args[1]);
         }
         else if (args[0] == "FailFast")
         {
-            FailFast();
+            FailFast(args[1]);
         }
 
         return 100; // Should never reach here 
