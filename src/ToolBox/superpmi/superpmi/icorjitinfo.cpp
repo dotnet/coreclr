@@ -1580,6 +1580,12 @@ void* MyICJI::getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTail
     return jitInstance->mc->repGetTailCallCopyArgsThunk(pSig, flags);
 }
 
+bool MyICJI::convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken)
+{
+    jitInstance->mc->cr->AddCall("convertCalliToCall");
+    return jitInstance->mc->repConvertCalliToCall(pResolvedToken);
+}
+
 // Stuff directly on ICorJitInfo
 
 // Returns extended flags for a particular compilation instance.
