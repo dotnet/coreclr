@@ -13416,31 +13416,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // For delegates, this is the call to the delegate constructor, not the access check on the
                     // LD(virt)FTN.
                     impHandleAccessAllowed(callInfo.accessAllowed, &callInfo.callsiteCalloutHelper);
-
-#if 0 // DevDiv 410397 - This breaks too many obfuscated apps to do this in an in-place release
-
-                // DevDiv 291703 - we need to check for accessibility between the caller of InitializeArray
-                // and the field it is reading, thus it is now unverifiable to not immediately precede with
-                // ldtoken <filed token>, and we now check accessibility
-                if ((callInfo.methodFlags & CORINFO_FLG_INTRINSIC) &&
-                    (info.compCompHnd->getIntrinsicID(callInfo.hMethod) == CORINFO_INTRINSIC_InitializeArray))
-                {
-                    if (prevOpcode != CEE_LDTOKEN)
-                    {
-                        Verify(prevOpcode == CEE_LDTOKEN, "Need ldtoken for InitializeArray");
-                    }
-                    else
-                    {
-                        assert(lastLoadToken != NULL);
-                        // Now that we know we have a token, verify that it is accessible for loading
-                        CORINFO_RESOLVED_TOKEN resolvedLoadField;
-                        impResolveToken(lastLoadToken, &resolvedLoadField, CORINFO_TOKENKIND_Field);
-                        eeGetFieldInfo(&resolvedLoadField, CORINFO_ACCESS_INIT_ARRAY, &fieldInfo);
-                        impHandleAccessAllowed(fieldInfo.accessAllowed, &fieldInfo.accessCalloutHelper);
-                    }
-                }
-
-#endif // DevDiv 410397
                 }
 
                 if (tiVerificationNeeded)
@@ -13448,21 +13423,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     verVerifyCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
                                   explicitTailCall, readonlyCall, delegateCreateStart, codeAddr - 1,
                                   &callInfo DEBUGARG(info.compFullName));
-                }
-
-                // Insert delegate callout here.
-                if (opcode == CEE_NEWOBJ && (mflags & CORINFO_FLG_CONSTRUCTOR) && (clsFlags & CORINFO_FLG_DELEGATE))
-                {
-#ifdef DEBUG
-                    // We should do this only if verification is enabled
-                    // If verification is disabled, delegateCreateStart will not be initialized correctly
-                    if (tiVerificationNeeded)
-                    {
-                        mdMemberRef delegateMethodRef = mdMemberRefNil;
-                        // We should get here only for well formed delegate creation.
-                        assert(verCheckDelegateCreation(delegateCreateStart, codeAddr - 1, delegateMethodRef));
-                    }
-#endif
                 }
 
                 callTyp = impImportCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
