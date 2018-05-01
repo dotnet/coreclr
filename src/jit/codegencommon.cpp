@@ -466,14 +466,14 @@ void CodeGen::genPrepForEHCodegen()
 #endif        // FEATURE_EH_CALLFINALLY_THUNKS
 }
 
-void CodeGenInterface::genUpdateLife(GenTree* tree)
+void CodeGenInterface::genUpdateLifeTree(GenTree* tree)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
+    compiler->compUpdateLifeTree</*ForCodeGen*/ true>(tree);
 }
 
-void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
+void CodeGenInterface::genUpdateLifeVars(VARSET_VALARG_TP newLife)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(newLife);
+    compiler->compUpdateLifeVars</*ForCodeGen*/ true>(newLife);
 }
 
 #ifdef LEGACY_BACKEND
@@ -1098,7 +1098,7 @@ void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
 template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
-void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
+void Compiler::compChangeLifeVars(VARSET_VALARG_TP newLife)
 {
     LclVarDsc* varDsc;
 
@@ -1234,7 +1234,7 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 }
 
 // Need an explicit instantiation.
-template void Compiler::compChangeLife<true>(VARSET_VALARG_TP newLife);
+template void Compiler::compChangeLifeVars<true>(VARSET_VALARG_TP newLife);
 
 #ifdef LEGACY_BACKEND
 
@@ -2064,13 +2064,13 @@ AGAIN:
                 // In case genMarkLclVar(op1) bashed it above and it is
                 // the last use of the variable.
 
-                genUpdateLife(op1);
+                genUpdateLifeTree(op1);
 
                 /* 'reg1' is trashable, so add "icon" into it */
 
                 genIncRegBy(reg1, cns, addr, addr->TypeGet());
 
-                genUpdateLife(addr);
+                genUpdateLifeTree(addr);
                 return true;
             }
         }

@@ -3582,7 +3582,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  */
 
 template <bool ForCodeGen>
-inline void Compiler::compUpdateLife(GenTree* tree)
+inline void Compiler::compUpdateLifeTree(GenTree* tree)
 {
     // TODO-Cleanup: We shouldn't really be calling this more than once
     if (tree == compCurLifeTree)
@@ -3599,11 +3599,11 @@ inline void Compiler::compUpdateLife(GenTree* tree)
 }
 
 template <bool ForCodeGen>
-inline void Compiler::compUpdateLife(VARSET_VALARG_TP newLife)
+inline void Compiler::compUpdateLifeVars(VARSET_VALARG_TP newLife)
 {
     if (!VarSetOps::Equal(this, compCurLife, newLife))
     {
-        compChangeLife<ForCodeGen>(newLife);
+        compChangeLifeVars<ForCodeGen>(newLife);
     }
 #ifdef DEBUG
     else

@@ -2652,7 +2652,7 @@ void CodeGen::inst_RV_TT_IV(instruction ins, regNumber reg, GenTree* tree, int v
     assert(ins == INS_imul);
     ins = getEmitter()->inst3opImulForReg(reg);
 
-    genUpdateLife(tree);
+    genUpdateLifeVars(tree);
     inst_TT_IV(ins, tree, val);
 #else
     NYI("inst_RV_TT_IV - unknown target");

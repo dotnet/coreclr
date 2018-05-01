@@ -327,7 +327,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
         // Walk the tree to find if any local variable can be replaced with current live definitions.
         for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
         {
-            compUpdateLife</*ForCodeGen*/ false>(tree);
+            compUpdateLifeTree</*ForCodeGen*/ false>(tree);
 
             optCopyProp(block, stmt, tree, curSsaName);
 

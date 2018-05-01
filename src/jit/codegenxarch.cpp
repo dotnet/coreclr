@@ -4275,7 +4275,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
     genConsumeRegs(op1);
     getEmitter()->emitInsBinary(ins_Store(targetType), emitTypeSize(tree), tree, op1);
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 }
 
 //------------------------------------------------------------------------

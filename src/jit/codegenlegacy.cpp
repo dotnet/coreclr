@@ -731,7 +731,7 @@ REG_OK:
     {
         /* In case we're computing a value into a register variable */
 
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
 
         /* Mark the register as 'used' */
 
@@ -1162,7 +1162,7 @@ void CodeGen::genComputeRegPair(
     {
         /* In case we're computing a value into a register variable */
 
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
 
         /* Mark the register as 'used' */
 
@@ -1369,7 +1369,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
 
         if ((addr->InReg()) || (addr->gtOper == GT_LCL_VAR && genMarkLclVar(addr)))
         {
-            genUpdateLife(addr);
+            genUpdateLifeTree(addr);
 
             rv1 = addr;
             rv2 = scaledIndex = 0;
@@ -1429,7 +1429,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
         rv1         = addr;
         rv2         = NULL;
         scaledIndex = NULL;
-        genUpdateLife(addr);
+        genUpdateLifeTree(addr);
         goto YES;
     }
 
@@ -1549,13 +1549,13 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
 
             if (rev)
             {
-                genUpdateLife(rv2);
-                genUpdateLife(rv1);
+                genUpdateLifeTree(rv2);
+                genUpdateLifeTree(rv1);
             }
             else
             {
-                genUpdateLife(rv1);
-                genUpdateLife(rv2);
+                genUpdateLifeTree(rv1);
+                genUpdateLifeTree(rv2);
             }
 
             goto DONE_REGS;
@@ -1568,7 +1568,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
             /* rv1 is already materialized in a register. Just update liveness
                to rv1 and generate code for rv2 */
 
-            genUpdateLife(rv1);
+            genUpdateLifeTree(rv1);
             regSet.rsMarkRegUsed(rv1, oper);
         }
 
@@ -1585,7 +1585,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
             /* rv2 is already materialized in a register. Update liveness
                to after rv2 and then hang on to rv2 */
 
-            genUpdateLife(rv2);
+            genUpdateLifeTree(rv2);
             regSet.rsMarkRegUsed(rv2, oper);
         }
 
@@ -1607,7 +1607,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
             /* We have evaluated rv1, and now we just need to update liveness
                to rv2 which was already in a register */
 
-            genUpdateLife(rv2);
+            genUpdateLifeTree(rv2);
         }
 
         goto DONE_REGS;
@@ -1700,7 +1700,7 @@ bool CodeGen::genMakeIndAddrMode(GenTree*        addr,
                evaluated rv2, and rv1 was already in a register. Just
                update liveness to rv1 and we are done. */
 
-            genUpdateLife(rv1);
+            genUpdateLifeTree(rv1);
         }
         else
         {
@@ -2294,7 +2294,7 @@ regMaskTP CodeGen::genMakeAddressable(
 
     if (tree->InReg())
     {
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
 
         goto GOT_VAL;
     }
@@ -2320,14 +2320,14 @@ regMaskTP CodeGen::genMakeAddressable(
             // to worry about it being enregistered.
             noway_assert(compiler->lvaTable[tree->gtLclFld.gtLclNum].lvRegister == 0);
 
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
             return 0;
 
         case GT_LCL_VAR:
 
             if (!genMarkLclVar(tree))
             {
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return 0;
             }
 
@@ -2335,7 +2335,7 @@ regMaskTP CodeGen::genMakeAddressable(
 
         case GT_REG_VAR:
 
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
 
             goto GOT_VAL;
 
@@ -2375,7 +2375,7 @@ regMaskTP CodeGen::genMakeAddressable(
             if (genMakeIndAddrMode(tree->gtOp.gtOp1, tree, false, /* not for LEA */
                                    needReg, keepReg, &regMask, deferOK))
             {
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return regMask;
             }
 
@@ -2815,7 +2815,7 @@ GenTree* CodeGen::genMakeAddrOrFPstk(GenTree* tree, regMaskTP* regMaskPtr, bool 
             if (genMakeIndAddrMode(tree->gtOp.gtOp1, tree, false, /* not for LEA */
                                    0, RegSet::FREE_REG, regMaskPtr, false))
             {
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return tree;
             }
 
@@ -3062,7 +3062,7 @@ AGAIN:
             FlatFPX87_Unload(&compCurFPState, tree->gtRegNum);
         }
 #endif
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
         gcInfo.gcMarkRegPtrVal(tree);
         return;
     }
@@ -4215,7 +4215,7 @@ emitJumpKind CodeGen::genCondSetFlags(GenTree* cond)
                     if (jumpKind != EJ_NONE)
                     {
                         addrReg1 = RBM_NONE;
-                        genUpdateLife(op1);
+                        genUpdateLifeTree(op1);
                         goto DONE_FLAGS;
                     }
                 }
@@ -4554,7 +4554,7 @@ emitJumpKind CodeGen::genCondSetFlags(GenTree* cond)
     noway_assert(op1->InReg());
     op1Reg = op1->gtRegNum;
 
-    genUpdateLife(op1);
+    genUpdateLifeTree(op1);
 
     /* Mark the register as 'used' */
     regSet.rsMarkRegUsed(op1);
@@ -4639,7 +4639,7 @@ DONE:
 
 DONE_FLAGS: // We have determined what jumpKind to use
 
-    genUpdateLife(cond);
+    genUpdateLifeTree(cond);
 
     /* The condition value is dead at the jump that follows */
 
@@ -5907,7 +5907,7 @@ void CodeGen::genCodeForQmark(GenTree* tree, regMaskTP destReg, regMaskTP bestRe
 
         /* We're just about done */
 
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
     }
     else
     {
@@ -6014,7 +6014,7 @@ void CodeGen::genCodeForQmark(GenTree* tree, regMaskTP destReg, regMaskTP bestRe
 
         /* Check whether this subtree has freed up any variables */
 
-        genUpdateLife(tree);
+        genUpdateLifeTree(tree);
 
         genMarkTreeInReg(tree, reg);
     }
@@ -6191,8 +6191,8 @@ bool CodeGen::genCodeForQmarkWithCMOV(GenTree* tree, regMaskTP destReg, regMaskT
     gcInfo.gcMarkRegPtrVal(reg, predicateNode->TypeGet());
     regTracker.rsTrackRegTrash(reg);
 
-    genUpdateLife(alwaysNode);
-    genUpdateLife(predicateNode);
+    genUpdateLifeTree(alwaysNode);
+    genUpdateLifeTree(predicateNode);
     genCodeForTree_DONE_LIFE(tree, reg);
     return true;
 #else
@@ -6263,7 +6263,7 @@ void CodeGen::genCodeForMultEAX(GenTree* tree)
 
     /* Free up the operand, if it's a regvar */
 
-    genUpdateLife(op2);
+    genUpdateLifeTree(op2);
 
     /* The register is about to be trashed */
 
@@ -6360,7 +6360,7 @@ void CodeGen::genCodeForMult64(GenTree* tree, regMaskTP destReg, regMaskTP bestR
     noway_assert(op1->InReg());
 
     /* Free up the operands */
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     genReleaseReg(op1);
     genReleaseReg(op2);
@@ -6415,7 +6415,7 @@ void CodeGen::genCodeForMult64(GenTree* tree, regMaskTP destReg, regMaskTP bestR
             regSet.rsUnlockReg(genRegMask(regHi));
     }
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     if (tree->gtFlags & GTF_MUL_64RSLT)
         genMarkTreeInRegPair(tree, gen2regs2pair(regLo, regHi));
@@ -6653,7 +6653,7 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTree* tree, regMaskTP destReg, r
 
                 if (treeType == TYP_BYREF)
                 {
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
 
                     gcInfo.gcMarkRegSetNpt(genRegMask(reg)); // in case "reg" was a TYP_GCREF before
                     gcInfo.gcMarkRegPtrVal(reg, TYP_BYREF);
@@ -6783,7 +6783,7 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTree* tree, regMaskTP destReg, r
                 op1->gtRegNum = newReg;
             }
             noway_assert(op1->InReg());
-            genUpdateLife(op1);
+            genUpdateLifeTree(op1);
 
             /* Mark the register as 'used' */
             regSet.rsMarkRegUsed(op1);
@@ -6799,7 +6799,7 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTree* tree, regMaskTP destReg, r
 #ifdef DEBUG
             /* Update the live set of register variables */
             if (compiler->opts.varNames)
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
 #endif
 
             /* Now we can update the register pointer information */
@@ -6942,7 +6942,7 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTree* tree, regMaskTP destReg, r
     noway_assert(op1->InReg());
     op1Reg = op1->gtRegNum;
 
-    genUpdateLife(op1);
+    genUpdateLifeTree(op1);
 
     /* Mark the register as 'used' */
     regSet.rsMarkRegUsed(op1);
@@ -7071,7 +7071,7 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTree* tree, regMaskTP destReg, r
 
     /* Free up the operand, if it's a regvar */
 
-    genUpdateLife(op2);
+    genUpdateLifeTree(op2);
 
     /* The register is about to be trashed */
 
@@ -9906,7 +9906,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
 #ifdef DEBUG
             /* Update the live set of register variables */
             if (compiler->opts.varNames)
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
 #endif
 
             /* Now we can update the register pointer information */
@@ -9932,7 +9932,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
 
                 genCondJump(op1);
 
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return;
             }
 
@@ -10090,15 +10090,15 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 if (tree->gtType == TYP_VOID)
                 {
                     genEvalSideEffects(op2);
-                    genUpdateLife(op2);
+                    genUpdateLifeTree(op2);
                     genEvalSideEffects(op1);
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
                     return;
                 }
 
                 // Generate op2
                 genCodeForTree(op2, needReg);
-                genUpdateLife(op2);
+                genUpdateLifeTree(op2);
 
                 noway_assert(op2->InReg());
 
@@ -10115,7 +10115,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 // set gc info if we need so
                 gcInfo.gcMarkRegPtrVal(op2->gtRegNum, treeType);
 
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 genCodeForTree_DONE(tree, op2->gtRegNum);
 
                 return;
@@ -10127,7 +10127,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 /* Generate side effects of the first operand */
 
                 genEvalSideEffects(op1);
-                genUpdateLife(op1);
+                genUpdateLifeTree(op1);
 
                 /* Is the value of the second operand used? */
 
@@ -10138,7 +10138,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                        to TYP_VOID if op2 isn't meant to yield a result. */
 
                     genEvalSideEffects(op2);
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
                     return;
                 }
 
@@ -10294,8 +10294,8 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 goto LockBinOpCommon;
             }
 
-            genFlagsEqualToNone(); // We didn't compute a result into a register.
-            genUpdateLife(tree);   // We didn't compute an operand into anything.
+            genFlagsEqualToNone();   // We didn't compute a result into a register.
+            genUpdateLifeTree(tree); // We didn't compute an operand into anything.
             return;
 
         case GT_XADD:
@@ -10346,7 +10346,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 if (genMakeIndAddrMode(location, tree, false, /* not for LEA */
                                        needReg, RegSet::KEEP_REG, &addrReg))
                 {
-                    genUpdateLife(location);
+                    genUpdateLifeTree(location);
 
                     reg = regSet.rsPickFreeReg();
                     genComputeReg(value, genRegMask(reg), RegSet::EXACT_REG, RegSet::KEEP_REG);
@@ -10405,7 +10405,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTree* tree, regMaskTP destReg, regMaskTP be
                 // If the operator was add, then we were called from the GT_LOCKADD
                 // case.  In that case we don't use the result, so we don't need to
                 // update anything.
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
             }
             else
             {
@@ -10863,7 +10863,7 @@ void CodeGen::genCodeForNumericCast(GenTree* tree, regMaskTP destReg, regMaskTP 
 
                     inst_RV_TT(INS_movsdsse2, REG_XMM0, op1, 0, EA_8BYTE);
                     genDoneAddressableStackFP(op1, addrRegInt, addrRegFlt, RegSet::KEEP_REG);
-                    genUpdateLife(op1);
+                    genUpdateLifeTree(op1);
 
                     reg = regSet.rsPickReg(needReg);
                     getEmitter()->emitIns_R_R(INS_cvttsd2si, EA_8BYTE, reg, REG_XMM0);
@@ -10919,7 +10919,7 @@ void CodeGen::genCodeForNumericCast(GenTree* tree, regMaskTP destReg, regMaskTP 
                     // the reg is now trashed
                     regTracker.rsTrackRegTrash(reg);
                     genDoneAddressableStackFP(op1, addrRegInt, addrRegFlt, RegSet::KEEP_REG);
-                    genUpdateLife(op1);
+                    genUpdateLifeTree(op1);
                     genCodeForTree_DONE(tree, reg);
                 }
             }
@@ -11386,7 +11386,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTree* tree)
 
                 if (rpCanAsgOperWithoutReg(op2, true))
                 {
-                    genUpdateLife(VarSetOps::RemoveElem(compiler, compiler->compCurLife, varDsc->lvVarIndex));
+                    genUpdateLifeVars(VarSetOps::RemoveElem(compiler, compiler->compCurLife, varDsc->lvVarIndex));
                     needReg = regSet.rsNarrowHint(needReg, genRegMask(op1Reg));
 #ifdef DEBUG
                     needToUpdateRegSetCheckLevel = true;
@@ -11577,7 +11577,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTree* tree)
             }
 
             /* Free up the RHS */
-            genUpdateLife(op2);
+            genUpdateLifeTree(op2);
 
             /* Remember that we've also touched the op2 register */
 
@@ -11860,7 +11860,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTree* tree)
 #ifdef DEBUG
                 /* Update the current liveness info */
                 if (compiler->opts.varNames)
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
 #endif
 
                 // If op2 register is still in use, free it.  (Might not be in use, if
@@ -11977,7 +11977,7 @@ void CodeGen::genCodeForTreeSmpOpAsg(GenTree* tree)
 #ifdef DEBUG
                 /* Update the current liveness info */
                 if (compiler->opts.varNames)
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
 #endif
 
                 // This is done in WriteBarrier when (regGC != 0)
@@ -12019,8 +12019,8 @@ void CodeGen::genCodeForTreeSmpOpAsg_DONE_ASSG(GenTree* tree, regMaskTP addrReg,
     noway_assert(op2);
 
     if (op1->gtOper == GT_LCL_VAR || op1->gtOper == GT_REG_VAR)
-        genUpdateLife(op1);
-    genUpdateLife(tree);
+        genUpdateLifeTree(op1);
+    genUpdateLifeTree(tree);
 
 #if REDUNDANT_LOAD
 
@@ -12092,7 +12092,7 @@ void CodeGen::genCodeForTreeSpecialOp(GenTree* tree, regMaskTP destReg, regMaskT
                 genMarkTreeInReg(tree, genRegNumFromMask(regs));
             }
 
-            genUpdateLife(tree);
+            genUpdateLifeTree(tree);
             return;
 
         case GT_FIELD:
@@ -12587,7 +12587,7 @@ void CodeGen::genCodeForBBlist()
 #endif
         gcInfo.gcResetForBB();
 
-        genUpdateLife(liveSet); // This updates regSet.rsMaskVars with bits from any enregistered LclVars
+        genUpdateLifeVars(liveSet); // This updates regSet.rsMaskVars with bits from any enregistered LclVars
 #if FEATURE_STACK_FP_X87
         VarSetOps::IntersectionD(compiler, liveSet, compiler->optAllNonFPvars);
 #endif
@@ -12840,7 +12840,7 @@ void CodeGen::genCodeForBBlist()
                     // reported as alive even though not used within the caller for managed debugger sake.  So
                     // consider the return value of the method as used if generating debuggable code.
                     genCodeForCall(tree->AsCall(), compiler->opts.MinOpts() || compiler->opts.compDbgCode);
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
                     gcInfo.gcMarkRegSetNpt(RBM_INTRET);
                     break;
 
@@ -13143,7 +13143,7 @@ void CodeGen::genCodeForBBlist()
     } //------------------ END-FOR each block of the method -------------------
 
     /* Nothing is live at this point */
-    genUpdateLife(VarSetOps::MakeEmpty(compiler));
+    genUpdateLifeVars(VarSetOps::MakeEmpty(compiler));
 
     /* Finalize the spill  tracking logic */
 
@@ -13544,7 +13544,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
                 if (op2->gtOper == GT_LCL_VAR && op1->gtOper == GT_LCL_VAR &&
                     op2->gtLclVarCommon.gtLclNum == op1->gtLclVarCommon.gtLclNum)
                 {
-                    genUpdateLife(op2);
+                    genUpdateLifeTree(op2);
                     goto LAsgExit;
                 }
 
@@ -13687,8 +13687,8 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
 
             LAsgExit:
 
-                genUpdateLife(op1);
-                genUpdateLife(tree);
+                genUpdateLifeTree(op1);
+                genUpdateLifeTree(tree);
 
                 /* For non-debuggable code, every definition of a lcl-var has
                  * to be checked to see if we need to open a new scope for it.
@@ -14643,7 +14643,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
                 }
 #endif
 
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 genDoneAddressable(tree, addrReg, RegSet::FREE_REG);
             }
                 goto DONE;
@@ -14942,7 +14942,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
                 {
                     // Generate op2
                     genCodeForTreeLng(op2, needReg, avoidReg);
-                    genUpdateLife(op2);
+                    genUpdateLifeTree(op2);
 
                     noway_assert(op2->InReg());
 
@@ -14956,7 +14956,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
 
                     genReleaseRegPair(op2);
 
-                    genUpdateLife(tree);
+                    genUpdateLifeTree(tree);
 
                     regPair = op2->gtRegPair;
                 }
@@ -14967,7 +14967,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
                     /* Generate side effects of the first operand */
 
                     genEvalSideEffects(op1);
-                    genUpdateLife(op1);
+                    genUpdateLifeTree(op1);
 
                     /* Is the value of the second operand used? */
 
@@ -14976,7 +14976,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
                         /* The right operand produces no result */
 
                         genEvalSideEffects(op2);
-                        genUpdateLife(tree);
+                        genUpdateLifeTree(tree);
                         return;
                     }
 
@@ -15044,7 +15044,7 @@ void CodeGen::genCodeForTreeLng(GenTree* tree, regMaskTP needReg, regMaskTP avoi
 
 DONE:
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     /* Here we've computed the value of 'tree' into 'regPair' */
 
@@ -15865,13 +15865,13 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                         {
                             GenTree* op1 = arg->gtOp.gtOp1;
                             genEvalSideEffects(op1);
-                            genUpdateLife(op1);
+                            genUpdateLifeTree(op1);
                             arg = arg->gtOp.gtOp2;
                         }
                         if (!arg->IsNothingNode())
                         {
                             genEvalSideEffects(arg);
-                            genUpdateLife(arg);
+                            genUpdateLifeTree(arg);
                         }
                     }
 
@@ -15894,7 +15894,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                 {
                     GenTree* op1 = arg->gtOp.gtOp1;
                     genEvalSideEffects(op1);
-                    genUpdateLife(op1);
+                    genUpdateLifeTree(op1);
                     arg = arg->gtOp.gtOp2;
                 }
 
@@ -16036,7 +16036,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                             genSinglePush();
 
                                             // Prepare the set of vars to be cleared from gcref/gcbyref set
-                                            // in case they become dead after genUpdateLife.
+                                            // in case they become dead after genUpdateLifeVars.
                                             // genDoneAddressable() will remove dead gc vars by calling
                                             // gcInfo.gcMarkRegSetNpt.
                                             // Although it is not addrReg, we just borrow the name here.
@@ -16077,7 +16077,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                             genSinglePush();
 
                                             // Prepare the set of vars to be cleared from gcref/gcbyref set
-                                            // in case they become dead after genUpdateLife.
+                                            // in case they become dead after genUpdateLifeVars.
                                             // genDoneAddressable() will remove dead gc vars by calling
                                             // gcInfo.gcMarkRegSetNpt.
                                             // Although it is not addrReg, we just borrow the name here.
@@ -16277,7 +16277,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                                     }
                                 }
                             }
-                            genUpdateLife(structLocalTree);
+                            genUpdateLifeTree(structLocalTree);
 
                             break;
                         }
@@ -16388,7 +16388,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
 
         /* Update the current set of live variables */
 
-        genUpdateLife(curr);
+        genUpdateLifeTree(curr);
 
         /* Update the current set of register pointers */
 
@@ -16726,7 +16726,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                         GenTree* op1 = arg->gtOp.gtOp1;
 
                         genEvalSideEffects(op1);
-                        genUpdateLife(op1);
+                        genUpdateLifeTree(op1);
                     }
                 }
                 break;
@@ -16740,7 +16740,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                 {
                     GenTree* op1 = arg->gtOp.gtOp1;
                     genEvalSideEffects(op1);
-                    genUpdateLife(op1);
+                    genUpdateLifeTree(op1);
                     arg = arg->gtOp.gtOp2;
                 }
                 noway_assert((arg->OperGet() == GT_OBJ) || (arg->OperGet() == GT_MKREFANY));
@@ -16896,7 +16896,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
                         regSet.rsMarkRegFree(genRegMask(regSrc));
                     }
                     if (structLocalTree != NULL)
-                        genUpdateLife(structLocalTree);
+                        genUpdateLifeTree(structLocalTree);
                 }
                 else
                 {
@@ -16915,7 +16915,7 @@ size_t CodeGen::genPushArgList(GenTreeCall* call)
 
         /* Update the current set of live variables */
 
-        genUpdateLife(curr);
+        genUpdateLifeTree(curr);
 
         // Now, if some copied field locals were enregistered, and they're now dead, update the set of
         // register holding gc pointers.
@@ -17555,7 +17555,7 @@ void CodeGen::SetupLateArgs(GenTreeCall* call)
             {
                 GenTree* op1 = arg->gtOp.gtOp1;
                 genEvalSideEffects(op1);
-                genUpdateLife(op1);
+                genUpdateLifeTree(op1);
                 arg = arg->gtOp.gtOp2;
             }
             noway_assert((arg->OperGet() == GT_OBJ) || (arg->OperGet() == GT_LCL_VAR) ||
@@ -17926,7 +17926,7 @@ void CodeGen::SetupLateArgs(GenTreeCall* call)
 
             // If we're doing struct promotion, the liveness of the promoted field vars may change after this use,
             // so update liveness.
-            genUpdateLife(arg);
+            genUpdateLifeTree(arg);
 
             // Now, if some copied field locals were enregistered, and they're now dead, update the set of
             // register holding gc pointers.

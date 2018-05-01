@@ -415,7 +415,7 @@ void CodeGen::genFloatAssign(GenTree* tree)
 
                     inst_RV_RV(ins_FloatConv(type, op2->TypeGet()), op1Reg, op2->gtRegNum, type);
                 }
-                genUpdateLife(op1);
+                genUpdateLifeTree(op1);
                 goto DONE_ASG;
             }
             break;
@@ -468,7 +468,7 @@ void CodeGen::genFloatAssign(GenTree* tree)
             noway_assert(op2->IsRegVar());
 
             op2reg = op2->gtRegVar.gtRegNum;
-            genUpdateLife(op2);
+            genUpdateLifeTree(op2);
 
             goto CHK_VOLAT_UNALIGN;
         default:
@@ -601,7 +601,7 @@ CHK_VOLAT_UNALIGN:
 
 DONE_ASG:
 
-    genUpdateLife(tree);
+    genUpdateLifeTree(tree);
 
     /* For non-debuggable code, every definition of a lcl-var has
      * to be checked to see if we need to open a new scope for it.
@@ -1108,7 +1108,7 @@ GenTree* CodeGen::genMakeAddressableFloat(GenTree*   tree,
 
             if (genMakeIndAddrMode(tree->gtOp.gtOp1, tree, false, RBM_ALLFLOAT, RegSet::KEEP_REG, regMaskIntPtr, false))
             {
-                genUpdateLife(tree);
+                genUpdateLifeTree(tree);
                 return tree;
             }
             else
@@ -1225,7 +1225,7 @@ void CodeGen::genCodeForTreeCastFromFloat(GenTree* tree, RegSet::RegisterPrefere
         }
     }
 
-    genUpdateLife(op1);
+    genUpdateLifeTree(op1);
     genCodeForTree_DONE(tree, dstReg);
 }
 
