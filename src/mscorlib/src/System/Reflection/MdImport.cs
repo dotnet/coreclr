@@ -412,22 +412,22 @@ namespace System.Reflection
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetName(IntPtr scope, int mdToken, void** name);
-        public unsafe InternalUtf8String GetName(int mdToken)
+        public unsafe MdUtf8String GetName(int mdToken)
         {
             void* name;
             _GetName(m_metadataImport2, mdToken, &name);
 
-            return new InternalUtf8String(name);
+            return new MdUtf8String(name);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetNamespace(IntPtr scope, int mdToken, void** namesp);
-        public unsafe InternalUtf8String GetNamespace(int mdToken)
+        public unsafe MdUtf8String GetNamespace(int mdToken)
         {
             void* namesp;
             _GetNamespace(m_metadataImport2, mdToken, &namesp);
 
-            return new InternalUtf8String(namesp);
+            return new MdUtf8String(namesp);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -640,8 +640,8 @@ namespace System.Reflection
             int _attributes;
             void* _importName, _importDll;
             _GetPInvokeMap(m_metadataImport2, token, out _attributes, &_importName, &_importDll);
-            importName = new InternalUtf8String(_importName).ToString();
-            importDll = new InternalUtf8String(_importDll).ToString();
+            importName = new MdUtf8String(_importName).ToString();
+            importDll = new MdUtf8String(_importDll).ToString();
 
             attributes = (PInvokeAttributes)_attributes;
         }

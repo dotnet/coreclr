@@ -474,10 +474,10 @@ FCFuncStart(gAppDomainFuncs)
 FCFuncEnd()
 
 
-FCFuncStart(gInternalUtf8String)
-    FCFuncElement("EqualsCaseSensitive", InternalUtf8String::EqualsCaseSensitive)
-    QCFuncElement("EqualsCaseInsensitive", InternalUtf8String::EqualsCaseInsensitive)
-    QCFuncElement("HashCaseInsensitive", InternalUtf8String::HashCaseInsensitive)
+FCFuncStart(gMdUtf8String)
+    FCFuncElement("EqualsCaseSensitive", MdUtf8String::EqualsCaseSensitive)
+    QCFuncElement("EqualsCaseInsensitive", MdUtf8String::EqualsCaseInsensitive)
+    QCFuncElement("HashCaseInsensitive", MdUtf8String::HashCaseInsensitive)
 FCFuncEnd()
 
 FCFuncStart(gTypeNameBuilder)
@@ -1307,7 +1307,6 @@ FCClassElement("IReflect", "System.Reflection", gStdMngIReflectFuncs)
 FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFuncs)
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
-FCClassElement("InternalUtf8String", "System", gInternalUtf8String)
 FCClassElement("JitHelpers", "System.Runtime.CompilerServices", gJitHelpers)
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("ManifestBasedResourceGroveler", "System.Resources",  gManifestBasedResourceGrovelerFuncs)
@@ -1317,6 +1316,7 @@ FCClassElement("MathF", "System", gMathFFuncs)
 #ifdef MDA_SUPPORTED 
 FCClassElement("Mda", "System", gMda)
 #endif
+FCClassElement("MdUtf8String", "System", gMdUtf8String)
 FCClassElement("MemoryFailPoint", "System.Runtime", gMemoryFailPointFuncs)
 FCClassElement("MetadataImport", "System.Reflection", gMetaDataImport)
 FCClassElement("MissingMemberException", "System",  gMissingMemberExceptionFuncs)
