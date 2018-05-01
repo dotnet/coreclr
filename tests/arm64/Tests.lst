@@ -1,7 +1,7 @@
 ## This list file has been produced automatically. Any changes
 ## are subject to being overwritten when reproducing this file.
 ## 
-## Last Updated: 01-May-2018 13:24:47
+## Last Updated: 01-May-2018 13:57:39
 ## Commit: 06fc2d9d0a28740dcede271aa94f79af41ceaed6
 ## 
 [Dev10_535767.cmd_0]
@@ -90801,7 +90801,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\SubtractSaturate_ro\SubtractSaturat
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\SubtractSaturate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [spilledreturn.cmd_11724]
@@ -90825,7 +90825,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\InsertExtractVector128_ro\InsertExtr
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\InsertExtractVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAlignedNonTemporal_r.cmd_11727]
@@ -90833,7 +90833,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreAlignedNonTemporal_r\StoreAlig
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreAlignedNonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanUnorderedScalar_r.cmd_11728]
@@ -90841,7 +90841,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanUnorderedScalar_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreFence_ro.cmd_11729]
@@ -90849,7 +90849,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreFence_ro\StoreFence_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreFence_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAligned_ro.cmd_11730]
@@ -90857,7 +90857,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\StoreAligned_ro\StoreAligned_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\StoreAligned_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyLow_r.cmd_11731]
@@ -90865,7 +90865,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyLow_r\MultiplyLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [simplearg.cmd_11732]
@@ -90881,7 +90881,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\HorizontalSubtract_r\HorizontalSubt
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\HorizontalSubtract_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreLow_r.cmd_11734]
@@ -90889,7 +90889,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreLow_r\StoreLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveMask_ro.cmd_11735]
@@ -90897,7 +90897,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\MoveMask_ro\MoveMask_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\MoveMask_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MaskLoad_r.cmd_11736]
@@ -90905,7 +90905,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_r\MaskLoad_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [sharedgenerics_r.cmd_11737]
@@ -90921,7 +90921,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\HorizontalSubtract_ro\HorizontalSub
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\HorizontalSubtract_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToSingle_ro.cmd_11739]
@@ -90929,7 +90929,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToSingle_ro\ConvertToSingle_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToSingle_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalAdd_r.cmd_11740]
@@ -90937,7 +90937,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\HorizontalAdd_r\HorizontalAdd_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\HorizontalAdd_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [box1.cmd_11741]
@@ -90953,7 +90953,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Avx_r\Avx_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Avx_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128Double_r.cmd_11743]
@@ -90961,7 +90961,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Double_r\ConvertT
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Double_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadScalarVector128_ro.cmd_11744]
@@ -90969,7 +90969,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadScalarVector128_ro\LoadScalarVec
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadScalarVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrEqualOrderedScalar_r.cmd_11745]
@@ -90977,7 +90977,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualOrderedScalar
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAlignedNonTemporal_r.cmd_11746]
@@ -90985,7 +90985,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreAlignedNonTemporal_r\StoreAlign
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreAlignedNonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathFloorDouble_r.cmd_11747]
@@ -91001,7 +91001,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\General\IsSupported_ro\IsSupported_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\General\IsSupported_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToDouble_r.cmd_11749]
@@ -91009,7 +91009,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToDouble_r\ConvertToDouble_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToDouble_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShiftLeftLogicalVariable_ro.cmd_11750]
@@ -91017,7 +91017,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ShiftLeftLogicalVariable_ro\ShiftLe
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ShiftLeftLogicalVariable_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_15237.cmd_11751]
@@ -91033,7 +91033,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ShuffleLow_ro\ShuffleLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ShuffleLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SumAbsoluteDifferences_ro.cmd_11753]
@@ -91041,7 +91041,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SumAbsoluteDifferences_ro\SumAbsolu
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SumAbsoluteDifferences_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotEqualScalar_r.cmd_11754]
@@ -91049,7 +91049,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualScalar_r\CompareNotE
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [tests.cmd_11755]
@@ -91065,7 +91065,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ShuffleHigh_r\ShuffleHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ShuffleHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128Int32_r.cmd_11757]
@@ -91073,7 +91073,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32_r\ConvertTo
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Shuffle_r.cmd_11758]
@@ -91081,7 +91081,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Shuffle_r\Shuffle_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Shuffle_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadVector256_ro.cmd_11759]
@@ -91089,7 +91089,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadVector256_ro\LoadVector256_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalAdd_r.cmd_11760]
@@ -91097,7 +91097,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\HorizontalAdd_r\HorizontalAdd_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\HorizontalAdd_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadHigh_ro.cmd_11761]
@@ -91105,7 +91105,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadHigh_ro\LoadHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotEqualScalar_ro.cmd_11762]
@@ -91113,7 +91113,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualScalar_ro\CompareNot
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [shared.cmd_11763]
@@ -91129,7 +91129,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveScalar_ro\MoveScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathFloorDouble_ro.cmd_11765]
@@ -91145,7 +91145,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareOrderedScalar_r\CompareOrder
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Blend_r.cmd_11767]
@@ -91153,7 +91153,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Blend_r\Blend_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Blend_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_491211.cmd_11768]
@@ -91169,7 +91169,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\BroadcastVector128ToVector256_r\Bro
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\BroadcastVector128ToVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadHigh_r.cmd_11770]
@@ -91177,7 +91177,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadHigh_r\LoadHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Single_r.cmd_11771]
@@ -91185,7 +91185,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertScalarToVector128Single_r\Con
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertScalarToVector128Single_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ReciprocalSqrt_ro.cmd_11772]
@@ -91193,7 +91193,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrt_ro\ReciprocalSqrt_ro.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32_r.cmd_11773]
@@ -91201,7 +91201,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32_r\ConvertToInt32_r.c
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [NarrowStore.cmd_11774]
@@ -91225,7 +91225,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualUnorderedScalar_r\Compa
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanOrderedScalar_r.cmd_11777]
@@ -91233,7 +91233,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrderedScalar_r\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShiftRightLogicalVariable_r.cmd_11778]
@@ -91241,7 +91241,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ShiftRightLogicalVariable_r\ShiftRi
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ShiftRightLogicalVariable_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SqrtScalar_r.cmd_11779]
@@ -91249,7 +91249,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SqrtScalar_r\SqrtScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SqrtScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanScalar_r.cmd_11780]
@@ -91257,7 +91257,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanScalar_r\CompareG
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [IsSupported_r.cmd_11781]
@@ -91265,7 +91265,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\General\IsSupported_r\IsSupported_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\General\IsSupported_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MinHorizontal_ro.cmd_11782]
@@ -91273,7 +91273,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\MinHorizontal_ro\MinHorizontal_ro.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\MinHorizontal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StructReturn.cmd_11783]
@@ -91313,7 +91313,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrderedScalar_ro\
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Base.cmd_11788]
@@ -91337,7 +91337,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\DotProduct_r\DotProduct_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\DotProduct_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Lzcnt_ro.cmd_11791]
@@ -91345,7 +91345,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Lzcnt\Lzcnt_ro\Lzcnt_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Lzcnt\Lzcnt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128Single_ro.cmd_11792]
@@ -91353,7 +91353,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Single_ro\Convert
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Single_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Tier1StackTrace.cmd_11793]
@@ -91369,7 +91369,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32WithTruncati
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32WithTruncation_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadVector128_r.cmd_11795]
@@ -91377,7 +91377,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadVector128_r\LoadVector128_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreScalar_r.cmd_11796]
@@ -91385,7 +91385,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreScalar_r\StoreScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAlignedNonTemporal_r.cmd_11797]
@@ -91393,7 +91393,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\StoreAlignedNonTemporal_r\StoreAlign
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\StoreAlignedNonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_14455.cmd_11798]
@@ -91417,7 +91417,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreHigh_r\StoreHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Shuffle_ro.cmd_11801]
@@ -91425,7 +91425,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Shuffle_ro\Shuffle_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Shuffle_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotGreaterThanOrEqualScalar_r.cmd_11802]
@@ -91433,7 +91433,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanOrEqualScalar_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanOrEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveMask_r.cmd_11803]
@@ -91441,7 +91441,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveMask_r\MoveMask_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveMask_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [dynblk_il_r.cmd_11804]
@@ -91457,7 +91457,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32WithTruncati
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32WithTruncation_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse_r.cmd_11806]
@@ -91465,7 +91465,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Sse_r\Sse_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Sse_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanScalar_r.cmd_11807]
@@ -91473,7 +91473,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanScalar_r\CompareLess
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyHigh_r.cmd_11808]
@@ -91481,7 +91481,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHigh_r\MultiplyHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Plane_r.cmd_11809]
@@ -91497,7 +91497,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Permute2x128.Avx_r\Permute2x128.Avx_
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Permute2x128.Avx_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_ro.cmd_11811]
@@ -91505,7 +91505,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\UnpackLow_ro\UnpackLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\UnpackLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Popcnt_r.cmd_11812]
@@ -91513,7 +91513,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_r\Popcnt_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreLow_r.cmd_11813]
@@ -91521,7 +91521,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreLow_r\StoreLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreScalar_ro.cmd_11814]
@@ -91529,7 +91529,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreScalar_ro\StoreScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToUInt64_ro.cmd_11815]
@@ -91537,7 +91537,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt64_ro\ConvertToUInt64_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt64_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128_ro.cmd_11816]
@@ -91545,7 +91545,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\ConvertToVector128_ro\ConvertToVec
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\ConvertToVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_545497.cmd_11817]
@@ -91561,7 +91561,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetAllVector128_r\SetAllVector128_r.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetAllVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [simple.cmd_11819]
@@ -91577,7 +91577,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetZeroVector256_ro\SetZeroVector256
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetZeroVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse3_ro.cmd_11821]
@@ -91585,7 +91585,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\Sse3_ro\Sse3_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\Sse3_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [hasflag.cmd_11822]
@@ -91609,7 +91609,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64_r\ConvertToInt64_r.c
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32_ro.cmd_11825]
@@ -91617,7 +91617,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32_ro\ConvertToInt32_ro.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathRoundSingle_ro.cmd_11826]
@@ -91633,7 +91633,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\MoveMask_ro\MoveMask_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MoveMask_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Multiply_r.cmd_11828]
@@ -91641,7 +91641,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Multiply_r\Multiply_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Multiply_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Reciprocal_ro.cmd_11829]
@@ -91649,7 +91649,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Reciprocal_ro\Reciprocal_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Reciprocal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sqrt_r.cmd_11830]
@@ -91657,7 +91657,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Sqrt_r\Sqrt_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Sqrt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanScalar_ro.cmd_11831]
@@ -91665,7 +91665,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanScalar_ro\Compare
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveLowToHigh_r.cmd_11832]
@@ -91673,7 +91673,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveLowToHigh_r\MoveLowToHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveLowToHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Prefetch_ro.cmd_11833]
@@ -91681,7 +91681,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Prefetch_ro\Prefetch_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Prefetch_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Double_r.cmd_11834]
@@ -91689,7 +91689,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Double_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Double_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Int32_ro.cmd_11835]
@@ -91697,7 +91697,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int32_ro\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MemoryFence_r.cmd_11836]
@@ -91705,7 +91705,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MemoryFence_r\MemoryFence_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MemoryFence_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetVector128_r.cmd_11837]
@@ -91713,7 +91713,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetVector128_r\SetVector128_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_487703.cmd_11838]
@@ -91729,7 +91729,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Ssse3\Ssse3_r\Ssse3_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Ssse3\Ssse3_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadScalarVector128_r.cmd_11840]
@@ -91737,7 +91737,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadScalarVector128_r\LoadScalarVect
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadScalarVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128UInt64_r.cmd_11841]
@@ -91745,7 +91745,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt64_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt64_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StructStackParams.cmd_11842]
@@ -91761,7 +91761,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\Multiply_ro\Multiply_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\Multiply_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_r.cmd_11844]
@@ -91769,7 +91769,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Store_r\Store_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Store_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToUInt64_r.cmd_11845]
@@ -91777,7 +91777,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt64_r\ConvertToUInt64_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt64_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanOrEqualUnorderedScalar_r.cmd_11846]
@@ -91785,7 +91785,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualUnorderedS
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotLessThanOrEqualScalar_r.cmd_11847]
@@ -91793,7 +91793,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanOrEqualScalar_r\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanOrEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MaskLoad_ro.cmd_11848]
@@ -91801,7 +91801,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_ro\MaskLoad_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_ro.cmd_11849]
@@ -91809,7 +91809,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\UnpackLow_ro\UnpackLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\UnpackLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector128_ro.cmd_11850]
@@ -91817,7 +91817,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadAlignedVector128_ro\LoadAligned
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadAlignedVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreLow_ro.cmd_11851]
@@ -91825,7 +91825,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreLow_ro\StoreLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_524309.cmd_11852]
@@ -91841,7 +91841,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64WithTruncation_r\Conve
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64WithTruncation_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16892.cmd_11854]
@@ -91857,7 +91857,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadDquVector256_ro\LoadDquVector256
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadDquVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyLow_ro.cmd_11856]
@@ -91865,7 +91865,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyLow_ro\MultiplyLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [eventactivityidcontrol.cmd_11857]
@@ -91897,7 +91897,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\General\VectorRet_ro\VectorRet_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\General\VectorRet_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_543057.cmd_11861]
@@ -91913,7 +91913,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetVector256_r\SetVector256_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalSubtract_r.cmd_11863]
@@ -91921,7 +91921,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\HorizontalSubtract_r\HorizontalSubtr
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\HorizontalSubtract_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32WithTruncation_ro.cmd_11864]
@@ -91929,7 +91929,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32WithTruncation_ro\Con
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32WithTruncation_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector_ro.cmd_11865]
@@ -91937,7 +91937,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\ConvertToVector_ro\ConvertToVector_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\ConvertToVector_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse3_r.cmd_11866]
@@ -91945,7 +91945,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\Sse3_r\Sse3_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\Sse3_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ReciprocalSqrtScalar_ro.cmd_11867]
@@ -91953,7 +91953,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrtScalar_ro\ReciprocalSq
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrtScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32_r.cmd_11868]
@@ -91961,7 +91961,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32_r\ConvertToInt32_r.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DotProduct_r.cmd_11869]
@@ -91969,7 +91969,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\DotProduct_r\DotProduct_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\DotProduct_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector256_r.cmd_11870]
@@ -91977,7 +91977,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadAlignedVector256_r\LoadAlignedVe
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadAlignedVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ReciprocalScalar_ro.cmd_11871]
@@ -91985,7 +91985,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalScalar_ro\ReciprocalScalar
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Blend_ro.cmd_11872]
@@ -91993,7 +91993,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Blend_ro\Blend_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Blend_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Lzcnt_r.cmd_11873]
@@ -92001,7 +92001,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Lzcnt\Lzcnt_r\Lzcnt_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Lzcnt\Lzcnt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_541648.cmd_11874]
@@ -92017,7 +92017,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\UnpackLow_r\UnpackLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\UnpackLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_r.cmd_11876]
@@ -92025,7 +92025,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\UnpackLow_r\UnpackLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\UnpackLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetScalarVector128_ro.cmd_11877]
@@ -92033,7 +92033,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetScalarVector128_ro\SetScalarVecto
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetScalarVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadFence_r.cmd_11878]
@@ -92041,7 +92041,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadFence_r\LoadFence_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadFence_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetAllVector128_ro.cmd_11879]
@@ -92049,7 +92049,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetAllVector128_ro\SetAllVector128_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetAllVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_ro.cmd_11880]
@@ -92057,7 +92057,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Store_ro\Store_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Store_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Avx2_r.cmd_11881]
@@ -92065,7 +92065,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\Avx2_r\Avx2_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\Avx2_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrEqualOrderedScalar_ro.cmd_11882]
@@ -92073,7 +92073,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualOrderedScalar
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [valuetypes.cmd_11883]
@@ -92089,7 +92089,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreAligned_ro\StoreAligned_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreAligned_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Single_r.cmd_11885]
@@ -92097,7 +92097,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Single_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Single_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [BitTest.cmd_11886]
@@ -92113,7 +92113,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\ConvertToVector_r\ConvertToVector_r.
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\ConvertToVector_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector128_r.cmd_11888]
@@ -92121,7 +92121,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadAlignedVector128_r\LoadAlignedV
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadAlignedVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [BroadcastScalarToVector128_r.cmd_11889]
@@ -92129,7 +92129,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector128_r\Broadca
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreHigh_r.cmd_11890]
@@ -92137,7 +92137,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreHigh_r\StoreHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Int32_r.cmd_11891]
@@ -92145,7 +92145,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int32_r\Con
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [dynblk_il_d.cmd_11892]
@@ -92161,7 +92161,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MemoryFence_ro\MemoryFence_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MemoryFence_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [eventlistener.cmd_11894]
@@ -92177,7 +92177,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\AddSaturate_ro\AddSaturate_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\AddSaturate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveMask_ro.cmd_11896]
@@ -92185,7 +92185,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveMask_ro\MoveMask_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveMask_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_487701.cmd_11897]
@@ -92201,7 +92201,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MoveScalar_r\MoveScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MoveScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_r.cmd_11899]
@@ -92209,7 +92209,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\UnpackLow_r\UnpackLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\UnpackLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector128_r.cmd_11900]
@@ -92217,7 +92217,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadAlignedVector128_r\LoadAlignedVe
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadAlignedVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotLessThanScalar_r.cmd_11901]
@@ -92225,7 +92225,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanScalar_r\CompareN
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadLow_r.cmd_11902]
@@ -92233,7 +92233,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadLow_r\LoadLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanOrEqualOrderedScalar_ro.cmd_11903]
@@ -92241,7 +92241,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualOrderedSca
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotGreaterThanScalar_ro.cmd_11904]
@@ -92249,7 +92249,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanScalar_ro\Comp
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanOrEqualOrderedScalar_r.cmd_11905]
@@ -92257,7 +92257,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualOrderedSca
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector128NonTemporal_r.cmd_11906]
@@ -92265,7 +92265,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\LoadAlignedVector128NonTemporal_r\
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\LoadAlignedVector128NonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackHigh_ro.cmd_11907]
@@ -92273,7 +92273,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\UnpackHigh_ro\UnpackHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\UnpackHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyHorizontalAdd_r.cmd_11908]
@@ -92281,7 +92281,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_r\MultiplyHor
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShiftRightLogicalVariable_ro.cmd_11909]
@@ -92289,7 +92289,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ShiftRightLogicalVariable_ro\ShiftR
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ShiftRightLogicalVariable_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [main.cmd_11910]
@@ -92305,7 +92305,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32WithTruncation_ro\Conv
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32WithTruncation_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadVector128_ro.cmd_11912]
@@ -92313,7 +92313,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadVector128_ro\LoadVector128_ro.c
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackHigh_r.cmd_11913]
@@ -92321,7 +92321,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\UnpackHigh_r\UnpackHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\UnpackHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [PackSignedSaturate_r.cmd_11914]
@@ -92329,7 +92329,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\PackSignedSaturate_r\PackSignedSatu
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\PackSignedSaturate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sqrt_ro.cmd_11915]
@@ -92337,7 +92337,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Sqrt_ro\Sqrt_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Sqrt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackHigh_r.cmd_11916]
@@ -92345,7 +92345,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\UnpackHigh_r\UnpackHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\UnpackHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector256_ro.cmd_11917]
@@ -92353,7 +92353,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadAlignedVector256_ro\LoadAlignedV
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadAlignedVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [box2.cmd_11918]
@@ -92369,7 +92369,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64WithTruncation_ro\Conv
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64WithTruncation_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareScalar_r.cmd_11920]
@@ -92377,7 +92377,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\CompareScalar_r\CompareScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\CompareScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotLessThanScalar_ro.cmd_11921]
@@ -92385,7 +92385,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanScalar_ro\Compare
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_13910.cmd_11922]
@@ -92401,7 +92401,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MoveScalar_ro\MoveScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MoveScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [InsertExtractVector128_r.cmd_11924]
@@ -92409,7 +92409,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\InsertExtractVector128_r\InsertExtra
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\InsertExtractVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToUInt32_ro.cmd_11925]
@@ -92417,7 +92417,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt32_ro\ConvertToUInt32_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_544985.cmd_11926]
@@ -92433,7 +92433,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrt_r\ReciprocalSqrt_r.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreFence_r.cmd_11928]
@@ -92441,7 +92441,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreFence_r\StoreFence_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreFence_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [b124443_il.cmd_11929]
@@ -92457,7 +92457,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse42\Sse42_r\Sse42_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse42\Sse42_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Negative_ByRefLikeType.cmd_11931]
@@ -92481,7 +92481,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\LoadAlignedVector256NonTemporal_ro\
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\LoadAlignedVector256NonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MaskMove_ro.cmd_11934]
@@ -92489,7 +92489,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MaskMove_ro\MaskMove_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MaskMove_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32WithTruncation_r.cmd_11935]
@@ -92497,7 +92497,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32WithTruncation_r\Conv
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32WithTruncation_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [constrainedcall.cmd_11936]
@@ -92513,7 +92513,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt32_r\ConvertToUInt32_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToUInt32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [BroadcastScalarToVector128_ro.cmd_11938]
@@ -92521,7 +92521,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector128_ro\Broadc
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrderedScalar_r.cmd_11939]
@@ -92529,7 +92529,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrderedScalar_r\Comp
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sqrt_ro.cmd_11940]
@@ -92537,7 +92537,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Sqrt_ro\Sqrt_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Sqrt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16065b.cmd_11941]
@@ -92553,7 +92553,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveLowAndDuplicate_r\MoveLowAndDup
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveLowAndDuplicate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_591210.cmd_11943]
@@ -92569,7 +92569,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualScalar_r\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_13568.cmd_11945]
@@ -92585,7 +92585,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Sqrt_ro\Sqrt_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Sqrt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveScalar_r.cmd_11947]
@@ -92593,7 +92593,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveScalar_r\MoveScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAligned_ro.cmd_11948]
@@ -92601,7 +92601,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreAligned_ro\StoreAligned_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreAligned_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveMask_r.cmd_11949]
@@ -92609,7 +92609,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MoveMask_r\MoveMask_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MoveMask_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt64_ro.cmd_11950]
@@ -92617,7 +92617,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64_ro\ConvertToInt64_ro
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SqrtScalar_ro.cmd_11951]
@@ -92625,7 +92625,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SqrtScalar_ro\SqrtScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SqrtScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathRoundDouble_ro.cmd_11952]
@@ -92641,7 +92641,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StaticCast_r\StaticCast_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StaticCast_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [AlignRight_ro.cmd_11954]
@@ -92649,7 +92649,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Ssse3\AlignRight_ro\AlignRight_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Ssse3\AlignRight_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrEqualUnorderedScalar_r.cmd_11955]
@@ -92657,7 +92657,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualUnorderedScal
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrEqualScalar_r.cmd_11956]
@@ -92665,7 +92665,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualScalar_r\Comp
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [tracelogging.cmd_11957]
@@ -92689,7 +92689,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\DotProduct_ro\DotProduct_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\DotProduct_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse41_r.cmd_11960]
@@ -92697,7 +92697,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Sse41_r\Sse41_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Sse41_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetZeroVector256_r.cmd_11961]
@@ -92705,7 +92705,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetZeroVector256_r\SetZeroVector256_
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetZeroVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveMask_r.cmd_11962]
@@ -92713,7 +92713,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\MoveMask_r\MoveMask_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\MoveMask_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse2_ro.cmd_11963]
@@ -92721,7 +92721,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Sse2_ro\Sse2_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Sse2_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetScalarVector128_r.cmd_11964]
@@ -92729,7 +92729,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetScalarVector128_r\SetScalarVecto
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetScalarVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SlowTailCallArgs.cmd_11965]
@@ -92761,7 +92761,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Multiply_r\Multiply_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Multiply_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreNonTemporal_ro.cmd_11969]
@@ -92769,7 +92769,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreNonTemporal_ro\StoreNonTempora
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreNonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Shuffle_r.cmd_11970]
@@ -92777,7 +92777,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Shuffle_r\Shuffle_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Shuffle_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareOrderedScalar_ro.cmd_11971]
@@ -92785,7 +92785,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareOrderedScalar_ro\CompareOrde
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [RefStructWithSpan.cmd_11972]
@@ -92801,7 +92801,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Compare_ro\Compare_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Compare_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [AlignRight_r.cmd_11974]
@@ -92809,7 +92809,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Ssse3\AlignRight_r\AlignRight_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Ssse3\AlignRight_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToSingle_r.cmd_11975]
@@ -92817,7 +92817,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToSingle_r\ConvertToSingle_r.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToSingle_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveHighAndDuplicate_r.cmd_11976]
@@ -92825,7 +92825,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveHighAndDuplicate_r\MoveHighAndD
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveHighAndDuplicate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_13056.cmd_11977]
@@ -92857,7 +92857,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetVector128_ro\SetVector128_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [test17398.cmd_11981]
@@ -92873,7 +92873,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualScalar_ro\
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ReciprocalScalar_r.cmd_11983]
@@ -92881,7 +92881,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalScalar_r\ReciprocalScalar_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathCeilingSingle_ro.cmd_11984]
@@ -92897,7 +92897,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetAllVector256_ro\SetAllVector256_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetAllVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Avx2_ro.cmd_11986]
@@ -92905,7 +92905,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\Avx2_ro\Avx2_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\Avx2_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [BroadcastScalarToVector256_ro.cmd_11987]
@@ -92913,7 +92913,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector256_ro\Broadc
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Prefetch_r.cmd_11988]
@@ -92921,7 +92921,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Prefetch_r\Prefetch_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Prefetch_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultipleSumAbsoluteDifferences_r.cmd_11989]
@@ -92929,7 +92929,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\MultipleSumAbsoluteDifferences_r\M
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\MultipleSumAbsoluteDifferences_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadHigh_ro.cmd_11990]
@@ -92937,7 +92937,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadHigh_ro\LoadHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector128NonTemporal_ro.cmd_11991]
@@ -92945,7 +92945,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\LoadAlignedVector128NonTemporal_ro
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\LoadAlignedVector128NonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveAndDuplicate_ro.cmd_11992]
@@ -92953,7 +92953,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveAndDuplicate_ro\MoveAndDuplicat
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveAndDuplicate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Multiply_ro.cmd_11993]
@@ -92961,7 +92961,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Multiply_ro\Multiply_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Multiply_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StaticCast_ro.cmd_11994]
@@ -92969,7 +92969,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StaticCast_ro\StaticCast_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StaticCast_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotEqualOrderedScalar_r.cmd_11995]
@@ -92977,7 +92977,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualOrderedScalar_r\Comp
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [b124443.cmd_11996]
@@ -92993,7 +92993,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\PackUnsignedSaturate_ro\PackUnsigne
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\PackUnsignedSaturate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Equality.cmd_11998]
@@ -93009,7 +93009,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\BroadcastVector128ToVector256_ro\Br
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\BroadcastVector128ToVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Blend_r.cmd_12000]
@@ -93017,7 +93017,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Blend_r\Blend_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Blend_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128Single_r.cmd_12001]
@@ -93025,7 +93025,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Single_r\ConvertT
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Single_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareLessThanOrEqualUnorderedScalar_ro.cmd_12002]
@@ -93033,7 +93033,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualUnorderedScal
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_14321.cmd_12003]
@@ -93049,7 +93049,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt32_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_ro.cmd_12005]
@@ -93057,7 +93057,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Store_ro\Store_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Store_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DefaultEqualityComparerPerf.cmd_12006]
@@ -93081,7 +93081,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualUnorderedScalar_ro\Comp
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse_ro.cmd_12009]
@@ -93089,7 +93089,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Sse_ro\Sse_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Sse_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_544983.cmd_12010]
@@ -93105,7 +93105,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32_ro\ConvertT
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Int32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackHigh_r.cmd_12012]
@@ -93113,7 +93113,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\UnpackHigh_r\UnpackHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\UnpackHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalSubtract_ro.cmd_12013]
@@ -93121,7 +93121,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\HorizontalSubtract_ro\HorizontalSubt
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\HorizontalSubtract_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareEqualOrderedScalar_ro.cmd_12014]
@@ -93129,7 +93129,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_ro\Compar
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadVector128_ro.cmd_12015]
@@ -93137,7 +93137,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadVector128_ro\LoadVector128_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareScalar_ro.cmd_12016]
@@ -93145,7 +93145,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\CompareScalar_ro\CompareScalar_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\CompareScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Ssse3_ro.cmd_12017]
@@ -93153,7 +93153,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Ssse3\Ssse3_ro\Ssse3_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Ssse3\Ssse3_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [nonvirtualcall.cmd_12018]
@@ -93169,7 +93169,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrderedScalar_ro\Com
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetZeroVector128_ro.cmd_12020]
@@ -93177,7 +93177,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetZeroVector128_ro\SetZeroVector12
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetZeroVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAligned_r.cmd_12021]
@@ -93185,7 +93185,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\StoreAligned_r\StoreAligned_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\StoreAligned_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_578214.cmd_12022]
@@ -93201,7 +93201,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadHigh_r\LoadHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [sharedgenerics_d.cmd_12024]
@@ -93217,7 +93217,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Sqrt_r\Sqrt_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Sqrt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetScalarVector128_r.cmd_12026]
@@ -93225,7 +93225,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetScalarVector128_r\SetScalarVector
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetScalarVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SubtractSaturate_r.cmd_12027]
@@ -93233,7 +93233,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\SubtractSaturate_r\SubtractSaturate
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\SubtractSaturate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Multiply_r.cmd_12028]
@@ -93241,7 +93241,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\Multiply_r\Multiply_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\Multiply_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Single_ro.cmd_12029]
@@ -93249,7 +93249,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertScalarToVector128Single_ro\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertScalarToVector128Single_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreScalar_ro.cmd_12030]
@@ -93257,7 +93257,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreScalar_ro\StoreScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetZeroVector128_r.cmd_12031]
@@ -93265,7 +93265,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetZeroVector128_r\SetZeroVector128_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetZeroVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16041.cmd_12032]
@@ -93289,7 +93289,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\LoadDquVector128_ro\LoadDquVector12
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\LoadDquVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadScalarVector128_ro.cmd_12035]
@@ -93297,7 +93297,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadScalarVector128_ro\LoadScalarVe
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadScalarVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Reciprocal_r.cmd_12036]
@@ -93305,7 +93305,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Reciprocal_r\Reciprocal_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Reciprocal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadLow_ro.cmd_12037]
@@ -93313,7 +93313,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadLow_ro\LoadLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAlignedNonTemporal_ro.cmd_12038]
@@ -93321,7 +93321,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreAlignedNonTemporal_ro\StoreAli
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreAlignedNonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Crc32_ro.cmd_12039]
@@ -93329,7 +93329,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse42\Crc32_ro\Crc32_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse42\Crc32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_14784.cmd_12040]
@@ -93345,7 +93345,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Blend_ro\Blend_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Blend_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathRoundSingle_r.cmd_12042]
@@ -93361,7 +93361,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64WithTruncation_ro\Con
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64WithTruncation_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector256_ro.cmd_12044]
@@ -93369,7 +93369,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ConvertToVector256_ro\ConvertToVect
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ConvertToVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_17777.cmd_12045]
@@ -93385,7 +93385,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveHighToLow_ro\MoveHighToLow_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveHighToLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetVector128_r.cmd_12047]
@@ -93393,7 +93393,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetVector128_r\SetVector128_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Int64_r.cmd_12048]
@@ -93401,7 +93401,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int64_r\Con
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int64_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Avx_ro.cmd_12049]
@@ -93409,7 +93409,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Avx_ro\Avx_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Avx_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_ro.cmd_12050]
@@ -93417,7 +93417,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\UnpackLow_ro\UnpackLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\UnpackLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetZeroVector128_r.cmd_12051]
@@ -93425,7 +93425,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetZeroVector128_r\SetZeroVector128
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetZeroVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [FileExtensionProbe.cmd_12052]
@@ -93441,7 +93441,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Double_ro\Convert
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToVector128Double_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [methodimpl.cmd_12054]
@@ -93465,7 +93465,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\LoadDquVector128_r\LoadDquVector128
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\LoadDquVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadLow_r.cmd_12057]
@@ -93473,7 +93473,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadLow_r\LoadLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [methodimpl.cmd_12058]
@@ -93489,7 +93489,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanOrEqualScalar_ro\
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotLessThanOrEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareUnorderedScalar_r.cmd_12060]
@@ -93497,7 +93497,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareUnorderedScalar_r\CompareUno
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector256_r.cmd_12061]
@@ -93505,7 +93505,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ConvertToVector256_r\ConvertToVecto
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ConvertToVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [VectorRet_r.cmd_12062]
@@ -93513,7 +93513,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\General\VectorRet_r\VectorRet_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\General\VectorRet_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_15949.cmd_12063]
@@ -93529,7 +93529,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Multiply_ro\Multiply_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Multiply_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareEqualScalar_ro.cmd_12065]
@@ -93537,7 +93537,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualScalar_ro\CompareEqualS
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DynamicMethodGCStress.cmd_12066]
@@ -93553,7 +93553,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareUnorderedScalar_ro\CompareUn
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [InvokeConsumer.cmd_12068]
@@ -93569,7 +93569,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanUnorderedScalar_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16210_1.cmd_12070]
@@ -93593,7 +93593,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Sqrt_r\Sqrt_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Sqrt_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAndDuplicateToVector128_ro.cmd_12073]
@@ -93601,7 +93601,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\LoadAndDuplicateToVector128_ro\Load
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\LoadAndDuplicateToVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_13919.cmd_12074]
@@ -93617,7 +93617,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastVector128ToVector256_r\Broa
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastVector128ToVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [constructor.cmd_12076]
@@ -93633,7 +93633,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToDouble_ro\ConvertToDouble_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToDouble_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [calli.cmd_12078]
@@ -93649,7 +93649,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanScalar_ro\CompareLes
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathCeilingDouble_r.cmd_12080]
@@ -93665,7 +93665,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\LoadAndDuplicateToVector128_r\LoadA
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\LoadAndDuplicateToVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MaskMove_r.cmd_12082]
@@ -93673,7 +93673,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MaskMove_r\MaskMove_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MaskMove_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveLowAndDuplicate_ro.cmd_12083]
@@ -93681,7 +93681,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveLowAndDuplicate_ro\MoveLowAndDu
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveLowAndDuplicate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyHigh_ro.cmd_12084]
@@ -93689,7 +93689,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHigh_ro\MultiplyHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [localloc.cmd_12085]
@@ -93713,7 +93713,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SqrtScalar_r\SqrtScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SqrtScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetAllVector256_r.cmd_12088]
@@ -93721,7 +93721,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetAllVector256_r\SetAllVector256_r.
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetAllVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Double_ro.cmd_12089]
@@ -93729,7 +93729,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Double_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Double_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_578217.cmd_12090]
@@ -93745,7 +93745,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveLowToHigh_ro\MoveLowToHigh_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveLowToHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotGreaterThanOrEqualScalar_ro.cmd_12092]
@@ -93753,7 +93753,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanOrEqualScalar_
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanOrEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathCeilingSingle_r.cmd_12093]
@@ -93769,7 +93769,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveAndDuplicate_r\MoveAndDuplicate
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveAndDuplicate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShuffleLow_r.cmd_12095]
@@ -93777,7 +93777,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ShuffleLow_r\ShuffleLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ShuffleLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetVector128_ro.cmd_12096]
@@ -93785,7 +93785,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetVector128_ro\SetVector128_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt64_r.cmd_12097]
@@ -93793,7 +93793,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64_r\ConvertToInt64_r.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SqrtScalar_ro.cmd_12098]
@@ -93801,7 +93801,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SqrtScalar_ro\SqrtScalar_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SqrtScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_r.cmd_12099]
@@ -93809,7 +93809,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Store_r\Store_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Store_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareGreaterThanUnorderedScalar_ro.cmd_12100]
@@ -93817,7 +93817,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanUnorderedScalar_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_487702.cmd_12101]
@@ -93833,7 +93833,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\MoveMask_r\MoveMask_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MoveMask_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_14783.cmd_12103]
@@ -93857,7 +93857,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanUnorderedScalar_r
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadDquVector256_r.cmd_12106]
@@ -93865,7 +93865,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadDquVector256_r\LoadDquVector256_
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadDquVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Permute2x128.Avx_ro.cmd_12107]
@@ -93873,7 +93873,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Permute2x128.Avx_ro\Permute2x128.Avx
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Permute2x128.Avx_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalAdd_ro.cmd_12108]
@@ -93881,7 +93881,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\HorizontalAdd_ro\HorizontalAdd_ro.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\HorizontalAdd_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShiftLeftLogicalVariable_r.cmd_12109]
@@ -93889,7 +93889,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\ShiftLeftLogicalVariable_r\ShiftLef
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\ShiftLeftLogicalVariable_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Shuffle_ro.cmd_12110]
@@ -93897,7 +93897,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\Shuffle_ro\Shuffle_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\Shuffle_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse42_ro.cmd_12111]
@@ -93905,7 +93905,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse42\Sse42_ro\Sse42_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse42\Sse42_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreHigh_ro.cmd_12112]
@@ -93913,7 +93913,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreHigh_ro\StoreHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt64WithTruncation_r.cmd_12113]
@@ -93921,7 +93921,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64WithTruncation_r\Conv
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt64WithTruncation_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Emit.cmd_12114]
@@ -93961,7 +93961,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreScalar_r\StoreScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt64_ro.cmd_12119]
@@ -93969,7 +93969,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64_ro\ConvertToInt64_ro.
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt64_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadVector256_r.cmd_12120]
@@ -93977,7 +93977,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\LoadVector256_r\LoadVector256_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\LoadVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareEqualScalar_r.cmd_12121]
@@ -93985,7 +93985,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualScalar_r\CompareEqualSc
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotGreaterThanScalar_r.cmd_12122]
@@ -93993,7 +93993,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanScalar_r\Compa
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotGreaterThanScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [PackSignedSaturate_ro.cmd_12123]
@@ -94001,7 +94001,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\PackSignedSaturate_ro\PackSignedSat
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\PackSignedSaturate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [eventsourcetrace.cmd_12124]
@@ -94017,7 +94017,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\DotProduct_ro\DotProduct_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\DotProduct_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GenericAttributeTests.cmd_12126]
@@ -94033,7 +94033,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\SetVector256_ro\SetVector256_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\SetVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [HorizontalAdd_ro.cmd_12128]
@@ -94041,7 +94041,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\HorizontalAdd_ro\HorizontalAdd_ro.c
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\HorizontalAdd_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16443.cmd_12129]
@@ -94065,7 +94065,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreLow_ro\StoreLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultipleSumAbsoluteDifferences_ro.cmd_12132]
@@ -94073,7 +94073,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\MultipleSumAbsoluteDifferences_ro\
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\MultipleSumAbsoluteDifferences_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Crc32_r.cmd_12133]
@@ -94081,7 +94081,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse42\Crc32_r\Crc32_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse42\Crc32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_545504.cmd_12134]
@@ -94097,7 +94097,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadLow_ro\LoadLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreNonTemporal_r.cmd_12136]
@@ -94105,7 +94105,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreNonTemporal_r\StoreNonTemporal
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreNonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreHigh_ro.cmd_12137]
@@ -94113,7 +94113,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreHigh_ro\StoreHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ptrarray.cmd_12138]
@@ -94137,7 +94137,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Compare_r\Compare_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Compare_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MultiplyHorizontalAdd_ro.cmd_12141]
@@ -94145,7 +94145,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_ro\MultiplyHo
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveHighToLow_r.cmd_12142]
@@ -94153,7 +94153,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\MoveHighToLow_r\MoveHighToLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\MoveHighToLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128UInt32_r.cmd_12143]
@@ -94161,7 +94161,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt32_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt32_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAlignedNonTemporal_ro.cmd_12144]
@@ -94169,7 +94169,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreAlignedNonTemporal_ro\StoreAlig
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreAlignedNonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Popcnt_ro.cmd_12145]
@@ -94177,7 +94177,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_ro\Popcnt_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MoveHighAndDuplicate_ro.cmd_12146]
@@ -94185,7 +94185,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse3\MoveHighAndDuplicate_ro\MoveHighAnd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse3\MoveHighAndDuplicate_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [BroadcastScalarToVector256_r.cmd_12147]
@@ -94193,7 +94193,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector256_r\Broadca
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastScalarToVector256_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [CompareNotEqualOrderedScalar_ro.cmd_12148]
@@ -94201,7 +94201,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualOrderedScalar_ro\Com
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualOrderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadScalarVector128_r.cmd_12149]
@@ -94209,7 +94209,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadScalarVector128_r\LoadScalarVec
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadScalarVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_15718.cmd_12150]
@@ -94233,7 +94233,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualUnorderedS
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareGreaterThanOrEqualUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_r.cmd_12153]
@@ -94241,7 +94241,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\UnpackLow_r\UnpackLow_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\UnpackLow_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ReciprocalSqrtScalar_r.cmd_12154]
@@ -94249,7 +94249,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrtScalar_r\ReciprocalSqr
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ReciprocalSqrtScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse41_ro.cmd_12155]
@@ -94257,7 +94257,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\Sse41_ro\Sse41_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\Sse41_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_541653.cmd_12156]
@@ -94273,7 +94273,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\UnpackHigh_ro\UnpackHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\UnpackHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128UInt64_ro.cmd_12158]
@@ -94281,7 +94281,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt64_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128UInt64_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [FastTailCallInlining.cmd_12159]
@@ -94297,7 +94297,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\UnpackHigh_ro\UnpackHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\UnpackHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToVector128_r.cmd_12161]
@@ -94305,7 +94305,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\ConvertToVector128_r\ConvertToVect
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\ConvertToVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MinHorizontal_r.cmd_12162]
@@ -94313,7 +94313,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse41\MinHorizontal_r\MinHorizontal_r.cm
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse41\MinHorizontal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetZeroVector128_ro.cmd_12163]
@@ -94321,7 +94321,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\SetZeroVector128_ro\SetZeroVector128
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\SetZeroVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertScalarToVector128Single_ro.cmd_12164]
@@ -94329,7 +94329,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Single_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Single_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_17435.cmd_12165]
@@ -94337,7 +94337,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Regression\GitHub_17435\GitHub_17435\Git
 WorkingDir=JIT\HardwareIntrinsics\X86\Regression\GitHub_17435\GitHub_17435
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathRoundDouble_r.cmd_12166]
@@ -94353,7 +94353,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_r\Compare
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32_ro.cmd_12168]
@@ -94361,7 +94361,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32_ro\ConvertToInt32_ro
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertToInt32_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ClassicCOMUnitTest.cmd_12169]
@@ -94385,7 +94385,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\BroadcastVector128ToVector256_ro\Bro
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\BroadcastVector128ToVector256_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [PackUnsignedSaturate_r.cmd_12172]
@@ -94393,7 +94393,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\PackUnsignedSaturate_r\PackUnsigned
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\PackUnsignedSaturate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [genericcontext.cmd_12173]
@@ -94425,7 +94425,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualUnorderedScalar_r\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualUnorderedScalar_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [StoreAligned_r.cmd_12177]
@@ -94433,7 +94433,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\StoreAligned_r\StoreAligned_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\StoreAligned_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SumAbsoluteDifferences_r.cmd_12178]
@@ -94441,7 +94441,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SumAbsoluteDifferences_r\SumAbsolut
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SumAbsoluteDifferences_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [LoadAlignedVector256NonTemporal_r.cmd_12179]
@@ -94449,7 +94449,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\LoadAlignedVector256NonTemporal_r\L
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\LoadAlignedVector256NonTemporal_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_ro.cmd_12180]
@@ -94457,7 +94457,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Store_ro\Store_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Store_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ConvertToInt32WithTruncation_r.cmd_12181]
@@ -94465,7 +94465,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32WithTruncation_r\Conve
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\ConvertToInt32WithTruncation_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SetScalarVector128_ro.cmd_12182]
@@ -94473,7 +94473,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\SetScalarVector128_ro\SetScalarVect
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\SetScalarVector128_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [ShuffleHigh_ro.cmd_12183]
@@ -94481,7 +94481,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ShuffleHigh_ro\ShuffleHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ShuffleHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Sse2_r.cmd_12184]
@@ -94489,7 +94489,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\Sse2_r\Sse2_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\Sse2_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [MathCeilingDouble_ro.cmd_12185]
@@ -94505,7 +94505,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualUnorderedScalar_ro\C
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareNotEqualUnorderedScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Store_r.cmd_12187]
@@ -94513,7 +94513,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\Store_r\Store_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\Store_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GetInterfaceMapConsumer.cmd_12188]
@@ -94529,7 +94529,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int64_ro\Co
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\ConvertScalarToVector128Int64_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [Matrix4x4_r.cmd_12190]
@@ -94545,7 +94545,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MoveMask_ro\MoveMask_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MoveMask_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_15319_1.cmd_12192]
@@ -94561,7 +94561,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx\StoreAlignedNonTemporal_ro\StoreAlig
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx\StoreAlignedNonTemporal_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [SearchLoopTail.cmd_12194]
@@ -94577,7 +94577,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualScalar_ro\Com
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareLessThanOrEqualScalar_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [UnpackLow_ro.cmd_12196]
@@ -94585,7 +94585,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\UnpackLow_ro\UnpackLow_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\UnpackLow_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_495792.cmd_12197]
@@ -94609,7 +94609,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse2\LoadFence_ro\LoadFence_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\LoadFence_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_487699.cmd_12200]
@@ -94625,7 +94625,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\UnpackHigh_ro\UnpackHigh_ro.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\UnpackHigh_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [DevDiv_545500.cmd_12202]
@@ -94649,7 +94649,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Avx2\AddSaturate_r\AddSaturate_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Avx2\AddSaturate_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_16254.cmd_12205]
@@ -94665,7 +94665,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\LoadVector128_r\LoadVector128_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\LoadVector128_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [diamondshape_r.cmd_12207]
@@ -94681,7 +94681,7 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\StoreAligned_r\StoreAligned_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\StoreAligned_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
 [GitHub_14028.cmd_12209]
@@ -94697,6 +94697,6 @@ RelativePath=JIT\HardwareIntrinsics\X86\Sse\UnpackHigh_r\UnpackHigh_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse\UnpackHigh_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
