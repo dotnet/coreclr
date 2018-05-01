@@ -234,13 +234,14 @@ struct allMemoryKinds
 // have the first block of the handler as an EH successor.  This makes variables that
 // are "live-in" to the handler become "live-out" for these try-predecessor block,
 // so that they become live-in to the try -- which we require.
-class EHSuccessorIter
+class EHSuccessorIterPosition
 {
-    // The current compilation.
-    Compiler* m_comp;
-
-    // The block whose EH successors we are iterating over.
-    BasicBlock* m_block;
+    // The number of "regular" (i.e., non-exceptional) successors that remain to
+    // be considered.  If BB1 has successor BB2, and BB2 is the first block of a
+    // try block, then we consider the catch block of BB2's try to be an EH
+    // successor of BB1.  This captures the iteration over the successors of BB1
+    // for this purpose.  (In reverse order; we're done when this field is 0).
+    unsigned m_remainingRegSuccs;
 
     // The current "regular" successor of "m_block" that we're considering.
     BasicBlock* m_curRegSucc;
@@ -251,90 +252,78 @@ class EHSuccessorIter
     // further EH successors.
     EHblkDsc* m_curTry;
 
-    // The number of "regular" (i.e., non-exceptional) successors that remain to
-    // be considered.  If BB1 has successor BB2, and BB2 is the first block of a
-    // try block, then we consider the catch block of BB2's try to be an EH
-    // successor of BB1.  This captures the iteration over the successors of BB1
-    // for this purpose.  (In reverse order; we're done when this field is 0).
-    int m_remainingRegSuccs;
-
     // Requires that "m_curTry" is NULL.  Determines whether there is, as
     // discussed just above, a regular successor that's the first block of a
     // try; if so, sets "m_curTry" to that try block.  (As noted above, selecting
     // the try containing the current regular successor as the "current try" may cause
     // multiple first-blocks of catches to be yielded as EH successors: trys enclosing
     // the current try are also included if they also start with the current EH successor.)
-    void FindNextRegSuccTry();
+    void FindNextRegSuccTry(Compiler* comp, BasicBlock* block);
 
 public:
-    // Returns the standard "end" iterator.
-    EHSuccessorIter()
-        : m_comp(nullptr), m_block(nullptr), m_curRegSucc(nullptr), m_curTry(nullptr), m_remainingRegSuccs(0)
+    // Returns the "end" position.
+    EHSuccessorIterPosition() : m_remainingRegSuccs(0), m_curTry(nullptr)
     {
     }
 
     // Initializes the iterator to represent the EH successors of "block".
-    EHSuccessorIter(Compiler* comp, BasicBlock* block);
+    EHSuccessorIterPosition(Compiler* comp, BasicBlock* block);
 
     // Go on to the next EH successor.
-    void operator++(void);
+    void Advance(Compiler* comp, BasicBlock* block);
 
-    // Requires that "this" is not equal to the standard "end" iterator.  Returns the
-    // current EH successor.
-    BasicBlock* operator*();
+    // Returns the current EH successor.
+    // Requires that "*this" is not equal to the "end" position.
+    BasicBlock* Current(Compiler* comp, BasicBlock* block);
 
-    // Returns "true" iff "*this" is equal to "ehsi" -- ignoring the "m_comp"
-    // and "m_block" fields.
-    bool operator==(const EHSuccessorIter& ehsi)
+    // Returns "true" iff "*this" is equal to "ehsi".
+    bool operator==(const EHSuccessorIterPosition& ehsi)
     {
-        // Ignore the compiler; we'll assume that's the same.
         return m_curTry == ehsi.m_curTry && m_remainingRegSuccs == ehsi.m_remainingRegSuccs;
     }
 
-    bool operator!=(const EHSuccessorIter& ehsi)
+    bool operator!=(const EHSuccessorIterPosition& ehsi)
     {
         return !((*this) == ehsi);
     }
 };
 
 // Yields both normal and EH successors (in that order) in one iteration.
-class AllSuccessorIter
+class AllSuccessorIterPosition
 {
-    // Normal succ state.
-    Compiler*       m_comp;
-    BasicBlock*     m_blk;
-    unsigned        m_numNormSuccs;
-    unsigned        m_remainingNormSucc;
-    EHSuccessorIter m_ehIter;
+    // Normal successor position
+    unsigned m_numNormSuccs;
+    unsigned m_remainingNormSucc;
+    // EH successor position
+    EHSuccessorIterPosition m_ehIter;
 
     // True iff m_blk is a BBJ_CALLFINALLY block, and the current try block of m_ehIter,
     // the first block of whose handler would be next yielded, is the jump target of m_blk.
-    inline bool CurTryIsBlkCallFinallyTarget();
+    inline bool CurTryIsBlkCallFinallyTarget(Compiler* comp, BasicBlock* block);
 
 public:
-    // Initializes "this" to iterate over all successors of "block."
-    inline AllSuccessorIter(Compiler* comp, BasicBlock* block);
+    // Initializes "this" to iterate over all successors of "block".
+    inline AllSuccessorIterPosition(Compiler* comp, BasicBlock* block);
 
-    // Used for constructing an appropriate "end" iter.
-    AllSuccessorIter() : m_remainingNormSucc(0), m_ehIter()
+    // Used for constructing an appropriate "end" position.
+    AllSuccessorIterPosition() : m_remainingNormSucc(0), m_ehIter()
     {
     }
 
     // Go on to the next successor.
-    inline void operator++(void);
+    inline void Advance(Compiler* comp, BasicBlock* block);
 
-    // Requires that "this" is not equal to the standard "end" iterator.  Returns the
-    // current successor.
-    inline BasicBlock* operator*();
+    // Returns the current successor.
+    // Requires that "*this" is not equal to the "end" position.
+    inline BasicBlock* Current(Compiler* comp, BasicBlock* block);
 
-    // Returns "true" iff "*this" is equal to "asi" -- ignoring the "m_comp"
-    // and "m_block" fields.
-    bool operator==(const AllSuccessorIter& asi)
+    // Returns "true" iff "*this" is equal to "asi".
+    bool operator==(const AllSuccessorIterPosition& asi)
     {
         return (m_remainingNormSucc == asi.m_remainingNormSucc) && (m_ehIter == asi.m_ehIter);
     }
 
-    bool operator!=(const AllSuccessorIter& asi)
+    bool operator!=(const AllSuccessorIterPosition& asi)
     {
         return !((*this) == asi);
     }
@@ -1092,7 +1081,7 @@ struct BasicBlock : private LIR::Range
     }
 
     // Iteratable collection of successors of a block.
-    template <typename TIterator>
+    template <typename TPosition>
     class Successors
     {
         Compiler*   m_comp;
@@ -1103,25 +1092,61 @@ struct BasicBlock : private LIR::Range
         {
         }
 
-        TIterator begin()
+        class iterator
         {
-            return TIterator(m_comp, m_block);
+            Compiler*   m_comp;
+            BasicBlock* m_block;
+            TPosition   m_pos;
+
+        public:
+            iterator(Compiler* comp, BasicBlock* block) : m_comp(comp), m_block(block), m_pos(comp, block)
+            {
+            }
+
+            iterator() : m_pos()
+            {
+            }
+
+            void operator++(void)
+            {
+                m_pos.Advance(m_comp, m_block);
+            }
+
+            BasicBlock* operator*()
+            {
+                return m_pos.Current(m_comp, m_block);
+            }
+
+            bool operator==(const iterator& other)
+            {
+                return m_pos == other.m_pos;
+            }
+
+            bool operator!=(const iterator& other)
+            {
+                return m_pos != other.m_pos;
+            }
+        };
+
+        iterator begin()
+        {
+            return iterator(m_comp, m_block);
         }
 
-        TIterator end()
+        iterator end()
         {
-            return TIterator();
+            return iterator();
         }
     };
 
-    Successors<EHSuccessorIter> GetEHSuccs(Compiler* comp)
+    Successors<EHSuccessorIterPosition> GetEHSuccs(Compiler* comp)
     {
-        return Successors<EHSuccessorIter>(comp, this);
+        return Successors<EHSuccessorIterPosition>(comp, this);
     }
 
-    Successors<AllSuccessorIter> GetAllSuccs(Compiler* comp)
+    Successors<AllSuccessorIterPosition> GetAllSuccs(Compiler* comp)
     {
-        return Successors<AllSuccessorIter>(comp, this);
+        return Successors<AllSuccessorIterPosition>(comp, this);
     }
 
     // Try to clone block state and statements from `from` block to `to` block (which must be new/empty),
@@ -1307,26 +1332,22 @@ extern void __cdecl verDispBasicBlocks();
 
 void* emitCodeGetCookie(BasicBlock* block);
 
-AllSuccessorIter::AllSuccessorIter(Compiler* comp, BasicBlock* block)
-    : m_comp(comp)
-    , m_blk(block)
-    , m_numNormSuccs(block->NumSucc(comp))
-    , m_remainingNormSucc(m_numNormSuccs)
-    , m_ehIter(comp, block)
+AllSuccessorIterPosition::AllSuccessorIterPosition(Compiler* comp, BasicBlock* block)
+    : m_numNormSuccs(block->NumSucc(comp)), m_remainingNormSucc(m_numNormSuccs), m_ehIter(comp, block)
 {
-    if (CurTryIsBlkCallFinallyTarget())
+    if (CurTryIsBlkCallFinallyTarget(comp, block))
     {
-        ++m_ehIter;
+        m_ehIter.Advance(comp, block);
     }
 }
 
-bool AllSuccessorIter::CurTryIsBlkCallFinallyTarget()
+bool AllSuccessorIterPosition::CurTryIsBlkCallFinallyTarget(Compiler* comp, BasicBlock* block)
 {
-    return (m_blk->bbJumpKind == BBJ_CALLFINALLY) && (m_ehIter != EHSuccessorIter()) &&
-           (m_blk->bbJumpDest == (*m_ehIter));
+    return (block->bbJumpKind == BBJ_CALLFINALLY) && (m_ehIter != EHSuccessorIterPosition()) &&
+           (block->bbJumpDest == m_ehIter.Current(comp, block));
 }
 
-void AllSuccessorIter::operator++(void)
+void AllSuccessorIterPosition::Advance(Compiler* comp, BasicBlock* block)
 {
     if (m_remainingNormSucc > 0)
     {
@@ -1334,32 +1355,36 @@ void AllSuccessorIter::operator++(void)
     }
     else
     {
-        ++m_ehIter;
+        m_ehIter.Advance(comp, block);
 
         // If the original block whose successors we're iterating over
         // is a BBJ_CALLFINALLY, that finally clause's first block
         // will be yielded as a normal successor.  Don't also yield as
         // an exceptional successor.
-        if (CurTryIsBlkCallFinallyTarget())
+        if (CurTryIsBlkCallFinallyTarget(comp, block))
         {
-            ++m_ehIter;
+            m_ehIter.Advance(comp, block);
         }
     }
 }
 
 // Requires that "this" is not equal to the standard "end" iterator.  Returns the
 // current successor.
-BasicBlock* AllSuccessorIter::operator*()
+BasicBlock* AllSuccessorIterPosition::Current(Compiler* comp, BasicBlock* block)
 {
     if (m_remainingNormSucc > 0)
     {
-        return m_blk->GetSucc(m_numNormSuccs - m_remainingNormSucc, m_comp);
+        return block->GetSucc(m_numNormSuccs - m_remainingNormSucc, comp);
     }
     else
     {
-        return *m_ehIter;
+        return m_ehIter.Current(comp, block);
     }
 }
+
+typedef BasicBlock::Successors<EHSuccessorIterPosition>::iterator  EHSuccessorIter;
+typedef BasicBlock::Successors<AllSuccessorIterPosition>::iterator AllSuccessorIter;
+
 /*****************************************************************************/
 #endif // _BLOCK_H_
 /*****************************************************************************/
