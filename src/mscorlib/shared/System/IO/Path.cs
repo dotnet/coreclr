@@ -477,6 +477,14 @@ namespace System.IO
             return true;
         }
 
+        public static bool TryGetTempPath(Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+            ValueStringBuilder vsb = new ValueStringBuilder();
+            Path.GetTempPath(ref vsb);            
+            return vsb.TryCopyTo(destination, out charsWritten);
+        }
+
         private static string CombineInternal(string first, string second)
         {
             if (string.IsNullOrEmpty(first))

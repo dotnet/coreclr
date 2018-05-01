@@ -69,6 +69,35 @@ namespace System.IO
             return path; // nop.  There's nothing special about "long" paths on Unix.
         }
 
+        private static void GetTempPath(ref ValueStringBuilder builder)
+        {
+            const string TempEnvVar = "TMPDIR";
+            const string DefaultTempPath = "/tmp/";
+
+            // Get the temp path from the TMPDIR environment variable.                        
+            int requiredSize = 0;
+            while ((requiredSize = Microsoft.Win32.Win32Native.GetEnvironmentVariable(TempEnvVar, builder.Span)) > builder.Capacity)
+            {
+                // Reported size is greater than the buffer size. Increase the capacity.
+                builder.EnsureCapacity(requiredSize);
+            }
+
+            if (requiredSize == 0 && Runtime.InteropServices.Marshal.GetLastWin32Error() == Interop.Errors.ERROR_ENVVAR_NOT_FOUND)
+            {
+                builder.EnsureCapacity(DefaultTempPath.Length);
+                // If it's not set, just return the default path.
+                builder.Append(DefaultTempPath.AsSpan());
+            }
+            else
+            {
+                // If it is, return it, ensuring it ends with a slash.
+                if (!PathInternal.IsDirectorySeparator(builder[builder.Length - 1]))
+                {                    
+                    builder.Append(PathInternal.DirectorySeparatorChar);
+                }
+            }
+        }
+
         public static string GetTempPath()
         {
             const string TempEnvVar = "TMPDIR";

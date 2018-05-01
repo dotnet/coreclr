@@ -35,6 +35,8 @@ namespace System.Text
 
         public int Capacity => _chars.Length;
 
+        public Span<char> Span => _chars;
+
         public void EnsureCapacity(int capacity)
         {
             if (capacity > _chars.Length)
