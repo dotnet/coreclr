@@ -399,9 +399,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void* _GetUtf8Name(RuntimeType type);
 
-        internal static Utf8String GetUtf8Name(RuntimeType type)
+        internal static InternalUtf8String GetUtf8Name(RuntimeType type)
         {
-            return new Utf8String(_GetUtf8Name(type));
+            return new InternalUtf8String(_GetUtf8Name(type));
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -876,9 +876,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void* _GetUtf8Name(RuntimeMethodHandleInternal method);
 
-        internal static Utf8String GetUtf8Name(RuntimeMethodHandleInternal method)
+        internal static InternalUtf8String GetUtf8Name(RuntimeMethodHandleInternal method)
         {
-            return new Utf8String(_GetUtf8Name(method));
+            return new InternalUtf8String(_GetUtf8Name(method));
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -1126,7 +1126,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field);
 
-        internal static unsafe Utf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new Utf8String(_GetUtf8Name(field)); }
+        internal static unsafe InternalUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new InternalUtf8String(_GetUtf8Name(field)); }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool MatchesNameHash(RuntimeFieldHandleInternal handle, uint hash);

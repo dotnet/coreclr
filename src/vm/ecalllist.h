@@ -474,10 +474,10 @@ FCFuncStart(gAppDomainFuncs)
 FCFuncEnd()
 
 
-FCFuncStart(gUtf8String)
-    FCFuncElement("EqualsCaseSensitive", Utf8String::EqualsCaseSensitive)
-    QCFuncElement("EqualsCaseInsensitive", Utf8String::EqualsCaseInsensitive)
-    QCFuncElement("HashCaseInsensitive", Utf8String::HashCaseInsensitive)
+FCFuncStart(gInternalUtf8String)
+    FCFuncElement("EqualsCaseSensitive", InternalUtf8String::EqualsCaseSensitive)
+    QCFuncElement("EqualsCaseInsensitive", InternalUtf8String::EqualsCaseInsensitive)
+    QCFuncElement("HashCaseInsensitive", InternalUtf8String::HashCaseInsensitive)
 FCFuncEnd()
 
 FCFuncStart(gTypeNameBuilder)
@@ -1307,6 +1307,7 @@ FCClassElement("IReflect", "System.Reflection", gStdMngIReflectFuncs)
 FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFuncs)
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
+FCClassElement("InternalUtf8String", "System", gInternalUtf8String)
 FCClassElement("JitHelpers", "System.Runtime.CompilerServices", gJitHelpers)
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("ManifestBasedResourceGroveler", "System.Resources",  gManifestBasedResourceGrovelerFuncs)
@@ -1383,7 +1384,6 @@ FCClassElement("TypedReference", "System", gTypedReferenceFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("UriMarshaler", "System.StubHelpers", gUriMarshalerFuncs)
 #endif
-FCClassElement("Utf8String", "System", gUtf8String)
 FCClassElement("ValueClassMarshaler", "System.StubHelpers", gValueClassMarshalerFuncs)
 FCClassElement("ValueType", "System", gValueTypeFuncs)
 #ifdef FEATURE_COMINTEROP
