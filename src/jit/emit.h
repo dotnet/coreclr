@@ -371,8 +371,8 @@ struct insGroup
 enum LclVarAddrTag
 {
     LVA_STANDARD_ENCODING = 0,
-    LVA_LARGE_OFFSET      = 1,
-    LVA_COMPILER_TEMP     = 2,
+    LVA_COMPILER_TEMP     = 1,
+    LVA_LARGE_OFFSET      = 2,
     LVA_LARGE_VARNUM      = 3
 };
 
@@ -389,9 +389,29 @@ struct emitLclVarAddr
     // with several other pointer sized types in the instrDesc struct.
     //
 protected:
+#ifdef _TARGET_64BIT_
+
+    // For 64-bit targets, we have enough bits to record the full range of VarNums and Offsets
+    // However when packing this struct, no field cannot cross a 32-bit boundry
+    //
+    // This _reserved0 field is needed because we use the ldp/stp instructions
+    // on ARM64 for loading/storing struct LclVars and these instructions have
+    // three register operands, plus the small constant offset
+    //
+    unsigned _reserved0 : 15; // overlaps with _idReg3 _idReg4, etc...
+    unsigned _lvaOffset : 17; // The lvaOffset
+    unsigned _lvaVarNum : 22; // The lvaVarNum
+    unsigned _lvaTag : 2;     // The tag field, only used to record Compiler Temps
+
+#else // not _TARGET_64BIT_  (i.e. 32-bit)
+
+    // For 32-bit targets, we use the lvaTag to support large VarNum/Offset with some limitations
+    //
     unsigned _lvaVarNum : 15; // Usually the lvaVarNum
     unsigned _lvaExtra : 15;  // Usually the lvaOffset
     unsigned _lvaTag : 2;     // tag field to support larger varnums
+
+#endif // not _TARGET_64BIT_
 };
 
 enum idAddrUnionTag
@@ -885,16 +905,14 @@ protected:
         void checkSizes();
 
         union idAddrUnion {
-// TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
-// about reading what we think is here, to avoid unexpected corruption issues.
+            // TODO-Cleanup: We should really add a DEBUG-only tag to this union so we can add asserts
+            // about reading what we think is here, to avoid unexpected corruption issues.
 
-#ifndef _TARGET_ARM64_
             emitLclVarAddr iiaLclVar;
-#endif
-            BasicBlock*  iiaBBlabel;
-            insGroup*    iiaIGlabel;
-            BYTE*        iiaAddr;
-            emitAddrMode iiaAddrMode;
+            BasicBlock*    iiaBBlabel;
+            insGroup*      iiaIGlabel;
+            BYTE*          iiaAddr;
+            emitAddrMode   iiaAddrMode;
 
             CORINFO_FIELD_HANDLE iiaFieldHnd; // iiaFieldHandle is also used to encode
                                               // an offset into the JIT data constant area
@@ -923,24 +941,28 @@ protected:
                 iiaEncodedInstrCount = (count << iaut_SHIFT) | iaut_INST_COUNT;
             }
 
+#endif // _TARGET_ARMARCH_
+
             struct
             {
+// Note that these 15-bits are covered by iiaLclVar._reserved
+//
 #ifdef _TARGET_ARM64_
-                // For 64-bit architecture this 32-bit structure can pack with these unsigned bit fields
-                emitLclVarAddr iiaLclVar;
-                unsigned       _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
-                GCtype         _idGCref2 : 2;
-#endif
-                regNumber _idReg3 : REGNUM_BITS;
-                regNumber _idReg4 : REGNUM_BITS;
+                unsigned _idReg3Scaled : 1; // Reg3 is scaled by idOpSize bits
+                GCtype   _idGCrefReg2 : 2;  // GCref info for Reg2 of a ldp/stp
+#endif                                      // _TARGET_ARM64_
+
+                regNumber _idReg3 : REGNUM_BITS; // usually 6 bits
+                regNumber _idReg4 : REGNUM_BITS; // usually 6 bits
+
+#ifdef _TARGET_ARM64_
+                // these unused bit fields will trigger an assert if a change
+                // is made that increases the size of the bitfields above
+                //
+                unsigned _reserved1 : 17; // reserved for _lvaOffset
+                unsigned _reserved2 : 24; // reserved for _lvaVarNum and _lvaTag
+#endif                                    // _TARGET_ARM64_
             };
-#elif defined(_TARGET_XARCH_)
-            struct
-            {
-                regNumber _idReg3 : REGNUM_BITS;
-                regNumber _idReg4 : REGNUM_BITS;
-            };
-#endif // defined(_TARGET_XARCH_)
 
         } _idAddrUnion;
 
@@ -1086,13 +1108,13 @@ protected:
         {
             assert(!idIsTiny());
             assert(!idIsSmallDsc());
-            return (GCtype)idAddr()->_idGCref2;
+            return (GCtype)idAddr()->_idGCrefReg2;
         }
         void idGCrefReg2(GCtype gctype)
         {
             assert(!idIsTiny());
             assert(!idIsSmallDsc());
-            idAddr()->_idGCref2 = gctype;
+            idAddr()->_idGCrefReg2 = gctype;
         }
 #endif // _TARGET_ARM64_
 
@@ -1106,7 +1128,6 @@ protected:
             assert(reg == _idReg2);
         }
 
-#if defined(_TARGET_XARCH_)
         regNumber idReg3() const
         {
             assert(!idIsTiny());
@@ -1133,7 +1154,7 @@ protected:
             idAddr()->_idReg4 = reg;
             assert(reg == idAddr()->_idReg4);
         }
-#endif // defined(_TARGET_XARCH_)
+
 #ifdef _TARGET_ARMARCH_
         insOpts idInsOpt() const
         {
@@ -1145,32 +1166,6 @@ protected:
             assert(opt == _idInsOpt);
         }
 
-        regNumber idReg3() const
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            return idAddr()->_idReg3;
-        }
-        void idReg3(regNumber reg)
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            idAddr()->_idReg3 = reg;
-            assert(reg == idAddr()->_idReg3);
-        }
-        regNumber idReg4() const
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            return idAddr()->_idReg4;
-        }
-        void idReg4(regNumber reg)
-        {
-            assert(!idIsTiny());
-            assert(!idIsSmallDsc());
-            idAddr()->_idReg4 = reg;
-            assert(reg == idAddr()->_idReg4);
-        }
 #ifdef _TARGET_ARM64_
         bool idReg3Scaled() const
         {

@@ -524,6 +524,38 @@ void* emitter::emitGetMem(size_t sz)
  */
 void emitLclVarAddr::initLclVarAddr(int varNum, unsigned offset)
 {
+#ifdef _TARGET_64BIT_
+    if (offset >= 0x00020000) // 0x00020000 == 2^17
+    {
+        IMPL_LIMITATION("JIT doesn't support offsets larger than 2^17 into valuetypes\n");
+    }
+
+    if (varNum >= 0) // varNum >= 0, normal LclVar
+    {
+        if (varNum >= 0x00400000)
+        { // 0x00400000 == 2^22
+            IMPL_LIMITATION("JIT doesn't support more than 2^22 variables\n");
+        }
+
+        _lvaTag    = LVA_STANDARD_ENCODING; // mark as a normal lclVar
+        _lvaVarNum = varNum;                // varNum known to be in [1..2^17-1]
+        _lvaOffset = offset;                // offset known to be in [0..2^17-1]
+    }
+    else // varNum < 0, These are used for Compiler spill temps
+    {
+        unsigned tmpNum = (unsigned)(-varNum);
+        if (tmpNum >= 0x00400000) // 0x00400000 == 2^22
+        {
+            IMPL_LIMITATION("JIT doesn't support more than 2^22 Compiler Spill temps\n");
+        }
+
+        _lvaTag    = LVA_COMPILER_TEMP; // mark as a compiler spill temp
+        _lvaVarNum = tmpNum;            // tmpNum known to be in [1..32767]
+        _lvaOffset = offset;            // offset known to be in [0..2^17-1]
+    }
+
+#else // not _TARGET_64BIT_  (i.e. 32-bit)
+
     if (varNum < 32768)
     {
         if (varNum >= 0)
@@ -580,11 +612,26 @@ void emitLclVarAddr::initLclVarAddr(int varNum, unsigned offset)
         _lvaExtra  = (varNum & 0x003F8000) >> 15; // varNum bits 21 to 15 in _lvaExtra bits  6 to 0, 7 bits total
         _lvaExtra |= (offset << 7);               // offset bits  7 to 0  in _lvaExtra bits 14 to 7, 8 bits total
     }
+
+#endif // not _TARGET_64BIT_
 }
 
 // Returns the variable to access. Note that it returns a negative number for compiler spill temps.
 int emitLclVarAddr::lvaVarNum()
 {
+#ifdef _TARGET_64BIT_
+
+    if (_lvaTag == LVA_COMPILER_TEMP)
+    {
+        return -((int)_lvaVarNum);
+    }
+    else
+    {
+        return (int)_lvaVarNum;
+    }
+
+#else  // not _TARGET_64BIT_  (i.e. 32-bit)
+
     switch (_lvaTag)
     {
         case LVA_COMPILER_TEMP:
@@ -595,10 +642,17 @@ int emitLclVarAddr::lvaVarNum()
             assert((_lvaTag == LVA_STANDARD_ENCODING) || (_lvaTag == LVA_LARGE_OFFSET));
             return (int)_lvaVarNum;
     }
+#endif // not _TARGET_64BIT_
 }
 
 unsigned emitLclVarAddr::lvaOffset() // returns the offset into the variable to access
 {
+#ifdef _TARGET_64BIT_
+
+    return _lvaOffset;
+
+#else // not _TARGET_64BIT_  (i.e. 32-bit)
+
     switch (_lvaTag)
     {
         case LVA_LARGE_OFFSET:
@@ -609,6 +663,8 @@ unsigned emitLclVarAddr::lvaOffset() // returns the offset into the variable to 
             assert((_lvaTag == LVA_STANDARD_ENCODING) || (_lvaTag == LVA_COMPILER_TEMP));
             return _lvaExtra;
     }
+
+#endif // not _TARGET_64BIT_
 }
 
 /*****************************************************************************
