@@ -303,8 +303,8 @@ class AllSuccessorIter
     // Normal succ state.
     Compiler*       m_comp;
     BasicBlock*     m_blk;
-    unsigned        m_normSucc;
     unsigned        m_numNormSuccs;
+    unsigned        m_remainingNormSucc;
     EHSuccessorIter m_ehIter;
 
     // True iff m_blk is a BBJ_CALLFINALLY block, and the current try block of m_ehIter,
@@ -312,16 +312,11 @@ class AllSuccessorIter
     inline bool CurTryIsBlkCallFinallyTarget();
 
 public:
-    inline AllSuccessorIter()
-    {
-    }
-
     // Initializes "this" to iterate over all successors of "block."
     inline AllSuccessorIter(Compiler* comp, BasicBlock* block);
 
-    // Used for constructing an appropriate "end" iter.  Should be called with
-    // the number of normal successors of the block being iterated.
-    AllSuccessorIter(unsigned numSuccs) : m_normSucc(numSuccs), m_numNormSuccs(numSuccs), m_ehIter()
+    // Used for constructing an appropriate "end" iter.
+    AllSuccessorIter() : m_remainingNormSucc(0), m_ehIter()
     {
     }
 
@@ -336,7 +331,7 @@ public:
     // and "m_block" fields.
     bool operator==(const AllSuccessorIter& asi)
     {
-        return m_normSucc == asi.m_normSucc && m_ehIter == asi.m_ehIter;
+        return (m_remainingNormSucc == asi.m_remainingNormSucc) && (m_ehIter == asi.m_ehIter);
     }
 
     bool operator!=(const AllSuccessorIter& asi)
@@ -1096,79 +1091,37 @@ struct BasicBlock : private LIR::Range
     {
     }
 
-private:
-    EHSuccessorIter StartEHSuccs(Compiler* comp)
-    {
-        return EHSuccessorIter(comp, this);
-    }
-    EHSuccessorIter EndEHSuccs()
-    {
-        return EHSuccessorIter();
-    }
-
-    friend struct EHSuccs;
-
-    AllSuccessorIter StartAllSuccs(Compiler* comp)
-    {
-        return AllSuccessorIter(comp, this);
-    }
-    AllSuccessorIter EndAllSuccs(Compiler* comp)
-    {
-        return AllSuccessorIter(NumSucc(comp));
-    }
-
-    friend struct AllSuccs;
-
-public:
-    // Iteratable collection of the EH successors of a block.
-    class EHSuccs
+    // Iteratable collection of successors of a block.
+    template <typename TIterator>
+    class Successors
     {
         Compiler*   m_comp;
         BasicBlock* m_block;
 
     public:
-        EHSuccs(Compiler* comp, BasicBlock* block) : m_comp(comp), m_block(block)
+        Successors(Compiler* comp, BasicBlock* block) : m_comp(comp), m_block(block)
         {
         }
 
-        EHSuccessorIter begin()
+        TIterator begin()
         {
-            return m_block->StartEHSuccs(m_comp);
+            return TIterator(m_comp, m_block);
         }
-        EHSuccessorIter end()
+
+        TIterator end()
         {
-            return EHSuccessorIter();
+            return TIterator();
         }
     };
 
-    EHSuccs GetEHSuccs(Compiler* comp)
+    Successors<EHSuccessorIter> GetEHSuccs(Compiler* comp)
     {
-        return EHSuccs(comp, this);
+        return Successors<EHSuccessorIter>(comp, this);
     }
 
-    class AllSuccs
+    Successors<AllSuccessorIter> GetAllSuccs(Compiler* comp)
     {
-        Compiler*   m_comp;
-        BasicBlock* m_block;
-
-    public:
-        AllSuccs(Compiler* comp, BasicBlock* block) : m_comp(comp), m_block(block)
-        {
-        }
-
-        AllSuccessorIter begin()
-        {
-            return m_block->StartAllSuccs(m_comp);
-        }
-        AllSuccessorIter end()
-        {
-            return AllSuccessorIter(m_block->NumSucc(m_comp));
-        }
-    };
-
-    AllSuccs GetAllSuccs(Compiler* comp)
-    {
-        return AllSuccs(comp, this);
+        return Successors<AllSuccessorIter>(comp, this);
     }
 
     // Try to clone block state and statements from `from` block to `to` block (which must be new/empty),
@@ -1355,7 +1308,11 @@ extern void __cdecl verDispBasicBlocks();
 void* emitCodeGetCookie(BasicBlock* block);
 
 AllSuccessorIter::AllSuccessorIter(Compiler* comp, BasicBlock* block)
-    : m_comp(comp), m_blk(block), m_normSucc(0), m_numNormSuccs(block->NumSucc(comp)), m_ehIter(comp, block)
+    : m_comp(comp)
+    , m_blk(block)
+    , m_numNormSuccs(block->NumSucc(comp))
+    , m_remainingNormSucc(m_numNormSuccs)
+    , m_ehIter(comp, block)
 {
     if (CurTryIsBlkCallFinallyTarget())
     {
@@ -1371,9 +1328,9 @@ bool AllSuccessorIter::CurTryIsBlkCallFinallyTarget()
 
 void AllSuccessorIter::operator++(void)
 {
-    if (m_normSucc < m_numNormSuccs)
+    if (m_remainingNormSucc > 0)
     {
-        m_normSucc++;
+        m_remainingNormSucc--;
     }
     else
     {
@@ -1394,9 +1351,9 @@ void AllSuccessorIter::operator++(void)
 // current successor.
 BasicBlock* AllSuccessorIter::operator*()
 {
-    if (m_normSucc < m_numNormSuccs)
+    if (m_remainingNormSucc > 0)
     {
-        return m_blk->GetSucc(m_normSucc, m_comp);
+        return m_blk->GetSucc(m_numNormSuccs - m_remainingNormSucc, m_comp);
     }
     else
     {
