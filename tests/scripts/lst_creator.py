@@ -48,8 +48,9 @@ def create_list_file(file_name, metadata):
     Args:
         file_name (str): Location to write the lstFile
         metadata ({ str: { str: str } }): Dictionary mapping test name to
-                                        : a dictionary of key/value
-                                        : attributes.
+                                        : a tuple, the first tuple's value is
+                                        : a dictionary of key/value attributes,
+                                        : the second is test index.
 
     """
 
