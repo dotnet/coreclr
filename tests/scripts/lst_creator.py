@@ -258,7 +258,7 @@ def parse_lst_file(lst_file):
             index = int(unique_name.split("_")[-1])
             metadata = defaultdict(lambda: None)
 
-            attributes = item.split(os.linesep)
+            attributes = item.split("\n")
             for attribute in attributes:
                 # Skip the removed new lines.
                 if len(attribute) == 0:
