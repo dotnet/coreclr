@@ -46,7 +46,8 @@
                     ManifestName="$(GitHubRepositoryName)"
                     ManifestBuildId="$(ManifestBuildId)"
                     ManifestBranch="$(ManifestBranch)"
-                    ManifestCommit="$(ManifestCommit)" />
+                    ManifestCommit="$(ManifestCommit)"
+                    MakeContainerPublic="false" />
 
     <!-- create the container if it doesn't exist -->
     <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
@@ -84,7 +85,8 @@
                     ManifestName="$(GitHubRepositoryName)"
                     ManifestBuildId="$(ManifestBuildId)"
                     ManifestBranch="$(ManifestBranch)"
-                    ManifestCommit="$(ManifestCommit)" />
+                    ManifestCommit="$(ManifestCommit)"
+                    MakeContainerPublic="false" />
 
     <!-- create the container if it doesn't exist -->
     <CreateAzureContainer Condition="'$(PublishFlatContainer)' == 'true'"
