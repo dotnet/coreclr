@@ -13,41 +13,41 @@
 /* Structures */
 
 /*
- * struct four_byte_struct (4 bytes)
+ * struct one_byte_struct (4 bytes)
 */
 typedef struct 
 {
     int one;
-} four_byte_struct;
+} one_int_struct;
 
 /*
- * struct eight_byte_struct (8 bytes)
+ * struct two_int_struct (8 bytes)
 */
 typedef struct 
 {
     int one;
     int two;
-} eight_byte_struct;
+} two_int_struct;
 
 /*
- * struct eight_byte_struct_b (8 bytes)
+ * struct one_long_long_struct (8 bytes)
 */
 typedef struct 
 {
-    long one;
-} eight_byte_struct_b;
+    __int64 one;
+} one_long_long_struct;
 
 /*
- * struct sixteen_byte_struct (16 bytes)
+ * struct two_long_long_struct (16 bytes)
 */
 typedef struct 
 {
-    long one;
-    long two;
-} sixteen_byte_struct;
+    __int64 one;
+    __int64 two;
+} two_long_long_struct;
 
 /*
- * struct sixteen_byte_struct_b (16 bytes)
+ * struct four_int_struct (16 bytes)
 */
 typedef struct 
 {
@@ -55,55 +55,55 @@ typedef struct
     int two;
     int three;
     int four;
-} sixteen_byte_struct_b;
+} four_int_struct;
 
 /*
- * struct thirty_two_byte_struct (32 bytes)
+ * struct four_long_long_struct (32 bytes)
 */
 typedef struct 
 {
-    long one;
-    long two;
-    long three;
-    long four;
-} thirty_two_byte_struct;
+    __int64 one;
+    __int64 two;
+    __int64 three;
+    __int64 four;
+} four_long_long_struct;
 
 /*
- * struct four_byte_struct_float (4 bytes)
+ * struct one_float_struct (4 bytes)
 */
 typedef struct 
 {
     float one;
-} four_byte_struct_float;
+} one_float_struct;
 
 /*
- * struct eight_byte_struct_float (8 bytes)
+ * struct two_float_struct (8 bytes)
 */
 typedef struct 
 {
     float one;
     float two;
-} eight_byte_struct_float;
+} two_float_struct;
 
 /*
- * struct eight_byte_struct_float_b (8 bytes)
+ * struct one_double_struct (8 bytes)
 */
 typedef struct 
 {
     double one;
-} eight_byte_struct_float_b;
+} one_double_struct;
 
 /*
- * struct sixteen_byte_struct_float (16 bytes)
+ * struct two_double_struct (16 bytes)
 */
 typedef struct 
 {
     double one;
     double two;
-} sixteen_byte_struct_float;
+} two_double_struct;
 
 /*
- * struct sixteen_byte_struct_float_b (16 bytes)
+ * struct four_float_struct (16 bytes)
 */
 typedef struct 
 {
@@ -111,10 +111,10 @@ typedef struct
     float two;
     float three;
     float four;
-} sixteen_byte_struct_float_b;
+} four_float_struct;
 
 /*
- * struct thirty_two_byte_struct_float (32 bytes)
+ * struct four_double_struct (32 bytes)
 */
 typedef struct 
 {
@@ -122,7 +122,7 @@ typedef struct
     double two;
     double three;
     double four;
-} thirty_two_byte_struct_float;
+} four_double_struct;
 
 /* Tests */
 
@@ -143,18 +143,18 @@ DLLEXPORT int test_passing_ints(int count, ...)
     return sum;
 }
 
-DLLEXPORT long test_passing_longs(int count, ...)
+DLLEXPORT __int64 test_passing_longs(int count, ...)
 {
     va_list ap;
     int index;
-    long sum;
+    __int64 sum;
 
     va_start(ap, count);
 
     sum = 0;
     for (index = 0; index < count; ++index)
     {
-        sum += va_arg(ap, long);
+        sum += va_arg(ap, __int64);
     }
 
     va_end(ap);
@@ -197,16 +197,16 @@ DLLEXPORT double test_passing_doubles(int count, ...)
     return sum;
 }
 
-DLLEXPORT long test_passing_int_and_longs(int int_count, int long_count, ...)
+DLLEXPORT __int64 test_passing_int_and_longs(int int_count, int long_count, ...)
 {
     va_list ap;
     int index, count;
-    long sum;
+    __int64 sum;
 
     printf ("int_count: %d\nlong_count:%d\n", int_count, long_count);
 
     count = int_count + long_count;
-    va_start(ap, count);
+    va_start(ap, long_count);
 
     sum = 0;
     for (index = 0; index < int_count; ++index)
@@ -216,7 +216,7 @@ DLLEXPORT long test_passing_int_and_longs(int int_count, int long_count, ...)
 
     for (index = 0; index < long_count; ++index)
     {
-        sum += va_arg(ap, long);
+        sum += va_arg(ap, __int64);
     }
 
     va_end(ap);
@@ -230,7 +230,7 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     double sum;
 
     count = float_count + double_count;
-    va_start(ap, count);
+    va_start(ap, double_count);
 
 
     sum = 0;
@@ -248,6 +248,61 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     return sum;
 }
 
+DLLEXPORT float test_passing_int_and_float(float expected_value, ...)
+{
+    va_list ap;
+    int index, count;
+    float sum;
+
+    count = 6;
+    va_start(ap, expected_value);
+
+
+    sum = 0;
+    for (index = 0; index < 6; ++index)
+    {
+        if (index % 2 == 0) {
+            sum += va_arg(ap, int);
+        }
+        else
+        {
+            sum += va_arg(ap, float);
+        }
+    }
+
+    va_end(ap);
+    return sum;
+}
+
+DLLEXPORT double test_passing_long_and_double(double expected_value, ...)
+{
+    va_list ap;
+    int index, count;
+    double sum;
+
+    count = 6;
+    va_start(ap, expected_value);
+
+
+    sum = 0;
+    for (index = 0; index < 6; ++index)
+    {
+        if (index % 2 == 0) {
+            sum += va_arg(ap, __int64);
+        }
+        else
+        {
+            sum += va_arg(ap, double);
+        }
+    }
+
+    va_end(ap);
+    return sum;
+}
+
+/*
+    Returns: 0 if passed, -1 or 1 if not
+*/
 DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
 {
     va_list ap;
@@ -273,7 +328,7 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
                     break;
                 case 'c':
                 case 'd':
-                    i_temp = va_arg(ap, long);
+                    i_temp = va_arg(ap, __int64);
                     itoa(i_temp, buffer, 10);
                     temp_str = buffer;
 
@@ -317,13 +372,16 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
     return strcmp(expected, calculated);
 }
 
+/*
+    Returns: 0 if passed, 1 if not
+*/
 DLLEXPORT int check_passing_struct(int count, ...)
 {
     va_list ap;
     int is_b, is_floating, is_mixed, byte_count, struct_count;
     
     int expected_value_i;
-    long expected_value_l;
+    __int64 expected_value_l;
     float expected_value_f;
     double expected_value_d;
 
@@ -344,15 +402,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             // Eight byte structs.
             if (is_b)
             {
-                // This is eight_byte_struct_b
-                eight_byte_struct_b s;
-                long sum;
+                // This is one_long_long_struct
+                one_long_long_struct s;
+                __int64 sum;
 
-                expected_value_l = va_arg(ap, long);
+                expected_value_l = va_arg(ap, __int64);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, eight_byte_struct_b);
+                    s = va_arg(ap, one_long_long_struct);
                     sum += s.one;
                 }
 
@@ -360,15 +418,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             }
             else
             {
-                // This is eight_byte_struct
-                eight_byte_struct s;
+                // This is two_int_struct
+                two_int_struct s;
                 int sum;
 
                 expected_value_i = va_arg(ap, int);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, eight_byte_struct);
+                    s = va_arg(ap, two_int_struct);
                     sum += s.one + s.two;
                 }
 
@@ -380,15 +438,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             // 16 byte structs.
             if (is_b)
             {
-                // This is sixteen_byte_struct_b
-                sixteen_byte_struct_b s;
+                // This is four_int_struct
+                four_int_struct s;
                 int sum;
 
                 expected_value_i = va_arg(ap, int);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, sixteen_byte_struct_b);
+                    s = va_arg(ap, four_int_struct);
                     sum += s.one + s.two + s.three + s.four;
                 }
 
@@ -396,15 +454,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             }
             else
             {
-                // This is sixteen_byte_struct
-                sixteen_byte_struct s;
-                long sum;
+                // This is two_long_long_struct
+                two_long_long_struct s;
+                __int64 sum;
 
-                expected_value_l = va_arg(ap, long);
+                expected_value_l = va_arg(ap, __int64);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, sixteen_byte_struct);
+                    s = va_arg(ap, two_long_long_struct);
                     sum += s.one + s.two;
                 }
 
@@ -415,14 +473,14 @@ DLLEXPORT int check_passing_struct(int count, ...)
         else if (byte_count == 32)
         {
             // This is sixteen_byte_struct
-            thirty_two_byte_struct s;
-            long sum;
+            four_long_long_struct s;
+            __int64 sum;
 
-            expected_value_l = va_arg(ap, long);
+            expected_value_l = va_arg(ap, __int64);
             sum = 0;
 
             while (struct_count--) {
-                s = va_arg(ap, thirty_two_byte_struct);
+                s = va_arg(ap, four_long_long_struct);
                 sum += s.one + s.two + s.three + s.four;
             }
 
@@ -436,15 +494,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             // Eight byte structs.
             if (is_b)
             {
-                // This is eight_byte_struct_float_b
-                eight_byte_struct_float_b s;
+                // This is one_double_struct
+                one_double_struct s;
                 double sum;
 
                 expected_value_d = va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, eight_byte_struct_float_b);
+                    s = va_arg(ap, one_double_struct);
                     sum += s.one;
                 }
 
@@ -452,15 +510,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             }
             else
             {
-                // This is eight_byte_struct_float
-                eight_byte_struct_float s;
+                // This is two_float_struct
+                two_float_struct s;
                 float sum;
 
                 expected_value_f = va_arg(ap, float);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, eight_byte_struct_float);
+                    s = va_arg(ap, two_float_struct);
                     sum += s.one + s.two;
                 }
 
@@ -472,15 +530,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             // 16 byte structs.
             if (is_b)
             {
-                // This is sixteen_byte_struct_float_b
-                sixteen_byte_struct_float_b s;
+                // This is four_float_struct
+                four_float_struct s;
                 float sum;
 
                 expected_value_f = va_arg(ap, float);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, sixteen_byte_struct_float_b);
+                    s = va_arg(ap, four_float_struct);
                     sum += s.one + s.two + s.three + s.four;
                 }
 
@@ -488,15 +546,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
             }
             else
             {
-                // This is sixteen_byte_struct_float
-                sixteen_byte_struct_float s;
+                // This is two_double_struct
+                two_double_struct s;
                 double sum;
 
                 expected_value_d = va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {
-                    s = va_arg(ap, sixteen_byte_struct_float);
+                    s = va_arg(ap, two_double_struct);
                     sum += s.one + s.two;
                 }
 
@@ -506,15 +564,15 @@ DLLEXPORT int check_passing_struct(int count, ...)
 
         else if (byte_count == 32)
         {
-            // This is thirty_two_byte_struct_float
-            thirty_two_byte_struct_float s;
+            // This is four_double_struct
+            four_double_struct s;
             double sum;
 
             expected_value_d = va_arg(ap, double);
             sum = 0;
 
             while (struct_count--) {
-                s = va_arg(ap, thirty_two_byte_struct_float);
+                s = va_arg(ap, four_double_struct);
                 sum += s.one + s.two + s.three + s.four;
             }
 
@@ -523,5 +581,34 @@ DLLEXPORT int check_passing_struct(int count, ...)
     }
 
     va_end(ap);
+    return passed;
+}
+
+/*
+    Returns: 0 if passed, 1 if not
+*/
+DLLEXPORT int check_passing_four_sixteen_byte_structs(int count, ...)
+{
+    va_list ap;
+    int passed, index;
+    two_long_long_struct s;
+    __int64 expected_value, calculated_value;
+
+    passed = 0;
+    calculated_value = 0;
+
+    va_start(ap, count);
+
+    expected_value = va_arg(ap, __int64);
+
+    for (index = 0; index < 4; ++index) {
+        s = va_arg(ap, two_long_long_struct);
+
+        calculated_value += s.one + s.two;
+    }
+
+    va_end(ap);
+
+    passed = expected_value == calculated_value ? 0 : 1;
     return passed;
 }
