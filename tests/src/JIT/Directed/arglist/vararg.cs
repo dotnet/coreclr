@@ -65,7 +65,11 @@ namespace NativeVarargTest
         static bool TestPassingInts(int[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            int expectedSum = test_passing_ints(expectedValues.Length, __arglist(expectedValues[0], expectedValues[1], expectedValues[2], expectedValues[3]));
+            int expectedSum = test_passing_ints(expectedValues.Length, 
+                                                __arglist(expectedValues[0], 
+                                                          expectedValues[1], 
+                                                          expectedValues[2], 
+                                                          expectedValues[3]));
 
             int sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -91,7 +95,11 @@ namespace NativeVarargTest
         static bool TestPassingLongs(long[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            long expectedSum = test_passing_longs(expectedValues.Length, __arglist(expectedValues[0], expectedValues[1], expectedValues[2], expectedValues[3]));
+            long expectedSum = test_passing_longs(expectedValues.Length, 
+                                                  __arglist(expectedValues[0], 
+                                                            expectedValues[1], 
+                                                            expectedValues[2], 
+                                                            expectedValues[3]));
 
             long sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -117,7 +125,11 @@ namespace NativeVarargTest
         static bool TestPassingFloats(float[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            float expectedSum = test_passing_floats(expectedValues.Length, __arglist(expectedValues[0], expectedValues[1], expectedValues[2], expectedValues[3]));
+            float expectedSum = test_passing_floats(expectedValues.Length, 
+                                                    __arglist(expectedValues[0], 
+                                                              expectedValues[1], 
+                                                              expectedValues[2], 
+                                                              expectedValues[3]));
 
             float sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -143,7 +155,11 @@ namespace NativeVarargTest
         static bool TestPassingDoubles(double[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            double expectedSum = test_passing_doubles(expectedValues.Length, __arglist(expectedValues[0], expectedValues[1], expectedValues[2], expectedValues[3]));
+            double expectedSum = test_passing_doubles(expectedValues.Length, 
+                                                      __arglist(expectedValues[0], 
+                                                                expectedValues[1],
+                                                                expectedValues[2], 
+                                                                expectedValues[3]));
 
             double sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -270,7 +286,12 @@ namespace NativeVarargTest
         {
             Debug.Assert(expectedIntValues.Length == 2);
             Debug.Assert(expectedLongValues.Length == 2);
-            long expectedSum = test_passing_int_and_longs(expectedIntValues.Length, expectedLongValues.Length, __arglist(expectedIntValues[0], expectedIntValues[1], expectedLongValues[0], expectedLongValues[1]));
+            long expectedSum = test_passing_int_and_longs(expectedIntValues.Length, 
+                                                          expectedLongValues.Length, 
+                                                          __arglist(expectedIntValues[0], 
+                                                                    expectedIntValues[1], 
+                                                                    expectedLongValues[0], 
+                                                                    expectedLongValues[1]));
 
             long sum = 0;
             for (int i = 0; i < expectedIntValues.Length; ++i)
@@ -302,7 +323,12 @@ namespace NativeVarargTest
         {
             Debug.Assert(expectedFloatValues.Length == 2);
             Debug.Assert(expectedDoubleValues.Length == 2);
-            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, expectedDoubleValues.Length, __arglist(expectedFloatValues[0], expectedFloatValues[1], expectedDoubleValues[0], expectedDoubleValues[1]));
+            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, 
+                                                                 expectedDoubleValues.Length, 
+                                                                 __arglist(expectedFloatValues[0], 
+                                                                           expectedFloatValues[1], 
+                                                                           expectedDoubleValues[0], 
+                                                                           expectedDoubleValues[1]));
 
             double sum = 0;
             for (int i = 0; i < expectedFloatValues.Length; ++i)
