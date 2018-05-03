@@ -300,17 +300,19 @@ build_Tests_internal()
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
         # See https://github.com/Microsoft/msbuild/issues/2993
 
+        # __SkipPackageRestore and __SkipTargetingPackBuild used  to control build by tests/src/dirs.proj
         export __SkipPackageRestore=false
         export __SkipTargetingPackBuild=false
         export __BuildLoopCount=2
         export __TestGroupToBuild=1
+        __AppendToLog=false
 
-        if [ -n __Priority ]; then
+        if [ -n __priority1 ]; then
             export __BuildLoopCount=16
             export __TestGroupToBuild=2
         fi
 
-        for (( slice=1 ; slice < __BuildLoopCount; slice = slice + 1 ))
+        for (( slice=1 ; slice <= __BuildLoopCount; slice = slice + 1 ))
         do
             __msbuildLog="\"/flp:Verbosity=normal;LogFile=${__BuildLog};Append=${__AppendToLog}\""
             __msbuildWrn="\"/flp1:WarningsOnly;LogFile=${__BuildWrn};Append=${__AppendToLog}\""
@@ -387,6 +389,7 @@ usage()
     echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
+    echo "priority1 - include priority=1 tests in the build"
     exit 1
 }
 
@@ -506,6 +509,7 @@ __RunTests=0
 __RebuildTests=0
 __BuildTestWrappers=0
 __GenerateLayoutOnly=
+__priority1=
 CORE_ROOT=
 
 while :; do
@@ -660,8 +664,8 @@ while :; do
         msbuildonunsupportedplatform)
             __msbuildonunsupportedplatform=1
             ;;
-        priority)
-            __priority=1
+        priority1)
+            __priority1=1
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs -priority=1"
             ;;
         *)
