@@ -225,7 +225,7 @@
         "scriptName": "",
         "arguments": "$(VstsAuthedNuGetConfigPath) $(VstsFeedUrl) $(VstsPat)",
         "workingFolder": "",
-        "inlineScript": "param($path, $url, $pat)\n\nSet-Content $path @\"\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<configuration>\n  <packageSources>\n    <add key=\"vsts-dotnet-core\" value=\"$url\" />\n  </packageSources>\n  <packageSourceCredentials>\n    <vsts-dotnet-core>\n      <add key=\"Username\" value=\"VssSessionToken\" />\n      <add key=\"ClearTextPassword\" value=\"$pat\" />\n    </vsts-dotnet-core>\n  </packageSourceCredentials>\n</configuration>\n\"@",
+        "inlineScript": "param($path, $url, $pat)\n\nSet-Content $path @\"\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<configuration>\n  <packageSources>\n  <add key=\"vsts-dotnet-core\" value=\"$url\" />\n  </packageSources>\n  <packageSourceCredentials>\n  <vsts-dotnet-core>\n    <add key=\"Username\" value=\"VssSessionToken\" />\n    <add key=\"ClearTextPassword\" value=\"$pat\" />\n  </vsts-dotnet-core>\n  </packageSourceCredentials>\n</configuration>\n\"@",
         "failOnStandardError": "true"
       }
     },
