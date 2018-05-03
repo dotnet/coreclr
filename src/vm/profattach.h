@@ -421,6 +421,6 @@ public:
 };
 
 
-HRESULT ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv);
+STDAPI ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv);
 
 #endif // __PROF_ATTACH_H__

@@ -55,7 +55,7 @@ typedef HRESULT(STDAPICALLTYPE * fpICLRProfilingGetClassObject)(
     REFIID riid,
     LPVOID * ppv);
 
-HRESULT
+void
 CreateCLRProfiling(
     __in LPCWSTR pCoreCLRFullPath,
     __out void ** ppCLRProfilingInstance)
@@ -89,21 +89,26 @@ CreateCLRProfiling(
     // TODO: probably should try to come up with a set of rules to find coreclr elsewhere
     if (hMod == NULL)
     {
-        return E_NOTIMPL;
+        //bail
+        return;
+        //return E_NOTIMPL;
     }
     
     // Now create instance
     fpICLRProfilingGetClassObject fpICLRProfiling = NULL;
     fpICLRProfiling = (fpICLRProfilingGetClassObject)GetProcAddress(hMod, "ICLRProfilingGetClassObject");
 
+    if (fpICLRProfiling == NULL)
+    {
+        return;
+    }
+
     IClassFactory * pFactory = NULL;
     hr = fpICLRProfiling(CLSID_CLRProfiling, IID_IClassFactory, (void**)&pFactory);
     if (SUCCEEDED(hr))
     {
-        hr = pFactory->CreateInstance(NULL, CLSID_CLRProfiling, ppCLRProfilingInstance);
+        hr = pFactory->CreateInstance(NULL, IID_ICLRProfiling, ppCLRProfilingInstance);
         pFactory->Release();
     }
-    DebugBreak();
-    
-    return hr;
+   // return hr;
 }
