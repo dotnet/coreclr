@@ -2762,6 +2762,11 @@ void SystemDomain::LoadBaseSystemClasses()
     _ASSERTE(g_pStringClass->GetBaseSize() == ObjSizeOf(StringObject)+sizeof(WCHAR));
     _ASSERTE(g_pStringClass->GetComponentSize() == 2);
 
+    // Load Utf8String
+    g_pUtf8StringClass = MscorlibBinder::GetClass(CLASS__UTF8_STRING);
+    _ASSERTE(g_pUtf8StringClass->GetBaseSize() == ObjSizeOf(Utf8StringObject)+sizeof(BYTE));
+    _ASSERTE(g_pUtf8StringClass->GetComponentSize() == 1);
+
     // Used by Buffer::BlockCopy
     g_pByteArrayMT = ClassLoader::LoadArrayTypeThrowing(
         TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))).AsArray()->GetMethodTable();

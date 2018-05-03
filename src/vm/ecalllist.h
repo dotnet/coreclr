@@ -1055,6 +1055,10 @@ FCFuncStart(gUriMarshalerFuncs)
     FCFuncElement("CreateNativeUriInstanceHelper", StubHelpers::UriMarshaler__CreateNativeUriInstance)
 FCFuncEnd()
 
+FCFuncStart(gUtf8StringFuncs)
+    FCFuncElement("FastAllocate", Utf8StringFastAllocate)
+FCFuncEnd()
+
 FCFuncStart(gEventArgsMarshalerFuncs)
     QCFuncElement("CreateNativeNCCEventArgsInstanceHelper", StubHelpers::EventArgsMarshaler__CreateNativeNCCEventArgsInstance)
     QCFuncElement("CreateNativePCEventArgsInstance", StubHelpers::EventArgsMarshaler__CreateNativePCEventArgsInstance)
@@ -1384,6 +1388,7 @@ FCClassElement("TypedReference", "System", gTypedReferenceFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("UriMarshaler", "System.StubHelpers", gUriMarshalerFuncs)
 #endif
+FCClassElement("Utf8String", "System", gUtf8StringFuncs)
 FCClassElement("ValueClassMarshaler", "System.StubHelpers", gValueClassMarshalerFuncs)
 FCClassElement("ValueType", "System", gValueTypeFuncs)
 #ifdef FEATURE_COMINTEROP

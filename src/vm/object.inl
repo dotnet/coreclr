@@ -66,6 +66,14 @@ __forceinline /*static*/ SIZE_T StringObject::GetSize(DWORD strLen)
     return ObjSizeOf(StringObject) + sizeof(WCHAR) + strLen * sizeof(WCHAR);
 }
 
+__forceinline /*static*/ SIZE_T Utf8StringObject::GetSize(DWORD strLen)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    // Extra BYTE for null terminator
+    return ObjSizeOf(Utf8StringObject) + sizeof(BYTE) + strLen;
+}
+
 #ifdef DACCESS_COMPILE
 
 inline void Object::EnumMemoryRegions(void)

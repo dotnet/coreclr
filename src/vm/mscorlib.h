@@ -884,6 +884,8 @@ DEFINE_METHOD(STRING,               INTERNAL_COPY,          InternalCopy,       
 DEFINE_METHOD(STRING,               WCSLEN,                 wcslen,                     SM_PtrChar_RetInt)
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
 
+DEFINE_CLASS(UTF8_STRING,           System,                 Utf8String)
+
 DEFINE_CLASS(STRING_BUILDER,        Text,                   StringBuilder)
 DEFINE_PROPERTY(STRING_BUILDER,     LENGTH,                 Length,                     Int)
 DEFINE_PROPERTY(STRING_BUILDER,     CAPACITY,               Capacity,                   Int)

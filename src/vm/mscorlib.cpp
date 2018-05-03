@@ -26,6 +26,7 @@
 //
 #include "arraynative.h"
 #include "stringnative.h"
+#include "utf8stringnative.h"
 #include "objectnative.h"
 #include "comdelegate.h"
 #include "customattribute.h"

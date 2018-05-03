@@ -866,6 +866,7 @@ typedef DPTR(U8Array)   PTR_U8Array;
 typedef DPTR(PTRArray)  PTR_PTRArray;
 
 class StringObject;
+class Utf8StringObject;
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<ArrayBase>  BASEARRAYREF;
@@ -883,6 +884,7 @@ typedef REF<U8Array>    U8ARRAYREF;
 typedef REF<CHARArray>  CHARARRAYREF;
 typedef REF<PTRArray>   PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef REF<StringObject> STRINGREF;
+typedef REF<Utf8StringObject> UTF8STRINGREF;
 
 #else   // USE_CHECKED_OBJECTREFS
 
@@ -901,6 +903,7 @@ typedef PTR_U8Array     U8ARRAYREF;
 typedef PTR_CHARArray   CHARARRAYREF;
 typedef PTR_PTRArray    PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef PTR_StringObject STRINGREF;
+typedef PTR_Utf8StringObject UTF8STRINGREF;
 
 #endif // USE_CHECKED_OBJECTREFS
 
@@ -935,6 +938,7 @@ typedef PTR_StringObject STRINGREF;
 #ifdef _MSC_VER
 #pragma warning(disable : 4200)     // disable zero-sized array warning
 #endif
+
 class StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -1204,6 +1208,32 @@ public:
     }
 
 };
+
+class Utf8StringObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+
+private:
+    DWORD   m_StringLength;
+    BYTE    m_Characters[0];
+    // GC will see a Utf8StringObject like this:
+    //   DWORD m_StringLength
+    //   BYTE  m_Characters[0]
+    //   DWORD m_OptionalPadding (this is an optional field and will appear based on need)
+
+public:
+    VOID    SetUtf8StringLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
+
+protected:
+    Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+    ~Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+
+public:
+    static SIZE_T GetSize(DWORD stringLength);
+};
+
 
 // This is the Method version of the Reflection object.
 //  A Method has adddition information.
