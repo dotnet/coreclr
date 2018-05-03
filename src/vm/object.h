@@ -1221,10 +1221,9 @@ private:
     // GC will see a Utf8StringObject like this:
     //   DWORD m_StringLength
     //   BYTE  m_Characters[0]
-    //   DWORD m_OptionalPadding (this is an optional field and will appear based on need)
 
 public:
-    VOID    SetUtf8StringLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
+    VOID    SetLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
 
 protected:
     Utf8StringObject() { LIMITED_METHOD_CONTRACT; }

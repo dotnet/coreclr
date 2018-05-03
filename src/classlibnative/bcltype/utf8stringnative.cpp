@@ -2,14 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 //
-// File: StringNative.cpp
-//
-
-//
-// Purpose: The implementation of the Utf8String class.
-//
-
-//
 
 #include "common.h"
 
@@ -23,12 +15,6 @@
 #include "comutilnative.h"
 #include "metasig.h"
 #include "excep.h"
-
-// Compile the string functionality with these pragma flags (equivalent of the command line /Ox flag)
-// Compiling this functionality differently gives us significant throughout gain in some cases.
-#if defined(_MSC_VER) && defined(_TARGET_X86_)
-#pragma optimize("tgy", on)
-#endif
 
 FCIMPL1(Utf8StringObject *, Utf8StringFastAllocate, DWORD length)
 {
@@ -44,8 +30,3 @@ FCIMPL1(Utf8StringObject *, Utf8StringFastAllocate, DWORD length)
 }
 FCIMPLEND
 
-
-// Revert to command line compilation flags
-#if defined(_MSC_VER) && defined(_TARGET_X86_)
-#pragma optimize ("", on)
-#endif

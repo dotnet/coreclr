@@ -2,14 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 //
-// File: StringNative.h
-//
-
-//
-// Purpose: Contains types and method signatures for the Utf8String class
-//
-
-//
 
 #include "fcall.h"
 #include "qcall.h"

@@ -1094,7 +1094,7 @@ UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
 
     // Initialize Object
     orObject->SetMethodTable(g_pUtf8StringClass);
-    orObject->SetUtf8StringLength(cchStringLength);
+    orObject->SetLength(cchStringLength);
 
     if (ObjectSize >= LARGE_OBJECT_SIZE)
     {
