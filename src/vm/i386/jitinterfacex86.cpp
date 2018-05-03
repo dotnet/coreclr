@@ -1067,7 +1067,9 @@ void *JIT_TrialAlloc::GenAllocString(Flags flags)
     // We need to calculate baseSize + cnt*2, then round that up by adding 3 and anding ~3.
 
     // lea eax, [basesize+(alignment-1)+eax*2]
-    sl.X86EmitOp(0x8d, kEAX, StringObject::GetBaseSize() + (DATA_ALIGNMENT-1), kEAX, 2);
+    sl.Emit16(0x048d);
+    sl.Emit8(0x45);
+    sl.Emit32(StringObject::GetBaseSize() + (DATA_ALIGNMENT-1));
 
     // and eax, ~3
     sl.Emit16(0xe083);
