@@ -1059,7 +1059,7 @@ STRINGREF SlowAllocateString( DWORD cchStringLength )
     return( ObjectToSTRINGREF(orObject) );
 }
 
-UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
+Utf8StringObject *SlowAllocateUtf8String(DWORD cchStringLength)
 {
     CONTRACTL{
         THROWS;
@@ -1122,7 +1122,7 @@ UTF8STRINGREF SlowAllocateUtf8String(DWORD cchStringLength)
 
     LogAlloc(ObjectSize, g_pUtf8StringClass, orObject);
 
-    return(ObjectToUTF8STRINGREF(orObject));
+    return orObject;
 }
 
 

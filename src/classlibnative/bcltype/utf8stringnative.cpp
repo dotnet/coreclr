@@ -20,13 +20,13 @@ FCIMPL1(Utf8StringObject *, Utf8StringFastAllocate, DWORD length)
 {
     FCALL_CONTRACT;
 
-    UTF8STRINGREF rv = NULL; // not protected
+    Utf8StringObject *rv = NULL; // not protected
 
-    HELPER_METHOD_FRAME_BEGIN_RET_1(rv);
+    HELPER_METHOD_FRAME_BEGIN_0();
     rv = SlowAllocateUtf8String(length);
     HELPER_METHOD_FRAME_END();
 
-    return UTF8STRINGREFToObject(rv);
+    return rv;
 }
 FCIMPLEND
 

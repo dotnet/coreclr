@@ -884,7 +884,6 @@ typedef REF<U8Array>    U8ARRAYREF;
 typedef REF<CHARArray>  CHARARRAYREF;
 typedef REF<PTRArray>   PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef REF<StringObject> STRINGREF;
-typedef REF<Utf8StringObject> UTF8STRINGREF;
 
 #else   // USE_CHECKED_OBJECTREFS
 
@@ -903,7 +902,6 @@ typedef PTR_U8Array     U8ARRAYREF;
 typedef PTR_CHARArray   CHARARRAYREF;
 typedef PTR_PTRArray    PTRARRAYREF;  // Warning: Use PtrArray only for single dimensional arrays, not multidim arrays.
 typedef PTR_StringObject STRINGREF;
-typedef PTR_Utf8StringObject UTF8STRINGREF;
 
 #endif // USE_CHECKED_OBJECTREFS
 
@@ -1209,6 +1207,7 @@ public:
 
 };
 
+#include <pshpack4.h>
 class Utf8StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -1232,7 +1231,7 @@ protected:
 public:
     static SIZE_T GetSize(DWORD stringLength);
 };
-
+#include <poppack.h>
 
 // This is the Method version of the Reflection object.
 //  A Method has adddition information.
