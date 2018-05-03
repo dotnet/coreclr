@@ -234,6 +234,12 @@ struct allMemoryKinds
 // have the first block of the handler as an EH successor.  This makes variables that
 // are "live-in" to the handler become "live-out" for these try-predecessor block,
 // so that they become live-in to the try -- which we require.
+//
+// This class maintains the minimum amount of state necessary to implement
+// successor iteration. The basic block whose successors are enumerated and
+// the compiler need to be provided by Advance/Current's callers. In addition
+// to iterators, this allows the use of other approaches that are more space
+// efficient.
 class EHSuccessorIterPosition
 {
     // The number of "regular" (i.e., non-exceptional) successors that remain to
@@ -261,13 +267,13 @@ class EHSuccessorIterPosition
     void FindNextRegSuccTry(Compiler* comp, BasicBlock* block);
 
 public:
-    // Returns the "end" position.
+    // Constructs a position that "points" to the first EH successor of `block`.
+    EHSuccessorIterPosition(Compiler* comp, BasicBlock* block);
+
+    // Constructs a position that "points" past the last EH successor of `block` ("end" position).
     EHSuccessorIterPosition() : m_remainingRegSuccs(0), m_curTry(nullptr)
     {
     }
-
-    // Initializes the iterator to represent the EH successors of "block".
-    EHSuccessorIterPosition(Compiler* comp, BasicBlock* block);
 
     // Go on to the next EH successor.
     void Advance(Compiler* comp, BasicBlock* block);
@@ -289,6 +295,12 @@ public:
 };
 
 // Yields both normal and EH successors (in that order) in one iteration.
+//
+// This class maintains the minimum amount of state necessary to implement
+// successor iteration. The basic block whose successors are enumerated and
+// the compiler need to be provided by Advance/Current's callers. In addition
+// to iterators, this allows the use of other approaches that are more space
+// efficient.
 class AllSuccessorIterPosition
 {
     // Normal successor position
@@ -302,10 +314,10 @@ class AllSuccessorIterPosition
     inline bool CurTryIsBlkCallFinallyTarget(Compiler* comp, BasicBlock* block);
 
 public:
-    // Initializes "this" to iterate over all successors of "block".
+    // Constructs a position that "points" to the first successor of `block`.
     inline AllSuccessorIterPosition(Compiler* comp, BasicBlock* block);
 
-    // Used for constructing an appropriate "end" position.
+    // Constructs a position that "points" past the last successor of `block` ("end" position).
     AllSuccessorIterPosition() : m_remainingNormSucc(0), m_ehIter()
     {
     }
@@ -316,6 +328,16 @@ public:
     // Returns the current successor.
     // Requires that "*this" is not equal to the "end" position.
     inline BasicBlock* Current(Compiler* comp, BasicBlock* block);
+
+    bool IsCurrentEH()
+    {
+        return m_remainingNormSucc == 0;
+    }
+
+    bool HasCurrent()
+    {
+        return *this != AllSuccessorIterPosition();
+    }
 
     // Returns "true" iff "*this" is equal to "asi".
     bool operator==(const AllSuccessorIterPosition& asi)
@@ -1384,6 +1406,52 @@ BasicBlock* AllSuccessorIterPosition::Current(Compiler* comp, BasicBlock* block)
 
 typedef BasicBlock::Successors<EHSuccessorIterPosition>::iterator  EHSuccessorIter;
 typedef BasicBlock::Successors<AllSuccessorIterPosition>::iterator AllSuccessorIter;
+
+// An enumerator of a block's all successors. In some cases (e.g. SsaBuilder::TopologicalSort)
+// using iterators is not exactly efficient, at least because they contain an unnecessary
+// member - a pointer to the Compiler object.
+class AllSuccessorEnumerator
+{
+    BasicBlock*              m_block;
+    AllSuccessorIterPosition m_pos;
+
+public:
+    // Needed only because ArrayStack is broken - its built-in storage is such
+    // that it default constructs elements that do not actually exist.
+    AllSuccessorEnumerator() : m_block(nullptr), m_pos()
+    {
+    }
+
+    // Constructs an enumerator of all `block`'s successors.
+    AllSuccessorEnumerator(Compiler* comp, BasicBlock* block) : m_block(block), m_pos(comp, block)
+    {
+    }
+
+    // Gets the block whose successors are enumerated.
+    BasicBlock* Block()
+    {
+        return m_block;
+    }
+
+    // Returns true if the next successor is an EH successor.
+    bool IsNextEHSuccessor()
+    {
+        return m_pos.IsCurrentEH();
+    }
+
+    // Returns the next available successor or `nullptr` if there are no more successors.
+    BasicBlock* NextSuccessor(Compiler* comp)
+    {
+        if (!m_pos.HasCurrent())
+        {
+            return nullptr;
+        }
+
+        BasicBlock* succ = m_pos.Current(comp, m_block);
+        m_pos.Advance(comp, m_block);
+        return succ;
+    }
+};
 
 /*****************************************************************************/
 #endif // _BLOCK_H_
