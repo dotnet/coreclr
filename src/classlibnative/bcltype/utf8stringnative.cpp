@@ -22,7 +22,7 @@ FCIMPL1(Utf8StringObject *, Utf8StringFastAllocate, DWORD length)
 
     Utf8StringObject *rv = NULL; // not protected
 
-    HELPER_METHOD_FRAME_BEGIN_0();
+    HELPER_METHOD_FRAME_BEGIN_RET_1(rv);
     rv = SlowAllocateUtf8String(length);
     HELPER_METHOD_FRAME_END();
 

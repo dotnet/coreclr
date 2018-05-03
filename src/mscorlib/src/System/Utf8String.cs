@@ -10,13 +10,13 @@ namespace System
     public sealed class Utf8String
     {
         // Do not reorder these fields. Must match layout of Utf8StringObject in object.h.
-        private int _length;
-        [CLSCompliant(false)]
-        public byte _firstByte; // TODO: Is public for experimentation in CoreFxLab. Will be private in its ultimate form.
+        private readonly int _length;
+        private readonly byte _firstByte;
 
         private Utf8String() { } // Suppress creation of the public constructor. No one actually calls this.
 
         public int Length => _length;
+        public ref readonly byte GetPinnableReference() => ref _firstByte;
 
         // Creates a new zero-initialized instance of the specified length. Actual storage allocated is "length + 1" bytes (the extra
         // +1 is for the NUL terminator.)
