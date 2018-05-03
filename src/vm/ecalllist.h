@@ -116,6 +116,10 @@ FCFuncStart(gStringFuncs)
 #endif // FEATURE_COMINTEROP
 FCFuncEnd()
 
+FCFuncStart(gUtf8StringFuncs)
+    FCFuncElement("FastAllocate", Utf8StringFastAllocate)
+FCFuncEnd()
+
 FCFuncStart(gValueTypeFuncs)
     FCFuncElement("CanCompareBits", ValueTypeHelper::CanCompareBits)
     FCFuncElement("FastEqualsCheck", ValueTypeHelper::FastEqualsCheck)
@@ -1053,10 +1057,6 @@ FCFuncEnd()
 FCFuncStart(gUriMarshalerFuncs)
     FCFuncElement("GetRawUriFromNative", StubHelpers::UriMarshaler__GetRawUriFromNative)
     FCFuncElement("CreateNativeUriInstanceHelper", StubHelpers::UriMarshaler__CreateNativeUriInstance)
-FCFuncEnd()
-
-FCFuncStart(gUtf8StringFuncs)
-    FCFuncElement("FastAllocate", Utf8StringFastAllocate)
 FCFuncEnd()
 
 FCFuncStart(gEventArgsMarshalerFuncs)
