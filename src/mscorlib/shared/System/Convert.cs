@@ -649,7 +649,9 @@ namespace System
         [CLSCompliant(false)]
         public static sbyte ToSByte(bool value)
         {
-            return value ? (sbyte)Boolean.True : (sbyte)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return (sbyte)JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         [CLSCompliant(false)]
@@ -769,7 +771,9 @@ namespace System
 
         public static byte ToByte(bool value)
         {
-            return value ? (byte)Boolean.True : (byte)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         public static byte ToByte(byte value)
@@ -881,7 +885,9 @@ namespace System
 
         public static short ToInt16(bool value)
         {
-            return value ? (short)Boolean.True : (short)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         public static short ToInt16(char value)
@@ -995,7 +1001,9 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(bool value)
         {
-            return value ? (ushort)Boolean.True : (ushort)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         [CLSCompliant(false)]
@@ -1117,7 +1125,9 @@ namespace System
 
         public static int ToInt32(bool value)
         {
-            return value ? Boolean.True : Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         public static int ToInt32(char value)
@@ -1248,7 +1258,9 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(bool value)
         {
-            return value ? (uint)Boolean.True : (uint)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         [CLSCompliant(false)]
@@ -1375,7 +1387,9 @@ namespace System
 
         public static long ToInt64(bool value)
         {
-            return value ? Boolean.True : Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         public static long ToInt64(char value)
@@ -1483,7 +1497,9 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(bool value)
         {
-            return value ? (ulong)Boolean.True : (ulong)Boolean.False;
+            // Ideally we'd call BoolToByte(!!value) to normalize any true value to 1,
+            // but JIT optimizes !! away. The pattern below defeats this optimization.
+            return JitHelpers.BoolToByteNonNormalized(JitHelpers.BoolToByteNonNormalized(value) != 0);
         }
 
         [CLSCompliant(false)]
