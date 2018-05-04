@@ -62,7 +62,7 @@ __forceinline /*static*/ DWORD StringObject::GetBaseSize()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return ObjSizeOf(Object) + sizeof(DWORD) + sizeof(WCHAR);
+    return ObjSizeOf(Object) + sizeof(DWORD) /* length */ + sizeof(WCHAR) /* null terminator */;
 }
 
 __forceinline /*static*/ SIZE_T StringObject::GetSize(DWORD strLen)
