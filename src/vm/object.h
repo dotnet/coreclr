@@ -915,7 +915,7 @@ typedef PTR_StringObject STRINGREF;
  * Special String implementation for performance.   
  *
  *   m_StringLength - Length of string in number of WCHARs
- *   m_Characters   - The string buffer
+ *   m_FirstChar    - The string buffer
  *
  */
 
@@ -933,10 +933,6 @@ typedef PTR_StringObject STRINGREF;
 #define STRING_STATE_FAST_OPS         0x80000000
 #define STRING_STATE_SPECIAL_SORT     0xC0000000
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4200)     // disable zero-sized array warning
-#endif
-
 class StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -949,11 +945,7 @@ class StringObject : public Object
 
   private:
     DWORD   m_StringLength;
-    WCHAR   m_Characters[0];
-    // GC will see a StringObject like this:
-    //   DWORD m_StringLength
-    //   WCHAR m_Characters[0]
-    //   DWORD m_OptionalPadding (this is an optional field and will appear based on need)
+    WCHAR   m_FirstChar;
 
   public:
     VOID    SetStringLength(DWORD len)                   { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
@@ -963,12 +955,11 @@ class StringObject : public Object
    ~StringObject() {LIMITED_METHOD_CONTRACT; }
    
   public:
+    static DWORD GetBaseSize();
     static SIZE_T GetSize(DWORD stringLength);
 
     DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
-    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) );  }
-    WCHAR*  GetBuffer(DWORD *pdwSize)                   { LIMITED_METHOD_CONTRACT; _ASSERTE((this != nullptr) && pdwSize); *pdwSize = GetStringLength(); return GetBuffer();  }
-    WCHAR*  GetBufferNullable()                         { LIMITED_METHOD_CONTRACT; return( (this == nullptr) ? nullptr : (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) ) );  }
+    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_FirstChar) );  }
 
     DWORD GetHighCharState() {
         WRAPPER_NO_CONTRACT;
@@ -994,7 +985,7 @@ class StringObject : public Object
     static UINT GetBufferOffset()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (UINT)(offsetof(StringObject, m_Characters));
+        return (UINT)(offsetof(StringObject, m_FirstChar));
     }
     static UINT GetStringLengthOffset()
     {
@@ -1206,6 +1197,10 @@ public:
     }
 
 };
+
+#ifdef _MSC_VER
+#pragma warning(disable : 4200)     // disable zero-sized array warning
+#endif
 
 #include <pshpack4.h>
 class Utf8StringObject : public Object
@@ -3357,7 +3352,7 @@ public:
     static inline void *Value(void *src, MethodTable *nullableMT)
     {
         Nullable *nullable = (Nullable *)src;
-        return nullable->ValueAddr(nullableMT);        
+        return nullable->ValueAddr(nullableMT);
     }
     
 private:
