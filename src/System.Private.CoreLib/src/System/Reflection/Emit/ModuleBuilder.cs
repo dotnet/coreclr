@@ -380,7 +380,7 @@ namespace System.Reflection.Emit
 
         private int GetMemberRefToken(MethodBase method, IEnumerable<Type> optionalParameterTypes)
         {
-            Type[] parameterTypes;
+            ParameterInfo[] parameters;
             Type returnType;
             int tkParent;
             int cGenericParameters = 0;
@@ -447,17 +447,29 @@ namespace System.Reflection.Emit
                     }
                 }
 
-                parameterTypes = methDef.GetParameterTypes();
+                parameters = methDef.GetParameters();
                 returnType = MethodBuilder.GetMethodBaseReturnType(methDef);
             }
             else
             {
-                parameterTypes = method.GetParameterTypes();
+                parameters = method.GetParameters();
                 returnType = MethodBuilder.GetMethodBaseReturnType(method);
+            }
+
+            Type[] parameterTypes = new Type[parameters.Length];
+            Type[][] parameterTypeRequiredCustomModifiers = new Type[parameterTypes.Length][];
+            Type[][] parameterTypeOptionalCustomModifiers = new Type[parameterTypes.Length][];
+
+            for (int i = 0; i < parameterTypes.Length; i++)
+            {
+                parameterTypes[i] = parameters[i].ParameterType;
+                parameterTypeRequiredCustomModifiers[i] = parameters[i].GetRequiredCustomModifiers();
+                parameterTypeOptionalCustomModifiers[i] = parameters[i].GetOptionalCustomModifiers();
             }
 
             int sigLength;
             byte[] sigBytes = GetMemberRefSignature(method.CallingConvention, returnType, parameterTypes,
+                parameterTypeRequiredCustomModifiers, parameterTypeOptionalCustomModifiers,
                 optionalParameterTypes, cGenericParameters).InternalGetSignature(out sigLength);
 
             if (method.DeclaringType.IsGenericType)
@@ -484,15 +496,22 @@ namespace System.Reflection.Emit
         }
 
         internal SignatureHelper GetMemberRefSignature(CallingConventions call, Type returnType,
-            Type[] parameterTypes, IEnumerable<Type> optionalParameterTypes, int cGenericParameters)
+            Type[] parameterTypes, Type[][] parameterTypeRequiredCustomModifiers, Type[][] parameterTypeOptionalCustomModifiers,
+            IEnumerable<Type> optionalParameterTypes, int cGenericParameters)
         {
             SignatureHelper sig = SignatureHelper.GetMethodSigHelper(this, call, returnType, cGenericParameters);
 
+            Debug.Assert(parameterTypeRequiredCustomModifiers == null
+                     || (parameterTypeRequiredCustomModifiers.Length == (parameterTypes?.Length ?? 0)));
+
+            Debug.Assert(parameterTypeOptionalCustomModifiers == null
+                     || (parameterTypeOptionalCustomModifiers.Length == (parameterTypes?.Length ?? 0)));
+
             if (parameterTypes != null)
             {
-                foreach (Type t in parameterTypes)
+                for (int i = 0; i < parameterTypes.Length; i++)
                 {
-                    sig.AddArgument(t);
+                    sig.AddArgument(parameterTypes[i], parameterTypeRequiredCustomModifiers?[i], parameterTypeOptionalCustomModifiers?[i]);
                 }
             }
 

@@ -215,7 +215,7 @@ namespace System.Reflection.Emit
         private SignatureHelper GetMemberRefSignature(CallingConventions call, Type returnType,
             Type[] parameterTypes, Type[] optionalParameterTypes, int cGenericParameters)
         {
-            return ((ModuleBuilder)m_methodBuilder.Module).GetMemberRefSignature(call, returnType, parameterTypes, optionalParameterTypes, cGenericParameters);
+            return ((ModuleBuilder)m_methodBuilder.Module).GetMemberRefSignature(call, returnType, parameterTypes, null, null, optionalParameterTypes, cGenericParameters);
         }
 
         internal byte[] BakeByteArray()
