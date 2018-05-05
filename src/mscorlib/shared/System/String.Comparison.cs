@@ -792,6 +792,7 @@ namespace System
             switch (comparisonType)
             {
                 case StringComparison.CurrentCulture:
+                case StringComparison.CurrentCultureIgnoreCase:
                     return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
 
                 case StringComparison.InvariantCulture:

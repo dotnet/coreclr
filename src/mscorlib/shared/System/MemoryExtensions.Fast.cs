@@ -297,7 +297,7 @@ namespace System
                 if (string.GetCaseCompareOfComparisonCulture(comparisonType) == CompareOptions.None)
                     return span.EndsWith(value);
 
-                return (span.Length < value.Length) ? (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0) : false;
+                return (span.Length >= value.Length) ? (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(span.Length - value.Length), value) == 0) : false;
             }
 
             if (span.Length == 0)
@@ -330,7 +330,7 @@ namespace System
                 if (string.GetCaseCompareOfComparisonCulture(comparisonType) == CompareOptions.None)
                     return span.StartsWith(value);
 
-                return (span.Length < value.Length) ? (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0) : false;
+                return (span.Length >= value.Length) ? (CompareInfo.CompareOrdinalIgnoreCase(span.Slice(0, value.Length), value) == 0) : false;
             }
 
             if (span.Length == 0)
