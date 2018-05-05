@@ -977,7 +977,7 @@ namespace System
         internal static void CheckStringComparison(StringComparison comparisonType)
         {
             // Single comparison to check if comparisonType is within [CurrentCulture .. OrdinalIgnoreCase]
-            if ((uint)(comparisonType - StringComparison.CurrentCulture) > (StringComparison.OrdinalIgnoreCase - StringComparison.CurrentCulture))
+            if ((uint)comparisonType > (uint)StringComparison.OrdinalIgnoreCase)
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
             }
@@ -985,7 +985,7 @@ namespace System
 
         internal static CompareOptions GetCaseCompareOfComparisonCulture(StringComparison comparisonType)
         {
-            Debug.Assert((uint)(comparisonType - StringComparison.CurrentCulture) <= (StringComparison.InvariantCultureIgnoreCase - StringComparison.CurrentCulture));
+            Debug.Assert((uint)comparisonType <= (uint)StringComparison.OrdinalIgnoreCase);
 
             // Culture enums can be & with CompareOptions.IgnoreCase 0x01 to extract if IgnoreCase or CompareOptions.None 0x00
             //
@@ -994,9 +994,11 @@ namespace System
             //
             // StringComparison.CurrentCulture:             0x00
             // StringComparison.InvariantCulture:           0x02
+            // StringComparison.Ordinal                     0x04
             //
             // StringComparison.CurrentCultureIgnoreCase:   0x01
             // StringComparison.InvariantCultureIgnoreCase: 0x03
+            // StringComparison.OrdinalIgnoreCase           0x05
 
             return (CompareOptions)((int)comparisonType & (int)CompareOptions.IgnoreCase);
         }
