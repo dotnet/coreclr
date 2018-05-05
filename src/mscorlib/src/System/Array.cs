@@ -1566,24 +1566,24 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (index < 0)
-                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
-            if (length < 0)
-                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
-            if (array.Length - index < length)
+            if ((uint)index > (uint)array.Length)
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+            if ((uint)length > (uint)(array.Length - index))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-            ref T p = ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData());
-            int i = index;
-            int j = index + length - 1;
-            while (i < j)
+            if (length <= 1)
+                return;
+
+            ref T first = ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), index);
+            ref T last = ref Unsafe.Add(ref Unsafe.Add(ref first, length), -1);
+            do
             {
-                T temp = Unsafe.Add(ref p, i);
-                Unsafe.Add(ref p, i) = Unsafe.Add(ref p, j);
-                Unsafe.Add(ref p, j) = temp;
-                i++;
-                j--;
-            }
+                T temp = first;
+                first = last;
+                last = temp;
+                first = ref Unsafe.Add(ref first, 1);
+                last = ref Unsafe.Add(ref last, -1);
+            } while (Unsafe.IsAddressLessThan(ref first, ref last));
         }
 
         // Sorts the elements of an array. The sort compares the elements to each
