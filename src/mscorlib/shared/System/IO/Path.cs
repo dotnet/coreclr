@@ -23,6 +23,7 @@ namespace System.IO
         // For generating random file names
         // 8 random bytes provides 12 chars in our encoding for the 8.3 name.
         private const int KeyLength = 8;
+        private const int RandomFileNameLength = 12;
 
         [Obsolete("Please use GetInvalidPathChars or GetInvalidFileNameChars instead.")]
         public static readonly char[] InvalidPathChars = GetInvalidPathChars();
@@ -223,15 +224,40 @@ namespace System.IO
         /// Returns a cryptographically strong random 8.3 string that can be
         /// used as either a folder name or a file name.
         /// </summary>
-        public static unsafe string GetRandomFileName()
+        public static string GetRandomFileName()
         {
-            byte* pKey = stackalloc byte[KeyLength];
-            Interop.GetRandomBytes(pKey, KeyLength);
+            Span<char> buffer = stackalloc char[RandomFileNameLength];
+            bool result = TryGetRandomFileName(buffer, out int charsWritten);
 
-            const int RandomFileNameLength = 12;
-            char* pRandomFileName = stackalloc char[RandomFileNameLength];
-            Populate83FileNameFromRandomBytes(pKey, KeyLength, pRandomFileName, RandomFileNameLength);
-            return new string(pRandomFileName, 0, RandomFileNameLength);
+            Debug.Assert(charsWritten == RandomFileNameLength);
+            Debug.Assert(result);
+
+            return new string(buffer);
+        }
+
+        /// <summary>
+        /// Returns a cryptographically strong random 8.3 string that can be
+        /// used as either a folder name or a file name.
+        /// </summary>
+        /// <remarks>
+        /// charsWritten can be only zero or 12.
+        /// </remarks>
+        public static unsafe bool TryGetRandomFileName(Span<char> destination, out int charsWritten)
+        {
+            charsWritten = 0;
+
+            if (destination.Length < RandomFileNameLength)
+                return false;
+
+            Span<byte> pKey = stackalloc byte[KeyLength];
+            fixed (byte* p = &pKey.GetPinnableReference())
+            {
+                Interop.GetRandomBytes(p, pKey.Length);
+            }
+
+            Populate83FileNameFromRandomBytes(pKey, destination);
+            charsWritten = RandomFileNameLength;
+            return true;
         }
 
         /// <summary>
@@ -619,14 +645,14 @@ namespace System.IO
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                 'y', 'z', '0', '1', '2', '3', '4', '5'};
 
-        private static unsafe void Populate83FileNameFromRandomBytes(byte* bytes, int byteCount, char* chars, int charCount)
+        private static void Populate83FileNameFromRandomBytes(Span<byte> bytes, Span<char> chars)
         {
             Debug.Assert(bytes != null);
             Debug.Assert(chars != null);
 
-            // This method requires bytes of length 8 and chars of length 12.
-            Debug.Assert(byteCount == 8, $"Unexpected {nameof(byteCount)}");
-            Debug.Assert(charCount == 12, $"Unexpected {nameof(charCount)}");
+            // This method requires bytes of length 8 and chars of length >= 12.
+            Debug.Assert(bytes.Length == 8, $"Unexpected bytes.Length");
+            Debug.Assert(chars.Length >= 12, $"Unexpected chars.Length");
 
             byte b0 = bytes[0];
             byte b1 = bytes[1];
