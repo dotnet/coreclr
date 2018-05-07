@@ -9748,7 +9748,7 @@ void MethodTableBuilder::CheckForSystemTypes()
         {
             // Utf8Strings are not "normal" objects, so we need to mess with their method table a bit
             // so that the GC can figure out how big each string is...
-            DWORD baseSize = ObjSizeOf(Utf8StringObject) + sizeof(BYTE);
+            DWORD baseSize = Utf8StringObject::GetBaseSize();
             pMT->SetBaseSize(baseSize); // NULL character included
 
             GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);

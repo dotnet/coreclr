@@ -72,12 +72,18 @@ __forceinline /*static*/ SIZE_T StringObject::GetSize(DWORD strLen)
     return GetBaseSize() + strLen * sizeof(WCHAR);
 }
 
+__forceinline /*static*/ DWORD Utf8StringObject::GetBaseSize()
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return ObjSizeOf(Object) + sizeof(DWORD) /* length */ + sizeof(BYTE) /* null terminator */;
+}
+
 __forceinline /*static*/ SIZE_T Utf8StringObject::GetSize(DWORD strLen)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    // Extra BYTE for null terminator
-    return ObjSizeOf(Utf8StringObject) + sizeof(BYTE) + strLen;
+    return GetBaseSize() + strLen;
 }
 
 #ifdef DACCESS_COMPILE

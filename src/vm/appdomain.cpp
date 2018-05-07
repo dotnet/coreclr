@@ -2762,8 +2762,6 @@ void SystemDomain::LoadBaseSystemClasses()
 
     // Load Utf8String
     g_pUtf8StringClass = MscorlibBinder::GetClass(CLASS__UTF8_STRING);
-    _ASSERTE(g_pUtf8StringClass->GetBaseSize() == ObjSizeOf(Utf8StringObject)+sizeof(BYTE));
-    _ASSERTE(g_pUtf8StringClass->GetComponentSize() == 1);
 
     // Used by Buffer::BlockCopy
     g_pByteArrayMT = ClassLoader::LoadArrayTypeThrowing(

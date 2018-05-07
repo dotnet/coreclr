@@ -1198,11 +1198,6 @@ public:
 
 };
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4200)     // disable zero-sized array warning
-#endif
-
-#include <pshpack4.h>
 class Utf8StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -1211,10 +1206,7 @@ class Utf8StringObject : public Object
 
 private:
     DWORD   m_StringLength;
-    BYTE    m_Characters[0];
-    // GC will see a Utf8StringObject like this:
-    //   DWORD m_StringLength
-    //   BYTE  m_Characters[0]
+    BYTE   m_FirstChar;
 
 public:
     VOID    SetLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
@@ -1224,9 +1216,9 @@ protected:
     ~Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
 
 public:
+    static DWORD GetBaseSize();
     static SIZE_T GetSize(DWORD stringLength);
 };
-#include <poppack.h>
 
 // This is the Method version of the Reflection object.
 //  A Method has adddition information.
