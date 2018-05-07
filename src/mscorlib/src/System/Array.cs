@@ -1528,6 +1528,9 @@ namespace System
             if (array.Rank != 1)
                 ThrowHelper.ThrowRankException(ExceptionResource.Rank_MultiDimNotSupported);
 
+            if (length <= 1)
+                return;
+
             bool r = TrySZReverse(array, index, length);
             if (r)
                 return;
@@ -1559,13 +1562,9 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-
-            // The Span ctor might perform an unnecessary type check if T is a reference type,
-            // so we use MemoryMarshal.CreateSpan to suppress this check.
-
-            MemoryMarshal.CreateSpan(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), array.Length).Reverse();
+            Reverse(array, 0, array.Length);
         }
-
+        
         public static void Reverse<T>(T[] array, int index, int length)
         {
             if (array == null)
@@ -1575,7 +1574,19 @@ namespace System
             if ((uint)length > (uint)(array.Length - index))
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
-            MemoryMarshal.CreateSpan(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), index), length).Reverse();
+            if (length <= 1)
+                return;
+
+            ref T first = ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), index);
+            ref T last = ref Unsafe.Add(ref Unsafe.Add(ref first, length), -1);
+            do
+            {
+                T temp = first;
+                first = last;
+                last = temp;
+                first = ref Unsafe.Add(ref first, 1);
+                last = ref Unsafe.Add(ref last, -1);
+            } while (Unsafe.IsAddressLessThan(ref first, ref last));
         }
 
         // Sorts the elements of an array. The sort compares the elements to each
