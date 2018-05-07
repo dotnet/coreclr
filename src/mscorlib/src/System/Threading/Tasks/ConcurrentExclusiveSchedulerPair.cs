@@ -18,7 +18,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Security;
 
 namespace System.Threading.Tasks
 {
@@ -448,17 +447,6 @@ namespace System.Threading.Tasks
             }
         }
 
-#if PRENET45
-        /// <summary>
-        /// Type used with TaskCompletionSource(Of TResult) as the TResult
-        /// to ensure that the resulting task can't be upcast to something
-        /// that in the future could lead to compat problems.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses")]
-        [DebuggerNonUserCode]
-        private struct VoidTaskResult { }
-#endif
-
         /// <summary>
         /// Holder for lazily-initialized state about the completion of a scheduler pair.
         /// Completion is only triggered either by rare exceptional conditions or by
@@ -729,25 +717,7 @@ namespace System.Threading.Tasks
         internal static void ContractAssertMonitorStatus(object syncObj, bool held)
         {
             Debug.Assert(syncObj != null, "The monitor object to check must be provided.");
-#if PRENET45
-#if DEBUG
-            // This check is expensive,
-            // which is why it's protected by ShouldCheckMonitorStatus and controlled by an environment variable DEBUGSYNC.
-            if (ShouldCheckMonitorStatus)
-            {
-                bool exceptionThrown;
-                try
-                {
-                    Monitor.Pulse(syncObj); // throws a SynchronizationLockException if the monitor isn't held by this thread
-                    exceptionThrown = false;
-                }
-                catch (SynchronizationLockException) { exceptionThrown = true; }
-                Debug.Assert(held == !exceptionThrown, "The locking scheme was not correctly followed.");
-            }
-#endif
-#else
             Debug.Assert(Monitor.IsEntered(syncObj) == held, "The locking scheme was not correctly followed.");
-#endif
         }
 
         /// <summary>Gets the options to use for tasks.</summary>
@@ -759,12 +729,7 @@ namespace System.Threading.Tasks
         /// <returns>The options to use.</returns>
         internal static TaskCreationOptions GetCreationOptionsForTask(bool isReplacementReplica = false)
         {
-            TaskCreationOptions options =
-#if PRENET45
-                TaskCreationOptions.None;
-#else
-                TaskCreationOptions.DenyChildAttach;
-#endif
+            TaskCreationOptions options = TaskCreationOptions.DenyChildAttach;
             if (isReplacementReplica) options |= TaskCreationOptions.PreferFairness;
             return options;
         }
