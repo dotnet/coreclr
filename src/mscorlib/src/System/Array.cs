@@ -1569,9 +1569,11 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if ((uint)index > (uint)array.Length)
-                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            if ((uint)length > (uint)(array.Length - index))
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+            if (array.Length - index < length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
 
             if (length <= 1)
