@@ -439,6 +439,7 @@ namespace System
         index1,
         index2,
         index3,
+        items,
         other,
         comparer,
         endIndex,

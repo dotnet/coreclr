@@ -35,8 +35,8 @@ namespace System.Collections.Concurrent
     /// concurrently from multiple threads.
     /// </remarks>
     [DebuggerDisplay("Count = {Count}")]
-    [DebuggerTypeProxy(typeof(SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<>))]
-    internal class ConcurrentStack<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
+    [DebuggerTypeProxy(typeof(IProducerConsumerCollectionDebugView<>))]
+    public class ConcurrentStack<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
     {
         /// <summary>
         /// A simple (internal) node type used to store elements of concurrent stacks and queues.
@@ -66,6 +66,62 @@ namespace System.Collections.Concurrent
         /// </summary>
         public ConcurrentStack()
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ConcurrentStack{T}"/>
+        /// class that contains elements copied from the specified collection
+        /// </summary>
+        /// <param name="collection">The collection whose elements are copied to the new <see
+        /// cref="ConcurrentStack{T}"/>.</param>
+        /// <exception cref="T:System.ArgumentNullException">The <paramref name="collection"/> argument is
+        /// null.</exception>
+        public ConcurrentStack(IEnumerable<T> collection)
+        {
+            if (collection == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
+            }
+            InitializeFromCollection(collection);
+        }
+
+        /// <summary>
+        /// Initializes the contents of the stack from an existing collection.
+        /// </summary>
+        /// <param name="collection">A collection from which to copy elements.</param>
+        private void InitializeFromCollection(IEnumerable<T> collection)
+        {
+            // We just copy the contents of the collection to our stack.
+            Node lastNode = null;
+            foreach (T element in collection)
+            {
+                Node newNode = new Node(element);
+                newNode._next = lastNode;
+                lastNode = newNode;
+            }
+
+            _head = lastNode;
+        }
+
+
+        /// <summary>
+        /// Gets a value that indicates whether the <see cref="ConcurrentStack{T}"/> is empty.
+        /// </summary>
+        /// <value>true if the <see cref="ConcurrentStack{T}"/> is empty; otherwise, false.</value>
+        /// <remarks>
+        /// For determining whether the collection contains any items, use of this property is recommended
+        /// rather than retrieving the number of items from the <see cref="Count"/> property and comparing it
+        /// to 0.  However, as this collection is intended to be accessed concurrently, it may be the case
+        /// that another thread will modify the collection after <see cref="IsEmpty"/> returns, thus invalidating
+        /// the result.
+        /// </remarks>
+        public bool IsEmpty
+        {
+            // Checks whether the stack is empty. Clearly the answer may be out of date even prior to
+            // the function returning (i.e. if another thread concurrently adds to the stack). It does
+            // guarantee, however, that, if another thread does not mutate the stack, a subsequent call
+            // to TryPop will return true -- i.e. it will also read the stack as non-empty.
+            get { return _head == null; }
         }
 
         /// <summary>
@@ -130,6 +186,18 @@ namespace System.Collections.Concurrent
                 ThrowHelper.ThrowNotSupportedException(ExceptionResource.ConcurrentCollection_SyncRoot_NotSupported);
                 return default(object);
             }
+        }
+
+        /// <summary>
+        /// Removes all objects from the <see cref="ConcurrentStack{T}"/>.
+        /// </summary>
+        public void Clear()
+        {
+            // Clear the list by setting the head to null. We don't need to use an atomic
+            // operation for this: anybody who is mutating the head by pushing or popping
+            // will need to use an atomic operation to guarantee they serialize and don't
+            // overwrite our setting of the head to null.
+            _head = null;
         }
 
         /// <summary>
@@ -231,6 +299,78 @@ namespace System.Collections.Concurrent
             PushCore(newNode, newNode);
         }
 
+        /// <summary>
+        /// Inserts multiple objects at the top of the <see cref="ConcurrentStack{T}"/> atomically.
+        /// </summary>
+        /// <param name="items">The objects to push onto the <see cref="ConcurrentStack{T}"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="items"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <remarks>
+        /// When adding multiple items to the stack, using PushRange is a more efficient
+        /// mechanism than using <see cref="Push"/> one item at a time.  Additionally, PushRange
+        /// guarantees that all of the elements will be added atomically, meaning that no other threads will
+        /// be able to inject elements between the elements being pushed.  Items at lower indices in
+        /// the <paramref name="items"/> array will be pushed before items at higher indices.
+        /// </remarks>
+        public void PushRange(T[] items)
+        {
+            if (items == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
+            }
+            PushRange(items, 0, items.Length);
+        }
+
+        /// <summary>
+        /// Inserts multiple objects at the top of the <see cref="ConcurrentStack{T}"/> atomically.
+        /// </summary>
+        /// <param name="items">The objects to push onto the <see cref="ConcurrentStack{T}"/>.</param>
+        /// <param name="startIndex">The zero-based offset in <paramref name="items"/> at which to begin
+        /// inserting elements onto the top of the <see cref="ConcurrentStack{T}"/>.</param>
+        /// <param name="count">The number of elements to be inserted onto the top of the <see
+        /// cref="ConcurrentStack{T}"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="items"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="startIndex"/> or <paramref
+        /// name="count"/> is negative. Or <paramref name="startIndex"/> is greater than or equal to the length 
+        /// of <paramref name="items"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="startIndex"/> + <paramref name="count"/> is
+        /// greater than the length of <paramref name="items"/>.</exception>
+        /// <remarks>
+        /// When adding multiple items to the stack, using PushRange is a more efficient
+        /// mechanism than using <see cref="Push"/> one item at a time. Additionally, PushRange
+        /// guarantees that all of the elements will be added atomically, meaning that no other threads will
+        /// be able to inject elements between the elements being pushed. Items at lower indices in the
+        /// <paramref name="items"/> array will be pushed before items at higher indices.
+        /// </remarks>
+        public void PushRange(T[] items, int startIndex, int count)
+        {
+            ValidatePushPopRangeInput(items, startIndex, count);
+
+            // No op if the count is zero
+            if (count == 0)
+                return;
+
+
+            Node head, tail;
+            head = tail = new Node(items[startIndex]);
+            for (int i = startIndex + 1; i < startIndex + count; i++)
+            {
+                Node node = new Node(items[i]);
+                node._next = head;
+                head = node;
+            }
+
+            tail._next = _head;
+            if (Interlocked.CompareExchange(ref _head, head, tail._next) == tail._next)
+            {
+                return;
+            }
+
+            // If we failed, go to the slow path and loop around until we succeed.
+            PushCore(head, tail);
+        }
+
 
         /// <summary>
         /// Push one or many nodes into the stack, if head and tails are equal then push one node to the stack other wise push the list between head
@@ -251,6 +391,78 @@ namespace System.Collections.Concurrent
             }
             while (Interlocked.CompareExchange(
                 ref _head, head, tail._next) != tail._next);
+
+            if (CDSCollectionETWBCLProvider.Log.IsEnabled())
+            {
+                CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPushFailed(spin.Count);
+            }
+        }
+
+        /// <summary>
+        /// Local helper function to validate the Pop Push range methods input
+        /// </summary>
+        private static void ValidatePushPopRangeInput(T[] items, int startIndex, int count)
+        {
+            if (items == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ConcurrentStack_PushPopRange_CountOutOfRange);
+            }
+            int length = items.Length;
+            if (startIndex >= length || startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ConcurrentStack_PushPopRange_StartOutOfRange);
+            }
+            if (length - count < startIndex) //instead of (startIndex + count > items.Length) to prevent overflow
+            {
+                throw new ArgumentException(SR.ConcurrentStack_PushPopRange_InvalidCount);
+            }
+        }
+
+        /// <summary>
+        /// Attempts to add an object to the <see
+        /// cref="T:System.Collections.Concurrent.IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">The object to add to the <see
+        /// cref="T:System.Collections.Concurrent.IProducerConsumerCollection{T}"/>. The value can be a null
+        /// reference (Nothing in Visual Basic) for reference types.
+        /// </param>
+        /// <returns>true if the object was added successfully; otherwise, false.</returns>
+        /// <remarks>For <see cref="ConcurrentStack{T}"/>, this operation
+        /// will always insert the object onto the top of the <see cref="ConcurrentStack{T}"/>
+        /// and return true.</remarks>
+        bool IProducerConsumerCollection<T>.TryAdd(T item)
+        {
+            Push(item);
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to return an object from the top of the <see cref="ConcurrentStack{T}"/>
+        /// without removing it.
+        /// </summary>
+        /// <param name="result">When this method returns, <paramref name="result"/> contains an object from
+        /// the top of the <see cref="T:System.Collections.Concurrent.ConcurrentStack{T}"/> or an
+        /// unspecified value if the operation failed.</param>
+        /// <returns>true if and object was returned successfully; otherwise, false.</returns>
+        public bool TryPeek(out T result)
+        {
+            Node head = _head;
+
+            // If the stack is empty, return false; else return the element and true.
+            if (head == null)
+            {
+                result = default(T);
+                return false;
+            }
+            else
+            {
+                result = head._value;
+                return true;
+            }
         }
 
         /// <summary>
@@ -280,6 +492,81 @@ namespace System.Collections.Concurrent
 
             // Fall through to the slow path.
             return TryPopCore(out result);
+        }
+
+        /// <summary>
+        /// Attempts to pop and return multiple objects from the top of the <see cref="ConcurrentStack{T}"/>
+        /// atomically.
+        /// </summary>
+        /// <param name="items">
+        /// The <see cref="T:System.Array"/> to which objects popped from the top of the <see
+        /// cref="ConcurrentStack{T}"/> will be added.
+        /// </param>
+        /// <returns>The number of objects successfully popped from the top of the <see
+        /// cref="ConcurrentStack{T}"/> and inserted in
+        /// <paramref name="items"/>.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="items"/> is a null argument (Nothing
+        /// in Visual Basic).</exception>
+        /// <remarks>
+        /// When popping multiple items, if there is little contention on the stack, using
+        /// TryPopRange can be more efficient than using <see cref="TryPop"/>
+        /// once per item to be removed.  Nodes fill the <paramref name="items"/>
+        /// with the first node to be popped at the startIndex, the second node to be popped
+        /// at startIndex + 1, and so on.
+        /// </remarks>
+        public int TryPopRange(T[] items)
+        {
+            if (items == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.items);
+            }
+
+            return TryPopRange(items, 0, items.Length);
+        }
+
+        /// <summary>
+        /// Attempts to pop and return multiple objects from the top of the <see cref="ConcurrentStack{T}"/>
+        /// atomically.
+        /// </summary>
+        /// <param name="items">
+        /// The <see cref="T:System.Array"/> to which objects popped from the top of the <see
+        /// cref="ConcurrentStack{T}"/> will be added.
+        /// </param>
+        /// <param name="startIndex">The zero-based offset in <paramref name="items"/> at which to begin
+        /// inserting elements from the top of the <see cref="ConcurrentStack{T}"/>.</param>
+        /// <param name="count">The number of elements to be popped from top of the <see
+        /// cref="ConcurrentStack{T}"/> and inserted into <paramref name="items"/>.</param>
+        /// <returns>The number of objects successfully popped from the top of 
+        /// the <see cref="ConcurrentStack{T}"/> and inserted in <paramref name="items"/>.</returns>        
+        /// <exception cref="ArgumentNullException"><paramref name="items"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="startIndex"/> or <paramref
+        /// name="count"/> is negative. Or <paramref name="startIndex"/> is greater than or equal to the length 
+        /// of <paramref name="items"/>.</exception>
+        /// <exception cref="ArgumentException"><paramref name="startIndex"/> + <paramref name="count"/> is
+        /// greater than the length of <paramref name="items"/>.</exception>
+        /// <remarks>
+        /// When popping multiple items, if there is little contention on the stack, using
+        /// TryPopRange can be more efficient than using <see cref="TryPop"/>
+        /// once per item to be removed.  Nodes fill the <paramref name="items"/>
+        /// with the first node to be popped at the startIndex, the second node to be popped
+        /// at startIndex + 1, and so on.
+        /// </remarks>
+        public int TryPopRange(T[] items, int startIndex, int count)
+        {
+            ValidatePushPopRangeInput(items, startIndex, count);
+
+            // No op if the count is zero
+            if (count == 0)
+                return 0;
+
+            Node poppedHead;
+            int nodesCount = TryPopCore(count, out poppedHead);
+            if (nodesCount > 0)
+            {
+                CopyRemovedItems(poppedHead, items, startIndex, nodesCount);
+            }
+            return nodesCount;
         }
 
         /// <summary>
@@ -328,6 +615,11 @@ namespace System.Collections.Concurrent
                 // Is the stack empty?
                 if (head == null)
                 {
+                    if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
+                    {
+                        CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
+                    }
+
                     poppedHead = null;
                     return 0;
                 }
@@ -341,6 +633,11 @@ namespace System.Collections.Concurrent
                 // Try to swap the new head.  If we succeed, break out of the loop.
                 if (Interlocked.CompareExchange(ref _head, next._next, head) == head)
                 {
+                    if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
+                    {
+                        CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
+                    }
+
                     // Return the popped Node.
                     poppedHead = head;
                     return nodesCount;
@@ -367,6 +664,40 @@ namespace System.Collections.Concurrent
             }
         }
 #pragma warning restore 0420
+
+        /// <summary>
+        /// Local helper function to copy the popped elements into a given collection
+        /// </summary>
+        /// <param name="head">The head of the list to be copied</param>
+        /// <param name="collection">The collection to place the popped items in</param>
+        /// <param name="startIndex">the beginning of index of where to place the popped items</param>
+        /// <param name="nodesCount">The number of nodes.</param>
+        private static void CopyRemovedItems(Node head, T[] collection, int startIndex, int nodesCount)
+        {
+            Node current = head;
+            for (int i = startIndex; i < startIndex + nodesCount; i++)
+            {
+                collection[i] = current._value;
+                current = current._next;
+            }
+        }
+
+        /// <summary>
+        /// Attempts to remove and return an object from the <see
+        /// cref="T:System.Collections.Concurrent.IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">
+        /// When this method returns, if the operation was successful, <paramref name="item"/> contains the
+        /// object removed. If no object was available to be removed, the value is unspecified.
+        /// </param>
+        /// <returns>true if an element was removed and returned successfully; otherwise, false.</returns>
+        /// <remarks>For <see cref="ConcurrentStack{T}"/>, this operation will attempt to pope the object at
+        /// the top of the <see cref="ConcurrentStack{T}"/>.
+        /// </remarks>
+        bool IProducerConsumerCollection<T>.TryTake(out T item)
+        {
+            return TryPop(out item);
+        }
 
         /// <summary>
         /// Copies the items stored in the <see cref="ConcurrentStack{T}"/> to a new array.

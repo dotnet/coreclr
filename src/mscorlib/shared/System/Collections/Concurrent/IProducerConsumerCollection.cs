@@ -10,7 +10,6 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -24,7 +23,7 @@ namespace System.Collections.Concurrent
     /// All implementations of this interface must enable all members of this interface
     /// to be used concurrently from multiple threads.
     /// </remarks>
-    internal interface IProducerConsumerCollection<T> : IEnumerable<T>, ICollection
+    public interface IProducerConsumerCollection<T> : IEnumerable<T>, ICollection
     {
         /// <summary>
         /// Copies the elements of the <see cref="IProducerConsumerCollection{T}"/> to
@@ -49,6 +48,27 @@ namespace System.Collections.Concurrent
         void CopyTo(T[] array, int index);
 
         /// <summary>
+        /// Attempts to add an object to the <see
+        /// cref="IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">The object to add to the <see
+        /// cref="IProducerConsumerCollection{T}"/>.</param>
+        /// <returns>true if the object was added successfully; otherwise, false.</returns>
+        /// <exception cref="T:System.ArgumentException">The <paramref name="item"/> was invalid for this collection.</exception>
+        bool TryAdd(T item);
+
+        /// <summary>
+        /// Attempts to remove and return an object from the <see cref="IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">
+        /// When this method returns, if the object was removed and returned successfully, <paramref
+        /// name="item"/> contains the removed object. If no object was available to be removed, the value is
+        /// unspecified.
+        /// </param>
+        /// <returns>true if an object was removed and returned successfully; otherwise, false.</returns>
+        bool TryTake(out T item);
+
+        /// <summary>
         /// Copies the elements contained in the <see cref="IProducerConsumerCollection{T}"/> to a new array.
         /// </summary>
         /// <returns>A new array containing the elements copied from the <see cref="IProducerConsumerCollection{T}"/>.</returns>
@@ -60,8 +80,31 @@ namespace System.Collections.Concurrent
     /// collection's contents at a point in time.
     /// </summary>
     /// <typeparam name="T">The type of elements stored within.</typeparam>
-    internal sealed class SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<T>
+    public sealed class IProducerConsumerCollectionDebugView<T>
     {
-        private IProducerConsumerCollection<T> m_collection; // The collection being viewed.
+        private readonly IProducerConsumerCollection<T> _collection; // The collection being viewed.
+
+        /// <summary>
+        /// Constructs a new debugger view object for the provided collection object.
+        /// </summary>
+        /// <param name="collection">A collection to browse in the debugger.</param>
+        public IProducerConsumerCollectionDebugView(IProducerConsumerCollection<T> collection)
+        {
+            if (collection == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
+            }
+
+            _collection = collection;
+        }
+
+        /// <summary>
+        /// Returns a snapshot of the underlying collection's elements.
+        /// </summary>
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public T[] Items
+        {
+            get { return _collection.ToArray(); }
+        }
     }
 }
