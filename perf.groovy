@@ -344,7 +344,12 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         }
 
         def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/sandbox_logs/**')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.txt')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
         archiveSettings.addFiles('machinedata.json')
         archiveSettings.setAlwaysArchive()
 
