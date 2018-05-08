@@ -92489,7 +92489,7 @@ RelativePath=Loader\classloader\DefaultInterfaceMethods\constrainedcall\constrai
 WorkingDir=Loader\classloader\DefaultInterfaceMethods\constrainedcall\constrainedcall
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_FAIL;15353;EXCLUDED;
 HostStyle=0
 
 [ConvertToUInt32_r.cmd_11617]
@@ -92665,7 +92665,7 @@ RelativePath=tracing\tracevalidation\tracelogging\tracelogging\tracelogging.cmd
 WorkingDir=tracing\tracevalidation\tracelogging\tracelogging
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_FAIL;15494;EXCLUDED;
 HostStyle=0
 
 [DevDiv_543057a.cmd_11639]
@@ -94009,7 +94009,7 @@ RelativePath=tracing\eventsourcetrace\eventsourcetrace\eventsourcetrace.cmd
 WorkingDir=tracing\eventsourcetrace\eventsourcetrace
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_FAIL;15494;EXCLUDED;
 HostStyle=0
 
 [DotProduct_ro.cmd_11807]
