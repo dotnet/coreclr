@@ -111,8 +111,8 @@ namespace System.Reflection
                         continue;
                     if ((s.Length - i) < escapeReplacement.Length)
                         continue;
-                    string prefix = s.Substring(i, escapeReplacement.Length);
-                    if (prefix == escapeReplacement)
+                    ReadOnlySpan<char> prefix = s.AsSpan(i, escapeReplacement.Length);
+                    if (prefix.Equals(escapeReplacement, StringComparison.Ordinal))
                     {
                         sb.Append('\\');
                         sb.Append(kv.Key);
