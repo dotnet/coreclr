@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -223,6 +224,23 @@ namespace System.Collections.Generic
                 bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
                 Debug.Assert(modified);
             }
+        }
+
+        // Returns reference to value with given key.
+        // Hidden due to the following considerations:
+        // - Updating the value via ref will not change the _version 
+        // - Across a size change (Trim, Add leading to Resize, etc)
+        //   a held ref will cease to be a live ref to the Dictionary's data
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public ref TValue ValueRef(TKey key)
+        {
+            int i = FindEntry(key);
+            if (i < 0)
+            {
+                ThrowHelper.ThrowKeyNotFoundException(key);
+            }
+
+            return ref _entries[i].value;
         }
 
         public void Add(TKey key, TValue value)

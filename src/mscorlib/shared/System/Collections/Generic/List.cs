@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -170,6 +171,22 @@ namespace System.Collections.Generic
                 _items[index] = value;
                 _version++;
             }
+        }
+
+        // Returns reference to element at the given index.
+        // Hidden due to the following considerations:
+        // - Updating the value via ref will not change the _version 
+        // - Across a change=ing operation (Trim, Remove, Add leading to Resize, etc)
+        //   a held ref will cease to be a live ref to the List's data
+        //   or a reference to an different element (in same index)
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public ref T ItemRef(int index)
+        {
+            if ((uint)index >= (uint)_size)
+            {
+                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+            }
+            return ref _items[index];
         }
 
         private static bool IsCompatibleObject(object value)
