@@ -106,7 +106,7 @@ def static getOSGroup(def os) {
                             Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
                         }
                         def archiveSettings = new ArchivalSettings()
-                        archiveSettings.addFiles('bin/sandbox_logs/**/*.txt')
+                        archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
                         archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
                         archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                         archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
@@ -349,7 +349,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         }
 
         def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.txt')
+        archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
         archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
         archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
         archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
@@ -627,7 +627,7 @@ parallel(
                     }
 
                     def archiveSettings = new ArchivalSettings()
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.txt')
+                    archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
@@ -827,7 +827,7 @@ parallel(
                     }
 
                     def archiveSettings = new ArchivalSettings()
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.txt')
+                    archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
