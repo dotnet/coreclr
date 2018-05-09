@@ -809,21 +809,20 @@ namespace System.Globalization
         {
             Debug.Assert(charLen == 1 || charLen == 2, "[TextInfo.AddTitlecaseLetter] CharUnicodeInfo.InternalGetUnicodeCategory returned an unexpected charLen!");
 
-            // for surrogate pairs do a ToUpper operation on the substring
             if (charLen == 2)
             {
-                // Surrogate pair
+                // for surrogate pairs do a ToUpper operation on the substring
                 ReadOnlySpan<char> src = input.AsSpan(inputIndex, 2);
-                Span<char> dst = stackalloc char[2];
-                if (GlobalizationMode.Invariant)
+                if (_invariantMode)
                 {
-                    ToUpperAsciiInvariant(src, dst);
+                    result.Append(src); // surrogate pair in invariant mode, so changing case is a nop
                 }
                 else
                 {
+                    Span<char> dst = stackalloc char[2];
                     ChangeCase(src, dst, toUpper: true);
+                    result.Append(dst);
                 }
-                result.Append(dst);
                 inputIndex++;
             }
             else
