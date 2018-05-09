@@ -120,7 +120,7 @@ def static getOSGroup(def os) {
 
                         newJob.with {
                             logRotator {
-                                artifactDaysToKeep(30)
+                                artifactDaysToKeep(21)
                                 daysToKeep(30)
                                 artifactNumToKeep(200)
                                 numToKeep(200)
@@ -365,7 +365,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
         newJob.with {
             // Enable the log rotator
             logRotator {
-                artifactDaysToKeep(30)
+                artifactDaysToKeep(21)
                 daysToKeep(30)
                 artifactNumToKeep(200)
                 numToKeep(200)
@@ -641,7 +641,7 @@ parallel(
 
                     newJob.with {
                         logRotator {
-                            artifactDaysToKeep(30)
+                            artifactDaysToKeep(21)
                             daysToKeep(30)
                             artifactNumToKeep(200)
                             numToKeep(200)
@@ -754,7 +754,7 @@ parallel(
 
         newJob.with {
             logRotator {
-                artifactDaysToKeep(30)
+                artifactDaysToKeep(21)
                 daysToKeep(30)
                 artifactNumToKeep(200)
                 numToKeep(200)
@@ -843,7 +843,7 @@ parallel(
 
                     newJob.with {
                         logRotator {
-                            artifactDaysToKeep(30)
+                            artifactDaysToKeep(21)
                             daysToKeep(30)
                             artifactNumToKeep(200)
                             numToKeep(200)
