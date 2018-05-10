@@ -89,17 +89,34 @@ def generateEvent(eventNode, providerNode, outputFile, stringTable):
     writeOutput(outputFile, "public void " + eventNode.getAttribute("symbol") + "(")
 
     # Write the function signature.
+    argumentCount = 0
     if templateNode is not None:
-        argumentNodes = templateNode.getElementsByTagName("data")
+        argumentNodes = templateNode.childNodes
+
+        # Calculate the number of arguments.
+        for argumentNode in argumentNodes:
+            if argumentNode.nodeName == "data":
+                if argumentNode.getAttribute("inType") != "win:Binary":
+                    argumentCount += 1
+                else:
+                    break
+            elif argumentNode.nodeName == "struct":
+                break
+
+        argumentsProcessed = 0
         for argumentIndex in range(len(argumentNodes)):
             argumentNode = argumentNodes[argumentIndex]
-            argumentName = argumentNode.getAttribute("name")
-            argumentInType = argumentNode.getAttribute("inType")
-            argumentMap = argumentNode.getAttribute("map")
-            argumentCSharpType = getCSharpTypeFromManifestType(argumentInType)
-            outputFile.write(argumentCSharpType + " " + argumentName)
-            if argumentIndex < (len(argumentNodes) - 1):
-                outputFile.write(", ")
+            if argumentNode.nodeName == "data":
+                argumentName = argumentNode.getAttribute("name")
+                argumentInType = argumentNode.getAttribute("inType")
+                argumentMap = argumentNode.getAttribute("map")
+                argumentCSharpType = getCSharpTypeFromManifestType(argumentInType)
+                outputFile.write(argumentCSharpType + " " + argumentName)
+                argumentsProcessed += 1
+                if argumentsProcessed < argumentCount:
+                    outputFile.write(", ")
+            if argumentsProcessed == argumentCount:
+                break
 
     outputFile.write(")\n")
     writeOutput(outputFile, "{\n")
@@ -109,17 +126,18 @@ def generateEvent(eventNode, providerNode, outputFile, stringTable):
     writeOutput(outputFile, "WriteEvent(" + eventNode.getAttribute("value"))
 
     # Add method parameters.
-    if templateNode is not None:
+    if argumentCount > 0:
         # A ',' is needed after the event id.
         outputFile.write(", ")
 
         # Write the parameter names to the method call.
+        argumentsProcessed = 0
         argumentNodes = templateNode.getElementsByTagName("data")
-        for argumentIndex in range(len(argumentNodes)):
+        for argumentIndex in range(argumentCount):
             argumentNode = argumentNodes[argumentIndex]
             argumentName = argumentNode.getAttribute("name")
             outputFile.write(argumentName)
-            if argumentIndex < (len(argumentNodes) - 1):
+            if argumentIndex < (argumentCount - 1):
                 outputFile.write(", ")
 
     outputFile.write(");\n")
