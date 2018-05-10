@@ -50,6 +50,13 @@ manifestTypeToCSharpTypeMap = {
     "win:GUID" : "Guid",
 }
 
+overrideEnumBackingTypes = {
+    "Microsoft-Windows-DotNETRuntime" : {
+        "GCSuspendEEReasonMap" : "win:UInt32",
+        "GCRootKindMap" : "win:UInt32"
+    }
+}
+
 def getCSharpTypeFromManifestType(manifestType):
     return manifestTypeToCSharpTypeMap[manifestType]
 
@@ -110,7 +117,10 @@ def generateEvent(eventNode, providerNode, outputFile, stringTable):
                 argumentName = argumentNode.getAttribute("name")
                 argumentInType = argumentNode.getAttribute("inType")
                 argumentMap = argumentNode.getAttribute("map")
-                argumentCSharpType = getCSharpTypeFromManifestType(argumentInType)
+                if not argumentMap:
+                    argumentCSharpType = getCSharpTypeFromManifestType(argumentInType)
+                else:
+                    argumentCSharpType = argumentMap[:-3]
                 outputFile.write(argumentCSharpType + " " + argumentName)
                 argumentsProcessed += 1
                 if argumentsProcessed < argumentCount:
@@ -157,7 +167,7 @@ def generateEvents(providerNode, outputFile, stringTable):
     for eventNode in eventsNode.getElementsByTagName("event"):
         generateEvent(eventNode, providerNode, outputFile, stringTable)
 
-def generateValueMapEnums(providerNode, outputFile, stringTable):
+def generateValueMapEnums(providerNode, outputFile, stringTable, enumTypeMap):
 
     # Get the maps element.
     for node in providerNode.getElementsByTagName("maps"):
@@ -166,7 +176,14 @@ def generateValueMapEnums(providerNode, outputFile, stringTable):
 
     # Iterate over each map and create an enum out of it.
     for valueMapNode in mapsNode.getElementsByTagName("valueMap"):
-        writeOutput(outputFile, "public enum " + valueMapNode.getAttribute("name")[:-3] + "\n")
+
+        # Get the backing type of the enum.
+        typeName = enumTypeMap[valueMapNode.getAttribute("name")]
+        if typeName is None:
+            raise ValueError("No mapping from mapName to enum backing type.", valueMapNode.getAttribute("name"))
+
+        enumType = getCSharpTypeFromManifestType(typeName)
+        writeOutput(outputFile, "public enum " + valueMapNode.getAttribute("name")[:-3] + " : " + enumType + "\n")
         writeOutput(outputFile, "{\n")
         increaseTabLevel()
         for mapNode in valueMapNode.getElementsByTagName("map"):
@@ -176,7 +193,7 @@ def generateValueMapEnums(providerNode, outputFile, stringTable):
         decreaseTabLevel()
         writeOutput(outputFile, "}\n\n")
 
-def generateBitMapEnums(providerNode, outputFile, stringTable):
+def generateBitMapEnums(providerNode, outputFile, stringTable, enumTypeMap):
 
     # Get the maps element.
     for node in providerNode.getElementsByTagName("maps"):
@@ -185,8 +202,15 @@ def generateBitMapEnums(providerNode, outputFile, stringTable):
 
     # Iterate over each map and create an enum out of it.
     for valueMapNode in mapsNode.getElementsByTagName("bitMap"):
+
+        # Get the backing type of the enum.
+        typeName = enumTypeMap[valueMapNode.getAttribute("name")]
+        if typeName is None:
+            raise ValueError("No mapping from mapName to enum backing type.", valueMapNode.getAttribute("name"))
+
+        enumType = getCSharpTypeFromManifestType(typeName)
         writeOutput(outputFile, "[Flags]\n")
-        writeOutput(outputFile, "public enum " + valueMapNode.getAttribute("name")[:-3] + "\n")
+        writeOutput(outputFile, "public enum " + valueMapNode.getAttribute("name")[:-3] + " : " + enumType + "\n")
         writeOutput(outputFile, "{\n")
         increaseTabLevel()
         for mapNode in valueMapNode.getElementsByTagName("map"):
@@ -195,6 +219,56 @@ def generateBitMapEnums(providerNode, outputFile, stringTable):
             writeOutput(outputFile, stringTable[messageKey] + " = " + mapNode.getAttribute("value") + ",\n")
         decreaseTabLevel()
         writeOutput(outputFile, "}\n\n")
+
+def generateEnumTypeMap(providerNode):
+
+    providerName = providerNode.getAttribute("name")
+    templatesNodes = providerNode.getElementsByTagName("templates")
+    templatesNode = templatesNodes[0]
+    mapsNodes = providerNode.getElementsByTagName("maps")
+
+    # Keep a list of mapName -> inType.
+    # This map contains the first inType seen for the specified mapName.
+    typeMap = dict()
+
+    # There are a couple of maps that are used by multiple events but have different backing types.
+    # Because only one of the uses will be consumed by EventSource/EventListener we can hack the backing type here
+    # and suppress the warning that we'd otherwise get.
+    overrideTypeMap = dict()
+    if overrideEnumBackingTypes.has_key(providerName):
+        overrideTypeMap = overrideEnumBackingTypes[providerName]
+
+    for mapsNode in mapsNodes:
+        for valueMapNode in mapsNode.getElementsByTagName("valueMap"):
+            mapName = valueMapNode.getAttribute("name")
+            dataNodes = templatesNode.getElementsByTagName("data")
+
+            # If we've never seen the map used, save its usage with the inType.
+            # If we have seen the map used, make sure that the inType saved previously matches the current inType.
+            for dataNode in dataNodes:
+                if dataNode.getAttribute("map") == mapName:
+                    if overrideTypeMap.has_key(mapName):
+                        typeMap[mapName] = overrideTypeMap[mapName]
+                    elif typeMap.has_key(mapName) and typeMap[mapName] != dataNode.getAttribute("inType"):
+                        print("WARNING: Map " + mapName + " is used multiple times with different types.  This may cause functional bugs in tracing.")
+                    elif not typeMap.has_key(mapName):
+                        typeMap[mapName] = dataNode.getAttribute("inType")
+        for bitMapNode in mapsNode.getElementsByTagName("bitMap"):
+            mapName = bitMapNode.getAttribute("name")
+            dataNodes = templatesNode.getElementsByTagName("data")
+
+            # If we've never seen the map used, save its usage with the inType.
+            # If we have seen the map used, make sure that the inType saved previously matches the current inType.
+            for dataNode in dataNodes:
+                if dataNode.getAttribute("map") == mapName:
+                    if overrideTypeMap.has_key(mapName):
+                        typeMap[mapName] = overrideTypeMap[mapName]
+                    elif typeMap.has_key(mapName) and typeMap[mapName] != dataNode.getAttribute("inType"):
+                        print("Map " + mapName + " is used multiple times with different types.")
+                    elif not typeMap.has_key(mapName):
+                        typeMap[mapName] = dataNode.getAttribute("inType")
+
+    return typeMap
 
 def generateKeywordsClass(providerNode, outputFile):
 
@@ -267,11 +341,15 @@ namespace System.Diagnostics.Tracing
         # Write the keywords class.
         generateKeywordsClass(providerNode, outputFile)
 
+        # Generate the enum type map.
+        # This determines what the backing type for each enum should be.
+        enumTypeMap = generateEnumTypeMap(providerNode)
+
         # Generate enums for value maps.
-        generateValueMapEnums(providerNode, outputFile, stringTable)
+        generateValueMapEnums(providerNode, outputFile, stringTable, enumTypeMap)
 
         # Generate enums for bit maps.
-        generateBitMapEnums(providerNode, outputFile, stringTable)
+        generateBitMapEnums(providerNode, outputFile, stringTable, enumTypeMap)
 
         # Generate events.
         generateEvents(providerNode, outputFile, stringTable)
