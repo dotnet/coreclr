@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Reflection;
 using Microsoft.Xunit.Performance.Api;
 using System.Runtime.InteropServices;
 
 namespace JitBench
 {
-    class Word2VecBenchmark : MLBenchmark
+    class Word2VecBenchmark : Benchmark
     {
-        public Word2VecBenchmark() : base("Word2Vec") { }
+        private static readonly HashSet<int> DefaultExitCodes = new HashSet<int>(new[] { 0 });
+
+        public Word2VecBenchmark() : base("Word2Vec")
+        {
+            ExePath = "Word2VecScenario.dll";
+        }
 
         public override bool IsArchitectureSupported(Architecture arch)
         {
@@ -24,27 +28,9 @@ namespace JitBench
             //unless customers tell us its a problem'. I'm OK telling people not to use tiered jitting 
             //if their app already uses most of the address space on x86, and having an intermitently 
             //failing test in a perf suite won't give us useful info hence x64 only for this one.
+
             return arch == Architecture.X64;
         }
-
-        protected override string ExecutableName => "Word2VecScenario.dll";
-
-        protected override string GetWord2VecNetSrcDirectory(string outputDir)
-        {
-            return Path.Combine(GetWord2VecNetRepoRootDir(outputDir), "Word2VecScenario");
-        }
-    }
-
-    abstract class MLBenchmark : Benchmark
-    {
-        private static readonly HashSet<int> DefaultExitCodes = new HashSet<int>(new[] { 0 });
-
-        public MLBenchmark(string name) : base(name)
-        {
-            ExePath = ExecutableName;
-        }
-
-        protected abstract string ExecutableName { get; }
 
         public override async Task Setup(DotNetInstallation dotNetInstall, string outputDir, bool useExistingSetup, ITestOutputHelper output)
         {
@@ -223,7 +209,10 @@ namespace JitBench
             return Path.Combine(outputDir, "W"); 
         }
 
-        protected abstract string GetWord2VecNetSrcDirectory(string outputDir);
+        protected string GetWord2VecNetSrcDirectory(string outputDir)
+        {
+            return Path.Combine(GetWord2VecNetRepoRootDir(outputDir), "Word2VecScenario");
+        }
 
         string GetWord2VecNetPublishDirectory(DotNetInstallation dotNetInstall, string outputDir, string tfm)
         {
