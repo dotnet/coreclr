@@ -9,7 +9,7 @@
 // transform into the NullReference exception. VM is not able to do that when the first frame on the stack is
 // unmanaged, in this case it is JIT_TailCallHelperStub_ReturnAddress from tail call optimization.
 // To repro this issue on amd64/arm64 it also requires to reject fast tail call, for this puprose
-// `IMyComparer::Compare` has several stack arguments.
+// `Interface::InterfaceMethodWithStackArgs` has several stack arguments.
 
 // The fix is to always generate explicit null check before calling VSD with tail call from tail call frame.
 
@@ -27,37 +27,37 @@
 
 // =============== CLASS MEMBERS DECLARATION ===================
 
-.class interface private abstract auto ansi Intreface
+.class interface private abstract auto ansi Interface
 {
   .method public hidebysig newslot abstract virtual 
-          instance int32  InterfaceMethodWithStackArgs(object a,
-                                                       object b,
-                                                       object c,
-                                                       object d,
-                                                       object e,
-                                                       object f,
-                                                       object g,
-                                                       object h,
-                                                       object i) cil managed
+          instance int32  InterfaceMethodWithStackArgs(int32 a,
+                                                       int32 b,
+                                                       int32 c,
+                                                       int32 d,
+                                                       int32 e,
+                                                       int32 f,
+                                                       int32 g,
+                                                       int32 h,
+                                                       int32 i) cil managed
   {
-  } // end of method Intreface::InterfaceMethodWithStackArgs
+  } // end of method Interface::InterfaceMethodWithStackArgs
 
-} // end of class Intreface
+} // end of class Interface
 
 .class private auto ansi beforefieldinit InterfaceImplementation
        extends [System.Runtime]System.Object
-       implements Intreface
+       implements Interface
 {
   .method public hidebysig newslot virtual final 
-          instance int32  InterfaceMethodWithStackArgs(object a,
-                                                       object b,
-                                                       object c,
-                                                       object d,
-                                                       object e,
-                                                       object f,
-                                                       object g,
-                                                       object h,
-                                                       object i) cil managed
+          instance int32  InterfaceMethodWithStackArgs(int32 a,
+                                                       int32 b,
+                                                       int32 c,
+                                                       int32 d,
+                                                       int32 e,
+                                                       int32 f,
+                                                       int32 g,
+                                                       int32 h,
+                                                       int32 i) cil managed
   {
     // Code size       2 (0x2)
     .maxstack  8
@@ -80,39 +80,30 @@
 .class private auto ansi beforefieldinit Test
        extends [System.Runtime]System.Object
 {
-  .method public hidebysig static int32  CallInterfaceMethod(class Intreface comparer) cil managed
+  .method public hidebysig static int32  CallInterfaceMethod(class Interface iface) cil managed
   {
-    // Code size       62 (0x3e)
+    // Code size       17 (0x11)
     .maxstack  10
     IL_0000:  ldarg.0
     IL_0001:  ldc.i4.1
-    IL_0002:  box        [System.Runtime]System.Int32
-    IL_0007:  ldc.i4.2
-    IL_0008:  box        [System.Runtime]System.Int32
-    IL_000d:  ldc.i4.3
-    IL_000e:  box        [System.Runtime]System.Int32
-    IL_0013:  ldc.i4.4
-    IL_0014:  box        [System.Runtime]System.Int32
-    IL_0019:  ldc.i4.5
-    IL_001a:  box        [System.Runtime]System.Int32
-    IL_001f:  ldc.i4.6
-    IL_0020:  box        [System.Runtime]System.Int32
-    IL_0025:  ldc.i4.7
-    IL_0026:  box        [System.Runtime]System.Int32
-    IL_002b:  ldc.i4.8
-    IL_002c:  box        [System.Runtime]System.Int32
-    IL_0031:  ldc.i4.s   9
-    IL_0033:  box        [System.Runtime]System.Int32
-    IL_0038:  tail. callvirt   instance int32 Intreface::InterfaceMethodWithStackArgs(object,
-                                                                                object,
-                                                                                object,
-                                                                                object,
-                                                                                object,
-                                                                                object,
-                                                                                object,
-                                                                                object,
-                                                                                object)
-    IL_003d:  ret
+    IL_0002:  ldc.i4.2
+    IL_0003:  ldc.i4.3
+    IL_0004:  ldc.i4.4
+    IL_0005:  ldc.i4.5
+    IL_0006:  ldc.i4.6
+    IL_0007:  ldc.i4.7
+    IL_0008:  ldc.i4.8
+    IL_0009:  ldc.i4.s   9
+    IL_000b:  tail. callvirt   instance int32 Interface::InterfaceMethodWithStackArgs(int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32,
+                                                                                int32)
+    IL_0010:  ret
   } // end of method Test::CallInterfaceMethod
 
   .method public hidebysig static int32  Main() cil managed
@@ -120,19 +111,19 @@
     .entrypoint
     // Code size       35 (0x23)
     .maxstack  1
-    .locals init ([0] class InterfaceImplementation comparer)
+    .locals init ([0] class InterfaceImplementation iface)
     IL_0000:  newobj     instance void InterfaceImplementation::.ctor()
     IL_0005:  stloc.0
     IL_0006:  ldloc.0
-    IL_0007:  call       int32 Test::CallInterfaceMethod(class Intreface)
+    IL_0007:  call       int32 Test::CallInterfaceMethod(class Interface)
     IL_000c:  pop
     IL_000d:  ldloc.0
-    IL_000e:  call       int32 Test::CallInterfaceMethod(class Intreface)
+    IL_000e:  call       int32 Test::CallInterfaceMethod(class Interface)
     IL_0013:  pop
     .try
     {
       IL_0014:  ldnull
-      IL_0015:  call       int32 Test::CallInterfaceMethod(class Intreface)
+      IL_0015:  call       int32 Test::CallInterfaceMethod(class Interface)
       IL_001a:  pop
       IL_001b:  leave.s    IL_0020
 
