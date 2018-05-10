@@ -57,7 +57,7 @@
                                                        int32 f,
                                                        int32 g,
                                                        int32 h,
-                                                       int32 i) cil managed
+                                                       int32 i) cil managed noinlining
   {
     // Code size       2 (0x2)
     .maxstack  8
@@ -80,7 +80,7 @@
 .class private auto ansi beforefieldinit Test
        extends [System.Runtime]System.Object
 {
-  .method public hidebysig static int32  CallInterfaceMethod(class Interface iface) cil managed
+  .method public hidebysig static int32  CallInterfaceMethod(class Interface iface) cil managed noinlining
   {
     // Code size       17 (0x11)
     .maxstack  10
