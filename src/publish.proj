@@ -30,13 +30,14 @@
     <FinalPublishPattern>$(PackageDownloadDirectory)\**\*.nupkg</FinalPublishPattern>
     <FinalPublishPrivatePattern>$(PackageDownloadDirectory)\**\*Private*.nupkg</FinalPublishPrivatePattern>
     <FinalSymbolsPackagesPattern>$(PackageDownloadDirectory)\**\*.symbols.nupkg</FinalSymbolsPackagesPattern>
+    <FinalTransportPackagesPattern>$(PackageDownloadDirectory)\**\transport*.nupkg</FinalTransportPackagesPattern>
     <!-- The SignFiles target needs OutDir to be defined -->
     <OutDir>$(PackageDownloadDirectory)</OutDir>
   </PropertyGroup>
 
   <Target Name="GetPackagesToSign">
     <ItemGroup>
-      <FilesToSign Include="$(FinalPublishPattern)" Exclude="$(FinalPublishPrivatePattern);$(FinalSymbolsPackagesPattern)">
+      <FilesToSign Include="$(FinalPublishPattern)" Exclude="$(FinalPublishPrivatePattern);$(FinalSymbolsPackagesPattern);$(FinalTransportPackagesPattern)">
         <Authenticode>NuGet</Authenticode>
       </FilesToSign>
     </ItemGroup>
