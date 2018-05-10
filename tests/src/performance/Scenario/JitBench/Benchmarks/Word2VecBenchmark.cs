@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Xunit.Performance.Api;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace JitBench
 {
@@ -129,6 +130,7 @@ namespace JitBench
             double? trainingTime = null;
             double? firstSearchTime = null;
             double? steadyStateMedianTime = null;
+            var currentDecimalSeparator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
             using (var reader = new StringReader(stdout))
             {
@@ -149,7 +151,7 @@ namespace JitBench
                         continue;
                     }
 
-                    match = Regex.Match(line, @"^Steadystate median search time: \s*(\d+\.\d+)ms$");
+                    match = Regex.Match(line, $@"^Steadystate median search time: \s*(\d+\{currentDecimalSeparator}\d+)ms$");
                     if (match.Success && match.Groups.Count == 2)
                     {
                         //many lines will match, but the final values of these variables will be from the last batch which is presumably the
