@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Xunit.Performance.Api;
 using System.Runtime.InteropServices;
-using System.Threading;
+using System.Globalization;
 
 namespace JitBench
 {
@@ -130,7 +130,7 @@ namespace JitBench
             double? trainingTime = null;
             double? firstSearchTime = null;
             double? steadyStateMedianTime = null;
-            var currentDecimalSeparator = Thread.CurrentThread.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+            var currentDecimalSeparator = CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
 
             using (var reader = new StringReader(stdout))
             {
