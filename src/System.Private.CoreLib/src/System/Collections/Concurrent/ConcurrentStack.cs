@@ -409,6 +409,36 @@ namespace System.Collections.Concurrent
         }
 
         /// <summary>
+        /// Attempts to add an object to the <see cref="Concurrent.IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">The object to add to the <see
+        /// cref="Concurrent.IProducerConsumerCollection{T}"/>. The value can be a null
+        /// reference (Nothing in Visual Basic) for reference types.
+        /// </param>
+        /// <returns>true if the object was added successfully; otherwise, false.</returns>
+        /// <remarks>For <see cref="ConcurrentQueue{T}"/>, this operation will always add the object to the
+        /// end of the <see cref="ConcurrentQueue{T}"/>
+        /// and return true.</remarks>
+        bool IProducerConsumerCollection<T>.TryAdd(T item)
+        {
+            Push(item);
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to remove and return an object from the <see cref="Concurrent.IProducerConsumerCollection{T}"/>.
+        /// </summary>
+        /// <param name="item">
+        /// When this method returns, if the operation was successful, <paramref name="item"/> contains the
+        /// object removed. If no object was available to be removed, the value is unspecified.
+        /// </param>
+        /// <returns>true if an element was removed and returned successfully; otherwise, false.</returns>
+        /// <remarks>For <see cref="ConcurrentQueue{T}"/>, this operation will attempt to remove the object
+        /// from the beginning of the <see cref="ConcurrentQueue{T}"/>.
+        /// </remarks>
+        bool IProducerConsumerCollection<T>.TryTake(out T item) => TryPop(out item);
+
+        /// <summary>
         /// Returns an enumerator that iterates through the <see cref="ConcurrentStack{T}"/>.
         /// </summary>
         /// <returns>An enumerator for the <see cref="ConcurrentStack{T}"/>.</returns>

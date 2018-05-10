@@ -571,7 +571,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentStack.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\IProducerConsumerCollection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentDictionary.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentQueue.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeWaitHandle.cs" />
