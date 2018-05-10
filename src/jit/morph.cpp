@@ -7836,6 +7836,14 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     JITDUMP("fgMorphTailCall (before):\n");
     DISPTREE(call);
 
+    // The runtime requires that we perforrm a null check on the `this` argument before tail
+    // calling to a virtual dispatch stub. This requirement is a consequence of limitations in the runtime's
+    // ability to map an AV to a NullReferenceException if the AV occurs in a dispatch stub.
+    if (call->IsVirtualStub())
+    {
+        call->gtFlags |= GTF_CALL_NULLCHECK;
+    }
+
 #if defined(_TARGET_ARM_)
     // For the helper-assisted tail calls, we need to push all the arguments
     // into a single list, and then add a few extra at the beginning
@@ -8090,14 +8098,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
         }
 #endif // _TARGET_X86_
 
-#if defined(_TARGET_X86_)
-        // When targeting x86, the runtime requires that we perforrm a null check on the `this` argument before tail
-        // calling to a virtual dispatch stub. This requirement is a consequence of limitations in the runtime's
-        // ability to map an AV to a NullReferenceException if the AV occurs in a dispatch stub.
-        if (call->NeedsNullCheck() || call->IsVirtualStub())
-#else
         if (call->NeedsNullCheck())
-#endif // defined(_TARGET_X86_)
         {
             // clone "this" if "this" has no side effects.
             if ((thisPtr == nullptr) && !(objp->gtFlags & GTF_SIDE_EFFECT))
@@ -8206,6 +8207,9 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     call->gtFlags &= ~GTF_CALL_POP_ARGS;
 
 #endif // _TARGET_*
+
+    // The function is responsible for doing explicit null check when it is neseccary.
+    assert(!call->NeedsNullCheck());
 
     JITDUMP("fgMorphTailCall (after):\n");
     DISPTREE(call);
