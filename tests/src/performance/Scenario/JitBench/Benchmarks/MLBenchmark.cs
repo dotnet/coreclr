@@ -67,11 +67,8 @@ namespace JitBench
             string word2VecNetRepoRootDir = GetWord2VecNetRepoRootDir(outputDir);
             FileTasks.DeleteDirectory(word2VecNetRepoRootDir, output);
 
-            string word2VecPatchFullPath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), Word2VecNetPatch);
-
             await ExecuteGitCommand($"clone {Word2VecNetRepoUrl} {word2VecNetRepoRootDir}", output);
             await ExecuteGitCommand($"checkout {Word2VecNetCommitSha1Id}", output, workingDirectory: word2VecNetRepoRootDir);
-            await ExecuteGitCommand($"apply {word2VecPatchFullPath}", output, workingDirectory: word2VecNetRepoRootDir);
         }
 
         async Task ExecuteGitCommand(string arguments, ITestOutputHelper output, string workingDirectory = null)
@@ -257,9 +254,8 @@ namespace JitBench
             return workspace;
         }
 
-        private const string Word2VecNetRepoUrl = "https://github.com/eabdullin/Word2Vec.Net";
-        private const string Word2VecNetCommitSha1Id = "6012a2b5b886926918d51b1b56387d785115f448";
-        private const string Word2VecNetPatch = "word2vecnet.patch";
+        private const string Word2VecNetRepoUrl = "https://github.com/adamsitnik/Word2Vec.Net.git"; // todo: after https://github.com/dotnet-perf-bot/Word2Vec.Net/pull/1 gets merged, change the address
+        private const string Word2VecNetCommitSha1Id = "648f31f698a76e5f32bacc791a83a52fb688d71f";
         private const string EnvironmentFileName = "Word2VecNetEnvironment.txt";
         private const string StoreDirName = ".store";
         private readonly Metric TrainingMetric = new Metric("Training", "ms");
