@@ -296,7 +296,7 @@ function cross_build_coreclr_with_docker {
 
     # Cross building coreclr with rootfs in Docker
     (set +x; echo "Start cross build coreclr for $__buildArch $__linuxCodeName")
-    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig $__extraArgs -rebuild"
+    __buildCmd="./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib $__buildConfig $__extraArgs"
     $__dockerCmd $__buildCmd
     sudo chown -R $(id -u -n) ./bin
 }
