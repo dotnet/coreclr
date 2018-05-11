@@ -23,7 +23,7 @@ namespace System.Collections.Concurrent
         {
             if (collection == null)
             {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
+                throw new ArgumentNullException(nameof(collection));
             }
 
             _collection = collection;
