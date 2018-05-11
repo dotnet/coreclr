@@ -76,6 +76,7 @@ set( JIT_SOURCES
   utils.cpp
   valuenum.cpp
   stacklevelsetter.cpp
+  treelifeupdater.cpp
 )
 
 # Add header files to Visual Studio vcxproj, not required for unixes
