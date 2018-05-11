@@ -626,7 +626,7 @@
     <Compile Include="shared\System\Collections\Concurrent\ConcurrentQueue.cs" />
     <Compile Include="shared\System\Collections\Concurrent\ConcurrentQueue_Segment.cs" />
     <Compile Include="shared\System\Collections\Concurrent\IProducerConsumerCollection.cs" />
-    <Compile Include="shared\System\Collections\Concurrent\SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView.cs" />
+    <Compile Include="shared\System\Collections\Concurrent\ProducerConsumerCollectionDebugView.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
   <PropertyGroup>

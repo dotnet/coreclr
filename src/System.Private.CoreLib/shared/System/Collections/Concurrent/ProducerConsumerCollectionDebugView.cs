@@ -11,7 +11,7 @@ namespace System.Collections.Concurrent
     /// collection's contents at a point in time.
     /// </summary>
     /// <typeparam name="T">The type of elements stored within.</typeparam>
-    internal sealed class SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<T>
+    internal sealed class ProducerConsumerCollectionDebugView<T>
     {
         private readonly IProducerConsumerCollection<T> _collection; // The collection being viewed.
 
@@ -19,7 +19,7 @@ namespace System.Collections.Concurrent
         /// Constructs a new debugger view object for the provided collection object.
         /// </summary>
         /// <param name="collection">A collection to browse in the debugger.</param>
-        internal SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView(IProducerConsumerCollection<T> collection)
+        internal ProducerConsumerCollectionDebugView(IProducerConsumerCollection<T> collection)
         {
             if (collection == null)
             {
