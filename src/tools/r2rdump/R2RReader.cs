@@ -10,23 +10,51 @@ namespace R2RDump
 {
     class R2RReader
     {
-        byte[] pe;
+        /// <summary>
+        /// Byte array containing the ReadyToRun image
+        /// </summary>
+        private readonly byte[] _image;
 
+        /// <summary>
+        /// Name of the image file
+        /// </summary>
         public string Filename { get; }
+
+        /// <summary>
+        /// True if the image is ReadyToRun
+        /// </summary>
         public bool IsR2R { get; }
+
+        /// <summary>
+        /// The type of target machine
+        /// </summary>
         public Machine Machine { get; }
+
+        /// <summary>
+        /// The preferred address of the first byte of image when loaded into memory; 
+        /// must be a multiple of 64K.
+        /// </summary>
         public ulong ImageBase { get; }
+
+        /// <summary>
+        /// The ReadyToRun header
+        /// </summary>
         public R2RHeader R2RHeader { get; }
 
+        /// <summary>
+        /// Initializes the fields of the R2RHeader
+        /// </summary>
+        /// <param name="filename">PE image</param>
+        /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>
         public unsafe R2RReader(string filename)
         {
             Filename = filename;
-            pe = File.ReadAllBytes(filename);
+            _image = File.ReadAllBytes(filename);
 
-            fixed (byte* p = pe)
+            fixed (byte* p = _image)
             {
                 IntPtr ptr = (IntPtr)p;
-                PEReader peReader = new PEReader(p, pe.Length);
+                PEReader peReader = new PEReader(p, _image.Length);
 
                 IsR2R = (peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
                 if (!IsR2R)
@@ -49,10 +77,9 @@ namespace R2RDump
                 }
 
                 DirectoryEntry corHeader = peReader.PEHeaders.PEHeader.CorHeaderTableDirectory;
-                int R2RHeaderRVA = corHeader.RelativeVirtualAddress + corHeader.Size;
-                int R2RHeaderOffset = R2RHeaderRVA - textSection.VirtualAddress + textSection.PointerToRawData;
-                R2RHeader = new R2RHeader(pe, (uint)R2RHeaderRVA, R2RHeaderOffset);
-
+                int r2rHeaderRVA = corHeader.RelativeVirtualAddress + corHeader.Size;
+                int r2rHeaderOffset = r2rHeaderRVA - textSection.VirtualAddress + textSection.PointerToRawData;
+                R2RHeader = new R2RHeader(_image, (uint)r2rHeaderRVA, r2rHeaderOffset);
             }
         }
     }
