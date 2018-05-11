@@ -73,7 +73,7 @@ namespace R2RDump
 
             byte[] signature = new byte[sizeof(uint)];
             Array.Copy(image, curOffset, signature, 0, sizeof(uint));
-            SignatureString = System.Text.Encoding.Default.GetString(signature);
+            SignatureString = System.Text.Encoding.UTF8.GetString(signature);
             Signature = (uint)GetField(image, ref curOffset, sizeof(uint));
             if (Signature != READYTORUN_SIGNATURE)
             {
@@ -107,7 +107,8 @@ namespace R2RDump
                 sb.AppendFormat($"MajorVersion: 0x{MajorVersion:X4}\n");
                 sb.AppendFormat($"MinorVersion: 0x{MinorVersion:X4}\n");
                 sb.AppendFormat($"Flags: 0x{Flags:X8}\n");
-                foreach (ReadyToRunFlag flag in Enum.GetValues(typeof(ReadyToRunFlag))) {
+                foreach (ReadyToRunFlag flag in Enum.GetValues(typeof(ReadyToRunFlag)))
+                {
                     if ((Flags & (uint)flag) != 0)
                     {
                         sb.AppendFormat($"  - {Enum.GetName(typeof(ReadyToRunFlag), flag)}\n");

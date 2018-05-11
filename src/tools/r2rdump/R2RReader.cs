@@ -76,10 +76,13 @@ namespace R2RDump
                     }
                 }
 
-                DirectoryEntry corHeader = peReader.PEHeaders.PEHeader.CorHeaderTableDirectory;
-                int r2rHeaderRVA = corHeader.RelativeVirtualAddress + corHeader.Size;
-                int r2rHeaderOffset = r2rHeaderRVA - textSection.VirtualAddress + textSection.PointerToRawData;
-                R2RHeader = new R2RHeader(_image, (uint)r2rHeaderRVA, r2rHeaderOffset);
+                DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
+                int r2rHeaderOffset = r2rHeaderDirectory.RelativeVirtualAddress - textSection.VirtualAddress + textSection.PointerToRawData;
+                R2RHeader = new R2RHeader(_image, (uint)r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
+                if (r2rHeaderDirectory.Size != R2RHeader.Size)
+                {
+                    throw new System.BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
+                }
             }
         }
     }

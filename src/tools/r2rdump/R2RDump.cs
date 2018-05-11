@@ -8,7 +8,7 @@ namespace R2RDump
 {
     class R2RDump
     {
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             try
             {
@@ -37,7 +37,9 @@ namespace R2RDump
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.ToString());
+                return 1;
             }
+            return 0;
         }
     }
 }
