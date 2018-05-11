@@ -245,14 +245,11 @@ namespace JitBench
             return workspace;
         }
 
-        private const string Word2VecNetRepoUrl = "https://github.com/adamsitnik/Word2Vec.Net.git"; // todo: after https://github.com/dotnet-perf-bot/Word2Vec.Net/pull/1 gets merged, change the address
-        private const string Word2VecNetCommitSha1Id = "648f31f698a76e5f32bacc791a83a52fb688d71f";
-        private const string EnvironmentFileName = "Word2VecNetEnvironment.txt";
-        private const string StoreDirName = ".store";
+        private const string Word2VecNetRepoUrl = "https://github.com/dotnet-perf-bot/Word2Vec.Net.git";
+        private const string Word2VecNetCommitSha1Id = "bbf60216bd735ba2ccc3a54570ce735789968f2d";
         private readonly Metric TrainingMetric = new Metric("Training", "ms");
         private readonly Metric FirstSearchMetric = new Metric("First Search", "ms");
         private readonly Metric MedianSearchMetric = new Metric("Median Search", "ms");
-        private readonly Metric MeanSearchMetric = new Metric("Mean Search", "ms");
     }
 }
 
