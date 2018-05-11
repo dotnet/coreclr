@@ -8208,7 +8208,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     call->gtFlags &= ~GTF_CALL_POP_ARGS;
 
 #elif defined(_TARGET_ARM64_)
-    NYI("Tail calls via stub are unsupported on this platform.");
+    NYI_ARM64("Tail calls via stub are unsupported on this platform.");
 #endif // _TARGET_ARM64_
 
     // The function is responsible for doing explicit null check when it is necessary.
@@ -8743,7 +8743,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
 
                     if (call->IsTailPrefixedCall())
                     {
-                        NYI("Arm64 does not support tail calls via helpers.");
+                        NYI_ARM64("Arm64 does not support tail calls via helpers.");
                     }
                 }
 #endif
