@@ -8206,7 +8206,9 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     call->gtCallMoreFlags |= GTF_CALL_M_VARARGS | GTF_CALL_M_TAILCALL | GTF_CALL_M_TAILCALL_VIA_HELPER;
     call->gtFlags &= ~GTF_CALL_POP_ARGS;
 
-#endif // _TARGET_*
+#elif defined(_TARGET_ARM64_)
+    NYI("Tail calls via stub are unsupported on this platform.");
+#endif // _TARGET_ARM64_
 
     // The function is responsible for doing explicit null check when it is neseccary.
     assert(!call->NeedsNullCheck());
@@ -8737,6 +8739,11 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                     // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
                     // So, bail out if we can't make fast tail call.
                     szFailReason = "Non-qualified fast tail call";
+
+                    if (call->IsTailPrefixedCall())
+                    {
+                        NYI("Arm64 does not support tail calls via helpers.");
+                    }
                 }
 #endif
 #endif // LEGACY_BACKEND
