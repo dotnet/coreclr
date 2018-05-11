@@ -623,6 +623,10 @@
   <ItemGroup>
     <Compile Include="src\System\PinnableBufferCacheEventSource.cs" />
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
+    <Compile Include="shared\System\Collections\Concurrent\ConcurrentQueue.cs" />
+    <Compile Include="shared\System\Collections\Concurrent\ConcurrentQueue_Segment.cs" />
+    <Compile Include="shared\System\Collections\Concurrent\IProducerConsumerCollection.cs" />
+    <Compile Include="shared\System\Collections\Concurrent\SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
   <PropertyGroup>
