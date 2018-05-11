@@ -3063,7 +3063,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                 }
                                 EX_CATCH_EX(Exception)
                                 {
-                                    StackSString msg;
+                                    SString msg;
                                     GET_EXCEPTION()->GetMessage(msg);
                                     msg.Insert(msg.Begin(), W("Cannot resolve EH clause:\n"));
                                     EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_FAILFAST, msg.GetUnicode());
