@@ -321,23 +321,12 @@ namespace System.Collections.Concurrent
         }
     }
 
-    /// <summary>A placeholder class for common padding constants and eventually routines.</summary>
-    internal static class PaddingHelpers
-    {
-        /// <summary>A size greater than or equal to the size of the most common CPU cache lines.</summary>
-        internal const int CACHE_LINE_SIZE = 128;
-    }
-
-    /// <summary>Padding structure used to minimize false sharing in SingleProducerSingleConsumerQueue{T}.</summary>
-    [StructLayout(LayoutKind.Explicit, Size = PaddingHelpers.CACHE_LINE_SIZE - sizeof(int))] // Based on common case of 64-byte cache lines
-    internal struct PaddingFor32 { }
-
     /// <summary>Padded head and tail indices, to avoid false sharing between producers and consumers.</summary>
     [DebuggerDisplay("Head = {Head}, Tail = {Tail}")]
-    [StructLayout(LayoutKind.Explicit, Size = 3 * PaddingHelpers.CACHE_LINE_SIZE)] // padding before/between/after fields
+    [StructLayout(LayoutKind.Explicit, Size = 3 * Internal.PaddingHelpers.CACHE_LINE_SIZE)] // padding before/between/after fields
     internal struct PaddedHeadAndTail
     {
-        [FieldOffset(1 * PaddingHelpers.CACHE_LINE_SIZE)] public int Head;
-        [FieldOffset(2 * PaddingHelpers.CACHE_LINE_SIZE)] public int Tail;
+        [FieldOffset(1 * Internal.PaddingHelpers.CACHE_LINE_SIZE)] public int Head;
+        [FieldOffset(2 * Internal.PaddingHelpers.CACHE_LINE_SIZE)] public int Tail;
     }
 }
