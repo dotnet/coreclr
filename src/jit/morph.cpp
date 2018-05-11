@@ -7836,9 +7836,10 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     JITDUMP("fgMorphTailCall (before):\n");
     DISPTREE(call);
 
-    // The runtime requires that we perforrm a null check on the `this` argument before tail
-    // calling to a virtual dispatch stub. This requirement is a consequence of limitations in the runtime's
-    // ability to map an AV to a NullReferenceException if the AV occurs in a dispatch stub.
+    // The runtime requires that we perform a null check on the `this` argument before
+    // tail calling  to a virtual dispatch stub. This requirement is a consequence of limitations
+    // in the runtime's ability to map an AV to a NullReferenceException if
+    // the AV occurs in a dispatch stub that has unmanaged caller.
     if (call->IsVirtualStub())
     {
         call->gtFlags |= GTF_CALL_NULLCHECK;
@@ -8210,7 +8211,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     NYI("Tail calls via stub are unsupported on this platform.");
 #endif // _TARGET_ARM64_
 
-    // The function is responsible for doing explicit null check when it is neseccary.
+    // The function is responsible for doing explicit null check when it is necessary.
     assert(!call->NeedsNullCheck());
 
     JITDUMP("fgMorphTailCall (after):\n");
