@@ -3927,8 +3927,8 @@ HRESULT CordbUnmanagedThread::SetupFirstChanceHijack(EHijackReason::EHijackReaso
         GetProcess()->GetDAC()->Hijack(VMPTR_Thread::NullPtr(),
                                        GetOSTid(),
                                        pExceptionRecord,
-                                       (CONTEXT*) GetHijackCtx(),
-                                       sizeof(CONTEXT),
+                                       (T_CONTEXT*) GetHijackCtx(),
+                                       sizeof(T_CONTEXT),
                                        reason,
                                        NULL,
                                        &LSContextAddr);
@@ -4001,8 +4001,8 @@ HRESULT CordbUnmanagedThread::SetupGenericHijack(DWORD eventCode, const EXCEPTIO
                     pThread->m_vmThreadToken,
                     dwThreadId,
                     pRecord, 
-                    (CONTEXT*) GetHijackCtx(),
-                    sizeof(CONTEXT),
+                    (T_CONTEXT*) GetHijackCtx(),
+                    sizeof(T_CONTEXT),
                     EHijackReason::kGenericHijack, 
                     NULL,
                     NULL);
