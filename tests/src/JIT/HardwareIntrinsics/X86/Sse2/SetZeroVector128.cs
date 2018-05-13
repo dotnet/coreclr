@@ -23,6 +23,7 @@ namespace IntelHardwareIntrinsicTest
             if (Sse2.IsSupported)
             {
                 using (var doubleTable = TestTableSse2<double>.Create(testsCount))
+                using (var floatTable = TestTableSse2<float>.Create(testsCount))
                 using (var longTable = TestTableSse2<long>.Create(testsCount))
                 using (var ulongTable = TestTableSse2<ulong>.Create(testsCount))
                 using (var intTable = TestTableSse2<int>.Create(testsCount))
@@ -36,6 +37,12 @@ namespace IntelHardwareIntrinsicTest
                     {
                         Vector128<double> result = Sse2.SetZeroVector128<double>();
                         doubleTable.SetOutArray(result, i);
+                    }
+
+                    for (int i = 0; i < testsCount; i++)
+                    {
+                        Vector128<float> result = Sse2.SetZeroVector128<float>();
+                        floatTable.SetOutArray(result, i);
                     }
 
                     for (int i = 0; i < testsCount; i++)
@@ -91,6 +98,14 @@ namespace IntelHardwareIntrinsicTest
                     if (!doubleTable.CheckResult(checkDouble))
                     {
                         PrintError(doubleTable, methodUnderTestName, "(double x, double y, double z, ref double a) => (a = BitwiseXor(x, y)) == z", checkDouble);
+                        testResult = Fail;
+                    }
+
+                    CheckMethod<float> checkFloat = (float x, float y, float z, ref float a) => (a = BitwiseXor(x, x)) == z;
+
+                    if (!floatTable.CheckResult(checkFloat))
+                    {
+                        PrintError(floatTable, methodUnderTestName, "(float x, float y, float z, ref float a) => (a = BitwiseXor(x, y)) == z", checkFloat);
                         testResult = Fail;
                     }
 
@@ -173,6 +188,14 @@ namespace IntelHardwareIntrinsicTest
             var yUlong = BitConverter.ToUInt64(BitConverter.GetBytes(y));
             var longAnd = xUlong ^ yUlong;
             return BitConverter.ToDouble(BitConverter.GetBytes(longAnd));
+        }
+
+        public static unsafe float BitwiseXor(float x, float y)
+        {
+            var xUint = BitConverter.ToUInt32(BitConverter.GetBytes(x));
+            var yUint = BitConverter.ToUInt32(BitConverter.GetBytes(y));
+            var intAnd = xUint ^ yUint;
+            return BitConverter.ToSingle(BitConverter.GetBytes(intAnd));
         }
     }
 }
