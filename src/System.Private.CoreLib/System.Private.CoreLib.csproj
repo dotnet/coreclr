@@ -113,9 +113,6 @@
     <TargetArch Condition="'$(Platform)'=='x86'">i386</TargetArch>
     <TargetArch Condition="'$(Platform)'!='x86'">$(Platform)</TargetArch>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|amd64'">
-    <OutputPath>..\..\bin\Product\Windows_NT.x64.Release\</OutputPath>
-  </PropertyGroup>
   <!-- CLR Features -->
   <Import Project="$(MSBuildThisFileDirectory)..\..\clr.coreclr.props" />
   <Import Project="$(MSBuildThisFileDirectory)..\..\clr.defines.targets" />
