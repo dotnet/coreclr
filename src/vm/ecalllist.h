@@ -117,7 +117,7 @@ FCFuncStart(gStringFuncs)
 FCFuncEnd()
 
 FCFuncStart(gUtf8StringFuncs)
-    FCFuncElement("FastAllocate", Utf8StringFastAllocate)
+    FCDynamic("FastAllocate", CORINFO_INTRINSIC_Illegal, ECall::FastAllocateUtf8String)
 FCFuncEnd()
 
 FCFuncStart(gValueTypeFuncs)

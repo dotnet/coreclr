@@ -18,7 +18,6 @@ set(BCLTYPE_SOURCES
     objectnative.cpp
     stringnative.cpp
     system.cpp
-    utf8stringnative.cpp
     varargsnative.cpp
     variant.cpp
 )
