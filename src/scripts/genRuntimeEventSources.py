@@ -46,7 +46,6 @@ manifestTypeToCSharpTypeMap = {
     "win:Binary" : "byte[]",
     "win:Double" : "double",
     "win:Boolean" : "bool",
-    "win:AnsiString" : "char*",
     "win:GUID" : "Guid",
 }
 
@@ -103,7 +102,7 @@ def generateEvent(eventNode, providerNode, outputFile, stringTable):
         # Calculate the number of arguments.
         for argumentNode in argumentNodes:
             if argumentNode.nodeName == "data":
-                if argumentNode.getAttribute("inType") != "win:Binary":
+                if argumentNode.getAttribute("inType") != "win:Binary" and argumentNode.getAttribute("inType") != "win:AnsiString":
                     argumentCount += 1
                 else:
                     break
