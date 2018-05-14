@@ -226,9 +226,9 @@
         </ExcludeList>
     </ItemGroup>
 
-    <!-- The following are ARM64 failures -->
+    <!-- The following are ARM64_altjit crossgen failures. For x64_arm64_altjit buildArm==x64. -->
 
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'arm64'">
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64'">
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\DevDiv_590772\DevDiv_590772\DevDiv_590772.cmd">
             <Issue>17968</Issue>
         </ExcludeList>
