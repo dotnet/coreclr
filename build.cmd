@@ -372,6 +372,9 @@ if /i "%__BuildNative%"=="1" (
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe --nonextern || exit /b 1
 
+    echo %__MsgPrefix%Laying out dynamically generated EventSource classes
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir%\eventpipe || exit /b 1
+
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
 )
