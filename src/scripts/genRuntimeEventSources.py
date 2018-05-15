@@ -398,6 +398,14 @@ def main(argv):
     manifestFullPath = args.man
     intermediatesDirFullPath = args.intermediate
 
+    # Ensure the intermediates directory exists.
+    try:
+        os.makedirs(intermediatesDirFullPath)
+    except OSError:
+        if not os.path.isdir(intermediatesDirFullPath):
+            raise
+
+    # Generate event sources.
     generateEventSources(manifestFullPath, intermediatesDirFullPath)
     return 0
 
