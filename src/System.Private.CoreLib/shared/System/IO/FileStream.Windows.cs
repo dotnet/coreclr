@@ -1265,118 +1265,16 @@ namespace System.IO
 
         public override void CopyTo(Stream destination, int bufferSize)
         {
-            // It should be unlikely that a FileStream is opened in async mode and this sync CopyTo 
-            // method is called.  If however this does happen then fall back to the base.CopyTo because 
-            // it's ambiguous how to best perform this type of copy and the base implementation will at least 
-            // do the correct thing technically.
-            // Also, if the current instance is of a type derived from FileStream then it's safest to stick with 
-            // the base.CopyTo.  This is because the derived type may have overridden Read, which won't be called 
-            // on the current path.
-            if (_useAsyncIO || GetType() != typeof(FileStream))
+            if (_useAsyncIO && GetType() == typeof(FileStream))
+            {
+                CopyToAsync(destination, bufferSize, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            else
             {
                 base.CopyTo(destination, bufferSize);
-                return;
-            }
-
-            StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
-
-            if (_fileHandle.IsClosed)
-            {
-                throw Error.GetFileNotOpen();
-            }
-
-            CopyToInternal(destination, bufferSize);
-        }
-
-        private void CopyToInternal(Stream destination, int bufferSize)
-        {
-            Debug.Assert(!_useAsyncIO, "Should only be used when in sync mode");
-            Debug.Assert(!_fileHandle.IsClosed, "_fileHandle.IsClosed");
-            Debug.Assert(CanRead, "!CanRead");
-
-            // Make sure any pending writes have been flushed before we do a read.
-            if (_writePos > 0)
-            {
-                FlushWriteBuffer();
-            }
-
-            // Typically, CopyTo would be invoked as the only "read" on the stream, but it's possible some reading is
-            // done before the CopyTo is issued.  For that case see if we have any data available in the buffer.
-            byte[] buffer = GetBuffer();
-            if (buffer != null)
-            {
-                int bufferedBytes = _readLength - _readPos;
-                if (bufferedBytes > 0)
-                {
-                    destination.Write(buffer, _readPos, bufferedBytes);
-                    _readPos = _readLength = 0;
-                }
-            }
-
-            // Make sure we are reading from the right position
-            bool canSeek = CanSeek;
-            if (canSeek)
-            {
-                VerifyOSHandlePosition();
-            }
-
-            // Get the buffer to use for the copy operation, as the base CopyTo does. We don't try to use
-            // _buffer here, even if it's not null, as concurrent operations are allowed and another operation may
-            // actually be using the buffer already. Plus, it'll be rare for _buffer to be non-null, as typically
-            // CopyTo is used as the only operation performed on the stream, and the buffer is lazily initialized.
-            // Further, typically the CopyTo buffer size will be larger than that used by the FileStream, such that
-            // we'd likely be unable to use it anyway.  Instead, we rent the buffer from a pool.
-            byte[] copyBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-
-            try
-            {
-                // Repeatedly read from this FileStream and write the results to the destination stream.
-                while (true)
-                {
-                    int numBytesRead;
-                    int errorCode;
-                    unsafe
-                    {
-                        // Kick off the read (-1 returned on error).
-                        numBytesRead = ReadFileNative(_fileHandle, copyBuffer, null, out errorCode);
-                    }
-
-                    if (errorCode != 0)
-                    {
-                        switch (errorCode)
-                        {
-                            case ERROR_BROKEN_PIPE:
-                            case ERROR_HANDLE_EOF:
-                                // this isn't a real error.  We're at EOF or working on a 
-                                // pipe that's closed
-                                break;
-                            default:
-                                throw Win32Marshal.GetExceptionForWin32Error(errorCode, _path);
-                        }
-                    }
-
-                    // If we read 0 bytes then we're done.  If numBytesRead < 0 then either 
-                    // we've hit EOF or we're on a pipe that's closed.
-                    if (numBytesRead <= 0)
-                    {
-                        break;
-                    }
-
-                    destination.Write(copyBuffer, 0, numBytesRead);
-                }
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(copyBuffer);
-
-                // Make sure the stream's position reflects where we ended up.
-                if (!_fileHandle.IsClosed && canSeek)
-                {
-                    SeekCore(_fileHandle, 0, SeekOrigin.End);
-                }
             }
         }
-
+        
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
             // If we're in sync mode, just use the shared CopyToAsync implementation that does
