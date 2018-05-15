@@ -12485,21 +12485,36 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 type = genActualType(lclTyp);
 
-#if SMALL_TREE_NODES
-                if (callNode)
+                // If this is a no-op cast, just use op1.
+                if (!ovfl && (type == op1->TypeGet()) && (genTypeSize(type) == genTypeSize(lclTyp)))
                 {
-                    op1 = gtNewCastNodeL(type, op1, uns, lclTyp);
+                    // Nothing needs to change
+                }
+                else if  (!ovfl && (lclTyp == op1->TypeGet()) && (genTypeSize(type) == genTypeSize(lclTyp)))
+                {
+                    // Bash operand to right type
+                    op1->gtType = lclTyp;
                 }
                 else
-#endif // SMALL_TREE_NODES
                 {
-                    op1 = gtNewCastNode(type, op1, uns, lclTyp);
+                    // Work is evidently required, add cast node
+#if SMALL_TREE_NODES
+                    if (callNode)
+                    {
+                        op1 = gtNewCastNodeL(type, op1, uns, lclTyp);
+                    }
+                    else
+#endif // SMALL_TREE_NODES
+                    {
+                        op1 = gtNewCastNode(type, op1, uns, lclTyp);
+                    }
+
+                    if (ovfl)
+                    {
+                        op1->gtFlags |= (GTF_OVERFLOW | GTF_EXCEPT);
+                    }
                 }
 
-                if (ovfl)
-                {
-                    op1->gtFlags |= (GTF_OVERFLOW | GTF_EXCEPT);
-                }
                 impPushOnStack(op1, tiRetVal);
                 break;
 
