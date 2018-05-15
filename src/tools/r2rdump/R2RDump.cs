@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 
 namespace R2RDump
 {
@@ -27,10 +28,17 @@ namespace R2RDump
 
                     Console.WriteLine("============== R2R Header ==============");
                     Console.WriteLine(r2r.R2RHeader.ToString());
-                    for (int i = 0; i < r2r.R2RHeader.NumberOfSections; i++)
+                    foreach (KeyValuePair<R2RSection.SectionType, R2RSection> section in r2r.R2RHeader.Sections)
                     {
                         Console.WriteLine("------------------");
-                        Console.WriteLine(r2r.R2RHeader.Sections[i].ToString());
+                        Console.WriteLine(section.Value.ToString());
+                    }
+
+                    Console.WriteLine("============== Native Code ==============");
+                    for (int i=0; i<r2r.NativeCode.Length; i++)
+                    {
+                        Console.WriteLine("------------------");
+                        Console.WriteLine(r2r.NativeCode[i].ToString());
                     }
                 }
             }

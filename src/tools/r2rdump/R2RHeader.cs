@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace R2RDump
@@ -23,12 +24,7 @@ namespace R2RDump
         /// <summary>
         /// RVA to the begining of the ReadyToRun header
         /// </summary>
-        public uint RelativeVirtualAddress { get; }
-
-        /// <summary>
-        /// Index in the image byte array to the start of the ReadyToRun header
-        /// </summary>
-        public int Offset { get; }
+        public int RelativeVirtualAddress { get; }
 
         /// <summary>
         /// Size of the ReadyToRun header
@@ -57,7 +53,7 @@ namespace R2RDump
         /// The ReadyToRun sections
         /// </summary>
         public uint NumberOfSections { get; }
-        public R2RSection[] Sections { get; }
+        public Dictionary<R2RSection.SectionType, R2RSection> Sections { get; }
 
         /// <summary>
         /// Initializes the fields of the R2RHeader
@@ -66,34 +62,40 @@ namespace R2RDump
         /// <param name="rva">Relative virtual address of the ReadyToRun header</param>
         /// <param name="curOffset">Index in the image byte array to the start of the ReadyToRun header</param>
         /// <exception cref="BadImageFormatException">The signature must be 0x00525452</exception>
-        public R2RHeader(byte[] image, uint rva, int curOffset)
+        public R2RHeader(byte[] image, int rva, int curOffset)
         {
             RelativeVirtualAddress = rva;
-            Offset = curOffset;
+            int startOffset = curOffset;
 
             byte[] signature = new byte[sizeof(uint)];
             Array.Copy(image, curOffset, signature, 0, sizeof(uint));
             SignatureString = System.Text.Encoding.UTF8.GetString(signature);
-            Signature = (uint)GetField(image, ref curOffset, sizeof(uint));
+            Signature = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
             if (Signature != READYTORUN_SIGNATURE)
             {
                 throw new System.BadImageFormatException("Incorrect R2R header signature");
             }
 
-            MajorVersion = (ushort)GetField(image, ref curOffset, sizeof(ushort));
-            MinorVersion = (ushort)GetField(image, ref curOffset, sizeof(ushort));
-            Flags = (uint)GetField(image, ref curOffset, sizeof(uint));
-            NumberOfSections = (uint)GetField(image, ref curOffset, sizeof(uint));
+            MajorVersion = (ushort)R2RReader.GetField(image, ref curOffset, sizeof(ushort));
+            MinorVersion = (ushort)R2RReader.GetField(image, ref curOffset, sizeof(ushort));
+            Flags = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
+            NumberOfSections = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
+            Sections = new Dictionary<R2RSection.SectionType, R2RSection>();
 
-            Sections = new R2RSection[NumberOfSections];
             for (int i = 0; i < NumberOfSections; i++)
             {
-                Sections[i] = new R2RSection((int)GetField(image, ref curOffset, sizeof(int)),
-                    (uint)GetField(image, ref curOffset, sizeof(uint)),
-                    (uint)GetField(image, ref curOffset, sizeof(uint)));
+                int type = (int)R2RReader.GetField(image, ref curOffset, sizeof(int));
+                var sectionType = (R2RSection.SectionType)type;
+                if (!Enum.IsDefined(typeof(R2RSection.SectionType), type))
+                {
+                    throw new System.BadImageFormatException("Invalid ReadyToRun section type");
+                }
+                Sections[sectionType] = new R2RSection(sectionType,
+                    (int)R2RReader.GetField(image, ref curOffset, sizeof(uint)),
+                    (int)R2RReader.GetField(image, ref curOffset, sizeof(uint)));
             }
 
-            Size = curOffset - Offset;
+            Size = curOffset - startOffset;
         }
 
         public override string ToString()
@@ -117,42 +119,6 @@ namespace R2RDump
                 sb.AppendFormat($"NumberOfSections: {NumberOfSections}\n");
             }
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Extracts a value from the image byte array
-        /// </summary>
-        /// <param name="image">PE image</param>
-        /// <param name="start">Starting index of the value</param>
-        /// <param name="size">Size of the value in bytes</param>
-        /// <exception cref="ArgumentException"><paramref name="size"/> is not 8, 4 or 2</exception>
-        public long GetField(byte[] image, int start, int size)
-        {
-            return GetField(image, ref start, size);
-        }
-
-        /// <remarks>
-        /// The <paramref name="start"/> gets incremented to the end of the value
-        /// </remarks>
-        public long GetField(byte[] image, ref int start, int size)
-        {
-            byte[] bytes = new byte[size];
-            Array.Copy(image, start, bytes, 0, size);
-            start += size;
-
-            if (size == 8)
-            {
-                return BitConverter.ToInt64(bytes, 0);
-            }
-            else if (size == 4)
-            {
-                return BitConverter.ToInt32(bytes, 0);
-            }
-            else if (size == 2)
-            {
-                return BitConverter.ToInt16(bytes, 0);
-            }
-            throw new System.ArgumentException("Invalid field size");
         }
     }
 }

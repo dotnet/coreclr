@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection.PortableExecutable;
 
@@ -42,6 +43,11 @@ namespace R2RDump
         public R2RHeader R2RHeader { get; }
 
         /// <summary>
+        /// The assembly code of the runtime functions
+        /// </summary>
+        public NativeCode[] NativeCode { get; }
+
+        /// <summary>
         /// Initializes the fields of the R2RHeader
         /// </summary>
         /// <param name="filename">PE image</param>
@@ -77,13 +83,66 @@ namespace R2RDump
                 }
 
                 DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
-                int r2rHeaderOffset = r2rHeaderDirectory.RelativeVirtualAddress - textSection.VirtualAddress + textSection.PointerToRawData;
-                R2RHeader = new R2RHeader(_image, (uint)r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
+                int r2rHeaderOffset = getOffset(r2rHeaderDirectory.RelativeVirtualAddress, textSection);
+                R2RHeader = new R2RHeader(_image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
                 if (r2rHeaderDirectory.Size != R2RHeader.Size)
                 {
                     throw new System.BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
                 }
+
+                R2RSection runtimeFunctions = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
+                int curOffset = getOffset((int)runtimeFunctions.RelativeVirtualAddress, textSection);
+                int nNativeCode = runtimeFunctions.Size / (3*sizeof(int));
+                NativeCode = new NativeCode[nNativeCode];
+                for (int i=0; i<nNativeCode; i++)
+                {
+                    int nativeCodeStartRva = (int)GetField(_image, ref curOffset, sizeof(int));
+                    int nativeCodeEndRva = (int)GetField(_image, ref curOffset, sizeof(int));
+                    int nativeCodeUnwindRva = (int)GetField(_image, ref curOffset, sizeof(int));
+                    NativeCode[i] = new NativeCode(_image, nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
+                }
             }
+        }
+
+        public int getOffset(int rva, SectionHeader textSection)
+        {
+            return rva - textSection.VirtualAddress + textSection.PointerToRawData;
+        }
+
+        /// <summary>
+        /// Extracts a value from the image byte array
+        /// </summary>
+        /// <param name="image">PE image</param>
+        /// <param name="start">Starting index of the value</param>
+        /// <param name="size">Size of the value in bytes</param>
+        /// <exception cref="ArgumentException"><paramref name="size"/> is not 8, 4 or 2</exception>
+        public static long GetField(byte[] image, int start, int size)
+        {
+            return GetField(image, ref start, size);
+        }
+
+        /// <remarks>
+        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// </remarks>
+        public static long GetField(byte[] image, ref int start, int size)
+        {
+            byte[] bytes = new byte[size];
+            Array.Copy(image, start, bytes, 0, size);
+            start += size;
+
+            if (size == 8)
+            {
+                return BitConverter.ToInt64(bytes, 0);
+            }
+            else if (size == 4)
+            {
+                return BitConverter.ToInt32(bytes, 0);
+            }
+            else if (size == 2)
+            {
+                return BitConverter.ToInt16(bytes, 0);
+            }
+            throw new System.ArgumentException("Invalid field size");
         }
     }
 }
