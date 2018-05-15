@@ -122,7 +122,7 @@ void InvokeNearDiffer(NearDiffer*           nearDiffer,
 // -2   : JIT failed to initialize
 // 1    : there were compilation failures
 // 2    : there were asm diffs
-// 3    : there were missed values in method context
+// 3    : there were missing values in method context
 int __cdecl main(int argc, char* argv[])
 {
 #ifdef FEATURE_PAL
