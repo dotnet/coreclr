@@ -49,10 +49,6 @@ namespace R2RDump
         /// </summary>
         public uint Flags { get; }
 
-        /// <summary>
-        /// The ReadyToRun sections
-        /// </summary>
-        public uint NumberOfSections { get; }
         public Dictionary<R2RSection.SectionType, R2RSection> Sections { get; }
 
         /// <summary>
@@ -70,29 +66,29 @@ namespace R2RDump
             byte[] signature = new byte[sizeof(uint)];
             Array.Copy(image, curOffset, signature, 0, sizeof(uint));
             SignatureString = System.Text.Encoding.UTF8.GetString(signature);
-            Signature = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
+            Signature = (uint)R2RReader.GetInt32(image, ref curOffset);
             if (Signature != READYTORUN_SIGNATURE)
             {
                 throw new System.BadImageFormatException("Incorrect R2R header signature");
             }
 
-            MajorVersion = (ushort)R2RReader.GetField(image, ref curOffset, sizeof(ushort));
-            MinorVersion = (ushort)R2RReader.GetField(image, ref curOffset, sizeof(ushort));
-            Flags = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
-            NumberOfSections = (uint)R2RReader.GetField(image, ref curOffset, sizeof(uint));
+            MajorVersion = (ushort)R2RReader.GetInt16(image, ref curOffset);
+            MinorVersion = (ushort)R2RReader.GetInt16(image, ref curOffset);
+            Flags = (uint)R2RReader.GetInt32(image, ref curOffset);
+            int nSections = R2RReader.GetInt32(image, ref curOffset);
             Sections = new Dictionary<R2RSection.SectionType, R2RSection>();
 
-            for (int i = 0; i < NumberOfSections; i++)
+            for (int i = 0; i < nSections; i++)
             {
-                int type = (int)R2RReader.GetField(image, ref curOffset, sizeof(int));
+                int type = R2RReader.GetInt32(image, ref curOffset);
                 var sectionType = (R2RSection.SectionType)type;
                 if (!Enum.IsDefined(typeof(R2RSection.SectionType), type))
                 {
-                    throw new System.BadImageFormatException("Invalid ReadyToRun section type");
+                    R2RDump.OutputWarning("Invalid ReadyToRun section type");
                 }
                 Sections[sectionType] = new R2RSection(sectionType,
-                    (int)R2RReader.GetField(image, ref curOffset, sizeof(uint)),
-                    (int)R2RReader.GetField(image, ref curOffset, sizeof(uint)));
+                    R2RReader.GetInt32(image, ref curOffset),
+                    R2RReader.GetInt32(image, ref curOffset));
             }
 
             Size = curOffset - startOffset;
@@ -116,7 +112,6 @@ namespace R2RDump
                         sb.AppendFormat($"  - {Enum.GetName(typeof(ReadyToRunFlag), flag)}\n");
                     }
                 }
-                sb.AppendFormat($"NumberOfSections: {NumberOfSections}\n");
             }
             return sb.ToString();
         }

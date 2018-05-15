@@ -9,6 +9,11 @@ namespace R2RDump
 {
     class R2RDump
     {
+        public static void OutputWarning(string warning)
+        {
+            Console.WriteLine($"Warning: {warning}");
+        }
+
         public static int Main(string[] args)
         {
             try

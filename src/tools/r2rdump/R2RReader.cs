@@ -83,7 +83,7 @@ namespace R2RDump
                 }
 
                 DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
-                int r2rHeaderOffset = getOffset(r2rHeaderDirectory.RelativeVirtualAddress, textSection);
+                int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress, textSection);
                 R2RHeader = new R2RHeader(_image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
                 if (r2rHeaderDirectory.Size != R2RHeader.Size)
                 {
@@ -91,20 +91,20 @@ namespace R2RDump
                 }
 
                 R2RSection runtimeFunctions = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
-                int curOffset = getOffset((int)runtimeFunctions.RelativeVirtualAddress, textSection);
+                int curOffset = GetOffset((int)runtimeFunctions.RelativeVirtualAddress, textSection);
                 int nNativeCode = runtimeFunctions.Size / (3*sizeof(int));
                 NativeCode = new NativeCode[nNativeCode];
                 for (int i=0; i<nNativeCode; i++)
                 {
-                    int nativeCodeStartRva = (int)GetField(_image, ref curOffset, sizeof(int));
-                    int nativeCodeEndRva = (int)GetField(_image, ref curOffset, sizeof(int));
-                    int nativeCodeUnwindRva = (int)GetField(_image, ref curOffset, sizeof(int));
+                    int nativeCodeStartRva = GetInt32(_image, ref curOffset);
+                    int nativeCodeEndRva = GetInt32(_image, ref curOffset);
+                    int nativeCodeUnwindRva = GetInt32(_image, ref curOffset);
                     NativeCode[i] = new NativeCode(_image, nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
                 }
             }
         }
 
-        public int getOffset(int rva, SectionHeader textSection)
+        public int GetOffset(int rva, SectionHeader textSection)
         {
             return rva - textSection.VirtualAddress + textSection.PointerToRawData;
         }
@@ -114,35 +114,34 @@ namespace R2RDump
         /// </summary>
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
-        /// <param name="size">Size of the value in bytes</param>
-        /// <exception cref="ArgumentException"><paramref name="size"/> is not 8, 4 or 2</exception>
-        public static long GetField(byte[] image, int start, int size)
-        {
-            return GetField(image, ref start, size);
-        }
-
         /// <remarks>
         /// The <paramref name="start"/> gets incremented to the end of the value
         /// </remarks>
-        public static long GetField(byte[] image, ref int start, int size)
+        public static long GetInt64(byte[] image, ref int start)
         {
+            int size = sizeof(long);
             byte[] bytes = new byte[size];
             Array.Copy(image, start, bytes, 0, size);
             start += size;
+            return BitConverter.ToInt64(bytes, 0);
+        }
 
-            if (size == 8)
-            {
-                return BitConverter.ToInt64(bytes, 0);
-            }
-            else if (size == 4)
-            {
-                return BitConverter.ToInt32(bytes, 0);
-            }
-            else if (size == 2)
-            {
-                return BitConverter.ToInt16(bytes, 0);
-            }
-            throw new System.ArgumentException("Invalid field size");
+        public static int GetInt32(byte[] image, ref int start)
+        {
+            int size = sizeof(int);
+            byte[] bytes = new byte[size];
+            Array.Copy(image, start, bytes, 0, size);
+            start += size;
+            return BitConverter.ToInt32(bytes, 0);
+        }
+
+        public static short GetInt16(byte[] image, ref int start)
+        {
+            int size = sizeof(short);
+            byte[] bytes = new byte[size];
+            Array.Copy(image, start, bytes, 0, size);
+            start += size;
+            return BitConverter.ToInt16(bytes, 0);
         }
     }
 }
