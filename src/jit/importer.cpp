@@ -12490,14 +12490,14 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     // Nothing needs to change
                 }
-                else if  (!ovfl && (lclTyp == op1->TypeGet()) && (genTypeSize(type) == genTypeSize(lclTyp)))
+                else if (!ovfl && (lclTyp == op1->TypeGet()) && (genTypeSize(type) == genTypeSize(lclTyp)))
                 {
                     // Bash operand to right type
                     op1->gtType = lclTyp;
                 }
+                // Work is evidently required, add cast node
                 else
                 {
-                    // Work is evidently required, add cast node
 #if SMALL_TREE_NODES
                     if (callNode)
                     {
