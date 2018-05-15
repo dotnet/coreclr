@@ -32,17 +32,6 @@ namespace System.Threading
         RequireWaitNotification = 0x1
     };
 
-#if FEATURE_COMINTEROP && FEATURE_APPX
-    //
-    // This is implemented in System.Runtime.WindowsRuntime, allowing us to ask that assembly for a WinRT-specific SyncCtx.
-    //
-    // [FriendAccessAllowed]
-    internal abstract class WinRTSynchronizationContextFactoryBase
-    {
-        public abstract SynchronizationContext Create(object coreDispatcher);
-    }
-#endif //FEATURE_COMINTEROP
-
     public class SynchronizationContext
     {
         private SynchronizationContextProperties _props = SynchronizationContextProperties.None;
@@ -194,22 +183,27 @@ namespace System.Threading
             return null;
         }
 
-        private static WinRTSynchronizationContextFactoryBase s_winRTContextFactory;
+        private static SynchronizationContext s_winRTContext;
 
-        private static WinRTSynchronizationContextFactoryBase GetWinRTSynchronizationContextFactory()
+        private static SynchronizationContext GetWinRTSynchronizationContext(object dispatcher)
         {
             //
             // Since we can't directly reference System.Runtime.WindowsRuntime from mscorlib, we have to get the factory via reflection.
             // It would be better if we could just implement WinRTSynchronizationContextFactory in mscorlib, but we can't, because
             // we can do very little with WinRT stuff in mscorlib.
             //
-            WinRTSynchronizationContextFactoryBase factory = s_winRTContextFactory;
-            if (factory == null)
+            SynchronizationContext winRTContext = s_winRTContext;
+            if (winRTContext == null)
             {
                 Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, System.Runtime.WindowsRuntime", throwOnError: true);
-                s_winRTContextFactory = factory = (WinRTSynchronizationContextFactoryBase)Activator.CreateInstance(factoryType, true);
+                MethodInfo createMethodInfo = factoryType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
+                Debug.Assert(createMethodInfo != null);
+                if (createMethodInfo != null)
+                {
+                    s_winRTContext = winRTContext = (SynchronizationContext)createMethodInfo.Invoke(null, new Object[] { dispatcher });
+                }
             }
-            return factory;
+            return winRTContext;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
