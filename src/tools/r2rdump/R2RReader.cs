@@ -5,6 +5,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 
 namespace R2RDump
@@ -15,6 +17,8 @@ namespace R2RDump
         /// Byte array containing the ReadyToRun image
         /// </summary>
         private readonly byte[] _image;
+
+        private readonly PEReader peReader;
 
         /// <summary>
         /// Name of the image file
@@ -45,7 +49,7 @@ namespace R2RDump
         /// <summary>
         /// The assembly code of the runtime functions
         /// </summary>
-        public NativeCode[] NativeCode { get; }
+        public R2RMethod[] R2RMethods { get; }
 
         /// <summary>
         /// Initializes the fields of the R2RHeader
@@ -60,7 +64,7 @@ namespace R2RDump
             fixed (byte* p = _image)
             {
                 IntPtr ptr = (IntPtr)p;
-                PEReader peReader = new PEReader(p, _image.Length);
+                peReader = new PEReader(p, _image.Length);
 
                 IsR2R = (peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
                 if (!IsR2R)
@@ -71,46 +75,52 @@ namespace R2RDump
                 Machine = peReader.PEHeaders.CoffHeader.Machine;
                 ImageBase = peReader.PEHeaders.PEHeader.ImageBase;
 
-                SectionHeader textSection;
-                int nSections = peReader.PEHeaders.CoffHeader.NumberOfSections;
-                for (int i = 0; i < nSections; i++)
-                {
-                    SectionHeader section = peReader.PEHeaders.SectionHeaders[i];
-                    if (section.Name.Equals(".text"))
-                    {
-                        textSection = section;
-                    }
-                }
-
                 DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
-                int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress, textSection);
+                int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress);
                 R2RHeader = new R2RHeader(_image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
                 if (r2rHeaderDirectory.Size != R2RHeader.Size)
                 {
                     throw new System.BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
                 }
 
-                R2RSection runtimeFunctions = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
-                int curOffset = GetOffset((int)runtimeFunctions.RelativeVirtualAddress, textSection);
-                int nNativeCode = runtimeFunctions.Size / (3*sizeof(int));
-                NativeCode = new NativeCode[nNativeCode];
-                for (int i=0; i<nNativeCode; i++)
+                if (peReader.HasMetadata)
                 {
-                    int nativeCodeStartRva = GetInt32(_image, ref curOffset);
-                    int nativeCodeEndRva = GetInt32(_image, ref curOffset);
-                    int nativeCodeUnwindRva = GetInt32(_image, ref curOffset);
-                    NativeCode[i] = new NativeCode(_image, nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
+                    var mdReader = peReader.GetMetadataReader();
+                    R2RMethods = new R2RMethod[mdReader.MethodDefinitions.Count];
+                    int i = 0;
+                    foreach (MethodDefinitionHandle methodDefHandle in mdReader.MethodDefinitions)
+                    {
+                        var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
+                        R2RMethods[i++] = new R2RMethod(_image, ref mdReader, ref methodDef);
+                    }
+
+                    R2RSection runtimeFunctions = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
+                    int curOffset = GetOffset((int)runtimeFunctions.RelativeVirtualAddress);
+
+                    for (i = 0; i < R2RMethods.Length; i++)
+                    {
+                        int nativeCodeStartRva = GetInt32(_image, ref curOffset);
+                        int nativeCodeEndRva = GetInt32(_image, ref curOffset);
+                        int nativeCodeUnwindRva = GetInt32(_image, ref curOffset);
+                        R2RMethods[i].SetRVA(nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
+                    }
                 }
             }
         }
 
-        public int GetOffset(int rva, SectionHeader textSection)
+        /// <summary>
+        /// Get the index in the image byte array corresponding to the RVA
+        /// </summary>
+        /// <param name="rva">The relative virtual address</param>
+        public int GetOffset(int rva)
         {
-            return rva - textSection.VirtualAddress + textSection.PointerToRawData;
+            int index = peReader.PEHeaders.GetContainingSectionIndex(rva);
+            SectionHeader containingSection = peReader.PEHeaders.SectionHeaders[index];
+            return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
         }
 
         /// <summary>
-        /// Extracts a value from the image byte array
+        /// Extracts a 64bit value from the image byte array
         /// </summary>
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
@@ -126,6 +136,14 @@ namespace R2RDump
             return BitConverter.ToInt64(bytes, 0);
         }
 
+        // <summary>
+        /// Extracts a 32bit value from the image byte array
+        /// </summary>
+        /// <param name="image">PE image</param>
+        /// <param name="start">Starting index of the value</param>
+        /// <remarks>
+        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// </remarks>
         public static int GetInt32(byte[] image, ref int start)
         {
             int size = sizeof(int);
@@ -135,13 +153,38 @@ namespace R2RDump
             return BitConverter.ToInt32(bytes, 0);
         }
 
-        public static short GetInt16(byte[] image, ref int start)
+        // <summary>
+        /// Extracts an unsigned 32bit value from the image byte array
+        /// </summary>
+        /// <param name="image">PE image</param>
+        /// <param name="start">Starting index of the value</param>
+        /// <remarks>
+        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// </remarks>
+        public static uint GetUint32(byte[] image, ref int start)
+        {
+            int size = sizeof(int);
+            byte[] bytes = new byte[size];
+            Array.Copy(image, start, bytes, 0, size);
+            start += size;
+            return (uint)BitConverter.ToInt32(bytes, 0);
+        }
+
+        // <summary>
+        /// Extracts an unsigned 16bit value from the image byte array
+        /// </summary>
+        /// <param name="image">PE image</param>
+        /// <param name="start">Starting index of the value</param>
+        /// <remarks>
+        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// </remarks>
+        public static ushort GetUint16(byte[] image, ref int start)
         {
             int size = sizeof(short);
             byte[] bytes = new byte[size];
             Array.Copy(image, start, bytes, 0, size);
             start += size;
-            return BitConverter.ToInt16(bytes, 0);
+            return (ushort)BitConverter.ToInt16(bytes, 0);
         }
     }
 }

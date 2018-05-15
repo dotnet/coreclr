@@ -72,9 +72,9 @@ namespace R2RDump
                 throw new System.BadImageFormatException("Incorrect R2R header signature");
             }
 
-            MajorVersion = (ushort)R2RReader.GetInt16(image, ref curOffset);
-            MinorVersion = (ushort)R2RReader.GetInt16(image, ref curOffset);
-            Flags = (uint)R2RReader.GetInt32(image, ref curOffset);
+            MajorVersion = R2RReader.GetUint16(image, ref curOffset);
+            MinorVersion = R2RReader.GetUint16(image, ref curOffset);
+            Flags = R2RReader.GetUint32(image, ref curOffset);
             int nSections = R2RReader.GetInt32(image, ref curOffset);
             Sections = new Dictionary<R2RSection.SectionType, R2RSection>();
 
