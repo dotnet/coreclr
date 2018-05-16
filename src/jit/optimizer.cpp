@@ -3558,6 +3558,7 @@ void Compiler::optUnrollLoops()
         GenTree* phdr;
         GenTree* init;
 
+        bool       enablePartialUnroll = false;
         bool       dupCond;
         int        lval;
         int        lbeg;         // initial value for iterator
@@ -3585,7 +3586,7 @@ void Compiler::optUnrollLoops()
         noway_assert(ITER_LIMIT[COUNT_OPT_CODE] == 0);
 
         unsigned iterLimit = (unsigned)ITER_LIMIT[compCodeOpt()];
-
+		
 #ifdef DEBUG
         if (compStressCompile(STRESS_UNROLL_LOOPS, 50))
         {
@@ -3604,13 +3605,14 @@ void Compiler::optUnrollLoops()
         noway_assert(UNROLL_LIMIT_SZ[COUNT_OPT_CODE] == 0);
 
         int unrollLimitSz = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
+		int unrollPartialLimitBytes = 32;
 
         loopFlags = optLoopTable[lnum].lpFlags;
         // Check for required flags:
         // LPFLG_DO_WHILE - required because this transform only handles loops of this form
         // LPFLG_CONST - required because this transform only handles full unrolls
         // LPFLG_SIMD_LIMIT - included here as a heuristic, not for correctness/structural reasons
-        requiredFlags = LPFLG_DO_WHILE | LPFLG_CONST | LPFLG_SIMD_LIMIT;
+        requiredFlags = LPFLG_DO_WHILE | LPFLG_CONST | LPFLG_CONST_LIMIT;
 
 #ifdef DEBUG
         if (compStressCompile(STRESS_UNROLL_LOOPS, 50))
@@ -3619,7 +3621,7 @@ void Compiler::optUnrollLoops()
             // the restriction that loop limit must be Vector<T>.Count.
 
             unrollLimitSz *= 4;
-            requiredFlags &= ~LPFLG_SIMD_LIMIT;
+            requiredFlags &= ~LPFLG_CONST_LIMIT;
         }
 #endif
 
@@ -3663,13 +3665,9 @@ void Compiler::optUnrollLoops()
         iterOperType = optLoopTable[lnum].lpIterOperType();
         unsTest      = (optLoopTable[lnum].lpTestTree->gtFlags & GTF_UNSIGNED) != 0;
 
-        if (lvaTable[lvar].lvAddrExposed)
-        { // If the loop iteration variable is address-exposed then bail
-            continue;
-        }
-        if (lvaTable[lvar].lvIsStructField)
-        { // If the loop iteration variable is a promoted field from a struct then
-            // bail
+        if (lvaTable[lvar].lvAddrExposed || lvaTable[lvar].lvIsStructField)
+        { 
+            // If the loop iteration variable is address-exposed then bail or a promoted field from a struct then bail
             continue;
         }
 
@@ -3712,7 +3710,7 @@ void Compiler::optUnrollLoops()
 
         if (totalIter > iterLimit)
         {
-            continue;
+            enablePartialUnroll = true;
         }
 
         noway_assert(init->gtOper == GT_STMT);
@@ -3794,7 +3792,6 @@ void Compiler::optUnrollLoops()
             /* Compute the estimated increase in code size for the unrolled loop */
 
             ClrSafeInt<unsigned> fixedLoopCostSz(8);
-
             ClrSafeInt<int> unrollCostSz = ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(totalIter)) -
                                            ClrSafeInt<int>(loopCostSz + fixedLoopCostSz);
 
@@ -3825,144 +3822,14 @@ void Compiler::optUnrollLoops()
 
         /* Create the unrolled loop statement list */
         {
-            BlockToBlockMap blockMap(getAllocator());
-            BasicBlock*     insertAfter = bottom;
-
-            for (lval = lbeg; totalIter; totalIter--)
+            if (enablePartialUnroll)
             {
-                for (block = head->bbNext;; block = block->bbNext)
-                {
-                    BasicBlock* newBlock = insertAfter =
-                        fgNewBBafter(block->bbJumpKind, insertAfter, /*extendRegion*/ true);
-                    blockMap.Set(block, newBlock);
-
-                    if (!BasicBlock::CloneBlockState(this, newBlock, block, lvar, lval))
-                    {
-                        // cloneExpr doesn't handle everything
-                        BasicBlock* oldBottomNext = insertAfter->bbNext;
-                        bottom->bbNext            = oldBottomNext;
-                        oldBottomNext->bbPrev     = bottom;
-                        optLoopTable[lnum].lpFlags |= LPFLG_DONT_UNROLL;
-                        goto DONE_LOOP;
-                    }
-                    // Block weight should no longer have the loop multiplier
-                    newBlock->modifyBBWeight(newBlock->bbWeight / BB_LOOP_WEIGHT);
-                    // Jump dests are set in a post-pass; make sure CloneBlockState hasn't tried to set them.
-                    assert(newBlock->bbJumpDest == nullptr);
-
-                    if (block == bottom)
-                    {
-                        // Remove the test; we're doing a full unroll.
-
-                        GenTreeStmt* testCopyStmt = newBlock->lastStmt();
-                        GenTree*     testCopyExpr = testCopyStmt->gtStmt.gtStmtExpr;
-                        assert(testCopyExpr->gtOper == GT_JTRUE);
-                        GenTree* sideEffList = nullptr;
-                        gtExtractSideEffList(testCopyExpr, &sideEffList, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
-                        if (sideEffList == nullptr)
-                        {
-                            fgRemoveStmt(newBlock, testCopyStmt);
-                        }
-                        else
-                        {
-                            testCopyStmt->gtStmt.gtStmtExpr = sideEffList;
-                        }
-                        newBlock->bbJumpKind = BBJ_NONE;
-
-                        // Exit this loop; we've walked all the blocks.
-                        break;
-                    }
-                }
-
-                // Now redirect any branches within the newly-cloned iteration
-                for (block = head->bbNext; block != bottom; block = block->bbNext)
-                {
-                    BasicBlock* newBlock = blockMap[block];
-                    optCopyBlkDest(block, newBlock);
-                    optRedirectBlock(newBlock, &blockMap);
-                }
-
-                /* update the new value for the unrolled iterator */
-
-                switch (iterOper)
-                {
-                    case GT_ADD:
-                        lval += iterInc;
-                        break;
-
-                    case GT_SUB:
-                        lval -= iterInc;
-                        break;
-
-                    case GT_RSH:
-                    case GT_LSH:
-                        noway_assert(!"Unrolling not implemented for this loop iterator");
-                        goto DONE_LOOP;
-
-                    default:
-                        noway_assert(!"Unknown operator for constant loop iterator");
-                        goto DONE_LOOP;
-                }
-            }
-
-            // Gut the old loop body
-            for (block = head->bbNext;; block = block->bbNext)
-            {
-                block->bbTreeList = nullptr;
-                block->bbJumpKind = BBJ_NONE;
-                block->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
-                if (block->bbJumpDest != nullptr)
-                {
-                    block->bbJumpDest = nullptr;
-                }
-
-                if (block == bottom)
-                {
-                    break;
-                }
-            }
-
-            /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
-
-            if (head->bbJumpKind == BBJ_COND)
-            {
-                phdr = head->bbTreeList;
-                noway_assert(phdr);
-                test = phdr->gtPrev;
-
-                noway_assert(test && (test->gtNext == nullptr));
-                noway_assert(test->gtOper == GT_STMT);
-                noway_assert(test->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
-
-                init = test->gtPrev;
-                noway_assert(init && (init->gtNext == test));
-                noway_assert(init->gtOper == GT_STMT);
-
-                init->gtNext     = nullptr;
-                phdr->gtPrev     = init;
-                head->bbJumpKind = BBJ_NONE;
-                head->bbFlags &= ~BBF_NEEDS_GCPOLL;
             }
             else
             {
-                /* the loop must execute */
-                noway_assert(head->bbJumpKind == BBJ_NONE);
+                change = optFullUnrollLoops(lnum, totalIter);
             }
 
-#ifdef DEBUG
-            if (verbose)
-            {
-                printf("Whole unrolled loop:\n");
-
-                gtDispTree(init);
-                printf("\n");
-                fgDumpTrees(head->bbNext, insertAfter);
-            }
-#endif
-
-            /* Remember that something has changed */
-
-            change = true;
 
             /* Make sure to update loop table */
 
@@ -3991,7 +3858,148 @@ void Compiler::optUnrollLoops()
 #ifdef _PREFAST_
 #pragma warning(pop)
 #endif
+bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
+{
+    LoopDsc& loopDesc       = optLoopTable[loopId];
 
+    BasicBlock* bbStart     = loopDesc.lpHead;
+    BasicBlock* bbEnd       = loopDesc.lpBottom;
+
+    unsigned int iterBeg    = loopDesc.lpConstInit;
+    unsigned int iterLim    = loopDesc.lpConstLimit();
+    unsigned int iterVar    = loopDesc.lpIterVar();
+    unsigned int iterInc    = loopDesc.lpIterConst();
+
+
+    BlockToBlockMap blockMap(getAllocator());
+    BasicBlock*     bbInsertAfter = bbEnd;
+    for (unsigned iterCur = iterBeg; iterCount; iterCount--)
+    {
+       for (BasicBlock* bbCur = bbStart->bbNext;; bbCur = bbCur->bbNext)
+       {
+           BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbCur->bbJumpKind, bbInsertAfter, true);
+           blockMap.Set(bbCur, bbNew);
+
+           if (!BasicBlock::CloneBlockState(this, bbNew, bbCur, iterVar, iterCur))
+           {
+               // clone Expr dosn't handle anything.
+               BasicBlock* oldBottomNext    = bbInsertAfter->bbNext;
+               bbStart->bbNext              = oldBottomNext;
+               oldBottomNext->bbPrev        = bbStart;
+               optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
+
+               return false;
+           }
+
+           // Block weight should no longer have the loop multiplier
+           bbNew->modifyBBWeight(bbNew->bbWeight / BB_LOOP_WEIGHT);
+           // Jump dests are set in a post-pass; make sure CloneBlockState hasn't tried to set them.
+           assert(bbNew->bbJumpDest == nullptr);
+
+           if (bbCur == bbEnd)
+           {
+               // test expression is on end of block. remove loop's stmt
+               // we are doing full unroll, dosn't needs any tests.
+
+               GenTreeStmt* testStmt = bbNew->lastStmt();
+               GenTree*     testExpr = testStmt->gtStmt.gtStmtExpr;
+               assert(testExpr->gtOper == GT_JTRUE);
+
+               GenTree* sideEffList = nullptr;
+               gtExtractSideEffList(testExpr, &sideEffList, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+               if (sideEffList == nullptr)
+               {
+                   fgRemoveStmt(bbNew, testStmt);
+               }
+               else
+               {
+                   testStmt->gtStmt.gtStmtExpr = sideEffList;
+               }
+               bbNew->bbJumpKind = BBJ_NONE;
+
+               // Exit this loop; we've walked all the blocks.
+               break;
+           }
+       }
+
+       // Now redirect any branches within the newly-cloned iteration
+       for (BasicBlock* bbCur = bbStart->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
+       {
+           BasicBlock* bbNew = blockMap[bbCur];
+           optCopyBlkDest(bbCur, bbNew);
+           optRedirectBlock(bbNew, &blockMap);
+       }
+
+       // We are walking over iterations. modifying iteration variable
+       switch (loopDesc.lpIterOper())
+       {
+       case genTreeOps::GT_ADD:
+           iterCur += iterInc;
+           break;
+
+       case genTreeOps::GT_SUB:
+           iterCur -= iterInc;
+           break;
+
+       default:
+           noway_assert(!"Unknown operator for constant loop iterator");
+           return false;
+       }
+    }
+
+    // Gut the old loop body
+    for (BasicBlock* bbCur = bbStart->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
+    {
+        bbCur->bbTreeList = nullptr;
+        bbCur->bbJumpKind = BBJ_NONE;
+        bbCur->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
+
+        if (bbCur->bbJumpDest != nullptr)
+        {
+            bbCur->bbJumpDest = nullptr;
+        }
+    }
+
+    /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
+    if (bbStart->bbJumpKind == BBJ_COND)
+    {
+        noway_assert(bbStart->bbTreeList);
+        GenTree* gtTest = bbStart->bbTreeList->gtPrev;
+
+        noway_assert(gtTest && (gtTest->gtNext == nullptr));
+        noway_assert(gtTest->gtOper == GT_STMT);
+        noway_assert(gtTest->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
+
+        GenTree* gtInit = gtTest->gtPrev;
+        noway_assert(gtInit && (gtInit->gtNext == gtTest));
+        noway_assert(gtInit->gtOper == GT_STMT);
+        gtInit->gtNext = nullptr;
+
+        bbStart->bbTreeList->gtPrev = gtInit;
+        bbStart->bbJumpKind = BBJ_NONE;
+        bbStart->bbFlags &= ~BBF_NEEDS_GCPOLL;
+    }
+    else
+    {
+        /* the loop must execute */
+        noway_assert(bbStart->bbJumpKind == BBJ_NONE);
+        return false;
+    }
+
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("Whole fully unrolled loop:\n");
+        gtDispTree(bbStart->lastStmt()->gtStmtExpr);
+
+        // dump body to end. bbInsertAfter is current on end of node.
+        printf("\n");
+        fgDumpTrees(bbStart->bbNext, bbInsertAfter);
+    }
+#endif
+
+    return true;
+}
 /*****************************************************************************
  *
  *  Return false if there is a code path from 'topBB' to 'botBB' that might
