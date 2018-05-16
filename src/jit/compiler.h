@@ -5330,7 +5330,7 @@ public:
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
     bool optFullUnrollLoops(unsigned loopId, unsigned iterCount);
 
-	void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom);
+    void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom);
 
 protected:
     // This enumeration describes what is killed by a call.
