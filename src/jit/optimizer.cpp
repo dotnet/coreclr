@@ -3945,18 +3945,8 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         }
     }
 
-    // Gut the old loop body
-    for (BasicBlock* bbCur = bbStart->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
-    {
-        bbCur->bbTreeList = nullptr;
-        bbCur->bbJumpKind = BBJ_NONE;
-        bbCur->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
-
-        if (bbCur->bbJumpDest != nullptr)
-        {
-            bbCur->bbJumpDest = nullptr;
-        }
-    }
+    // remove old block body to use newly created unrolled loop.
+    optRemoveLoopBody(bbStart, bbEnd);
 
     /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
     if (bbStart->bbJumpKind == BBJ_COND)
@@ -3997,6 +3987,26 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
 #endif
 
     return true;
+}
+
+void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom)
+{
+    for (BasicBlock* block = head->bbNext;; block = block->bbNext)
+    {
+        block->bbTreeList = nullptr;
+        block->bbJumpKind = BBJ_NONE;
+        block->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
+
+        if (block->bbJumpDest != nullptr)
+        {
+            block->bbJumpDest = nullptr;
+        }
+
+        if (block == bottom)
+        {
+            break;
+        }
+    }
 }
 /*****************************************************************************
  *
