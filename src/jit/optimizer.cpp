@@ -3586,7 +3586,7 @@ void Compiler::optUnrollLoops()
         noway_assert(ITER_LIMIT[COUNT_OPT_CODE] == 0);
 
         unsigned iterLimit = (unsigned)ITER_LIMIT[compCodeOpt()];
-		
+
 #ifdef DEBUG
         if (compStressCompile(STRESS_UNROLL_LOOPS, 50))
         {
@@ -3604,8 +3604,8 @@ void Compiler::optUnrollLoops()
         noway_assert(UNROLL_LIMIT_SZ[SMALL_CODE] == 0);
         noway_assert(UNROLL_LIMIT_SZ[COUNT_OPT_CODE] == 0);
 
-        int unrollLimitSz = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
-		int unrollPartialLimitBytes = 32;
+        int unrollLimitSz           = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
+        int unrollPartialLimitBytes = 32;
 
         loopFlags = optLoopTable[lnum].lpFlags;
         // Check for required flags:
@@ -3666,7 +3666,7 @@ void Compiler::optUnrollLoops()
         unsTest      = (optLoopTable[lnum].lpTestTree->gtFlags & GTF_UNSIGNED) != 0;
 
         if (lvaTable[lvar].lvAddrExposed || lvaTable[lvar].lvIsStructField)
-        { 
+        {
             // If the loop iteration variable is address-exposed then bail or a promoted field from a struct then bail
             continue;
         }
@@ -3792,7 +3792,7 @@ void Compiler::optUnrollLoops()
             /* Compute the estimated increase in code size for the unrolled loop */
 
             ClrSafeInt<unsigned> fixedLoopCostSz(8);
-            ClrSafeInt<int> unrollCostSz = ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(totalIter)) -
+            ClrSafeInt<int>      unrollCostSz = ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(totalIter)) -
                                            ClrSafeInt<int>(loopCostSz + fixedLoopCostSz);
 
             /* Don't unroll if too much code duplication would result. */
@@ -3829,7 +3829,6 @@ void Compiler::optUnrollLoops()
             {
                 change = optFullUnrollLoops(lnum, totalIter);
             }
-
 
             /* Make sure to update loop table */
 
