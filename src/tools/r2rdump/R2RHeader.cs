@@ -66,7 +66,7 @@ namespace R2RDump
             byte[] signature = new byte[sizeof(uint)];
             Array.Copy(image, curOffset, signature, 0, sizeof(uint));
             SignatureString = System.Text.Encoding.UTF8.GetString(signature);
-            Signature = (uint)R2RReader.ReadInt32(image, ref curOffset);
+            Signature = R2RReader.ReadUInt32(image, ref curOffset);
             if (Signature != READYTORUN_SIGNATURE)
             {
                 throw new System.BadImageFormatException("Incorrect R2R header signature");

@@ -11,24 +11,50 @@ namespace R2RDump
     struct SignatureType
     {
         public SignatureTypeCode SignatureTypeCode { get; }
-        public bool IsArray { get; set; }
+        public bool IsArray { get; }
+        public string ClassName { get; }
 
-        public SignatureType(SignatureTypeCode signatureTypeCode)
+        public SignatureType(ref BlobReader signatureReader, ref MetadataReader mdReader)
         {
-            SignatureTypeCode = signatureTypeCode;
-            IsArray = false;
+            SignatureTypeCode = signatureReader.ReadSignatureTypeCode();
+            IsArray = (SignatureTypeCode == SignatureTypeCode.SZArray);
+            if (IsArray)
+            {
+                SignatureTypeCode = signatureReader.ReadSignatureTypeCode();
+            }
+            ClassName = SignatureTypeCode.ToString();
+            if (SignatureTypeCode == SignatureTypeCode.TypeHandle || SignatureTypeCode == SignatureTypeCode.ByReference)
+            {
+                EntityHandle handle = signatureReader.ReadTypeHandle();
+                if (handle.Kind == HandleKind.TypeDefinition)
+                {
+                    var typeDef = mdReader.GetTypeDefinition((TypeDefinitionHandle)handle);
+                    ClassName = mdReader.GetString(typeDef.Name);
+                }
+                else if (handle.Kind == HandleKind.TypeReference)
+                {
+                    var typeRef = mdReader.GetTypeReference((TypeReferenceHandle)handle);
+                    ClassName = mdReader.GetString(typeRef.Name);
+                }
+            }
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat($"{SignatureTypeCode.ToString()}");
+            if (SignatureTypeCode == SignatureTypeCode.ByReference)
+            {
+                sb.Append("ref ");
+            }
+            sb.AppendFormat($"{ClassName}");
             if (IsArray)
             {
                 sb.Append("[]");
             }
             return sb.ToString();
         }
+
+
     }
 
     struct RuntimeFunction
@@ -81,11 +107,11 @@ namespace R2RDump
             SignatureHeader header = signatureReader.ReadSignatureHeader();
             Name = mdReader.GetString(methodDef.Name);
             int argCount = signatureReader.ReadCompressedInteger();
-            ReturnType = DecodeSignatureType(ref signatureReader);
+            ReturnType = new SignatureType(ref signatureReader, ref mdReader);
             ArgTypes = new SignatureType[argCount];
             for (int i = 0; i < argCount; i++)
             {
-                ArgTypes[i] = DecodeSignatureType(ref signatureReader);
+                ArgTypes[i] = new SignatureType(ref signatureReader, ref mdReader);
             }
 
             Token = MetadataTokens.GetToken(methodDefHandle);
@@ -236,19 +262,6 @@ namespace R2RDump
                 sb.AppendFormat($"Size: {NativeCode.Size} bytes\n");
             }
             return sb.ToString();
-        }
-
-        private SignatureType DecodeSignatureType(ref BlobReader signatureReader)
-        {
-            SignatureType signatureType = new SignatureType(signatureReader.ReadSignatureTypeCode());
-            switch (signatureType.SignatureTypeCode)
-            {
-                case SignatureTypeCode.SZArray:
-                    signatureType = DecodeSignatureType(ref signatureReader);
-                    signatureType.IsArray = true;
-                    break;
-            }
-            return signatureType;
         }
     }
 }
