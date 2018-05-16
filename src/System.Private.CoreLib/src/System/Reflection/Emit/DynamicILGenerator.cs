@@ -442,10 +442,6 @@ namespace System.Reflection.Emit
 
         private int GetMemberRefToken(MethodBase methodInfo, Type[] optionalParameterTypes)
         {
-            Type[] parameterTypes;
-            Type[][] parameterTypeRequiredCustomModifiers;
-            Type[][] parameterTypeOptionalCustomModifiers;
-
             if (optionalParameterTypes != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
 
@@ -455,25 +451,11 @@ namespace System.Reflection.Emit
             if (rtMeth == null && dm == null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
-            ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
-            if (paramInfo != null && paramInfo.Length != 0)
-            {
-                parameterTypes = new Type[paramInfo.Length];
-                parameterTypeRequiredCustomModifiers = new Type[paramInfo.Length][];
-                parameterTypeOptionalCustomModifiers = new Type[paramInfo.Length][];
-                for (int i = 0; i < paramInfo.Length; i++)
-                {
-                    parameterTypes[i] = paramInfo[i].ParameterType;
-                    parameterTypeRequiredCustomModifiers[i] = paramInfo[i].GetRequiredCustomModifiers();
-                    parameterTypeOptionalCustomModifiers[i] = paramInfo[i].GetOptionalCustomModifiers();
-                }
-            }
-            else
-            {
-                parameterTypes = null;
-                parameterTypeRequiredCustomModifiers = null;
-                parameterTypeOptionalCustomModifiers = null;
-            }
+            SignatureHelper.ExtractParametersTypeArrays(
+                methodInfo.GetParametersNoCopy(),
+                out Type[] parameterTypes,
+                out Type[][] parameterTypeRequiredCustomModifiers,
+                out Type[][] parameterTypeOptionalCustomModifiers);
 
             SignatureHelper sig = GetMemberRefSignature(methodInfo.CallingConvention,
                                                      MethodBuilder.GetMethodBaseReturnType(methodInfo),
