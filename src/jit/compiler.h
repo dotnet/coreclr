@@ -5328,6 +5328,7 @@ public:
     void optEnsureUniqueHead(unsigned loopInd, unsigned ambientWeight);
 
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
+    bool optFullUnrollLoops(unsigned loopId, unsigned iterCount);
 
 protected:
     // This enumeration describes what is killed by a call.
@@ -5616,7 +5617,6 @@ protected:
     // Requires that "from" and "to" have the same "bbJumpKind" (perhaps because "to" is a clone
     // of "from".)  Copies the jump destination from "from" to "to".
     void optCopyBlkDest(BasicBlock* from, BasicBlock* to);
-	bool optFullUnrollLoops(unsigned loopId, unsigned iterCount);
 
     // The depth of the loop described by "lnum" (an index into the loop table.) (0 == top level)
     unsigned optLoopDepth(unsigned lnum)
