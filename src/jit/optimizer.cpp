@@ -3989,7 +3989,7 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     return true;
 }
 
-void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom)
+void Compiler::optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom)
 {
     for (BasicBlock* block = head->bbNext;; block = block->bbNext)
     {
