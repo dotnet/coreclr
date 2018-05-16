@@ -88,6 +88,7 @@
         <CppCompile Include="..\objectalloc.cpp" />
         <CppCompile Include="..\sideeffects.cpp" />
         <CppCompile Include="..\stacklevelsetter.cpp" />
+		<CppCompile Include="..\treelifeupdater.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\CodeGenLegacy.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\Lower.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LSRA.cpp" />
