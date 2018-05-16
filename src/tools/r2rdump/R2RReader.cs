@@ -8,6 +8,7 @@ using System.IO;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 
 namespace R2RDump
 {
@@ -87,22 +88,35 @@ namespace R2RDump
                 {
                     var mdReader = peReader.GetMetadataReader();
                     R2RMethods = new R2RMethod[mdReader.MethodDefinitions.Count];
+
                     int i = 0;
-                    foreach (MethodDefinitionHandle methodDefHandle in mdReader.MethodDefinitions)
+                    int runtimeFunctionSize = 2;
+                    if (Machine == Machine.Amd64)
                     {
-                        var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
-                        R2RMethods[i++] = new R2RMethod(_image, ref mdReader, ref methodDef);
+                        runtimeFunctionSize = 3;
+                    }
+                    R2RSection runtimeFunctionSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
+                    int curOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
+                    int nMethods = runtimeFunctionSection.Size / runtimeFunctionSize * sizeof(int);
+                    RuntimeFunction[] runtimeFunctions = new RuntimeFunction[nMethods];
+                    for (i = 0; i < nMethods; i++)
+                    {
+                        int nativeCodeStartRva = ReadInt32(_image, ref curOffset);
+                        int nativeCodeEndRva = -1;
+                        if (Machine == Machine.Amd64) {
+                            nativeCodeEndRva = ReadInt32(_image, ref curOffset);
+                        }
+                        int nativeCodeUnwindRva = ReadInt32(_image, ref curOffset);
+
+                        runtimeFunctions[i] = new RuntimeFunction(nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
                     }
 
-                    R2RSection runtimeFunctions = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
-                    int curOffset = GetOffset((int)runtimeFunctions.RelativeVirtualAddress);
-
-                    for (i = 0; i < R2RMethods.Length; i++)
+                    i = 0;
+                    int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
+                    int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
+                    foreach (MethodDefinitionHandle methodDefHandle in mdReader.MethodDefinitions)
                     {
-                        int nativeCodeStartRva = GetInt32(_image, ref curOffset);
-                        int nativeCodeEndRva = GetInt32(_image, ref curOffset);
-                        int nativeCodeUnwindRva = GetInt32(_image, ref curOffset);
-                        R2RMethods[i].SetRVA(nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
+                        R2RMethods[i++] = new R2RMethod(_image, runtimeFunctions, ref mdReader, methodDefHandle, methodDefEntryPointsOffset);
                     }
                 }
             }
@@ -127,7 +141,7 @@ namespace R2RDump
         /// <remarks>
         /// The <paramref name="start"/> gets incremented to the end of the value
         /// </remarks>
-        public static long GetInt64(byte[] image, ref int start)
+        public static long ReadInt64(byte[] image, ref int start)
         {
             int size = sizeof(long);
             byte[] bytes = new byte[size];
@@ -144,7 +158,7 @@ namespace R2RDump
         /// <remarks>
         /// The <paramref name="start"/> gets incremented to the end of the value
         /// </remarks>
-        public static int GetInt32(byte[] image, ref int start)
+        public static int ReadInt32(byte[] image, ref int start)
         {
             int size = sizeof(int);
             byte[] bytes = new byte[size];
@@ -161,7 +175,7 @@ namespace R2RDump
         /// <remarks>
         /// The <paramref name="start"/> gets incremented to the end of the value
         /// </remarks>
-        public static uint GetUint32(byte[] image, ref int start)
+        public static uint ReadUInt32(byte[] image, ref int start)
         {
             int size = sizeof(int);
             byte[] bytes = new byte[size];
@@ -178,7 +192,7 @@ namespace R2RDump
         /// <remarks>
         /// The <paramref name="start"/> gets incremented to the end of the value
         /// </remarks>
-        public static ushort GetUint16(byte[] image, ref int start)
+        public static ushort ReadUInt16(byte[] image, ref int start)
         {
             int size = sizeof(short);
             byte[] bytes = new byte[size];

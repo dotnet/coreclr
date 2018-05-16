@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace R2RDump
@@ -21,7 +22,7 @@ namespace R2RDump
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat($"{SignatureTypeCode.ToString().ToLower()}");
+            sb.AppendFormat($"{SignatureTypeCode.ToString()}");
             if (IsArray)
             {
                 sb.Append("[]");
@@ -30,13 +31,8 @@ namespace R2RDump
         }
     }
 
-    class R2RMethod
+    struct RuntimeFunction
     {
-        public string Name { get; }
-        public SignatureType ReturnType { get; }
-        public SignatureType[] ArgTypes { get; }
-        int ArgCount { get; }
-
         /// <summary>
         /// The relative virtual address to the start of the code block
         /// </summary>
@@ -45,6 +41,10 @@ namespace R2RDump
         /// <summary>
         /// The size of the code block in bytes
         /// </summary>
+        /// /// <remarks>
+        /// The EndAddress field in the runtime functions section is conditional on machine type
+        /// Size is -1 for images without the EndAddress field
+        /// </remarks>
         public int Size { get; set; }
 
         /// <summary>
@@ -52,42 +52,189 @@ namespace R2RDump
         /// </summary>
         public int UnwindRVA { get; set; }
 
-        public R2RMethod(byte[] image, ref MetadataReader mdReader, ref MethodDefinition methodDef)
-        {
-            BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
-            SignatureHeader header = signatureReader.ReadSignatureHeader();
-            Name = mdReader.GetString(methodDef.Name);
-            ArgCount = signatureReader.ReadCompressedInteger();
-            ReturnType = DecodeSignatureType(ref signatureReader);
-            ArgTypes = new SignatureType[ArgCount];
-            for (int i = 0; i < ArgCount; i++)
-            {
-                ArgTypes[i] = DecodeSignatureType(ref signatureReader);
-            }
-        }
-
-        internal void SetRVA(int startRva, int endRva, int unwindRva)
+        public RuntimeFunction(int startRva, int endRva, int unwindRva)
         {
             EntryPoint = startRva;
             Size = endRva - startRva;
+            if (endRva == -1)
+                Size = -1;
             UnwindRVA = unwindRva;
+        }
+    }
+
+    class R2RMethod
+    {
+        private const int _blockSize = 16;
+
+        public string Name { get; }
+        public SignatureType ReturnType { get; }
+        public SignatureType[] ArgTypes { get; }
+        public int Token { get; }
+
+        public RuntimeFunction NativeCode { get; }
+
+        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, int methodDefEntryPointsOffset)
+        {
+            var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
+
+            BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
+            SignatureHeader header = signatureReader.ReadSignatureHeader();
+            Name = mdReader.GetString(methodDef.Name);
+            int argCount = signatureReader.ReadCompressedInteger();
+            ReturnType = DecodeSignatureType(ref signatureReader);
+            ArgTypes = new SignatureType[argCount];
+            for (int i = 0; i < argCount; i++)
+            {
+                ArgTypes[i] = DecodeSignatureType(ref signatureReader);
+            }
+
+            Token = MetadataTokens.GetToken(methodDefHandle);
+            int rid = MetadataTokens.GetRowNumber(methodDefHandle);
+
+            int val = 0;
+            int baseOffset = DecodeUnsigned(image, methodDefEntryPointsOffset, ref val);
+            int nElements = (int)(val >> 2);
+            int entryIndexSize = (int)(val & 3);
+            int offset = MethodDefEntryPointsTryGetAt(image, rid - 1, (int)baseOffset, nElements, entryIndexSize);
+            int id = 0;
+            offset = DecodeUnsigned(image, offset, ref id);
+            if ((id & 1)!=0)
+            {
+                if ((id & 2)!= 0)
+                {
+                    val = 0;
+                    DecodeUnsigned(image, offset, ref val);
+                    offset -= val;
+                }
+                id >>= 2;
+            }
+            else
+            {
+                id >>= 1;
+            }
+            NativeCode = runtimeFunctions[id];
+        }
+
+        private int MethodDefEntryPointsTryGetAt(byte[] image, int index, int baseOffset, int nElements, int entryIndexSize)
+        {
+            if (index >= nElements)
+                throw new System.BadImageFormatException("MethodDefEntryPoints");
+
+            int offset = 0;
+            if (entryIndexSize == 0)
+            {
+                int i = baseOffset + (index / _blockSize);
+                offset = image[i];
+            }
+            else if (entryIndexSize == 1)
+            {
+                int i = baseOffset + 2 * (index / _blockSize);
+                offset = R2RReader.ReadUInt16(image, ref i);
+            }
+            else
+            {
+                int i = baseOffset + 4 * (index / _blockSize);
+                offset = R2RReader.ReadInt32(image, ref i);
+            }
+            offset += baseOffset;
+
+            for (uint bit = _blockSize >> 1; bit > 0; bit >>= 1)
+            {
+                int val = 0;
+                int offset2 = DecodeUnsigned(image, offset, ref val);
+                if ((index & bit) != 0)
+                {
+                    if ((val & 2) != 0)
+                    {
+                        offset = offset + (val >> 2);
+                        continue;
+                    }
+                }
+                else
+                {
+                    if ((val & 1) != 0)
+                    {
+                        offset = offset2;
+                        continue;
+                    }
+                }
+
+                // Not found
+                if ((val & 3) == 0)
+                {
+                    // Matching special leaf node?
+                    if ((val >> 2) == (index & (_blockSize - 1)))
+                    {
+                        offset = offset2;
+                        break;
+                    }
+                }
+                throw new System.BadImageFormatException("MethodDefEntryPoints");
+            }
+            return offset;
+        }
+
+        private int DecodeUnsigned(byte[] image, int offset, ref int pValue)
+        {
+            int val = image[offset];
+
+            if ((val & 1) == 0)
+            {
+                pValue = (val >> 1);
+                offset += 1;
+            }
+            else if ((val & 2) == 0)
+            {
+                pValue = (val >> 2) |
+                      (image[offset + 1] << 6);
+                offset += 2;
+            }
+            else if ((val & 4) == 0)
+            {
+                pValue = (val >> 3) |
+                      (image[offset + 1] << 5) |
+                      (image[offset + 2] << 13);
+                offset += 3;
+            }
+            else if ((val & 8) == 0)
+            {
+                pValue = (val >> 4) |
+                      (image[offset + 1] << 4) |
+                      (image[offset + 2] << 12) |
+                      (image[offset + 3] << 20);
+                offset += 4;
+            }
+            else if ((val & 16) == 0)
+            {
+                pValue = image[offset + 1];
+                offset += 5;
+            }
+            else
+            {
+                throw new System.BadImageFormatException("MethodDefEntryPoints");
+            }
+
+            return offset;
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendFormat($"{ReturnType.ToString()} {Name}(");
-            for (int i = 0; i < ArgCount - 1; i++)
+            for (int i = 0; i < ArgTypes.Length - 1; i++)
             {
                 sb.AppendFormat($"{ArgTypes[i].ToString()}, ");
             }
-            if (ArgCount > 0) {
-                sb.AppendFormat($"{ArgTypes[ArgCount - 1].ToString()}");
+            if (ArgTypes.Length > 0) {
+                sb.AppendFormat($"{ArgTypes[ArgTypes.Length - 1].ToString()}");
             }
             sb.Append(")\n");
 
-            sb.AppendFormat($"EntryPoint: 0x{EntryPoint:X8}\n");
-            sb.AppendFormat($"Size: {Size} bytes\n");
+            sb.AppendFormat($"Token: 0x{Token:X8}\n");
+            sb.AppendFormat($"EntryPoint: 0x{NativeCode.EntryPoint:X8}\n");
+            if (NativeCode.Size != -1) {
+                sb.AppendFormat($"Size: {NativeCode.Size} bytes\n");
+            }
             return sb.ToString();
         }
 
