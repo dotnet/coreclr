@@ -71,7 +71,7 @@ namespace R2RDump
         /// <summary>
         /// The relative virtual address to the start of the code block
         /// </summary>
-        public int EntryPoint { get; set; }
+        public int StartAddress { get; set; }
 
         /// <summary>
         /// The size of the code block in bytes
@@ -89,7 +89,7 @@ namespace R2RDump
 
         public RuntimeFunction(int startRva, int endRva, int unwindRva)
         {
-            EntryPoint = startRva;
+            StartAddress = startRva;
             Size = endRva - startRva;
             if (endRva == -1)
                 Size = -1;
@@ -108,15 +108,17 @@ namespace R2RDump
         /// <summary>
         /// The token of the method consisting of the table code (0x06) and row id
         /// </summary>
-        public int Token { get; }
+        public uint Token { get; }
 
         /// <summary>
         /// The entry point to the native code and the RVA of the unwind info
         /// </summary>
-        public RuntimeFunction NativeCode { get; }
+        public RuntimeFunction[] NativeCode { get; set; }
 
-        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, int rid) 
-            : this(image, runtimeFunctions, methodEntryPoints, offset, rid)
+        public uint EntryPointRuntimeFunctionId { get; }
+
+        public R2RMethod(byte[] image, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, uint rid) 
+            : this(image, methodEntryPoints, offset, rid)
         {
             var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
             BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
@@ -131,9 +133,9 @@ namespace R2RDump
             }
         }
 
-        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, NativeArray methodEntryPoints, uint offset, int rid)
+        public R2RMethod(byte[] image, NativeArray methodEntryPoints, uint offset, uint rid)
         {
-            Token = _mdtMethodDef + rid;
+            Token = _mdtMethodDef | rid;
 
             uint id = 0; // the RUNTIME_FUNCTIONS index
             offset = methodEntryPoints.DecodeUnsigned(image, offset, ref id);
@@ -153,7 +155,7 @@ namespace R2RDump
             {
                 id >>= 1;
             }
-            NativeCode = runtimeFunctions[id];
+            EntryPointRuntimeFunctionId = id;
 
             Name = "";
         }
@@ -175,10 +177,13 @@ namespace R2RDump
             }
 
             sb.AppendFormat($"Token: 0x{Token:X8}\n");
-            sb.AppendFormat($"EntryPoint: 0x{NativeCode.EntryPoint:X8}\n");
-            if (NativeCode.Size != -1) {
-                sb.AppendFormat($"Size: {NativeCode.Size} bytes\n");
+            for (int i = 0; i < NativeCode.Length; i++) {
+                sb.AppendFormat($"\nStartAddress: 0x{NativeCode[i].StartAddress:X8}\n");
+                if (NativeCode[i].Size != -1) {
+                    sb.AppendFormat($"Size: {NativeCode[i].Size} bytes\n");
+                }
             }
+
             return sb.ToString();
         }
     }
