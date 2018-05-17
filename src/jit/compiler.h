@@ -5329,6 +5329,7 @@ public:
 
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
     bool optFullUnrollLoops(unsigned loopId, unsigned iterCount);
+    bool optPartialUnrollLoops(unsigned loopId, unsigned iterCount);
 
     void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom);
 

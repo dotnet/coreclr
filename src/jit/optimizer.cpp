@@ -3706,11 +3706,62 @@ void Compiler::optUnrollLoops()
             continue;
         }
 
-        /* Forget it if there are too many repetitions or not a constant loop */
-
+        
+        // Checking its overing limit of iterators. most of partial unrolling processes will be performed
+        // when its overing iteration limits. if its not partial unrollable. ignore this loop.
         if (totalIter > iterLimit)
         {
-            enablePartialUnroll = true;
+            // only allows under 32bytes ALU processes. not SIMD such as using Vector<T>
+            // using vector will just make it more compilated process. so we will check all size of common ALU processes.
+
+            bool isUnrollable = true;
+            for (block == head->bbNext; isUnrollable; block == block->bbNext)
+            {
+                unsigned gtCount = 0; // GenTree node counts.
+                unsigned gtBytes = 0; // GenTree node total bytes that processing.
+                for (GenTree* gtCurr = block->firstNode(); gtCurr != nullptr; gtCurr = gtCurr->gtNext)
+                {
+                    switch (gtCurr->gtOper)
+                    {
+                        case genTreeOps::GT_ADD:
+                        case genTreeOps::GT_SUB:
+                            gtBytes += genTypeSize(gtCurr->TypeGet());
+                            break;
+
+                        default:
+                            // Another instructions are not unrollable, unrolling only common ALU instructions.
+                            isUnrollable = false;
+                            break;
+                    }
+
+                    gtCount++;
+                }
+
+                if (gtCount > 4 || gtBytes > unrollPartialLimitBytes)
+                {
+                    isUnrollable = false;
+                }
+
+                // We are end of block, exit loop. we checked all of blocks on loops. everything is fine.
+                if (block == bottom)
+                {
+                    break;
+                }
+            }
+
+            if (isUnrollable)
+            {
+                enablePartialUnroll = true;
+            }
+            else
+            {
+                // forget this loop. this is not unrollable as partial unrolled loop.
+                // there is serval reason that this cannot be unrolled as it.
+                // first, the ALU process in 1 block is over 32 bytes. partial unrolling as over 32 bytes is useless.
+                // it will just cause much more cache misses than rolled loop. and also just eat up code sizes.
+                // second, it is using SIMD, or Vector<T> on process. these are not target to be unrolled.
+                continue;
+            }
         }
 
         noway_assert(init->gtOper == GT_STMT);
@@ -3822,13 +3873,8 @@ void Compiler::optUnrollLoops()
 
         /* Create the unrolled loop statement list */
         {
-            if (enablePartialUnroll)
-            {
-            }
-            else
-            {
-                change = optFullUnrollLoops(lnum, totalIter);
-            }
+            change = enablePartialUnroll ? 
+                optPartialUnrollLoops(lnum, totalIter) : optFullUnrollLoops(lnum, totalIter);
 
             /* Make sure to update loop table */
 
@@ -3986,6 +4032,11 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     }
 #endif
 
+    return true;
+}
+
+bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
+{
     return true;
 }
 
