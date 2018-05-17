@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace R2RDump
@@ -100,8 +102,19 @@ namespace R2RDump
     {
         private const int _mdtMethodDef = 0x06000000;
 
+        /// <summary>
+        /// The name of the method
+        /// </summary>
         public string Name { get; }
+
+        /// <summary>
+        /// The return type of the method
+        /// </summary>
         public SignatureType ReturnType { get; }
+
+        /// <summary>
+        /// The argument types of the method
+        /// </summary>
         public SignatureType[] ArgTypes { get; }
 
         /// <summary>
@@ -110,13 +123,17 @@ namespace R2RDump
         public uint Token { get; }
 
         /// <summary>
-        /// The entry point to the native code and the RVA of the unwind info
+        /// All the runtime functions of this method
         /// </summary>
-        public RuntimeFunction[] NativeCode { get; set; }
+        public List<RuntimeFunction> NativeCode;
+        //public RuntimeFunction[] NativeCode { get; set; }
 
+        /// <summary>
+        /// The id of the entrypoint runtime function
+        /// </summary>
         public uint EntryPointRuntimeFunctionId { get; }
 
-        public R2RMethod(byte[] image, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, uint rid)
+        public R2RMethod(byte[] image, MetadataReader mdReader, NativeArray methodEntryPoints, uint offset, uint rid)
         {
             // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
             Token = _mdtMethodDef | rid;
@@ -139,10 +156,12 @@ namespace R2RDump
                 id >>= 1;
             }
             EntryPointRuntimeFunctionId = id;
+            NativeCode = new List<RuntimeFunction>();
 
             // get the method signature from the MethodDefhandle
             try
             {
+                MethodDefinitionHandle methodDefHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
                 var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
                 BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
                 SignatureHeader header = signatureReader.ReadSignatureHeader();
@@ -178,10 +197,10 @@ namespace R2RDump
             }
 
             sb.AppendFormat($"Token: 0x{Token:X8}\n");
-            for (int i = 0; i < NativeCode.Length; i++) {
-                sb.AppendFormat($"\nStartAddress: 0x{NativeCode[i].StartAddress:X8}\n");
-                if (NativeCode[i].Size != -1) {
-                    sb.AppendFormat($"Size: {NativeCode[i].Size} bytes\n");
+            foreach (RuntimeFunction runtimeFunction in NativeCode) {
+                sb.AppendFormat($"\nStartAddress: 0x{runtimeFunction.StartAddress:X8}\n");
+                if (runtimeFunction.Size != -1) {
+                    sb.AppendFormat($"Size: {runtimeFunction.Size} bytes\n");
                 }
             }
 

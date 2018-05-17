@@ -49,6 +49,9 @@ namespace R2RDump
         /// </summary>
         public uint Flags { get; }
 
+        /// <summary>
+        /// The ReadyToRun section RVAs and sizes
+        /// </summary>
         public Dictionary<R2RSection.SectionType, R2RSection> Sections { get; }
 
         /// <summary>
