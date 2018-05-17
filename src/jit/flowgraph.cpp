@@ -7225,14 +7225,24 @@ bool Compiler::fgAddrCouldBeNull(GenTree* addr)
     return true; // default result: addr could be null
 }
 
-/*****************************************************************************
- *  Optimize the call to the delegate constructor.
- */
+//------------------------------------------------------------------------------
+// fgOptimizeDelegateConstructor: try and optimize construction of a delegate
+//
+// Arguments:
+//    call -- call to original delegate constructor
+//    exactContextHnd -- [out] context handle to update
+//    ldftnToken -- [in]  resolved token for the method the delegate will invoke,
+//      if known, or nullptr if not known
+//
+// Return Value:
+//    Original call tree if no optimization applies.
+//    Updated call tree if optimized.
 
 GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
                                                  CORINFO_CONTEXT_HANDLE* ExactContextHnd,
                                                  CORINFO_RESOLVED_TOKEN* ldftnToken)
 {
+    JITDUMP("\nfgOptimizeDelegateConstructor: ");
     noway_assert(call->gtCallType == CT_USER_FUNC);
     CORINFO_METHOD_HANDLE methHnd = call->gtCallMethHnd;
     CORINFO_CLASS_HANDLE  clsHnd  = info.compCompHnd->getMethodClass(methHnd);
@@ -7292,6 +7302,24 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
         targetMethodHnd = CORINFO_METHOD_HANDLE(tokenNode->gtIntCon.gtCompileTimeHandle);
     }
 
+    // Verify using the ldftnToken gives us all of what we used to get
+    // via the above pattern match, and more...
+    if (ldftnToken != nullptr)
+    {
+        assert(ldftnToken->hMethod != nullptr);
+
+        if (targetMethodHnd != nullptr)
+        {
+            assert(targetMethodHnd == ldftnToken->hMethod);
+        }
+
+        targetMethodHnd = ldftnToken->hMethod;
+    }
+    else
+    {
+        assert(targetMethodHnd == nullptr);
+    }
+
 #ifdef FEATURE_READYTORUN_COMPILER
     if (opts.IsReadyToRun())
     {
@@ -7299,6 +7327,8 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
         {
             if (ldftnToken != nullptr)
             {
+                JITDUMP("optimized\n");
+
                 GenTree*             thisPointer       = call->gtCallObjp;
                 GenTree*             targetObjPointers = call->gtCallArgs->Current();
                 GenTreeArgList*      helperArgs        = nullptr;
@@ -7323,10 +7353,16 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
                 call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, helperArgs);
                 call->setEntryPoint(entryPoint);
             }
+            else
+            {
+                JITDUMP("not optimized, CORERT no ldftnToken\n");
+            }
         }
         // ReadyToRun has this optimization for a non-virtual function pointers only for now.
         else if (oper == GT_FTN_ADDR)
         {
+            JITDUMP("optimized\n");
+
             GenTree*        thisPointer       = call->gtCallObjp;
             GenTree*        targetObjPointers = call->gtCallArgs->Current();
             GenTreeArgList* helperArgs        = gtNewArgList(thisPointer, targetObjPointers);
@@ -7337,6 +7373,10 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
             info.compCompHnd->getReadyToRunDelegateCtorHelper(ldftnToken, clsHnd, &entryPoint);
             assert(!entryPoint.lookupKind.needsRuntimeLookup);
             call->setEntryPoint(entryPoint.constLookup);
+        }
+        else
+        {
+            JITDUMP("not optimized, R2R virtual case\n");
         }
     }
     else
@@ -7353,6 +7393,7 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
         alternateCtor = info.compCompHnd->GetDelegateCtor(methHnd, clsHnd, targetMethodHnd, &ctorData);
         if (alternateCtor != methHnd)
         {
+            JITDUMP("optimized\n");
             // we erase any inline info that may have been set for generics has it is not needed here,
             // and in fact it will pass the wrong info to the inliner code
             *ExactContextHnd = nullptr;
@@ -7378,6 +7419,14 @@ GenTree* Compiler::fgOptimizeDelegateConstructor(GenTreeCall*            call,
             }
             call->gtCallArgs->Rest()->Rest() = addArgs;
         }
+        else
+        {
+            JITDUMP("not optimized, no alternate ctor\n");
+        }
+    }
+    else
+    {
+        JITDUMP("not optimized, no target method\n");
     }
     return call;
 }
@@ -21164,6 +21213,11 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
         chkFlags |= GTF_EXCEPT;
     }
 
+    if (tree->OperRequiresCallFlag(this))
+    {
+        chkFlags |= GTF_CALL;
+    }
+
     /* Is this a leaf node? */
 
     if (kind & GTK_LEAF)
@@ -21348,8 +21402,6 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
 
                 call = tree->AsCall();
 
-                chkFlags |= GTF_CALL;
-
                 if (call->gtCallObjp)
                 {
                     fgDebugCheckFlags(call->gtCallObjp);
@@ -21531,8 +21583,8 @@ void Compiler::fgDebugCheckFlagsHelper(GenTree* tree, unsigned treeFlags, unsign
     }
     else if (treeFlags & ~chkFlags)
     {
-        // TODO: We are currently only checking extra GTF_EXCEPT and GTF_ASG flags.
-        if ((treeFlags & ~chkFlags & ~GTF_GLOB_REF & ~GTF_ORDER_SIDEEFF & ~GTF_CALL) != 0)
+        // TODO: We are currently only checking extra GTF_EXCEPT, GTF_ASG, and GTF_CALL flags.
+        if ((treeFlags & ~chkFlags & ~GTF_GLOB_REF & ~GTF_ORDER_SIDEEFF) != 0)
         {
             // Print the tree so we can see it in the log.
             printf("Extra flags on parent tree [%X]: ", tree);
