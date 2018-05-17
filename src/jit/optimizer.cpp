@@ -3605,7 +3605,7 @@ void Compiler::optUnrollLoops()
         noway_assert(UNROLL_LIMIT_SZ[COUNT_OPT_CODE] == 0);
 
         int unrollLimitSz           = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
-        int unrollPartialLimitBytes = 32;
+        unsigned unrollPartialLimitBytes = 32;
 
         loopFlags = optLoopTable[lnum].lpFlags;
         // Check for required flags:
@@ -3715,7 +3715,7 @@ void Compiler::optUnrollLoops()
             // using vector will just make it more compilated process. so we will check all size of common ALU processes.
 
             bool isUnrollable = true;
-            for (block == head->bbNext; isUnrollable; block == block->bbNext)
+            for (block = head->bbNext; isUnrollable; block = block->bbNext)
             {
                 unsigned gtCount = 0; // GenTree node counts.
                 unsigned gtBytes = 0; // GenTree node total bytes that processing.
@@ -3873,8 +3873,8 @@ void Compiler::optUnrollLoops()
 
         /* Create the unrolled loop statement list */
         {
-            change = enablePartialUnroll ? 
-                optPartialUnrollLoops(lnum, totalIter) : optFullUnrollLoops(lnum, totalIter);
+            change = (enablePartialUnroll ? 
+                optPartialUnrollLoops(lnum, totalIter) : optFullUnrollLoops(lnum, totalIter));
 
             /* Make sure to update loop table */
 
