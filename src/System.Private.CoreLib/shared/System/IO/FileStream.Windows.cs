@@ -1263,6 +1263,18 @@ namespace System.IO
             return errorCode;
         }
 
+        public override void CopyTo(Stream destination, int bufferSize)
+        {
+            if (_useAsyncIO && GetType() == typeof(FileStream))
+            {
+                CopyToAsync(destination, bufferSize, CancellationToken.None).GetAwaiter().GetResult();
+            }
+            else
+            {
+                base.CopyTo(destination, bufferSize);
+            }
+        }
+        
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
             // If we're in sync mode, just use the shared CopyToAsync implementation that does
