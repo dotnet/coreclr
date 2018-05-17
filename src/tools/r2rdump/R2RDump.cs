@@ -40,9 +40,9 @@ namespace R2RDump
                     }
 
                     Console.WriteLine("============== Native Code ==============");
-                    for (int i=0; i<r2r.R2RMethods.Length; i++)
+                    foreach (R2RMethod method in r2r.R2RMethods)
                     {
-                        Console.WriteLine(r2r.R2RMethods[i].ToString());
+                        Console.WriteLine(method.ToString());
                         Console.WriteLine("------------------\n");
                     }
                 }

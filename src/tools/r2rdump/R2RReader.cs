@@ -47,9 +47,10 @@ namespace R2RDump
         public R2RHeader R2RHeader { get; }
 
         /// <summary>
-        /// The assembly code of the runtime functions
+        /// The runtime functions and method signatures of each method
+        /// TODO: generic methods
         /// </summary>
-        public R2RMethod[] R2RMethods { get; }
+        public List<R2RMethod> R2RMethods { get; }
 
         /// <summary>
         /// Initializes the fields of the R2RHeader
@@ -75,7 +76,7 @@ namespace R2RDump
                 Machine = peReader.PEHeaders.CoffHeader.Machine;
                 ImageBase = peReader.PEHeaders.PEHeader.ImageBase;
 
-                // initialize the R2RHeader
+                // initialize R2RHeader
                 DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
                 int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress);
                 R2RHeader = new R2RHeader(_image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
@@ -84,6 +85,7 @@ namespace R2RDump
                     throw new BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
                 }
 
+                // initialize R2RMethods
                 if (peReader.HasMetadata)
                 {
                     var mdReader = peReader.GetMetadataReader();
@@ -98,38 +100,37 @@ namespace R2RDump
                     uint nRuntimeFunctions = (uint)(runtimeFunctionSection.Size / runtimeFunctionSize);
                     int runtimeFunctionOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
                     bool[] isEntryPoint = new bool[nRuntimeFunctions];
-                    for (int j = 0; j < nRuntimeFunctions; j++)
+                    for (int i = 0; i < nRuntimeFunctions; i++)
                     {
-                        isEntryPoint[j] = false;
+                        isEntryPoint[i] = false;
                     }
 
                     // initialize R2RMethods with method signatures from MethodDefHandle, and runtime function indices from MethodDefEntryPoints
-                    int nMethods = 0;
                     int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
                     int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
                     NativeArray methodEntryPoints = new NativeArray(_image, (uint)methodDefEntryPointsOffset);
                     uint nMethodEntryPoints = methodEntryPoints.GetCount();
-                    R2RMethods = new R2RMethod[nMethodEntryPoints];
+                    R2RMethods = new List<R2RMethod>();
                     for (uint rid = 1; rid <= nMethodEntryPoints; rid++)
                     {
                         uint offset = 0;
                         if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
                         {
-                            R2RMethods[nMethods] = new R2RMethod(_image, mdReader, methodEntryPoints, offset, rid);
-                            if (R2RMethods[nMethods].EntryPointRuntimeFunctionId >= nRuntimeFunctions)
+                            R2RMethod method = new R2RMethod(_image, mdReader, methodEntryPoints, offset, rid);
+                            if (method.EntryPointRuntimeFunctionId >= nRuntimeFunctions)
                             {
                                 throw new BadImageFormatException("Runtime function id out of bounds");
                             }
-                            isEntryPoint[R2RMethods[nMethods].EntryPointRuntimeFunctionId] = true;
-                            nMethods++;
+                            isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                            R2RMethods.Add(method);
                         }
                     }
 
                     // get the RVAs of the runtime functions for each method
                     int runtimeFunctionId = 0;
-                    for (int i = 0; i < nMethods; i++)
+                    foreach (R2RMethod method in R2RMethods)
                     {
-                        int curOffset = (int)(runtimeFunctionOffset + R2RMethods[i].EntryPointRuntimeFunctionId * runtimeFunctionSize);
+                        int curOffset = (int)(runtimeFunctionOffset + method.EntryPointRuntimeFunctionId * runtimeFunctionSize);
                         do
                         {
                             int startRva = ReadInt32(_image, ref curOffset);
@@ -140,7 +141,7 @@ namespace R2RDump
                             }
                             int unwindRva = ReadInt32(_image, ref curOffset);
 
-                            R2RMethods[i].NativeCode.Add(new RuntimeFunction(startRva, endRva, unwindRva));
+                            method.NativeCode.Add(new RuntimeFunction(startRva, endRva, unwindRva));
                             runtimeFunctionId++;
                         }
                         while (runtimeFunctionId < nRuntimeFunctions && !isEntryPoint[runtimeFunctionId]);

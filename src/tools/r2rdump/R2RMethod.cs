@@ -125,8 +125,7 @@ namespace R2RDump
         /// <summary>
         /// All the runtime functions of this method
         /// </summary>
-        public List<RuntimeFunction> NativeCode;
-        //public RuntimeFunction[] NativeCode { get; set; }
+        public List<RuntimeFunction> NativeCode { get; }
 
         /// <summary>
         /// The id of the entrypoint runtime function
