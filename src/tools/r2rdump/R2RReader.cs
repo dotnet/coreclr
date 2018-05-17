@@ -8,7 +8,6 @@ using System.IO;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
-using System.Runtime.InteropServices;
 
 namespace R2RDump
 {
@@ -89,17 +88,10 @@ namespace R2RDump
                 {
                     var mdReader = peReader.GetMetadataReader();
 
-                    // get mapping from rid to MethodDefHandle
-                    int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
-                    int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
-                    Dictionary<uint, MethodDefinitionHandle> ridToMethodDefHandle = new Dictionary<uint, MethodDefinitionHandle>();
-                    foreach (MethodDefinitionHandle methodDefHandle in mdReader.MethodDefinitions)
-                    {
-                        ridToMethodDefHandle[(uint)MetadataTokens.GetRowNumber(methodDefHandle)] = methodDefHandle;
-                    }
-
                     // initialize R2RMethods with method signatures from MethodDefHandle, and runtime function indices from MethodDefEntryPoints
                     int i = 0;
+                    int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
+                    int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
                     NativeArray methodEntryPoints = new NativeArray(_image, (uint)methodDefEntryPointsOffset);
                     uint nMethods = methodEntryPoints.GetCount();
                     R2RMethods = new R2RMethod[nMethods];
@@ -108,15 +100,8 @@ namespace R2RDump
                         uint offset = 0;
                         if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
                         {
-                            MethodDefinitionHandle methodDefHandle;
-                            if (ridToMethodDefHandle.TryGetValue(rid, out methodDefHandle))
-                            {
-                                R2RMethods[i++] = new R2RMethod(_image, ref mdReader, methodDefHandle, methodEntryPoints, offset, rid);
-                            }
-                            else
-                            {
-                                R2RMethods[i++] = new R2RMethod(_image, methodEntryPoints, offset, rid);
-                            }
+                            MethodDefinitionHandle methodDefHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
+                            R2RMethods[i++] = new R2RMethod(_image, ref mdReader, methodDefHandle, methodEntryPoints, offset, rid);
                         }
                     }
 
@@ -130,7 +115,7 @@ namespace R2RDump
                     int curOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
                     for (i = 0; i < nMethods; i++)
                     {
-                        uint nRuntimeFunctions;
+                        uint nRuntimeFunctions; // the number of runtime functions in this method
                         if (i < nMethods - 1) {
                             nRuntimeFunctions = R2RMethods[i + 1].EntryPointRuntimeFunctionId - R2RMethods[i].EntryPointRuntimeFunctionId;
                         }
@@ -139,6 +124,7 @@ namespace R2RDump
                             uint totalRuntimeFunctions = (uint)(runtimeFunctionSection.Size / (runtimeFunctionSize * sizeof(int)));
                             nRuntimeFunctions = totalRuntimeFunctions - R2RMethods[i].EntryPointRuntimeFunctionId;
                         }
+
                         R2RMethods[i].NativeCode = new RuntimeFunction[nRuntimeFunctions];
                         for (int j = 0; j < nRuntimeFunctions; j++)
                         {
@@ -174,7 +160,7 @@ namespace R2RDump
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
         /// <remarks>
-        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// The <paramref name="start"/> gets incremented by the size of the value
         /// </remarks>
         public static long ReadInt64(byte[] image, ref int start)
         {
@@ -191,7 +177,7 @@ namespace R2RDump
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
         /// <remarks>
-        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// The <paramref name="start"/> gets incremented by the size of the value
         /// </remarks>
         public static int ReadInt32(byte[] image, ref int start)
         {
@@ -208,7 +194,7 @@ namespace R2RDump
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
         /// <remarks>
-        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// The <paramref name="start"/> gets incremented by the size of the value
         /// </remarks>
         public static uint ReadUInt32(byte[] image, ref int start)
         {
@@ -225,7 +211,7 @@ namespace R2RDump
         /// <param name="image">PE image</param>
         /// <param name="start">Starting index of the value</param>
         /// <remarks>
-        /// The <paramref name="start"/> gets incremented to the end of the value
+        /// The <paramref name="start"/> gets incremented by the size of the value
         /// </remarks>
         public static ushort ReadUInt16(byte[] image, ref int start)
         {
@@ -240,10 +226,13 @@ namespace R2RDump
         /// Extracts byte from the image byte array
         /// </summary>
         /// <param name="image">PE image</param>
-        /// <param name="index">Index of the value</param>
-        public static byte ReadByte(byte[] image, uint index)
+        /// <param name="start">Start index of the value</param>
+        /// /// <remarks>
+        /// The <paramref name="start"/> gets incremented by the size of the value
+        /// </remarks>
+        public static byte ReadByte(byte[] image, ref int start)
         {
-            return image[index];
+            return image[start];
         }
     }
 }

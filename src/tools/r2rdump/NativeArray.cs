@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace R2RDump
 {
@@ -32,8 +32,8 @@ namespace R2RDump
             uint offset = 0;
             if (_entryIndexSize == 0)
             {
-                uint i = _baseOffset + (index / _blockSize);
-                offset = R2RReader.ReadByte(image, i);
+                int i = (int)(_baseOffset + (index / _blockSize));
+                offset = R2RReader.ReadByte(image, ref i);
             }
             else if (_entryIndexSize == 1)
             {
@@ -89,7 +89,8 @@ namespace R2RDump
             if (offset >= image.Length)
                 throw new System.BadImageFormatException("NativeArray offset out of bounds");
 
-            uint val = R2RReader.ReadByte(image, offset);
+            int off = (int)offset;
+            uint val = R2RReader.ReadByte(image, ref off);
 
             if ((val & 1) == 0)
             {
@@ -102,7 +103,7 @@ namespace R2RDump
                     throw new System.BadImageFormatException("NativeArray offset out of bounds");
 
                 pValue = (val >> 2) |
-                      ((uint)R2RReader.ReadByte(image, offset + 1) << 6);
+                      ((uint)R2RReader.ReadByte(image, ref off) << 6);
                 offset += 2;
             }
             else if ((val & 4) == 0)
@@ -111,8 +112,8 @@ namespace R2RDump
                     throw new System.BadImageFormatException("NativeArray offset out of bounds");
 
                 pValue = (val >> 3) |
-                      ((uint)R2RReader.ReadByte(image, offset + 1) << 5) |
-                      ((uint)R2RReader.ReadByte(image, offset + 2) << 13);
+                      ((uint)R2RReader.ReadByte(image, ref off) << 5) |
+                      ((uint)R2RReader.ReadByte(image, ref off) << 13);
                 offset += 3;
             }
             else if ((val & 8) == 0)
@@ -121,14 +122,13 @@ namespace R2RDump
                     throw new System.BadImageFormatException("NativeArray offset out of bounds");
 
                 pValue = (val >> 4) |
-                      ((uint)R2RReader.ReadByte(image, offset + 1) << 4) |
-                      ((uint)R2RReader.ReadByte(image, offset + 2) << 12) |
-                      ((uint)R2RReader.ReadByte(image, offset + 3) << 20);
+                      ((uint)R2RReader.ReadByte(image, ref off) << 4) |
+                      ((uint)R2RReader.ReadByte(image, ref off) << 12) |
+                      ((uint)R2RReader.ReadByte(image, ref off) << 20);
                 offset += 4;
             }
             else if ((val & 16) == 0)
             {
-                int off = (int)offset + 1;
                 pValue = R2RReader.ReadUInt32(image, ref off);
                 offset += 5;
             }

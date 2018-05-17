@@ -35,7 +35,7 @@ namespace R2RDump
                     Console.WriteLine(r2r.R2RHeader.ToString());
                     foreach (KeyValuePair<R2RSection.SectionType, R2RSection> section in r2r.R2RHeader.Sections)
                     {
-                        Console.WriteLine("------------------");
+                        Console.WriteLine("------------------\n");
                         Console.WriteLine(section.Value.ToString());
                     }
 
@@ -43,7 +43,7 @@ namespace R2RDump
                     for (int i=0; i<r2r.R2RMethods.Length; i++)
                     {
                         Console.WriteLine(r2r.R2RMethods[i].ToString());
-                        Console.WriteLine("------------------");
+                        Console.WriteLine("------------------\n");
                     }
                 }
             }

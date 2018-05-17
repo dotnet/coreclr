@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Reflection.Metadata;
-using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 namespace R2RDump
@@ -117,26 +116,10 @@ namespace R2RDump
 
         public uint EntryPointRuntimeFunctionId { get; }
 
-        public R2RMethod(byte[] image, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, uint rid) 
-            : this(image, methodEntryPoints, offset, rid)
+        public R2RMethod(byte[] image, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, uint rid)
         {
-            var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
-            BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
-            SignatureHeader header = signatureReader.ReadSignatureHeader();
-            Name = mdReader.GetString(methodDef.Name);
-            int argCount = signatureReader.ReadCompressedInteger();
-            ReturnType = new SignatureType(ref signatureReader, ref mdReader);
-            ArgTypes = new SignatureType[argCount];
-            for (int i = 0; i < argCount; i++)
-            {
-                ArgTypes[i] = new SignatureType(ref signatureReader, ref mdReader);
-            }
-        }
-
-        public R2RMethod(byte[] image, NativeArray methodEntryPoints, uint offset, uint rid)
-        {
+            // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
             Token = _mdtMethodDef | rid;
-
             uint id = 0; // the RUNTIME_FUNCTIONS index
             offset = methodEntryPoints.DecodeUnsigned(image, offset, ref id);
             if ((id & 1) != 0)
@@ -157,14 +140,32 @@ namespace R2RDump
             }
             EntryPointRuntimeFunctionId = id;
 
-            Name = "";
+            // get the method signature from the MethodDefhandle
+            try
+            {
+                var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
+                BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
+                SignatureHeader header = signatureReader.ReadSignatureHeader();
+                Name = mdReader.GetString(methodDef.Name);
+                int argCount = signatureReader.ReadCompressedInteger();
+                ReturnType = new SignatureType(ref signatureReader, ref mdReader);
+                ArgTypes = new SignatureType[argCount];
+                for (int i = 0; i < argCount; i++)
+                {
+                    ArgTypes[i] = new SignatureType(ref signatureReader, ref mdReader);
+                }
+            }
+            catch (System.BadImageFormatException)
+            {
+                R2RDump.OutputWarning("The method with rowId " + rid + " doesn't have a corresponding MethodDefHandle");
+            }
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
 
-            if (Name.Length > 0) {
+            if (Name != null) {
                 sb.AppendFormat($"{ReturnType.ToString()} {Name}(");
                 for (int i = 0; i < ArgTypes.Length - 1; i++)
                 {
