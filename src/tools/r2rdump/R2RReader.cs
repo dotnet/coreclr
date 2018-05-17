@@ -87,8 +87,7 @@ namespace R2RDump
                 if (peReader.HasMetadata)
                 {
                     var mdReader = peReader.GetMetadataReader();
-                    R2RMethods = new R2RMethod[mdReader.MethodDefinitions.Count];
-
+                    
                     int i = 0;
                     int runtimeFunctionSize = 2;
                     if (Machine == Machine.Amd64)
@@ -97,9 +96,9 @@ namespace R2RDump
                     }
                     R2RSection runtimeFunctionSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
                     int curOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
-                    int nMethods = runtimeFunctionSection.Size / runtimeFunctionSize * sizeof(int);
-                    RuntimeFunction[] runtimeFunctions = new RuntimeFunction[nMethods];
-                    for (i = 0; i < nMethods; i++)
+                    int nRuntimeFunctions = runtimeFunctionSection.Size / (runtimeFunctionSize * sizeof(int));
+                    RuntimeFunction[] runtimeFunctions = new RuntimeFunction[nRuntimeFunctions];
+                    for (i = 0; i < nRuntimeFunctions; i++)
                     {
                         int nativeCodeStartRva = ReadInt32(_image, ref curOffset);
                         int nativeCodeEndRva = -1;
@@ -111,12 +110,33 @@ namespace R2RDump
                         runtimeFunctions[i] = new RuntimeFunction(nativeCodeStartRva, nativeCodeEndRva, nativeCodeUnwindRva);
                     }
 
-                    i = 0;
                     int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
                     int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
+                    Dictionary<int, MethodDefinitionHandle> ridToMethodDefHandle = new Dictionary<int, MethodDefinitionHandle>();
                     foreach (MethodDefinitionHandle methodDefHandle in mdReader.MethodDefinitions)
                     {
-                        R2RMethods[i++] = new R2RMethod(_image, runtimeFunctions, ref mdReader, methodDefHandle, methodDefEntryPointsOffset);
+                        ridToMethodDefHandle[MetadataTokens.GetRowNumber(methodDefHandle)] = methodDefHandle;
+                    }
+
+                    i = 0;
+                    NativeArray methodEntryPoints = new NativeArray(_image, (uint)methodDefEntryPointsOffset);
+                    uint nMethods = methodEntryPoints.GetCount();
+                    R2RMethods = new R2RMethod[nMethods];
+                    for (int rid = 1; rid <= nMethods; rid++)
+                    {
+                        uint offset = 0;
+                        if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
+                        {
+                            MethodDefinitionHandle methodDefHandle;
+                            if (ridToMethodDefHandle.TryGetValue(rid, out methodDefHandle))
+                            {
+                                R2RMethods[i++] = new R2RMethod(_image, runtimeFunctions, ref mdReader, methodDefHandle, methodEntryPoints, offset, rid);
+                            }
+                            else
+                            {
+                                R2RMethods[i++] = new R2RMethod(_image, runtimeFunctions, methodEntryPoints, offset, rid);
+                            }
+                        }
                     }
                 }
             }

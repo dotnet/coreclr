@@ -10,8 +10,19 @@ namespace R2RDump
 {
     struct SignatureType
     {
+        /// <summary>
+        /// The SignatureTypeCode can be a primitive type, TypeHandle for objects, ByReference for references
+        /// </summary>
         public SignatureTypeCode SignatureTypeCode { get; }
+
+        /// <summary>
+        /// Indicates if the type is an array
+        /// </summary>
         public bool IsArray { get; }
+
+        /// <summary>
+        /// Name of the object or primitive type
+        /// </summary>
         public string ClassName { get; }
 
         public SignatureType(ref BlobReader signatureReader, ref MetadataReader mdReader)
@@ -53,8 +64,6 @@ namespace R2RDump
             }
             return sb.ToString();
         }
-
-
     }
 
     struct RuntimeFunction
@@ -90,19 +99,26 @@ namespace R2RDump
 
     class R2RMethod
     {
-        private const int _blockSize = 16;
+        private const int _mdtMethodDef = 0x06000000;
 
         public string Name { get; }
         public SignatureType ReturnType { get; }
         public SignatureType[] ArgTypes { get; }
+
+        /// <summary>
+        /// The token of the method consisting of the table code (0x06) and row id
+        /// </summary>
         public int Token { get; }
 
+        /// <summary>
+        /// The entry point to the native code and the RVA of the unwind info
+        /// </summary>
         public RuntimeFunction NativeCode { get; }
 
-        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, int methodDefEntryPointsOffset)
+        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, ref MetadataReader mdReader, MethodDefinitionHandle methodDefHandle, NativeArray methodEntryPoints, uint offset, int rid) 
+            : this(image, runtimeFunctions, methodEntryPoints, offset, rid)
         {
             var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
-
             BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
             SignatureHeader header = signatureReader.ReadSignatureHeader();
             Name = mdReader.GetString(methodDef.Name);
@@ -113,25 +129,24 @@ namespace R2RDump
             {
                 ArgTypes[i] = new SignatureType(ref signatureReader, ref mdReader);
             }
+        }
 
-            Token = MetadataTokens.GetToken(methodDefHandle);
-            int rid = MetadataTokens.GetRowNumber(methodDefHandle);
+        public R2RMethod(byte[] image, RuntimeFunction[] runtimeFunctions, NativeArray methodEntryPoints, uint offset, int rid)
+        {
+            Token = _mdtMethodDef + rid;
 
-            int val = 0;
-            int baseOffset = DecodeUnsigned(image, methodDefEntryPointsOffset, ref val);
-            int nElements = (int)(val >> 2);
-            int entryIndexSize = (int)(val & 3);
-            int offset = MethodDefEntryPointsTryGetAt(image, rid - 1, (int)baseOffset, nElements, entryIndexSize);
-            int id = 0;
-            offset = DecodeUnsigned(image, offset, ref id);
-            if ((id & 1)!=0)
+            uint id = 0; // the RUNTIME_FUNCTIONS index
+            offset = methodEntryPoints.DecodeUnsigned(image, offset, ref id);
+            if ((id & 1) != 0)
             {
-                if ((id & 2)!= 0)
+                if ((id & 2) != 0)
                 {
-                    val = 0;
-                    DecodeUnsigned(image, offset, ref val);
+                    uint val = 0;
+                    methodEntryPoints.DecodeUnsigned(image, offset, ref val);
                     offset -= val;
                 }
+                // TODO: Dump fixups
+
                 id >>= 2;
             }
             else
@@ -139,122 +154,25 @@ namespace R2RDump
                 id >>= 1;
             }
             NativeCode = runtimeFunctions[id];
-        }
 
-        private int MethodDefEntryPointsTryGetAt(byte[] image, int index, int baseOffset, int nElements, int entryIndexSize)
-        {
-            if (index >= nElements)
-                throw new System.BadImageFormatException("MethodDefEntryPoints");
-
-            int offset = 0;
-            if (entryIndexSize == 0)
-            {
-                int i = baseOffset + (index / _blockSize);
-                offset = image[i];
-            }
-            else if (entryIndexSize == 1)
-            {
-                int i = baseOffset + 2 * (index / _blockSize);
-                offset = R2RReader.ReadUInt16(image, ref i);
-            }
-            else
-            {
-                int i = baseOffset + 4 * (index / _blockSize);
-                offset = R2RReader.ReadInt32(image, ref i);
-            }
-            offset += baseOffset;
-
-            for (uint bit = _blockSize >> 1; bit > 0; bit >>= 1)
-            {
-                int val = 0;
-                int offset2 = DecodeUnsigned(image, offset, ref val);
-                if ((index & bit) != 0)
-                {
-                    if ((val & 2) != 0)
-                    {
-                        offset = offset + (val >> 2);
-                        continue;
-                    }
-                }
-                else
-                {
-                    if ((val & 1) != 0)
-                    {
-                        offset = offset2;
-                        continue;
-                    }
-                }
-
-                // Not found
-                if ((val & 3) == 0)
-                {
-                    // Matching special leaf node?
-                    if ((val >> 2) == (index & (_blockSize - 1)))
-                    {
-                        offset = offset2;
-                        break;
-                    }
-                }
-                throw new System.BadImageFormatException("MethodDefEntryPoints");
-            }
-            return offset;
-        }
-
-        private int DecodeUnsigned(byte[] image, int offset, ref int pValue)
-        {
-            int val = image[offset];
-
-            if ((val & 1) == 0)
-            {
-                pValue = (val >> 1);
-                offset += 1;
-            }
-            else if ((val & 2) == 0)
-            {
-                pValue = (val >> 2) |
-                      (image[offset + 1] << 6);
-                offset += 2;
-            }
-            else if ((val & 4) == 0)
-            {
-                pValue = (val >> 3) |
-                      (image[offset + 1] << 5) |
-                      (image[offset + 2] << 13);
-                offset += 3;
-            }
-            else if ((val & 8) == 0)
-            {
-                pValue = (val >> 4) |
-                      (image[offset + 1] << 4) |
-                      (image[offset + 2] << 12) |
-                      (image[offset + 3] << 20);
-                offset += 4;
-            }
-            else if ((val & 16) == 0)
-            {
-                pValue = image[offset + 1];
-                offset += 5;
-            }
-            else
-            {
-                throw new System.BadImageFormatException("MethodDefEntryPoints");
-            }
-
-            return offset;
+            Name = "";
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat($"{ReturnType.ToString()} {Name}(");
-            for (int i = 0; i < ArgTypes.Length - 1; i++)
-            {
-                sb.AppendFormat($"{ArgTypes[i].ToString()}, ");
+
+            if (Name.Length > 0) {
+                sb.AppendFormat($"{ReturnType.ToString()} {Name}(");
+                for (int i = 0; i < ArgTypes.Length - 1; i++)
+                {
+                    sb.AppendFormat($"{ArgTypes[i].ToString()}, ");
+                }
+                if (ArgTypes.Length > 0) {
+                    sb.AppendFormat($"{ArgTypes[ArgTypes.Length - 1].ToString()}");
+                }
+                sb.Append(")\n");
             }
-            if (ArgTypes.Length > 0) {
-                sb.AppendFormat($"{ArgTypes[ArgTypes.Length - 1].ToString()}");
-            }
-            sb.Append(")\n");
 
             sb.AppendFormat($"Token: 0x{Token:X8}\n");
             sb.AppendFormat($"EntryPoint: 0x{NativeCode.EntryPoint:X8}\n");
