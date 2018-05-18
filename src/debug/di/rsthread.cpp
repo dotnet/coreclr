@@ -1531,7 +1531,7 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
     m_floatStackTop = floatStackTop;
 } // CordbThread::Get32bitFPRegisters
 
-#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
 
 // CordbThread::Get64bitFPRegisters
 // Converts the values in the floating point register area of the context to real number values. See
@@ -1559,14 +1559,6 @@ void CordbThread::Get64bitFPRegisters(FPRegister64 * rgContextFPRegisters, int s
     }
 } // CordbThread::Get64bitFPRegisters
 
-#elif defined(_TARGET_ARM_)
-void CordbThread::Get32bitArmFPRegisters(DWORD * sRegisters)
-{
-    for (int reg = 0; reg < DebuggerIPCE_FloatCount; reg++)
-    {
-        m_floatValues[reg] = FPFillR8(&sRegisters[reg]);
-    }
-}
 #endif // _TARGET_X86_
 
 // CordbThread::LoadFloatState
@@ -1600,7 +1592,7 @@ void CordbThread::LoadFloatState()
 #elif defined(_TARGET_ARM64_)
     Get64bitFPRegisters((FPRegister64*) &(tempContext.V), 0, 32);
 #elif defined (_TARGET_ARM_)
-    Get32bitArmFPRegisters((DWORD*) &(tempContext.D));
+    Get64bitFPRegisters((FPRegister64*) &(tempContext.D), 0, 32);
 #else 
     _ASSERTE(!"nyi for platform");
 #endif // !_TARGET_X86_
