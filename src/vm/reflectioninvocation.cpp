@@ -2681,7 +2681,7 @@ FCIMPL1(Object*, ReflectionSerialization::GetUninitializedObject, ReflectClassBa
 
     //We don't allow unitialized strings.
     if (pMT->HasComponentSize()) {
-        COMPlusThrow(kArgumentException, pMT == g_pStringClass ? W("Argument_NoUninitializedStrings") : W("Argument_NoUninitializedUtf8Strings"));
+        COMPlusThrow(kArgumentException, W("Argument_NoUninitializedStrings"));
     }
 
     // if this is an abstract class or an interface type then we will

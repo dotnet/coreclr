@@ -20,6 +20,8 @@ namespace System
         public int Length => _length;
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
+        public static readonly Utf8String Empty = FastAllocate(0);
+
         // Utf8String constructors
         // These are special. The implementation methods for these have a different signature from the
         // declared constructors.
@@ -35,6 +37,9 @@ namespace System
 #endif
         private Utf8String Ctor(ReadOnlySpan<byte> value)
         {
+            if (value.Length == 0)
+                return Empty;
+
             Utf8String newString = FastAllocate(value.Length);
             unsafe
             {
@@ -58,6 +63,9 @@ namespace System
 #endif
         private Utf8String Ctor(ReadOnlySpan<char> value)
         {
+            if (value.Length == 0)
+                return Empty;
+
             Encoding e = Encoding.UTF8;
             int length = e.GetByteCount(value);
             Utf8String newString = FastAllocate(length);
