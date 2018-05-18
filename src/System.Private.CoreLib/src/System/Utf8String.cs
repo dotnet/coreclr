@@ -15,8 +15,6 @@ namespace System
         private readonly int _length;
         private byte _firstByte;  // would like to mark "readonly" but need to take ref to it in our magic "constructor" that C# doesn't recognize as a constructor.
 
-        private Utf8String() { } // Suppress creation of the public constructor. No one actually calls this.
-
         public int Length => _length;
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
