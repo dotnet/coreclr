@@ -276,11 +276,6 @@ namespace System.Collections.Concurrent
         {
             get
             {
-                // Take the cross-segment lock to prevent _head and _tail from changing while we're
-                // trying to compute the count.  Once we've taken the lock, we know that any internal
-                // segments (not the head and not the tail) won't have their counts changed, as you
-                // can't dequeue from or enqueue to an internal segment.  Thus, we only need to get
-                // a stable count for the head and tail segments, 
                 var spinner = new SpinWait();
                 while (true)
                 {
