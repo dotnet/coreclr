@@ -13,7 +13,7 @@ namespace System
     {
         // Do not reorder these fields. Must match layout of Utf8StringObject in object.h.
         private readonly int _length;
-        private byte _firstByte;  // would like to mark "readonly" but need to take ref to it in our magic "constructor" that C# doesn't recognize as a constructor.
+        private readonly byte _firstByte;
 
         public int Length => _length;
         public ref readonly byte GetPinnableReference() => ref _firstByte;
