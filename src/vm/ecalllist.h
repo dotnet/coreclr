@@ -118,6 +118,8 @@ FCFuncEnd()
 
 FCFuncStart(gUtf8StringFuncs)
     FCDynamic("FastAllocate", CORINFO_INTRINSIC_Illegal, ECall::FastAllocateUtf8String)
+    FCDynamicSig(COR_CTOR_METHOD_NAME, &gsig_IM_ReadOnlySpanOfByte_RetVoid, CORINFO_INTRINSIC_Illegal, ECall::Utf8StringCtorReadOnlySpanOfByteManaged)
+    FCDynamicSig(COR_CTOR_METHOD_NAME, &gsig_IM_ReadOnlySpanOfChar_RetVoid, CORINFO_INTRINSIC_Illegal, ECall::Utf8StringCtorReadOnlySpanOfCharManaged)
 FCFuncEnd()
 
 FCFuncStart(gValueTypeFuncs)

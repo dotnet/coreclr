@@ -116,6 +116,8 @@ class ECall
     DYNAMICALLY_ASSIGNED_FCALL_IMPL(CtorSBytePtrStartLengthEncodingManaged, NULL) \
     DYNAMICALLY_ASSIGNED_FCALL_IMPL(FastAllocateUtf8String,            FramedAllocateUtf8String) \
     DYNAMICALLY_ASSIGNED_FCALL_IMPL(InternalGetCurrentThread,          NULL) \
+    DYNAMICALLY_ASSIGNED_FCALL_IMPL(Utf8StringCtorReadOnlySpanOfByteManaged, NULL) \
+    DYNAMICALLY_ASSIGNED_FCALL_IMPL(Utf8StringCtorReadOnlySpanOfCharManaged, NULL) \
 
         enum
         {

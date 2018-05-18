@@ -885,6 +885,8 @@ DEFINE_METHOD(STRING,               WCSLEN,                 wcslen,             
 DEFINE_PROPERTY(STRING,             LENGTH,                 Length,                     Int)
 
 DEFINE_CLASS(UTF8_STRING,           System,                 Utf8String)
+DEFINE_METHOD(UTF8_STRING,          CTORF_READONLYSPANOFBYTE,Ctor,                      IM_ReadOnlySpanOfByte_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_READONLYSPANOFCHAR,Ctor,                      IM_ReadOnlySpanOfChar_RetUtf8Str)
 
 DEFINE_CLASS(STRING_BUILDER,        Text,                   StringBuilder)
 DEFINE_PROPERTY(STRING_BUILDER,     LENGTH,                 Length,                     Int)
