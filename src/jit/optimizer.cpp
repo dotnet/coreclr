@@ -3604,8 +3604,7 @@ void Compiler::optUnrollLoops()
         noway_assert(UNROLL_LIMIT_SZ[SMALL_CODE] == 0);
         noway_assert(UNROLL_LIMIT_SZ[COUNT_OPT_CODE] == 0);
 
-        int unrollLimitSz           = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
-        unsigned unrollPartialLimitBytes = 32;
+        int unrollLimitSz = (unsigned)UNROLL_LIMIT_SZ[compCodeOpt()];
 
         loopFlags = optLoopTable[lnum].lpFlags;
         // Check for required flags:
@@ -3711,46 +3710,72 @@ void Compiler::optUnrollLoops()
         // when its overing iteration limits. if its not partial unrollable. ignore this loop.
         if (totalIter > iterLimit)
         {
-            // only allows under 32bytes ALU processes. not SIMD such as using Vector<T>
+            // if its marked as forget. its not simple memory access. like just adds or subs local variable
+            // or adds or subs with arrays or something else. forget hard memory accesses.
+            bool isMarkedAsForget = false;
+
+            // only allows under 32 bytes ALU processes. not SIMD such as using Vector<T>
             // using vector will just make it more compilated process. so we will check all size of common ALU processes.
+            const unsigned thresSzPartialUnrollLimit = 32;
+            const unsigned thresNmPartialUnrollLimit = 4;
 
-            bool isUnrollable = true;
-            for (block = head->bbNext; isUnrollable; block = block->bbNext)
+            unsigned int inBytes = 0;
+            unsigned int inCount = 0;
+            for (block = head->bbNext; block != nullptr; block = block->bbNext)
             {
-                unsigned gtCount = 0; // GenTree node counts.
-                unsigned gtBytes = 0; // GenTree node total bytes that processing.
-                for (GenTree* gtCurr = block->firstNode(); gtCurr != nullptr; gtCurr = gtCurr->gtNext)
+                // if bbFallsThroght is false, this is not a loop latch block or hard loop.
+                // We are not solving loop block that hard to resolve
+                // this is not what we are going to partial unroll. some hard nested loop will not pass this.
+                if (!block->bbFallsThrough() || block != block->bbJumpDest)
                 {
-                    switch (gtCurr->gtOper)
-                    {
-                        case genTreeOps::GT_ADD:
-                        case genTreeOps::GT_SUB:
-                            gtBytes += genTypeSize(gtCurr->TypeGet());
-                            break;
+                    continue;
+                }
 
-                        default:
-                            // Another instructions are not unrollable, unrolling only common ALU instructions.
-                            isUnrollable = false;
-                            break;
+                for (GenTree* gtCurr = block->getBBTreeList(); gtCurr != nullptr; gtCurr = gtCurr->gtNext)
+                {
+                    noway_assert(gtCurr->gtOper == GT_STMT);
+
+                    // we hard to check it is really loop body or something else like loop latch, incr, init
+                    // only evaulates the access bytes and counts of real loop body.
+                    if (incr == gtCurr || test == gtCurr || init == gtCurr)
+                    {
+                        continue;
                     }
 
-                    gtCount++;
-                }
+                    // this is assumed as loop body, target variable, process
+                    GenTree* gtLBAssumed = gtCurr->gtStmt.gtStmtExpr;
+                    GenTree* gtTVAssumed = nullptr;
+                    GenTree* gtPCAssumed = nullptr;
 
-                if (gtCount > 4 || gtBytes > unrollPartialLimitBytes)
-                {
-                    isUnrollable = false;
-                }
+                    // Common loop body uses GT_ASG node for process with ALUs
+                    // we do not evolute that are not GT_ASG.
+                    if (gtLBAssumed->gtOper != GT_ASG)
+                    {
+                        isMarkedAsForget = true;
+                        break;
+                    }
 
-                // We are end of block, exit loop. we checked all of blocks on loops. everything is fine.
-                if (block == bottom)
-                {
-                    break;
+                    // Extracting real process body. the gtPCAssumed will be a real process body.
+                    // we are evauting count, bytes that the process of loop.
+                    gtLBAssumed = gtLBAssumed->gtGetOp1();
+                    gtTVAssumed = gtLBAssumed->gtGetOp2();
+                    gtPCAssumed = gtLBAssumed->gtGetOp1();
+                    noway_assert(gtTVAssumed == gtLBAssumed->gtGetOp1()); // THE TARGET SHOULD BE SAME.
+
+                    inBytes += genTypeSize(gtPCAssumed->TypeGet());
+                    inCount += 1;
                 }
             }
 
-            if (isUnrollable)
+            // checking the limit to evolute as partial unrolled loop.
+            // this can be maximum 4 counts. and 64 bytes.
+            if (inBytes <= thresSzPartialUnrollLimit && inCount <= thresNmPartialUnrollLimit)
             {
+                // nothing to change or marked as forget?...
+                if (inBytes == 0 || inCount == 0 || isMarkedAsForget)
+                {
+                    continue;
+                }
                 enablePartialUnroll = true;
             }
             else
@@ -4037,6 +4062,17 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
 
 bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 {
+    LoopDsc& loopDesc = optLoopTable[loopId];
+
+    BasicBlock* bbStart = loopDesc.lpHead;
+    BasicBlock* bbEnd = loopDesc.lpBottom;
+
+    unsigned int iterBeg = loopDesc.lpConstInit;
+    unsigned int iterLim = loopDesc.lpConstLimit();
+    unsigned int iterVar = loopDesc.lpIterVar();
+    unsigned int iterInc = loopDesc.lpIterConst();
+
+
     return true;
 }
 
