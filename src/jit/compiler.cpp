@@ -2480,14 +2480,9 @@ void Compiler::compSetProcessor()
 #ifdef _TARGET_AMD64_
     opts.compUseFCOMI   = false;
     opts.compUseCMOV    = true;
-    opts.compCanUseSSE2 = true;
 #elif defined(_TARGET_X86_)
     opts.compUseFCOMI   = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
     opts.compUseCMOV    = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
-
-    // RyuJIT/x86 requires SSE2 to be available: there is no support for generating floating-point
-    // code with x87 instructions.
-    opts.compCanUseSSE2 = true;
 
 #ifdef DEBUG
     if (opts.compUseFCOMI)
@@ -2504,114 +2499,111 @@ void Compiler::compSetProcessor()
 
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT))
     {
-        if (opts.compCanUseSSE2)
+        if (configEnableISA(InstructionSet_SSE))
         {
-            if (configEnableISA(InstructionSet_SSE))
+            opts.setSupportedISA(InstructionSet_SSE);
+        }
+        if (configEnableISA(InstructionSet_SSE2))
+        {
+            opts.setSupportedISA(InstructionSet_SSE2);
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
+        {
+            if (configEnableISA(InstructionSet_AES))
             {
-                opts.setSupportedISA(InstructionSet_SSE);
+                opts.setSupportedISA(InstructionSet_AES);
             }
-            if (configEnableISA(InstructionSet_SSE2))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX))
+        {
+            if (configEnableISA(InstructionSet_AVX))
             {
-                opts.setSupportedISA(InstructionSet_SSE2);
+                opts.setSupportedISA(InstructionSet_AVX);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AES))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
+        {
+            // COMPlus_EnableAVX is also used to control the code generation of
+            // System.Numerics.Vectors and floating-point arithmetics
+            if (configEnableISA(InstructionSet_AVX) && configEnableISA(InstructionSet_AVX2))
             {
-                if (configEnableISA(InstructionSet_AES))
-                {
-                    opts.setSupportedISA(InstructionSet_AES);
-                }
+                opts.setSupportedISA(InstructionSet_AVX2);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
+        {
+            if (configEnableISA(InstructionSet_BMI1))
             {
-                if (configEnableISA(InstructionSet_AVX))
-                {
-                    opts.setSupportedISA(InstructionSet_AVX);
-                }
+                opts.setSupportedISA(InstructionSet_BMI1);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
+        {
+            if (configEnableISA(InstructionSet_BMI2))
             {
-                // COMPlus_EnableAVX is also used to control the code generation of
-                // System.Numerics.Vectors and floating-point arithmetics
-                if (configEnableISA(InstructionSet_AVX) && configEnableISA(InstructionSet_AVX2))
-                {
-                    opts.setSupportedISA(InstructionSet_AVX2);
-                }
+                opts.setSupportedISA(InstructionSet_BMI2);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA))
+        {
+            if (configEnableISA(InstructionSet_FMA))
             {
-                if (configEnableISA(InstructionSet_BMI1))
-                {
-                    opts.setSupportedISA(InstructionSet_BMI1);
-                }
+                opts.setSupportedISA(InstructionSet_FMA);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
+        {
+            if (configEnableISA(InstructionSet_LZCNT))
             {
-                if (configEnableISA(InstructionSet_BMI2))
-                {
-                    opts.setSupportedISA(InstructionSet_BMI2);
-                }
+                opts.setSupportedISA(InstructionSet_LZCNT);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FMA))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
+        {
+            if (configEnableISA(InstructionSet_PCLMULQDQ))
             {
-                if (configEnableISA(InstructionSet_FMA))
-                {
-                    opts.setSupportedISA(InstructionSet_FMA);
-                }
+                opts.setSupportedISA(InstructionSet_PCLMULQDQ);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
+        }
+        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
+        {
+            if (configEnableISA(InstructionSet_POPCNT))
             {
-                if (configEnableISA(InstructionSet_LZCNT))
-                {
-                    opts.setSupportedISA(InstructionSet_LZCNT);
-                }
+                opts.setSupportedISA(InstructionSet_POPCNT);
             }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_PCLMULQDQ))
-            {
-                if (configEnableISA(InstructionSet_PCLMULQDQ))
-                {
-                    opts.setSupportedISA(InstructionSet_PCLMULQDQ);
-                }
-            }
-            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_POPCNT))
-            {
-                if (configEnableISA(InstructionSet_POPCNT))
-                {
-                    opts.setSupportedISA(InstructionSet_POPCNT);
-                }
-            }
+        }
 
-            // There are currently two sets of flags that control SSE3 through SSE4.2 support
-            // This is the general EnableSSE3_4 flag and the individual ISA flags. We need to
-            // check both for any given ISA.
-            if (JitConfig.EnableSSE3_4())
+        // There are currently two sets of flags that control SSE3 through SSE4.2 support
+        // This is the general EnableSSE3_4 flag and the individual ISA flags. We need to
+        // check both for any given ISA.
+        if (JitConfig.EnableSSE3_4())
+        {
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
             {
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE3))
+                if (configEnableISA(InstructionSet_SSE3))
                 {
-                    if (configEnableISA(InstructionSet_SSE3))
-                    {
-                        opts.setSupportedISA(InstructionSet_SSE3);
-                    }
+                    opts.setSupportedISA(InstructionSet_SSE3);
                 }
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE41))
+            {
+                if (configEnableISA(InstructionSet_SSE41))
                 {
-                    if (configEnableISA(InstructionSet_SSE41))
-                    {
-                        opts.setSupportedISA(InstructionSet_SSE41);
-                    }
+                    opts.setSupportedISA(InstructionSet_SSE41);
                 }
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSE42))
+            {
+                if (configEnableISA(InstructionSet_SSE42))
                 {
-                    if (configEnableISA(InstructionSet_SSE42))
-                    {
-                        opts.setSupportedISA(InstructionSet_SSE42);
-                    }
+                    opts.setSupportedISA(InstructionSet_SSE42);
                 }
-                if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_SSSE3))
+            {
+                if (configEnableISA(InstructionSet_SSSE3))
                 {
-                    if (configEnableISA(InstructionSet_SSSE3))
-                    {
-                        opts.setSupportedISA(InstructionSet_SSSE3);
-                    }
+                    opts.setSupportedISA(InstructionSet_SSSE3);
                 }
             }
         }

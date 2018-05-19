@@ -1321,67 +1321,6 @@ void Compiler::fgLiveVarAnalysis(bool updateInternalOnly)
 #endif // DEBUG
 }
 
-//------------------------------------------------------------------------
-// Compiler::fgMarkIntf:
-//    Mark any variables in varSet1 as interfering with any variables
-//    specified in varSet2.
-//
-//    We ensure that the interference graph is reflective: if T_x
-//    interferes with T_y, then T_y interferes with T_x.
-//
-//    Note that this function is a no-op when targeting the RyuJIT
-//    backend, as it does not require the interference graph.
-//
-// Arguments:
-//    varSet1 - The first set of variables.
-//    varSet2 - The second set of variables.
-//
-// Returns:
-//    True if any new interferences were recorded; false otherwise.
-//
-bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2)
-{
-    return false;
-}
-
-//------------------------------------------------------------------------
-// Compiler::fgMarkIntf:
-//    Mark any variables in varSet1 as interfering with the variable
-//    specified by varIndex.
-//
-//    We ensure that the interference graph is reflective: if T_x
-//    interferes with T_y, then T_y interferes with T_x.
-//
-//    Note that this function is a no-op when targeting the RyuJIT
-//    backend, as it does not require the interference graph.
-//
-// Arguments:
-//    varSet1  - The first set of variables.
-//    varIndex - The second variable.
-//
-// Returns:
-//    True if any new interferences were recorded; false otherwise.
-//
-bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet, unsigned varIndex)
-{
-    return false;
-}
-
-/*****************************************************************************
- *
- *  Mark any variables in varSet as interfering with each other,
- *  This is a specialized version of the above, when both args are the same
- *  We ensure that the interference graph is reflective:
- *  (if T11 interferes with T16, then T16 interferes with T11)
- *  This function returns true if any new interferences were added
- *  and returns false if no new interference were added
- */
-
-bool Compiler::fgMarkIntf(VARSET_VALARG_TP varSet)
-{
-    return false;
-}
-
 /*****************************************************************************
  * For updating liveset during traversal AFTER fgComputeLife has completed
  */
@@ -1466,9 +1405,6 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
             if (frameVarDsc->lvTracked)
             {
                 VarSetOps::AddElemD(this, life, frameVarDsc->lvVarIndex);
-
-                // Record interference with other live variables
-                fgMarkIntf(life, frameVarDsc->lvVarIndex);
             }
         }
     }
@@ -1509,9 +1445,6 @@ void Compiler::fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call)
                     VarSetOps::AddElemD(this, life, varIndex);
                     call->gtCallMoreFlags |= GTF_CALL_M_FRAME_VAR_DEATH;
                 }
-
-                // Record an interference with the other live variables
-                fgMarkIntf(life, varIndex);
             }
         }
     }
@@ -1555,9 +1488,6 @@ void Compiler::fgComputeLifeTrackedLocalUse(VARSET_TP& life, LclVarDsc& varDsc, 
     // So the variable is just coming to life
     node->gtFlags |= GTF_VAR_DEATH;
     VarSetOps::AddElemD(this, life, varIndex);
-
-    // Record interference with other live variables
-    fgMarkIntf(life, varIndex);
 }
 
 //------------------------------------------------------------------------
@@ -1642,14 +1572,11 @@ bool Compiler::fgComputeLifeTrackedLocalDef(VARSET_TP&           life,
 //    life          - The live set that is being computed.
 //    keepAliveVars - The current set of variables to keep alive regardless of their actual lifetime.
 //    varDsc        - The LclVar descriptor for the variable being used or defined.
-//    lclVarNode    - The node that corresponds to the local var def or use. Only differs from `node` when targeting
-//                    the legacy backend.
-//    node          - The actual tree node being processed.
+//    lclVarNode    - The node that corresponds to the local var def or use.
 void Compiler::fgComputeLifeUntrackedLocal(
-    VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, LclVarDsc& varDsc, GenTreeLclVarCommon* lclVarNode, GenTree* node)
+    VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, LclVarDsc& varDsc, GenTreeLclVarCommon* lclVarNode)
 {
     assert(lclVarNode != nullptr);
-    assert(node != nullptr);
 
     if (!varTypeIsStruct(varDsc.lvType) || (lvaGetPromotionType(&varDsc) == PROMOTION_TYPE_NONE))
     {
@@ -1673,7 +1600,7 @@ void Compiler::fgComputeLifeUntrackedLocal(
             VarSetOps::AddElemD(this, varBit, varIndex);
         }
     }
-    if (node->gtFlags & GTF_VAR_DEF)
+    if (lclVarNode->gtFlags & GTF_VAR_DEF)
     {
         VarSetOps::DiffD(this, varBit, keepAliveVars);
         VarSetOps::DiffD(this, life, varBit);
@@ -1684,7 +1611,7 @@ void Compiler::fgComputeLifeUntrackedLocal(
     // Are the variables already known to be alive?
     if (VarSetOps::IsSubset(this, varBit, life))
     {
-        node->gtFlags &= ~GTF_VAR_DEATH; // Since we may now call this multiple times, reset if live.
+        lclVarNode->gtFlags &= ~GTF_VAR_DEATH; // Since we may now call this multiple times, reset if live.
         return;
     }
 
@@ -1692,7 +1619,7 @@ void Compiler::fgComputeLifeUntrackedLocal(
     // So they are just coming to life, in the backwards traversal; in a forwards
     // traversal, one or more are dying.  Mark this.
 
-    node->gtFlags |= GTF_VAR_DEATH;
+    lclVarNode->gtFlags |= GTF_VAR_DEATH;
 
     // Are all the variables becoming alive (in the backwards traversal), or just a subset?
     if (!VarSetOps::IsEmptyIntersection(this, varBit, life))
@@ -1707,9 +1634,6 @@ void Compiler::fgComputeLifeUntrackedLocal(
 
     // In any case, all the field vars are now live (in the backwards traversal).
     VarSetOps::UnionD(this, life, varBit);
-
-    // Record interference with other live variables
-    fgMarkIntf(life, varBit);
 }
 
 //------------------------------------------------------------------------
@@ -1720,13 +1644,11 @@ void Compiler::fgComputeLifeUntrackedLocal(
 // Arguments:
 //    life          - The live set that is being computed.
 //    keepAliveVars - The current set of variables to keep alive regardless of their actual lifetime.
-//    lclVarNode    - The node that corresponds to the local var def or use. Only differs from `node` when targeting
-//                    the legacy backend.
-//    node          - The actual tree node being processed.
+//    lclVarNode    - The node that corresponds to the local var def or use.
 //
 // Returns:
 //    `true` if the local var node corresponds to a dead store; `false` otherwise.
-bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node)
+bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode)
 {
     unsigned lclNum = lclVarNode->gtLclVarCommon.gtLclNum;
 
@@ -1748,7 +1670,7 @@ bool Compiler::fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVar
     }
     else
     {
-        fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode->AsLclVarCommon(), node);
+        fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode->AsLclVarCommon());
     }
     return false;
 }
@@ -1787,7 +1709,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
         }
         else if (tree->OperIsNonPhiLocal() || tree->OperIsLocalAddr())
         {
-            bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, tree, tree);
+            bool isDeadStore = fgComputeLifeLocal(life, keepAliveVars, tree);
             if (isDeadStore)
             {
                 LclVarDsc* varDsc = &lvaTable[tree->gtLclVarCommon.gtLclNum];
@@ -1895,7 +1817,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                 }
                 else
                 {
-                    fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode, node);
+                    fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode);
                 }
                 break;
             }
@@ -1916,7 +1838,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                 }
                 else
                 {
-                    isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node, node);
+                    isDeadStore = fgComputeLifeLocal(life, keepAliveVars, node);
                     if (isDeadStore)
                     {
                         LIR::Use addrUse;
@@ -1984,7 +1906,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                 }
                 else
                 {
-                    fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode, node);
+                    fgComputeLifeUntrackedLocal(life, keepAliveVars, varDsc, lclVarNode);
                 }
                 break;
             }
@@ -2615,8 +2537,6 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
         /* Mark any interference we might have at the end of the block */
 
-        fgMarkIntf(life);
-
         if (block->IsLIR())
         {
             fgComputeLifeLIR(life, block, volatileVars);
@@ -2627,7 +2547,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
             GenTree* firstStmt = block->FirstNonPhiDef();
 
-            if (!firstStmt)
+            if (firstStmt == nullptr)
             {
                 continue;
             }

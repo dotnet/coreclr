@@ -2122,8 +2122,6 @@ public:
     void gtPrepareCost(GenTree* tree);
     bool gtIsLikelyRegVar(GenTree* tree);
 
-    unsigned gtSetEvalOrderAndRestoreFPstkLevel(GenTree* tree);
-
     // Returns true iff the secondNode can be swapped with firstNode.
     bool gtCanSwapOrder(GenTree* firstNode, GenTree* secondNode);
 
@@ -3815,12 +3813,6 @@ public:
     // at each call.
     VARSET_TP fgMarkIntfUnionVS;
 
-    bool fgMarkIntf(VARSET_VALARG_TP varSet);
-
-    bool fgMarkIntf(VARSET_VALARG_TP varSet1, VARSET_VALARG_TP varSet2);
-
-    bool fgMarkIntf(VARSET_VALARG_TP varSet1, unsigned varIndex);
-
     void fgUpdateRefCntForClone(BasicBlock* addedToBlock, GenTree* clonedTree);
 
     void fgUpdateRefCntForExtract(GenTree* wholeTree, GenTree* keptTree);
@@ -3835,9 +3827,8 @@ public:
     void fgComputeLifeUntrackedLocal(VARSET_TP&           life,
                                      VARSET_VALARG_TP     keepAliveVars,
                                      LclVarDsc&           varDsc,
-                                     GenTreeLclVarCommon* lclVarNode,
-                                     GenTree*             node);
-    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode, GenTree* node);
+                                     GenTreeLclVarCommon* lclVarNode);
+    bool fgComputeLifeLocal(VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, GenTree* lclVarNode);
 
     void fgComputeLife(VARSET_TP&       life,
                        GenTree*         startNode,
@@ -4757,8 +4748,6 @@ private:
     GenTree* fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgList* args);
 
     GenTree* fgMorphStackArgForVarArgs(unsigned lclNum, var_types varType, unsigned lclOffs);
-
-    bool fgMorphRelopToQmark(GenTree* tree);
 
     // A "MorphAddrContext" carries information from the surrounding context.  If we are evaluating a byref address,
     // it is useful to know whether the address will be immediately dereferenced, or whether the address value will
@@ -6282,12 +6271,7 @@ protected:
     */
 
 public:
-    bool doLSRA() const
-    {
-        return true;
-    }
 
-    VARSET_TP raRegVarsMask; // Set of all enregistered variables
     regNumber raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc);
 
     void raMarkStkVars();
@@ -7187,7 +7171,6 @@ private:
         }
 
         // min bar is SSE2
-        assert(canUseSSE2());
         return SIMD_SSE2_Supported;
 #else
         assert(!"Available instruction set(s) for SIMD codegen is not defined for target arch");
@@ -7745,16 +7728,6 @@ private:
         return false;
     }
 
-    // Whether SSE and SSE2 is available
-    bool canUseSSE2() const
-    {
-#ifdef _TARGET_XARCH_
-        return opts.compCanUseSSE2;
-#else
-        return false;
-#endif
-    }
-
     bool compSupports(InstructionSet isa) const
     {
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
@@ -7871,9 +7844,6 @@ public:
 
         bool compUseFCOMI;
         bool compUseCMOV;
-#ifdef _TARGET_XARCH_
-        bool compCanUseSSE2; // Allow CodeGen to use "movq XMM" instructions
-#endif                       // _TARGET_XARCH_
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         uint64_t compSupportsISA;
@@ -9013,24 +8983,7 @@ public:
     void verVerifyThisPtrInitialised();
     BOOL verIsCallToInitThisPtr(CORINFO_CLASS_HANDLE context, CORINFO_CLASS_HANDLE target);
 
-    // Register allocator
-    void raInitStackFP();
-    void raEnregisterVarsPrePassStackFP();
-    void raSetRegLclBirthDeath(GenTree* tree, VARSET_VALARG_TP lastlife, bool fromLDOBJ);
-    void raEnregisterVarsPostPassStackFP();
-    void raGenerateFPRefCounts();
-    void raEnregisterVarsStackFP();
-    void raUpdateHeightsForVarsStackFP(VARSET_VALARG_TP mask);
-
-    regNumber raRegForVarStackFP(unsigned varTrackedIndex);
-    void raAddPayloadStackFP(VARSET_VALARG_TP mask, unsigned weight);
-
-    // returns true if enregistering v1 would save more mem accesses than v2
-    bool raVarIsGreaterValueStackFP(LclVarDsc* lv1, LclVarDsc* lv2);
-
 #ifdef DEBUG
-    void raDumpHeightsStackFP();
-    void raDumpVariableRegIntfFloat();
 
     // One line log function. Default level is 0. Increasing it gives you
     // more log information

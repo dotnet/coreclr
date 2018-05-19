@@ -315,12 +315,9 @@ void CodeGen::genPrepForCompiler()
 
     VarSetOps::AssignNoCopy(compiler, gcInfo.gcTrkStkPtrLcls, VarSetOps::MakeEmpty(compiler));
 
-    // Figure out which variables live in registers.
     // Also, initialize gcTrkStkPtrLcls to include all tracked variables that do not fully live
     // in a register (i.e. they live on the stack for all or part of their lifetime).
     // Note that lvRegister indicates that a lclVar is in a register for its entire lifetime.
-
-    VarSetOps::AssignNoCopy(compiler, compiler->raRegVarsMask, VarSetOps::MakeEmpty(compiler));
 
     unsigned   varNum;
     LclVarDsc* varDsc;
@@ -328,11 +325,7 @@ void CodeGen::genPrepForCompiler()
     {
         if (varDsc->lvTracked || varDsc->lvIsRegCandidate())
         {
-            if (varDsc->lvRegister)
-            {
-                VarSetOps::AddElemD(compiler, compiler->raRegVarsMask, varDsc->lvVarIndex);
-            }
-            else if (compiler->lvaIsGCTracked(varDsc))
+            if (!varDsc->lvRegister && compiler->lvaIsGCTracked(varDsc))
             {
                 VarSetOps::AddElemD(compiler, gcInfo.gcTrkStkPtrLcls, varDsc->lvVarIndex);
             }

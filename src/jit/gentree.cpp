@@ -4080,7 +4080,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             case GT_COMMA:
 
                 /* Comma tosses the result of the left operand */
-                gtSetEvalOrderAndRestoreFPstkLevel(op1);
+                gtSetEvalOrder(op1);
                 level = gtSetEvalOrder(op2);
 
                 ftreg |= op1->gtRsvdRegs | op2->gtRsvdRegs;
@@ -4093,7 +4093,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
             case GT_COLON:
 
-                level = gtSetEvalOrderAndRestoreFPstkLevel(op1);
+                level = gtSetEvalOrder(op1);
                 lvl2  = gtSetEvalOrder(op2);
 
                 if (level < lvl2)

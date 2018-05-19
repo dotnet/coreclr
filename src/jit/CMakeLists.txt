@@ -212,7 +212,6 @@ set( JIT_ARM_SOURCES
   decomposelongs.cpp
   emitarm.cpp
   lowerarmarch.cpp
-  lowerarm.cpp
   lsraarmarch.cpp
   lsraarm.cpp
   targetarm.cpp
@@ -238,7 +237,6 @@ set( JIT_ARM64_SOURCES
   codegenarm64.cpp
   emitarm64.cpp
   lowerarmarch.cpp
-  lowerarm64.cpp
   lsraarmarch.cpp
   lsraarm64.cpp
   simd.cpp

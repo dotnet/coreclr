@@ -323,7 +323,6 @@ void emitterStaticStats(FILE* fout)
     fprintf(fout, "Size   of insPlaceholderGroupData = %u\n", sizeof(insPlaceholderGroupData));
 
     fprintf(fout, "\n");
-    fprintf(fout, "Size   of tinyID      = %2u\n", TINY_IDSC_SIZE);
     fprintf(fout, "Size   of instrDesc   = %2u\n", sizeof(emitter::instrDesc));
     // fprintf(fout, "Offset of _idIns      = %2u\n", offsetof(emitter::instrDesc, _idIns      ));
     // fprintf(fout, "Offset of _idInsFmt   = %2u\n", offsetof(emitter::instrDesc, _idInsFmt   ));
@@ -1258,20 +1257,6 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
     assert(id->idReg2() == regNumber(0));
 #ifdef _TARGET_XARCH_
     assert(id->idCodeSize() == 0);
-#endif
-
-#if HAS_TINY_DESC
-    /* Is the second area to be cleared actually present? */
-    if (sz >= SMALL_IDSC_SIZE)
-    {
-        /* Clear the second 4 bytes, or the 'SMALL' part */
-        *(int*)((BYTE*)id + (SMALL_IDSC_SIZE - sizeof(int))) = 0;
-
-        // These fields should have been zero-ed by the above
-        assert(id->idIsLargeCns() == false);
-        assert(id->idIsLargeDsp() == false);
-        assert(id->idIsLargeCall() == false);
-    }
 #endif
 
     // Make sure that idAddrUnion is just a union of various pointer sized things

@@ -140,27 +140,6 @@ public: // The PreSpill masks are used in LclVars.cpp
                                     // and all enregistered user arguments in a varargs call
 #endif                              // _TARGET_ARM_
 
-public:
-#ifdef DEBUG
-    /*****************************************************************************
-        *  Should we stress register tracking logic ?
-        *  This is set via COMPlus_JitStressRegs.
-        *  The following values are ordered, such that any value greater than RS_xx
-        *  implies RS_xx.
-        *  LSRA defines a different set of values, but uses the same COMPlus_JitStressRegs
-        *  value, with the same notion of relative ordering.
-        *  1 = rsPickReg() picks 'bad' registers.
-        *  2 = codegen spills at safe points. This is still flaky
-        */
-    enum rsStressRegsType
-    {
-        RS_STRESS_NONE  = 0,
-        RS_PICK_BAD_REG = 01,
-        RS_SPILL_SAFE   = 02,
-    };
-    rsStressRegsType rsStressRegs();
-#endif // DEBUG
-
 private:
     //-------------------------------------------------------------------------
     //

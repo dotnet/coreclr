@@ -119,16 +119,6 @@ GenTree* Compiler::fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgLi
 
 /*****************************************************************************
  *
- *  Determine if a relop must be morphed to a qmark to manifest a boolean value.
- *  This is done when code generation can't create straight-line code to do it.
- */
-bool Compiler::fgMorphRelopToQmark(GenTree* tree)
-{
-    return false;
-}
-
-/*****************************************************************************
- *
  *  Morph a cast node (we perform some very simple transformations here).
  */
 
@@ -210,16 +200,7 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
                 switch (dstType)
                 {
                     case TYP_INT:
-#ifdef _TARGET_X86_ // there is no rounding convert to integer instruction on ARM or x64 so skip this
-                        if (!opts.compCanUseSSE2)
-                        {
-                            return fgMorphCastIntoHelper(tree, CORINFO_HELP_DBL2INT, oper);
-                        }
-                        else
-#endif // _TARGET_X86_
-                        {
-                            goto OPTIMIZECAST;
-                        }
+                        goto OPTIMIZECAST;
 
                     case TYP_UINT:
 #if defined(_TARGET_ARM_) || defined(_TARGET_AMD64_)

@@ -1368,11 +1368,6 @@ inline void Compiler::gtSetStmtInfo(GenTree* stmt)
     stmt->CopyCosts(expr);
 }
 
-inline unsigned Compiler::gtSetEvalOrderAndRestoreFPstkLevel(GenTree* tree)
-{
-    return gtSetEvalOrder(tree);
-}
-
 /*****************************************************************************/
 #if SMALL_TREE_NODES
 /*****************************************************************************/

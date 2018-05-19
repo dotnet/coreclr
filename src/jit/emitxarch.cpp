@@ -2343,7 +2343,7 @@ void emitter::emitLoopAlign()
     /* Insert a pseudo-instruction to ensure that we align
        the next instruction properly */
 
-    instrDesc* id = emitNewInstrTiny(EA_1BYTE);
+    instrDesc* id = emitNewInstrSmall(EA_1BYTE);
     id->idIns(INS_align);
     id->idCodeSize(15); // We may need to skip up to 15 bytes of code
     emitCurIGsize += 15;
@@ -3364,7 +3364,7 @@ void emitter::emitIns_R(instruction ins, emitAttr attr, regNumber reg)
     noway_assert(emitVerifyEncodable(ins, size, reg));
 
     UNATIVE_OFFSET sz;
-    instrDesc*     id = emitNewInstrTiny(attr);
+    instrDesc*     id = emitNewInstrSmall(attr);
 
     switch (ins)
     {
@@ -3781,7 +3781,7 @@ void emitter::emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNum
     /* Special case: "XCHG" uses a different format */
     insFormat fmt = (ins == INS_xchg) ? IF_RRW_RRW : emitInsModeFormat(ins, IF_RRD_RRD);
 
-    instrDesc* id = emitNewInstrTiny(attr);
+    instrDesc* id = emitNewInstrSmall(attr);
     id->idIns(ins);
     id->idInsFmt(fmt);
     id->idReg1(reg1);
@@ -6354,20 +6354,17 @@ void emitter::emitInsSanityCheck(instrDesc* id)
         idOp = ID_OP_CNS;
     }
 
-    if (!id->idIsTiny())
+    if (id->idIsDspReloc())
     {
-        if (id->idIsDspReloc())
-        {
-            assert(idOp == ID_OP_NONE || idOp == ID_OP_AMD || idOp == ID_OP_DSP || idOp == ID_OP_DSP_CNS ||
-                   idOp == ID_OP_AMD_CNS || idOp == ID_OP_SPEC || idOp == ID_OP_CALL || idOp == ID_OP_JMP ||
-                   idOp == ID_OP_LBL);
-        }
+        assert(idOp == ID_OP_NONE || idOp == ID_OP_AMD || idOp == ID_OP_DSP || idOp == ID_OP_DSP_CNS ||
+               idOp == ID_OP_AMD_CNS || idOp == ID_OP_SPEC || idOp == ID_OP_CALL || idOp == ID_OP_JMP ||
+               idOp == ID_OP_LBL);
+    }
 
-        if (id->idIsCnsReloc())
-        {
-            assert(idOp == ID_OP_CNS || idOp == ID_OP_AMD_CNS || idOp == ID_OP_DSP_CNS || idOp == ID_OP_SPEC ||
-                   idOp == ID_OP_CALL || idOp == ID_OP_JMP);
-        }
+    if (id->idIsCnsReloc())
+    {
+        assert(idOp == ID_OP_CNS || idOp == ID_OP_AMD_CNS || idOp == ID_OP_DSP_CNS || idOp == ID_OP_SPEC ||
+               idOp == ID_OP_CALL || idOp == ID_OP_JMP);
     }
 }
 #endif
@@ -6379,11 +6376,6 @@ void emitter::emitInsSanityCheck(instrDesc* id)
 
 size_t emitter::emitSizeOfInsDsc(instrDesc* id)
 {
-    if (emitIsTinyInsDsc(id))
-    {
-        return TINY_IDSC_SIZE;
-    }
-
     if (emitIsScnsInsDsc(id))
     {
         return SMALL_IDSC_SIZE;
@@ -11365,7 +11357,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             // the loop alignment pseudo instruction
             if (ins == INS_align)
             {
-                sz  = TINY_IDSC_SIZE;
+                sz  = SMALL_IDSC_SIZE;
                 dst = emitOutputNOP(dst, (-(int)(size_t)dst) & 0x0f);
                 assert(((size_t)dst & 0x0f) == 0);
                 break;
@@ -11642,7 +11634,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RWR:
         case IF_RRW:
             dst = emitOutputR(dst, id);
-            sz  = TINY_IDSC_SIZE;
+            sz  = SMALL_IDSC_SIZE;
             break;
 
         /********************************************************************/
@@ -11688,7 +11680,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RRW_RRD:
         case IF_RRW_RRW:
             dst = emitOutputRR(dst, id);
-            sz  = TINY_IDSC_SIZE;
+            sz  = SMALL_IDSC_SIZE;
             break;
 
         case IF_RRD_CNS:

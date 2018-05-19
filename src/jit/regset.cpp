@@ -153,14 +153,6 @@ void RegSet::SetMaskVars(regMaskTP newMaskVars)
     _rsMaskVars = newMaskVars;
 }
 
-#ifdef DEBUG
-
-RegSet::rsStressRegsType RegSet::rsStressRegs()
-{
-    return RS_STRESS_NONE;
-}
-#endif // DEBUG
-
 /*****************************************************************************
  *
  *  Trash the rsRegValues associated with a register
