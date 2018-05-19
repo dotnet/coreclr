@@ -356,9 +356,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     assert(varDscInfo->intRegArgNum <= MAX_REG_ARG);
 
     codeGen->intRegState.rsCalleeRegArgCount = varDscInfo->intRegArgNum;
-#if !FEATURE_STACK_FP_X87
     codeGen->floatRegState.rsCalleeRegArgCount = varDscInfo->floatRegArgNum;
-#endif // FEATURE_STACK_FP_X87
 
 #if FEATURE_FASTTAILCALL
     // Save the stack usage information
@@ -1044,17 +1042,14 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             }
 #endif
         }
-#ifndef LEGACY_BACKEND
         else
         {
-            // For the RyuJIT backend, we need to mark these as being on the stack,
-            // as this is not done elsewhere in the case that canEnreg returns false.
+            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
-#endif // !LEGACY_BACKEND
 
         compArgSize += TARGET_POINTER_SIZE;
 
@@ -1120,17 +1115,14 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             }
 #endif // DEBUG
         }
-#ifndef LEGACY_BACKEND
         else
         {
-            // For the RyuJIT backend, we need to mark these as being on the stack,
-            // as this is not done elsewhere in the case that canEnreg returns false.
+            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
-#endif // !LEGACY_BACKEND
 
         /* Update the total argument size, count and varDsc */
 
@@ -1513,15 +1505,10 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
 
 #if 1 // TODO-Cleanup: Consider removing this entire #if block in the future
 
-// This method has two callers. The one in Importer.cpp passes `sortFields == false` and the other passes
-// `sortFields == true`. This is a workaround that leaves the inlining behavior the same as before while still
-// performing extra struct promotion when compiling the method.
-//
-// The legacy back-end can't handle this more general struct promotion (notably structs with holes) in
-// morph/genPushArgList()/SetupLateArgs, so in that case always check for custom layout.
-#if !defined(LEGACY_BACKEND)
+        // This method has two callers. The one in Importer.cpp passes `sortFields == false` and the other passes
+        // `sortFields == true`. This is a workaround that leaves the inlining behavior the same as before while still
+        // performing extra struct promotion when compiling the method.
         if (!sortFields) // the condition "!sortFields" really means "we are inlining"
-#endif
         {
             treatAsOverlapping = StructHasCustomLayout(typeFlags);
         }
@@ -2018,7 +2005,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
     }
 }
 
-#if !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#if !defined(_TARGET_64BIT_)
 //------------------------------------------------------------------------
 // lvaPromoteLongVars: "Struct promote" all register candidate longs as if they are structs of two ints.
 //
@@ -2099,7 +2086,7 @@ void Compiler::lvaPromoteLongVars()
     }
 #endif // DEBUG
 }
-#endif // !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#endif // !defined(_TARGET_64BIT_)
 
 /*****************************************************************************
  * Given a fldOffset in a promoted struct var, return the index of the local
@@ -2222,7 +2209,7 @@ void Compiler::lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregister
             assert(varDsc->lvPinned);
             break;
 #endif
-#if !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#if !defined(_TARGET_64BIT_)
         case DNER_LongParamField:
             JITDUMP("it is a decomposed field of a long parameter\n");
             break;
@@ -3322,12 +3309,12 @@ void Compiler::lvaSortByRefCount()
             varDsc->lvRefCntWtd = 0;
         }
 
-#if !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#if !defined(_TARGET_64BIT_)
         if (varTypeIsLong(varDsc) && varDsc->lvPromoted)
         {
             varDsc->lvTracked = 0;
         }
-#endif // !defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)
+#endif // !defined(_TARGET_64BIT_)
 
         // Variables that are address-exposed, and all struct locals, are never enregistered, or tracked.
         // (The struct may be promoted, and its field variables enregistered/tracked, or the VM may "normalize"
@@ -3375,7 +3362,6 @@ void Compiler::lvaSortByRefCount()
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_PinningRef));
 #endif
         }
-#if !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
         else if (opts.MinOpts() && !JitConfig.JitMinOptsTrackGCrefs() && varTypeIsGC(varDsc->TypeGet()))
         {
             varDsc->lvTracked = 0;
@@ -3385,7 +3371,6 @@ void Compiler::lvaSortByRefCount()
         {
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_NoRegVars));
         }
-#endif // !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
 #if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
         else if (lvaIsOriginalThisArg(lclNum) && (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)
         {
@@ -3541,7 +3526,6 @@ const size_t LclVarDsc::lvArgStackSize() const
     return stackSize;
 }
 
-#ifndef LEGACY_BACKEND
 /**********************************************************************************
 * Get type of a variable when passed as an argument.
 */
@@ -3608,7 +3592,6 @@ var_types LclVarDsc::lvaArgType()
 
     return type;
 }
-#endif // !LEGACY_BACKEND
 
 /*****************************************************************************
  *
@@ -3650,26 +3633,11 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
             unsigned   lclNum;
             LclVarDsc* varDsc = nullptr;
 
-#ifdef LEGACY_BACKEND
-            /* GT_CHS is special it doesn't have a valid op2 */
-            if (tree->gtOper == GT_CHS)
+            if (op2->gtOper == GT_LCL_VAR)
             {
-                if (op1->gtOper == GT_LCL_VAR)
-                {
-                    lclNum = op1->gtLclVarCommon.gtLclNum;
-                    noway_assert(lclNum < lvaCount);
-                    varDsc = &lvaTable[lclNum];
-                }
-            }
-            else
-#endif
-            {
-                if (op2->gtOper == GT_LCL_VAR)
-                {
-                    lclNum = op2->gtLclVarCommon.gtLclNum;
-                    noway_assert(lclNum < lvaCount);
-                    varDsc = &lvaTable[lclNum];
-                }
+                lclNum = op2->gtLclVarCommon.gtLclNum;
+                noway_assert(lclNum < lvaCount);
+                varDsc = &lvaTable[lclNum];
             }
 #if CPU_HAS_BYTE_REGS
             if (varDsc)
@@ -4186,7 +4154,6 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
 {
     unsigned result = 0;
 
-#ifndef LEGACY_BACKEND
     if (lvaDoneFrameLayout >= REGALLOC_FRAME_LAYOUT)
     {
         result = tmpSize;
@@ -4195,38 +4162,6 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
     {
         result = MAX_SPILL_TEMP_SIZE;
     }
-#else // LEGACY_BACKEND
-    if (lvaDoneFrameLayout >= FINAL_FRAME_LAYOUT)
-    {
-        result = tmpSize;
-    }
-    else
-    {
-        if (lvaDoneFrameLayout >= REGALLOC_FRAME_LAYOUT)
-        {
-            unsigned maxTmpSize = sizeof(double) + sizeof(int);
-
-            maxTmpSize += (tmpDoubleSpillMax * sizeof(double)) + (tmpIntSpillMax * sizeof(int));
-
-            result = maxTmpSize;
-        }
-        else
-        {
-            result = MAX_SPILL_TEMP_SIZE;
-        }
-#ifdef DEBUG
-        // When StressRegs is >=1, there can  be a bunch of spills that are not
-        // predicted by the predictor (see logic in rsPickReg).  It is very hard
-        // to teach the predictor about the behavior of rsPickReg for StressRegs >= 1,
-        // so instead let's make MaxTmpSize large enough so that we won't be wrong.
-
-        if (codeGen->regSet.rsStressRegs() >= 1)
-        {
-            result += (REG_TMP_ORDER_COUNT * REGSIZE_BYTES);
-        }
-#endif // DEBUG
-    }
-#endif // LEGACY_BACKEND
     return result;
 }
 
@@ -4819,7 +4754,6 @@ bool Compiler::lvaIsPreSpilled(unsigned lclNum, regMaskTP preSpillMask)
 }
 #endif // _TARGET_ARM_
 
-#ifndef LEGACY_BACKEND
 /*****************************************************************************
  *  lvaUpdateArgsWithInitialReg() : For each argument variable descriptor, update
  *  its current register with the initial register as assigned by LSRA.
@@ -4860,7 +4794,6 @@ void Compiler::lvaUpdateArgsWithInitialReg()
         }
     }
 }
-#endif // !LEGACY_BACKEND
 
 /*****************************************************************************
  *  lvaAssignVirtualFrameOffsetsToArgs() : Assign virtual stack offsets to the
@@ -4899,10 +4832,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     argOffs -= codeGen->intRegState.rsCalleeRegArgCount * REGSIZE_BYTES;
 #endif
 
-#ifndef LEGACY_BACKEND
     // Update the arg initial register locations.
     lvaUpdateArgsWithInitialReg();
-#endif // !LEGACY_BACKEND
 
     /* Is there a "this" argument? */
 
@@ -6434,16 +6365,16 @@ void Compiler::lvaAssignFrameOffsetsToPromotedStructs()
         //
         if (varDsc->lvIsStructField
 #ifndef UNIX_AMD64_ABI
-#if !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
-            // Non-legacy ARM: lo/hi parts of a promoted long arg need to be updated.
+#if !defined(_TARGET_ARM_)
+            // ARM: lo/hi parts of a promoted long arg need to be updated.
 
             // For System V platforms there is no outgoing args space.
             // A register passed struct arg is homed on the stack in a separate local var.
             // The offset of these structs is already calculated in lvaAssignVirtualFrameOffsetToArg methos.
             // Make sure the code below is not executed for these structs and the offset is not changed.
             && !varDsc->lvIsParam
-#endif // !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
-#endif // UNIX_AMD64_ABI
+#endif // !defined(_TARGET_ARM_)
+#endif // !UNIX_AMD64_ABI
             )
         {
             LclVarDsc*       parentvarDsc  = &lvaTable[varDsc->lvParentLcl];
@@ -6611,14 +6542,7 @@ void Compiler::lvaDumpRegLocation(unsigned lclNum)
     LclVarDsc* varDsc = lvaTable + lclNum;
     var_types  type   = varDsc->TypeGet();
 
-#if FEATURE_STACK_FP_X87
-    if (varTypeIsFloating(type))
-    {
-        printf("fpu stack   ");
-    }
-    else
-#endif
-        if (isRegPairType(type))
+    if (isRegPairType(type))
     {
         if (!doLSRA())
         {
@@ -6650,15 +6574,10 @@ void Compiler::lvaDumpRegLocation(unsigned lclNum)
 #ifdef _TARGET_ARM_
     else if (varDsc->TypeGet() == TYP_DOUBLE)
     {
-#ifdef LEGACY_BACKEND
-        // The assigned registers are `lvRegNum:lvOtherReg`
-        printf("%3s:%-3s    ", getRegName(varDsc->lvRegNum), getRegName(varDsc->lvOtherReg));
-#else
         // The assigned registers are `lvRegNum:RegNext(lvRegNum)`
         printf("%3s:%-3s    ", getRegName(varDsc->lvRegNum), getRegName(REG_NEXT(varDsc->lvRegNum)));
-#endif
     }
-#endif // !_TARGET_ARM_
+#endif // _TARGET_ARM_
     else
     {
         printf("%3s        ", getRegName(varDsc->lvRegNum));
@@ -6890,12 +6809,6 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     {
         printf(" pinned");
     }
-#ifdef LEGACY_BACKEND
-    if (varDsc->lvRefAssign)
-    {
-        printf(" ref-asgn");
-    }
-#endif
     if (varDsc->lvStackByref)
     {
         printf(" stack-byref");

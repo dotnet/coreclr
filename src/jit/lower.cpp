@@ -21,8 +21,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #include "lower.h"
 
 #if !defined(_TARGET_64BIT_)
@@ -144,7 +142,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_MUL:
         case GT_MULHI:
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_X86_)
         case GT_MUL_LONG:
 #endif
             ContainCheckMul(node->AsOp());
@@ -5985,5 +5983,3 @@ void Lowering::ContainCheckJTrue(GenTreeOp* node)
     cmp->gtType  = TYP_VOID;
     cmp->gtFlags |= GTF_SET_FLAGS;
 }
-
-#endif // !LEGACY_BACKEND

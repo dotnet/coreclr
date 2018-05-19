@@ -930,48 +930,6 @@ insGroup* emitter::emitSavIG(bool emitAdd)
     return ig;
 }
 
-#ifdef LEGACY_BACKEND
-void emitter::emitTmpSizeChanged(unsigned tmpSize)
-{
-    assert(emitGrowableMaxByteOffs <= SCHAR_MAX);
-
-#ifdef DEBUG
-    // Workaround for FP code
-    bool bAssert = JitConfig.JitMaxTempAssert() ? true : false;
-
-    if (tmpSize > emitMaxTmpSize && bAssert)
-    {
-        // TODO-Review: We have a known issue involving floating point code and this assert.
-        // The generated code will be ok, This is only a warning.
-        // To not receive this assert again you can set the registry key: JITMaxTempAssert=0.
-        //
-        assert(!"Incorrect max tmp size set.");
-    }
-#endif
-
-    if (tmpSize <= emitMaxTmpSize)
-        return;
-
-    unsigned change = tmpSize - emitMaxTmpSize;
-
-    /* If we have used a small offset to access a variable, growing the
-       temp size is a problem if we should have used a large offset instead.
-       Detect if such a situation happens and bail */
-
-    if (emitGrowableMaxByteOffs <= SCHAR_MAX && (emitGrowableMaxByteOffs + change) > SCHAR_MAX)
-    {
-#ifdef DEBUG
-        if (emitComp->verbose)
-            printf("Under-estimated var offset encoding size for ins #%Xh\n", emitMaxByteOffsIdNum);
-#endif
-        IMPL_LIMITATION("Should have used large offset to access var");
-    }
-
-    emitMaxTmpSize = tmpSize;
-    emitGrowableMaxByteOffs += change;
-}
-#endif // LEGACY_BACKEND
-
 /*****************************************************************************
  *
  *  Start generating code to be scheduled; called once per method.
@@ -982,10 +940,6 @@ void emitter::emitBegFN(bool hasFramePtr
                         ,
                         bool chkAlign
 #endif
-#ifdef LEGACY_BACKEND
-                        ,
-                        unsigned lclSize
-#endif // LEGACY_BACKEND
                         ,
                         unsigned maxTmpSize)
 {
@@ -1001,14 +955,6 @@ void emitter::emitBegFN(bool hasFramePtr
     emitHasFramePtr = hasFramePtr;
 
     emitMaxTmpSize = maxTmpSize;
-
-#ifdef LEGACY_BACKEND
-    emitLclSize             = lclSize;
-    emitGrowableMaxByteOffs = 0;
-#ifdef DEBUG
-    emitMaxByteOffsIdNum = (unsigned)-1;
-#endif // DEBUG
-#endif // LEGACY_BACKEND
 
 #ifdef DEBUG
     emitChkAlign = chkAlign;
@@ -2305,7 +2251,7 @@ bool emitter::emitNoGChelper(unsigned IHX)
 
         case CORINFO_HELP_PROF_FCN_LEAVE:
         case CORINFO_HELP_PROF_FCN_ENTER:
-#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
+#if defined(_TARGET_XARCH_)
         case CORINFO_HELP_PROF_FCN_TAILCALL:
 #endif
         case CORINFO_HELP_LLSH:
@@ -5360,8 +5306,6 @@ UNATIVE_OFFSET emitter::emitDataConst(const void* cnsAddr, unsigned cnsSize, boo
     return cnum;
 }
 
-#ifndef LEGACY_BACKEND
-
 //------------------------------------------------------------------------
 // emitAnyConst: Create a data section constant of arbitrary size.
 //
@@ -5421,7 +5365,6 @@ CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(double constValue, emitAttr attr
     UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
     return emitComp->eeFindJitDataOffs(cnum);
 }
-#endif
 
 /*****************************************************************************
  *
@@ -6156,7 +6099,7 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, ssize_t val)
 //    Same as wrapped function.
 //
 
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
 unsigned char emitter::emitOutputByte(BYTE* dst, size_t val)
 {
     return emitOutputByte(dst, (ssize_t)val);
@@ -6196,7 +6139,7 @@ unsigned char emitter::emitOutputSizeT(BYTE* dst, unsigned __int64 val)
 {
     return emitOutputSizeT(dst, (ssize_t)val);
 }
-#endif // !defined(LEGACY_BACKEND) && defined(_TARGET_X86_)
+#endif // defined(_TARGET_X86_)
 
 /*****************************************************************************
  *

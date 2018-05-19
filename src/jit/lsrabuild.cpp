@@ -20,8 +20,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #include "lsra.h"
 
 //------------------------------------------------------------------------
@@ -744,7 +742,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             break;
 
         case GT_MULHI:
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_X86_)
         case GT_MUL_LONG:
 #endif
             killMask = RBM_RAX | RBM_RDX;
@@ -3263,5 +3261,3 @@ void LinearScan::BuildCmp(GenTree* tree)
 
     info->srcCount = appendBinaryLocationInfoToList(tree->AsOp());
 }
-
-#endif // !LEGACY_BACKEND

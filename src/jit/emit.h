@@ -567,24 +567,20 @@ protected:
 
 #endif // _TARGET_ARM_
 
-#if defined(_TARGET_X86_) && defined(LEGACY_BACKEND)
-#define HAS_TINY_DESC 1
-#else
 #define HAS_TINY_DESC 0
-#endif
 
     struct instrDescCns;
 
     struct instrDesc
     {
     private:
-#if (defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         // The assembly instruction
         instruction _idIns : 9;
-#else  // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) || defined(LEGACY_BACKEND)
+#else  // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_))
         // The assembly instruction
         instruction _idIns : 8;
-#endif // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)) || defined(LEGACY_BACKEND)
+#endif // !(defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_))
         // The format for the instruction
         insFormat _idInsFmt : 8;
 
@@ -637,15 +633,15 @@ protected:
         unsigned _idCodeSize : 4; // size of instruction in bytes
 #endif
 
-#if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_XARCH_)
         opSize _idOpSize : 3; // operand size: 0=1 , 1=2 , 2=4 , 3=8, 4=16, 5=32
                               // At this point we have fully consumed first DWORD so that next field
                               // doesn't cross a byte boundary.
 #elif defined(_TARGET_ARM64_)
 // Moved the definition of '_idOpSize' later so that we don't cross a 32-bit boundary when laying out bitfields
-#else  // ARM or x86-LEGACY_BACKEND
+#else  // ARM
         opSize _idOpSize : 2; // operand size: 0=1 , 1=2 , 2=4 , 3=8
-#endif // ARM or x86-LEGACY_BACKEND
+#endif // ARM
 
         // On Amd64, this is where the second DWORD begins
         // On System V a call could return a struct in 2 registers. The instrDescCGCA struct below has  member that
@@ -721,12 +717,9 @@ protected:
 #elif defined(_TARGET_ARM64_)
 // For Arm64, we have used 17 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (17)
-#elif defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
-// For xarch !LEGACY_BACKEND, we have used 14 bits from the second DWORD.
+#elif defined(_TARGET_XARCH_)
+// For xarch, we have used 14 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (14)
-#elif defined(_TARGET_X86_)
-// For x86, we have used 6 bits from the second DWORD.
-#define ID_EXTRA_BITFIELD_BITS (6)
 #else
 #error Unsupported or unset target architecture
 #endif
@@ -1680,7 +1673,7 @@ private:
     unsigned char emitOutputLong(BYTE* dst, ssize_t val);
     unsigned char emitOutputSizeT(BYTE* dst, ssize_t val);
 
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
     unsigned char emitOutputByte(BYTE* dst, size_t val);
     unsigned char emitOutputWord(BYTE* dst, size_t val);
     unsigned char emitOutputLong(BYTE* dst, size_t val);
@@ -1690,7 +1683,7 @@ private:
     unsigned char emitOutputWord(BYTE* dst, unsigned __int64 val);
     unsigned char emitOutputLong(BYTE* dst, unsigned __int64 val);
     unsigned char emitOutputSizeT(BYTE* dst, unsigned __int64 val);
-#endif // !defined(LEGACY_BACKEND) && defined(_TARGET_X86_)
+#endif // defined(_TARGET_X86_)
 
     size_t emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp);
     size_t emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp);
@@ -1703,15 +1696,6 @@ private:
 
     unsigned emitMaxTmpSize;
 
-#ifdef LEGACY_BACKEND
-    unsigned emitLclSize;
-    unsigned emitGrowableMaxByteOffs;
-    void emitTmpSizeChanged(unsigned tmpSize);
-#ifdef DEBUG
-    unsigned emitMaxByteOffsIdNum;
-#endif // DEBUG
-#endif // LEGACY_BACKEND
-
 #ifdef DEBUG
     bool emitChkAlign; // perform some alignment checks
 #endif
@@ -1722,8 +1706,6 @@ private:
     void emitSetMediumJump(instrDescJmp* id);
     UNATIVE_OFFSET emitSizeOfJump(instrDescJmp* jmp);
     UNATIVE_OFFSET emitInstCodeSz(instrDesc* id);
-
-#ifndef LEGACY_BACKEND
     CORINFO_FIELD_HANDLE emitAnyConst(const void* cnsAddr, unsigned cnsSize, bool dblAlign);
     CORINFO_FIELD_HANDLE emitFltOrDblConst(double constValue, emitAttr attr);
     regNumber emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src);
@@ -1735,7 +1717,6 @@ private:
     insFormat emitMapFmtAtoM(insFormat fmt);
     void emitHandleMemOp(GenTreeIndir* indir, instrDesc* id, insFormat fmt, instruction ins);
     void spillIntArgRegsToShadowSlots();
-#endif // !LEGACY_BACKEND
 
 /************************************************************************/
 /*      The logic that creates and keeps track of instruction groups    */

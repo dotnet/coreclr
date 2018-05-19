@@ -99,16 +99,12 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
     // if it's "x <op>=..." then variable "x" must have had a previous, original, site to be born.
     bool isBorn  = ((tree->gtFlags & GTF_VAR_DEF) != 0 && (tree->gtFlags & GTF_VAR_USEASG) == 0);
     bool isDying = ((tree->gtFlags & GTF_VAR_DEATH) != 0);
-#ifndef LEGACY_BACKEND
     bool spill = ((tree->gtFlags & GTF_SPILL) != 0);
-#endif // !LEGACY_BACKEND
 
-#ifndef LEGACY_BACKEND
-    // For RyuJIT backend, since all tracked vars are register candidates, but not all are in registers at all times,
+    // Since all tracked vars are register candidates, but not all are in registers at all times,
     // we maintain two separate sets of variables - the total set of variables that are either
     // born or dying here, and the subset of those that are on the stack
     VarSetOps::ClearD(compiler, stackVarDeltaSet);
-#endif // !LEGACY_BACKEND
 
     if (isBorn || isDying)
     {
@@ -122,26 +118,18 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             VarSetOps::AddElemD(compiler, varDeltaSet, varDsc->lvVarIndex);
             if (ForCodeGen)
             {
-#ifndef LEGACY_BACKEND
                 if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
                 {
                     compiler->codeGen->genUpdateVarReg(varDsc, tree);
                 }
-#endif // !LEGACY_BACKEND
-                if (varDsc->lvIsInReg()
-#ifndef LEGACY_BACKEND
-                    && tree->gtRegNum != REG_NA
-#endif // !LEGACY_BACKEND
-                    )
+                if (varDsc->lvIsInReg() && tree->gtRegNum != REG_NA)
                 {
                     compiler->codeGen->genUpdateRegLife(varDsc, isBorn, isDying DEBUGARG(tree));
                 }
-#ifndef LEGACY_BACKEND
                 else
                 {
                     VarSetOps::AddElemD(compiler, stackVarDeltaSet, varDsc->lvVarIndex);
                 }
-#endif // !LEGACY_BACKEND
             }
         }
         else if (varDsc->lvPromoted)
@@ -174,40 +162,32 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
                             // test in this, the common case, where we have no deadTrackedFieldVars.
                             if (fldVarDsc->lvIsInReg())
                             {
-#ifndef LEGACY_BACKEND
                                 if (isBorn)
                                 {
                                     compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
                                 }
-#endif // !LEGACY_BACKEND
                                 compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                             }
-#ifndef LEGACY_BACKEND
                             else
                             {
                                 VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
                             }
-#endif // !LEGACY_BACKEND
                         }
                     }
                     else if (ForCodeGen && VarSetOps::IsMember(compiler, varDeltaSet, fldVarIndex))
                     {
                         if (compiler->lvaTable[i].lvIsInReg())
                         {
-#ifndef LEGACY_BACKEND
                             if (isBorn)
                             {
                                 compiler->codeGen->genUpdateVarReg(fldVarDsc, tree);
                             }
-#endif // !LEGACY_BACKEND
                             compiler->codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
                         }
-#ifndef LEGACY_BACKEND
                         else
                         {
                             VarSetOps::AddElemD(compiler, stackVarDeltaSet, fldVarIndex);
                         }
-#endif // !LEGACY_BACKEND
                     }
                 }
             }
@@ -253,8 +233,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 
         if (ForCodeGen)
         {
-#ifndef LEGACY_BACKEND
-
             // Only add vars to the gcInfo.gcVarPtrSetCur if they are currently on stack, since the
             // gcInfo.gcTrkStkPtrLcls
             // includes all TRACKED vars that EVER live on the stack (i.e. are not always in a register).
@@ -289,34 +267,10 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
 #endif // DEBUG
             }
 
-#else // LEGACY_BACKEND
-
-#ifdef DEBUG
-            if (compiler->verbose)
-            {
-                VarSetOps::Assign(compiler, gcVarPtrSetNew, newLife);
-                VarSetOps::IntersectionD(compiler, gcVarPtrSetNew, compiler->codeGen->gcInfo.gcTrkStkPtrLcls);
-                if (!VarSetOps::Equal(compiler, compiler->codeGen->gcInfo.gcVarPtrSetCur, gcVarPtrSetNew))
-                {
-                    printf("\t\t\t\t\t\t\tGCvars: ");
-                    dumpConvertedVarSet(compiler, compiler->codeGen->gcInfo.gcVarPtrSetCur);
-                    printf(" => ");
-                    dumpConvertedVarSet(compiler, gcVarPtrSetNew);
-                    printf("\n");
-                }
-            }
-#endif // DEBUG
-            VarSetOps::Assign(compiler, compiler->codeGen->gcInfo.gcVarPtrSetCur,
-                              compiler->codeGen->gcInfo.gcTrkStkPtrLcls);
-            VarSetOps::IntersectionD(compiler, compiler->codeGen->gcInfo.gcVarPtrSetCur, newLife);
-
-#endif // LEGACY_BACKEND
-
             compiler->codeGen->siUpdate();
         }
     }
 
-#ifndef LEGACY_BACKEND
     if (ForCodeGen && spill)
     {
         assert(!varDsc->lvPromoted);
@@ -335,7 +289,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             }
         }
     }
-#endif // !LEGACY_BACKEND
 }
 
 //------------------------------------------------------------------------

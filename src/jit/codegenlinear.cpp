@@ -15,7 +15,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator.
 #include "emit.h"
 #include "codegen.h"
 
@@ -1929,5 +1928,3 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
     }
     // The per-case functions call genProduceReg()
 }
-
-#endif // !LEGACY_BACKEND
