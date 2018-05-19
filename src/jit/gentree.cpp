@@ -14210,10 +14210,6 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             // update args table. For this reason this optimization is enabled only
             // for global morphing phase.
             //
-            // X86/Arm32 legacy codegen note: This is not an issue on x86 for the reason that
-            // it doesn't use arg table for calls.  In addition x86/arm32 legacy codegen doesn't
-            // expect long constants to show up as an operand of overflow cast operation.
-            //
             // TODO-CQ: Once fgMorphArgs() is fixed this restriction could be removed.
             CLANG_FORMAT_COMMENT_ANCHOR;
 
@@ -14240,10 +14236,6 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             // but fgMorphArgs() - see the logic around "if(lateArgsComputed)" - doesn't
             // update args table. For this reason this optimization is enabled only
             // for global morphing phase.
-            //
-            // X86/Arm32 legacy codegen note: This is not an issue on x86 for the reason that
-            // it doesn't use arg table for calls.  In addition x86/arm32 legacy codegen doesn't
-            // expect long constants to show up as an operand of overflow cast operation.
             //
             // TODO-CQ: Once fgMorphArgs() is fixed this restriction could be removed.
 

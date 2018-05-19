@@ -486,10 +486,6 @@ bool IsExtendedReg(regNumber reg, emitAttr attr)
 
 // Since XMM registers overlap with YMM registers, this routine
 // can also used to know whether a YMM register in case of AVX instructions.
-//
-// Legacy X86: we have XMM0-XMM7 available but this routine cannot be used to
-// determine whether a reg is XMM because they share the same reg numbers
-// with integer registers.  Hence always return false.
 bool IsXMMReg(regNumber reg)
 {
 #ifdef _TARGET_AMD64_
@@ -1009,9 +1005,6 @@ inline emitter::insFormat emitter::emitInsModeFormat(instruction ins, insFormat 
 // This is a helper we need due to Vs Whidbey #254016 in order to distinguish
 // if we can not possibly be updating an integer register. This is not the best
 // solution, but the other ones (see bug) are going to be much more complicated.
-// The issue here is that on legacy x86, the XMM registers use the same register numbers
-// as the general purpose registers, so we need to distinguish them.
-// We really only need this for x86 where this issue exists.
 bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
 {
     instruction ins = id->idIns();

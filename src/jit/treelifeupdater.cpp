@@ -58,29 +58,6 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             // The ADDR might occur in a context where the address it contributes is eventually
             // dereferenced, so we can't say that this is not a use or def.
         }
-#if 0   
-        // TODO-ARM64-Bug?: These asserts don't seem right for ARM64: I don't understand why we have to assert 
-        // two consecutive lclvars (in execution order) can only be observed if the first one is a struct field.
-        // It seems to me this is code only applicable to the legacy JIT and not RyuJIT (and therefore why it was 
-        // ifdef'ed out for AMD64).
-        else if (!varDsc->lvIsStructField)
-        {
-            GenTree* prevTree;
-            for (prevTree = tree->gtPrev;
-                 prevTree != NULL && prevTree != compCurLifeTree;
-                 prevTree = prevTree->gtPrev)
-            {
-                if ((prevTree->gtOper == GT_LCL_VAR) || (prevTree->gtOper == GT_REG_VAR))
-                {
-                    LclVarDsc * prevVarDsc = compiler->lvaTable + prevTree->gtLclVarCommon.gtLclNum;
-
-                    // These are the only things for which this method MUST be called
-                    assert(prevVarDsc->lvIsStructField);
-                }
-            }
-            assert(prevTree == compCurLifeTree);
-        }
-#endif // 0
     }
 #endif // !_TARGET_AMD64_
 #endif // DEBUG
