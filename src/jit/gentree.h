@@ -514,36 +514,27 @@ private:
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
+
 public:
     enum genRegTag
     {
-        GT_REGTAG_NONE, // Nothing has been assigned to _gtRegNum/_gtRegPair
-        GT_REGTAG_REG,  // _gtRegNum  has been assigned
-#if CPU_LONG_USES_REGPAIR
-        GT_REGTAG_REGPAIR // _gtRegPair has been assigned
-#endif
+        GT_REGTAG_NONE, // Nothing has been assigned to _gtRegNum
+        GT_REGTAG_REG   // _gtRegNum has been assigned
     };
     genRegTag GetRegTag() const
     {
-#if CPU_LONG_USES_REGPAIR
-        assert(gtRegTag == GT_REGTAG_NONE || gtRegTag == GT_REGTAG_REG || gtRegTag == GT_REGTAG_REGPAIR);
-#else
         assert(gtRegTag == GT_REGTAG_NONE || gtRegTag == GT_REGTAG_REG);
-#endif
         return gtRegTag;
     }
 
 private:
-    genRegTag gtRegTag; // What is in _gtRegNum/_gtRegPair?
-#endif                  // DEBUG
+    genRegTag gtRegTag; // What is in _gtRegNum?
+
+#endif // DEBUG
 
 private:
-    union {
-        // These store the register assigned to the node. If a register is not assigned, _gtRegNum is set to REG_NA
-        // or _gtRegPair is set to REG_PAIR_NONE, depending on the node type.
-        regNumberSmall _gtRegNum;  // which register      the value is in
-        regPairNoSmall _gtRegPair; // which register pair the value is in
-    };
+    // This stores the register assigned to the node. If a register is not assigned, _gtRegNum is set to REG_NA.
+    regNumberSmall _gtRegNum;
 
 public:
     // The register number is stored in a small format (8 bits), but the getters return and the setters take
@@ -622,40 +613,12 @@ public:
     void SetRegNum(regNumber reg)
     {
         assert(reg >= REG_FIRST && reg <= REG_COUNT);
-        // Make sure the upper bits of _gtRegPair are clear
-        _gtRegPair = (regPairNoSmall)0;
         _gtRegNum  = (regNumberSmall)reg;
         INDEBUG(gtRegTag = GT_REGTAG_REG;)
         assert(_gtRegNum == reg);
     }
 
-#if CPU_LONG_USES_REGPAIR
-    __declspec(property(get = GetRegPair, put = SetRegPair)) regPairNo gtRegPair;
-
-    regPairNo GetRegPair() const
-    {
-        assert((gtRegTag == GT_REGTAG_REGPAIR) || (gtRegTag == GT_REGTAG_NONE)); // TODO-Cleanup: get rid of the NONE
-                                                                                 // case, and fix everyplace that reads
-                                                                                 // undefined values
-        regPairNo regPair = (regPairNo)_gtRegPair;
-        assert((gtRegTag == GT_REGTAG_NONE) || // TODO-Cleanup: get rid of the NONE case, and fix everyplace that reads
-                                               // undefined values
-               (regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST) ||
-               (regPair == REG_PAIR_NONE)); // allow initializing to an undefined value
-        return regPair;
-    }
-
-    void SetRegPair(regPairNo regPair)
-    {
-        assert((regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST) ||
-               (regPair == REG_PAIR_NONE)); // allow initializing to an undefined value
-        _gtRegPair = (regPairNoSmall)regPair;
-        INDEBUG(gtRegTag = GT_REGTAG_REGPAIR;)
-        assert(_gtRegPair == regPair);
-    }
-#endif
-
-    // Copy the _gtRegNum/_gtRegPair/gtRegTag fields
+    // Copy the _gtRegNum/gtRegTag fields
     void CopyReg(GenTree* from);
     bool gtHasReg() const;
 

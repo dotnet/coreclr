@@ -49,8 +49,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     Tree nodes (GenTree):
     - GenTree::gtRegNum (and gtRegPair for ARM) is annotated with the register
       assignment for a node. If the node does not require a register, it is
-      annotated as such (for single registers, gtRegNum = REG_NA; for register
-      pair type, gtRegPair = REG_PAIR_NONE). For a variable definition or interior
+      annotated as such (gtRegNum = REG_NA). For a variable definition or interior
       tree node (an "implicit" definition), this is the register to put the result.
       For an expression use, this is the place to find the value that has previously
       been computed.

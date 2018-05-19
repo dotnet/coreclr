@@ -173,13 +173,6 @@ void CodeGenInterface::genMarkTreeInReg(GenTree* tree, regNumber reg)
     tree->gtRegNum = reg;
 }
 
-#if CPU_LONG_USES_REGPAIR
-void CodeGenInterface::genMarkTreeInRegPair(GenTree* tree, regPairNo regPair)
-{
-    tree->gtRegPair = regPair;
-}
-#endif
-
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
 //---------------------------------------------------------------------
@@ -457,10 +450,6 @@ regMaskTP CodeGenInterface::genGetRegMask(const LclVarDsc* varDsc)
     else
     {
         regMask = genRegMask(varDsc->lvRegNum);
-        if (isRegPairType(varDsc->lvType))
-        {
-            regMask |= genRegMask(varDsc->lvOtherReg);
-        }
     }
     return regMask;
 }
@@ -4646,49 +4635,11 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         /* Figure out the home offset of the incoming argument */
 
-        regNumber regNum;
-        regNumber otherReg;
-
-#ifdef _TARGET_ARM_
-        if (type == TYP_LONG)
-        {
-            regPairNo regPair = varDsc->lvArgInitRegPair;
-            regNum            = genRegPairLo(regPair);
-            otherReg          = genRegPairHi(regPair);
-        }
-        else
-#endif // _TARGET_ARM_
-        {
-            regNum   = varDsc->lvArgInitReg;
-            otherReg = REG_NA;
-        }
-
+        regNumber regNum  = varDsc->lvArgInitReg;
         assert(regNum != REG_STK);
 
-#ifndef _TARGET_64BIT_
-        if (type == TYP_LONG)
-        {
-            /* long - at least the low half must be enregistered */
-
-            getEmitter()->emitIns_R_S(ins_Load(TYP_INT), EA_4BYTE, regNum, varNum, 0);
-            regTracker.rsTrackRegTrash(regNum);
-
-            /* Is the upper half also enregistered? */
-
-            if (otherReg != REG_STK)
-            {
-                getEmitter()->emitIns_R_S(ins_Load(TYP_INT), EA_4BYTE, otherReg, varNum, sizeof(int));
-                regTracker.rsTrackRegTrash(otherReg);
-            }
-        }
-        else
-#endif // _TARGET_64BIT_
-        {
-            /* Loading a single register - this is the easy/common case */
-
-            getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
-            regTracker.rsTrackRegTrash(regNum);
-        }
+        getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
+        regTracker.rsTrackRegTrash(regNum);
 
         psiMoveToReg(varNum);
     }

@@ -807,20 +807,7 @@ void CodeGen::inst_RV_TT(instruction ins,
 #if CPU_LOAD_STORE_ARCH
     if (ins == INS_mov)
     {
-#if defined(_TARGET_ARM_) && CPU_LONG_USES_REGPAIR
-        if (tree->TypeGet() != TYP_LONG)
-        {
-            ins = ins_Move_Extend(tree->TypeGet(), tree->InReg());
-        }
-        else if (offs == 0)
-        {
-            ins = ins_Move_Extend(TYP_INT, tree->InReg() && genRegPairLo(tree->gtRegPair) != REG_STK);
-        }
-        else
-        {
-            ins = ins_Move_Extend(TYP_INT, tree->InReg() && genRegPairHi(tree->gtRegPair) != REG_STK);
-        }
-#elif defined(_TARGET_ARM64_) || defined(_TARGET_ARM64_)
+#if defined(_TARGET_ARM64_) || defined(_TARGET_ARM64_)
         ins = ins_Move_Extend(tree->TypeGet(), false);
 #else
         NYI("CodeGen::inst_RV_TT with INS_mov");
@@ -876,12 +863,7 @@ AGAIN:
 
                 default:
                     regNumber regTmp;
-#if CPU_LONG_USES_REGPAIR
-                    if (tree->TypeGet() == TYP_LONG)
-                        regTmp = (offs == 0) ? genRegPairLo(tree->gtRegPair) : genRegPairHi(tree->gtRegPair);
-                    else
-#endif // CPU_LONG_USES_REGPAIR
-                        regTmp = tree->gtRegNum;
+                    regTmp = tree->gtRegNum;
 
                     getEmitter()->emitIns_R_S(ins_Load(tree->TypeGet()), size, regTmp, varNum, offs);
                     getEmitter()->emitIns_R_R(ins, size, reg, regTmp, flags);

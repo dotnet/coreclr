@@ -2322,25 +2322,6 @@ const char* Compiler::compRegVarName(regNumber reg, bool displayVar, bool isFloa
     return getRegName(reg, isFloatReg);
 }
 
-#define MAX_REG_PAIR_NAME_LENGTH 10
-
-const char* Compiler::compRegPairName(regPairNo regPair)
-{
-    static char regNameLong[MAX_REG_PAIR_NAME_LENGTH];
-
-    if (regPair == REG_PAIR_NONE)
-    {
-        return "NA|NA";
-    }
-
-    assert(regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST);
-
-    strcpy_s(regNameLong, sizeof(regNameLong), compRegVarName(genRegPairLo(regPair)));
-    strcat_s(regNameLong, sizeof(regNameLong), "|");
-    strcat_s(regNameLong, sizeof(regNameLong), compRegVarName(genRegPairHi(regPair)));
-    return regNameLong;
-}
-
 const char* Compiler::compRegNameForSize(regNumber reg, size_t size)
 {
     if (size == 0 || size >= 4)
@@ -9944,16 +9925,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            if (isRegPairType(varDsc->TypeGet()))
-                            {
-                                chars += printf(":%s:%s",
-                                                getRegName(varDsc->lvOtherReg), // hi32
-                                                getRegName(varDsc->lvRegNum));  // lo32
-                            }
-                            else
-                            {
-                                chars += printf(":%s", getRegName(varDsc->lvRegNum));
-                            }
+                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
                         }
                         else
                         {
@@ -9962,11 +9934,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                                 case GenTree::GT_REGTAG_REG:
                                     chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
                                     break;
-#if CPU_LONG_USES_REGPAIR
-                                case GenTree::GT_REGTAG_REGPAIR:
-                                    chars += printf(":%s", comp->compRegPairName(tree->gtRegPair));
-                                    break;
-#endif
                                 default:
                                     break;
                             }
@@ -9978,18 +9945,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(");
-                        if (isRegPairType(varDsc->TypeGet()))
-                        {
-                            chars += printf("%s:%s",
-                                            getRegName(varDsc->lvOtherReg), // hi32
-                                            getRegName(varDsc->lvRegNum));  // lo32
-                        }
-                        else
-                        {
-                            chars += printf("%s", getRegName(varDsc->lvRegNum));
-                        }
-                        chars += printf(")");
+                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
                     }
                     else
                     {
@@ -9998,11 +9954,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             case GenTree::GT_REGTAG_REG:
                                 chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
                                 break;
-#if CPU_LONG_USES_REGPAIR
-                            case GenTree::GT_REGTAG_REGPAIR:
-                                chars += printf("(%s)", comp->compRegPairName(tree->gtRegPair));
-                                break;
-#endif
                             default:
                                 break;
                         }
@@ -10051,16 +10002,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                     {
                         if (varDsc->lvRegister)
                         {
-                            if (isRegPairType(varDsc->TypeGet()))
-                            {
-                                chars += printf(":%s:%s",
-                                                getRegName(varDsc->lvOtherReg), // hi32
-                                                getRegName(varDsc->lvRegNum));  // lo32
-                            }
-                            else
-                            {
-                                chars += printf(":%s", getRegName(varDsc->lvRegNum));
-                            }
+                            chars += printf(":%s", getRegName(varDsc->lvRegNum));
                         }
                         else
                         {
@@ -10069,11 +10011,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                                 case GenTree::GT_REGTAG_REG:
                                     chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
                                     break;
-#if CPU_LONG_USES_REGPAIR
-                                case GenTree::GT_REGTAG_REGPAIR:
-                                    chars += printf(":%s", comp->compRegPairName(tree->gtRegPair));
-                                    break;
-#endif
                                 default:
                                     break;
                             }
@@ -10085,18 +10022,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                 {
                     if (varDsc->lvRegister)
                     {
-                        chars += printf("(");
-                        if (isRegPairType(varDsc->TypeGet()))
-                        {
-                            chars += printf("%s:%s",
-                                            getRegName(varDsc->lvOtherReg), // hi32
-                                            getRegName(varDsc->lvRegNum));  // lo32
-                        }
-                        else
-                        {
-                            chars += printf("%s", getRegName(varDsc->lvRegNum));
-                        }
-                        chars += printf(")");
+                        chars += printf("(%s)", getRegName(varDsc->lvRegNum));
                     }
                     else
                     {
@@ -10105,11 +10031,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             case GenTree::GT_REGTAG_REG:
                                 chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
                                 break;
-#if CPU_LONG_USES_REGPAIR
-                            case GenTree::GT_REGTAG_REGPAIR:
-                                chars += printf("(%s)", comp->compRegPairName(tree->gtRegPair));
-                                break;
-#endif
                             default:
                                 break;
                         }

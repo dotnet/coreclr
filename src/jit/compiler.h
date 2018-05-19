@@ -444,10 +444,7 @@ private:
                                    // Note this is defined but not used by ARM32
 #endif                             // FEATURE_MULTIREG_ARGS
 
-    union {
-        regNumberSmall _lvArgInitReg;     // the register      into which the argument is moved at entry
-        regPairNoSmall _lvArgInitRegPair; // the register pair into which the argument is moved at entry
-    };
+    regNumberSmall _lvArgInitReg;     // the register into which the argument is moved at entry
 
 public:
     // The register number is stored in a small format (8 bits), but the getters return and the setters take
@@ -571,24 +568,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgInitRegPair, put = SetArgInitRegPair)) regPairNo lvArgInitRegPair;
-
-    regPairNo GetArgInitRegPair() const
-    {
-        regPairNo regPair = (regPairNo)_lvArgInitRegPair;
-        assert(regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST);
-        return regPair;
-    }
-
-    void SetArgInitRegPair(regPairNo regPair)
-    {
-        assert(regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST);
-        _lvArgInitRegPair = (regPairNoSmall)regPair;
-        assert(_lvArgInitRegPair == regPair);
-    }
-
-    /////////////////////
-
     bool lvIsRegCandidate() const
     {
         return lvLRACandidate != 0;
@@ -614,12 +593,6 @@ public:
             if (lvRegNum != REG_STK)
             {
                 regMask = genRegMask(lvRegNum);
-            }
-
-            // For longs we may have two regs
-            if (isRegPairType(lvType) && lvOtherReg != REG_STK)
-            {
-                regMask |= genRegMask(lvOtherReg);
             }
         }
         return regMask;
@@ -768,15 +741,7 @@ public:
 public:
     void PrintVarReg() const
     {
-        if (isRegPairType(TypeGet()))
-        {
-            printf("%s:%s", getRegName(lvOtherReg), // hi32
-                   getRegName(lvRegNum));           // lo32
-        }
-        else
-        {
-            printf("%s", getRegName(lvRegNum));
-        }
+        printf("%s", getRegName(lvRegNum));
     }
 #endif // DEBUG
 
@@ -8706,7 +8671,6 @@ public:
     const char* compLocalVarName(unsigned varNum, unsigned offs);
     VarName compVarName(regNumber reg, bool isFloatReg = false);
     const char* compRegVarName(regNumber reg, bool displayVar = false, bool isFloatReg = false);
-    const char* compRegPairName(regPairNo regPair);
     const char* compRegNameForSize(regNumber reg, size_t size);
     const char* compFPregVarName(unsigned fpReg, bool displayVar = false);
     void compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP);
@@ -10280,7 +10244,6 @@ extern const BYTE genActualTypes[];
 
 #define REG_CORRUPT regNumber(REG_NA + 1)
 #define RBM_CORRUPT (RBM_ILLEGAL | regMaskTP(1))
-#define REG_PAIR_CORRUPT regPairNo(REG_PAIR_NONE + 1)
 
 /*****************************************************************************/
 

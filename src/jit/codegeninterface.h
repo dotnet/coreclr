@@ -284,9 +284,7 @@ public:
     unsigned InferOpSizeAlign(GenTree* op, unsigned* alignmentWB);
 
     void genMarkTreeInReg(GenTree* tree, regNumber reg);
-#if CPU_LONG_USES_REGPAIR
-    void genMarkTreeInRegPair(GenTree* tree, regPairNo regPair);
-#endif
+
     // Methods to abstract target information
 
     bool validImmForInstr(instruction ins, ssize_t val, insFlags flags = INS_FLAGS_DONT_CARE);

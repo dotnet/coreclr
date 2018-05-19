@@ -4781,16 +4781,7 @@ void Compiler::lvaUpdateArgsWithInitialReg()
 
         if (varDsc->lvIsRegCandidate())
         {
-            if (varTypeIsMultiReg(varDsc))
-            {
-                regPairNo initialRegPair = varDsc->lvArgInitRegPair;
-                varDsc->lvRegNum         = genRegPairLo(initialRegPair);
-                varDsc->lvOtherReg       = genRegPairHi(initialRegPair);
-            }
-            else
-            {
-                varDsc->lvRegNum = varDsc->lvArgInitReg;
-            }
+            varDsc->lvRegNum = varDsc->lvArgInitReg;
         }
     }
 }
@@ -6531,54 +6522,22 @@ int Compiler::lvaAllocateTemps(int stkOffs, bool mustDoubleAlign)
 
 /*****************************************************************************
  *
- *  Dump the register a local is in right now.
- *  For non-LSRA, this will be the register it is always in. For LSRA, it's only the current
- *  location, since the location changes and it is updated throughout code generation based on
- *  LSRA register assignments.
+ *  Dump the register a local is in right now. It is only the current location, since the location changes and it
+ *  is updated throughout code generation based on LSRA register assignments.
  */
 
 void Compiler::lvaDumpRegLocation(unsigned lclNum)
 {
     LclVarDsc* varDsc = lvaTable + lclNum;
-    var_types  type   = varDsc->TypeGet();
 
-    if (isRegPairType(type))
-    {
-        if (!doLSRA())
-        {
-            noway_assert(varDsc->lvRegNum != REG_STK);
-        }
-        if (doLSRA() && varDsc->lvRegNum == REG_STK)
-        {
-            /* Hi-only enregistered long */
-            int offset = varDsc->lvStkOffs;
-            printf("%-3s:[%1s0x%02X]",
-                   getRegName(varDsc->lvOtherReg), // hi32
-                   (offset < 0 ? "-" : "+"), (offset < 0 ? -offset : offset));
-        }
-        else if (varDsc->lvOtherReg != REG_STK)
-        {
-            /* Fully enregistered long */
-            printf("%3s:%-3s    ",
-                   getRegName(varDsc->lvOtherReg), // hi32
-                   getRegName(varDsc->lvRegNum));  // lo32
-        }
-        else
-        {
-            /* Partially enregistered long */
-            int offset = varDsc->lvStkOffs + 4;
-            printf("[%1s0x%02X]:%-3s", (offset < 0 ? "-" : "+"), (offset < 0 ? -offset : offset),
-                   getRegName(varDsc->lvRegNum)); // lo32
-        }
-    }
 #ifdef _TARGET_ARM_
-    else if (varDsc->TypeGet() == TYP_DOUBLE)
+    if (varDsc->TypeGet() == TYP_DOUBLE)
     {
         // The assigned registers are `lvRegNum:RegNext(lvRegNum)`
         printf("%3s:%-3s    ", getRegName(varDsc->lvRegNum), getRegName(REG_NEXT(varDsc->lvRegNum)));
     }
-#endif // _TARGET_ARM_
     else
+#endif // _TARGET_ARM_
     {
         printf("%3s        ", getRegName(varDsc->lvRegNum));
     }

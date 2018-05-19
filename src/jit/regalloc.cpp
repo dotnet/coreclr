@@ -326,17 +326,7 @@ void Compiler::raMarkStkVars()
 
         if (varDsc->lvRegister)
         {
-            if (!isRegPairType(varDsc->TypeGet()))
-            {
-                goto NOT_STK;
-            }
-
-            /* For "large" variables make sure both halves are enregistered */
-
-            if (varDsc->lvRegNum != REG_STK && varDsc->lvOtherReg != REG_STK)
-            {
-                goto NOT_STK;
-            }
+            goto NOT_STK;
         }
         /* Unused variables typically don't get any frame space */
         else if (varDsc->lvRefCnt == 0)

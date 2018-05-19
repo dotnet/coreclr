@@ -615,7 +615,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
 }
 
 //-----------------------------------------------------------
-// CopyReg: Copy the _gtRegNum/_gtRegPair/gtRegTag fields.
+// CopyReg: Copy the _gtRegNum/gtRegTag fields.
 //
 // Arguments:
 //     from   -  GenTree node from which to copy
@@ -624,10 +624,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
 //     None
 void GenTree::CopyReg(GenTree* from)
 {
-    // To do the copy, use _gtRegPair, which must be bigger than _gtRegNum. Note that the values
-    // might be undefined (so gtRegTag == GT_REGTAG_NONE).
-    _gtRegPair = from->_gtRegPair;
-    C_ASSERT(sizeof(_gtRegPair) >= sizeof(_gtRegNum));
+    _gtRegNum = from->_gtRegNum;
     INDEBUG(gtRegTag = from->gtRegTag;)
 
     // Also copy multi-reg state if this is a call node
@@ -667,16 +664,6 @@ bool GenTree::gtHasReg() const
 {
     bool hasReg;
 
-#if CPU_LONG_USES_REGPAIR
-    if (isRegPairType(TypeGet()))
-    {
-        assert(_gtRegNum != REG_NA);
-        INDEBUG(assert(gtRegTag == GT_REGTAG_REGPAIR));
-        return (gtRegPair != REG_PAIR_NONE);
-    }
-    assert(_gtRegNum != REG_PAIR_NONE);
-    INDEBUG(assert(gtRegTag == GT_REGTAG_REG));
-#endif
     if (IsMultiRegCall())
     {
         // Have to cast away const-ness because GetReturnTypeDesc() is a non-const method
@@ -791,62 +778,53 @@ regMaskTP GenTree::gtGetRegMask() const
 {
     regMaskTP resultMask;
 
-#if CPU_LONG_USES_REGPAIR
-    if (isRegPairType(TypeGet()))
+    if (IsMultiRegCall())
     {
-        resultMask = genRegPairMask(gtRegPair);
+        // temporarily cast away const-ness as AsCall() method is not declared const
+        resultMask    = genRegMask(gtRegNum);
+        GenTree* temp = const_cast<GenTree*>(this);
+        resultMask |= temp->AsCall()->GetOtherRegMask();
     }
-    else
-#endif
+    else if (IsCopyOrReloadOfMultiRegCall())
     {
-        if (IsMultiRegCall())
-        {
-            // temporarily cast away const-ness as AsCall() method is not declared const
-            resultMask    = genRegMask(gtRegNum);
-            GenTree* temp = const_cast<GenTree*>(this);
-            resultMask |= temp->AsCall()->GetOtherRegMask();
-        }
-        else if (IsCopyOrReloadOfMultiRegCall())
-        {
-            // A multi-reg copy or reload, will have valid regs for only those
-            // positions that need to be copied or reloaded.  Hence we need
-            // to consider only those registers for computing reg mask.
+        // A multi-reg copy or reload, will have valid regs for only those
+        // positions that need to be copied or reloaded.  Hence we need
+        // to consider only those registers for computing reg mask.
 
-            GenTree*             tree         = const_cast<GenTree*>(this);
-            GenTreeCopyOrReload* copyOrReload = tree->AsCopyOrReload();
-            GenTreeCall*         call         = copyOrReload->gtGetOp1()->AsCall();
-            unsigned             regCount     = call->GetReturnTypeDesc()->GetReturnRegCount();
+        GenTree*             tree         = const_cast<GenTree*>(this);
+        GenTreeCopyOrReload* copyOrReload = tree->AsCopyOrReload();
+        GenTreeCall*         call         = copyOrReload->gtGetOp1()->AsCall();
+        unsigned             regCount     = call->GetReturnTypeDesc()->GetReturnRegCount();
 
-            resultMask = RBM_NONE;
-            for (unsigned i = 0; i < regCount; ++i)
+        resultMask = RBM_NONE;
+        for (unsigned i = 0; i < regCount; ++i)
+        {
+            regNumber reg = copyOrReload->GetRegNumByIdx(i);
+            if (reg != REG_NA)
             {
-                regNumber reg = copyOrReload->GetRegNumByIdx(i);
-                if (reg != REG_NA)
-                {
-                    resultMask |= genRegMask(reg);
-                }
-            }
-        }
-#if defined(_TARGET_ARM_)
-        else if (OperIsPutArgSplit())
-        {
-            GenTree*            tree     = const_cast<GenTree*>(this);
-            GenTreePutArgSplit* splitArg = tree->AsPutArgSplit();
-            unsigned            regCount = splitArg->gtNumRegs;
-
-            resultMask = RBM_NONE;
-            for (unsigned i = 0; i < regCount; ++i)
-            {
-                regNumber reg = splitArg->GetRegNumByIdx(i);
-                assert(reg != REG_NA);
                 resultMask |= genRegMask(reg);
             }
         }
-#endif
-        else
+    }
+#if defined(_TARGET_ARM_)
+    else if (OperIsPutArgSplit())
+    {
+        GenTree*            tree     = const_cast<GenTree*>(this);
+        GenTreePutArgSplit* splitArg = tree->AsPutArgSplit();
+        unsigned            regCount = splitArg->gtNumRegs;
+
+        resultMask = RBM_NONE;
+        for (unsigned i = 0; i < regCount; ++i)
         {
-            resultMask = genRegMask(gtRegNum);
+            regNumber reg = splitArg->GetRegNumByIdx(i);
+            assert(reg != REG_NA);
+            resultMask |= genRegMask(reg);
         }
+    }
+#endif
+    else
+    {
+        resultMask = genRegMask(gtRegNum);
     }
 
     return resultMask;
@@ -3312,13 +3290,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     }
                 }
 #endif
-#if CPU_LONG_USES_REGPAIR
-                if (varTypeIsLong(tree->TypeGet()))
-                {
-                    costEx *= 2; // Longs are twice as expensive
-                    costSz *= 2;
-                }
-#endif
                 break;
 
             case GT_CLS_VAR:
@@ -3447,24 +3418,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #else
 #error "Unknown _TARGET_"
 #endif
-
-#if CPU_LONG_USES_REGPAIR
-                    if (varTypeIsLong(tree->TypeGet()))
-                    {
-                        if (varTypeIsUnsigned(tree->TypeGet()))
-                        {
-                            /* Cast to unsigned long */
-                            costEx += 1;
-                            costSz += 2;
-                        }
-                        else
-                        {
-                            /* Cast to signed long is slightly more costly */
-                            costEx += 2;
-                            costSz += 3;
-                        }
-                    }
-#endif // CPU_LONG_USES_REGPAIR
 
                     /* Overflow casts are a lot more expensive */
                     if (tree->gtOverflow())
@@ -4304,13 +4257,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 level++;
                 lvl2++;
             }
-#if CPU_LONG_USES_REGPAIR
-            if (varTypeIsLong(op1->TypeGet()))
-            {
-                costEx *= 2; // Longs are twice as expensive
-                costSz *= 2;
-            }
-#endif
             if ((tree->gtFlags & GTF_RELOP_JMP_USED) == 0)
             {
                 /* Using a setcc instruction is more expensive */
@@ -10152,12 +10098,6 @@ void Compiler::gtDispRegVal(GenTree* tree)
             printf(" REG %s", compRegVarName(tree->gtRegNum));
             break;
 
-#if CPU_LONG_USES_REGPAIR
-        case GenTree::GT_REGTAG_REGPAIR:
-            printf(" PAIR %s", compRegPairName(tree->gtRegPair));
-            break;
-#endif
-
         default:
             break;
     }
@@ -10678,12 +10618,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
             }
             else if (tree->InReg())
             {
-#if CPU_LONG_USES_REGPAIR
-                if (isRegPairType(tree->TypeGet()))
-                    printf(" %s", compRegPairName(tree->gtRegPair));
-                else
-#endif
-                    printf(" %s", compRegVarName(tree->gtRegNum));
+                printf(" %s", compRegVarName(tree->gtRegNum));
             }
 
             if (varDsc->lvPromoted)

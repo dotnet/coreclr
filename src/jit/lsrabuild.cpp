@@ -1290,10 +1290,6 @@ int LinearScan::ComputeAvailableSrcCount(GenTree* node)
 //
 void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, LsraLocation currentLoc)
 {
-#ifdef _TARGET_ARM_
-    assert(!isRegPairType(tree->TypeGet()));
-#endif // _TARGET_ARM_
-
     // The LIR traversal doesn't visit GT_LIST or GT_ARGPLACE nodes.
     // GT_CLS_VAR nodes should have been eliminated by rationalizer.
     assert(tree->OperGet() != GT_ARGPLACE);

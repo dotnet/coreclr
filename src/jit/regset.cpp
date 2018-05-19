@@ -391,25 +391,13 @@ void RegSet::rsSpillTree(regNumber reg, GenTree* tree, unsigned regIdx /* =0 */)
         tree->gtFlags &= ~GTF_SPILL;
     }
 
-#if CPU_LONG_USES_REGPAIR
-    // Are we spilling a part of a register pair?
-    if (treeType == TYP_LONG)
-    {
-        tempType = TYP_I_IMPL;
-        assert(genRegPairLo(tree->gtRegPair) == reg || genRegPairHi(tree->gtRegPair) == reg);
-    }
-    else
-    {
-        assert(tree->InReg());
-        assert(tree->gtRegNum == reg);
-    }
-#elif defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM_)
     assert(tree->gtRegNum == reg || (call != nullptr && call->GetRegNumByIdx(regIdx) == reg) ||
            (splitArg != nullptr && splitArg->GetRegNumByIdx(regIdx) == reg) ||
            (multiReg != nullptr && multiReg->GetRegNumByIdx(regIdx) == reg));
 #else
     assert(tree->gtRegNum == reg || (call != nullptr && call->GetRegNumByIdx(regIdx) == reg));
-#endif // !CPU_LONG_USES_REGPAIR && !_TARGET_ARM_
+#endif // !_TARGET_ARM_
 
     // Are any registers free for spillage?
     SpillDsc* spill = SpillDsc::alloc(m_rsCompiler, this, tempType);
@@ -559,8 +547,6 @@ TempDsc* RegSet::rsGetSpillTempWord(regNumber reg, SpillDsc* dsc, SpillDsc* prev
 //
 TempDsc* RegSet::rsUnspillInPlace(GenTree* tree, regNumber oldReg, unsigned regIdx /* =0 */)
 {
-    assert(!isRegPairType(tree->gtType));
-
     // Get the tree's SpillDsc
     SpillDsc* prevDsc;
     SpillDsc* spillDsc = rsGetSpillInfo(tree, oldReg, &prevDsc);
@@ -972,38 +958,6 @@ XX                                                                           XX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
-
-/*****************************************************************************
- *
- *  Returns whether regPair is a combination of two x86 registers or
- *  contains a pseudo register.
- *  In debug it also asserts that reg1 and reg2 are not the same.
- */
-
-bool genIsProperRegPair(regPairNo regPair)
-{
-    regNumber rlo = genRegPairLo(regPair);
-    regNumber rhi = genRegPairHi(regPair);
-
-    assert(regPair >= REG_PAIR_FIRST && regPair <= REG_PAIR_LAST);
-
-    if (rlo == rhi)
-    {
-        return false;
-    }
-
-    if (rlo == REG_L_STK || rhi == REG_L_STK)
-    {
-        return false;
-    }
-
-    if (rlo >= REG_COUNT || rhi >= REG_COUNT)
-    {
-        return false;
-    }
-
-    return (rlo != REG_STK && rhi != REG_STK);
-}
 
 /*****************************************************************************
  *

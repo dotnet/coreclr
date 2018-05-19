@@ -748,22 +748,8 @@ void CodeGen::genSpillVar(GenTree* tree)
         }
 
         instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
-#if CPU_LONG_USES_REGPAIR
-        if (varTypeIsMultiReg(tree))
-        {
-            assert(varDsc->lvRegNum == genRegPairLo(tree->gtRegPair));
-            assert(varDsc->lvOtherReg == genRegPairHi(tree->gtRegPair));
-            regNumber regLo = genRegPairLo(tree->gtRegPair);
-            regNumber regHi = genRegPairHi(tree->gtRegPair);
-            inst_TT_RV(storeIns, tree, regLo);
-            inst_TT_RV(storeIns, tree, regHi, 4);
-        }
-        else
-#endif
-        {
-            assert(varDsc->lvRegNum == tree->gtRegNum);
-            inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
-        }
+        assert(varDsc->lvRegNum == tree->gtRegNum);
+        inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
 
         if (restoreRegVar)
         {
