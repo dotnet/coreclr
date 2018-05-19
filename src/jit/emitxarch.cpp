@@ -2371,13 +2371,6 @@ void emitter::emitIns_Nop(unsigned size)
  *
  *  Add an instruction with no operands.
  */
-#ifdef DEBUG
-static bool isX87InsWithNoOperands(instruction ins)
-{
-    return false;
-}
-#endif // DEBUG
-
 void emitter::emitIns(instruction ins)
 {
     UNATIVE_OFFSET sz;
@@ -2387,7 +2380,7 @@ void emitter::emitIns(instruction ins)
 #ifdef DEBUG
     {
         // We cannot have #ifdef inside macro expansion.
-        bool assertCond = (ins == INS_cdq || isX87InsWithNoOperands(ins) || ins == INS_int3 || ins == INS_lock ||
+        bool assertCond = (ins == INS_cdq || ins == INS_int3 || ins == INS_lock ||
                            ins == INS_leave || ins == INS_movsb || ins == INS_movsd || ins == INS_movsp ||
                            ins == INS_nop || ins == INS_r_movsb || ins == INS_r_movsd || ins == INS_r_movsp ||
                            ins == INS_r_stosb || ins == INS_r_stosd || ins == INS_r_stosp || ins == INS_ret ||

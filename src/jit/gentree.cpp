@@ -7825,10 +7825,6 @@ DONE:
 
     copy->gtVNPair = tree->gtVNPair; // A cloned tree gets the orginal's Value number pair
 
-    /* We assume the FP stack level will be identical */
-
-    copy->gtCopyFPlvl(tree);
-
     /* Compute the flags for the copied node. Note that we can do this only
        if we didnt gtFoldExpr(copy) */
 

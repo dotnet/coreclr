@@ -210,18 +210,6 @@ extern void notYetImplemented(const char* msg, const char* file, unsigned line);
 
 #endif // NYI not available
 
-#if !defined(_TARGET_X86_)
-
-#define NYI_FLAT_FP_X87(msg)    NYI(msg)
-#define NYI_FLAT_FP_X87_NC(msg) NYI(msg)
-
-#else
-
-#define NYI_FLAT_FP_X87(msg)    do { } while (0)
-#define NYI_FLAT_FP_X87_NC(msg) do { } while (0)
-
-#endif // _TARGET_X86_
-
 // clang-format on
 
 #if defined(_HOST_X86_) && !defined(FEATURE_PAL)

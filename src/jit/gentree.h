@@ -430,13 +430,6 @@ struct GenTree
     }
 #endif
 
-    void gtCopyFPlvl(GenTree* other)
-    {
-    }
-    void gtSetFPlvl(unsigned level)
-    {
-    }
-
     //
     // Cost metrics on the node. Don't allow direct access to the variable for setting.
     //

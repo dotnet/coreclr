@@ -492,7 +492,7 @@ void RegSet::rsSpillFPStack(GenTreeCall* call)
     if (m_rsCompiler->verbose)
         printf("\n");
 #endif
-    // m_rsCompiler->codeGen->inst_FS_ST(INS_fstp, emitActualTypeSize(treeType), temp, 0);
+
     m_rsCompiler->codeGen->getEmitter()->emitIns_S(INS_fstp, emitActualTypeSize(treeType), temp->tdTempNum(), 0);
 
     /* Mark the tree node as having been spilled */
