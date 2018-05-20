@@ -3476,7 +3476,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         hasMultiregStructArgs = true;
                     }
                 }
-#else  // !UNIX_AMD64_ABI
+#else // !UNIX_AMD64_ABI
                 size           = 1; // On AMD64, all primitives fit in a single (64-bit) 'slot'
 #endif // UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM64_)
