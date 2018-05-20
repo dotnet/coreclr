@@ -178,7 +178,7 @@ typedef unsigned __int64 regMaskSmall;
 #endif
 
 typedef _regNumber_enum regNumber;
-typedef unsigned char regNumberSmall;
+typedef unsigned char   regNumberSmall;
 
 /*****************************************************************************/
 

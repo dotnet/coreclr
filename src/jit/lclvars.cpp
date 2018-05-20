@@ -355,7 +355,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     noway_assert(varDscInfo->varNum == info.compArgsCount);
     assert(varDscInfo->intRegArgNum <= MAX_REG_ARG);
 
-    codeGen->intRegState.rsCalleeRegArgCount = varDscInfo->intRegArgNum;
+    codeGen->intRegState.rsCalleeRegArgCount   = varDscInfo->intRegArgNum;
     codeGen->floatRegState.rsCalleeRegArgCount = varDscInfo->floatRegArgNum;
 
 #if FEATURE_FASTTAILCALL
@@ -1044,7 +1044,8 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
         }
         else
         {
-            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg returns false.
+            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg
+            // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
@@ -1117,7 +1118,8 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
         }
         else
         {
-            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg returns false.
+            // We need to mark these as being on the stack, as this is not done elsewhere in the case that canEnreg
+            // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;

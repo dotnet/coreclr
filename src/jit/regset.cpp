@@ -213,9 +213,7 @@ RegSet::RegSet(Compiler* compiler, GCInfo& gcInfo) : m_rsCompiler(compiler), m_r
  *  Finds the SpillDsc corresponding to 'tree' assuming it was spilled from 'reg'.
  */
 
-RegSet::SpillDsc* RegSet::rsGetSpillInfo(GenTree*   tree,
-                                         regNumber  reg,
-                                         SpillDsc** pPrevDsc)
+RegSet::SpillDsc* RegSet::rsGetSpillInfo(GenTree* tree, regNumber reg, SpillDsc** pPrevDsc)
 {
     /* Normally, trees are unspilled in the order of being spilled due to
        the post-order walking of trees during code-gen. However, this will

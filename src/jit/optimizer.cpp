@@ -8202,8 +8202,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     }
 
     // TODO-CQ: CLONE: Mark increasing or decreasing loops.
-    if ((pLoop->lpIterOper() != GT_ADD) ||
-        (pLoop->lpIterConst() != 1))
+    if ((pLoop->lpIterOper() != GT_ADD) || (pLoop->lpIterConst() != 1))
     {
         JITDUMP("> Loop iteration operator not matching\n");
         return false;

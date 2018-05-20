@@ -2549,12 +2549,12 @@ void Compiler::lvaLclVarRefsAccumIntoRes(GenTree**           findPtr,
 genTreeOps GenTree::ReverseRelop(genTreeOps relop)
 {
     static const genTreeOps reverseOps[] = {
-        GT_NE, // GT_EQ
-        GT_EQ, // GT_NE
-        GT_GE, // GT_LT
-        GT_GT, // GT_LE
-        GT_LT, // GT_GE
-        GT_LE, // GT_GT
+        GT_NE,      // GT_EQ
+        GT_EQ,      // GT_NE
+        GT_GE,      // GT_LT
+        GT_GT,      // GT_LE
+        GT_LT,      // GT_GE
+        GT_LE,      // GT_GT
         GT_TEST_NE, // GT_TEST_EQ
         GT_TEST_EQ, // GT_TEST_NE
     };
@@ -2585,12 +2585,12 @@ genTreeOps GenTree::ReverseRelop(genTreeOps relop)
 genTreeOps GenTree::SwapRelop(genTreeOps relop)
 {
     static const genTreeOps swapOps[] = {
-        GT_EQ, // GT_EQ
-        GT_NE, // GT_NE
-        GT_GT, // GT_LT
-        GT_GE, // GT_LE
-        GT_LE, // GT_GE
-        GT_LT, // GT_GT
+        GT_EQ,      // GT_EQ
+        GT_NE,      // GT_NE
+        GT_GT,      // GT_LT
+        GT_GE,      // GT_LE
+        GT_LE,      // GT_GE
+        GT_LT,      // GT_GT
         GT_TEST_EQ, // GT_TEST_EQ
         GT_TEST_NE, // GT_TEST_NE
     };
@@ -3413,7 +3413,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         /* cast involving floats always go through memory */
                         costEx = IND_COST_EX * 2;
                         costSz = 6;
-
                     }
 #else
 #error "Unknown _TARGET_"
@@ -9930,7 +9929,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
             printf("%c", (flags & GTF_SPILLED       ) ? 'z' : '-');
             printf("%c", (flags & GTF_SPILL         ) ? 'Z' : '-');
         */
-
     }
 
     // If we're printing a node for LIR, we use the space normally associated with the message

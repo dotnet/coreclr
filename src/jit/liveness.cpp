@@ -1573,8 +1573,10 @@ bool Compiler::fgComputeLifeTrackedLocalDef(VARSET_TP&           life,
 //    keepAliveVars - The current set of variables to keep alive regardless of their actual lifetime.
 //    varDsc        - The LclVar descriptor for the variable being used or defined.
 //    lclVarNode    - The node that corresponds to the local var def or use.
-void Compiler::fgComputeLifeUntrackedLocal(
-    VARSET_TP& life, VARSET_VALARG_TP keepAliveVars, LclVarDsc& varDsc, GenTreeLclVarCommon* lclVarNode)
+void Compiler::fgComputeLifeUntrackedLocal(VARSET_TP&           life,
+                                           VARSET_VALARG_TP     keepAliveVars,
+                                           LclVarDsc&           varDsc,
+                                           GenTreeLclVarCommon* lclVarNode)
 {
     assert(lclVarNode != nullptr);
 

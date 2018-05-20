@@ -2380,14 +2380,13 @@ void emitter::emitIns(instruction ins)
 #ifdef DEBUG
     {
         // We cannot have #ifdef inside macro expansion.
-        bool assertCond = (ins == INS_cdq || ins == INS_int3 || ins == INS_lock ||
-                           ins == INS_leave || ins == INS_movsb || ins == INS_movsd || ins == INS_movsp ||
-                           ins == INS_nop || ins == INS_r_movsb || ins == INS_r_movsd || ins == INS_r_movsp ||
-                           ins == INS_r_stosb || ins == INS_r_stosd || ins == INS_r_stosp || ins == INS_ret ||
-                           ins == INS_sahf || ins == INS_stosb || ins == INS_stosd || ins == INS_stosp
-                           // These instructions take zero operands
-                           || ins == INS_vzeroupper || ins == INS_lfence || ins == INS_mfence || ins == INS_sfence
-                           );
+        bool assertCond =
+            (ins == INS_cdq || ins == INS_int3 || ins == INS_lock || ins == INS_leave || ins == INS_movsb ||
+             ins == INS_movsd || ins == INS_movsp || ins == INS_nop || ins == INS_r_movsb || ins == INS_r_movsd ||
+             ins == INS_r_movsp || ins == INS_r_stosb || ins == INS_r_stosd || ins == INS_r_stosp || ins == INS_ret ||
+             ins == INS_sahf || ins == INS_stosb || ins == INS_stosd || ins == INS_stosp
+             // These instructions take zero operands
+             || ins == INS_vzeroupper || ins == INS_lfence || ins == INS_mfence || ins == INS_sfence);
 
         assert(assertCond);
     }
@@ -3379,7 +3378,7 @@ void emitter::emitIns_R(instruction ins, emitAttr attr, regNumber reg)
             if (size == EA_1BYTE)
                 sz = 2; // Use the long form as the small one has no 'w' bit
             else
-                sz    = 1; // Use short form
+                sz = 1; // Use short form
 
 #endif // !_TARGET_AMD64_
 
@@ -4789,7 +4788,7 @@ void emitter::emitIns_AR_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 
     if (ireg == REG_NA)
     {
-        fmt       = emitInsModeFormat(ins, IF_ARD);
+        fmt = emitInsModeFormat(ins, IF_ARD);
     }
     else
     {
@@ -4849,7 +4848,7 @@ void emitter::emitIns_AI_R(instruction ins, emitAttr attr, regNumber ireg, ssize
 
     if (ireg == REG_NA)
     {
-        fmt       = emitInsModeFormat(ins, IF_ARD);
+        fmt = emitInsModeFormat(ins, IF_ARD);
     }
     else
     {
@@ -4961,7 +4960,7 @@ void emitter::emitIns_ARR_R(instruction ins, emitAttr attr, regNumber ireg, regN
 
     if (ireg == REG_NA)
     {
-        fmt       = emitInsModeFormat(ins, IF_ARD);
+        fmt = emitInsModeFormat(ins, IF_ARD);
     }
     else
     {
@@ -5078,7 +5077,7 @@ void emitter::emitIns_ARX_R(
 
     if (ireg == REG_NA)
     {
-        fmt       = emitInsModeFormat(ins, IF_ARD);
+        fmt = emitInsModeFormat(ins, IF_ARD);
     }
     else
     {
@@ -5191,7 +5190,7 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 
     if (ireg == REG_NA)
     {
-        fmt       = emitInsModeFormat(ins, IF_ARD);
+        fmt = emitInsModeFormat(ins, IF_ARD);
     }
     else
     {
@@ -5520,9 +5519,9 @@ void emitter::emitIns_SIMD_R_R_S_I(
 
 void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
 {
-    instrDesc*     id = emitNewInstr(attr);
-    UNATIVE_OFFSET sz = emitInsSizeSV(insCodeMR(ins), varx, offs);
-    insFormat fmt = emitInsModeFormat(ins, IF_SRD);
+    instrDesc*     id  = emitNewInstr(attr);
+    UNATIVE_OFFSET sz  = emitInsSizeSV(insCodeMR(ins), varx, offs);
+    insFormat      fmt = emitInsModeFormat(ins, IF_SRD);
 
     // 16-bit operand instructions will need a prefix
     if (EA_SIZE(attr) == EA_2BYTE)

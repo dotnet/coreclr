@@ -1992,7 +1992,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     compGeneratingProlog = false;
     compGeneratingEpilog = false;
 
-    compLSRADone = false;
+    compLSRADone       = false;
     compRationalIRForm = false;
 
 #ifdef DEBUG
@@ -2464,7 +2464,7 @@ void Compiler::compSetProcessor()
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
 #elif defined(_TARGET_AMD64_)
-    info.genCPU         = CPU_X64;
+    info.genCPU       = CPU_X64;
 #elif defined(_TARGET_X86_)
     if (jitFlags.IsSet(JitFlags::JIT_FLAG_TARGET_P4))
         info.genCPU = CPU_X86_PENTIUM_4;
@@ -2478,11 +2478,11 @@ void Compiler::compSetProcessor()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef _TARGET_AMD64_
-    opts.compUseFCOMI   = false;
-    opts.compUseCMOV    = true;
+    opts.compUseFCOMI = false;
+    opts.compUseCMOV  = true;
 #elif defined(_TARGET_X86_)
-    opts.compUseFCOMI   = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
-    opts.compUseCMOV    = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
+    opts.compUseFCOMI = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_FCOMI);
+    opts.compUseCMOV  = jitFlags.IsSet(JitFlags::JIT_FLAG_USE_CMOV);
 
 #ifdef DEBUG
     if (opts.compUseFCOMI)

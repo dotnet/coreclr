@@ -1470,7 +1470,7 @@ void fgArgInfo::ArgsComplete()
             hasStructRegArg = true;
             hasStackArgs    = true;
         }
-#endif // _TARGET_ARM_
+#endif       // _TARGET_ARM_
         else // we have a register argument, next we look for a struct type.
         {
             if (varTypeIsStruct(argx) UNIX_AMD64_ABI_ONLY(|| curArgTabEntry->isStruct))
@@ -3477,7 +3477,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     }
                 }
 #else  // !UNIX_AMD64_ABI
-                size         = 1; // On AMD64, all primitives fit in a single (64-bit) 'slot'
+                size           = 1; // On AMD64, all primitives fit in a single (64-bit) 'slot'
 #endif // UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM64_)
                 if (isStructArg)
@@ -7840,7 +7840,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     arg              = gtNewIconHandleNode(ssize_t(pfnCopyArgs), GTF_ICON_FTN_ADDR);
     call->gtCallArgs = gtNewListNode(arg, call->gtCallArgs);
 
-// It is now a varargs tail call
+    // It is now a varargs tail call
     call->gtCallMoreFlags |= GTF_CALL_M_VARARGS | GTF_CALL_M_TAILCALL | GTF_CALL_M_TAILCALL_VIA_HELPER;
     call->gtFlags &= ~GTF_CALL_POP_ARGS;
 

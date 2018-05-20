@@ -209,9 +209,9 @@ public:
     unsigned char lvStructGcCount : 3; // if struct, how many GC pointer (stop counting at 7). The only use of values >1
                                        // is to help determine whether to use block init in the prolog.
     unsigned char lvOnFrame : 1;       // (part of) the variable lives on the frame
-    unsigned char lvRegister : 1; // assigned to live in a register? For RyuJIT backend, this is only set if the
-                                  // variable is in the same register for the entire function.
-    unsigned char lvTracked : 1;  // is this a tracked variable?
+    unsigned char lvRegister : 1;      // assigned to live in a register? For RyuJIT backend, this is only set if the
+                                       // variable is in the same register for the entire function.
+    unsigned char lvTracked : 1;       // is this a tracked variable?
     bool          lvTrackedNonStruct()
     {
         return lvTracked && lvType != TYP_STRUCT;
@@ -240,7 +240,7 @@ public:
     unsigned char lvLclBlockOpAddr : 1;   // The variable was written to via a block operation that took its address.
     unsigned char lvLiveAcrossUCall : 1;  // The variable is live across an unmanaged call.
 #endif
-    unsigned char lvIsCSE : 1; // Indicates if this LclVar is a CSE variable.
+    unsigned char lvIsCSE : 1;       // Indicates if this LclVar is a CSE variable.
     unsigned char lvHasLdAddrOp : 1; // has ldloca or ldarga opcode on this local.
     unsigned char lvStackByref : 1;  // This is a compiler temporary of TYP_BYREF that is known to point into our local
                                      // stack frame.
@@ -444,7 +444,7 @@ private:
                                    // Note this is defined but not used by ARM32
 #endif                             // FEATURE_MULTIREG_ARGS
 
-    regNumberSmall _lvArgInitReg;     // the register into which the argument is moved at entry
+    regNumberSmall _lvArgInitReg; // the register into which the argument is moved at entry
 
 public:
     // The register number is stored in a small format (8 bits), but the getters return and the setters take
@@ -551,7 +551,7 @@ public:
     }
 #endif
 
-/////////////////////
+    /////////////////////
 
     __declspec(property(get = GetArgInitReg, put = SetArgInitReg)) regNumber lvArgInitReg;
 
@@ -6271,7 +6271,6 @@ protected:
     */
 
 public:
-
     regNumber raUpdateRegStateForArg(RegState* regState, LclVarDsc* argDsc);
 
     void raMarkStkVars();
@@ -6624,7 +6623,6 @@ public:
 #else
 #error Unsupported or unset target architecture
 #endif
-
         }
 
         regNumber GetReg() const
@@ -6805,7 +6803,6 @@ public:
     void tmpPreAllocateTemps(var_types type, unsigned count);
 
 protected:
-
     unsigned tmpCount; // Number of temps
     unsigned tmpSize;  // Size of all the temps
 #ifdef DEBUG

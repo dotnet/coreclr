@@ -1113,8 +1113,8 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         GenTree* destNode = destAddr->gtGetOp1();
         // If the actual destination is a local, or already a block node, or is a node that
         // will be morphed, don't insert an OBJ(ADDR).
-        if (destNode->gtOper == GT_INDEX || destNode->OperIsBlk()
-            || ((destNode->OperGet() == GT_LCL_VAR) && (destNode->TypeGet() == src->TypeGet())))
+        if (destNode->gtOper == GT_INDEX || destNode->OperIsBlk() ||
+            ((destNode->OperGet() == GT_LCL_VAR) && (destNode->TypeGet() == src->TypeGet())))
         {
             dest = destNode;
         }
@@ -6364,8 +6364,8 @@ GenTree* Compiler::impImportStaticReadOnlyField(void* fldAddr, var_types lclTyp)
             break;
 
         case TYP_FLOAT:
-            dval = *((float*)fldAddr);
-            op1  = gtNewDconNode(dval);
+            dval        = *((float*)fldAddr);
+            op1         = gtNewDconNode(dval);
             op1->gtType = TYP_FLOAT;
             break;
 
@@ -10444,7 +10444,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 JITDUMP(" %#.17g", cval.dblVal);
                 {
                     GenTree* cnsOp = gtNewDconNode(cval.dblVal);
-                    cnsOp->gtType = TYP_FLOAT;
+                    cnsOp->gtType  = TYP_FLOAT;
                     impPushOnStack(cnsOp, typeInfo(TI_DOUBLE));
                 }
                 break;

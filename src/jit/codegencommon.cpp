@@ -2362,7 +2362,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
                             (compiler->compCodeOpt() != Compiler::SMALL_CODE) &&
                                 !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT)
 #endif
-                            ,
+                                ,
                             maxTmpSize);
 
     /* Now generate code for the function */
@@ -3714,7 +3714,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 {
 #ifdef _TARGET_X86_
                     noway_assert(varDsc->lvType == TYP_STRUCT);
-#else // !_TARGET_X86_
+#else  // !_TARGET_X86_
                     // For LSRA, it may not be in regArgMaskLive if it has a zero
                     // refcnt.  This is in contrast with the non-LSRA case in which all
                     // non-tracked args are assumed live on entry.
@@ -4628,7 +4628,7 @@ void CodeGen::genEnregisterIncomingStackArgs()
 
         /* Figure out the home offset of the incoming argument */
 
-        regNumber regNum  = varDsc->lvArgInitReg;
+        regNumber regNum = varDsc->lvArgInitReg;
         assert(regNum != REG_STK);
 
         getEmitter()->emitIns_R_S(ins_Load(type), emitTypeSize(type), regNum, varNum, 0);
@@ -6979,7 +6979,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     // On Arm arguments are prespilled on stack, which frees r0-r3.
     // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
     // The call target register could be any free register.
-    regNumber argReg = REG_PROFILER_ENTER_ARG;
+    regNumber argReg     = REG_PROFILER_ENTER_ARG;
     regMaskTP argRegMask = genRegMask(argReg);
     assert((regSet.rsMaskPreSpillRegArg & argRegMask) != 0);
 

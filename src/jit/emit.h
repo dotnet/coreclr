@@ -688,17 +688,17 @@ protected:
         unsigned _idNoGC : 1;       // Some helpers don't get recorded in GC tables
 
 #ifdef _TARGET_ARM64_
-        opSize   _idOpSize : 3;     // operand size: 0=1 , 1=2 , 2=4 , 3=8, 4=16
-        insOpts  _idInsOpt : 6;     // options for instructions
-        unsigned _idLclVar : 1;     // access a local on stack
+        opSize   _idOpSize : 3; // operand size: 0=1 , 1=2 , 2=4 , 3=8, 4=16
+        insOpts  _idInsOpt : 6; // options for instructions
+        unsigned _idLclVar : 1; // access a local on stack
 #endif
 
 #ifdef _TARGET_ARM_
-        insSize  _idInsSize : 2;    // size of instruction: 16, 32 or 48 bits
-        insFlags _idInsFlags : 1;   // will this instruction set the flags
-        unsigned _idLclVar : 1;     // access a local on stack
-        unsigned _idLclFPBase : 1;  // access a local on stack - SP based offset
-        insOpts  _idInsOpt : 3;     // options for Load/Store instructions
+        insSize  _idInsSize : 2;   // size of instruction: 16, 32 or 48 bits
+        insFlags _idInsFlags : 1;  // will this instruction set the flags
+        unsigned _idLclVar : 1;    // access a local on stack
+        unsigned _idLclFPBase : 1; // access a local on stack - SP based offset
+        insOpts  _idInsOpt : 3;    // options for Load/Store instructions
 
 // For arm we have used 16 bits
 #define ID_EXTRA_BITFIELD_BITS (16)
@@ -707,7 +707,7 @@ protected:
 // For Arm64, we have used 17 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (17)
 #elif defined(_TARGET_XARCH_)
-// For xarch, we have used 14 bits from the second DWORD.
+                              // For xarch, we have used 14 bits from the second DWORD.
 #define ID_EXTRA_BITFIELD_BITS (14)
 #else
 #error Unsupported or unset target architecture
@@ -880,7 +880,6 @@ protected:
 
         /* Trivial wrappers to return properly typed enums */
     public:
-
         bool idIsSmallDsc() const
         {
             return (_idSmallDsc != 0);

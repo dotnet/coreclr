@@ -1141,7 +1141,7 @@ void CodeGen::inst_mov_RV_ST(regNumber reg, GenTree* tree)
 {
     /* Figure out the size of the value being loaded */
 
-    emitAttr size = EA_ATTR(genTypeSize(tree->gtType));
+    emitAttr    size    = EA_ATTR(genTypeSize(tree->gtType));
     instruction loadIns = ins_Move_Extend(tree->TypeGet(), false);
 
     if (size < EA_4BYTE)
@@ -2264,7 +2264,7 @@ void CodeGen::instGen_Store_Imm_Into_Lcl(
     {
         regTracker.rsTrackRegTrash(immReg);
     }
-#else  // _TARGET_*
+#else // _TARGET_*
 #error "Unknown _TARGET_"
 #endif // _TARGET_*
 }

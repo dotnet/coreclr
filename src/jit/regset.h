@@ -55,8 +55,8 @@ private:
     struct SpillDsc
     {
         SpillDsc* spillNext; // next spilled value of same reg
-        GenTree* spillTree; // the value that was spilled
-        TempDsc* spillTemp; // the temp holding the spilled value
+        GenTree*  spillTree; // the value that was spilled
+        TempDsc*  spillTemp; // the temp holding the spilled value
 
         static SpillDsc* alloc(Compiler* pComp, RegSet* regSet, var_types type);
         static void freeDsc(RegSet* regSet, SpillDsc* spillDsc);
@@ -95,7 +95,6 @@ public:
     }
 
 public: // TODO-Cleanup: Should be private, but GCInfo uses them
-
     __declspec(property(get = GetMaskVars, put = SetMaskVars)) regMaskTP rsMaskVars; // mask of registers currently
                                                                                      // allocated to variables
 
@@ -162,9 +161,7 @@ private:
     void rsSpillFPStack(GenTreeCall* call);
 #endif // defined(_TARGET_X86_)
 
-    SpillDsc* rsGetSpillInfo(GenTree*   tree,
-                             regNumber  reg,
-                             SpillDsc** pPrevDsc = nullptr);
+    SpillDsc* rsGetSpillInfo(GenTree* tree, regNumber reg, SpillDsc** pPrevDsc = nullptr);
 
     TempDsc* rsGetSpillTempWord(regNumber oldReg, SpillDsc* dsc, SpillDsc* prevDsc);
 

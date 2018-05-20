@@ -873,7 +873,7 @@ void* GenTree::operator new(size_t sz, Compiler* comp, genTreeOps oper)
 #if SMALL_TREE_NODES
     size_t size = GenTree::s_gtNodeSizes[oper];
 #else
-    size_t   size    = TREE_NODE_SZ_LARGE;
+    size_t   size = TREE_NODE_SZ_LARGE;
 #endif
 
 #if MEASURE_NODE_SIZE
@@ -1034,7 +1034,7 @@ inline GenTree* Compiler::gtNewLargeOperNode(genTreeOps oper, var_types type, Ge
 
     GenTree* node = new (this, LargeOpOpcode()) GenTreeOp(oper, type, op1, op2 DEBUGARG(/*largeNode*/ true));
 #else
-    GenTree* node    = new (this, oper) GenTreeOp(oper, type, op1, op2);
+    GenTree* node = new (this, oper) GenTreeOp(oper, type, op1, op2);
 #endif
 
     return node;
@@ -1060,7 +1060,7 @@ inline GenTree* Compiler::gtNewIconHandleNode(size_t value, unsigned flags, Fiel
 #if defined(LATE_DISASM)
     node = new (this, LargeOpOpcode()) GenTreeIntCon(TYP_I_IMPL, value, fields DEBUGARG(/*largeNode*/ true));
 #else
-    node             = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, value, fields);
+    node          = new (this, GT_CNS_INT) GenTreeIntCon(TYP_I_IMPL, value, fields);
 #endif
     node->gtFlags |= flags;
     return node;
@@ -1212,7 +1212,7 @@ inline GenTree* Compiler::gtNewFieldRef(
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
     GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
 #else
-    GenTree*    tree = new (this, GT_FIELD) GenTreeField(typ);
+    GenTree* tree = new (this, GT_FIELD) GenTreeField(typ);
 #endif
     tree->gtField.gtFldObj    = obj;
     tree->gtField.gtFldHnd    = fldHnd;
@@ -2320,7 +2320,7 @@ inline
             // On amd64, every param has a stack location, except on Unix-like systems.
             assert(varDsc->lvIsParam);
 #endif // UNIX_AMD64_ABI
-#else // !_TARGET_AMD64_
+#else  // !_TARGET_AMD64_
             // For other targets, a stack parameter that is enregistered or prespilled
             // for profiling on ARM will have a stack location.
             assert((varDsc->lvIsParam && !varDsc->lvIsRegArg) || isPrespilledArg);

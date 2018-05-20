@@ -17,7 +17,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif
 
 #include "allocacheck.h" // for alloca
-#include "lower.h" // for LowerRange()
+#include "lower.h"       // for LowerRange()
 
 /*****************************************************************************/
 
