@@ -181,9 +181,26 @@ def generateEvents(providerNode, outputFile, stringTable):
         eventsNode = node
         break
 
+    # Get the list of event nodes.
+    eventNodes = eventsNode.getElementsByTagName("event")
+
+    # Build a list of events to be emitted.  This is where old versions of events are stripped.
+    # key = eventID, value = version
+    eventList = dict()
+    for eventNode in eventNodes:
+        eventID = eventNode.getAttribute("value")
+        eventVersion = eventNode.getAttribute("version")
+        eventList[eventID] = eventVersion
+
     # Iterate over each event node and process it.
-    for eventNode in eventsNode.getElementsByTagName("event"):
-        generateEvent(eventNode, providerNode, outputFile, stringTable)
+    # Only emit events for the latest version of the event, otherwise EventSource initialization will fail.
+    for eventNode in eventNodes:
+        eventID = eventNode.getAttribute("value")
+        eventVersion = eventNode.getAttribute("version")
+        if eventID in eventList and eventList[eventID] == eventVersion:
+            generateEvent(eventNode, providerNode, outputFile, stringTable)
+        elif eventID not in eventList:
+            raise ValueError("eventID could not be found in the list of events to emit.", eventID)
 
 def generateValueMapEnums(providerNode, outputFile, stringTable, enumTypeMap):
 
