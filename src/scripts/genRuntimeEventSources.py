@@ -355,10 +355,15 @@ namespace System.Diagnostics.Tracing
 """
             writeOutput(outputFile, header)
             increaseTabLevel()
+
+            className = providerNameToClassNameMap[providerName]
             writeOutput(outputFile, "[EventSource(Name = \"" + providerName + "\", Guid = \"" + providerNode.getAttribute("guid") + "\")]\n")
-            writeOutput(outputFile, "internal sealed unsafe class " + providerNameToClassNameMap[providerName] + " : EventSource\n")
+            writeOutput(outputFile, "internal sealed unsafe class " + className + " : EventSource\n")
             writeOutput(outputFile, "{\n")
             increaseTabLevel()
+
+            # Write the static Log property.
+            writeOutput(outputFile, "internal static " + className + " Log = new " + className + "();\n\n")
 
             # Write the keywords class.
             generateKeywordsClass(providerNode, outputFile)
