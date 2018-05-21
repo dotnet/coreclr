@@ -3730,7 +3730,7 @@ void Compiler::optUnrollLoops()
                 {
                     continue;
                 }
-
+                
                 for (GenTree* gtCurr = block->getBBTreeList(); gtCurr != nullptr; gtCurr = gtCurr->gtNext)
                 {
                     noway_assert(gtCurr->gtOper == GT_STMT);
@@ -3742,27 +3742,44 @@ void Compiler::optUnrollLoops()
                         continue;
                     }
 
-                    // this is assumed as loop body, target variable, process
-                    GenTree* gtLBAssumed = gtCurr->gtStmt.gtStmtExpr;
-                    GenTree* gtTVAssumed = nullptr;
-                    GenTree* gtPCAssumed = nullptr;
+                    // gtLBExpr : GenTree Loop-Body Expression
+                    // gtLVExpr : GenTree Loop-Variable Expression (the target of loop)
+                    GenTree* gtLBExpr = gtCurr->gtStmt.gtStmtExpr;
+                    GenTree* gtLVExpr = nullptr;
 
-                    // Common loop body uses GT_ASG node for process with ALUs
-                    // we do not evolute that are not GT_ASG.
-                    if (gtLBAssumed->gtOper != GT_ASG)
+                    if (gtLBExpr->OperGet() != GT_ASG)
                     {
                         isMarkedAsForget = true;
                         break;
                     }
 
-                    // Extracting real process body. the gtPCAssumed will be a real process body.
-                    // we are evauting count, bytes that the process of loop.
-                    gtLBAssumed = gtLBAssumed->gtGetOp1();
-                    gtTVAssumed = gtLBAssumed->gtGetOp2();
-                    gtPCAssumed = gtLBAssumed->gtGetOp1();
-                    noway_assert(gtTVAssumed == gtLBAssumed->gtGetOp1()); // THE TARGET SHOULD BE SAME.
+                    // Extract real loop-body, varaible from ASG expression
+                    gtLVExpr = gtLBExpr->gtGetOp1();
+                    gtLBExpr = gtLBExpr->gtGetOp2();
+                    if (gtLBExpr->OperGet() == GT_LCL_VAR)
+                    {
+                        std::swap(gtLVExpr, gtLBExpr);
+                    }
 
-                    inBytes += genTypeSize(gtPCAssumed->TypeGet());
+
+                    // This is process section
+                    // extract process body and process variable from loop body
+                    GenTreeOp* gtProcExpr = gtLBExpr->AsOp();
+                    GenTree* gtPVExpr = gtProcExpr->gtGetOp1();
+                    GenTree* gtPBExpr = gtProcExpr->gtGetOp2();
+                    if (gtPBExpr->OperGet() == GT_LCL_VAR)
+                    {
+                        std::swap(gtPVExpr, gtPBExpr);
+                    }
+
+                    // Target should be same. we are not unrolling hard loops.
+                    if (gtPVExpr->AsLclVar()->GetLclNum() != gtLVExpr->AsLclVar()->GetLclNum())
+                    {
+                        isMarkedAsForget = true;
+                        break;
+                    }
+
+                    inBytes += genTypeSize(gtPBExpr->TypeGet());
                     inCount += 1;
                 }
             }
@@ -4073,7 +4090,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     unsigned int iterInc = loopDesc.lpIterConst();
 
 
-    return true;
+    return false;
 }
 
 void Compiler::optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom)
