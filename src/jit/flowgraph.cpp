@@ -20623,12 +20623,6 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
 
     DWORD startTickCount = GetTickCount();
 
-    BasicBlock* block;
-    BasicBlock* prevBlock;
-    BasicBlock* blockPred;
-    flowList*   pred;
-    unsigned    blockRefs;
-
 #if FEATURE_EH_FUNCLETS
     bool reachedFirstFunclet = false;
     if (fgFuncletsCreated)
@@ -20648,14 +20642,14 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
     /* Check bbNum, bbRefs and bbPreds */
     // First, pick a traversal stamp, and label all the blocks with it.
     unsigned curTraversalStamp = unsigned(InterlockedIncrement((LONG*)&bbTraverseLabel));
-    for (block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
         block->bbTraversalStamp = curTraversalStamp;
     }
 
-    for (prevBlock = nullptr, block = fgFirstBB; block; prevBlock = block, block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        blockRefs = 0;
+        unsigned blockRefs = 0;
 
         /* First basic block has countOfInEdges() >= 1 */
 
@@ -20727,14 +20721,14 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
 #endif // FEATURE_EH_FUNCLETS
 
         // Don't check cheap preds.
-        for (pred = (fgCheapPredsValid ? nullptr : block->bbPreds); pred != nullptr;
+        for (flowList *pred = (fgCheapPredsValid ? nullptr : block->bbPreds); pred != nullptr;
              blockRefs += pred->flDupCount, pred = pred->flNext)
         {
             assert(fgComputePredsDone); // If this isn't set, why do we have a preds list?
 
             /*  make sure this pred is part of the BB list */
 
-            blockPred = pred->flBlock;
+            BasicBlock* blockPred = pred->flBlock;
             noway_assert(blockPred->bbTraversalStamp == curTraversalStamp);
 
             EHblkDsc* ehTryDsc = ehGetBlockTryDsc(block);
@@ -20762,6 +20756,7 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
                 // is marked as "returning" to the BBJ_ALWAYS block following the BBJ_CALLFINALLY
                 // block that does a local call to the finally. This BBJ_ALWAYS is within
                 // the try region protected by the finally (for x86, ARM), but that's ok.
+                BasicBlock* prevBlock = block->bbPrev;
                 if (prevBlock->bbJumpKind == BBJ_CALLFINALLY && block->bbJumpKind == BBJ_ALWAYS &&
                     blockPred->bbJumpKind == BBJ_EHFINALLYRET)
                 {
