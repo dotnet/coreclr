@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 2.8.12.2)
 
-if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  # On OSX, we use the libunwind that's part of the OS
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  # On OSX and *BSD, we use the libunwind that's part of the OS
   set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
-endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
-if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
-  # On FreeBSD , we use the libunwind that's part of the OS
-  set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
-endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+endif(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
 include_directories(SYSTEM /usr/local/include)
 
@@ -280,6 +275,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  # some  dependencies from port collection are installed under /usr/local
+  link_directories("/usr/local/lib")
   if(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
     find_library(UNWIND unwind)
   endif()
