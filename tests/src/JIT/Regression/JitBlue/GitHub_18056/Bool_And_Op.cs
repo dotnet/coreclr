@@ -92,7 +92,7 @@ class testout1
         else
         {
             Console.WriteLine("FAILED");
-            return 1;
+            return -1;
         }
 
     }
