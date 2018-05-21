@@ -88,11 +88,7 @@ if(WIN32)
           set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${name}.obj PROPERTIES EXTERNAL_OBJECT TRUE)
 
           # Add the generated OBJ in the dependency list so that it gets consumed during linkage
-          #set(CORDBI_SOURCES_ARCH_ASM ${CORDBI_SOURCES_ARCH_ASM} ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj)
-          set(CORDBDI_SOURCES
-              ${CORDBDI_SOURCES}
-              ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj
-              )
+          set(CORDBDI_SOURCES ${CORDBDI_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj)
     endif()
 elseif(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
