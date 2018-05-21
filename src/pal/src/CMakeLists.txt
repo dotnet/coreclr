@@ -5,6 +5,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  # On FreeBSD , we use the libunwind that's part of the OS
+  set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
+endif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+
 include_directories(SYSTEM /usr/local/include)
 
 add_compile_options(-fPIC)
