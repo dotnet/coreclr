@@ -6283,20 +6283,6 @@ protected:
 
     bool rpMustCreateEBPFrame(INDEBUG(const char** wbReason));
 
-#if FEATURE_FP_REGALLOC
-    enum enumConfigRegisterFP
-    {
-        CONFIG_REGISTER_FP_NONE         = 0x0,
-        CONFIG_REGISTER_FP_CALLEE_TRASH = 0x1,
-        CONFIG_REGISTER_FP_CALLEE_SAVED = 0x2,
-        CONFIG_REGISTER_FP_FULL         = 0x3,
-    };
-    enumConfigRegisterFP raConfigRegisterFP();
-#endif // FEATURE_FP_REGALLOC
-
-public:
-    regMaskTP raConfigRestrictMaskFP();
-
 private:
     Lowering*            m_pLowering;   // Lowering; needed to Lower IR that's added or modified after Lowering.
     LinearScanInterface* m_pLinearScan; // Linear Scan allocator

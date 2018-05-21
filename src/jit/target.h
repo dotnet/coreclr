@@ -600,7 +600,6 @@ typedef unsigned char   regNumberSmall;
 #else // !UNIX_AMD64_ABI
   #define ETW_EBP_FRAMED           0       // if 1 we cannot use EBP as a scratch register and must create EBP based frames for most methods
 #endif // !UNIX_AMD64_ABI
-  #define FEATURE_FP_REGALLOC      0       // Enabled if RegAlloc is used to enregister Floating Point LclVars  
   #define CSE_CONSTS               1       // Enable if we want to CSE constants
 
   #define RBM_ALLFLOAT            (RBM_XMM0 | RBM_XMM1 | RBM_XMM2 | RBM_XMM3 | RBM_XMM4 | RBM_XMM5 | RBM_XMM6 | RBM_XMM7 | RBM_XMM8 | RBM_XMM9 | RBM_XMM10 | RBM_XMM11 | RBM_XMM12 | RBM_XMM13 | RBM_XMM14 | RBM_XMM15)
@@ -989,7 +988,6 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
-  #define FEATURE_FP_REGALLOC      1       // Enabled if RegAlloc is used to enregister Floating Point LclVars  
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
 
   #define REG_FP_FIRST             REG_F0
@@ -1314,7 +1312,6 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH_FUNCLETS      1
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
-  #define FEATURE_FP_REGALLOC      0       // Enabled if RegAlloc is used to enregister Floating Point LclVars  
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
 
   #define REG_FP_FIRST             REG_V0

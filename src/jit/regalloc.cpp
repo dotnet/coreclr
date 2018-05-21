@@ -19,40 +19,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #endif
 #include "regalloc.h"
 
-#if FEATURE_FP_REGALLOC
-Compiler::enumConfigRegisterFP Compiler::raConfigRegisterFP()
-{
-    DWORD val = JitConfig.JitRegisterFP();
-
-    return (enumConfigRegisterFP)(val & 0x3);
-}
-#endif // FEATURE_FP_REGALLOC
-
-regMaskTP Compiler::raConfigRestrictMaskFP()
-{
-    regMaskTP result = RBM_NONE;
-
-#if FEATURE_FP_REGALLOC
-    switch (raConfigRegisterFP())
-    {
-        case CONFIG_REGISTER_FP_NONE:
-            result = RBM_NONE;
-            break;
-        case CONFIG_REGISTER_FP_CALLEE_TRASH:
-            result = RBM_FLT_CALLEE_TRASH;
-            break;
-        case CONFIG_REGISTER_FP_CALLEE_SAVED:
-            result = RBM_FLT_CALLEE_SAVED;
-            break;
-        case CONFIG_REGISTER_FP_FULL:
-            result = RBM_ALLFLOAT;
-            break;
-    }
-#endif
-
-    return result;
-}
-
 #if DOUBLE_ALIGN
 DWORD Compiler::getCanDoubleAlign()
 {

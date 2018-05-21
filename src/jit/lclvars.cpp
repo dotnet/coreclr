@@ -2944,7 +2944,10 @@ int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
     unsigned weight1 = dsc1->lvRefCnt;
     unsigned weight2 = dsc2->lvRefCnt;
 
-#if !FEATURE_FP_REGALLOC
+#ifndef _TARGET_ARM_
+    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from 
+    // legacy backend. It should be enabled and verified.
+
     /* Force integer candidates to sort above float candidates */
 
     bool isFloat1 = isFloatRegType(dsc1->lvType);
@@ -3081,7 +3084,10 @@ int __cdecl Compiler::WtdRefCntCmp(const void* op1, const void* op2)
     unsigned weight1 = dsc1->lvRefCntWtd;
     unsigned weight2 = dsc2->lvRefCntWtd;
 
-#if !FEATURE_FP_REGALLOC
+#ifndef _TARGET_ARM_
+    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from 
+    // legacy backend. It should be enabled and verified.
+
     /* Force integer candidates to sort above float candidates */
 
     bool isFloat1 = isFloatRegType(dsc1->lvType);
