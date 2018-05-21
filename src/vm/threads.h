@@ -970,7 +970,7 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 //                         ex: Windows/Unix ARM/ARM64, Unix-AMD64.
 //                         
 //                       
-// FEATURE_UNIX_AMD64_STRUCT_PASSING is a specific kind of FEATURE_MULTIREG_RETURN
+// UNIX_AMD64_ABI is a specific kind of FEATURE_MULTIREG_RETURN
 // [GcInfo v1 and v2]       specified by SystemV ABI for AMD64
 //                                   
 
@@ -4813,9 +4813,9 @@ public:
 private:
     BYTE* m_pbDestCode;
     BYTE* m_pbSrcCode;
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     LPVOID m_pLastAVAddress;
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 
 public:
     void CommitGCStressInstructionUpdate();
@@ -4841,7 +4841,7 @@ public:
         m_pbDestCode = NULL;
         m_pbSrcCode = NULL;
     }
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     void SetLastAVAddress(LPVOID address)
     {
         LIMITED_METHOD_CONTRACT;
@@ -4852,7 +4852,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pLastAVAddress;
     }
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
 #if defined(_DEBUG) && defined(FEATURE_STACK_PROBE)

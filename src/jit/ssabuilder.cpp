@@ -120,16 +120,6 @@ void Compiler::fgResetForSsa()
                     tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
                     continue;
                 }
-
-                Compiler::IndirectAssignmentAnnotation* pIndirAssign = nullptr;
-                if ((tree->OperGet() != GT_ASG) || !GetIndirAssignMap()->Lookup(tree, &pIndirAssign) ||
-                    (pIndirAssign == nullptr))
-                {
-                    continue;
-                }
-
-                pIndirAssign->m_defSsaNum = SsaConfig::RESERVED_SSA_NUM;
-                pIndirAssign->m_useSsaNum = SsaConfig::RESERVED_SSA_NUM;
             }
         }
     }
@@ -354,7 +344,7 @@ void SsaBuilder::ComputeImmediateDom(BasicBlock** postOrder, int count)
  * @remarks This would help us answer queries such as "a dom b?" in constant time.
  *          For example, if a dominated b, then Pre[a] < Pre[b] but Post[a] > Post[b]
  */
-void SsaBuilder::DomTreeWalk(BasicBlock* curBlock, BlkToBlkSetMap* domTree, int* preIndex, int* postIndex)
+void SsaBuilder::DomTreeWalk(BasicBlock* curBlock, BlkToBlkVectorMap* domTree, int* preIndex, int* postIndex)
 {
     JITDUMP("[SsaBuilder::DomTreeWalk] block %s:\n", curBlock->dspToString());
 
@@ -362,14 +352,14 @@ void SsaBuilder::DomTreeWalk(BasicBlock* curBlock, BlkToBlkSetMap* domTree, int*
     m_pDomPreOrder[curBlock->bbNum] = *preIndex;
     ++(*preIndex);
 
-    BlkSet* pBlkSet;
-    if (domTree->Lookup(curBlock, &pBlkSet))
+    BlkVector* domChildren = domTree->LookupPointer(curBlock);
+    if (domChildren != nullptr)
     {
-        for (BlkSet::KeyIterator ki = pBlkSet->Begin(); !ki.Equal(pBlkSet->End()); ++ki)
+        for (BasicBlock* child : *domChildren)
         {
-            if (curBlock != ki.Get())
+            if (curBlock != child)
             {
-                DomTreeWalk(ki.Get(), domTree, preIndex, postIndex);
+                DomTreeWalk(child, domTree, preIndex, postIndex);
             }
         }
     }
@@ -388,7 +378,7 @@ void SsaBuilder::DomTreeWalk(BasicBlock* curBlock, BlkToBlkSetMap* domTree, int*
  *
  */
 /* static */
-void SsaBuilder::ConstructDomTreeForBlock(Compiler* pCompiler, BasicBlock* block, BlkToBlkSetMap* domTree)
+void SsaBuilder::ConstructDomTreeForBlock(Compiler* pCompiler, BasicBlock* block, BlkToBlkVectorMap* domTree)
 {
     BasicBlock* bbIDom = block->bbIDom;
 
@@ -399,16 +389,11 @@ void SsaBuilder::ConstructDomTreeForBlock(Compiler* pCompiler, BasicBlock* block
     }
 
     // If the bbIDom map key doesn't exist, create one.
-    BlkSet* pBlkSet;
-    if (!domTree->Lookup(bbIDom, &pBlkSet))
-    {
-        pBlkSet = new (domTree->GetAllocator()) BlkSet(domTree->GetAllocator());
-        domTree->Set(bbIDom, pBlkSet);
-    }
+    BlkVector* domChildren = domTree->Emplace(bbIDom, domTree->GetAllocator());
 
     DBG_SSA_JITDUMP("Inserting BB%02u as dom child of BB%02u.\n", block->bbNum, bbIDom->bbNum);
     // Insert the block into the block's set.
-    pBlkSet->Set(block, true);
+    domChildren->push_back(block);
 }
 
 /**
@@ -421,7 +406,7 @@ void SsaBuilder::ConstructDomTreeForBlock(Compiler* pCompiler, BasicBlock* block
  *
  */
 /* static */
-void SsaBuilder::ComputeDominators(Compiler* pCompiler, BlkToBlkSetMap* domTree)
+void SsaBuilder::ComputeDominators(Compiler* pCompiler, BlkToBlkVectorMap* domTree)
 {
     JITDUMP("*************** In SsaBuilder::ComputeDominators(Compiler*, ...)\n");
 
@@ -445,7 +430,7 @@ void SsaBuilder::ComputeDominators(Compiler* pCompiler, BlkToBlkSetMap* domTree)
  * @param domTree A map of (block -> set of blocks) tree representation that is empty.
  *
  */
-void SsaBuilder::ComputeDominators(BasicBlock** postOrder, int count, BlkToBlkSetMap* domTree)
+void SsaBuilder::ComputeDominators(BasicBlock** postOrder, int count, BlkToBlkVectorMap* domTree)
 {
     JITDUMP("*************** In SsaBuilder::ComputeDominators(BasicBlock** postOrder, int count, ...)\n");
 
@@ -481,21 +466,16 @@ void SsaBuilder::ComputeDominators(BasicBlock** postOrder, int count, BlkToBlkSe
  * @param domTree A map of (block -> set of blocks) tree representation.
  */
 /* static */
-void SsaBuilder::DisplayDominators(BlkToBlkSetMap* domTree)
+void SsaBuilder::DisplayDominators(BlkToBlkVectorMap* domTree)
 {
     printf("After computing dominator tree: \n");
-    for (BlkToBlkSetMap::KeyIterator nodes = domTree->Begin(); !nodes.Equal(domTree->End()); ++nodes)
+    for (BlkToBlkVectorMap::KeyIterator nodes = domTree->Begin(); !nodes.Equal(domTree->End()); ++nodes)
     {
         printf("BB%02u := {", nodes.Get()->bbNum);
-
-        BlkSet* pBlkSet = nodes.GetValue();
-        for (BlkSet::KeyIterator ki = pBlkSet->Begin(); !ki.Equal(pBlkSet->End()); ++ki)
+        int index = 0;
+        for (BasicBlock* child : nodes.GetValue())
         {
-            if (!ki.Equal(pBlkSet->Begin()))
-            {
-                printf(",");
-            }
-            printf("BB%02u", ki.Get()->bbNum);
+            printf("%sBB%02u", (index++ == 0) ? "" : ",", child->bbNum);
         }
         printf("}\n");
     }
@@ -855,24 +835,9 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
  */
 void SsaBuilder::AddDefPoint(GenTree* tree, BasicBlock* blk)
 {
-    Compiler::IndirectAssignmentAnnotation* pIndirAnnot;
-    // In the case of an "indirect assignment", where the LHS is IND of a byref to the local actually being assigned,
-    // we make the ASG tree the def point.
-    assert(tree->IsLocal() || IsIndirectAssign(tree, &pIndirAnnot));
-    unsigned lclNum;
-    unsigned defSsaNum;
-    if (tree->IsLocal())
-    {
-        lclNum    = tree->gtLclVarCommon.gtLclNum;
-        defSsaNum = m_pCompiler->GetSsaNumForLocalVarDef(tree);
-    }
-    else
-    {
-        bool b = m_pCompiler->GetIndirAssignMap()->Lookup(tree, &pIndirAnnot);
-        assert(b);
-        lclNum    = pIndirAnnot->m_lclNum;
-        defSsaNum = pIndirAnnot->m_defSsaNum;
-    }
+    assert(tree->IsLocal());
+    unsigned lclNum    = tree->gtLclVarCommon.gtLclNum;
+    unsigned defSsaNum = m_pCompiler->GetSsaNumForLocalVarDef(tree);
 #ifdef DEBUG
     // Record that there's a new SSA def.
     m_pCompiler->lvaTable[lclNum].lvNumSsaNames++;
@@ -881,12 +846,6 @@ void SsaBuilder::AddDefPoint(GenTree* tree, BasicBlock* blk)
     LclSsaVarDsc* ssaDef    = m_pCompiler->lvaTable[lclNum].GetPerSsaData(defSsaNum);
     ssaDef->m_defLoc.m_blk  = blk;
     ssaDef->m_defLoc.m_tree = tree;
-}
-
-bool SsaBuilder::IsIndirectAssign(GenTree* tree, Compiler::IndirectAssignmentAnnotation** ppIndirAssign)
-{
-    return tree->OperGet() == GT_ASG && m_pCompiler->m_indirAssignMap != nullptr &&
-           m_pCompiler->GetIndirAssignMap()->Lookup(tree, ppIndirAssign);
 }
 
 /**
@@ -981,97 +940,74 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         }
     }
 
-    Compiler::IndirectAssignmentAnnotation* pIndirAssign = nullptr;
-    if (!tree->IsLocal() && !IsIndirectAssign(tree, &pIndirAssign))
+    if (!tree->IsLocal())
     {
         return;
     }
 
-    if (pIndirAssign != nullptr)
+    unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
+    // Is this a variable we exclude from SSA?
+    if (m_pCompiler->fgExcludeFromSsa(lclNum))
     {
-        unsigned lclNum = pIndirAssign->m_lclNum;
-        // Is this a variable we exclude from SSA?
-        if (m_pCompiler->fgExcludeFromSsa(lclNum))
-        {
-            pIndirAssign->m_defSsaNum = SsaConfig::RESERVED_SSA_NUM;
-            return;
-        }
-        // Otherwise...
-        if (!pIndirAssign->m_isEntire)
-        {
-            pIndirAssign->m_useSsaNum = pRenameState->CountForUse(lclNum);
-        }
-        unsigned count            = pRenameState->CountForDef(lclNum);
-        pIndirAssign->m_defSsaNum = count;
-        pRenameState->Push(block, lclNum, count);
-        AddDefPoint(tree, block);
+        tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+        return;
     }
-    else
+
+    if (tree->gtFlags & GTF_VAR_DEF)
     {
-        unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-        // Is this a variable we exclude from SSA?
-        if (m_pCompiler->fgExcludeFromSsa(lclNum))
+        if (tree->gtFlags & GTF_VAR_USEASG)
         {
-            tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-            return;
-        }
-
-        if (tree->gtFlags & GTF_VAR_DEF)
-        {
-            if (tree->gtFlags & GTF_VAR_USEASG)
-            {
-                // This the "x" in something like "x op= y"; it is both a use (first), then a def.
-                // The def will define a new SSA name, and record that in "x".  If we need the SSA
-                // name of the use, we record it in a map reserved for that purpose.
-                unsigned count = pRenameState->CountForUse(lclNum);
-                tree->gtLclVarCommon.SetSsaNum(count);
-            }
-
-            // Give a count and increment.
-            unsigned count = pRenameState->CountForDef(lclNum);
-            if (tree->gtFlags & GTF_VAR_USEASG)
-            {
-                m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(tree, count);
-            }
-            else
-            {
-                tree->gtLclVarCommon.SetSsaNum(count);
-            }
-            pRenameState->Push(block, lclNum, count);
-            AddDefPoint(tree, block);
-
-            // If necessary, add "lclNum/count" to the arg list of a phi def in any
-            // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
-            // not phi definitions.)
-            if (!isPhiDefn)
-            {
-                AddDefToHandlerPhis(block, lclNum, count);
-            }
-        }
-        else if (!isPhiDefn) // Phi args already have ssa numbers.
-        {
-            // This case is obviated by the short-term "early-out" above...but it's in the right direction.
-            // Is it a promoted struct local?
-            if (m_pCompiler->lvaTable[lclNum].lvPromoted)
-            {
-                assert(tree->TypeGet() == TYP_STRUCT);
-                LclVarDsc* varDsc = &m_pCompiler->lvaTable[lclNum];
-                // If has only a single field var, treat this as a use of that field var.
-                // Otherwise, we don't give SSA names to uses of promoted struct vars.
-                if (varDsc->lvFieldCnt == 1)
-                {
-                    lclNum = varDsc->lvFieldLclStart;
-                }
-                else
-                {
-                    tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-                    return;
-                }
-            }
-            // Give the count as top of stack.
+            // This the "x" in something like "x op= y"; it is both a use (first), then a def.
+            // The def will define a new SSA name, and record that in "x".  If we need the SSA
+            // name of the use, we record it in a map reserved for that purpose.
             unsigned count = pRenameState->CountForUse(lclNum);
             tree->gtLclVarCommon.SetSsaNum(count);
         }
+
+        // Give a count and increment.
+        unsigned count = pRenameState->CountForDef(lclNum);
+        if (tree->gtFlags & GTF_VAR_USEASG)
+        {
+            m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(tree, count);
+        }
+        else
+        {
+            tree->gtLclVarCommon.SetSsaNum(count);
+        }
+        pRenameState->Push(block, lclNum, count);
+        AddDefPoint(tree, block);
+
+        // If necessary, add "lclNum/count" to the arg list of a phi def in any
+        // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
+        // not phi definitions.)
+        if (!isPhiDefn)
+        {
+            AddDefToHandlerPhis(block, lclNum, count);
+        }
+    }
+    else if (!isPhiDefn) // Phi args already have ssa numbers.
+    {
+        // This case is obviated by the short-term "early-out" above...but it's in the right direction.
+        // Is it a promoted struct local?
+        if (m_pCompiler->lvaTable[lclNum].lvPromoted)
+        {
+            assert(tree->TypeGet() == TYP_STRUCT);
+            LclVarDsc* varDsc = &m_pCompiler->lvaTable[lclNum];
+            // If has only a single field var, treat this as a use of that field var.
+            // Otherwise, we don't give SSA names to uses of promoted struct vars.
+            if (varDsc->lvFieldCnt == 1)
+            {
+                lclNum = varDsc->lvFieldLclStart;
+            }
+            else
+            {
+                tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+                return;
+            }
+        }
+        // Give the count as top of stack.
+        unsigned count = pRenameState->CountForUse(lclNum);
+        tree->gtLclVarCommon.SetSsaNum(count);
     }
 }
 
@@ -1619,7 +1555,7 @@ void SsaBuilder::BlockPopStacks(BasicBlock* block, SsaRenameState* pRenameState)
  *      and Destruction of Static Single Assignment Form."
  */
 
-void SsaBuilder::RenameVariables(BlkToBlkSetMap* domTree, SsaRenameState* pRenameState)
+void SsaBuilder::RenameVariables(BlkToBlkVectorMap* domTree, SsaRenameState* pRenameState)
 {
     JITDUMP("*************** In SsaBuilder::RenameVariables()\n");
 
@@ -1712,13 +1648,13 @@ void SsaBuilder::RenameVariables(BlkToBlkSetMap* domTree, SsaRenameState* pRenam
             AssignPhiNodeRhsVariables(block, pRenameState);
 
             // Recurse with the block's DOM children.
-            BlkSet* pBlkSet;
-            if (domTree->Lookup(block, &pBlkSet))
+            BlkVector* domChildren = domTree->LookupPointer(block);
+            if (domChildren != nullptr)
             {
-                for (BlkSet::KeyIterator child = pBlkSet->Begin(); !child.Equal(pBlkSet->End()); ++child)
+                for (BasicBlock* child : *domChildren)
                 {
-                    DBG_SSA_JITDUMP("[SsaBuilder::RenameVariables](pushing dom child BB%02u)\n", child.Get()->bbNum);
-                    blocksToDo->push_back(BlockWork(child.Get()));
+                    DBG_SSA_JITDUMP("[SsaBuilder::RenameVariables](pushing dom child BB%02u)\n", child->bbNum);
+                    blocksToDo->push_back(BlockWork(child));
                 }
             }
         }
@@ -1832,7 +1768,7 @@ void SsaBuilder::Build()
     ComputeImmediateDom(postOrder, count);
 
     // Compute the dominator tree.
-    BlkToBlkSetMap* domTree = new (&m_allocator) BlkToBlkSetMap(&m_allocator);
+    BlkToBlkVectorMap* domTree = new (&m_allocator) BlkToBlkVectorMap(&m_allocator);
     ComputeDominators(postOrder, count, domTree);
     EndPhase(PHASE_BUILD_SSA_DOMS);
 

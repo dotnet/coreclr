@@ -1047,7 +1047,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
             HandleFloatVarArgs(call, argNode, &callHasFloatRegArgs);
             appendLocationInfoToList(argNode);
         }
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         else if (argNode->OperGet() == GT_FIELD_LIST)
         {
             for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
@@ -1058,7 +1058,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
                 appendLocationInfoToList(entry->Current());
             }
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 #ifdef DEBUG
         // In DEBUG only, check validity with respect to the arg table entry.
@@ -1085,7 +1085,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
 #endif // FEATURE_PUT_STRUCT_ARG_STK
             continue;
         }
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         if (argNode->OperGet() == GT_FIELD_LIST)
         {
             assert(argNode->isContained());
@@ -1101,7 +1101,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
             }
         }
         else
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
         {
             const regNumber argReg = curArgTabEntry->regNum;
             assert(argNode->gtRegNum == argReg);
@@ -2515,7 +2515,8 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
             // Because 'source' is contained, we haven't yet determined its special register requirements, if any.
             // As it happens, the Shift or Rotate cases are the only ones with special requirements.
             assert(source->isContained() && source->OperIsRMWMemOp());
-            GenTree* nonMemSource = nullptr;
+            GenTree*      nonMemSource = nullptr;
+            GenTreeIndir* otherIndir   = nullptr;
 
             if (source->OperIsShiftOrRotate())
             {
@@ -2527,6 +2528,7 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
             }
             if (indirTree->AsStoreInd()->IsRMWDstOp1())
             {
+                otherIndir = source->gtGetOp1()->AsIndir();
                 if (source->OperIsBinary())
                 {
                     nonMemSource = source->gtOp.gtOp2;
@@ -2534,7 +2536,19 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
             }
             else if (indirTree->AsStoreInd()->IsRMWDstOp2())
             {
+                otherIndir   = source->gtGetOp2()->AsIndir();
                 nonMemSource = source->gtOp.gtOp1;
+            }
+            if (otherIndir != nullptr)
+            {
+                // Any lclVars in the addressing mode of this indirection are contained.
+                // If they are marked as lastUse, transfer the last use flag to the store indir.
+                GenTree* base    = otherIndir->Base();
+                GenTree* dstBase = indirTree->Base();
+                CheckAndMoveRMWLastUse(base, dstBase);
+                GenTree* index    = otherIndir->Index();
+                GenTree* dstIndex = indirTree->Index();
+                CheckAndMoveRMWLastUse(index, dstIndex);
             }
             if (nonMemSource != nullptr)
             {

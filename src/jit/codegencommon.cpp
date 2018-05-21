@@ -87,7 +87,7 @@ CodeGenInterface* getCodeGenerator(Compiler* comp)
 
 // CodeGen constructor
 CodeGenInterface::CodeGenInterface(Compiler* theCompiler)
-    : gcInfo(theCompiler), regSet(theCompiler, gcInfo), compiler(theCompiler)
+    : gcInfo(theCompiler), regSet(theCompiler, gcInfo), compiler(theCompiler), treeLifeUpdater(nullptr)
 {
 }
 
@@ -343,8 +343,7 @@ bool CodeGen::genShouldRoundFP()
 
 void CodeGen::genPrepForCompiler()
 {
-    unsigned   varNum;
-    LclVarDsc* varDsc;
+    treeLifeUpdater = new (compiler, CMK_bitset) TreeLifeUpdater<true>(compiler);
 
     /* Figure out which non-register variables hold pointers */
 
@@ -357,6 +356,8 @@ void CodeGen::genPrepForCompiler()
 
     VarSetOps::AssignNoCopy(compiler, compiler->raRegVarsMask, VarSetOps::MakeEmpty(compiler));
 
+    unsigned   varNum;
+    LclVarDsc* varDsc;
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
         if (varDsc->lvTracked
@@ -468,7 +469,7 @@ void CodeGen::genPrepForEHCodegen()
 
 void CodeGenInterface::genUpdateLife(GenTree* tree)
 {
-    compiler->compUpdateLife</*ForCodeGen*/ true>(tree);
+    treeLifeUpdater->UpdateLife(tree);
 }
 
 void CodeGenInterface::genUpdateLife(VARSET_VALARG_TP newLife)
@@ -772,330 +773,6 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
             return RBM_CALLEE_TRASH_NOGC;
     }
 }
-
-// Update liveness (always var liveness, i.e., compCurLife, and also, if "ForCodeGen" is true, reg liveness, i.e.,
-// regSet.rsMaskVars as well)
-// if the given lclVar (or indir(addr(local)))/regVar node is going live (being born) or dying.
-template <bool ForCodeGen>
-void Compiler::compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars)
-{
-    GenTree* indirAddrLocal = fgIsIndirOfAddrOfLocal(tree);
-    assert(tree->OperIsNonPhiLocal() || indirAddrLocal != nullptr);
-
-    // Get the local var tree -- if "tree" is "Ldobj(addr(x))", or "ind(addr(x))" this is "x", else it's "tree".
-    GenTree* lclVarTree = indirAddrLocal;
-    if (lclVarTree == nullptr)
-    {
-        lclVarTree = tree;
-    }
-    unsigned int lclNum = lclVarTree->gtLclVarCommon.gtLclNum;
-    LclVarDsc*   varDsc = lvaTable + lclNum;
-
-#ifdef DEBUG
-#if !defined(_TARGET_AMD64_)
-    // There are no addr nodes on ARM and we are experimenting with encountering vars in 'random' order.
-    // Struct fields are not traversed in a consistent order, so ignore them when
-    // verifying that we see the var nodes in execution order
-    if (ForCodeGen)
-    {
-        if (tree->OperIsIndir())
-        {
-            assert(indirAddrLocal != NULL);
-        }
-        else if (tree->gtNext != NULL && tree->gtNext->gtOper == GT_ADDR &&
-                 ((tree->gtNext->gtNext == NULL || !tree->gtNext->gtNext->OperIsIndir())))
-        {
-            assert(tree->IsLocal()); // Can only take the address of a local.
-            // The ADDR might occur in a context where the address it contributes is eventually
-            // dereferenced, so we can't say that this is not a use or def.
-        }
-#if 0   
-        // TODO-ARM64-Bug?: These asserts don't seem right for ARM64: I don't understand why we have to assert 
-        // two consecutive lclvars (in execution order) can only be observed if the first one is a struct field.
-        // It seems to me this is code only applicable to the legacy JIT and not RyuJIT (and therefore why it was 
-        // ifdef'ed out for AMD64).
-        else if (!varDsc->lvIsStructField)
-        {
-            GenTree* prevTree;
-            for (prevTree = tree->gtPrev;
-                 prevTree != NULL && prevTree != compCurLifeTree;
-                 prevTree = prevTree->gtPrev)
-            {
-                if ((prevTree->gtOper == GT_LCL_VAR) || (prevTree->gtOper == GT_REG_VAR))
-                {
-                    LclVarDsc * prevVarDsc = lvaTable + prevTree->gtLclVarCommon.gtLclNum;
-
-                    // These are the only things for which this method MUST be called
-                    assert(prevVarDsc->lvIsStructField);
-                }
-            }
-            assert(prevTree == compCurLifeTree);
-        }
-#endif // 0
-    }
-#endif // !_TARGET_AMD64_
-#endif // DEBUG
-
-    compCurLifeTree = tree;
-    VARSET_TP newLife(VarSetOps::MakeCopy(this, compCurLife));
-
-    // By codegen, a struct may not be TYP_STRUCT, so we have to
-    // check lvPromoted, for the case where the fields are being
-    // tracked.
-    if (!varDsc->lvTracked && !varDsc->lvPromoted)
-    {
-        return;
-    }
-
-    bool isBorn = ((tree->gtFlags & GTF_VAR_DEF) != 0 && (tree->gtFlags & GTF_VAR_USEASG) == 0); // if it's "x <op>=
-                                                                                                 // ..." then variable
-                                                                                                 // "x" must have had a
-                                                                                                 // previous, original,
-                                                                                                 // site to be born.
-    bool isDying = ((tree->gtFlags & GTF_VAR_DEATH) != 0);
-#ifndef LEGACY_BACKEND
-    bool spill = ((tree->gtFlags & GTF_SPILL) != 0);
-#endif // !LEGACY_BACKEND
-
-#ifndef LEGACY_BACKEND
-    // For RyuJIT backend, since all tracked vars are register candidates, but not all are in registers at all times,
-    // we maintain two separate sets of variables - the total set of variables that are either
-    // born or dying here, and the subset of those that are on the stack
-    VARSET_TP stackVarDeltaSet(VarSetOps::MakeEmpty(this));
-#endif // !LEGACY_BACKEND
-
-    if (isBorn || isDying)
-    {
-        bool hasDeadTrackedFieldVars = false; // If this is true, then, for a LDOBJ(ADDR(<promoted struct local>)),
-        VARSET_TP* deadTrackedFieldVars =
-            nullptr; // *deadTrackedFieldVars indicates which tracked field vars are dying.
-        VARSET_TP varDeltaSet(VarSetOps::MakeEmpty(this));
-
-        if (varDsc->lvTracked)
-        {
-            VarSetOps::AddElemD(this, varDeltaSet, varDsc->lvVarIndex);
-            if (ForCodeGen)
-            {
-#ifndef LEGACY_BACKEND
-                if (isBorn && varDsc->lvIsRegCandidate() && tree->gtHasReg())
-                {
-                    codeGen->genUpdateVarReg(varDsc, tree);
-                }
-#endif // !LEGACY_BACKEND
-                if (varDsc->lvIsInReg()
-#ifndef LEGACY_BACKEND
-                    && tree->gtRegNum != REG_NA
-#endif // !LEGACY_BACKEND
-                    )
-                {
-                    codeGen->genUpdateRegLife(varDsc, isBorn, isDying DEBUGARG(tree));
-                }
-#ifndef LEGACY_BACKEND
-                else
-                {
-                    VarSetOps::AddElemD(this, stackVarDeltaSet, varDsc->lvVarIndex);
-                }
-#endif // !LEGACY_BACKEND
-            }
-        }
-        else if (varDsc->lvPromoted)
-        {
-            if (indirAddrLocal != nullptr && isDying)
-            {
-                assert(!isBorn); // GTF_VAR_DEATH only set for LDOBJ last use.
-                hasDeadTrackedFieldVars = GetPromotedStructDeathVars()->Lookup(indirAddrLocal, &deadTrackedFieldVars);
-                if (hasDeadTrackedFieldVars)
-                {
-                    VarSetOps::Assign(this, varDeltaSet, *deadTrackedFieldVars);
-                }
-            }
-
-            for (unsigned i = varDsc->lvFieldLclStart; i < varDsc->lvFieldLclStart + varDsc->lvFieldCnt; ++i)
-            {
-                LclVarDsc* fldVarDsc = &(lvaTable[i]);
-                noway_assert(fldVarDsc->lvIsStructField);
-                if (fldVarDsc->lvTracked)
-                {
-                    unsigned fldVarIndex = fldVarDsc->lvVarIndex;
-                    noway_assert(fldVarIndex < lvaTrackedCount);
-                    if (!hasDeadTrackedFieldVars)
-                    {
-                        VarSetOps::AddElemD(this, varDeltaSet, fldVarIndex);
-                        if (ForCodeGen)
-                        {
-                            // We repeat this call here and below to avoid the VarSetOps::IsMember
-                            // test in this, the common case, where we have no deadTrackedFieldVars.
-                            if (fldVarDsc->lvIsInReg())
-                            {
-#ifndef LEGACY_BACKEND
-                                if (isBorn)
-                                {
-                                    codeGen->genUpdateVarReg(fldVarDsc, tree);
-                                }
-#endif // !LEGACY_BACKEND
-                                codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
-                            }
-#ifndef LEGACY_BACKEND
-                            else
-                            {
-                                VarSetOps::AddElemD(this, stackVarDeltaSet, fldVarIndex);
-                            }
-#endif // !LEGACY_BACKEND
-                        }
-                    }
-                    else if (ForCodeGen && VarSetOps::IsMember(this, varDeltaSet, fldVarIndex))
-                    {
-                        if (lvaTable[i].lvIsInReg())
-                        {
-#ifndef LEGACY_BACKEND
-                            if (isBorn)
-                            {
-                                codeGen->genUpdateVarReg(fldVarDsc, tree);
-                            }
-#endif // !LEGACY_BACKEND
-                            codeGen->genUpdateRegLife(fldVarDsc, isBorn, isDying DEBUGARG(tree));
-                        }
-#ifndef LEGACY_BACKEND
-                        else
-                        {
-                            VarSetOps::AddElemD(this, stackVarDeltaSet, fldVarIndex);
-                        }
-#endif // !LEGACY_BACKEND
-                    }
-                }
-            }
-        }
-
-        // First, update the live set
-        if (isDying)
-        {
-            // We'd like to be able to assert the following, however if we are walking
-            // through a qmark/colon tree, we may encounter multiple last-use nodes.
-            // assert (VarSetOps::IsSubset(compiler, regVarDeltaSet, newLife));
-            VarSetOps::DiffD(this, newLife, varDeltaSet);
-            if (pLastUseVars != nullptr)
-            {
-                VarSetOps::Assign(this, *pLastUseVars, varDeltaSet);
-            }
-        }
-        else
-        {
-            // This shouldn't be in newLife, unless this is debug code, in which
-            // case we keep vars live everywhere, OR the variable is address-exposed,
-            // OR this block is part of a try block, in which case it may be live at the handler
-            // Could add a check that, if it's in newLife, that it's also in
-            // fgGetHandlerLiveVars(compCurBB), but seems excessive
-            //
-            // For a dead store, it can be the case that we set both isBorn and isDying to true.
-            // (We don't eliminate dead stores under MinOpts, so we can't assume they're always
-            // eliminated.)  If it's both, we handled it above.
-            VarSetOps::UnionD(this, newLife, varDeltaSet);
-        }
-    }
-
-    if (!VarSetOps::Equal(this, compCurLife, newLife))
-    {
-#ifdef DEBUG
-        if (verbose)
-        {
-            printf("\t\t\t\t\t\t\tLive vars: ");
-            dumpConvertedVarSet(this, compCurLife);
-            printf(" => ");
-            dumpConvertedVarSet(this, newLife);
-            printf("\n");
-        }
-#endif // DEBUG
-
-        VarSetOps::Assign(this, compCurLife, newLife);
-
-        if (ForCodeGen)
-        {
-#ifndef LEGACY_BACKEND
-
-            // Only add vars to the gcInfo.gcVarPtrSetCur if they are currently on stack, since the
-            // gcInfo.gcTrkStkPtrLcls
-            // includes all TRACKED vars that EVER live on the stack (i.e. are not always in a register).
-            VARSET_TP gcTrkStkDeltaSet(
-                VarSetOps::Intersection(this, codeGen->gcInfo.gcTrkStkPtrLcls, stackVarDeltaSet));
-            if (!VarSetOps::IsEmpty(this, gcTrkStkDeltaSet))
-            {
-#ifdef DEBUG
-                if (verbose)
-                {
-                    printf("\t\t\t\t\t\t\tGCvars: ");
-                    dumpConvertedVarSet(this, codeGen->gcInfo.gcVarPtrSetCur);
-                    printf(" => ");
-                }
-#endif // DEBUG
-
-                if (isBorn)
-                {
-                    VarSetOps::UnionD(this, codeGen->gcInfo.gcVarPtrSetCur, gcTrkStkDeltaSet);
-                }
-                else
-                {
-                    VarSetOps::DiffD(this, codeGen->gcInfo.gcVarPtrSetCur, gcTrkStkDeltaSet);
-                }
-
-#ifdef DEBUG
-                if (verbose)
-                {
-                    dumpConvertedVarSet(this, codeGen->gcInfo.gcVarPtrSetCur);
-                    printf("\n");
-                }
-#endif // DEBUG
-            }
-
-#else // LEGACY_BACKEND
-
-#ifdef DEBUG
-            if (verbose)
-            {
-                VARSET_TP gcVarPtrSetNew(VarSetOps::Intersection(this, newLife, codeGen->gcInfo.gcTrkStkPtrLcls));
-                if (!VarSetOps::Equal(this, codeGen->gcInfo.gcVarPtrSetCur, gcVarPtrSetNew))
-                {
-                    printf("\t\t\t\t\t\t\tGCvars: ");
-                    dumpConvertedVarSet(this, codeGen->gcInfo.gcVarPtrSetCur);
-                    printf(" => ");
-                    dumpConvertedVarSet(this, gcVarPtrSetNew);
-                    printf("\n");
-                }
-            }
-#endif // DEBUG
-
-            VarSetOps::AssignNoCopy(this, codeGen->gcInfo.gcVarPtrSetCur,
-                                    VarSetOps::Intersection(this, newLife, codeGen->gcInfo.gcTrkStkPtrLcls));
-
-#endif // LEGACY_BACKEND
-
-            codeGen->siUpdate();
-        }
-    }
-
-#ifndef LEGACY_BACKEND
-    if (ForCodeGen && spill)
-    {
-        assert(!varDsc->lvPromoted);
-        codeGen->genSpillVar(tree);
-        if (VarSetOps::IsMember(this, codeGen->gcInfo.gcTrkStkPtrLcls, varDsc->lvVarIndex))
-        {
-            if (!VarSetOps::IsMember(this, codeGen->gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
-            {
-                VarSetOps::AddElemD(this, codeGen->gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
-#ifdef DEBUG
-                if (verbose)
-                {
-                    printf("\t\t\t\t\t\t\tVar V%02u becoming live\n", varDsc - lvaTable);
-                }
-#endif // DEBUG
-            }
-        }
-    }
-#endif // !LEGACY_BACKEND
-}
-
-// Need an explicit instantiation.
-template void Compiler::compUpdateLifeVar<false>(GenTree* tree, VARSET_TP* pLastUseVars);
 
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
@@ -4302,9 +3979,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     struct regArgElem
     {
         unsigned varNum; // index into compiler->lvaTable[] for this register argument
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         var_types type;   // the Jit type of this regArgTab entry
-#endif                    // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif                    // defined(UNIX_AMD64_ABI)
         unsigned trashBy; // index into this regArgTab[] table of the register that will be copied to this register.
                           // That is, for regArgTab[x].trashBy = y, argument register number 'y' will be copied to
                           // argument register number 'x'. Only used when circular = true.
@@ -4315,7 +3992,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         bool processed;   // true after we've processed the argument (and it is in its final location)
         bool circular;    // true if this register participates in a circular dependency loop.
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
         // For UNIX AMD64 struct passing, the type of the register argument slot can differ from
         // the type of the lclVar in ways that are not ascertainable from lvType.
@@ -4326,7 +4003,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             return type; // UNIX_AMD64 implementation
         }
 
-#else // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // !UNIX_AMD64_ABI
 
         // In other cases, we simply use the type of the lclVar to determine the type of the register.
         var_types getRegType(Compiler* compiler)
@@ -4340,7 +4017,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             return varDsc.lvType;
         }
 
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !UNIX_AMD64_ABI
     } regArgTab[max(MAX_REG_ARG + 1, MAX_FLOAT_REG_ARG)] = {};
 
     unsigned   varNum;
@@ -4403,9 +4080,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regType = varDsc->GetHfaType();
         }
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         if (!varTypeIsStruct(regType))
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
@@ -4417,7 +4094,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
         int slots = 0;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         if (varTypeIsStruct(varDsc))
         {
             CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
@@ -4502,7 +4179,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regArgNum = firstRegSlot;
         }
         else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
         {
             // Bingo - add it to our table
             regArgNum = genMapRegNumToRegArgNum(varDsc->lvArgReg, regType);
@@ -4512,10 +4189,10 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             // register)
             noway_assert(regArgTab[regArgNum].slot == 0);
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             // Set the register type.
             regArgTab[regArgNum].type = regType;
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
             regArgTab[regArgNum].varNum = varNum;
             regArgTab[regArgNum].slot   = 1;
@@ -4584,14 +4261,14 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regType          = regArgTab[regArgNum + i].getRegType(compiler);
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
-#if !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if !defined(UNIX_AMD64_ABI)
             // lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
             // The type of the register depends on the classification of the first eightbyte
             // of the struct. For information on classification refer to the System V x86_64 ABI at:
             // http://www.x86-64.org/documentation/abi.pdf
 
             assert((i > 0) || (regNum == varDsc->lvArgReg));
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
 
             if ((regArgMaskLive & genRegMask(regNum)) == 0)
@@ -4810,7 +4487,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     {
         emitAttr size;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         // If this is the wrong register file, just continue.
         if (regArgTab[argNum].type == TYP_UNDEF)
         {
@@ -4819,7 +4496,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             // The next register file processing will process it.
             continue;
         }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
         // If the arg is dead on entry to the method, skip it
 
         if (regArgTab[argNum].processed)
@@ -4887,9 +4564,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             // Must be <= MAX_PASS_MULTIREG_BYTES or else it wouldn't be passed in registers
             noway_assert(varDsc->lvSize() <= MAX_PASS_MULTIREG_BYTES);
 #endif // FEATURE_MULTIREG_ARGS
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
             storeType = regArgTab[argNum].type;
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !UNIX_AMD64_ABI
             if (varDsc->lvIsHfaRegArg())
             {
 #ifdef _TARGET_ARM_
@@ -4926,13 +4603,13 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
             getEmitter()->emitIns_S_R(ins_Store(storeType), size, srcRegNum, varNum, baseOffset);
 
-#ifndef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifndef UNIX_AMD64_ABI
             // Check if we are writing past the end of the struct
             if (varTypeIsStruct(varDsc))
             {
                 assert(varDsc->lvSize() >= baseOffset + (unsigned)size);
             }
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !UNIX_AMD64_ABI
 
             if (regArgTab[argNum].slot == 1)
             {
@@ -4965,7 +4642,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
         if (doingFloat)
         {
-#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(UNIX_AMD64_ABI)
             insCopy = ins_Copy(TYP_DOUBLE);
             // Compute xtraReg here when we have a float argument
             assert(xtraReg == REG_NA);
@@ -4976,9 +4653,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #if defined(FEATURE_HFA)
             fpAvailMask &= RBM_ALLDOUBLE;
 #else
-#if !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if !defined(UNIX_AMD64_ABI)
 #error Error. Wrong architecture.
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // !defined(UNIX_AMD64_ABI)
 #endif // defined(FEATURE_HFA)
 
             if (fpAvailMask == RBM_NONE)
@@ -4987,9 +4664,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 #if defined(FEATURE_HFA)
                 fpAvailMask &= RBM_ALLDOUBLE;
 #else
-#if !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if !defined(UNIX_AMD64_ABI)
 #error Error. Wrong architecture.
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // !defined(UNIX_AMD64_ABI)
 #endif // defined(FEATURE_HFA)
             }
 
@@ -5251,7 +4928,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             var_types regType = regArgTab[argNum].getRegType(compiler);
             regNumber regNum  = genMapRegArgNumToRegNum(argNum, regType);
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             if (regType == TYP_UNDEF)
             {
                 // This could happen if the reg in regArgTab[argNum] is of the other register file -
@@ -5260,7 +4937,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 regArgMaskLive &= ~genRegMask(regNum);
                 continue;
             }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
             noway_assert(varDsc->lvIsParam && varDsc->lvIsRegArg);
 #ifndef _TARGET_64BIT_
@@ -5348,7 +5025,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 destRegNum  = REG_NEXT(varDsc->lvRegNum);
             }
 #endif // !_TARGET_64BIT_
-#if (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
+#if (defined(UNIX_AMD64_ABI) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
             else
             {
                 assert(regArgTab[argNum].slot == 2);
@@ -5359,7 +5036,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 noway_assert(regNum != destRegNum);
                 continue;
             }
-#endif // (defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
+#endif // (defined(UNIX_AMD64_ABI) || defined(_TARGET_ARM64_)) && defined(FEATURE_SIMD)
             noway_assert(destRegNum != REG_NA);
             if (destRegNum != regNum)
             {
@@ -5415,7 +5092,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 argRegCount = 2;
             }
 #endif
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) && defined(FEATURE_SIMD)
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_SIMD)
             if (varTypeIsStruct(varDsc) && argNum < (argMax - 1) && regArgTab[argNum + 1].slot == 2)
             {
                 argRegCount          = 2;
@@ -5429,7 +5106,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 // but mark argNum as processed and clear regNum from the live mask.
                 destRegNum = regNum;
             }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) && defined(FEATURE_SIMD)
+#endif // defined(UNIX_AMD64_ABI) && defined(FEATURE_SIMD)
 #if defined(_TARGET_ARM64_) && defined(FEATURE_SIMD)
             if (varTypeIsSIMD(varDsc) && argNum < (argMax - 1) && regArgTab[argNum + 1].slot == 2)
             {
@@ -9421,7 +9098,7 @@ void CodeGen::genFnProlog()
         getEmitter()->emitMarkPrologEnd();
     }
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) && defined(FEATURE_SIMD)
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_SIMD)
     // The unused bits of Vector3 arguments must be cleared
     // since native compiler doesn't initize the upper bits to zeros.
     //
@@ -9429,7 +9106,7 @@ void CodeGen::genFnProlog()
     // genFnPrologCalleeRegArgs() for argument registers and
     // genEnregisterIncomingStackArgs() for stack arguments.
     genClearStackVec3ArgUpperBits();
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING && FEATURE_SIMD
+#endif // UNIX_AMD64_ABI && FEATURE_SIMD
 
     /*-----------------------------------------------------------------------------
      * Take care of register arguments first
@@ -11591,7 +11268,7 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 //
 unsigned CodeGen::getFirstArgWithStackSlot()
 {
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARMARCH_)
+#if defined(UNIX_AMD64_ABI) || defined(_TARGET_ARMARCH_)
     unsigned baseVarNum = 0;
 #if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
     baseVarNum = compiler->lvaFirstStackIncomingArgNum;

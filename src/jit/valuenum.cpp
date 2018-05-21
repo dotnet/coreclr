@@ -1098,6 +1098,11 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
         {
             canFold = false;
         }
+        if (typ == TYP_BYREF)
+        {
+            // We don't want to fold expressions that produce TYP_BYREF
+            canFold = false;
+        }
 
         if (canFold)
         {
@@ -1132,27 +1137,30 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
                 {
                     case GT_ADD:
                         // This identity does not apply for floating point (when x == -0.0)
-                        if (!varTypeIsFloating(typ))
+                        // (x + 0) == (0 + x) => x
+                        ZeroVN = VNZeroForType(typ);
+                        if (VNIsEqual(arg0VN, ZeroVN))
                         {
-                            // (x + 0) == (0 + x) => x
-                            ZeroVN = VNZeroForType(typ);
-                            if (arg0VN == ZeroVN)
-                            {
-                                resultVN = arg1VN;
-                            }
-                            else if (arg1VN == ZeroVN)
-                            {
-                                resultVN = arg0VN;
-                            }
+                            resultVN = arg1VN;
+                        }
+                        else if (VNIsEqual(arg1VN, ZeroVN))
+                        {
+                            resultVN = arg0VN;
                         }
                         break;
 
                     case GT_SUB:
+                        // This identity does not apply for floating point (when x == -0.0)
                         // (x - 0) => x
+                        // (x - x) => 0
                         ZeroVN = VNZeroForType(typ);
-                        if (arg1VN == ZeroVN)
+                        if (VNIsEqual(arg1VN, ZeroVN))
                         {
                             resultVN = arg0VN;
+                        }
+                        else if (VNIsEqual(arg0VN, arg1VN))
+                        {
+                            resultVN = ZeroVN;
                         }
                         break;
 
@@ -1244,8 +1252,12 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
                         break;
 
                     case GT_EQ:
+                    case GT_GE:
+                    case GT_LE:
                         // (x == x) => true (unless x is NaN)
-                        if (!varTypeIsFloating(TypeOfVN(arg0VN)) && (arg0VN != NoVN) && (arg0VN == arg1VN))
+                        // (x <= x) => true (unless x is NaN)
+                        // (x >= x) => true (unless x is NaN)
+                        if (VNIsEqual(arg0VN, arg1VN))
                         {
                             resultVN = VNOneForType(typ);
                         }
@@ -1255,9 +1267,14 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
                             resultVN = VNZeroForType(typ);
                         }
                         break;
+
                     case GT_NE:
+                    case GT_GT:
+                    case GT_LT:
                         // (x != x) => false (unless x is NaN)
-                        if (!varTypeIsFloating(TypeOfVN(arg0VN)) && (arg0VN != NoVN) && (arg0VN == arg1VN))
+                        // (x > x) => false (unless x is NaN)
+                        // (x < x) => false (unless x is NaN)
+                        if (VNIsEqual(arg0VN, arg1VN))
                         {
                             resultVN = VNZeroForType(typ);
                         }
@@ -1280,6 +1297,23 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
         }
         else // must be a VNF_ function
         {
+            if (VNIsEqual(arg0VN, arg1VN))
+            {
+                // x <= x ==> true
+                // x >= x ==> true
+                if ((func == VNF_LE_UN) || (func == VNF_GE_UN))
+                {
+                    return VNOneForType(typ);
+                }
+                // x < x ==> false
+                // x > x ==> false
+                // x - x ==> 0
+                else if ((func == VNF_LT_UN) || (func == VNF_GT_UN) || (func == VNF_SUB_UN))
+                {
+                    return VNZeroForType(typ);
+                }
+            }
+
             if (func == VNF_CastClass)
             {
                 // In terms of values, a castclass always returns its second argument, the object being cast.
@@ -1750,12 +1784,6 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
     if (func == VNF_Cast)
     {
         return EvalCastForConstantArgs(typ, func, arg0VN, arg1VN);
-    }
-
-    if (typ == TYP_BYREF)
-    {
-        // We don't want to fold expressions that produce TYP_BYREF
-        return false;
     }
 
     var_types arg0VNtyp = TypeOfVN(arg0VN);
@@ -5633,6 +5661,17 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
     {
         // TODO-CQ: For now hardware intrinsics are not handled by value numbering to be amenable for CSE'ing.
         tree->gtVNPair.SetBoth(vnStore->VNForExpr(compCurBB, TYP_UNKNOWN));
+
+        GenTreeHWIntrinsic* hwIntrinsicNode = tree->AsHWIntrinsic();
+        assert(hwIntrinsicNode != nullptr);
+
+        // For safety/correctness we must mutate the global heap valuenumber
+        //  for any HW intrinsic that performs a memory store operation
+        if (hwIntrinsicNode->OperIsMemoryStore())
+        {
+            fgMutateGcHeap(tree DEBUGARG("HWIntrinsic - MemoryStore"));
+        }
+
         return;
     }
 #endif // FEATURE_HW_INTRINSICS
@@ -6204,9 +6243,6 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                     // If it is a PtrToLoc, lib and cons VNs will be the same.
                     if (argIsVNFunc)
                     {
-                        IndirectAssignmentAnnotation* pIndirAnnot =
-                            nullptr; // This will be used if "tree" is an "indirect assignment",
-                                     // explained below.
                         if (funcApp.m_func == VNF_PtrToLoc)
                         {
                             assert(arg->gtVNPair.BothEqual()); // If it's a PtrToLoc, lib/cons shouldn't differ.
@@ -6219,11 +6255,9 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                             {
                                 FieldSeqNode* fieldSeq = vnStore->FieldSeqVNToFieldSeq(funcApp.m_args[1]);
 
-                                // Either "arg" is the address of (part of) a local itself, or the assignment is an
-                                // "indirect assignment", where an outer comma expression assigned the address of a
-                                // local to a temp, and that temp is our lhs, and we recorded this in a table when we
-                                // made the indirect assignment...or else we have a "rogue" PtrToLoc, one that should
-                                // have made the local in question address-exposed.  Assert on that.
+                                // Either "arg" is the address of (part of) a local itself, or else we have
+                                // a "rogue" PtrToLoc, one that should have made the local in question
+                                // address-exposed.  Assert on that.
                                 GenTreeLclVarCommon* lclVarTree   = nullptr;
                                 bool                 isEntire     = false;
                                 unsigned             lclDefSsaNum = SsaConfig::RESERVED_SSA_NUM;
@@ -6255,32 +6289,6 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                                                                         .GetPerSsaData(lclVarTree->GetSsaNum())
                                                                         ->m_vnPair;
                                         lclDefSsaNum = GetSsaNumForLocalVarDef(lclVarTree);
-                                        newLhsVNPair =
-                                            vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq, rhsVNPair,
-                                                                                lhs->TypeGet(), compCurBB);
-                                    }
-                                    lvaTable[lclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = newLhsVNPair;
-                                }
-                                else if (m_indirAssignMap != nullptr && GetIndirAssignMap()->Lookup(tree, &pIndirAnnot))
-                                {
-                                    // The local #'s should agree.
-                                    assert(lclNum == pIndirAnnot->m_lclNum);
-                                    assert(pIndirAnnot->m_defSsaNum != SsaConfig::RESERVED_SSA_NUM);
-                                    lclDefSsaNum = pIndirAnnot->m_defSsaNum;
-                                    // Does this assignment write the entire width of the local?
-                                    if (genTypeSize(lhs->TypeGet()) == genTypeSize(var_types(lvaTable[lclNum].lvType)))
-                                    {
-                                        assert(pIndirAnnot->m_useSsaNum == SsaConfig::RESERVED_SSA_NUM);
-                                        assert(pIndirAnnot->m_isEntire);
-                                        newLhsVNPair = rhsVNPair;
-                                    }
-                                    else
-                                    {
-                                        assert(pIndirAnnot->m_useSsaNum != SsaConfig::RESERVED_SSA_NUM);
-                                        assert(!pIndirAnnot->m_isEntire);
-                                        assert(pIndirAnnot->m_fieldSeq == fieldSeq);
-                                        ValueNumPair oldLhsVNPair =
-                                            lvaTable[lclNum].GetPerSsaData(pIndirAnnot->m_useSsaNum)->m_vnPair;
                                         newLhsVNPair =
                                             vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq, rhsVNPair,
                                                                                 lhs->TypeGet(), compCurBB);

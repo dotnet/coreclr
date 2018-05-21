@@ -116,11 +116,6 @@ FCFuncStart(gStringFuncs)
 #endif // FEATURE_COMINTEROP
 FCFuncEnd()
 
-FCFuncStart(gStringBufferFuncs)
-    FCFuncElement("ReplaceBufferInternal", COMStringBuffer::ReplaceBufferInternal)
-    FCFuncElement("ReplaceBufferAnsiInternal", COMStringBuffer::ReplaceBufferAnsiInternal)
-FCFuncEnd()
-
 FCFuncStart(gValueTypeFuncs)
     FCFuncElement("CanCompareBits", ValueTypeHelper::CanCompareBits)
     FCFuncElement("FastEqualsCheck", ValueTypeHelper::FastEqualsCheck)
@@ -350,7 +345,6 @@ FCFuncStart(gRuntimeMethodHandle)
     QCFuncElement("Destroy", RuntimeMethodHandle::Destroy)
     FCFuncElement("GetResolver", RuntimeMethodHandle::GetResolver)
     FCFuncElement("GetLoaderAllocator", RuntimeMethodHandle::GetLoaderAllocator)
-    FCFuncElement("GetSpecialSecurityFlags", ReflectionInvocation::GetSpecialSecurityFlags)
 FCFuncEnd()
 
 FCFuncStart(gCOMDefaultBinderFuncs)
@@ -480,10 +474,10 @@ FCFuncStart(gAppDomainFuncs)
 FCFuncEnd()
 
 
-FCFuncStart(gUtf8String)
-    FCFuncElement("EqualsCaseSensitive", Utf8String::EqualsCaseSensitive)
-    QCFuncElement("EqualsCaseInsensitive", Utf8String::EqualsCaseInsensitive)
-    QCFuncElement("HashCaseInsensitive", Utf8String::HashCaseInsensitive)
+FCFuncStart(gMdUtf8String)
+    FCFuncElement("EqualsCaseSensitive", MdUtf8String::EqualsCaseSensitive)
+    QCFuncElement("EqualsCaseInsensitive", MdUtf8String::EqualsCaseInsensitive)
+    QCFuncElement("HashCaseInsensitive", MdUtf8String::HashCaseInsensitive)
 FCFuncEnd()
 
 FCFuncStart(gTypeNameBuilder)
@@ -1322,6 +1316,7 @@ FCClassElement("MathF", "System", gMathFFuncs)
 #ifdef MDA_SUPPORTED 
 FCClassElement("Mda", "System", gMda)
 #endif
+FCClassElement("MdUtf8String", "System", gMdUtf8String)
 FCClassElement("MemoryFailPoint", "System.Runtime", gMemoryFailPointFuncs)
 FCClassElement("MetadataImport", "System.Reflection", gMetaDataImport)
 FCClassElement("MissingMemberException", "System",  gMissingMemberExceptionFuncs)
@@ -1375,7 +1370,6 @@ FCClassElement("Signature", "System", gSignatureNative)
 FCClassElement("StackTrace", "System.Diagnostics", gDiagnosticsStackTrace)
 FCClassElement("Stream", "System.IO", gStreamFuncs)
 FCClassElement("String", "System", gStringFuncs)
-FCClassElement("StringBuilder", "System.Text", gStringBufferFuncs)
 FCClassElement("StubHelpers", "System.StubHelpers", gStubHelperFuncs)
 FCClassElement("SynchronizationContext", "System.Threading", gContextSynchronizationFuncs)
 FCClassElement("Thread", "System.Threading", gThreadFuncs)
@@ -1390,7 +1384,6 @@ FCClassElement("TypedReference", "System", gTypedReferenceFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("UriMarshaler", "System.StubHelpers", gUriMarshalerFuncs)
 #endif
-FCClassElement("Utf8String", "System", gUtf8String)
 FCClassElement("ValueClassMarshaler", "System.StubHelpers", gValueClassMarshalerFuncs)
 FCClassElement("ValueType", "System", gValueTypeFuncs)
 #ifdef FEATURE_COMINTEROP

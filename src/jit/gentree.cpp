@@ -288,13 +288,13 @@ void GenTree::InitNodeSize()
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 // clang-format off
-#if defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(FEATURE_HFA) || defined(UNIX_AMD64_ABI)
     // On ARM32, ARM64 and System V for struct returning
     // there is code that does GT_ASG-tree.CopyObj call.
     // CopyObj is a large node and the GT_ASG is small, which triggers an exception.
     GenTree::s_gtNodeSizes[GT_ASG]              = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_RETURN]           = TREE_NODE_SZ_LARGE;
-#endif // defined(FEATURE_HFA) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(FEATURE_HFA) || defined(UNIX_AMD64_ABI)
 
     GenTree::s_gtNodeSizes[GT_CALL]             = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_CAST]             = TREE_NODE_SZ_LARGE;
@@ -2118,6 +2118,7 @@ AGAIN:
                 case GT_SIMD:
                     hash += tree->gtSIMD.gtSIMDIntrinsicID;
                     hash += tree->gtSIMD.gtSIMDBaseType;
+                    hash += tree->gtSIMD.gtSIMDSize;
                     break;
 #endif // FEATURE_SIMD
 
@@ -2125,6 +2126,7 @@ AGAIN:
                 case GT_HWIntrinsic:
                     hash += tree->gtHWIntrinsic.gtHWIntrinsicId;
                     hash += tree->gtHWIntrinsic.gtSIMDBaseType;
+                    hash += tree->gtHWIntrinsic.gtSIMDSize;
                     break;
 #endif // FEATURE_HW_INTRINSICS
 
@@ -4557,8 +4559,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             // so if possible it was set above.
             tryToSwap = false;
         }
-        else if ((oper == GT_INTRINSIC) &&
-                 Compiler::IsIntrinsicImplementedByUserCall(tree->AsIntrinsic()->gtIntrinsicId))
+        else if ((oper == GT_INTRINSIC) && IsIntrinsicImplementedByUserCall(tree->AsIntrinsic()->gtIntrinsicId))
         {
             // We do not swap operand execution order for intrinsics that are implemented by user calls
             // because of trickiness around ensuring the execution order does not change during rationalization.
@@ -5421,7 +5422,7 @@ bool GenTree::IsAddWithI32Const(GenTree** addr, int* offset)
 //    When FEATURE_MULTIREG_ARGS is defined we can get here with GT_OBJ tree.
 //    This happens when we have a struct that is passed in multiple registers.
 //
-//    Also note that when FEATURE_UNIX_AMD64_STRUCT_PASSING is defined the GT_LDOBJ
+//    Also note that when UNIX_AMD64_ABI is defined the GT_LDOBJ
 //    later gets converted to a GT_FIELD_LIST with two GT_LCL_FLDs in Lower/LowerXArch.
 //
 
@@ -5986,14 +5987,108 @@ GenTree* GenTree::gtGetParent(GenTree*** parentChildPtrPtr) const
 }
 
 //------------------------------------------------------------------------------
-// OperMayThrow : Check whether the operation requires GTF_ASG flag regardless
-//                of the children's flags.
+// OperRequiresAsgFlag : Check whether the operation requires GTF_ASG flag regardless
+//                       of the children's flags.
 //
 
 bool GenTree::OperRequiresAsgFlag()
 {
-    return (OperIsAssignment() || (gtOper == GT_XADD) || (gtOper == GT_XCHG) || (gtOper == GT_LOCKADD) ||
-            (gtOper == GT_CMPXCHG) || (gtOper == GT_MEMORYBARRIER));
+    if (OperIsAssignment() || OperIs(GT_XADD, GT_XCHG, GT_LOCKADD, GT_CMPXCHG, GT_MEMORYBARRIER))
+    {
+        return true;
+    }
+#ifdef FEATURE_HW_INTRINSICS
+    if (gtOper == GT_HWIntrinsic)
+    {
+        GenTreeHWIntrinsic* hwIntrinsicNode = this->AsHWIntrinsic();
+        if (hwIntrinsicNode->OperIsMemoryStore())
+        {
+            // A MemoryStore operation is an assignment
+            return true;
+        }
+    }
+#endif // FEATURE_HW_INTRINSICS
+    return false;
+}
+
+//------------------------------------------------------------------------------
+// OperRequiresCallFlag : Check whether the operation requires GTF_CALL flag regardless
+//                        of the children's flags.
+//
+
+bool GenTree::OperRequiresCallFlag(Compiler* comp)
+{
+    switch (gtOper)
+    {
+        case GT_CALL:
+            return true;
+
+        case GT_INTRINSIC:
+            return comp->IsIntrinsicImplementedByUserCall(this->AsIntrinsic()->gtIntrinsicId);
+
+#if FEATURE_FIXED_OUT_ARGS && !defined(_TARGET_64BIT_)
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+
+            // Variable shifts of a long end up being helper calls, so mark the tree as such in morph.
+            // This is potentially too conservative, since they'll get treated as having side effects.
+            // It is important to mark them as calls so if they are part of an argument list,
+            // they will get sorted and processed properly (for example, it is important to handle
+            // all nested calls before putting struct arguments in the argument registers). We
+            // could mark the trees just before argument processing, but it would require a full
+            // tree walk of the argument tree, so we just do it when morphing, instead, even though we'll
+            // mark non-argument trees (that will still get converted to calls, anyway).
+            return (this->TypeGet() == TYP_LONG) && (gtGetOp2()->OperGet() != GT_CNS_INT);
+#endif // FEATURE_FIXED_OUT_ARGS && !_TARGET_64BIT_
+
+        default:
+            return false;
+    }
+}
+
+//------------------------------------------------------------------------------
+// OperIsImplicitIndir : Check whether the operation contains an implicit
+//                       indirection.
+// Arguments:
+//    this      -  a GenTree node
+//
+// Return Value:
+//    True if the given node contains an implicit indirection
+//
+// Note that for the GT_HWIntrinsic node we have to examine the
+// details of the node to determine its result.
+//
+
+bool GenTree::OperIsImplicitIndir() const
+{
+    switch (gtOper)
+    {
+        case GT_LOCKADD:
+        case GT_XADD:
+        case GT_XCHG:
+        case GT_CMPXCHG:
+        case GT_BLK:
+        case GT_OBJ:
+        case GT_DYN_BLK:
+        case GT_STORE_BLK:
+        case GT_STORE_OBJ:
+        case GT_STORE_DYN_BLK:
+        case GT_BOX:
+        case GT_ARR_INDEX:
+        case GT_ARR_ELEM:
+        case GT_ARR_OFFSET:
+            return true;
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+        {
+            GenTreeHWIntrinsic* hwIntrinsicNode = (const_cast<GenTree*>(this))->AsHWIntrinsic();
+            return hwIntrinsicNode->OperIsMemoryLoadOrStore();
+        }
+#endif // FEATURE_HW_INTRINSICS
+        default:
+            return false;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -6079,6 +6174,22 @@ bool GenTree::OperMayThrow(Compiler* comp)
 #endif // FEATURE_HW_INTRINSICS
         case GT_INDEX_ADDR:
             return true;
+
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+        {
+            GenTreeHWIntrinsic* hwIntrinsicNode = this->AsHWIntrinsic();
+            assert(hwIntrinsicNode != nullptr);
+            if (hwIntrinsicNode->OperIsMemoryStore() || hwIntrinsicNode->OperIsMemoryLoad())
+            {
+                // This operation contains an implicit indirection
+                //   it could throw a null reference exception.
+                //
+                return true;
+            }
+        }
+#endif // FEATURE_HW_INTRINSICS
+
         default:
             break;
     }
@@ -8019,19 +8130,6 @@ GenTree* Compiler::gtCloneExpr(
         // Copy any node annotations, if necessary.
         switch (tree->gtOper)
         {
-            case GT_ASG:
-            {
-                IndirectAssignmentAnnotation* pIndirAnnot = nullptr;
-                if (m_indirAssignMap != nullptr && GetIndirAssignMap()->Lookup(tree, &pIndirAnnot))
-                {
-                    IndirectAssignmentAnnotation* pNewIndirAnnot = new (this, CMK_Unknown)
-                        IndirectAssignmentAnnotation(pIndirAnnot->m_lclNum, pIndirAnnot->m_fieldSeq,
-                                                     pIndirAnnot->m_isEntire);
-                    GetIndirAssignMap()->Set(copy, pNewIndirAnnot);
-                }
-            }
-            break;
-
             case GT_STOREIND:
             case GT_IND:
             case GT_OBJ:
@@ -8466,8 +8564,8 @@ void Compiler::gtUpdateStmtSideEffects(GenTree* stmt)
 //    tree            - Tree to update the side effects on
 //
 // Notes:
-//    This method currently only updates GTF_EXCEPT and GTF_ASG flags. The other side effect
-//    flags may remain unnecessarily (conservatively) set.
+//    This method currently only updates GTF_EXCEPT, GTF_ASG, and GTF_CALL flags.
+//    The other side effect flags may remain unnecessarily (conservatively) set.
 //    The caller of this method is expected to update the flags based on the children's flags.
 
 void Compiler::gtUpdateNodeOperSideEffects(GenTree* tree)
@@ -8492,6 +8590,15 @@ void Compiler::gtUpdateNodeOperSideEffects(GenTree* tree)
     else
     {
         tree->gtFlags &= ~GTF_ASG;
+    }
+
+    if (tree->OperRequiresCallFlag(this))
+    {
+        tree->gtFlags |= GTF_CALL;
+    }
+    else
+    {
+        tree->gtFlags &= ~GTF_CALL;
     }
 }
 
@@ -11573,20 +11680,6 @@ void Compiler::gtDispTree(GenTree*     tree,
         }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-        IndirectAssignmentAnnotation* pIndirAnnote;
-        if (tree->gtOper == GT_ASG && GetIndirAssignMap()->Lookup(tree, &pIndirAnnote))
-        {
-            printf("  indir assign of V%02d:", pIndirAnnote->m_lclNum);
-            if (pIndirAnnote->m_isEntire)
-            {
-                printf("d:%d", pIndirAnnote->m_defSsaNum);
-            }
-            else
-            {
-                printf("ud:%d->%d", pIndirAnnote->m_useSsaNum, pIndirAnnote->m_defSsaNum);
-            }
-        }
-
         if (tree->gtOper == GT_INTRINSIC)
         {
             switch (tree->gtIntrinsic.gtIntrinsicId)
@@ -12166,12 +12259,12 @@ void Compiler::gtGetLateArgMsg(
             if (curArgTabEntry->numRegs >= 2)
             {
                 regNumber otherRegNum;
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
                 assert(curArgTabEntry->numRegs == 2);
                 otherRegNum = curArgTabEntry->otherRegNum;
 #else
                 otherRegNum = (regNumber)(((unsigned)curArgTabEntry->regNum) + curArgTabEntry->numRegs - 1);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
                 if (listCount == -1)
                 {
@@ -13610,7 +13703,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     {
         hasSrcSideEffect = true;
 
-        if (copySrc->gtType == TYP_STRUCT)
+        if (varTypeIsStruct(copySrc->gtType))
         {
             isStructCopy = true;
 
@@ -18151,6 +18244,114 @@ GenTree* Compiler::gtNewMustThrowException(unsigned helper, var_types type, CORI
     }
     return node;
 }
+
+// Returns true for the HW Instrinsic instructions that have MemoryLoad semantics, false otherwise
+bool GenTreeHWIntrinsic::OperIsMemoryLoad()
+{
+#ifdef _TARGET_XARCH_
+    // Some xarch instructions have MemoryLoad sematics
+    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    if (category == HW_Category_MemoryLoad)
+    {
+        return true;
+    }
+    else if (category == HW_Category_IMM)
+    {
+        // Some AVX instructions here also have MemoryLoad sematics
+
+        // Do we have 3 operands?
+        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        {
+            return false;
+        }
+        else // We have 3 operands/args
+        {
+            GenTreeArgList* argList = gtOp.gtOp1->AsArgList();
+
+            if ((gtHWIntrinsicId == NI_AVX_InsertVector128 || gtHWIntrinsicId == NI_AVX2_InsertVector128) &&
+                (argList->Rest()->Current()->TypeGet() == TYP_I_IMPL)) // Is the type of the second arg TYP_I_IMPL?
+            {
+                // This is Avx/Avx2.InsertVector128
+                return true;
+            }
+        }
+    }
+#endif // _TARGET_XARCH_
+    return false;
+}
+
+// Returns true for the HW Instrinsic instructions that have MemoryStore semantics, false otherwise
+bool GenTreeHWIntrinsic::OperIsMemoryStore()
+{
+#ifdef _TARGET_XARCH_
+    // Some xarch instructions have MemoryStore sematics
+    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    if (category == HW_Category_MemoryStore)
+    {
+        return true;
+    }
+    else if (category == HW_Category_IMM)
+    {
+        // Some AVX instructions here also have MemoryStore sematics
+
+        // Do we have 3 operands?
+        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        {
+            return false;
+        }
+        else // We have 3 operands/args
+        {
+            if ((gtHWIntrinsicId == NI_AVX_ExtractVector128 || gtHWIntrinsicId == NI_AVX2_ExtractVector128))
+            {
+                // This is Avx/Avx2.ExtractVector128
+                return true;
+            }
+        }
+    }
+#endif // _TARGET_XARCH_
+    return false;
+}
+
+// Returns true for the HW Instrinsic instructions that have MemoryLoad semantics, false otherwise
+bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
+{
+#ifdef _TARGET_XARCH_
+    // Some xarch instructions have MemoryLoad sematics
+    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    if ((category == HW_Category_MemoryLoad) || (category == HW_Category_MemoryStore))
+    {
+        return true;
+    }
+    else if (category == HW_Category_IMM)
+    {
+        // Some AVX instructions here also have MemoryLoad or MemoryStore sematics
+
+        // Do we have 3 operands?
+        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        {
+            return false;
+        }
+        else // We have 3 operands/args
+        {
+            GenTreeArgList* argList = gtOp.gtOp1->AsArgList();
+
+            if ((gtHWIntrinsicId == NI_AVX_InsertVector128 || gtHWIntrinsicId == NI_AVX2_InsertVector128) &&
+                (argList->Rest()->Current()->TypeGet() == TYP_I_IMPL)) // Is the type of the second arg TYP_I_IMPL?
+            {
+                // This is Avx/Avx2.InsertVector128
+                return true;
+            }
+            else if ((gtHWIntrinsicId == NI_AVX_ExtractVector128 || gtHWIntrinsicId == NI_AVX2_ExtractVector128))
+            {
+                // This is Avx/Avx2.ExtractVector128
+                return true;
+            }
+        }
+    }
+#endif // _TARGET_XARCH_
+    return false;
+}
+
 #endif // FEATURE_HW_INTRINSICS
 
 //---------------------------------------------------------------------------------------
@@ -18217,7 +18418,7 @@ void ReturnTypeDesc::InitializeStructReturnType(Compiler* comp, CORINFO_CLASS_HA
         {
             assert(varTypeIsStruct(returnType));
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
             SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
             comp->eeGetSystemVAmd64PassStructInRegisterDescriptor(retClsHnd, &structDesc);
@@ -18248,7 +18449,7 @@ void ReturnTypeDesc::InitializeStructReturnType(Compiler* comp, CORINFO_CLASS_HA
             //
             NYI("Unsupported TARGET returning a TYP_STRUCT in InitializeStructReturnType");
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
             break; // for case SPK_ByValue
         }
@@ -18324,7 +18525,7 @@ regNumber ReturnTypeDesc::GetABIReturnReg(unsigned idx)
 
     regNumber resultReg = REG_NA;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     var_types regType0 = GetReturnRegType(0);
 
     if (idx == 0)

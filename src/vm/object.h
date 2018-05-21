@@ -37,8 +37,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  +-- code:StringObject       - String objects are specialized objects for string
  *  |                        storage/retrieval for higher performance
  *  |
- *  +-- code:StringBufferObject - StringBuffer instance layout.  
- *  |
  *  +-- BaseObjectWithCachedData - Object Plus one object field for caching.
  *  |       |
  *  |            +-  ReflectClassBaseObject    - The base object for the RuntimeType class
@@ -916,7 +914,7 @@ typedef PTR_StringObject STRINGREF;
  * Special String implementation for performance.   
  *
  *   m_StringLength - Length of string in number of WCHARs
- *   m_Characters   - The string buffer
+ *   m_FirstChar    - The string buffer
  *
  */
 
@@ -934,9 +932,6 @@ typedef PTR_StringObject STRINGREF;
 #define STRING_STATE_FAST_OPS         0x80000000
 #define STRING_STATE_SPECIAL_SORT     0xC0000000
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4200)     // disable zero-sized array warning
-#endif
 class StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -949,11 +944,7 @@ class StringObject : public Object
 
   private:
     DWORD   m_StringLength;
-    WCHAR   m_Characters[0];
-    // GC will see a StringObject like this:
-    //   DWORD m_StringLength
-    //   WCHAR m_Characters[0]
-    //   DWORD m_OptionalPadding (this is an optional field and will appear based on need)
+    WCHAR   m_FirstChar;
 
   public:
     VOID    SetStringLength(DWORD len)                   { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
@@ -963,12 +954,11 @@ class StringObject : public Object
    ~StringObject() {LIMITED_METHOD_CONTRACT; }
    
   public:
+    static DWORD GetBaseSize();
     static SIZE_T GetSize(DWORD stringLength);
 
     DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
-    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) );  }
-    WCHAR*  GetBuffer(DWORD *pdwSize)                   { LIMITED_METHOD_CONTRACT; _ASSERTE((this != nullptr) && pdwSize); *pdwSize = GetStringLength(); return GetBuffer();  }
-    WCHAR*  GetBufferNullable()                         { LIMITED_METHOD_CONTRACT; return( (this == nullptr) ? nullptr : (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) ) );  }
+    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_FirstChar) );  }
 
     DWORD GetHighCharState() {
         WRAPPER_NO_CONTRACT;
@@ -994,7 +984,7 @@ class StringObject : public Object
     static UINT GetBufferOffset()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (UINT)(offsetof(StringObject, m_Characters));
+        return (UINT)(offsetof(StringObject, m_FirstChar));
     }
     static UINT GetStringLengthOffset()
     {
@@ -2539,136 +2529,6 @@ typedef BStrWrapper*     BSTRWRAPPEROBJECTREF;
 
 #endif // FEATURE_COMINTEROP
 
-class StringBufferObject;
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<StringBufferObject> STRINGBUFFERREF;
-#else   // USE_CHECKED_OBJECTREFS
-typedef StringBufferObject * STRINGBUFFERREF;
-#endif  // USE_CHECKED_OBJECTREFS
-
-//
-// StringBufferObject
-//
-// Note that the "copy on write" bit is buried within the implementation
-// of the object in order to make the implementation smaller.
-//
-
-
-class StringBufferObject : public Object
-{
-    friend class MscorlibBinder;
-
-  private:
-    CHARARRAYREF m_ChunkChars;
-    StringBufferObject *m_ChunkPrevious;
-    UINT32 m_ChunkLength;
-    UINT32 m_ChunkOffset;
-    INT32 m_MaxCapacity;
-
-    WCHAR* GetBuffer()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (WCHAR *)m_ChunkChars->GetDirectPointerToNonObjectElements();
-    }
-        
-    // This function assumes that requiredLength will be less 
-    // than the max capacity of the StringBufferObject   
-    DWORD GetAllocationLength(DWORD dwRequiredLength)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE((INT32)dwRequiredLength <= m_MaxCapacity);
-        DWORD dwCurrentLength = GetArrayLength();
-
-        // round the current length to the nearest multiple of 2
-        // that is >= the required length
-        if(dwCurrentLength < dwRequiredLength)
-        {
-            dwCurrentLength = (dwRequiredLength + 1) & ~1;        
-        }
-        return dwCurrentLength;
-    }
-
-  protected:
-   StringBufferObject() { LIMITED_METHOD_CONTRACT; };
-   ~StringBufferObject() { LIMITED_METHOD_CONTRACT; };
-
-  public:
-    INT32 GetMaxCapacity()
-    {
-        return m_MaxCapacity;
-    }
-
-    DWORD GetArrayLength() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_ChunkChars);
-        return m_ChunkOffset + m_ChunkChars->GetNumComponents();
-    }
-
-    // Given an ANSI string, use it to replace the StringBufferObject's internal buffer
-    VOID ReplaceBufferWithAnsi(CHARARRAYREF *newArrayRef, __in CHAR *newChars, DWORD dwNewCapacity)
-    {
-#ifndef DACCESS_COMPILE
-        SetObjectReference((OBJECTREF *)&m_ChunkChars, (OBJECTREF)(*newArrayRef), GetAppDomain());
-#endif //!DACCESS_COMPILE
-        WCHAR *thisChars = GetBuffer();
-        // NOTE: This call to MultiByte also writes out the null terminator
-        // which is currently part of the String representation.
-        INT32 ncWritten = MultiByteToWideChar(CP_ACP,
-                                              MB_PRECOMPOSED,
-                                              newChars,
-                                              -1,
-                                              (LPWSTR)thisChars,
-                                              dwNewCapacity+1);
-
-        if (ncWritten == 0)
-        {
-            // Normally, we'd throw an exception if the string couldn't be converted.
-            // In this particular case, we paper over it instead. The reason is
-            // that most likely reason a P/Invoke-called api returned a
-            // poison string is that the api failed for some reason, and hence
-            // exercised its right to leave the buffer in a poison state.
-            // Because P/Invoke cannot discover if an api failed, it cannot
-            // know to ignore the buffer on the out marshaling path.
-            // Because normal P/Invoke procedure is for the caller to check error
-            // codes manually, we don't want to throw an exception on him.
-            // We certainly don't want to randomly throw or not throw based on the
-            // nondeterministic contents of a buffer passed to a failing api.
-            *thisChars = W('\0');
-            ncWritten++;
-        }
-
-        m_ChunkOffset = 0;
-        m_ChunkLength = ncWritten-1;
-        m_ChunkPrevious = NULL;
-    }
-
-    // Given a Unicode string, use it to replace the StringBufferObject's internal buffer
-    VOID ReplaceBuffer(CHARARRAYREF *newArrayRef, __in_ecount(dwNewCapacity) WCHAR *newChars, DWORD dwNewCapacity)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-#ifndef DACCESS_COMPILE
-        SetObjectReference((OBJECTREF *)&m_ChunkChars, (OBJECTREF)(*newArrayRef), GetAppDomain());
-#endif //!DACCESS_COMPILE
-        WCHAR *thisChars = GetBuffer();
-        memcpyNoGCRefs(thisChars, newChars, sizeof(WCHAR)*dwNewCapacity);
-        thisChars[dwNewCapacity] = W('\0');
-        m_ChunkLength = dwNewCapacity;
-        m_ChunkPrevious = NULL;
-        m_ChunkOffset = 0; 
-    }
-
-    static void ReplaceBuffer(STRINGBUFFERREF *thisRef, __in_ecount(newLength) WCHAR *newBuffer, INT32 newLength);
-    static void ReplaceBufferAnsi(STRINGBUFFERREF *thisRef, __in_ecount(newCapacity) CHAR *newBuffer, INT32 newCapacity);    
-};
-
 class SafeHandle : public Object
 {
     friend class MscorlibBinder;
@@ -3461,7 +3321,7 @@ public:
     static inline void *Value(void *src, MethodTable *nullableMT)
     {
         Nullable *nullable = (Nullable *)src;
-        return nullable->ValueAddr(nullableMT);        
+        return nullable->ValueAddr(nullableMT);
     }
     
 private:

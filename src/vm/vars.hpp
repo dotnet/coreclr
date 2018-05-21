@@ -316,8 +316,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
-#define ObjectToSTRINGBUFFERREF(obj)    (STRINGBUFFERREF(obj))
-#define STRINGBUFFERREFToObject(objref) (*( (StringBufferObject**) &(objref) ))
 
 #else   // _DEBUG_IMPL
 
@@ -328,8 +326,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
-#define ObjectToSTRINGBUFFERREF(obj)    ((Ptr_StringBufferObject) (obj))
-#define STRINGBUFFERREFToObject(objref) ((Ptr_StringBufferObject) (objref))
 
 #endif // _DEBUG_IMPL
 
@@ -528,6 +524,7 @@ EXTERN BOOL g_fComStarted;
 //
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
+EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
 #ifndef DACCESS_COMPILE
 EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;

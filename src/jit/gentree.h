@@ -1553,34 +1553,7 @@ public:
         return OperIsIndirOrArrLength(gtOper);
     }
 
-    static bool OperIsImplicitIndir(genTreeOps gtOper)
-    {
-        switch (gtOper)
-        {
-            case GT_LOCKADD:
-            case GT_XADD:
-            case GT_XCHG:
-            case GT_CMPXCHG:
-            case GT_BLK:
-            case GT_OBJ:
-            case GT_DYN_BLK:
-            case GT_STORE_BLK:
-            case GT_STORE_OBJ:
-            case GT_STORE_DYN_BLK:
-            case GT_BOX:
-            case GT_ARR_INDEX:
-            case GT_ARR_ELEM:
-            case GT_ARR_OFFSET:
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    bool OperIsImplicitIndir() const
-    {
-        return OperIsImplicitIndir(gtOper);
-    }
+    bool OperIsImplicitIndir() const;
 
     bool OperIsStore() const
     {
@@ -1852,6 +1825,8 @@ public:
     inline bool IsCopyOrReloadOfMultiRegCall() const;
 
     bool OperRequiresAsgFlag();
+
+    bool OperRequiresCallFlag(Compiler* comp);
 
     bool OperMayThrow(Compiler* comp);
 
@@ -4288,6 +4263,17 @@ struct GenTreeHWIntrinsic : public GenTreeJitIntrinsic
     {
     }
 
+    // Note that HW Instrinsic instructions are a sub class of GenTreeOp which only supports two operands
+    // However there are HW Instrinsic instructions that have 3 or even 4 operands and this is
+    // supported using a single op1 and using an ArgList for it:  gtNewArgList(op1, op2, op3)
+
+    bool OperIsMemoryLoad();        // Returns true for the HW Instrinsic instructions that have MemoryLoad semantics,
+                                    // false otherwise
+    bool OperIsMemoryStore();       // Returns true for the HW Instrinsic instructions that have MemoryStore semantics,
+                                    // false otherwise
+    bool OperIsMemoryLoadOrStore(); // Returns true for the HW Instrinsic instructions that have MemoryLoad or
+                                    // MemoryStore semantics, false otherwise
+
 #if DEBUGGABLE_GENTREE
     GenTreeHWIntrinsic() : GenTreeJitIntrinsic()
     {
@@ -5683,7 +5669,7 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
     {
         assert(OperGet() == from->OperGet());
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         for (unsigned i = 0; i < MAX_RET_REG_COUNT - 1; ++i)
         {
             gtOtherRegs[i] = from->gtOtherRegs[i];
@@ -5994,7 +5980,7 @@ inline bool GenTree::IsValidCallArgument()
 
 #else // we have RyuJIT backend and FEATURE_MULTIREG_ARGS or FEATURE_PUT_STRUCT_ARG_STK
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         // For UNIX ABI we currently only allow a GT_FIELD_LIST of GT_LCL_FLDs nodes
         GenTree* gtListPtr = this;
         while (gtListPtr != nullptr)
@@ -6013,7 +5999,7 @@ inline bool GenTree::IsValidCallArgument()
             }
             gtListPtr = gtListPtr->MoveNext();
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         // Note that for non-UNIX ABI the GT_FIELD_LIST may contain any node
         //

@@ -76,6 +76,7 @@ set( JIT_SOURCES
   utils.cpp
   valuenum.cpp
   stacklevelsetter.cpp
+  treelifeupdater.cpp
 )
 
 # Add header files to Visual Studio vcxproj, not required for unixes
@@ -191,6 +192,7 @@ if (WIN32)
     varset.h
     vartype.h
     x86_instrs.h
+    treelifeupdater.h
   )
 endif(WIN32)
 
@@ -394,7 +396,7 @@ endif ()
 if ((CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64) AND WIN32)
     # On Windows, build altjit that targets the Linux ABI:
     #   On x86, build Linux/x86 altjit. This enables UNIX_X86_ABI.
-    #   On amd64, build Linux/AMD64 altjit. This enables UNIX_AMD64_ABI and FEATURE_UNIX_AMD64_STRUCT_PASSING.
+    #   On amd64, build Linux/AMD64 altjit. This enables UNIX_AMD64_ABI.
     add_subdirectory(linuxnonjit)
 endif ()
 

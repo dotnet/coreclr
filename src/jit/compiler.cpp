@@ -286,9 +286,10 @@ Histogram genTreeNsizHist(genTreeNsizHistBuckets);
 /*****************************************************************************/
 #if MEASURE_MEM_ALLOC
 
-unsigned  memSizeHistBuckets[] = {20, 50, 75, 100, 150, 250, 500, 1000, 5000, 0};
-Histogram memAllocHist(memSizeHistBuckets);
-Histogram memUsedHist(memSizeHistBuckets);
+unsigned  memAllocHistBuckets[] = {64, 128, 192, 256, 512, 1024, 4096, 8192, 0};
+Histogram memAllocHist(memAllocHistBuckets);
+unsigned  memUsedHistBuckets[] = {16, 32, 64, 128, 192, 256, 512, 1024, 4096, 8192, 0};
+Histogram memUsedHist(memUsedHistBuckets);
 
 #endif // MEASURE_MEM_ALLOC
 
@@ -764,7 +765,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     }
     assert(structSize > 0);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
     // An 8-byte struct may need to be passed in a floating point register
     // So we always consult the struct "Classifier" routine
@@ -828,7 +829,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             else // Not an HFA struct type
             {
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
                 if (structDesc.eightByteCount > 1)
@@ -981,7 +982,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     }
     assert(structSize > 0);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
     // An 8-byte struct may need to be returned in a floating point register
     // So we always consult the struct "Classifier" routine
@@ -1015,7 +1016,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         }
     }
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 #ifdef _TARGET_64BIT_
     // Note this handles an odd case when FEATURE_MULTIREG_RET is disabled and HFAs are enabled
@@ -1063,7 +1064,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             else // Not an HFA struct type
             {
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
                 if (structDesc.eightByteCount > 1)
@@ -2070,7 +2071,6 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
     vnStore               = nullptr;
     m_opAsgnVarDefSsaNums = nullptr;
-    m_indirAssignMap      = nullptr;
     fgSsaPassesCompleted  = 0;
     fgVNPassesCompleted   = 0;
 
@@ -2117,6 +2117,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     Vector128ByteHandle   = nullptr;
     Vector128LongHandle   = nullptr;
     Vector128UIntHandle   = nullptr;
+    Vector128ULongHandle  = nullptr;
 #if defined(_TARGET_XARCH_)
     Vector256FloatHandle  = nullptr;
     Vector256DoubleHandle = nullptr;
@@ -2127,6 +2128,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     Vector256ByteHandle   = nullptr;
     Vector256LongHandle   = nullptr;
     Vector256UIntHandle   = nullptr;
+    Vector256ULongHandle  = nullptr;
 #endif // defined(_TARGET_XARCH_)
 #endif // FEATURE_HW_INTRINSICS
 #endif // FEATURE_SIMD
@@ -2527,7 +2529,8 @@ static bool configEnableISA(InstructionSet isa)
         case InstructionSet_AVX:
             return JitConfig.EnableAVX() != 0;
         case InstructionSet_AVX2:
-            return JitConfig.EnableAVX2() != 0;
+            // Don't enable AVX2 when AVX is disabled
+            return (JitConfig.EnableAVX() != 0) && (JitConfig.EnableAVX2() != 0);
 
         case InstructionSet_AES:
             return JitConfig.EnableAES() != 0;
@@ -2547,7 +2550,15 @@ static bool configEnableISA(InstructionSet isa)
             return false;
     }
 #else
-    return true;
+    // We have a retail config switch that can disable AVX/AVX2 instructions
+    if ((isa == InstructionSet_AVX) || (isa == InstructionSet_AVX2))
+    {
+        return JitConfig.EnableAVX() != 0;
+    }
+    else
+    {
+        return true;
+    }
 #endif
 }
 #endif // _TARGET_XARCH_
@@ -6961,7 +6972,7 @@ START:
     return result;
 }
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
 // GetTypeFromClassificationAndSizes:
 //   Returns the type of the eightbyte accounting for the classification and size of the eightbyte.
@@ -7150,7 +7161,7 @@ void Compiler::GetStructTypeOffset(CORINFO_CLASS_HANDLE typeHnd,
     GetStructTypeOffset(structDesc, type0, type1, offset0, offset1);
 }
 
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
 /*****************************************************************************/
 /*****************************************************************************/

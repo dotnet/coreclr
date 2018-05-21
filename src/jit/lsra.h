@@ -1086,13 +1086,13 @@ private:
     void buildUpperVectorRestoreRefPositions(GenTree* tree, LsraLocation currentLoc, VARSET_VALARG_TP liveLargeVectors);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // For AMD64 on SystemV machines. This method
     // is called as replacement for raUpdateRegStateForArg
     // that is used on Windows. On System V systems a struct can be passed
     // partially using registers from the 2 register files.
     void unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
     // Update reg state for an incoming register argument
     void updateRegStateForArg(LclVarDsc* argDsc);
@@ -1112,8 +1112,11 @@ private:
 
     static Compiler::fgWalkResult markAddrModeOperandsHelperMD(GenTree* tree, void* p);
 
-    // Helper for getKillSetForNode().
+    // Helpers for getKillSetForNode().
     regMaskTP getKillSetForStoreInd(GenTreeStoreInd* tree);
+#ifdef FEATURE_HW_INTRINSICS
+    regMaskTP getKillSetForHWIntrinsic(GenTreeHWIntrinsic* node);
+#endif // FEATURE_HW_INTRINSICS
 
     // Return the registers killed by the given tree node.
     regMaskTP getKillSetForNode(GenTree* tree);
@@ -1683,6 +1686,28 @@ private:
     bool isRMWRegOper(GenTree* tree);
     void BuildMul(GenTree* tree);
     void SetContainsAVXFlags(bool isFloatingPointType = true, unsigned sizeOfSIMDVector = 0);
+    // Move the last use bit, if any, from 'fromTree' to 'toTree'; 'fromTree' must be contained.
+    void CheckAndMoveRMWLastUse(GenTree* fromTree, GenTree* toTree)
+    {
+        // If 'fromTree' is not a last-use lclVar, there's nothing to do.
+        if ((fromTree == nullptr) || !fromTree->OperIs(GT_LCL_VAR) || ((fromTree->gtFlags & GTF_VAR_DEATH) == 0))
+        {
+            return;
+        }
+        // If 'fromTree' was a lclVar, it must be contained and 'toTree' must match.
+        if (!fromTree->isContained() || (toTree == nullptr) || !toTree->OperIs(GT_LCL_VAR) ||
+            (toTree->AsLclVarCommon()->gtLclNum != toTree->AsLclVarCommon()->gtLclNum))
+        {
+            assert(!"Unmatched RMW indirections");
+            return;
+        }
+        // This is probably not necessary, but keeps things consistent.
+        fromTree->gtFlags &= ~GTF_VAR_DEATH;
+        if (toTree != nullptr) // Just to be conservative
+        {
+            toTree->gtFlags |= GTF_VAR_DEATH;
+        }
+    }
 #endif // defined(_TARGET_XARCH_)
 
 #ifdef FEATURE_SIMD

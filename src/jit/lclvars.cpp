@@ -79,9 +79,9 @@ void Compiler::lvaInit()
     lvaSIMDInitTempVarNum = BAD_VAR_NUM;
 #endif // FEATURE_SIMD
     lvaCurEpoch = 0;
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     lvaFirstStackIncomingArgNum = BAD_VAR_NUM;
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 }
 
 /*****************************************************************************/
@@ -290,6 +290,10 @@ void Compiler::lvaInitTypeRef()
         unsigned dummy         = lvaGrabTempWithImplicitUse(false DEBUGARG("GSCookie dummy"));
         lvaTable[dummy].lvType = TYP_INT;
     }
+
+    // Allocate the lvaOutgoingArgSpaceVar now because we can run into problems in the
+    // emitter when the varNum is greater that 32767 (see emitLclVarAddr::initLclVarAddr)
+    lvaAllocOutgoingArgSpaceVar();
 
 #ifdef DEBUG
     if (verbose)
@@ -686,7 +690,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             }
         }
 #else // !_TARGET_ARM_
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
         if (varTypeIsStruct(argType))
         {
@@ -725,7 +729,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 }
             }
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 #endif // !_TARGET_ARM_
 
         // The final home for this incoming register might be our local stack frame.
@@ -734,13 +738,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         bool canPassArgInRegisters = false;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         if (varTypeIsStruct(argType))
         {
             canPassArgInRegisters = structDesc.passedInRegisters;
         }
         else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
         {
             canPassArgInRegisters = varDscInfo->canEnreg(argType, cSlotsToEnregister);
         }
@@ -758,7 +762,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             varDsc->lvOtherArgReg = REG_NA;
 #endif // FEATURE_MULTIREG_ARGS
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             unsigned  secondAllocatedRegArgNum = 0;
             var_types firstEightByteType       = TYP_UNDEF;
             var_types secondEightByteType      = TYP_UNDEF;
@@ -772,7 +776,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 }
             }
             else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
             {
                 firstAllocatedRegArgNum = varDscInfo->allocRegArg(argType, cSlots);
             }
@@ -791,7 +795,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #if FEATURE_MULTIREG_ARGS
             if (varTypeIsStruct(argType))
             {
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, firstEightByteType);
 
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
@@ -815,7 +819,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                     varDsc->addPrefReg(genRegMask(varDsc->lvOtherArgReg), this);
                 }
 #endif //  _TARGET_ARM64_
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
             }
             else
 #endif // FEATURE_MULTIREG_ARGS
@@ -838,7 +842,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             {
                 printf("Arg #%u    passed in register(s) ", varDscInfo->varNum);
                 bool isFloat = false;
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
                 // In case of one eightbyte struct the type is already normalized earlier.
                 // The varTypeIsFloating(argType) is good for this case.
                 if (varTypeIsStruct(argType) && (structDesc.eightByteCount >= 1))
@@ -846,13 +850,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                     isFloat = varTypeIsFloating(firstEightByteType);
                 }
                 else
-#else  // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#else
                 {
                     isFloat = varTypeIsFloating(argType);
                 }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // !UNIX_AMD64_ABI
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
                     if (varTypeIsStruct(argType))
                 {
                     // Print both registers, just to be clear
@@ -879,7 +883,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                     }
                 }
                 else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
                 {
                     unsigned regArgNum = genMapRegNumToRegArgNum(varDsc->lvArgReg, argType);
 
@@ -952,14 +956,14 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // FEATURE_FASTTAILCALL
         }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         // The arg size is returning the number of bytes of the argument. For a struct it could return a size not a
         // multiple of TARGET_POINTER_SIZE. The stack allocated space should always be multiple of TARGET_POINTER_SIZE,
         // so round it up.
         compArgSize += (unsigned)roundUp(argSize, TARGET_POINTER_SIZE);
-#else  // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else  // !UNIX_AMD64_ABI
         compArgSize += argSize;
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !UNIX_AMD64_ABI
         if (info.compIsVarArgs || isHfaArg || isSoftFPPreSpill)
         {
 #if defined(_TARGET_X86_)
@@ -1360,6 +1364,13 @@ unsigned Compiler::compMap2ILvarNum(unsigned varNum)
     {
         return (unsigned)ICorDebugInfo::TYPECTXT_ILNUM;
     }
+
+#if FEATURE_FIXED_OUT_ARGS
+    if (varNum == lvaOutgoingArgSpaceVar)
+    {
+        return (unsigned)ICorDebugInfo::UNKNOWN_ILNUM; // Cannot be mapped
+    }
+#endif // FEATURE_FIXED_OUT_ARGS
 
     // Now mutate varNum to remove extra parameters from the count.
     if ((info.compMethodInfo->args.callConv & CORINFO_CALLCONV_PARAMTYPE) && varNum > (unsigned)info.compTypeCtxtArg)
@@ -2239,7 +2250,7 @@ bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc)
             return true;
         }
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || defined(_TARGET_ARM64_)
+#if defined(UNIX_AMD64_ABI) || defined(_TARGET_ARM64_)
         if (howToPassStruct == SPK_ByValue)
         {
             assert(type == TYP_STRUCT);
@@ -2581,6 +2592,7 @@ unsigned Compiler::lvaLclSize(unsigned varNum)
 
         case TYP_LCLBLK:
 #if FEATURE_FIXED_OUT_ARGS
+            // Note that this operation performs a read of a PhasedVar
             noway_assert(varNum == lvaOutgoingArgSpaceVar);
             return lvaOutgoingArgSpaceSize;
 #else // FEATURE_FIXED_OUT_ARGS
@@ -2624,6 +2636,7 @@ unsigned Compiler::lvaLclExactSize(unsigned varNum)
 
         case TYP_LCLBLK:
 #if FEATURE_FIXED_OUT_ARGS
+            // Note that this operation performs a read of a PhasedVar
             noway_assert(lvaOutgoingArgSpaceSize >= 0);
             noway_assert(varNum == lvaOutgoingArgSpaceVar);
             return lvaOutgoingArgSpaceSize;
@@ -3500,7 +3513,7 @@ const size_t LclVarDsc::lvArgStackSize() const
 #if defined(WINDOWS_AMD64_ABI)
         // Structs are either passed by reference or can be passed by value using one pointer
         stackSize = TARGET_POINTER_SIZE;
-#elif defined(_TARGET_ARM64_) || defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#elif defined(_TARGET_ARM64_) || defined(UNIX_AMD64_ABI)
         // lvSize performs a roundup.
         stackSize = this->lvSize();
 
@@ -3513,12 +3526,12 @@ const size_t LclVarDsc::lvArgStackSize() const
         }
 #endif // defined(_TARGET_ARM64_)
 
-#else // !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !UNIX_AMD64_ABI
 
         NYI("Unsupported target.");
         unreached();
 
-#endif //  !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif //  !_TARGET_ARM64_ !WINDOWS_AMD64_ABI !UNIX_AMD64_ABI
     }
     else
     {
@@ -3537,12 +3550,12 @@ var_types LclVarDsc::lvaArgType()
     var_types type = TypeGet();
 
 #ifdef _TARGET_AMD64_
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     if (type == TYP_STRUCT)
     {
         NYI("lvaArgType");
     }
-#else  //! FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else  //! UNIX_AMD64_ABI
     if (type == TYP_STRUCT)
     {
         switch (lvExactSize)
@@ -3581,7 +3594,7 @@ var_types LclVarDsc::lvaArgType()
                 break;
         }
     }
-#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM64_)
     if (type == TYP_STRUCT)
     {
@@ -3815,10 +3828,10 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
 #endif // ASSERTION_PROP
 
     bool allowStructs = false;
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     // On System V the type of the var could be a struct type.
     allowStructs = varTypeIsStruct(varDsc);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     /* Variables must be used as the same type throughout the method */
     noway_assert(tiVerificationNeeded || varDsc->lvType == TYP_UNDEF || tree->gtType == TYP_UNKNOWN || allowStructs ||
@@ -3974,8 +3987,6 @@ void Compiler::lvaMarkLocalVars()
             lvaTable[info.compLvFrameListRoot].lvRefCntWtd = 2 * BB_UNITY_WEIGHT;
         }
     }
-
-    lvaAllocOutgoingArgSpaceVar();
 
 #if !FEATURE_EH_FUNCLETS
 
@@ -5012,11 +5023,11 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
     {
         unsigned argumentSize = eeGetArgSize(argLst, &info.compMethodInfo->args);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         // On the stack frame the homed arg always takes a full number of slots
         // for proper stack alignment. Make sure the real struct size is properly rounded up.
         argumentSize = (unsigned)roundUp(argumentSize, TARGET_POINTER_SIZE);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         argOffs =
             lvaAssignVirtualFrameOffsetToArg(lclNum++, argumentSize, argOffs UNIX_AMD64_ABI_ONLY_ARG(&callerArgOffset));
@@ -6696,7 +6707,27 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
         printf(" %7s ", varTypeName(type));
         if (genTypeSize(type) == 0)
         {
-            printf("(%2d) ", lvaLclSize(lclNum));
+#if FEATURE_FIXED_OUT_ARGS
+            if (lclNum == lvaOutgoingArgSpaceVar)
+            {
+                // Since lvaOutgoingArgSpaceSize is a PhasedVar we can't read it for Dumping until
+                // after we set it to something.
+                if (lvaOutgoingArgSpaceSize.HasFinalValue())
+                {
+                    // A PhasedVar<T> can't be directly used as an arg to a variadic function
+                    unsigned value = lvaOutgoingArgSpaceSize;
+                    printf("(%2d) ", value);
+                }
+                else
+                {
+                    printf("(na) "); // The value hasn't yet been determined
+                }
+            }
+            else
+#endif // FEATURE_FIXED_OUT_ARGS
+            {
+                printf("(%2d) ", lvaLclSize(lclNum));
+            }
         }
     }
     else
@@ -6709,15 +6740,17 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
             // missing var numbers if these aren't printed.
             printf(";* ");
         }
-        else
 #if FEATURE_FIXED_OUT_ARGS
-            if ((lclNum == lvaOutgoingArgSpaceVar) && (lvaLclSize(lclNum) == 0))
+        // Since lvaOutgoingArgSpaceSize is a PhasedVar we can't read it for Dumping until
+        // after we set it to something.
+        else if ((lclNum == lvaOutgoingArgSpaceVar) && lvaOutgoingArgSpaceSize.HasFinalValue() &&
+                 (lvaOutgoingArgSpaceSize == 0))
         {
             // Similar to above; print this anyway.
             printf(";# ");
         }
+#endif // FEATURE_FIXED_OUT_ARGS
         else
-#endif
         {
             printf(";  ");
         }

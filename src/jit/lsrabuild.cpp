@@ -680,6 +680,44 @@ regMaskTP LinearScan::getKillSetForStoreInd(GenTreeStoreInd* tree)
     return killMask;
 }
 
+#ifdef FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// getKillSetForHWIntrinsic: Determine the liveness kill set for a GT_STOREIND node.
+// If the GT_STOREIND will generate a write barrier, determine the specific kill
+// set required by the case-specific, platform-specific write barrier. If no
+// write barrier is required, the kill set will be RBM_NONE.
+//
+// Arguments:
+//    tree - the GT_STOREIND node
+//
+// Return Value:    a register mask of the registers killed
+//
+regMaskTP LinearScan::getKillSetForHWIntrinsic(GenTreeHWIntrinsic* node)
+{
+    regMaskTP killMask = RBM_NONE;
+#ifdef _TARGET_XARCH_
+    switch (node->gtHWIntrinsicId)
+    {
+        case NI_SSE2_MaskMove:
+            // maskmovdqu uses edi as the implicit address register.
+            // Although it is set as the srcCandidate on the address, if there is also a fixed
+            // assignment for the definition of the address, resolveConflictingDefAndUse() may
+            // change the register assignment on the def or use of a tree temp (SDSU) when there
+            // is a conflict, and the FixedRef on edi won't be sufficient to ensure that another
+            // Interval will not be allocated there.
+            // Issue #17674 tracks this.
+            killMask = RBM_EDI;
+            break;
+
+        default:
+            // Leave killMask as RBM_NONE
+            break;
+    }
+#endif // _TARGET_XARCH_
+    return killMask;
+}
+#endif // FEATURE_HW_INTRINSICS
+
 //------------------------------------------------------------------------
 // getKillSetForNode:   Return the registers killed by the given tree node.
 //
@@ -852,6 +890,12 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             }
             break;
 #endif // PROFILING_SUPPORTED
+
+#ifdef FEATURE_HW_INTRINSICS
+        case GT_HWIntrinsic:
+            killMask = getKillSetForHWIntrinsic(tree->AsHWIntrinsic());
+            break;
+#endif // FEATURE_HW_INTRINSICS
 
         default:
             // for all other 'tree->OperGet()' kinds, leave 'killMask' = RBM_NONE
@@ -1347,21 +1391,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
             assert(varDsc->lvTracked);
             unsigned varIndex = varDsc->lvVarIndex;
 
-            // We have only approximate last-use information at this point.  This is because the
-            // execution order doesn't actually reflect the true order in which the localVars
-            // are referenced - but the order of the RefPositions will, so we recompute it after
-            // RefPositions are built.
-            // Use the old value for setting currentLiveVars - note that we do this with the
-            // not-quite-correct setting of lastUse.  However, this is OK because
-            // 1) this is only for preferencing, which doesn't require strict correctness, and
-            // 2) the cases where these out-of-order uses occur should not overlap a kill.
-            // TODO-Throughput: clean this up once we have the execution order correct.  At that point
-            // we can update currentLiveVars at the same place that we create the RefPosition.
-            if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
-            {
-                VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
-            }
-
             if (!tree->IsUnusedValue() && !tree->isContained())
             {
                 assert(produce != 0);
@@ -1435,11 +1464,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                     // Preference the source to dest, if src is not a local var.
                     srcInterval->assignRelatedInterval(varDefInterval);
                 }
-            }
-
-            if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
-            {
-                VarSetOps::AddElemD(compiler, currentLiveVars, varIndex);
             }
         }
         else if (store->gtOp1->OperIs(GT_BITCAST))
@@ -1596,9 +1620,34 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
 
         assert((candidates & allRegs(srcInterval->registerType)) != 0);
 
-        // For non-localVar uses we record nothing, as nothing needs to be written back to the tree.
-        GenTree* const refPosNode = srcInterval->isLocalVar ? useNode : nullptr;
-        RefPosition*   pos        = newRefPosition(srcInterval, currentLoc, RefTypeUse, refPosNode, candidates, 0);
+        GenTree* refPosNode;
+        if (srcInterval->isLocalVar)
+        {
+            // We have only approximate last-use information at this point.  This is because the
+            // execution order doesn't actually reflect the true order in which the localVars
+            // are referenced - but the order of the RefPositions will, so we recompute it after
+            // RefPositions are built.
+            // Use the old value for setting currentLiveVars - note that we do this with the
+            // not-quite-correct setting of lastUse.  However, this is OK because
+            // 1) this is only for preferencing, which doesn't require strict correctness, and
+            //    for determing which largeVectors require having their upper-half saved & restored.
+            //    (Issue #17481 tracks the issue that this system results in excessive spills and
+            //    should be changed.)
+            // 2) the cases where these out-of-order uses occur should not overlap a kill (they are
+            //    only known to occur within a single expression).
+            if ((useNode->gtFlags & GTF_VAR_DEATH) != 0)
+            {
+                VarSetOps::RemoveElemD(compiler, currentLiveVars, srcInterval->getVarIndex(compiler));
+            }
+            refPosNode = useNode;
+        }
+        else
+        {
+            // For non-localVar uses we record nothing, as nothing needs to be written back to the tree.
+            refPosNode = nullptr;
+        }
+
+        RefPosition* pos = newRefPosition(srcInterval, currentLoc, RefTypeUse, refPosNode, candidates, 0);
         if (delayRegFree)
         {
             pos->delayRegFree = true;
@@ -1736,6 +1785,11 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
         else
         {
             assert(registerTypesEquivalent(interval->registerType, registerType));
+            assert(interval->isLocalVar);
+            if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
+            {
+                VarSetOps::AddElemD(compiler, currentLiveVars, interval->getVarIndex(compiler));
+            }
         }
 
         if (prefSrcInterval != nullptr)
@@ -1940,7 +1994,7 @@ void LinearScan::insertZeroInitRefPositions()
     }
 }
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 //------------------------------------------------------------------------
 // unixAmd64UpdateRegStateForArg: Sets the register state for an argument of type STRUCT for System V systems.
 //
@@ -1986,7 +2040,7 @@ void LinearScan::unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc)
     }
 }
 
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
 //------------------------------------------------------------------------
 // updateRegStateForArg: Updates rsCalleeRegArgMaskLiveIn for the appropriate
@@ -2009,7 +2063,7 @@ void LinearScan::unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc)
 //
 void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
 {
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // For System V AMD64 calls the argDsc can have 2 registers (for structs.)
     // Handle them here.
     if (varTypeIsStruct(argDsc))
@@ -2017,7 +2071,7 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
         unixAmd64UpdateRegStateForArg(argDsc);
     }
     else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
     {
         RegState* intRegState   = &compiler->codeGen->intRegState;
         RegState* floatRegState = &compiler->codeGen->floatRegState;

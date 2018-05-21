@@ -1204,13 +1204,13 @@ struct FuncInfoDsc
 struct fgArgTabEntry
 {
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     fgArgTabEntry()
     {
         otherRegNum = REG_NA;
         isStruct    = false; // is this a struct arg
     }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
     GenTree* node;   // Initially points at the Op1 field of 'parent', but if the argument is replaced with an GT_ASG or
                      // placeholder
@@ -1242,7 +1242,7 @@ struct fgArgTabEntry
     bool isNonStandard : 1; // True if it is an arg that is passed in a reg other than a standard arg reg, or is forced
                             // to be on the stack despite its arg list position.
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     bool isStruct : 1; // True if this is a struct arg
 
     regNumber otherRegNum; // The (second) register to use when passing this argument.
@@ -1337,7 +1337,7 @@ public:
     fgArgTabEntry* AddRegArg(
         unsigned argNum, GenTree* node, GenTree* parent, regNumber regNum, unsigned numRegs, unsigned alignment);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     fgArgTabEntry* AddRegArg(unsigned                                                         argNum,
                              GenTree*                                                         node,
                              GenTree*                                                         parent,
@@ -1347,13 +1347,13 @@ public:
                              const bool                                                       isStruct,
                              const regNumber                                                  otherRegNum   = REG_NA,
                              const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     fgArgTabEntry* AddStkArg(unsigned argNum,
                              GenTree* node,
                              GenTree* parent,
                              unsigned numSlots,
-                             unsigned alignment FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool isStruct));
+                             unsigned alignment UNIX_AMD64_ABI_ONLY_ARG(const bool isStruct));
 
     void           RemorphReset();
     fgArgTabEntry* RemorphRegArg(
@@ -2433,10 +2433,10 @@ public:
     unsigned short lvaTrackedCount;       // actual # of locals being tracked
     unsigned lvaTrackedCountInSizeTUnits; // min # of size_t's sufficient to hold a bit for all the locals being tracked
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     // Only for AMD64 System V cache the first caller stack homed argument.
     unsigned lvaFirstStackIncomingArgNum; // First argument with stack slot in the caller.
-#endif                                    // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif                                    // !UNIX_AMD64_ABI
 
 #ifdef DEBUG
     VARSET_TP lvaTrackedVars; // set of tracked variables
@@ -3100,10 +3100,14 @@ protected:
     bool isScalarISA(InstructionSet isa);
     static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
     unsigned simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_INFO* sig);
-    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
     static GenTree* lastOpOfHWIntrinsic(GenTreeHWIntrinsic* node, int numArgs);
     static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
+
+public:
     static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
+    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
+
+protected:
     static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     static int immUpperBoundOfHWIntrinsic(NamedIntrinsic intrinsic);
@@ -4002,58 +4006,6 @@ public:
     // rather than the "use" SSA number recorded in the tree "lcl".
     inline unsigned GetSsaNumForLocalVarDef(GenTree* lcl);
 
-    // Some assignments assign to a local "indirectly": they are part of a comma expression that takes the address
-    // of the local (or a field thereof), assigns this address to a temp, and uses an indirection of this temp as
-    // the LHS of the assignment.  This actually arises in exactly one situation.  At the source level we assign one
-    // struct local to another: "s1 = s2".  This becomes a copyblk.  If "s2" is promoted into  field variables "s2f0",
-    // ..."s2fn", then the copyblk will morph to a comma expression that takes the address of "s1" and does field-wise
-    // assignments:
-    //   (byref addrS1 = &s1,
-    //    *(addrS1 * offsetof(f0)) = s2f0,
-    //    ...
-    //    *(addrS1 * offsetof(fn)) = s2fn)
-    //
-    // It would be a shame, given the simple form at the source level, to be unable to track the values in the
-    // fields of "s1" after this.  But "s1" does not appear in the assignments that modify it.  How, then, to
-    // give it SSA names and value numbers?
-    //
-    // The solution is to use the side table described below to annotate each of the field-wise assignments at the
-    // end with an instance of the structure below, whose fields are described in the declaration.
-    struct IndirectAssignmentAnnotation
-    {
-        unsigned      m_lclNum;   // The local num that is being indirectly assigned.
-        FieldSeqNode* m_fieldSeq; // If the LHS of the struct assignment is itself a struct field dereference,
-                                  // as in "s0.g = s2", then "m_lclNum" would be "s0", and "m_fieldSeq" would
-                                  // be the singleton field sequence "g".  The individual assignments would
-                                  // further append the fields of "s.g" to that.
-        bool m_isEntire;          // True iff this assignment writes all of m_lclNum.  (This can occur if the
-                                  // structure has a single field).
-        unsigned m_defSsaNum;     // The new SSA number of "m_lclNum" after the assignment.
-        unsigned m_useSsaNum;     // Only valid if "m_isEntire" is false; if so, the SSA number of "m_lclNum" before the
-                                  // assignment.
-
-        IndirectAssignmentAnnotation(unsigned      lclNum,
-                                     FieldSeqNode* fldSeq,
-                                     bool          isEntire,
-                                     unsigned      defSsaNum = SsaConfig::RESERVED_SSA_NUM,
-                                     unsigned      useSsaNum = SsaConfig::RESERVED_SSA_NUM)
-            : m_lclNum(lclNum), m_fieldSeq(fldSeq), m_isEntire(isEntire), m_defSsaNum(defSsaNum), m_useSsaNum(useSsaNum)
-        {
-        }
-    };
-    typedef JitHashTable<GenTree*, JitPtrKeyFuncs<GenTree>, IndirectAssignmentAnnotation*> NodeToIndirAssignMap;
-    NodeToIndirAssignMap* m_indirAssignMap;
-    NodeToIndirAssignMap* GetIndirAssignMap()
-    {
-        if (m_indirAssignMap == nullptr)
-        {
-            // Create a CompAllocator that labels sub-structure with CMK_IndirAssignMap, and use that for allocation.
-            CompAllocator* ialloc = new (this, CMK_IndirAssignMap) CompAllocator(this, CMK_IndirAssignMap);
-            m_indirAssignMap      = new (ialloc) NodeToIndirAssignMap(ialloc);
-        }
-        return m_indirAssignMap;
-    }
-
     // Performs SSA conversion.
     void fgSsaBuild();
 
@@ -4582,8 +4534,7 @@ public:
 
     bool fgCastNeeded(GenTree* tree, var_types toType);
     GenTree* fgDoNormalizeOnStore(GenTree* tree);
-    GenTree* fgMakeTmpArgNode(
-        unsigned tmpVarNum FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(const bool passedInRegisters));
+    GenTree* fgMakeTmpArgNode(unsigned tmpVarNum UNIX_AMD64_ABI_ONLY_ARG(const bool passedInRegisters));
 
     // The following check for loops that don't execute calls
     bool fgLoopCallMarked;
@@ -4916,12 +4867,13 @@ private:
     GenTree* fgMorphArrayIndex(GenTree* tree);
     GenTree* fgMorphCast(GenTree* tree);
     GenTree* fgUnwrapProxy(GenTree* objRef);
+    GenTreeFieldList* fgMorphLclArgToFieldlist(GenTreeLclVarCommon* lcl);
     GenTreeCall* fgMorphArgs(GenTreeCall* call);
 
     void fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
                                      GenTree*             args,
                                      unsigned             argIndex,
-                                     CORINFO_CLASS_HANDLE copyBlkClass FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(
+                                     CORINFO_CLASS_HANDLE copyBlkClass UNIX_AMD64_ABI_ONLY_ARG(
                                          const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structDescPtr));
 
     void fgFixupStructReturn(GenTree* call);
@@ -4934,7 +4886,7 @@ private:
     GenTree* fgMorphField(GenTree* tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
-    void fgMorphTailCall(GenTreeCall* call);
+    void fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
     GenTree* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
@@ -7014,7 +6966,7 @@ public:
 
     bool eeTryResolveToken(CORINFO_RESOLVED_TOKEN* resolvedToken);
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 #ifdef DEBUG
     static void dumpSystemVClassificationType(SystemVClassificationType ct);
 #endif // DEBUG
@@ -7022,7 +6974,7 @@ public:
     void eeGetSystemVAmd64PassStructInRegisterDescriptor(
         /*IN*/ CORINFO_CLASS_HANDLE                                  structHnd,
         /*OUT*/ SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     template <typename ParamType>
     bool eeRunWithErrorTrap(void (*function)(ParamType*), ParamType* param)
@@ -7259,6 +7211,8 @@ public:
         compChangeLife</*ForCodeGen*/ true>(newLife);
     }
 
+#ifdef LEGACY_BACKEND
+
     template <bool ForCodeGen>
     void compUpdateLife(GenTree* tree);
 
@@ -7267,6 +7221,8 @@ public:
     // use.  (Can be more than one var in the case of dependently promoted struct vars.)
     template <bool ForCodeGen>
     void compUpdateLifeVar(GenTree* tree, VARSET_TP* pLastUseVars = nullptr);
+
+#endif // LEGACY_BACKEND
 
     template <bool ForCodeGen>
     inline void compUpdateLife(VARSET_VALARG_TP newLife);
@@ -9722,7 +9678,7 @@ public:
 
     static HelperCallProperties s_helperCallProperties;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     static var_types GetTypeFromClassificationAndSizes(SystemVClassificationType classType, int size);
     static var_types GetEightByteType(const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR& structDesc,
                                       unsigned                                                   slotNum);
@@ -9740,7 +9696,7 @@ public:
                              unsigned __int8*     offset1);
 
     void fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
     void fgMorphMultiregStructArgs(GenTreeCall* call);
     GenTree* fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntryPtr);

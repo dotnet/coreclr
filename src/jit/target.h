@@ -317,6 +317,21 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
 // #define PSEUDORANDOM_NOP_INSERTION
 // #endif
 
+// TODO-Cleanup: FEATURE_PREVENT_BAD_BYREFS guards code that prevents creating byref pointers to array elements
+// that are not "complete". That is, it only allows byref pointers to the exact array element, not to a portion
+// of the address expression leading to the full addressing expression. This prevents the possibility of creating
+// an illegal byref, which is an expression that points outside of the "host" object. Such bad byrefs won't get
+// updated properly during a GC, leaving them to point to garbage. This led to a GC hole on ARM due to ARM's
+// limited addressing modes (found in GCStress). The change is applicable and possibly desirable for other platforms,
+// but was put under ifdef to avoid introducing potential destabilizing change to those platforms at the end of the
+// .NET Core 2.1 ship cycle. More detail here: https://github.com/dotnet/coreclr/pull/17524. Consider making this
+// all-platform and removing these #ifdefs.
+#if defined(_TARGET_ARM_)
+#define FEATURE_PREVENT_BAD_BYREFS 1
+#else
+#define FEATURE_PREVENT_BAD_BYREFS 0
+#endif
+
 /*****************************************************************************/
 
 // clang-format off
@@ -1003,13 +1018,13 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_LNGRET               REG_EAX
   #define RBM_LNGRET               RBM_EAX
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     #define REG_INTRET_1           REG_RDX
     #define RBM_INTRET_1           RBM_RDX
 
     #define REG_LNGRET_1           REG_RDX
     #define RBM_LNGRET_1           RBM_RDX
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 
   #define REG_FLOATRET             REG_XMM0
@@ -1017,13 +1032,13 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_DOUBLERET            REG_XMM0
   #define RBM_DOUBLERET            RBM_XMM0
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 #define REG_FLOATRET_1             REG_XMM1
 #define RBM_FLOATRET_1             RBM_XMM1
 
 #define REG_DOUBLERET_1            REG_XMM1
 #define RBM_DOUBLERET_1            RBM_XMM1
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
   #define REG_FPBASE               REG_EBP
   #define RBM_FPBASE               RBM_EBP
@@ -1117,7 +1132,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_PROFILER_TAILCALL_TRASH  RBM_PROFILER_LEAVE_TRASH
 
   // The registers trashed by the CORINFO_HELP_STOP_FOR_GC helper.
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
   // See vm\amd64\unixasmhelpers.S for more details.
   //
   // On Unix a struct of size >=9 and <=16 bytes in size is returned in two return registers.
@@ -1731,8 +1746,8 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_PINVOKE_COOKIE_PARAM          RBM_R15
 
   // GenericPInvokeCalliHelper unmanaged target Parameter 
-  #define REG_PINVOKE_TARGET_PARAM          REG_R14
-  #define RBM_PINVOKE_TARGET_PARAM          RBM_R14
+  #define REG_PINVOKE_TARGET_PARAM          REG_R12
+  #define RBM_PINVOKE_TARGET_PARAM          RBM_R12
 
   // IL stub's secret MethodDesc parameter (JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM)
   #define REG_SECRET_STUB_PARAM     REG_R12

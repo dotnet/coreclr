@@ -66,11 +66,14 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
-            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
+            if [[ $ID == "rhel" ]]; then
                 # remove the last version digit
                 VERSION_ID=${VERSION_ID%.*}
             fi
             __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+            if [[ $ID == "alpine" ]]; then
+                __HostDistroRid="linux-musl-$__HostArch"
+            fi
         elif [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
@@ -150,10 +153,10 @@ check_prereqs()
     hash cmake 2>/dev/null || { echo >&2 "Please install cmake before running this script"; exit 1; }
 
 
-    # Minimum required version of clang is version 3.9 for arm/armel cross build
+    # Minimum required version of clang is version 4.0 for arm/armel cross build
     if [[ $__CrossBuild == 1 && ("$__BuildArch" == "arm" || "$__BuildArch" == "armel") ]]; then
-        if ! [[ "$__ClangMajorVersion" -gt "3" || ( $__ClangMajorVersion == 3 && $__ClangMinorVersion == 9 ) ]]; then
-            echo "Please install clang3.9 or latest for arm/armel cross build"; exit 1;
+        if ! [[ "$__ClangMajorVersion" -ge "4" ]]; then
+            echo "Please install clang4.0 or latest for arm/armel cross build"; exit 1;
         fi
     fi
 
@@ -217,6 +220,9 @@ generate_event_logging_sources()
     echo "Laying out dynamically generated EventPipe Implementation"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
 
+    echo "Laying out dynamically generated EventSource classes"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
+
     # determine the logging system
     case $__BuildOS in
         Linux|FreeBSD)
@@ -239,7 +245,7 @@ generate_event_logging_sources()
 generate_event_logging()
 {
     # Event Logging Infrastructure
-    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
+    if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
         generate_event_logging_sources "$__IntermediatesDir" "the native build system"
     fi
 
@@ -894,8 +900,13 @@ fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
-    __ClangMajorVersion=3
-    __ClangMinorVersion=9
+	if [[ "$__BuildArch" == "arm" || "$__BuildArch" == "armel" ]]; then
+		__ClangMajorVersion=5
+		__ClangMinorVersion=0
+	else
+		__ClangMajorVersion=3
+		__ClangMinorVersion=9
+	fi
 fi
 
 if [[ "$__BuildArch" == "armel" ]]; then
