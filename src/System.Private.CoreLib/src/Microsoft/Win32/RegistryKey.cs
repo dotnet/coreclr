@@ -58,15 +58,13 @@ using System.Text;
 
 namespace Microsoft.Win32
 {
-    /**
-     * Registry encapsulation. To get an instance of a RegistryKey use the
-     * Registry class's static members then call OpenSubKey.
-     *
-     * @see Registry
-     * @security(checkDllCalls=off)
-     * @security(checkClassLinking=on)
-     */
-    internal sealed class RegistryKey : MarshalByRefObject, IDisposable
+    /// <summary>Registry encapsulation. To get an instance of a RegistryKey use the Registry class's static members then call OpenSubKey.</summary>
+#if !CORE_CLR && REGISTRY_ASSEMBLY
+    public
+#else
+    internal
+#endif
+    sealed class RegistryKey : MarshalByRefObject, IDisposable
     {
         // We could use const here, if C# supported ELEMENT_TYPE_I fully.
         internal static readonly IntPtr HKEY_CLASSES_ROOT = new IntPtr(unchecked((int)0x80000000));
