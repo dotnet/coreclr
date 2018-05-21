@@ -2945,7 +2945,7 @@ int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
     unsigned weight2 = dsc2->lvRefCnt;
 
 #ifndef _TARGET_ARM_
-    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from 
+    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from
     // legacy backend. It should be enabled and verified.
 
     /* Force integer candidates to sort above float candidates */
@@ -3085,7 +3085,7 @@ int __cdecl Compiler::WtdRefCntCmp(const void* op1, const void* op2)
     unsigned weight2 = dsc2->lvRefCntWtd;
 
 #ifndef _TARGET_ARM_
-    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from 
+    // ARM-TODO: this was disabled for ARM under !FEATURE_FP_REGALLOC; it was probably a left-over from
     // legacy backend. It should be enabled and verified.
 
     /* Force integer candidates to sort above float candidates */
