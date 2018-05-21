@@ -20642,27 +20642,17 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
     /* Check bbNum, bbRefs and bbPreds */
     // First, pick a traversal stamp, and label all the blocks with it.
     unsigned curTraversalStamp = unsigned(InterlockedIncrement((LONG*)&bbTraverseLabel));
-    for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
         block->bbTraversalStamp = curTraversalStamp;
     }
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        unsigned blockRefs = 0;
-
-        /* First basic block has countOfInEdges() >= 1 */
-
-        if (block == fgFirstBB)
-        {
-            noway_assert(block->countOfInEdges() >= 1);
-            blockRefs = 1;
-        }
-
         if (checkBBNum)
         {
             // Check that bbNum is sequential
-            noway_assert(block->bbNext == nullptr || (block->bbNum + 1 == block->bbNext->bbNum));
+            assert(block->bbNext == nullptr || (block->bbNum + 1 == block->bbNext->bbNum));
         }
 
         // If the block is a BBJ_COND, a BBJ_SWITCH or a
@@ -20671,17 +20661,17 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
 
         if (block->bbJumpKind == BBJ_COND)
         {
-            noway_assert(block->lastNode()->gtNext == nullptr && block->lastNode()->OperIsConditionalJump());
+            assert(block->lastNode()->gtNext == nullptr && block->lastNode()->OperIsConditionalJump());
         }
         else if (block->bbJumpKind == BBJ_SWITCH)
         {
-            noway_assert(block->lastNode()->gtNext == nullptr &&
-                         (block->lastNode()->gtOper == GT_SWITCH || block->lastNode()->gtOper == GT_SWITCH_TABLE));
+            assert(block->lastNode()->gtNext == nullptr &&
+                   (block->lastNode()->gtOper == GT_SWITCH || block->lastNode()->gtOper == GT_SWITCH_TABLE));
         }
         else if (!(block->bbJumpKind == BBJ_ALWAYS || block->bbJumpKind == BBJ_RETURN))
         {
             // this block cannot have a poll
-            noway_assert(!(block->bbFlags & BBF_NEEDS_GCPOLL));
+            assert(!(block->bbFlags & BBF_NEEDS_GCPOLL));
         }
 
         if (block->bbCatchTyp == BBCT_FILTER)
@@ -20689,7 +20679,7 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
             if (!fgCheapPredsValid) // Don't check cheap preds
             {
                 // A filter has no predecessors
-                noway_assert(block->bbPreds == nullptr);
+                assert(block->bbPreds == nullptr);
             }
         }
 
@@ -20720,7 +20710,18 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         }
 #endif // FEATURE_EH_FUNCLETS
 
-        fgDebugCheckBBPreds(block, blockRefs, curTraversalStamp);
+        if (checkBBRefs)
+        {
+            assert(fgComputePredsDone);
+        }
+
+        unsigned blockRefs = fgDebugCheckBBPreds(block, curTraversalStamp);
+
+        // First basic block has an additional global incoming edge.
+        if (block == fgFirstBB)
+        {
+            blockRefs += 1;
+        }
 
         /* Check the bbRefs */
         if (checkBBRefs)
@@ -20749,26 +20750,26 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         /* Check that BBF_HAS_HANDLER is valid bbTryIndex */
         if (block->hasTryIndex())
         {
-            noway_assert(block->getTryIndex() < compHndBBtabCount);
+            assert(block->getTryIndex() < compHndBBtabCount);
         }
 
         /* Check if BBF_RUN_RARELY is set that we have bbWeight of zero */
         if (block->isRunRarely())
         {
-            noway_assert(block->bbWeight == BB_ZERO_WEIGHT);
+            assert(block->bbWeight == BB_ZERO_WEIGHT);
         }
         else
         {
-            noway_assert(block->bbWeight > BB_ZERO_WEIGHT);
+            assert(block->bbWeight > BB_ZERO_WEIGHT);
         }
     }
 
     // Make sure the one return BB is not changed.
-    if (genReturnBB)
+    if (genReturnBB != nullptr)
     {
-        noway_assert(genReturnBB->bbTreeList);
-        noway_assert(genReturnBB->IsLIR() || genReturnBB->bbTreeList->gtOper == GT_STMT);
-        noway_assert(genReturnBB->IsLIR() || genReturnBB->bbTreeList->gtType == TYP_VOID);
+        assert(genReturnBB->bbTreeList);
+        assert(genReturnBB->IsLIR() || genReturnBB->bbTreeList->gtOper == GT_STMT);
+        assert(genReturnBB->IsLIR() || genReturnBB->bbTreeList->gtType == TYP_VOID);
     }
 
     // The general encoder/decoder (currently) only reports "this" as a generics context as a stack location,
@@ -20785,7 +20786,7 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
     if (info.compIsStatic)
     {
         // For static method, should have never grabbed the temp.
-        noway_assert(lvaArg0Var == BAD_VAR_NUM);
+        assert(lvaArg0Var == BAD_VAR_NUM);
     }
     else
     {
@@ -20800,26 +20801,50 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         // Should never expose the address of arg 0 or write to arg 0.
         // In addition, lvArg0Var should remain 0 if arg0 is not
         // written to or address-exposed.
-        noway_assert(
-            compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvHasILStoreOp &&
-            (lvaArg0Var == info.compThisArg ||
-             lvaArg0Var != info.compThisArg &&
-                 (lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvHasILStoreOp || copiedForGenericsCtxt)));
+        assert(compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvHasILStoreOp &&
+               (lvaArg0Var == info.compThisArg ||
+                lvaArg0Var != info.compThisArg && (lvaTable[lvaArg0Var].lvAddrExposed ||
+                                                   lvaTable[lvaArg0Var].lvHasILStoreOp || copiedForGenericsCtxt)));
     }
 }
 
-void Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned int& blockRefs, unsigned int curTraversalStamp)
+//------------------------------------------------------------------------
+// fgDebugCheckBBPreds: Check basic block predecessors list.
+//
+// Notes:
+//   This DEBUG routine checks that all preds could reach the block,
+//   have correct traversal stamp;
+//   It calculates number of incoming edges from the internal block,
+//   i.e. it does not count global incoming edge for the first block.
+//
+// Arguments:
+//   block - the block to process;
+//   curTraversalStamp - current traversal stamp to distinguish different iterations.
+//
+// Return value:
+//   the number of incoming edges for the block.
+unsigned Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned curTraversalStamp)
 {
-    // Don't check cheap preds.
-    for (flowList *pred = (fgCheapPredsValid ? nullptr : block->bbPreds); pred != nullptr;
-         blockRefs += pred->flDupCount, pred = pred->flNext)
+    if (fgCheapPredsValid)
     {
-        assert(fgComputePredsDone); // If this isn't set, why do we have a preds list?
+        return 0;
+    }
 
-        /*  make sure this pred is part of the BB list */
+    if (!fgComputePredsDone)
+    {
+        assert(block->bbPreds == nullptr);
+        return 0;
+    }
+
+    unsigned blockRefs = 0;
+    for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+    {
+        blockRefs += pred->flDupCount;
 
         BasicBlock* blockPred = pred->flBlock;
-        noway_assert(blockPred->bbTraversalStamp == curTraversalStamp);
+
+        // Make sure this pred is part of the BB list.
+        assert(blockPred->bbTraversalStamp == curTraversalStamp);
 
         EHblkDsc* ehTryDsc = ehGetBlockTryDsc(block);
         if (ehTryDsc != nullptr)
@@ -20827,19 +20852,19 @@ void Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned int& blockRefs, u
             // You can jump to the start of a try
             if (ehTryDsc->ebdTryBeg == block)
             {
-                goto CHECK_HND;
+                goto CHECK_EXCEPTION_HANDLER;
             }
 
             // You can jump within the same try region
             if (bbInTryRegions(block->getTryIndex(), blockPred))
             {
-                goto CHECK_HND;
+                goto CHECK_EXCEPTION_HANDLER;
             }
 
             // The catch block can jump back into the middle of the try
             if (bbInCatchHandlerRegions(block, blockPred))
             {
-                goto CHECK_HND;
+                goto CHECK_EXCEPTION_HANDLER;
             }
 
             // The end of a finally region is a BBJ_EHFINALLYRET block (during importing, BBJ_LEAVE) which
@@ -20850,14 +20875,14 @@ void Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned int& blockRefs, u
             if (prevBlock->bbJumpKind == BBJ_CALLFINALLY && block->bbJumpKind == BBJ_ALWAYS &&
                 blockPred->bbJumpKind == BBJ_EHFINALLYRET)
             {
-                goto CHECK_HND;
+                goto CHECK_EXCEPTION_HANDLER;
             }
 
             printf("Jump into the middle of try region: BB%02u branches to BB%02u\n", blockPred->bbNum, block->bbNum);
-            noway_assert(!"Jump into middle of try region");
+            assert(!"Jump into middle of try region");
         }
 
-    CHECK_HND:;
+    CHECK_EXCEPTION_HANDLER:
 
         EHblkDsc* ehHndDsc = ehGetBlockHndDsc(block);
         if (ehHndDsc != nullptr)
@@ -20889,26 +20914,26 @@ void Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned int& blockRefs, u
 
             printf("Jump into the middle of handler region: BB%02u branches to BB%02u\n", blockPred->bbNum,
                    block->bbNum);
-            noway_assert(!"Jump into the middle of handler region");
+            assert(!"Jump into the middle of handler region");
         }
 
-    CHECK_JUMP:;
+    CHECK_JUMP:
 
         switch (blockPred->bbJumpKind)
         {
             case BBJ_COND:
-                noway_assert(blockPred->bbNext == block || blockPred->bbJumpDest == block);
+                assert(blockPred->bbNext == block || blockPred->bbJumpDest == block);
                 break;
 
             case BBJ_NONE:
-                noway_assert(blockPred->bbNext == block);
+                assert(blockPred->bbNext == block);
                 break;
 
             case BBJ_CALLFINALLY:
             case BBJ_ALWAYS:
             case BBJ_EHCATCHRET:
             case BBJ_EHFILTERRET:
-                noway_assert(blockPred->bbJumpDest == block);
+                assert(blockPred->bbJumpDest == block);
                 break;
 
             case BBJ_EHFINALLYRET:
@@ -20972,39 +20997,42 @@ void Compiler::fgDebugCheckBBPreds(BasicBlock* block, unsigned int& blockRefs, u
 
 #endif // FEATURE_EH_FUNCLETS
 
-                noway_assert(!"BBJ_EHFINALLYRET predecessor of block that doesn't follow a BBJ_CALLFINALLY!");
+                assert(!"BBJ_EHFINALLYRET predecessor of block that doesn't follow a BBJ_CALLFINALLY!");
             }
             break;
 
             case BBJ_THROW:
             case BBJ_RETURN:
-                noway_assert(!"THROW and RETURN block cannot be in the predecessor list!");
+                assert(!"THROW and RETURN block cannot be in the predecessor list!");
                 break;
 
             case BBJ_SWITCH:
-                unsigned jumpCnt;
-                jumpCnt = blockPred->bbJumpSwt->bbsCount;
-                BasicBlock** jumpTab;
-                jumpTab = blockPred->bbJumpSwt->bbsDstTab;
+            {
+                unsigned     jumpCnt = blockPred->bbJumpSwt->bbsCount;
+                BasicBlock** jumpTab = blockPred->bbJumpSwt->bbsDstTab;
 
-                do
+                for (unsigned i = 0; i < jumpCnt; ++i)
                 {
-                    if (block == *jumpTab)
+                    BasicBlock* jumpTab = blockPred->bbJumpSwt->bbsDstTab[i];
+                    assert(jumpTab != nullptr);
+                    if (block == jumpTab)
                     {
                         goto PRED_OK;
                     }
-                } while (++jumpTab, --jumpCnt);
+                }
 
-                noway_assert(!"SWITCH in the predecessor list with no jump label to BLOCK!");
-                break;
+                assert(!"SWITCH in the predecessor list with no jump label to BLOCK!");
+            }
+            break;
 
             default:
-                noway_assert(!"Unexpected bbJumpKind");
+                assert(!"Unexpected bbJumpKind");
                 break;
         }
 
     PRED_OK:;
     }
+    return blockRefs;
 }
 
 /*****************************************************************************
