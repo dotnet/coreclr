@@ -694,21 +694,6 @@ XX                                                                           XX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
-//
-
-//------------------------------------------------------------------------
-// genGetAssignedReg: Get the register assigned to the given node
-//
-// Arguments:
-//    tree      - the lclVar node whose assigned register we want
-//
-// Return Value:
-//    The assigned regNumber
-//
-regNumber CodeGenInterface::genGetAssignedReg(GenTree* tree)
-{
-    return tree->gtRegNum;
-}
 
 //------------------------------------------------------------------------
 // genSpillVar: Spill a local variable

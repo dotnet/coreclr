@@ -276,9 +276,6 @@ protected:
 #endif
 
 public:
-    regNumber genGetAssignedReg(GenTree* tree);
-
-public:
     unsigned InferStructOpSizeAlign(GenTree* op, unsigned* alignmentWB);
     unsigned InferOpSizeAlign(GenTree* op, unsigned* alignmentWB);
 
