@@ -276,7 +276,6 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   # some  dependencies from port collection are installed under /usr/local
-  link_directories("/usr/local/lib")
   if(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
     find_library(UNWIND unwind)
   endif()
