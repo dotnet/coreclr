@@ -184,7 +184,7 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        public override void Emit(OpCode opcode, String str)
+        public override void Emit(OpCode opcode, string str)
         {
             if (str == null)
                 throw new ArgumentNullException(nameof(str));
@@ -414,7 +414,7 @@ namespace System.Reflection.Emit
         // debugger related calls. 
         //
         //
-        public override void UsingNamespace(String ns)
+        public override void UsingNamespace(string ns)
         {
             throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
@@ -554,7 +554,7 @@ namespace System.Reflection.Emit
             return m_scope.GetTokenFor(varArgMeth);
         }
 
-        private int GetTokenForString(String s)
+        private int GetTokenForString(string s)
         {
             return m_scope.GetTokenFor(s);
         }
@@ -785,7 +785,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        internal override String GetStringLiteral(int token) { return m_scope.GetString(token); }
+        internal override string GetStringLiteral(int token) { return m_scope.GetString(token); }
 
 
         internal override void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle)

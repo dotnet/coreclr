@@ -19,9 +19,9 @@ namespace System.Globalization
                                    // be affected by the DateTime.MinValue;
         internal int maxEraYear;   // Max year value in this era. (== the year length of the era + 1)
 
-        internal String eraName;    // The era name
-        internal String abbrevEraName;  // Abbreviated Era Name
-        internal String englishEraName; // English era name
+        internal string eraName;    // The era name
+        internal string abbrevEraName;  // Abbreviated Era Name
+        internal string englishEraName; // English era name
 
         internal EraInfo(int era, int startYear, int startMonth, int startDay, int yearOffset, int minEraYear, int maxEraYear)
         {
@@ -33,7 +33,7 @@ namespace System.Globalization
         }
 
         internal EraInfo(int era, int startYear, int startMonth, int startDay, int yearOffset, int minEraYear, int maxEraYear,
-                          String eraName, String abbrevEraName, String englishEraName)
+                          string eraName, string abbrevEraName, string englishEraName)
         {
             this.era = era;
             this.yearOffset = yearOffset;

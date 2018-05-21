@@ -4231,7 +4231,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Gets the arguments for the callback.
         /// </summary>
-        public IDictionary<String, String> Arguments { get; internal set; }
+        public IDictionary<string, string> Arguments { get; internal set; }
 
         /// <summary>
         /// Enables the event that has the specified identifier.

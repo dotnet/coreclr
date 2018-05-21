@@ -15,7 +15,7 @@ namespace System.Reflection
             CorElementType corElementType = 0;
             long buffer = 0;
             int length;
-            String stringVal;
+            string stringVal;
 
             stringVal = scope.GetDefaultValue(token, out buffer, out length, out corElementType);
 

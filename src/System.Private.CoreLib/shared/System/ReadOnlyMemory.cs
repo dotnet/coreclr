@@ -6,7 +6,8 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.ComponentModel;
+using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
+using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 #if !FEATURE_PORTABLE_SPAN
 using Internal.Runtime.CompilerServices;
 #endif // FEATURE_PORTABLE_SPAN

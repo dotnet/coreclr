@@ -18,8 +18,8 @@ namespace System.Globalization
             return (_hijriAdvance);
         }
 
-        private const String InternationalRegKey = "Control Panel\\International";
-        private const String HijriAdvanceRegKeyEntry = "AddHijriDate";
+        private const string InternationalRegKey = "Control Panel\\International";
+        private const string HijriAdvanceRegKeyEntry = "AddHijriDate";
 
         /*=================================GetAdvanceHijriDate==========================
         **Action: Gets the AddHijriDate value from the registry.
@@ -60,7 +60,7 @@ namespace System.Globalization
                     {
                         return (0);
                     }
-                    String str = value.ToString();
+                    string str = value.ToString();
                     if (string.Compare(str, 0, HijriAdvanceRegKeyEntry, 0, HijriAdvanceRegKeyEntry.Length, StringComparison.OrdinalIgnoreCase) == 0)
                     {
                         if (str.Length == HijriAdvanceRegKeyEntry.Length)

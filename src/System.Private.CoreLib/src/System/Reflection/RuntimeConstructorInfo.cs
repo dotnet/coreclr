@@ -138,7 +138,7 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override String ToString()
+        public override string ToString()
         {
             // "Void" really doesn't make sense here. But we'll keep it for compat reasons.
             if (m_toString == null)
@@ -188,7 +188,7 @@ namespace System.Reflection
 
 
         #region MemberInfo Overrides
-        public override String Name
+        public override string Name
         {
             get { return RuntimeMethodHandle.GetName(this); }
         }

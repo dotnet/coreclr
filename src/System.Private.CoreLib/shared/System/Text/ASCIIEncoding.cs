@@ -298,7 +298,7 @@ namespace System.Text
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
         // parent method is safe
 
-        public override unsafe String GetString(byte[] bytes, int byteIndex, int byteCount)
+        public override unsafe string GetString(byte[] bytes, int byteIndex, int byteCount)
         {
             // Validate Parameters
             if (bytes == null)

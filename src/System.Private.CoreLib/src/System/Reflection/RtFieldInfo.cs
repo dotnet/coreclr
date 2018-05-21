@@ -237,7 +237,7 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name
+        public override string Name
         {
             get
             {
@@ -248,7 +248,7 @@ namespace System.Reflection
             }
         }
 
-        internal String FullName
+        internal string FullName
         {
             get
             {

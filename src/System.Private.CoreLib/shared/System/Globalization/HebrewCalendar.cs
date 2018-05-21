@@ -344,7 +344,7 @@ namespace System.Globalization
         **  We use a table for the Hebrew calendar calculation, so the year supported is limited.
         ============================================================================*/
 
-        private static void CheckHebrewYearValue(int y, int era, String varName)
+        private static void CheckHebrewYearValue(int y, int era, string varName)
         {
             CheckEraRange(era);
             if (y > MaxHebrewYear || y < MinHebrewYear)

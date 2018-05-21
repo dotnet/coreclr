@@ -1256,7 +1256,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public static String PtrToStringHString(IntPtr ptr)
+        public static string PtrToStringHString(IntPtr ptr)
         {
             if (!Environment.IsWinRTSupported)
             {
