@@ -39,7 +39,7 @@ manifestTypeToCSharpTypeMap = {
     "win:UInt32" : "UInt32",
     "win:UInt64" : "UInt64",
     "win:Int32" : "Int32",
-    "win:Pointer" : "UIntPtr",
+    "win:Pointer" : "IntPtr",
     "win:UnicodeString" : "string",
     "win:Binary" : "byte[]",
     "win:Double" : "double",
