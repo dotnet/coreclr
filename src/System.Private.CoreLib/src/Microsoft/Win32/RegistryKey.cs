@@ -57,7 +57,7 @@ using System.Text;
 namespace Microsoft.Win32
 {
     /// <summary>Registry encapsulation. To get an instance of a RegistryKey use the Registry class's static members then call OpenSubKey.</summary>
-#if !CORE_CLR && REGISTRY_ASSEMBLY
+#if REGISTRY_ASSEMBLY
     public
 #else
     internal

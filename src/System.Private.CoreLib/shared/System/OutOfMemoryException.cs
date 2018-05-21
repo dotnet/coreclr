@@ -14,7 +14,7 @@ namespace System
     public class OutOfMemoryException : SystemException
     {
         public OutOfMemoryException() : base(
-#if CORE_CLR
+#if CORECLR
             GetMessageFromNativeResources(ExceptionMessageKind.OutOfMemory)
 #else
             SR.Arg_OutOfMemoryException

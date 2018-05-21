@@ -14,7 +14,7 @@ namespace System.Threading
     public class ThreadInterruptedException : SystemException
     {
         public ThreadInterruptedException() : base(
-#if CORE_CLR
+#if CORECLR
             GetMessageFromNativeResources(ExceptionMessageKind.ThreadInterrupted)
 #else
             SR.Threading_ThreadInterrupted
