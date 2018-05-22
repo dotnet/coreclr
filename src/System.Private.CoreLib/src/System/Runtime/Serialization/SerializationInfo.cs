@@ -30,14 +30,14 @@ namespace System.Runtime.Serialization
 
         // Even though we have a dictionary, we're still keeping all the arrays around for back-compat. 
         // Otherwise we may run into potentially breaking behaviors like GetEnumerator() not returning entries in the same order they were added.
-        internal String[] m_members;
+        internal string[] m_members;
         internal Object[] m_data;
         internal Type[] m_types;
         private Dictionary<string, int> m_nameToIndex;
         internal int m_currMember;
         internal IFormatterConverter m_converter;
-        private String m_fullTypeName;
-        private String m_assemName;
+        private string m_fullTypeName;
+        private string m_assemName;
         private Type objectType;
         private bool isFullTypeNameSetExplicit;
         private bool isAssemblyNameSetExplicit;
@@ -67,7 +67,7 @@ namespace System.Runtime.Serialization
             m_fullTypeName = type.FullName;
             m_assemName = type.Module.Assembly.FullName;
 
-            m_members = new String[defaultSize];
+            m_members = new string[defaultSize];
             m_data = new Object[defaultSize];
             m_types = new Type[defaultSize];
 
@@ -78,7 +78,7 @@ namespace System.Runtime.Serialization
             this.requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
-        public String FullTypeName
+        public string FullTypeName
         {
             get
             {
@@ -96,7 +96,7 @@ namespace System.Runtime.Serialization
             }
         }
 
-        public String AssemblyName
+        public string AssemblyName
         {
             get
             {
@@ -201,7 +201,7 @@ namespace System.Runtime.Serialization
             //
             // Allocate more space and copy the data
             //
-            String[] newMembers = new String[newSize];
+            string[] newMembers = new string[newSize];
             Object[] newData = new Object[newSize];
             Type[] newTypes = new Type[newSize];
 
@@ -217,7 +217,7 @@ namespace System.Runtime.Serialization
             m_types = newTypes;
         }
 
-        public void AddValue(String name, Object value, Type type)
+        public void AddValue(string name, Object value, Type type)
         {
             if (null == name)
             {
@@ -232,7 +232,7 @@ namespace System.Runtime.Serialization
             AddValueInternal(name, value, type);
         }
 
-        public void AddValue(String name, Object value)
+        public void AddValue(string name, Object value)
         {
             if (null == value)
             {
@@ -244,82 +244,82 @@ namespace System.Runtime.Serialization
             }
         }
 
-        public void AddValue(String name, bool value)
+        public void AddValue(string name, bool value)
         {
             AddValue(name, (Object)value, typeof(bool));
         }
 
-        public void AddValue(String name, char value)
+        public void AddValue(string name, char value)
         {
             AddValue(name, (Object)value, typeof(char));
         }
 
 
         [CLSCompliant(false)]
-        public void AddValue(String name, sbyte value)
+        public void AddValue(string name, sbyte value)
         {
             AddValue(name, (Object)value, typeof(sbyte));
         }
 
-        public void AddValue(String name, byte value)
+        public void AddValue(string name, byte value)
         {
             AddValue(name, (Object)value, typeof(byte));
         }
 
-        public void AddValue(String name, short value)
+        public void AddValue(string name, short value)
         {
             AddValue(name, (Object)value, typeof(short));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, ushort value)
+        public void AddValue(string name, ushort value)
         {
             AddValue(name, (Object)value, typeof(ushort));
         }
 
-        public void AddValue(String name, int value)
+        public void AddValue(string name, int value)
         {
             AddValue(name, (Object)value, typeof(int));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, uint value)
+        public void AddValue(string name, uint value)
         {
             AddValue(name, (Object)value, typeof(uint));
         }
 
-        public void AddValue(String name, long value)
+        public void AddValue(string name, long value)
         {
             AddValue(name, (Object)value, typeof(long));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, ulong value)
+        public void AddValue(string name, ulong value)
         {
             AddValue(name, (Object)value, typeof(ulong));
         }
 
-        public void AddValue(String name, float value)
+        public void AddValue(string name, float value)
         {
             AddValue(name, (Object)value, typeof(float));
         }
 
-        public void AddValue(String name, double value)
+        public void AddValue(string name, double value)
         {
             AddValue(name, (Object)value, typeof(double));
         }
 
-        public void AddValue(String name, decimal value)
+        public void AddValue(string name, decimal value)
         {
             AddValue(name, (Object)value, typeof(decimal));
         }
 
-        public void AddValue(String name, DateTime value)
+        public void AddValue(string name, DateTime value)
         {
             AddValue(name, (Object)value, typeof(DateTime));
         }
 
-        internal void AddValueInternal(String name, Object value, Type type)
+        internal void AddValueInternal(string name, Object value, Type type)
         {
             if (m_nameToIndex.ContainsKey(name))
             {
@@ -358,7 +358,7 @@ namespace System.Runtime.Serialization
         // This should not be used by clients: exposing out this functionality would allow children
         // to overwrite their parent's values. It is public in order to give corefx access to it for
         // its ObjectManager implementation, but it should not be exposed out of a contract.
-        public void UpdateValue(String name, Object value, Type type)
+        public void UpdateValue(string name, Object value, Type type)
         {
             Debug.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
             Debug.Assert(null != value, "[SerializationInfo.UpdateValue]value!=null");
@@ -376,7 +376,7 @@ namespace System.Runtime.Serialization
             }
         }
 
-        private int FindElement(String name)
+        private int FindElement(string name)
         {
             if (null == name)
             {
@@ -400,7 +400,7 @@ namespace System.Runtime.Serialization
         **Exceptions: None.  FindElement does null checking and throws for elements not 
         **            found.
         ==============================================================================*/
-        private Object GetElement(String name, out Type foundType)
+        private Object GetElement(string name, out Type foundType)
         {
             int index = FindElement(name);
             if (index == -1)
@@ -416,7 +416,7 @@ namespace System.Runtime.Serialization
             return m_data[index];
         }
 
-        private Object GetElementNoThrow(String name, out Type foundType)
+        private Object GetElementNoThrow(string name, out Type foundType)
         {
             int index = FindElement(name);
             if (index == -1)
@@ -438,7 +438,7 @@ namespace System.Runtime.Serialization
         // form requested.  
         //
 
-        public Object GetValue(String name, Type type)
+        public Object GetValue(string name, Type type)
         {
             if ((object)type == null)
             {
@@ -464,7 +464,7 @@ namespace System.Runtime.Serialization
             return m_converter.Convert(value, type);
         }
 
-        internal Object GetValueNoThrow(String name, Type type)
+        internal Object GetValueNoThrow(string name, Type type)
         {
             Type foundType;
             Object value;
@@ -486,7 +486,7 @@ namespace System.Runtime.Serialization
             return m_converter.Convert(value, type);
         }
 
-        public bool GetBoolean(String name)
+        public bool GetBoolean(string name)
         {
             Type foundType;
             Object value;
@@ -499,7 +499,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToBoolean(value);
         }
 
-        public char GetChar(String name)
+        public char GetChar(string name)
         {
             Type foundType;
             Object value;
@@ -513,7 +513,7 @@ namespace System.Runtime.Serialization
         }
 
         [CLSCompliant(false)]
-        public sbyte GetSByte(String name)
+        public sbyte GetSByte(string name)
         {
             Type foundType;
             Object value;
@@ -526,7 +526,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToSByte(value);
         }
 
-        public byte GetByte(String name)
+        public byte GetByte(string name)
         {
             Type foundType;
             Object value;
@@ -539,7 +539,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToByte(value);
         }
 
-        public short GetInt16(String name)
+        public short GetInt16(string name)
         {
             Type foundType;
             Object value;
@@ -553,7 +553,7 @@ namespace System.Runtime.Serialization
         }
 
         [CLSCompliant(false)]
-        public ushort GetUInt16(String name)
+        public ushort GetUInt16(string name)
         {
             Type foundType;
             Object value;
@@ -566,7 +566,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToUInt16(value);
         }
 
-        public int GetInt32(String name)
+        public int GetInt32(string name)
         {
             Type foundType;
             Object value;
@@ -580,7 +580,7 @@ namespace System.Runtime.Serialization
         }
 
         [CLSCompliant(false)]
-        public uint GetUInt32(String name)
+        public uint GetUInt32(string name)
         {
             Type foundType;
             Object value;
@@ -593,7 +593,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToUInt32(value);
         }
 
-        public long GetInt64(String name)
+        public long GetInt64(string name)
         {
             Type foundType;
             Object value;
@@ -607,7 +607,7 @@ namespace System.Runtime.Serialization
         }
 
         [CLSCompliant(false)]
-        public ulong GetUInt64(String name)
+        public ulong GetUInt64(string name)
         {
             Type foundType;
             Object value;
@@ -620,7 +620,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToUInt64(value);
         }
 
-        public float GetSingle(String name)
+        public float GetSingle(string name)
         {
             Type foundType;
             Object value;
@@ -634,7 +634,7 @@ namespace System.Runtime.Serialization
         }
 
 
-        public double GetDouble(String name)
+        public double GetDouble(string name)
         {
             Type foundType;
             Object value;
@@ -647,7 +647,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToDouble(value);
         }
 
-        public decimal GetDecimal(String name)
+        public decimal GetDecimal(string name)
         {
             Type foundType;
             Object value;
@@ -660,7 +660,7 @@ namespace System.Runtime.Serialization
             return m_converter.ToDecimal(value);
         }
 
-        public DateTime GetDateTime(String name)
+        public DateTime GetDateTime(string name)
         {
             Type foundType;
             Object value;
@@ -673,15 +673,15 @@ namespace System.Runtime.Serialization
             return m_converter.ToDateTime(value);
         }
 
-        public String GetString(String name)
+        public string GetString(string name)
         {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(String)) || value == null)
+            if (Object.ReferenceEquals(foundType, typeof(string)) || value == null)
             {
-                return (String)value;
+                return (string)value;
             }
             return m_converter.ToString(value);
         }
