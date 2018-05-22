@@ -9,4 +9,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.CoreDisTools" Version="1.0.1-prerelease-00002" />
+  </ItemGroup>
+
 </Project>

@@ -113,24 +113,55 @@ namespace R2RDump
                     R2RMethods = new List<R2RMethod>();
                     for (uint rid = 1; rid <= nMethodEntryPoints; rid++)
                     {
-                        uint offset = 0;
+                        int offset = 0;
                         if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
                         {
-                            R2RMethod method = new R2RMethod(_image, mdReader, methodEntryPoints, offset, rid);
-                            if (method.EntryPointRuntimeFunctionId >= nRuntimeFunctions)
+                            R2RMethod method = new R2RMethod(_image, mdReader, methodEntryPoints, rid, offset);
+
+                            if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
                             {
-                                throw new BadImageFormatException("Runtime function id out of bounds");
+                                isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
                             }
-                            isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                            R2RMethods.Add(method);
+                        }
+                    }
+
+                    // instance method table
+                    R2RSection instMethodEntryPointSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS];
+                    int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
+                    NativeParser parser = new NativeParser(_image, (uint)instMethodEntryPointsOffset);
+                    var instMethodEntryPoints = new NativeHashTable(mdReader, _image, parser);
+                    int curOffset = instMethodEntryPointsOffset + (int)instMethodEntryPoints.End + 1;
+                    while (curOffset < instMethodEntryPointsOffset + instMethodEntryPointSection.Size)
+                    {
+                        byte methodFlags = ReadByte(_image, ref curOffset);
+                        byte rid = ReadByte(_image, ref curOffset);
+                        if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
+                        {
+                            byte nArgs = ReadByte(_image, ref curOffset);
+                            R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
+                            Array.Copy(_image, curOffset, args, 0, nArgs);
+                            curOffset += nArgs;
+
+                            uint id = 0;
+                            curOffset = (int)DecodeUnsigned(_image, (uint)curOffset, ref id);
+                            id = id >> 1;
+                            R2RMethod method = new R2RMethod(_image, mdReader, rid, (int)id, args);
+                            if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
+                            {
+                                isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                            }
                             R2RMethods.Add(method);
                         }
                     }
 
                     // get the RVAs of the runtime functions for each method
-                    int runtimeFunctionId = 0;
                     foreach (R2RMethod method in R2RMethods)
                     {
-                        int curOffset = (int)(runtimeFunctionOffset + method.EntryPointRuntimeFunctionId * runtimeFunctionSize);
+                        int runtimeFunctionId = method.EntryPointRuntimeFunctionId;
+                        if (runtimeFunctionId == -1)
+                            continue;
+                        curOffset = runtimeFunctionOffset + runtimeFunctionId * runtimeFunctionSize;
                         do
                         {
                             int startRva = ReadInt32(_image, ref curOffset);
@@ -242,6 +273,118 @@ namespace R2RDump
             byte val = image[start];
             start += sizeof(byte);
             return val;
+        }
+
+        public static uint DecodeUnsigned(byte[] image, uint offset, ref uint pValue)
+        {
+            if (offset >= image.Length)
+                throw new System.BadImageFormatException("offset out of bounds");
+
+            int off = (int)offset;
+            uint val = ReadByte(image, ref off);
+
+            if ((val & 1) == 0)
+            {
+                pValue = (val >> 1);
+                offset += 1;
+            }
+            else if ((val & 2) == 0)
+            {
+                if (offset + 1 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 2) |
+                      ((uint)ReadByte(image, ref off) << 6);
+                offset += 2;
+            }
+            else if ((val & 4) == 0)
+            {
+                if (offset + 2 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 3) |
+                      ((uint)ReadByte(image, ref off) << 5) |
+                      ((uint)ReadByte(image, ref off) << 13);
+                offset += 3;
+            }
+            else if ((val & 8) == 0)
+            {
+                if (offset + 3 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 4) |
+                      ((uint)ReadByte(image, ref off) << 4) |
+                      ((uint)ReadByte(image, ref off) << 12) |
+                      ((uint)ReadByte(image, ref off) << 20);
+                offset += 4;
+            }
+            else if ((val & 16) == 0)
+            {
+                pValue = ReadUInt32(image, ref off);
+                offset += 5;
+            }
+            else
+            {
+                throw new System.BadImageFormatException("DecodeUnsigned");
+            }
+
+            return offset;
+        }
+
+        public static uint DecodeSigned(byte[] image, uint offset, ref int pValue)
+        {
+            if (offset >= image.Length)
+                throw new System.BadImageFormatException("offset out of bounds");
+
+            int off = (int)offset;
+            int val = ReadByte(image, ref off);
+
+            if ((val & 1) == 0)
+            {
+                pValue = (val >> 1);
+                offset += 1;
+            }
+            else if ((val & 2) == 0)
+            {
+                if (offset + 1 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 2) |
+                      (ReadByte(image, ref off) << 6);
+                offset += 2;
+            }
+            else if ((val & 4) == 0)
+            {
+                if (offset + 2 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 3) |
+                      (ReadByte(image, ref off) << 5) |
+                      (ReadByte(image, ref off) << 13);
+                offset += 3;
+            }
+            else if ((val & 8) == 0)
+            {
+                if (offset + 3 >= image.Length)
+                    throw new System.BadImageFormatException("offset out of bounds");
+
+                pValue = (val >> 4) |
+                      (ReadByte(image, ref off) << 4) |
+                      (ReadByte(image, ref off) << 12) |
+                      (ReadByte(image, ref off) << 20);
+                offset += 4;
+            }
+            else if ((val & 16) == 0)
+            {
+                pValue = ReadInt32(image, ref off);
+                offset += 5;
+            }
+            else
+            {
+                throw new System.BadImageFormatException("DecodeSigned");
+            }
+
+            return offset;
         }
     }
 }
