@@ -85,6 +85,9 @@ namespace R2RDump
         /// </summary>
         public int EntryPointRuntimeFunctionId { get; }
 
+        /// <summary>
+        /// Maps all the generic parameters to the type in the instance
+        /// </summary>
         Dictionary<string, GenericElementTypes> _genericParamInstance;
 
         public enum EncodeMethodSigFlags
@@ -120,6 +123,9 @@ namespace R2RDump
             Array = 0x1d,
         };
 
+        /// <summary>
+        /// Extracts the method signature from the metadata by rid
+        /// </summary>
         public R2RMethod(byte[] image, MetadataReader mdReader, uint rid)
         {
             _mdReader = mdReader;
@@ -160,6 +166,9 @@ namespace R2RDump
             EntryPointRuntimeFunctionId = -1;
         }
 
+        /// <summary>
+        /// Set the entry point id for generic methods and maps the generic parameters to the type
+        /// </summary>
         public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs)
             : this(image, mdReader, rid)
         {
@@ -183,6 +192,9 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Uses the methodEntryPoint native array to get the entry point id of non-generic methods
+        /// </summary>
         public R2RMethod(byte[] image, MetadataReader mdReader, NativeArray methodEntryPoints, uint rid, int offset)
             : this(image, mdReader, rid)
         {

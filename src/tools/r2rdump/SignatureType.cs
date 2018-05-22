@@ -11,7 +11,7 @@ namespace R2RDump
     class SignatureType
     {
         /// <summary>
-        /// Indicates if the type is an array
+        /// Indicates if the type is an array, reference, or generic
         /// </summary>
         public SignatureTypeFlags Flags { get; }
 
@@ -20,6 +20,9 @@ namespace R2RDump
         /// </summary>
         public string TypeName { get; }
 
+        /// <summary>
+        /// The type of the instance for generic a type
+        /// </summary>
         public R2RMethod.GenericElementTypes GenericInstance { get; set; }
 
         public enum SignatureTypeFlags
