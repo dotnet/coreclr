@@ -12,30 +12,23 @@
 **
 ===========================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Globalization;
 using System.Diagnostics;
-using System.Security;
-using System.Runtime.CompilerServices;
 
 namespace System.Runtime.Serialization
 {
     public sealed class SerializationInfo
     {
         private const int DefaultSize = 4;
-        private const string s_mscorlibAssemblySimpleName = System.CoreLib.Name;
-        private const string s_mscorlibFileName = s_mscorlibAssemblySimpleName + ".dll";
 
         // Even though we have a dictionary, we're still keeping all the arrays around for back-compat. 
         // Otherwise we may run into potentially breaking behaviors like GetEnumerator() not returning entries in the same order they were added.
-        internal string[] _names;
-        internal object[] _values;
-        internal Type[] _types;
+        private string[] _names;
+        private object[] _values;
+        private Type[] _types;
+        private int _count;
         private Dictionary<string, int> _nameToIndex;
-        internal int _count;
-        internal IFormatterConverter _converter;
+        private IFormatterConverter _converter;
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
@@ -71,8 +64,9 @@ namespace System.Runtime.Serialization
             _nameToIndex = new Dictionary<string, int>();
 
             _converter = converter;
-
-            this.requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
+			
+            // requireSameTokenInPartialTrust is a vacuous parameter in a platform that does not support partial trust.
+			requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
         public string FullTypeName
@@ -151,20 +145,16 @@ namespace System.Runtime.Serialization
 
             newSize = (_count * 2);
 
-            //
             // In the pathological case, we may wrap
-            //
             if (newSize < _count)
             {
-                if (Int32.MaxValue > _count)
+                if (int.MaxValue > _count)
                 {
-                    newSize = Int32.MaxValue;
+                    newSize = int.MaxValue;
                 }
             }
 
-            //
             // Allocate more space and copy the data
-            //
             string[] newMembers = new string[newSize];
             object[] newData = new object[newSize];
             Type[] newTypes = new Type[newSize];
@@ -173,9 +163,7 @@ namespace System.Runtime.Serialization
             Array.Copy(_values, newData, _count);
             Array.Copy(_types, newTypes, _count);
 
-            //
             // Assign the new arrys back to the member vars.
-            //
             _names = newMembers;
             _values = newData;
             _types = newTypes;
@@ -317,6 +305,8 @@ namespace System.Runtime.Serialization
         // This should not be used by clients: exposing out this functionality would allow children
         // to overwrite their parent's values. It is public in order to give corefx access to it for
         // its ObjectManager implementation, but it should not be exposed out of a contract.
+        // This isn't a public API, but it gets invoked dynamically by 
+        // BinaryFormatter
         public void UpdateValue(string name, object value, Type type)
         {
             Debug.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
@@ -392,11 +382,6 @@ namespace System.Runtime.Serialization
             return _values[index];
         }
 
-        //
-        // The user should call one of these getters to get the data back in the 
-        // form requested.  
-        //
-
         public object GetValue(string name, Type type)
         {
             if ((object)type == null)
@@ -419,7 +404,6 @@ namespace System.Runtime.Serialization
             }
 
             Debug.Assert(_converter != null, "[SerializationInfo.GetValue]_converter!=null");
-
             return _converter.Convert(value, type);
         }
 
