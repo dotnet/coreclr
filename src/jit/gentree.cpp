@@ -8130,19 +8130,6 @@ GenTree* Compiler::gtCloneExpr(
         // Copy any node annotations, if necessary.
         switch (tree->gtOper)
         {
-            case GT_ASG:
-            {
-                IndirectAssignmentAnnotation* pIndirAnnot = nullptr;
-                if (m_indirAssignMap != nullptr && GetIndirAssignMap()->Lookup(tree, &pIndirAnnot))
-                {
-                    IndirectAssignmentAnnotation* pNewIndirAnnot = new (this, CMK_Unknown)
-                        IndirectAssignmentAnnotation(pIndirAnnot->m_lclNum, pIndirAnnot->m_fieldSeq,
-                                                     pIndirAnnot->m_isEntire);
-                    GetIndirAssignMap()->Set(copy, pNewIndirAnnot);
-                }
-            }
-            break;
-
             case GT_STOREIND:
             case GT_IND:
             case GT_OBJ:
@@ -11693,20 +11680,6 @@ void Compiler::gtDispTree(GenTree*     tree,
         }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-        IndirectAssignmentAnnotation* pIndirAnnote;
-        if (tree->gtOper == GT_ASG && GetIndirAssignMap()->Lookup(tree, &pIndirAnnote))
-        {
-            printf("  indir assign of V%02d:", pIndirAnnote->m_lclNum);
-            if (pIndirAnnote->m_isEntire)
-            {
-                printf("d:%d", pIndirAnnote->m_defSsaNum);
-            }
-            else
-            {
-                printf("ud:%d->%d", pIndirAnnote->m_useSsaNum, pIndirAnnote->m_defSsaNum);
-            }
-        }
-
         if (tree->gtOper == GT_INTRINSIC)
         {
             switch (tree->gtIntrinsic.gtIntrinsicId)
@@ -13730,7 +13703,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     {
         hasSrcSideEffect = true;
 
-        if (copySrc->gtType == TYP_STRUCT)
+        if (varTypeIsStruct(copySrc->gtType))
         {
             isStructCopy = true;
 
