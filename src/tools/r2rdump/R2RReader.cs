@@ -140,12 +140,20 @@ namespace R2RDump
                         {
                             byte nArgs = curEntry.GetByte();
                             R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
-                            Array.Copy(_image, curEntry.Offset, args, 0, nArgs);
-                            curEntry.Offset += nArgs;
+                            uint[] tokens = new uint[nArgs];
+                            for (int i = 0; i < nArgs; i++)
+                            {
+                                args[i] = (R2RMethod.GenericElementTypes)curEntry.GetByte();
+                                if (args[i] == R2RMethod.GenericElementTypes.ValueType)
+                                {
+                                    tokens[i] = curEntry.GetByte();
+                                    tokens[i] = (tokens[i] >> 2);
+                                }
+                            }
 
                             uint id = curEntry.GetUnsigned();
                             id = id >> 1;
-                            R2RMethod method = new R2RMethod(_image, mdReader, rid, (int)id, args);
+                            R2RMethod method = new R2RMethod(_image, mdReader, rid, (int)id, args, tokens);
                             if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
                             {
                                 isEntryPoint[method.EntryPointRuntimeFunctionId] = true;

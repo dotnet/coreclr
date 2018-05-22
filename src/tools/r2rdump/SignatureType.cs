@@ -20,10 +20,7 @@ namespace R2RDump
         /// </summary>
         public string TypeName { get; }
 
-        /// <summary>
-        /// The type of the instance for generic a type
-        /// </summary>
-        public R2RMethod.GenericElementTypes GenericInstance { get; set; }
+        public GenericInstance GenericInstance { get; set; }
 
         public enum SignatureTypeFlags
         {
@@ -69,8 +66,6 @@ namespace R2RDump
                 TypeName = mdReader.GetString(generic.Name);
                 Flags |= SignatureTypeFlags.GENERIC;
             }
-
-            GenericInstance = 0;
         }
 
         public override string ToString()
@@ -83,7 +78,7 @@ namespace R2RDump
 
             if ((Flags & SignatureTypeFlags.GENERIC) != 0)
             {
-                sb.AppendFormat($"{Enum.GetName(typeof(R2RMethod.GenericElementTypes), GenericInstance)}");
+                sb.AppendFormat($"{GenericInstance.TypeName}");
             }
             else
             {
@@ -94,6 +89,25 @@ namespace R2RDump
                 sb.Append("[]");
             }
             return sb.ToString();
+        }
+    }
+
+    struct GenericInstance
+    {
+        /// <summary>
+        /// The type of the instance for generic a type
+        /// </summary>
+        public R2RMethod.GenericElementTypes Instance { get; }
+
+        /// <summary>
+        /// The type name of the instance for generic a type
+        /// </summary>
+        public string TypeName { get; }
+
+        public GenericInstance(R2RMethod.GenericElementTypes instance, string name)
+        {
+            Instance = instance;
+            TypeName = name;
         }
     }
 }

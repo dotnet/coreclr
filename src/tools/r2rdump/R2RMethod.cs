@@ -118,7 +118,7 @@ namespace R2RDump
             Float = 0x0c,
             Double = 0x0d,
             String = 0x0e,
-            Class = 0x12,
+            ValueType = 0x11,
             Object = 0x1c,
             Array = 0x1d,
         };
@@ -169,25 +169,48 @@ namespace R2RDump
         /// <summary>
         /// Set the entry point id for generic methods and maps the generic parameters to the type
         /// </summary>
-        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs)
+        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
             : this(image, mdReader, rid)
         {
             EntryPointRuntimeFunctionId = entryPointId;
-            
+
+            Dictionary<string, string> tokens = new Dictionary<string, string>();
             for (int i = 0; i < _genericParamInstance.Count; i++)
             {
                 var key = _genericParamInstance.ElementAt(i).Key;
                 _genericParamInstance[key] = instanceArgs[i];
+
+                if (instanceArgs[i] == GenericElementTypes.ValueType) {
+                    tokens[key] = mdReader.GetString(mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i])).Name);
+                }
             }
 
             if ((ReturnType.Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
-                ReturnType.GenericInstance = _genericParamInstance[ReturnType.TypeName];
+            {
+                GenericElementTypes instance = _genericParamInstance[ReturnType.TypeName];
+                if (instance == GenericElementTypes.ValueType)
+                {
+                    ReturnType.GenericInstance = new GenericInstance(instance, tokens[ReturnType.TypeName]);
+                }
+                else
+                {
+                    ReturnType.GenericInstance = new GenericInstance(instance, Enum.GetName(typeof(GenericElementTypes), instance));
+                }
+            }
 
             for (int i = 0; i<ArgTypes.Length; i++)
             {
                 if ((ArgTypes[i].Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
                 {
-                    ArgTypes[i].GenericInstance = _genericParamInstance[ArgTypes[i].TypeName];
+                    GenericElementTypes instance = _genericParamInstance[ArgTypes[i].TypeName];
+                    if (instance == GenericElementTypes.ValueType)
+                    {
+                        ArgTypes[i].GenericInstance = new GenericInstance(instance, tokens[ArgTypes[i].TypeName]);
+                    }
+                    else
+                    {
+                        ArgTypes[i].GenericInstance = new GenericInstance(instance, Enum.GetName(typeof(GenericElementTypes), instance));
+                    }
                 }
             }
         }
