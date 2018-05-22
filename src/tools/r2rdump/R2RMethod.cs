@@ -200,13 +200,13 @@ namespace R2RDump
         {
             // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
             uint id = 0; // the RUNTIME_FUNCTIONS index
-            offset = (int)R2RReader.DecodeUnsigned(image, (uint)offset, ref id);
+            offset = (int)NativeReader.DecodeUnsigned(image, (uint)offset, ref id);
             if ((id & 1) != 0)
             {
                 if ((id & 2) != 0)
                 {
                     uint val = 0;
-                    R2RReader.DecodeUnsigned(image, (uint)offset, ref val);
+                    NativeReader.DecodeUnsigned(image, (uint)offset, ref val);
                     offset -= (int)val;
                 }
                 // TODO: Dump fixups

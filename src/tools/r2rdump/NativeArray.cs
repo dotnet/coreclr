@@ -14,7 +14,7 @@ namespace R2RDump
         public NativeArray(byte[] image, uint offset)
         {
             uint val = 0;
-            _baseOffset = R2RReader.DecodeUnsigned(image, offset, ref val);
+            _baseOffset = NativeReader.DecodeUnsigned(image, offset, ref val);
             _nElements = (val >> 2);
             _entryIndexSize = (byte)(val & 3);
         }
@@ -33,24 +33,24 @@ namespace R2RDump
             if (_entryIndexSize == 0)
             {
                 int i = (int)(_baseOffset + (index / _blockSize));
-                offset = R2RReader.ReadByte(image, ref i);
+                offset = NativeReader.ReadByte(image, ref i);
             }
             else if (_entryIndexSize == 1)
             {
                 int i = (int)(_baseOffset + 2 * (index / _blockSize));
-                offset = R2RReader.ReadUInt16(image, ref i);
+                offset = NativeReader.ReadUInt16(image, ref i);
             }
             else
             {
                 int i = (int)(_baseOffset + 4 * (index / _blockSize));
-                offset = R2RReader.ReadUInt32(image, ref i);
+                offset = NativeReader.ReadUInt32(image, ref i);
             }
             offset += _baseOffset;
 
             for (uint bit = _blockSize >> 1; bit > 0; bit >>= 1)
             {
                 uint val = 0;
-                uint offset2 = R2RReader.DecodeUnsigned(image, offset, ref val);
+                uint offset2 = NativeReader.DecodeUnsigned(image, offset, ref val);
                 if ((index & bit) != 0)
                 {
                     if ((val & 2) != 0)
