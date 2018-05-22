@@ -24,23 +24,21 @@ namespace System.Runtime.Serialization
 {
     public sealed class SerializationInfo
     {
-        private const int defaultSize = 4;
+        private const int DefaultSize = 4;
         private const string s_mscorlibAssemblySimpleName = System.CoreLib.Name;
         private const string s_mscorlibFileName = s_mscorlibAssemblySimpleName + ".dll";
 
         // Even though we have a dictionary, we're still keeping all the arrays around for back-compat. 
         // Otherwise we may run into potentially breaking behaviors like GetEnumerator() not returning entries in the same order they were added.
-        internal string[] m_members;
-        internal object[] m_data;
-        internal Type[] m_types;
-        private Dictionary<string, int> m_nameToIndex;
-        internal int m_currMember;
-        internal IFormatterConverter m_converter;
-        private string m_fullTypeName;
-        private string m_assemName;
-        private Type objectType;
-        private bool isFullTypeNameSetExplicit;
-        private bool isAssemblyNameSetExplicit;
+        internal string[] _names;
+        internal object[] _values;
+        internal Type[] _types;
+        private Dictionary<string, int> _nameToIndex;
+        internal int _count;
+        internal IFormatterConverter _converter;
+        private string _rootTypeName;
+        private string _rootTypeAssemblyName;
+        private Type _rootType;
         private bool requireSameTokenInPartialTrust;
 
         [CLSCompliant(false)]
@@ -62,28 +60,24 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(converter));
             }
 
+            _rootType = type;
+            _rootTypeName = type.FullName;
+            _rootTypeAssemblyName = type.Module.Assembly.FullName;
 
-            objectType = type;
-            m_fullTypeName = type.FullName;
-            m_assemName = type.Module.Assembly.FullName;
+            _names = new string[DefaultSize];
+            _values = new object[DefaultSize];
+            _types = new Type[DefaultSize];
 
-            m_members = new string[defaultSize];
-            m_data = new object[defaultSize];
-            m_types = new Type[defaultSize];
+            _nameToIndex = new Dictionary<string, int>();
 
-            m_nameToIndex = new Dictionary<string, int>();
-
-            m_converter = converter;
+            _converter = converter;
 
             this.requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
         public string FullTypeName
         {
-            get
-            {
-                return m_fullTypeName;
-            }
+            get { return _rootTypeName; }
             set
             {
                 if (null == value)
@@ -91,8 +85,8 @@ namespace System.Runtime.Serialization
                     throw new ArgumentNullException(nameof(value));
                 }
 
-                m_fullTypeName = value;
-                isFullTypeNameSetExplicit = true;
+                _rootTypeName = value;
+                IsFullTypeNameSetExplicit = true;
             }
         }
 
@@ -100,7 +94,7 @@ namespace System.Runtime.Serialization
         {
             get
             {
-                return m_assemName;
+                return _rootTypeAssemblyName;
             }
             set
             {
@@ -110,12 +104,16 @@ namespace System.Runtime.Serialization
                 }
                 if (requireSameTokenInPartialTrust)
                 {
-                    DemandForUnsafeAssemblyNameAssignments(m_assemName, value);
+                    DemandForUnsafeAssemblyNameAssignments(_rootTypeAssemblyName, value);
                 }
-                m_assemName = value;
-                isAssemblyNameSetExplicit = true;
+                _rootTypeAssemblyName = value;
+                IsAssemblyNameSetExplicit = true;
             }
         }
+
+        public bool IsFullTypeNameSetExplicit { get; private set; }
+
+        public bool IsAssemblyNameSetExplicit { get; private set; }
 
         public void SetType(Type type)
         {
@@ -129,13 +127,13 @@ namespace System.Runtime.Serialization
                 DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
             }
 
-            if (!object.ReferenceEquals(objectType, type))
+            if (!object.ReferenceEquals(_rootType, type))
             {
-                objectType = type;
-                m_fullTypeName = type.FullName;
-                m_assemName = type.Module.Assembly.FullName;
-                isFullTypeNameSetExplicit = false;
-                isAssemblyNameSetExplicit = false;
+                _rootType = type;
+                _rootTypeName = type.FullName;
+                _rootTypeAssemblyName = type.Module.Assembly.FullName;
+                IsFullTypeNameSetExplicit = false;
+                IsAssemblyNameSetExplicit = false;
             }
         }
 
@@ -143,56 +141,25 @@ namespace System.Runtime.Serialization
         {
         }
 
-        public int MemberCount
-        {
-            get
-            {
-                return m_currMember;
-            }
-        }
+        public int MemberCount => _count;
 
-        public Type ObjectType
-        {
-            get
-            {
-                return objectType;
-            }
-        }
+        public Type ObjectType => _rootType;
 
-        public bool IsFullTypeNameSetExplicit
-        {
-            get
-            {
-                return isFullTypeNameSetExplicit;
-            }
-        }
-
-        public bool IsAssemblyNameSetExplicit
-        {
-            get
-            {
-                return isAssemblyNameSetExplicit;
-            }
-        }
-
-        public SerializationInfoEnumerator GetEnumerator()
-        {
-            return new SerializationInfoEnumerator(m_members, m_data, m_types, m_currMember);
-        }
+        public SerializationInfoEnumerator GetEnumerator() => new SerializationInfoEnumerator(_names, _values, _types, _count);
 
         private void ExpandArrays()
         {
             int newSize;
-            Debug.Assert(m_members.Length == m_currMember, "[SerializationInfo.ExpandArrays]m_members.Length == m_currMember");
+            Debug.Assert(_names.Length == _count, "[SerializationInfo.ExpandArrays]_names.Length == _count");
 
-            newSize = (m_currMember * 2);
+            newSize = (_count * 2);
 
             //
             // In the pathological case, we may wrap
             //
-            if (newSize < m_currMember)
+            if (newSize < _count)
             {
-                if (Int32.MaxValue > m_currMember)
+                if (Int32.MaxValue > _count)
                 {
                     newSize = Int32.MaxValue;
                 }
@@ -205,16 +172,16 @@ namespace System.Runtime.Serialization
             object[] newData = new object[newSize];
             Type[] newTypes = new Type[newSize];
 
-            Array.Copy(m_members, newMembers, m_currMember);
-            Array.Copy(m_data, newData, m_currMember);
-            Array.Copy(m_types, newTypes, m_currMember);
+            Array.Copy(_names, newMembers, _count);
+            Array.Copy(_values, newData, _count);
+            Array.Copy(_types, newTypes, _count);
 
             //
             // Assign the new arrys back to the member vars.
             //
-            m_members = newMembers;
-            m_data = newData;
-            m_types = newTypes;
+            _names = newMembers;
+            _values = newData;
+            _types = newTypes;
         }
 
         public void AddValue(string name, object value, Type type)
@@ -253,7 +220,6 @@ namespace System.Runtime.Serialization
         {
             AddValue(name, (object)value, typeof(char));
         }
-
 
         [CLSCompliant(false)]
         public void AddValue(string name, sbyte value)
@@ -321,27 +287,23 @@ namespace System.Runtime.Serialization
 
         internal void AddValueInternal(string name, object value, Type type)
         {
-            if (m_nameToIndex.ContainsKey(name))
+            if (_nameToIndex.ContainsKey(name))
             {
                 throw new SerializationException(SR.Serialization_SameNameTwice);
             }
-            m_nameToIndex.Add(name, m_currMember);
+            _nameToIndex.Add(name, _count);
 
-            //
             // If we need to expand the arrays, do so.
-            //
-            if (m_currMember >= m_members.Length)
+            if (_count >= _names.Length)
             {
                 ExpandArrays();
             }
 
-            //
             // Add the data and then advance the counter.
-            //
-            m_members[m_currMember] = name;
-            m_data[m_currMember] = value;
-            m_types[m_currMember] = type;
-            m_currMember++;
+            _names[_count] = name;
+            _values[_count] = value;
+            _types[_count] = type;
+            _count++;
         }
 
         /*=================================UpdateValue==================================
@@ -371,8 +333,8 @@ namespace System.Runtime.Serialization
             }
             else
             {
-                m_data[index] = value;
-                m_types[index] = type;
+                _values[index] = value;
+                _types[index] = type;
             }
         }
 
@@ -383,7 +345,7 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(name));
             }
             int index;
-            if (m_nameToIndex.TryGetValue(name, out index))
+            if (_nameToIndex.TryGetValue(name, out index))
             {
                 return index;
             }
@@ -408,12 +370,12 @@ namespace System.Runtime.Serialization
                 throw new SerializationException(SR.Format(SR.Serialization_NotFound, name));
             }
 
-            Debug.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
-            Debug.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
+            Debug.Assert(index < _values.Length, "[SerializationInfo.GetElement]index<_values.Length");
+            Debug.Assert(index < _types.Length, "[SerializationInfo.GetElement]index<_types.Length");
 
-            foundType = m_types[index];
+            foundType = _types[index];
             Debug.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
-            return m_data[index];
+            return _values[index];
         }
 
         private object GetElementNoThrow(string name, out Type foundType)
@@ -425,12 +387,12 @@ namespace System.Runtime.Serialization
                 return null;
             }
 
-            Debug.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
-            Debug.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
+            Debug.Assert(index < _values.Length, "[SerializationInfo.GetElement]index<_values.Length");
+            Debug.Assert(index < _types.Length, "[SerializationInfo.GetElement]index<_types.Length");
 
-            foundType = m_types[index];
+            foundType = _types[index];
             Debug.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
-            return m_data[index];
+            return _values[index];
         }
 
         //
@@ -459,9 +421,9 @@ namespace System.Runtime.Serialization
                 return value;
             }
 
-            Debug.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
+            Debug.Assert(_converter != null, "[SerializationInfo.GetValue]_converter!=null");
 
-            return m_converter.Convert(value, type);
+            return _converter.Convert(value, type);
         }
 
         internal object GetValueNoThrow(string name, Type type)
@@ -481,9 +443,9 @@ namespace System.Runtime.Serialization
                 return value;
             }
 
-            Debug.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
+            Debug.Assert(_converter != null, "[SerializationInfo.GetValue]_converter!=null");
 
-            return m_converter.Convert(value, type);
+            return _converter.Convert(value, type);
         }
 
         public bool GetBoolean(string name)
@@ -496,7 +458,7 @@ namespace System.Runtime.Serialization
             {
                 return (bool)value;
             }
-            return m_converter.ToBoolean(value);
+            return _converter.ToBoolean(value);
         }
 
         public char GetChar(string name)
@@ -509,7 +471,7 @@ namespace System.Runtime.Serialization
             {
                 return (char)value;
             }
-            return m_converter.ToChar(value);
+            return _converter.ToChar(value);
         }
 
         [CLSCompliant(false)]
@@ -523,7 +485,7 @@ namespace System.Runtime.Serialization
             {
                 return (sbyte)value;
             }
-            return m_converter.ToSByte(value);
+            return _converter.ToSByte(value);
         }
 
         public byte GetByte(string name)
@@ -536,7 +498,7 @@ namespace System.Runtime.Serialization
             {
                 return (byte)value;
             }
-            return m_converter.ToByte(value);
+            return _converter.ToByte(value);
         }
 
         public short GetInt16(string name)
@@ -549,7 +511,7 @@ namespace System.Runtime.Serialization
             {
                 return (short)value;
             }
-            return m_converter.ToInt16(value);
+            return _converter.ToInt16(value);
         }
 
         [CLSCompliant(false)]
@@ -563,7 +525,7 @@ namespace System.Runtime.Serialization
             {
                 return (ushort)value;
             }
-            return m_converter.ToUInt16(value);
+            return _converter.ToUInt16(value);
         }
 
         public int GetInt32(string name)
@@ -576,7 +538,7 @@ namespace System.Runtime.Serialization
             {
                 return (int)value;
             }
-            return m_converter.ToInt32(value);
+            return _converter.ToInt32(value);
         }
 
         [CLSCompliant(false)]
@@ -590,7 +552,7 @@ namespace System.Runtime.Serialization
             {
                 return (uint)value;
             }
-            return m_converter.ToUInt32(value);
+            return _converter.ToUInt32(value);
         }
 
         public long GetInt64(string name)
@@ -603,7 +565,7 @@ namespace System.Runtime.Serialization
             {
                 return (long)value;
             }
-            return m_converter.ToInt64(value);
+            return _converter.ToInt64(value);
         }
 
         [CLSCompliant(false)]
@@ -617,7 +579,7 @@ namespace System.Runtime.Serialization
             {
                 return (ulong)value;
             }
-            return m_converter.ToUInt64(value);
+            return _converter.ToUInt64(value);
         }
 
         public float GetSingle(string name)
@@ -630,7 +592,7 @@ namespace System.Runtime.Serialization
             {
                 return (float)value;
             }
-            return m_converter.ToSingle(value);
+            return _converter.ToSingle(value);
         }
 
 
@@ -644,7 +606,7 @@ namespace System.Runtime.Serialization
             {
                 return (double)value;
             }
-            return m_converter.ToDouble(value);
+            return _converter.ToDouble(value);
         }
 
         public decimal GetDecimal(string name)
@@ -657,7 +619,7 @@ namespace System.Runtime.Serialization
             {
                 return (decimal)value;
             }
-            return m_converter.ToDecimal(value);
+            return _converter.ToDecimal(value);
         }
 
         public DateTime GetDateTime(string name)
@@ -670,7 +632,7 @@ namespace System.Runtime.Serialization
             {
                 return (DateTime)value;
             }
-            return m_converter.ToDateTime(value);
+            return _converter.ToDateTime(value);
         }
 
         public string GetString(string name)
@@ -683,7 +645,7 @@ namespace System.Runtime.Serialization
             {
                 return (string)value;
             }
-            return m_converter.ToString(value);
+            return _converter.ToString(value);
         }
     }
 }
