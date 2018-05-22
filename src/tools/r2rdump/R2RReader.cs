@@ -181,7 +181,7 @@ namespace R2RDump
                             }
                             int unwindRva = NativeReader.ReadInt32(_image, ref curOffset);
 
-                            method.NativeCode.Add(new RuntimeFunction(startRva, endRva, unwindRva));
+                            method.NativeCode.Add(new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva));
                             runtimeFunctionId++;
                         }
                         while (runtimeFunctionId < nRuntimeFunctions && !isEntryPoint[runtimeFunctionId]);

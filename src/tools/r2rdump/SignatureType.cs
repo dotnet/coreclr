@@ -16,14 +16,19 @@ namespace R2RDump
         public SignatureTypeFlags Flags { get; }
 
         /// <summary>
-        /// Name of the object or primitive type
+        /// Name of the object or primitive type, the placeholder type for generic methods
         /// </summary>
         public string TypeName { get; }
 
+        /// <summary>
+        /// The type that the generic method was instantiated to
+        /// </summary>
         public GenericInstance GenericInstance { get; set; }
 
+        [Flags]
         public enum SignatureTypeFlags
         {
+            NONE = 0x00,
             ARRAY = 0x01,
             REFERENCE = 0x02,
             GENERIC = 0x04,
@@ -100,7 +105,7 @@ namespace R2RDump
         public R2RMethod.GenericElementTypes Instance { get; }
 
         /// <summary>
-        /// The type name of the instance for generic a type
+        /// The type name of the instance for generic a type. Different from GenericInstance.Instance for structs (ValueType)
         /// </summary>
         public string TypeName { get; }
 

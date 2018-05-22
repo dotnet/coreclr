@@ -14,9 +14,14 @@ namespace R2RDump
     struct RuntimeFunction
     {
         /// <summary>
+        /// The index of the runtime function
+        /// </summary>
+        public int Id { get; }
+
+        /// <summary>
         /// The relative virtual address to the start of the code block
         /// </summary>
-        public int StartAddress { get; set; }
+        public int StartAddress { get; }
 
         /// <summary>
         /// The size of the code block in bytes
@@ -25,20 +30,39 @@ namespace R2RDump
         /// The EndAddress field in the runtime functions section is conditional on machine type
         /// Size is -1 for images without the EndAddress field
         /// </remarks>
-        public int Size { get; set; }
+        public int Size { get; }
 
         /// <summary>
         /// The relative virtual address to the unwind info
         /// </summary>
-        public int UnwindRVA { get; set; }
+        public int UnwindRVA { get; }
 
-        public RuntimeFunction(int startRva, int endRva, int unwindRva)
+        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva)
         {
+            Id = id;
             StartAddress = startRva;
             Size = endRva - startRva;
             if (endRva == -1)
                 Size = -1;
             UnwindRVA = unwindRva;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendFormat($"Id: {Id}\n");
+            sb.AppendFormat($"StartAddress: 0x{StartAddress:X8}\n");
+            if (Size == -1)
+            {
+                sb.Append("Size: Unavailable\n");
+            }
+            else
+            {
+                sb.AppendFormat($"Size: {Size} bytes\n");
+            }
+
+            return sb.ToString();
         }
     }
 
@@ -90,8 +114,10 @@ namespace R2RDump
         /// </summary>
         Dictionary<string, GenericElementTypes> _genericParamInstance;
 
+        [Flags]
         public enum EncodeMethodSigFlags
         {
+            NONE = 0x00,
             ENCODE_METHOD_SIG_UnboxingStub = 0x01,
             ENCODE_METHOD_SIG_InstantiatingStub = 0x02,
             ENCODE_METHOD_SIG_MethodInstantiation = 0x04,
@@ -280,14 +306,11 @@ namespace R2RDump
 
             sb.AppendFormat($"Token: 0x{Token:X8}\n");
             sb.AppendFormat($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}\n");
+            sb.AppendFormat($"Number of RuntimeFunctions: {NativeCode.Count}\n\n");
 
             foreach (RuntimeFunction runtimeFunction in NativeCode)
             {
-                sb.AppendFormat($"\nStartAddress: 0x{runtimeFunction.StartAddress:X8}\n");
-                if (runtimeFunction.Size != -1)
-                {
-                    sb.AppendFormat($"Size: {runtimeFunction.Size} bytes\n");
-                }
+                sb.AppendFormat($"{runtimeFunction}\n");
             }
 
             return sb.ToString();
