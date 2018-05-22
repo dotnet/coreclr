@@ -4457,7 +4457,6 @@ public:
     void               fgStress64RsltMul();
     void               fgDebugCheckUpdate();
     void fgDebugCheckBBlist(bool checkBBNum = false, bool checkBBRefs = true);
-    unsigned fgDebugCheckBBPreds(BasicBlock* block, unsigned curTraversalStamp);
     void fgDebugCheckBlockLinks();
     void fgDebugCheckLinks(bool morphTrees = false);
     void fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees);
