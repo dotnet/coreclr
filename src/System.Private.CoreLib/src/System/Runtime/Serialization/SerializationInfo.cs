@@ -2,21 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** Purpose: The structure for holding all of the data needed
-**          for object serialization and deserialization.
-**
-**
-===========================================================*/
-
 using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace System.Runtime.Serialization
 {
+    /// <summary>The structure for holding all of the data needed for object serialization and deserialization.</summary>
     public sealed class SerializationInfo
     {
         private const int DefaultSize = 4;
@@ -118,7 +109,7 @@ namespace System.Runtime.Serialization
                 DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
             }
 
-            if (!object.ReferenceEquals(_rootType, type))
+            if (!ReferenceEquals(_rootType, type))
             {
                 _rootType = type;
                 _rootTypeName = type.FullName;
@@ -291,22 +282,24 @@ namespace System.Runtime.Serialization
             _count++;
         }
 
-        /*=================================UpdateValue==================================
-        **Action: Finds the value if it exists in the current data.  If it does, we replace
-        **        the values, if not, we append it to the end.  This is useful to the 
-        **        ObjectManager when it's performing fixups.
-        **Returns: void
-        **Arguments: name  -- the name of the data to be updated.
-        **           value -- the new value.
-        **           type  -- the type of the data being added.
-        **Exceptions: None.  All error checking is done with asserts. Although public in coreclr,
-        **            it's not exposed in a contract and is only meant to be used by corefx.
-        ==============================================================================*/
-        // This should not be used by clients: exposing out this functionality would allow children
-        // to overwrite their parent's values. It is public in order to give corefx access to it for
-        // its ObjectManager implementation, but it should not be exposed out of a contract.
-        // This isn't a public API, but it gets invoked dynamically by 
-        // BinaryFormatter
+        /// <summary>
+        /// Finds the value if it exists in the current data. If it does, we replace
+        /// the values, if not, we append it to the end. This is useful to the 
+        /// ObjectManager when it's performing fixups.
+        /// 
+        /// All error checking is done with asserts. Although public in coreclr,
+        /// it's not exposed in a contract and is only meant to be used by corefx.
+        ///
+        /// This isn't a public API, but it gets invoked dynamically by 
+        /// BinaryFormatter
+        ///
+        /// This should not be used by clients: exposing out this functionality would allow children
+        /// to overwrite their parent's values. It is public in order to give corefx access to it for
+        /// its ObjectManager implementation, but it should not be exposed out of a contract.
+        /// </summary>
+        /// <param name="name"> The name of the data to be updated.</param>
+        /// <param name="value"> The new value.</param>
+        /// <param name="type"> The type of the data being added.</param>
         public void UpdateValue(string name, object value, Type type)
         {
             Debug.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
@@ -339,16 +332,14 @@ namespace System.Runtime.Serialization
             return -1;
         }
 
-        /*==================================GetElement==================================
-        **Action: Use FindElement to get the location of a particular member and then return
-        **        the value of the element at that location.  The type of the member is
-        **        returned in the foundType field.
-        **Returns: The value of the element at the position associated with name.
-        **Arguments: name -- the name of the element to find.
-        **           foundType -- the type of the element associated with the given name.
-        **Exceptions: None.  FindElement does null checking and throws for elements not 
-        **            found.
-        ==============================================================================*/
+        /// <summary>
+        /// Gets the location of a particular member and then returns
+        /// the value of the element at that location.  The type of the member is
+        /// returned in the foundType field.
+        /// </summary>
+        /// <param name="name"> The name of the element to find.</param>
+        /// <param name="foundType"> The type of the element associated with the given name.</param>
+        /// <returns>The value of the element at the position associated with name.</returns>
         private object GetElement(string name, out Type foundType)
         {
             int index = FindElement(name);
@@ -398,7 +389,7 @@ namespace System.Runtime.Serialization
 
             value = GetElement(name, out foundType);
 
-            if (object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
             {
                 return value;
             }
@@ -419,7 +410,7 @@ namespace System.Runtime.Serialization
             if (value == null)
                 return null;
 
-            if (object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            if (ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
             {
                 return value;
             }
