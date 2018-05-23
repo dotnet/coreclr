@@ -357,11 +357,8 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(type));
             }
 
-#if CORECLR
-            RuntimeType rt = type as RuntimeType;
-            if (rt == null)
+            if (!type.IsRuntimeImplemented())
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
-#endif
             Type foundType;
             object value;
 
@@ -382,9 +379,7 @@ namespace System.Runtime.Serialization
             object value;
 
             Debug.Assert((object)type != null, "[SerializationInfo.GetValue]type ==null");
-#if CORECLR
-            Debug.Assert(type is RuntimeType, "[SerializationInfo.GetValue]type is not a runtime type");
-#endif
+            Debug.Assert(type.IsRuntimeImplemented(), "[SerializationInfo.GetValue]type is not a runtime type");
 
             value = GetElementNoThrow(name, out foundType);
             if (value == null)
