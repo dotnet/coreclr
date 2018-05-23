@@ -28,7 +28,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // removeListNode - retrieve the RefInfoListNode for the given GenTree node
 //
 // Notes:
-//     The BuildNode methods use this helper to retrieve the TreeNodeInfo for child nodes
+//     The BuildNode methods use this helper to retrieve the RefPositions for child nodes
 //     from the useList being constructed. Note that, if the user knows the order of the operands,
 //     it is expected that they should just retrieve them directly.
 
@@ -52,7 +52,7 @@ RefInfoListNode* RefInfoList::removeListNode(GenTree* node)
 // removeListNode - retrieve the RefInfoListNode for one reg of the given multireg GenTree node
 //
 // Notes:
-//     The BuildNode methods use this helper to retrieve the TreeNodeInfo for child nodes
+//     The BuildNode methods use this helper to retrieve the RefPositions for child nodes
 //     from the useList being constructed. Note that, if the user knows the order of the operands,
 //     it is expected that they should just retrieve them directly.
 
@@ -2893,7 +2893,7 @@ int LinearScan::BuildSimple(GenTree* tree)
     if ((kind & (GTK_CONST | GTK_LEAF)) == 0)
     {
         assert((kind & GTK_SMPOP) != 0);
-        int srcCount = BuildBinaryUses(tree->AsOp());
+        srcCount = BuildBinaryUses(tree->AsOp());
     }
     if (tree->IsValue() && !tree->IsUnusedValue())
     {

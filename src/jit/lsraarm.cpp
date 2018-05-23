@@ -169,20 +169,18 @@ int LinearScan::BuildShiftLongCarry(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
-// BuildNode: Set the register requirements for RA.
+// BuildNode: Build the RefPositions for for a node
+//
+// Arguments:
+//    treeNode - the node of interest
 //
 // Notes:
-//    Takes care of annotating the register requirements
-//    for every TreeNodeInfo struct that maps to each tree node.
-//
 // Preconditions:
-//    LSRA has been initialized and there is a TreeNodeInfo node
-//    already allocated and initialized for every tree in the IR.
+//    LSRA Has been initialized.
 //
 // Postconditions:
-//    Every TreeNodeInfo instance has the right annotations on register
-//    requirements needed by LSRA to build the Interval Table (source,
-//    destination and internal [temp] register counts).
+//    RefPositions have been built for all the register defs and uses required
+//    for this node.
 //
 int LinearScan::BuildNode(GenTree* tree)
 {

@@ -26,7 +26,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "valuenumtype.h"
 #include "jitstd.h"
 #include "jithashtable.h"
-#include "nodeinfo.h"
 #include "simd.h"
 #include "namedintrinsiclist.h"
 

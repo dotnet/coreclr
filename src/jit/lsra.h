@@ -8,7 +8,6 @@
 
 #include "arraylist.h"
 #include "smallhash.h"
-#include "nodeinfo.h"
 
 // Minor and forward-reference types
 class Interval;
@@ -131,7 +130,7 @@ public:
 //                   node during `buildIntervals`.
 //
 // This list of 'RefInfoListNode's contains the source nodes consumed by
-// a node, and is created by 'TreeNodeInfoInit'.
+// a node, and is created by 'BuildNode'.
 //
 class RefInfoList final
 {
@@ -650,7 +649,6 @@ class LinearScan : public LinearScanInterface
     friend class RefPosition;
     friend class Interval;
     friend class Lowering;
-    friend class TreeNodeInfo;
 
 public:
     // This could use further abstraction.  From Compiler we need the tree,
@@ -660,50 +658,10 @@ public:
     // This is the main driver
     virtual void doLinearScan();
 
-    // TreeNodeInfo contains three register masks: src candidates, dst candidates, and internal condidates.
-    // Instead of storing actual register masks, however, which are large, we store a small index into a table
-    // of register masks, stored in this class. We create only as many distinct register masks as are needed.
-    // All identical register masks get the same index. The register mask table contains:
-    // 1. A mask containing all eligible integer registers.
-    // 2. A mask containing all elibible floating-point registers.
-    // 3. A mask for each of single register.
-    // 4. A mask for each combination of registers, created dynamically as required.
-    //
-    // Currently, the maximum number of masks allowed is a constant defined by 'numMasks'. The register mask
-    // table is never resized. It is also limited by the size of the index, currently an unsigned char.
-    CLANG_FORMAT_COMMENT_ANCHOR;
-
-#if defined(_TARGET_ARM64_)
-    static const int numMasks = 128;
-#else
-    static const int numMasks = 64;
-#endif
-
-    regMaskTP* regMaskTable;
-    int        nextFreeMask;
-
-    typedef int RegMaskIndex;
-
-    // allint is 0, allfloat is 1, all the single-bit masks start at 2
-    enum KnownRegIndex
-    {
-        ALLINT_IDX           = 0,
-        ALLFLOAT_IDX         = 1,
-        FIRST_SINGLE_REG_IDX = 2
-    };
-
-    RegMaskIndex GetIndexForRegMask(regMaskTP mask);
-    regMaskTP GetRegMaskForIndex(RegMaskIndex index);
-    void RemoveRegistersFromMasks(regMaskTP removeMask);
-
     static bool isSingleRegister(regMaskTP regMask)
     {
         return (genExactlyOneBit(regMask));
     }
-
-#ifdef DEBUG
-    void dspRegisterMaskTable();
-#endif // DEBUG
 
     // Initialize the block traversal for LSRA.
     // This resets the bbVisitedSet, and on the first invocation sets the blockSequence array,
@@ -979,7 +937,7 @@ private:
     void verifyFinalAllocation();
     void verifyResolutionMove(GenTree* resolutionNode, LsraLocation currentLocation);
 #else  // !DEBUG
-    bool             doSelectNearest()
+    bool doSelectNearest()
     {
         return false;
     }
