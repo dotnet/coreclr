@@ -117,10 +117,11 @@ namespace R2RDump
                         {
                             R2RMethod method = new R2RMethod(_image, mdReader, methodEntryPoints, rid, offset);
 
-                            if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
+                            if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= nRuntimeFunctions)
                             {
-                                isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                                throw new BadImageFormatException("EntryPointRuntimeFunctionId out of bounds");
                             }
+                            isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
                             R2RMethods.Add(method);
                         }
                     }

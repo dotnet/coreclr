@@ -189,7 +189,6 @@ namespace R2RDump
             }
 
             Token = _mdtMethodDef | rid;
-            EntryPointRuntimeFunctionId = -1;
         }
 
         /// <summary>
