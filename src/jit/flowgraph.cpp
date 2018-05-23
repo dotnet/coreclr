@@ -20614,10 +20614,10 @@ BBPredsChecker::BBPredsChecker(Compiler* compiler) : comp(compiler)
 // CheckBBPreds: Check basic block predecessors list.
 //
 // Notes:
-//   This DEBUG routine checks that all preds could reach the block,
-//   have correct traversal stamp;
-//   It calculates number of incoming edges from the internal block,
-//   i.e. it does not count global incoming edge for the first block.
+//   This DEBUG routine checks that all predecessors have the correct traversal stamp
+//   and have correct jumps to the block.
+//   It calculates the number of incoming edges from the internal block,
+//   i.e. it does not count the global incoming edge for the first block.
 //
 // Arguments:
 //   block - the block to process;
