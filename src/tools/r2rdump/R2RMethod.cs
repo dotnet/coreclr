@@ -164,8 +164,15 @@ namespace R2RDump
             BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
 
             DeclaringType = new Stack<string>();
-            TypeDefinition declaringTypeDef = mdReader.GetTypeDefinition(methodDef.GetDeclaringType());
-            DeclaringType.Push(mdReader.GetString(declaringTypeDef.Name));
+            TypeDefinitionHandle declaringTypeHandle = methodDef.GetDeclaringType();
+            TypeDefinition declaringTypeDef;
+            while (!declaringTypeHandle.IsNil)
+            {
+                declaringTypeDef = mdReader.GetTypeDefinition(declaringTypeHandle);
+                DeclaringType.Push(mdReader.GetString(declaringTypeDef.Name));
+                declaringTypeHandle = declaringTypeDef.GetDeclaringType();
+            }
+            
             NamespaceDefinitionHandle namespaceHandle = declaringTypeDef.NamespaceDefinition;
             while (!namespaceHandle.IsNil)
             {
