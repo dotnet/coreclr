@@ -23,7 +23,7 @@ namespace System.Runtime.Serialization
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
-        private bool requireSameTokenInPartialTrust;
+        private bool _requireSameTokenInPartialTrust;
 
         [CLSCompliant(false)]
         public SerializationInfo(Type type, IFormatterConverter converter)
@@ -57,7 +57,7 @@ namespace System.Runtime.Serialization
             _converter = converter;
 			
             // requireSameTokenInPartialTrust is a vacuous parameter in a platform that does not support partial trust.
-			requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
+			_requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
         public string FullTypeName
@@ -84,7 +84,7 @@ namespace System.Runtime.Serialization
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                if (requireSameTokenInPartialTrust)
+                if (_requireSameTokenInPartialTrust)
                 {
                     DemandForUnsafeAssemblyNameAssignments(_rootTypeAssemblyName, value);
                 }
@@ -104,7 +104,7 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(type));
             }
 
-            if (requireSameTokenInPartialTrust)
+            if (_requireSameTokenInPartialTrust)
             {
                 DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
             }
@@ -380,10 +380,11 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(type));
             }
 
+#if CORECLR
             RuntimeType rt = type as RuntimeType;
             if (rt == null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeType);
-
+#endif
             Type foundType;
             object value;
 
@@ -404,7 +405,9 @@ namespace System.Runtime.Serialization
             object value;
 
             Debug.Assert((object)type != null, "[SerializationInfo.GetValue]type ==null");
+#if CORECLR
             Debug.Assert(type is RuntimeType, "[SerializationInfo.GetValue]type is not a runtime type");
+#endif
 
             value = GetElementNoThrow(name, out foundType);
             if (value == null)
