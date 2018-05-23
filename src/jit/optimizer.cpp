@@ -3968,9 +3968,12 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     }
 
     // remove old block body to use newly created unrolled loop.
-    for (BasicBlock* bbCur = bbStart->bbNext; bbCur != nullptr; bbCur = bbCur->bbNext)
+    for (BasicBlock* bbCur = bbStart->bbNext;; bbCur = bbCur->bbNext)
     {
         optRemoveLoopBody(bbCur);
+
+        if (bbCur == bbEnd)
+            break;
     }
 
     /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
