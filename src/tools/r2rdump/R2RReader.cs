@@ -115,7 +115,7 @@ namespace R2RDump
                         int offset = 0;
                         if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
                         {
-                            R2RMethod method = new R2RMethod(_image, mdReader, methodEntryPoints, rid, offset);
+                            R2RMethod method = new R2RMethod(_image, mdReader, rid, GetEntryPointIdFromOffset(offset), null, null);
 
                             if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= nRuntimeFunctions)
                             {
@@ -131,28 +131,28 @@ namespace R2RDump
                     int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
                     NativeParser parser = new NativeParser(_image, (uint)instMethodEntryPointsOffset);
                     NativeHashtable instMethodEntryPoints = new NativeHashtable(_image, parser);
-                    NativeHashtable.AllEntriesEnumerator allEntries = instMethodEntryPoints.EnumerateAllEntries();
-                    NativeParser curEntry = allEntries.GetNext();
-                    while (!curEntry.IsNull())
+                    NativeHashtable.AllEntriesEnumerator allEntriesEnum = instMethodEntryPoints.EnumerateAllEntries();
+                    NativeParser curParser = allEntriesEnum.GetNext();
+                    while (!curParser.IsNull())
                     {
-                        byte methodFlags = curEntry.GetByte();
-                        byte rid = curEntry.GetByte();
+                        byte methodFlags = curParser.GetByte();
+                        byte rid = curParser.GetByte();
                         if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
                         {
-                            byte nArgs = curEntry.GetByte();
+                            byte nArgs = curParser.GetByte();
                             R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
                             uint[] tokens = new uint[nArgs];
                             for (int i = 0; i < nArgs; i++)
                             {
-                                args[i] = (R2RMethod.GenericElementTypes)curEntry.GetByte();
+                                args[i] = (R2RMethod.GenericElementTypes)curParser.GetByte();
                                 if (args[i] == R2RMethod.GenericElementTypes.ValueType)
                                 {
-                                    tokens[i] = curEntry.GetByte();
+                                    tokens[i] = curParser.GetByte();
                                     tokens[i] = (tokens[i] >> 2);
                                 }
                             }
 
-                            uint id = curEntry.GetUnsigned();
+                            uint id = curParser.GetUnsigned();
                             id = id >> 1;
                             R2RMethod method = new R2RMethod(_image, mdReader, rid, (int)id, args, tokens);
                             if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
@@ -161,7 +161,7 @@ namespace R2RDump
                             }
                             R2RMethods.Add(method);
                         }
-                        curEntry = allEntries.GetNext();
+                        curParser = allEntriesEnum.GetNext();
                     }
 
                     // get the RVAs of the runtime functions for each method
@@ -200,6 +200,31 @@ namespace R2RDump
             int index = peReader.PEHeaders.GetContainingSectionIndex(rva);
             SectionHeader containingSection = peReader.PEHeaders.SectionHeaders[index];
             return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
+        }
+
+        private int GetEntryPointIdFromOffset(int offset)
+        {
+            // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
+            uint id = 0; // the RUNTIME_FUNCTIONS index
+            offset = (int)NativeReader.DecodeUnsigned(_image, (uint)offset, ref id);
+            if ((id & 1) != 0)
+            {
+                if ((id & 2) != 0)
+                {
+                    uint val = 0;
+                    NativeReader.DecodeUnsigned(_image, (uint)offset, ref val);
+                    offset -= (int)val;
+                }
+                // TODO: Dump fixups
+
+                id >>= 2;
+            }
+            else
+            {
+                id >>= 1;
+            }
+
+            return (int)id;
         }
     }
 }

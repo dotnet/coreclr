@@ -71,6 +71,7 @@ namespace R2RDump
         private const int _mdtMethodDef = 0x06000000;
 
         MetadataReader _mdReader;
+        MethodDefinition _methodDef;
 
         /// <summary>
         /// The name of the method
@@ -92,7 +93,7 @@ namespace R2RDump
         /// <summary>
         /// The type that the method belongs to
         /// </summary>
-        public Stack<string> DeclaringType { get; }
+        public string DeclaringType { get; }
 
         /// <summary>
         /// The token of the method consisting of the table code (0x06) and row id
@@ -112,7 +113,7 @@ namespace R2RDump
         /// <summary>
         /// Maps all the generic parameters to the type in the instance
         /// </summary>
-        Dictionary<string, GenericElementTypes> _genericParamInstance;
+        Dictionary<string, GenericInstance> _genericParamInstanceMap;
 
         [Flags]
         public enum EncodeMethodSigFlags
@@ -152,24 +153,26 @@ namespace R2RDump
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid)
+        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
         {
+            Token = _mdtMethodDef | rid;
+            EntryPointRuntimeFunctionId = entryPointId;
+
             _mdReader = mdReader;
             NativeCode = new List<RuntimeFunction>();
 
             // get the method signature from the MethodDefhandle
             MethodDefinitionHandle methodDefHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
-            MethodDefinition methodDef = mdReader.GetMethodDefinition(methodDefHandle);
-            Name = mdReader.GetString(methodDef.Name);
-            BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
+            _methodDef = mdReader.GetMethodDefinition(methodDefHandle);
+            Name = mdReader.GetString(_methodDef.Name);
+            BlobReader signatureReader = mdReader.GetBlobReader(_methodDef.Signature);
 
-            DeclaringType = new Stack<string>();
-            TypeDefinitionHandle declaringTypeHandle = methodDef.GetDeclaringType();
+            TypeDefinitionHandle declaringTypeHandle = _methodDef.GetDeclaringType();
             TypeDefinition declaringTypeDef;
             while (!declaringTypeHandle.IsNil)
             {
                 declaringTypeDef = mdReader.GetTypeDefinition(declaringTypeHandle);
-                DeclaringType.Push(mdReader.GetString(declaringTypeDef.Name));
+                DeclaringType = mdReader.GetString(declaringTypeDef.Name) + "." + DeclaringType;
                 declaringTypeHandle = declaringTypeDef.GetDeclaringType();
             }
             
@@ -177,19 +180,15 @@ namespace R2RDump
             while (!namespaceHandle.IsNil)
             {
                 NamespaceDefinition namespaceDef = mdReader.GetNamespaceDefinition(namespaceHandle);
-                DeclaringType.Push(mdReader.GetString(namespaceDef.Name));
+                DeclaringType = mdReader.GetString(namespaceDef.Name) + "." + DeclaringType;
                 namespaceHandle = namespaceDef.Parent;
             }
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
-            var genericParams = methodDef.GetGenericParameters();
-            _genericParamInstance = new Dictionary<string, GenericElementTypes>();
-            foreach (GenericParameterHandle genericParam in genericParams)
-            {
-                _genericParamInstance[mdReader.GetString(mdReader.GetGenericParameter(genericParam).Name)] = 0;
-            }
-
+            var genericParams = _methodDef.GetGenericParameters();
+            _genericParamInstanceMap = new Dictionary<string, GenericInstance>();
+            
             int argCount = signatureReader.ReadCompressedInteger();
             if (IsGeneric)
             {
@@ -203,84 +202,41 @@ namespace R2RDump
                 ArgTypes[i] = new SignatureType(ref signatureReader, mdReader, genericParams);
             }
 
-            Token = _mdtMethodDef | rid;
+            if (IsGeneric && instanceArgs != null)
+            {
+                InitGenericInstances(genericParams, instanceArgs, tok);
+            }
         }
 
-        /// <summary>
-        /// Set the entry point id for generic methods and maps the generic parameters to the type
-        /// </summary>
-        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
-            : this(image, mdReader, rid)
+        private void InitGenericInstances(GenericParameterHandleCollection genericParams, GenericElementTypes[] instanceArgs, uint[] tok)
         {
-            EntryPointRuntimeFunctionId = entryPointId;
-
-            Dictionary<string, string> tokens = new Dictionary<string, string>();
-            for (int i = 0; i < _genericParamInstance.Count; i++)
+            for (int i = 0; i < genericParams.Count; i++)
             {
-                var key = _genericParamInstance.ElementAt(i).Key;
-                _genericParamInstance[key] = instanceArgs[i];
+                var key = _mdReader.GetString(_mdReader.GetGenericParameter(genericParams.ElementAt(i)).Name);
 
-                if (instanceArgs[i] == GenericElementTypes.ValueType) {
-                    tokens[key] = mdReader.GetString(mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i])).Name);
+                if (instanceArgs[i] == GenericElementTypes.ValueType)
+                {
+                    string classname = _mdReader.GetString(_mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i])).Name);
+                    _genericParamInstanceMap[key] = new GenericInstance(instanceArgs[i], classname);
+                }
+                else
+                {
+                    _genericParamInstanceMap[key] = new GenericInstance(instanceArgs[i], Enum.GetName(typeof(GenericElementTypes), instanceArgs[i]));
                 }
             }
 
             if ((ReturnType.Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
             {
-                GenericElementTypes instance = _genericParamInstance[ReturnType.TypeName];
-                if (instance == GenericElementTypes.ValueType)
-                {
-                    ReturnType.GenericInstance = new GenericInstance(instance, tokens[ReturnType.TypeName]);
-                }
-                else
-                {
-                    ReturnType.GenericInstance = new GenericInstance(instance, Enum.GetName(typeof(GenericElementTypes), instance));
-                }
+                ReturnType.GenericInstance = _genericParamInstanceMap[ReturnType.TypeName];
             }
 
-            for (int i = 0; i<ArgTypes.Length; i++)
+            for (int i = 0; i < ArgTypes.Length; i++)
             {
                 if ((ArgTypes[i].Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
                 {
-                    GenericElementTypes instance = _genericParamInstance[ArgTypes[i].TypeName];
-                    if (instance == GenericElementTypes.ValueType)
-                    {
-                        ArgTypes[i].GenericInstance = new GenericInstance(instance, tokens[ArgTypes[i].TypeName]);
-                    }
-                    else
-                    {
-                        ArgTypes[i].GenericInstance = new GenericInstance(instance, Enum.GetName(typeof(GenericElementTypes), instance));
-                    }
+                    ArgTypes[i].GenericInstance = _genericParamInstanceMap[ArgTypes[i].TypeName];
                 }
             }
-        }
-
-        /// <summary>
-        /// Uses the methodEntryPoint native array to get the entry point id of non-generic methods
-        /// </summary>
-        public R2RMethod(byte[] image, MetadataReader mdReader, NativeArray methodEntryPoints, uint rid, int offset)
-            : this(image, mdReader, rid)
-        {
-            // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
-            uint id = 0; // the RUNTIME_FUNCTIONS index
-            offset = (int)NativeReader.DecodeUnsigned(image, (uint)offset, ref id);
-            if ((id & 1) != 0)
-            {
-                if ((id & 2) != 0)
-                {
-                    uint val = 0;
-                    NativeReader.DecodeUnsigned(image, (uint)offset, ref val);
-                    offset -= (int)val;
-                }
-                // TODO: Dump fixups
-
-                id >>= 2;
-            }
-            else
-            {
-                id >>= 1;
-            }
-            EntryPointRuntimeFunctionId = (int)id;
         }
 
         public override string ToString()
@@ -290,23 +246,19 @@ namespace R2RDump
             if (Name != null)
             {
                 sb.AppendFormat($"{ReturnType.ToString()} ");
-                foreach (var type in DeclaringType)
-                {
-                    sb.AppendFormat($"{type}.");
-                }
-                sb.AppendFormat($"{Name}");
+                sb.AppendFormat($"{DeclaringType}{Name}");
 
                 if (IsGeneric)
                 {
                     sb.Append("<");
                     int i = 0;
-                    foreach (var value in _genericParamInstance.Values)
+                    foreach (var instance in _genericParamInstanceMap.Values)
                     {
                         if (i > 0)
                         {
                             sb.Append(", ");
                         }
-                        sb.AppendFormat($"{Enum.GetName(typeof(GenericElementTypes), value)}");
+                        sb.AppendFormat($"{instance.TypeName}");
                         i++;
                     }
                     sb.Append(">");
