@@ -3975,8 +3975,8 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         if (bbCur == bbEnd)
         {
             break;
-    }
         }
+    }
 
     /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
     if (bbStart->bbJumpKind == BBJ_COND)
