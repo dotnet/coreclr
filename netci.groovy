@@ -210,6 +210,11 @@ class Constants {
                 'Checked'
             ]
         ],
+        'Tizen': [
+            'armem': [
+                'Checked'
+            ]
+        ],
     ]
 
     // A set of scenarios that are valid for arm/arm64/armlb tests run on hardware. This is a map from valid scenario name
@@ -323,14 +328,6 @@ class Constants {
                'gcstress0xc_jitstressregs0x1000':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"]
     ]
   
-    def static validLinuxArm64Scenarios = [ 
-               'innerloop',
-               'normal',
-               'r2r',
-               'gcstress0x3',
-               'gcstress0xc'
-    ]
-
     def static validLinuxArmScenarios = [
                'innerloop',
                'normal',
@@ -620,9 +617,14 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         assert os in supportedArmLinuxOs
 
         if (architecture == 'arm64') {
-            if ((options != null) && (options['is_build_only'] == true)) {
-                // Arm64 Linux build machine
-                Utilities.setMachineAffinity(job, os, 'arm64-cross-latest')
+            assert (architecture == 'arm64') && (os == 'Ubuntu')
+            def isFlow  = (options != null) && (options['is_flow_job'] == true)
+            def isBuild = (options != null) && (options['is_build_job'] == true)
+            if (isFlow || isBuild) {
+                // Arm64 Ubuntu build machine. Build uses docker, so the actual host OS is not
+                // very important. Therefore, use latest or auto. Flow jobs don't need to use
+                // Arm64 hardware.
+                Utilities.setMachineAffinity(job, 'Ubuntu16.04', 'latest-or-auto')
             } else {
                 // Arm64 Linux test machines
                 if ((options != null) && (options['large_pages'] == true)) {
@@ -686,7 +688,9 @@ def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def i
     else {
         if (architecture == 'arm64') {
             if (isBuildJob) {
-                affinityOptions = ['is_build_only': true]
+                affinityOptions = ['is_build_job': true]
+            } else if (isFlowJob) {
+                affinityOptions = ['is_flow_job': true]
             } else if (isTestJob) {
                 affinityOptions = [ "large_pages" : false ]
             }
@@ -990,6 +994,11 @@ def static isNeedDocker(def architecture, def os, def isBuild) {
                 return true
             }
         }
+        else if (architecture == 'arm64') {
+            if (os == 'Ubuntu') {
+                return true
+            }
+        }
     }
     else {
         if (architecture == 'x86' && os == 'Ubuntu') {
@@ -1013,12 +1022,17 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
                 return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180404203310"
             }
             else if (os == 'Tizen') {
-                return "hqueue/dotnetcore:ubuntu1404_cross_prereqs_v4-tizen_rootfs"
+                return "gbalykov/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-4.0m2"
             }
         }
         else if (architecture == 'arm') {
             if (os == 'Ubuntu') {
                 return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+            }
+        }
+        else if (architecture == 'arm64') {
+            if (os == 'Ubuntu') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
             }
         }
     }
@@ -1041,6 +1055,10 @@ def static jobRequiresLimitedHardware(def architecture, def os) {
     }
     else if ((architecture == 'arm') && (os == 'Ubuntu')) {
         // These test jobs require Linux/arm32 hardware
+        return true
+    }
+    else if ((architecture == 'arm64') && (os == 'Ubuntu')) {
+        // These test jobs require Linux/arm64 hardware
         return true
     }
     else {
@@ -1119,6 +1137,11 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         return
     }
 
+    // No arm64 Ubuntu cron jobs for now: we don't have enough hardware.
+    if ((architecture == 'arm64') && (os != 'Windows_NT')) {
+         return
+    }
+
     // Check scenario.
     switch (scenario) {
         case 'innerloop':
@@ -1146,7 +1169,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     else {
                         // Only the flow jobs get push triggers; the build and test jobs are triggered by the flow job.
                         if (isFlowJob) {
-                            addPeriodicTriggerHelper(job, "H H/4 * * *")
+                            addPeriodicTriggerHelper(job, '@daily')
                         }
                     }
                     break
@@ -1378,6 +1401,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             // Windows ARM jobs depend on a Windows "build only" job that exits the trigger
             // function very early, so only non-Windows gets here.
             if ((architecture == 'arm') && isCoreFxScenario(scenario) && !isFlowJob) {
+                break
+            }
+            if ((architecture == 'arm64') && isCoreFxScenario(scenario) && !isFlowJob) {
                 break
             }
             assert (os == 'Windows_NT') || (os in Constants.crossList)
@@ -1769,15 +1795,21 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'Ubuntu16.04':
                     assert scenario != 'innerloop'
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build",
-                        "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+Build.*")
+                            "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+Build.*")
                     break
 
                 case 'Tizen':
                     architecture = 'armel'
 
-                    assert scenario != 'innerloop'
-                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build",
-                        "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+Build.*")
+                    if (scenario == 'innerloop') {
+                        if (configuration == 'Checked') {
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build and Test")
+                        }
+                    }
+                    else {
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build",
+                            "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+Build.*")
+                    }
                     break
             }
 
@@ -2415,20 +2447,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
                     }
                     break
-                case 'arm64':
-                    if (!doCoreFxTesting) {
-                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh ${lowerConfiguration} ${architecture} cross crosscomponent clang3.8"
-                        
-                        // HACK -- Arm64 does not have corefx jobs yet.
-                        buildCommands += "git clone https://github.com/dotnet/corefx fx"
-                        buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs-corefx ./fx/build-native.sh -release -buildArch=arm64 -- verbose cross clang3.8"
-                        buildCommands += "mkdir ./bin/Product/Linux.arm64.${configuration}/corefxNative"
-                        buildCommands += "cp fx/bin/Linux.arm64.Release/native/* ./bin/Product/Linux.arm64.${configuration}/corefxNative"
-
-                        // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
-                    }
-                    break
                 case 'armem':
                     // Emulator cross builds for ARM runs on Ubuntu, Ubuntu16.04 and Tizen currently
                     assert (os == 'Ubuntu') || (os == 'Ubuntu16.04') || (os == 'Tizen')
@@ -2472,12 +2490,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Basic archiving of the build, no pal tests
                     Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                     break
+                case 'arm64':
                 case 'arm':
                     // Non-Windows ARM cross builds on hardware run on Ubuntu only
                     assert (os == 'Ubuntu')
 
                     // Add some useful information to the log file. Ignore return codes.
                     buildCommands += "uname -a || true"
+
+                    def additionalOpts = ""
+                    if (architecture == 'arm') {
+                        additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
+                    }
 
                     // Cross build the Ubuntu/arm product using docker with a docker image that contains the correct
                     // Ubuntu cross-compilation toolset (running on a Ubuntu x64 host).
@@ -2486,7 +2510,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // ZIP up the generated CoreFX runtime and tests.
 
                     def dockerImage = getDockerImageName(architecture, os, true)
-                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} "
+                    def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
 
                     buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh ${lowerConfiguration} ${architecture} cross crosscomponent"
 
@@ -2528,8 +2552,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         //     used by runtest.sh as the "--testNativeBinDir" argument.
 
                         // These commands are assumed to be run from the root of the workspace.
-                        buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root"
-                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.arm.${configuration}/tests"
+                        buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
 
                         Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     }
@@ -2642,7 +2666,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             return false
         }
 
-        def isEnabledOS = (os == 'Windows_NT') || (os == 'Ubuntu' && architecture == 'arm') || (os == 'Ubuntu' && isCoreFxScenario(scenario))
+        def isEnabledOS = (os == 'Windows_NT') || (os == 'Ubuntu' && (isCoreFxScenario(scenario) || architecture == 'arm' || architecture == 'arm64'))
         if (!isEnabledOS) {
             return false
         }
@@ -2669,6 +2693,17 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     if (! (isBuildOnly && isCoreFxScenario(scenario)) ) {
                         return false
                     }
+                }
+                else {
+                    if (!isCoreFxScenario(scenario)) {
+                        return false
+                    }
+                }
+                break
+
+            case 'arm64':
+                if (os == 'Windows_NT') {
+                    return false
                 }
                 else {
                     if (!isCoreFxScenario(scenario)) {
@@ -3101,7 +3136,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Returns the newly created job.
 def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
-    def isUbuntuArmJob = ((os == "Ubuntu") && (architecture == 'arm')) // ARM Ubuntu running on hardware (not emulator)
+    def isUbuntuArmJob = (os == "Ubuntu") && ((architecture == 'arm') || (architecture == 'arm64')) // ARM Ubuntu running on hardware (not emulator)
     def doCoreFxTesting = isCoreFxScenario(scenario)
 
     def workspaceRelativeFxRootLinux = "_/fx" // only used for CoreFX testing
@@ -3247,12 +3282,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("uname -a || true")
             }
 
-            if (architecture == 'arm64') {
-                shell("mkdir -p ./bin/CoreFxBinDir")
-                shell("cp ./bin/Product/Linux.arm64.${configuration}/corefxNative/* ./bin/CoreFxBinDir")
-                shell("chmod +x ./bin/Product/Linux.arm64.${configuration}/corerun")
-            }
-            else if (architecture == 'x86') {
+            if (architecture == 'x86') {
                 shell("mkdir ./bin/CoreFxNative")
 
                 def fxBranch = getFxBranch(branch)
@@ -3288,8 +3318,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
                     def lowerConfiguration = configuration.toLowerCase()
-                    shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.arm.${configuration}/Tests/Core_Root
-                    shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.arm.${configuration}/tests
+                    shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
+                    shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
                 }
                 else {
                     shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
@@ -3524,7 +3554,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     else {
         // Non-Windows
         if (architecture == 'arm64') {
-            if (!(scenario in Constants.validLinuxArm64Scenarios)) {
+            if (!(scenario in Constants.validLinuxArmScenarios)) {
                 return false
             }
         }

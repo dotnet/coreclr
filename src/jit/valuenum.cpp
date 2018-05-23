@@ -930,11 +930,7 @@ ValueNum ValueNumStore::VNZeroForType(var_types typ)
         case TYP_ULONG:
             return VNForLongCon(0);
         case TYP_FLOAT:
-#if FEATURE_X87_DOUBLES
-            return VNForDoubleCon(0.0);
-#else
             return VNForFloatCon(0.0f);
-#endif
         case TYP_DOUBLE:
             return VNForDoubleCon(0.0);
         case TYP_REF:
@@ -5981,53 +5977,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
             }
             else // Must be an "op="
             {
-#ifndef LEGACY_BACKEND
                 unreached();
-#else
-                // If the LHS is an IND, we didn't evaluate it when we visited it previously.
-                // But we didn't know that the parent was an op=.  We do now, so go back and evaluate it.
-                // (We actually check if the effective val is the IND.  We will have evaluated any non-last
-                // args of an LHS comma already -- including their memory effects.)
-                GenTree* lhsVal = lhs->gtEffectiveVal(/*commaOnly*/ true);
-                if (lhsVal->OperIsIndir() || (lhsVal->OperGet() == GT_CLS_VAR))
-                {
-                    fgValueNumberTree(lhsVal, /*evalAsgLhsInd*/ true);
-                }
-                // Now we can make this assertion:
-                assert(lhsVal->gtVNPair.BothDefined());
-                genTreeOps op = GenTree::OpAsgToOper(oper);
-                if (GenTree::OperIsBinary(op))
-                {
-                    ValueNumPair lhsNormVNP;
-                    ValueNumPair lhsExcVNP;
-                    lhsExcVNP.SetBoth(ValueNumStore::VNForEmptyExcSet());
-                    vnStore->VNPUnpackExc(lhsVal->gtVNPair, &lhsNormVNP, &lhsExcVNP);
-                    assert(rhs->gtVNPair.BothDefined());
-                    ValueNumPair rhsNormVNP;
-                    ValueNumPair rhsExcVNP;
-                    rhsExcVNP.SetBoth(ValueNumStore::VNForEmptyExcSet());
-                    vnStore->VNPUnpackExc(rhs->gtVNPair, &rhsNormVNP, &rhsExcVNP);
-                    rhsVNPair = vnStore->VNPWithExc(vnStore->VNPairForFunc(tree->TypeGet(),
-                                                                           GetVNFuncForOper(op, (tree->gtFlags &
-                                                                                                 GTF_UNSIGNED) != 0),
-                                                                           lhsNormVNP, rhsNormVNP),
-                                                    vnStore->VNPExcSetUnion(lhsExcVNP, rhsExcVNP));
-                }
-                else
-                {
-                    // As of now, GT_CHS ==> GT_NEG is the only pattern fitting this.
-                    assert(GenTree::OperIsUnary(op));
-                    ValueNumPair lhsNormVNP;
-                    ValueNumPair lhsExcVNP;
-                    lhsExcVNP.SetBoth(ValueNumStore::VNForEmptyExcSet());
-                    vnStore->VNPUnpackExc(lhsVal->gtVNPair, &lhsNormVNP, &lhsExcVNP);
-                    rhsVNPair = vnStore->VNPWithExc(vnStore->VNPairForFunc(tree->TypeGet(),
-                                                                           GetVNFuncForOper(op, (tree->gtFlags &
-                                                                                                 GTF_UNSIGNED) != 0),
-                                                                           lhsNormVNP),
-                                                    lhsExcVNP);
-                }
-#endif // !LEGACY_BACKEND
             }
 
             // Is the type being stored different from the type computed by the rhs?
@@ -6243,9 +6193,6 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                     // If it is a PtrToLoc, lib and cons VNs will be the same.
                     if (argIsVNFunc)
                     {
-                        IndirectAssignmentAnnotation* pIndirAnnot =
-                            nullptr; // This will be used if "tree" is an "indirect assignment",
-                                     // explained below.
                         if (funcApp.m_func == VNF_PtrToLoc)
                         {
                             assert(arg->gtVNPair.BothEqual()); // If it's a PtrToLoc, lib/cons shouldn't differ.
@@ -6258,11 +6205,9 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                             {
                                 FieldSeqNode* fieldSeq = vnStore->FieldSeqVNToFieldSeq(funcApp.m_args[1]);
 
-                                // Either "arg" is the address of (part of) a local itself, or the assignment is an
-                                // "indirect assignment", where an outer comma expression assigned the address of a
-                                // local to a temp, and that temp is our lhs, and we recorded this in a table when we
-                                // made the indirect assignment...or else we have a "rogue" PtrToLoc, one that should
-                                // have made the local in question address-exposed.  Assert on that.
+                                // Either "arg" is the address of (part of) a local itself, or else we have
+                                // a "rogue" PtrToLoc, one that should have made the local in question
+                                // address-exposed.  Assert on that.
                                 GenTreeLclVarCommon* lclVarTree   = nullptr;
                                 bool                 isEntire     = false;
                                 unsigned             lclDefSsaNum = SsaConfig::RESERVED_SSA_NUM;
@@ -6294,32 +6239,6 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                                                                         .GetPerSsaData(lclVarTree->GetSsaNum())
                                                                         ->m_vnPair;
                                         lclDefSsaNum = GetSsaNumForLocalVarDef(lclVarTree);
-                                        newLhsVNPair =
-                                            vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq, rhsVNPair,
-                                                                                lhs->TypeGet(), compCurBB);
-                                    }
-                                    lvaTable[lclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = newLhsVNPair;
-                                }
-                                else if (m_indirAssignMap != nullptr && GetIndirAssignMap()->Lookup(tree, &pIndirAnnot))
-                                {
-                                    // The local #'s should agree.
-                                    assert(lclNum == pIndirAnnot->m_lclNum);
-                                    assert(pIndirAnnot->m_defSsaNum != SsaConfig::RESERVED_SSA_NUM);
-                                    lclDefSsaNum = pIndirAnnot->m_defSsaNum;
-                                    // Does this assignment write the entire width of the local?
-                                    if (genTypeSize(lhs->TypeGet()) == genTypeSize(var_types(lvaTable[lclNum].lvType)))
-                                    {
-                                        assert(pIndirAnnot->m_useSsaNum == SsaConfig::RESERVED_SSA_NUM);
-                                        assert(pIndirAnnot->m_isEntire);
-                                        newLhsVNPair = rhsVNPair;
-                                    }
-                                    else
-                                    {
-                                        assert(pIndirAnnot->m_useSsaNum != SsaConfig::RESERVED_SSA_NUM);
-                                        assert(!pIndirAnnot->m_isEntire);
-                                        assert(pIndirAnnot->m_fieldSeq == fieldSeq);
-                                        ValueNumPair oldLhsVNPair =
-                                            lvaTable[lclNum].GetPerSsaData(pIndirAnnot->m_useSsaNum)->m_vnPair;
                                         newLhsVNPair =
                                             vnStore->VNPairApplySelectorsAssign(oldLhsVNPair, fieldSeq, rhsVNPair,
                                                                                 lhs->TypeGet(), compCurBB);

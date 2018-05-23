@@ -35,7 +35,7 @@ namespace System.Collections.Concurrent
     /// concurrently from multiple threads.
     /// </remarks>
     [DebuggerDisplay("Count = {Count}")]
-    [DebuggerTypeProxy(typeof(ProducerConsumerCollectionDebugView<>))]
+    [DebuggerTypeProxy(typeof(IProducerConsumerCollectionDebugView<>))]
     internal class ConcurrentStack<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
     {
         /// <summary>
@@ -128,7 +128,7 @@ namespace System.Collections.Concurrent
             get
             {
                 ThrowHelper.ThrowNotSupportedException(ExceptionResource.ConcurrentCollection_SyncRoot_NotSupported);
-                return default(object);
+                return default;
             }
         }
 
@@ -269,7 +269,7 @@ namespace System.Collections.Concurrent
             //stack is empty
             if (head == null)
             {
-                result = default(T);
+                result = default;
                 return false;
             }
             if (Interlocked.CompareExchange(ref _head, head._next, head) == head)
@@ -297,7 +297,7 @@ namespace System.Collections.Concurrent
                 return true;
             }
 
-            result = default(T);
+            result = default;
             return false;
         }
 
