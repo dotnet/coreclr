@@ -92,7 +92,7 @@ namespace R2RDump
         /// <summary>
         /// The type that the method belongs to
         /// </summary>
-        public string DeclaringType { get; }
+        public Stack<string> DeclaringType { get; }
 
         /// <summary>
         /// The token of the method consisting of the table code (0x06) and row id
@@ -163,8 +163,16 @@ namespace R2RDump
             Name = mdReader.GetString(methodDef.Name);
             BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
 
+            DeclaringType = new Stack<string>();
             TypeDefinition declaringTypeDef = mdReader.GetTypeDefinition(methodDef.GetDeclaringType());
-            DeclaringType = mdReader.GetString(declaringTypeDef.Name);
+            DeclaringType.Push(mdReader.GetString(declaringTypeDef.Name));
+            NamespaceDefinitionHandle namespaceHandle = declaringTypeDef.NamespaceDefinition;
+            while (!namespaceHandle.IsNil)
+            {
+                NamespaceDefinition namespaceDef = mdReader.GetNamespaceDefinition(namespaceHandle);
+                DeclaringType.Push(mdReader.GetString(namespaceDef.Name));
+                namespaceHandle = namespaceDef.Parent;
+            }
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
@@ -274,7 +282,13 @@ namespace R2RDump
 
             if (Name != null)
             {
-                sb.AppendFormat($"{ReturnType.ToString()} {DeclaringType}.{Name}");
+                sb.AppendFormat($"{ReturnType.ToString()} ");
+                foreach (var type in DeclaringType)
+                {
+                    sb.AppendFormat($"{type}.");
+                }
+                sb.AppendFormat($"{Name}");
+
                 if (IsGeneric)
                 {
                     sb.Append("<");
