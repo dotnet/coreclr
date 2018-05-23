@@ -103,7 +103,7 @@ namespace R2RDump
         /// <summary>
         /// All the runtime functions of this method
         /// </summary>
-        public List<RuntimeFunction> NativeCode { get; }
+        public List<RuntimeFunction> RuntimeFunctions { get; }
 
         /// <summary>
         /// The id of the entrypoint runtime function
@@ -159,7 +159,7 @@ namespace R2RDump
             EntryPointRuntimeFunctionId = entryPointId;
 
             _mdReader = mdReader;
-            NativeCode = new List<RuntimeFunction>();
+            RuntimeFunctions = new List<RuntimeFunction>();
 
             // get the method signature from the MethodDefhandle
             MethodDefinitionHandle methodDefHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
@@ -186,7 +186,7 @@ namespace R2RDump
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
-            var genericParams = _methodDef.GetGenericParameters();
+            GenericParameterHandleCollection genericParams = _methodDef.GetGenericParameters();
             _genericParamInstanceMap = new Dictionary<string, GenericInstance>();
             
             int argCount = signatureReader.ReadCompressedInteger();
@@ -202,7 +202,7 @@ namespace R2RDump
                 ArgTypes[i] = new SignatureType(ref signatureReader, mdReader, genericParams);
             }
 
-            if (IsGeneric && instanceArgs != null)
+            if (IsGeneric && instanceArgs != null && tok != null)
             {
                 InitGenericInstances(genericParams, instanceArgs, tok);
             }
@@ -210,6 +210,11 @@ namespace R2RDump
 
         private void InitGenericInstances(GenericParameterHandleCollection genericParams, GenericElementTypes[] instanceArgs, uint[] tok)
         {
+            if (instanceArgs.Length != genericParams.Count || tok.Length != genericParams.Count)
+            {
+                throw new BadImageFormatException("Generic param indices out of bounds");
+            }
+
             for (int i = 0; i < genericParams.Count; i++)
             {
                 var key = _mdReader.GetString(_mdReader.GetGenericParameter(genericParams.ElementAt(i)).Name);
@@ -278,9 +283,9 @@ namespace R2RDump
 
             sb.AppendFormat($"Token: 0x{Token:X8}\n");
             sb.AppendFormat($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}\n");
-            sb.AppendFormat($"Number of RuntimeFunctions: {NativeCode.Count}\n\n");
+            sb.AppendFormat($"Number of RuntimeFunctions: {RuntimeFunctions.Count}\n\n");
 
-            foreach (RuntimeFunction runtimeFunction in NativeCode)
+            foreach (RuntimeFunction runtimeFunction in RuntimeFunctions)
             {
                 sb.AppendFormat($"{runtimeFunction}\n");
             }
