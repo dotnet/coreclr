@@ -1597,7 +1597,7 @@ void InvokeUtil::CheckAccessField(RefSecContext       *pCtx,
 
 
 //
-// Check accessability of a field or method.
+// Check accessibility of a field or method.
 //
 // Arguments:
 //    pCtx                  - current reflection context
