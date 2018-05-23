@@ -23,16 +23,9 @@ namespace System.Runtime.Serialization
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
-        private bool _requireSameTokenInPartialTrust;
 
         [CLSCompliant(false)]
         public SerializationInfo(Type type, IFormatterConverter converter)
-            : this(type, converter, false)
-        {
-        }
-
-        [CLSCompliant(false)]
-        public SerializationInfo(Type type, IFormatterConverter converter, bool requireSameTokenInPartialTrust)
         {
             if ((object)type == null)
             {
@@ -55,9 +48,6 @@ namespace System.Runtime.Serialization
             _nameToIndex = new Dictionary<string, int>();
 
             _converter = converter;
-			
-            // requireSameTokenInPartialTrust is a vacuous parameter in a platform that does not support partial trust.
-			_requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
         public string FullTypeName
@@ -84,10 +74,6 @@ namespace System.Runtime.Serialization
                 {
                     throw new ArgumentNullException(nameof(value));
                 }
-                if (_requireSameTokenInPartialTrust)
-                {
-                    DemandForUnsafeAssemblyNameAssignments(_rootTypeAssemblyName, value);
-                }
                 _rootTypeAssemblyName = value;
                 IsAssemblyNameSetExplicit = true;
             }
@@ -104,11 +90,6 @@ namespace System.Runtime.Serialization
                 throw new ArgumentNullException(nameof(type));
             }
 
-            if (_requireSameTokenInPartialTrust)
-            {
-                DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
-            }
-
             if (!ReferenceEquals(_rootType, type))
             {
                 _rootType = type;
@@ -117,10 +98,6 @@ namespace System.Runtime.Serialization
                 IsFullTypeNameSetExplicit = false;
                 IsAssemblyNameSetExplicit = false;
             }
-        }
-
-        internal static void DemandForUnsafeAssemblyNameAssignments(string originalAssemblyName, string newAssemblyName)
-        {
         }
 
         public int MemberCount => _count;
@@ -154,7 +131,7 @@ namespace System.Runtime.Serialization
             Array.Copy(_values, newData, _count);
             Array.Copy(_types, newTypes, _count);
 
-            // Assign the new arrys back to the member vars.
+            // Assign the new arrays back to the member vars.
             _names = newMembers;
             _values = newData;
             _types = newTypes;
