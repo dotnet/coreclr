@@ -25,7 +25,7 @@ namespace System.Runtime.Serialization
         private Type _rootType;
 
         [CLSCompliant(false)]
-        public SerializationInfo(Type type, IFormatterConverter converter)
+        public SerializationInfo(Type type, IFormatterConverter converter) 
         {
             if ((object)type == null)
             {
@@ -48,6 +48,13 @@ namespace System.Runtime.Serialization
             _nameToIndex = new Dictionary<string, int>();
 
             _converter = converter;
+        }
+
+        [CLSCompliant(false)]
+        public SerializationInfo(Type type, IFormatterConverter converter, bool requireSameTokenInPartialTrust)
+            : this(type, converter)
+        {
+            // requireSameTokenInPartialTrust is a vacuous parameter in a platform that does not support partial trust.
         }
 
         public string FullTypeName
