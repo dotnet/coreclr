@@ -1228,7 +1228,7 @@ void DebuggerJitInfo::Init(TADDR newAddress)
     this->m_addrOfCode = (ULONG_PTR)PTR_TO_CORDB_ADDRESS((BYTE*) newAddress);
     this->m_jitComplete = true;
 
-    this->m_codeRegionInfo.InitializeFromStartAddress((PCODE)this->m_addrOfCode);
+    this->m_codeRegionInfo.InitializeFromStartAddress(PINSTRToPCODE((TADDR)this->m_addrOfCode));
     this->m_sizeOfCode =  this->m_codeRegionInfo.getSizeOfTotalCode();
 
     this->m_encVersion = this->m_methodInfo->GetCurrentEnCVersion();
