@@ -123,6 +123,9 @@ int LinearScan::BuildLclHeap(GenTree* tree)
 // Arguments:
 //    tree      - The node of interest
 //
+// Return Value:
+//    The number of sources consumed by this node.
+//
 // Note: these operands have uses that interfere with the def and need the special handling.
 //
 int LinearScan::BuildShiftLongCarry(GenTree* tree)
@@ -173,6 +176,9 @@ int LinearScan::BuildShiftLongCarry(GenTree* tree)
 //
 // Arguments:
 //    treeNode - the node of interest
+//
+// Return Value:
+//    The number of sources consumed by this node.
 //
 // Notes:
 // Preconditions:

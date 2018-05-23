@@ -33,6 +33,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Arguments:
 //    indirTree - GT_IND, GT_STOREIND or block gentree node
 //
+// Return Value:
+//    The number of sources consumed by this node.
+//
 int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 {
     int srcCount = 0;
@@ -125,7 +128,7 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 //    call - The call node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildCall(GenTreeCall* call)
 {
@@ -379,7 +382,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
 //    argNode - a GT_PUTARG_STK node
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 // Notes:
 //    Set the child node(s) to be contained when we have a multireg arg
@@ -459,7 +462,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
 //    argNode - a GT_PUTARG_SPLIT node
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 // Notes:
 //    Set the child node(s) to be contained
@@ -557,7 +560,7 @@ int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
 //    blkNode       - The block store node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {

@@ -32,6 +32,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Arguments:
 //    treeNode - the node of interest
 //
+// Return Value:
+//    The number of sources consumed by this node.
+//
 // Notes:
 // Preconditions:
 //    LSRA Has been initialized.
@@ -814,8 +817,8 @@ int LinearScan::BuildNode(GenTree* tree)
 //    tree       - The GT_SIMD node of interest
 //
 // Return Value:
-//    None.
-
+//    The number of sources consumed by this node.
+//
 int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 {
     int srcCount = 0;
@@ -1022,8 +1025,8 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 //    tree       - The GT_HWIntrinsic node of interest
 //
 // Return Value:
-//    None.
-
+//    The number of sources consumed by this node.
+//
 int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 {
     NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;

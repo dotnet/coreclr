@@ -32,6 +32,9 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Arguments:
 //    treeNode - the node of interest
 //
+// Return Value:
+//    The number of sources consumed by this node.
+//
 // Notes:
 // Preconditions:
 //    LSRA Has been initialized.
@@ -902,7 +905,7 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildShiftRotate(GenTree* tree)
 {
@@ -1000,7 +1003,7 @@ int LinearScan::BuildShiftRotate(GenTree* tree)
 //    call      - The call node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildCall(GenTreeCall* call)
 {
@@ -1257,7 +1260,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
 //    blkNode       - The block store node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
@@ -1467,7 +1470,7 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
 {
@@ -1626,7 +1629,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildLclHeap(GenTree* tree)
 {
@@ -1713,7 +1716,7 @@ int LinearScan::BuildLclHeap(GenTree* tree)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildModDiv(GenTree* tree)
 {
@@ -1790,7 +1793,7 @@ int LinearScan::BuildModDiv(GenTree* tree)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildIntrinsic(GenTree* tree)
 {
@@ -1869,8 +1872,8 @@ int LinearScan::BuildIntrinsic(GenTree* tree)
 //    tree       - The GT_SIMD node of interest
 //
 // Return Value:
-//    None.
-
+//    The number of sources consumed by this node.
+//
 int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 {
     // Only SIMDIntrinsicInit can be contained. Other than that,
@@ -2283,8 +2286,8 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 //    tree       - The GT_HWIntrinsic node of interest
 //
 // Return Value:
-//    None.
-
+//    The number of sources consumed by this node.
+//
 int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 {
     NamedIntrinsic      intrinsicID = intrinsicTree->gtHWIntrinsicId;
@@ -2523,7 +2526,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildCast(GenTree* tree)
 {
@@ -2574,6 +2577,9 @@ int LinearScan::BuildCast(GenTree* tree)
 //
 // Arguments:
 //    indirTree    -   GT_IND or GT_STOREIND gentree node
+//
+// Return Value:
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 {
@@ -2698,7 +2704,7 @@ int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 //    tree      - The node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 int LinearScan::BuildMul(GenTree* tree)
 {
