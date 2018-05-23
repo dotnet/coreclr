@@ -5331,7 +5331,8 @@ public:
     bool optFullUnrollLoops(unsigned loopId, unsigned iterCount);
     bool optPartialUnrollLoops(unsigned loopId, unsigned iterCount);
 
-    void optRemoveLoopBody(BasicBlock* head, BasicBlock* bottom);
+    void optRemoveLoopBody(BasicBlock* body);
+    bool optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTree* incr, GenTree* init);
 
 protected:
     // This enumeration describes what is killed by a call.
