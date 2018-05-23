@@ -20592,7 +20592,9 @@ void Compiler::fgStress64RsltMul()
 class BBPredsChecker
 {
 public:
-    BBPredsChecker(Compiler* compiler);
+    BBPredsChecker(Compiler* compiler) : comp(compiler)
+    {
+    }
 
     unsigned CheckBBPreds(BasicBlock* block, unsigned curTraversalStamp);
 
@@ -20605,10 +20607,6 @@ private:
 private:
     Compiler* comp;
 };
-
-BBPredsChecker::BBPredsChecker(Compiler* compiler) : comp(compiler)
-{
-}
 
 //------------------------------------------------------------------------
 // CheckBBPreds: Check basic block predecessors list.
