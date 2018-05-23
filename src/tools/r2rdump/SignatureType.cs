@@ -55,19 +55,19 @@ namespace R2RDump
                 EntityHandle handle = signatureReader.ReadTypeHandle();
                 if (handle.Kind == HandleKind.TypeDefinition)
                 {
-                    var typeDef = mdReader.GetTypeDefinition((TypeDefinitionHandle)handle);
+                    TypeDefinition typeDef = mdReader.GetTypeDefinition((TypeDefinitionHandle)handle);
                     TypeName = mdReader.GetString(typeDef.Name);
                 }
                 else if (handle.Kind == HandleKind.TypeReference)
                 {
-                    var typeRef = mdReader.GetTypeReference((TypeReferenceHandle)handle);
+                    TypeReference typeRef = mdReader.GetTypeReference((TypeReferenceHandle)handle);
                     TypeName = mdReader.GetString(typeRef.Name);
                 }
             }
             else if (signatureTypeCode == SignatureTypeCode.GenericMethodParameter)
             {
                 int index = signatureReader.ReadCompressedInteger();
-                var generic = mdReader.GetGenericParameter(genericParams[index]);
+                GenericParameter generic = mdReader.GetGenericParameter(genericParams[index]);
                 TypeName = mdReader.GetString(generic.Name);
                 Flags |= SignatureTypeFlags.GENERIC;
             }

@@ -87,7 +87,7 @@ namespace R2RDump
                 // initialize R2RMethods
                 if (peReader.HasMetadata)
                 {
-                    var mdReader = peReader.GetMetadataReader();
+                    MetadataReader mdReader = peReader.GetMetadataReader();
 
                     int runtimeFunctionSize = 2;
                     if (Machine == Machine.Amd64)
@@ -130,9 +130,9 @@ namespace R2RDump
                     R2RSection instMethodEntryPointSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS];
                     int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
                     NativeParser parser = new NativeParser(_image, (uint)instMethodEntryPointsOffset);
-                    var instMethodEntryPoints = new NativeHashtable(_image, parser);
-                    var allEntries = instMethodEntryPoints.EnumerateAllEntries();
-                    var curEntry = allEntries.GetNext();
+                    NativeHashtable instMethodEntryPoints = new NativeHashtable(_image, parser);
+                    NativeHashtable.AllEntriesEnumerator allEntries = instMethodEntryPoints.EnumerateAllEntries();
+                    NativeParser curEntry = allEntries.GetNext();
                     while (!curEntry.IsNull())
                     {
                         byte methodFlags = curEntry.GetByte();

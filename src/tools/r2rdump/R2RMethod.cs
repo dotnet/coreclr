@@ -159,18 +159,18 @@ namespace R2RDump
 
             // get the method signature from the MethodDefhandle
             MethodDefinitionHandle methodDefHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
-            var methodDef = mdReader.GetMethodDefinition(methodDefHandle);
+            MethodDefinition methodDef = mdReader.GetMethodDefinition(methodDefHandle);
             Name = mdReader.GetString(methodDef.Name);
             BlobReader signatureReader = mdReader.GetBlobReader(methodDef.Signature);
 
-            var declaringTypeDef = mdReader.GetTypeDefinition(methodDef.GetDeclaringType());
+            TypeDefinition declaringTypeDef = mdReader.GetTypeDefinition(methodDef.GetDeclaringType());
             DeclaringType = mdReader.GetString(declaringTypeDef.Name);
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
             var genericParams = methodDef.GetGenericParameters();
             _genericParamInstance = new Dictionary<string, GenericElementTypes>();
-            foreach (var genericParam in genericParams)
+            foreach (GenericParameterHandle genericParam in genericParams)
             {
                 _genericParamInstance[mdReader.GetString(mdReader.GetGenericParameter(genericParam).Name)] = 0;
             }
