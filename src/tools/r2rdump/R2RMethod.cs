@@ -51,15 +51,15 @@ namespace R2RDump
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendFormat($"Id: {Id}\n");
-            sb.AppendFormat($"StartAddress: 0x{StartAddress:X8}\n");
+            sb.AppendLine($"Id: {Id}");
+            sb.AppendLine($"StartAddress: 0x{StartAddress:X8}");
             if (Size == -1)
             {
-                sb.Append("Size: Unavailable\n");
+                sb.AppendLine("Size: Unavailable");
             }
             else
             {
-                sb.AppendFormat($"Size: {Size} bytes\n");
+                sb.AppendLine($"Size: {Size} bytes");
             }
 
             return sb.ToString();
@@ -278,16 +278,17 @@ namespace R2RDump
                     }
                     sb.AppendFormat($"{ArgTypes[i].ToString()}");
                 }
-                sb.Append(")\n");
+                sb.AppendLine(")");
             }
 
-            sb.AppendFormat($"Token: 0x{Token:X8}\n");
-            sb.AppendFormat($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}\n");
-            sb.AppendFormat($"Number of RuntimeFunctions: {RuntimeFunctions.Count}\n\n");
+            sb.AppendLine($"Token: 0x{Token:X8}");
+            sb.AppendLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");
+            sb.AppendLine($"Number of RuntimeFunctions: {RuntimeFunctions.Count}");
+            sb.AppendLine();
 
             foreach (RuntimeFunction runtimeFunction in RuntimeFunctions)
             {
-                sb.AppendFormat($"{runtimeFunction}\n");
+                sb.AppendLine($"{runtimeFunction}");
             }
 
             return sb.ToString();

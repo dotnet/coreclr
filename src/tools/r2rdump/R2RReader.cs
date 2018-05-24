@@ -135,11 +135,11 @@ namespace R2RDump
                     NativeParser curParser = allEntriesEnum.GetNext();
                     while (!curParser.IsNull())
                     {
-                        byte methodFlags = curParser.GetByte();
-                        byte rid = curParser.GetByte();
+                        uint methodFlags = curParser.GetCompressedData();
+                        uint rid = curParser.GetCompressedData();
                         if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
                         {
-                            byte nArgs = curParser.GetByte();
+                            uint nArgs = curParser.GetCompressedData();
                             R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
                             uint[] tokens = new uint[nArgs];
                             for (int i = 0; i < nArgs; i++)
@@ -147,7 +147,7 @@ namespace R2RDump
                                 args[i] = (R2RMethod.GenericElementTypes)curParser.GetByte();
                                 if (args[i] == R2RMethod.GenericElementTypes.ValueType)
                                 {
-                                    tokens[i] = curParser.GetByte();
+                                    tokens[i] = curParser.GetCompressedData();
                                     tokens[i] = (tokens[i] >> 2);
                                 }
                             }

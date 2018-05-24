@@ -25,6 +25,11 @@ namespace R2RDump
         /// </summary>
         public GenericInstance GenericInstance { get; set; }
 
+        /// <summary>
+        /// The dimension of an array type
+        /// </summary>
+        public int ArrayDimension { get; }
+
         [Flags]
         public enum SignatureTypeFlags
         {
@@ -38,20 +43,26 @@ namespace R2RDump
         {
             SignatureTypeCode signatureTypeCode = signatureReader.ReadSignatureTypeCode();
             Flags = 0;
+
+            if (signatureTypeCode == SignatureTypeCode.ByReference)
+            {
+                Flags |= SignatureTypeFlags.REFERENCE;
+                signatureTypeCode = signatureReader.ReadSignatureTypeCode();
+            }
             if (signatureTypeCode == SignatureTypeCode.SZArray)
             {
                 Flags |= SignatureTypeFlags.ARRAY;
-                signatureTypeCode = signatureReader.ReadSignatureTypeCode();
+                ArrayDimension = 0;
+                while (signatureTypeCode == SignatureTypeCode.SZArray)
+                {
+                    signatureTypeCode = signatureReader.ReadSignatureTypeCode();
+                    ArrayDimension++;
+                }
             }
 
             TypeName = signatureTypeCode.ToString();
-            if (signatureTypeCode == SignatureTypeCode.TypeHandle || signatureTypeCode == SignatureTypeCode.ByReference)
+            if (signatureTypeCode == SignatureTypeCode.TypeHandle)
             {
-                if (signatureTypeCode == SignatureTypeCode.ByReference)
-                {
-                    Flags |= SignatureTypeFlags.REFERENCE;
-                }
-
                 EntityHandle handle = signatureReader.ReadTypeHandle();
                 if (handle.Kind == HandleKind.TypeDefinition)
                 {
@@ -91,7 +102,11 @@ namespace R2RDump
             }
             if ((Flags & SignatureTypeFlags.ARRAY) != 0)
             {
-                sb.Append("[]");
+                for (int i = 0; i < ArrayDimension; i++)
+                {
+                    sb.Append("[]");
+                }
+                
             }
             return sb.ToString();
         }
