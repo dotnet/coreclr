@@ -278,16 +278,18 @@ namespace System
 
             ref byte p = ref GetRawArrayGeometry(array, out uint numComponents, out uint elementSize, out int lowerBound, out bool containsGCPointers);
 
-            if (index < lowerBound || index - lowerBound < 0 || length < 0 || (uint)(index - lowerBound + length) > numComponents)
+            int offset = index - lowerBound;
+
+            if (index < lowerBound || offset < 0 || length < 0 || (uint)(offset + length) > numComponents)
                 ThrowHelper.ThrowIndexOutOfRangeException();
 
-            ref byte start = ref Unsafe.AddByteOffset(ref p, (uint)(index - lowerBound) * (nuint)elementSize);
+            ref byte ptr = ref Unsafe.AddByteOffset(ref p, (uint)offset * (nuint)elementSize);
             nuint byteLength = (uint)length * (nuint)elementSize;
 
             if (containsGCPointers)
-                SpanHelpers.ClearWithReferences(ref Unsafe.As<byte, IntPtr>(ref start), byteLength / (uint)sizeof(IntPtr));
+                SpanHelpers.ClearWithReferences(ref Unsafe.As<byte, IntPtr>(ref ptr), byteLength / (uint)sizeof(IntPtr));
             else
-                SpanHelpers.ClearWithoutReferences(ref start, byteLength);
+                SpanHelpers.ClearWithoutReferences(ref ptr, byteLength);
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
