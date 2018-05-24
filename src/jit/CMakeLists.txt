@@ -152,7 +152,6 @@ if (WIN32)
     lsra_reftypes.h
     lsra.h
     namedintrinsiclist.h
-    nodeinfo.h
     objectalloc.h
     opcode.h
     phase.h
@@ -164,7 +163,6 @@ if (WIN32)
     registerarm.h
     registerarm64.h
     reglist.h
-    regpair.h
     regset.h
     sideeffects.h
     simd.h
