@@ -21104,7 +21104,7 @@ void gc_heap::compact_loh()
             {
                 if (!heap_segment_read_only_p (seg))
                 {
-                    // We grew the segment to accommondate allocations.
+                    // We grew the segment to accommodate allocations.
                     if (heap_segment_plan_allocated (seg) > heap_segment_allocated (seg))
                     {
                         if ((heap_segment_plan_allocated (seg) - plug_skew)  > heap_segment_used (seg))
