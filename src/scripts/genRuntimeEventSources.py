@@ -375,7 +375,7 @@ namespace System.Diagnostics.Tracing
 
             className = providerNameToClassNameMap[providerName]
             writeOutput(outputFile, "[EventSource(Name = \"" + providerName + "\", Guid = \"" + providerNode.getAttribute("guid") + "\")]\n")
-            writeOutput(outputFile, "internal sealed unsafe class " + className + " : EventSource\n")
+            writeOutput(outputFile, "internal sealed partial class " + className + " : EventSource\n")
             writeOutput(outputFile, "{\n")
             increaseTabLevel()
 
