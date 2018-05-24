@@ -11,7 +11,7 @@ using System.Text;
 
 namespace R2RDump
 {
-    struct RuntimeFunction
+    class RuntimeFunction
     {
         /// <summary>
         /// The index of the runtime function
@@ -78,6 +78,11 @@ namespace R2RDump
         /// </summary>
         public string Name { get; }
 
+        /// <summary>
+        /// The signature with format: namespace.class.methodName<S, T, ...>(S, T, ...)
+        /// </summary>
+        public string Signature { get; }
+
         public bool IsGeneric { get; }
 
         /// <summary>
@@ -99,6 +104,11 @@ namespace R2RDump
         /// The token of the method consisting of the table code (0x06) and row id
         /// </summary>
         public uint Token { get; }
+
+        /// <summary>
+        /// The row id of the method
+        /// </summary>
+        public uint Rid { get; }
 
         /// <summary>
         /// All the runtime functions of this method
@@ -156,6 +166,7 @@ namespace R2RDump
         public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
         {
             Token = _mdtMethodDef | rid;
+            Rid = rid;
             EntryPointRuntimeFunctionId = entryPointId;
 
             _mdReader = mdReader;
@@ -206,6 +217,8 @@ namespace R2RDump
             {
                 InitGenericInstances(genericParams, instanceArgs, tok);
             }
+
+            Signature = GetSignature();
         }
 
         private void InitGenericInstances(GenericParameterHandleCollection genericParams, GenericElementTypes[] instanceArgs, uint[] tok)
@@ -244,52 +257,52 @@ namespace R2RDump
             }
         }
 
-        public override string ToString()
+        private string GetSignature()
         {
             StringBuilder sb = new StringBuilder();
 
-            if (Name != null)
+            sb.AppendFormat($"{DeclaringType}{Name}");
+
+            if (IsGeneric)
             {
-                sb.AppendFormat($"{ReturnType.ToString()} ");
-                sb.AppendFormat($"{DeclaringType}{Name}");
-
-                if (IsGeneric)
-                {
-                    sb.Append("<");
-                    int i = 0;
-                    foreach (var instance in _genericParamInstanceMap.Values)
-                    {
-                        if (i > 0)
-                        {
-                            sb.Append(", ");
-                        }
-                        sb.AppendFormat($"{instance.TypeName}");
-                        i++;
-                    }
-                    sb.Append(">");
-                }
-
-                sb.Append("(");
-                for (int i = 0; i < ArgTypes.Length; i++)
+                sb.Append("<");
+                int i = 0;
+                foreach (var instance in _genericParamInstanceMap.Values)
                 {
                     if (i > 0)
                     {
                         sb.Append(", ");
                     }
-                    sb.AppendFormat($"{ArgTypes[i].ToString()}");
+                    sb.AppendFormat($"{instance.TypeName}");
+                    i++;
                 }
-                sb.AppendLine(")");
+                sb.Append(">");
             }
+
+            sb.Append("(");
+            for (int i = 0; i < ArgTypes.Length; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(", ");
+                }
+                sb.AppendFormat($"{ArgTypes[i].ToString()}");
+            }
+            sb.Append(")");
+
+            return sb.ToString();
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"{ReturnType.ToString()} {Signature}");
 
             sb.AppendLine($"Token: 0x{Token:X8}");
+            sb.AppendLine($"Rid: {Rid}");
             sb.AppendLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");
             sb.AppendLine($"Number of RuntimeFunctions: {RuntimeFunctions.Count}");
-            sb.AppendLine();
-
-            foreach (RuntimeFunction runtimeFunction in RuntimeFunctions)
-            {
-                sb.AppendLine($"{runtimeFunction}");
-            }
 
             return sb.ToString();
         }
