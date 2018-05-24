@@ -20646,6 +20646,12 @@ unsigned BBPredsChecker::CheckBBPreds(BasicBlock* block, unsigned curTraversalSt
     }
 
     unsigned blockRefs = 0;
+
+    CompAllocator memAllocator(comp, CMK_DebugOnly);
+
+    typedef JitHashTable<unsigned, JitSmallPrimitiveKeyFuncs<unsigned>, bool> VisitedPreds;
+    VisitedPreds visitedPreds(&memAllocator);
+
     for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
     {
         blockRefs += pred->flDupCount;
@@ -20654,6 +20660,10 @@ unsigned BBPredsChecker::CheckBBPreds(BasicBlock* block, unsigned curTraversalSt
 
         // Make sure this pred is part of the BB list.
         assert(blockPred->bbTraversalStamp == curTraversalStamp);
+
+        // Check that the pred list doesn't have duplicates.
+        assert(!visitedPreds.Lookup(blockPred->bbNum));
+        visitedPreds.Set(blockPred->bbNum, true);
 
         EHblkDsc* ehTryDsc = comp->ehGetBlockTryDsc(block);
         if (ehTryDsc != nullptr)
