@@ -1638,16 +1638,25 @@ void Compiler::fgReplacePred(BasicBlock* block, BasicBlock* oldPred, BasicBlock*
     noway_assert(newPred != nullptr);
     assert(!fgCheapPredsValid);
 
-    flowList* pred;
+    if (!fgComputePredsDone)
+    {
+        return;
+    }
 
-    for (pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
+    bool predFound = false;
+
+    for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
     {
         if (oldPred == pred->flBlock)
         {
+            assert(!predFound);
+            predFound = true;
+
             pred->flBlock = newPred;
             break;
         }
     }
+    assert(predFound);
 }
 
 /*****************************************************************************
