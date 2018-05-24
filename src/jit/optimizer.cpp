@@ -3882,10 +3882,9 @@ void Compiler::optUnrollLoops()
 #endif
 bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
 {
-    LoopDsc& loopDesc = optLoopTable[loopId];
-
-    BasicBlock* bbStart = loopDesc.lpHead;
-    BasicBlock* bbEnd   = loopDesc.lpBottom;
+    LoopDsc&    loopDesc = optLoopTable[loopId];
+    BasicBlock* bbBeg    = loopDesc.lpHead;
+    BasicBlock* bbEnd    = loopDesc.lpBottom;
 
     unsigned int iterBeg = loopDesc.lpConstInit;
     unsigned int iterLim = loopDesc.lpConstLimit();
@@ -3905,8 +3904,8 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
             {
                 // clone Expr dosn't handle anything.
                 BasicBlock* oldBottomNext = bbInsertAfter->bbNext;
-                bbStart->bbNext           = oldBottomNext;
-                oldBottomNext->bbPrev     = bbStart;
+                bbBeg->bbNext             = oldBottomNext;
+                oldBottomNext->bbPrev     = bbBeg;
                 optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
 
                 return false;
@@ -3943,7 +3942,7 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         }
 
         // Now redirect any branches within the newly-cloned iteration
-        for (BasicBlock* bbCur = bbStart->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
+        for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
         {
             BasicBlock* bbNew = blockMap[bbCur];
             optCopyBlkDest(bbCur, bbNew);
@@ -3968,7 +3967,7 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     }
 
     // remove old block body to use newly created unrolled loop.
-    for (BasicBlock* bbCur = bbStart->bbNext;; bbCur = bbCur->bbNext)
+    for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
     {
         optRemoveLoopBody(bbCur);
 
@@ -3979,10 +3978,10 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     }
 
     /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
-    if (bbStart->bbJumpKind == BBJ_COND)
+    if (bbBeg->bbJumpKind == BBJ_COND)
     {
-        noway_assert(bbStart->bbTreeList);
-        GenTree* gtTest = bbStart->bbTreeList->gtPrev;
+        noway_assert(bbBeg->bbTreeList);
+        GenTree* gtTest = bbBeg->bbTreeList->gtPrev;
 
         noway_assert(gtTest && (gtTest->gtNext == nullptr));
         noway_assert(gtTest->gtOper == GT_STMT);
@@ -3993,14 +3992,14 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         noway_assert(gtInit->gtOper == GT_STMT);
         gtInit->gtNext = nullptr;
 
-        bbStart->bbTreeList->gtPrev = gtInit;
-        bbStart->bbJumpKind         = BBJ_NONE;
-        bbStart->bbFlags &= ~BBF_NEEDS_GCPOLL;
+        bbBeg->bbTreeList->gtPrev = gtInit;
+        bbBeg->bbJumpKind         = BBJ_NONE;
+        bbBeg->bbFlags &= ~BBF_NEEDS_GCPOLL;
     }
     else
     {
         /* the loop must execute */
-        noway_assert(bbStart->bbJumpKind == BBJ_NONE);
+        noway_assert(bbBeg->bbJumpKind == BBJ_NONE);
         return false;
     }
 
@@ -4008,11 +4007,11 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     if (verbose)
     {
         printf("Whole fully unrolled loop:\n");
-        gtDispTree(bbStart->lastStmt()->gtStmtExpr);
+        gtDispTree(bbBeg->lastStmt()->gtStmtExpr);
 
         // dump body to end. bbInsertAfter is current on end of node.
         printf("\n");
-        fgDumpTrees(bbStart->bbNext, bbInsertAfter);
+        fgDumpTrees(bbBeg->bbNext, bbInsertAfter);
     }
 #endif
 
@@ -4021,16 +4020,110 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
 
 bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 {
-    LoopDsc& loopDesc = optLoopTable[loopId];
-
-    BasicBlock* bbStart = loopDesc.lpHead;
-    BasicBlock* bbEnd   = loopDesc.lpBottom;
+    LoopDsc&    loopDesc = optLoopTable[loopId];
+    BasicBlock* bbBeg    = loopDesc.lpHead;
+    BasicBlock* bbEnd    = loopDesc.lpBottom;
 
     unsigned int iterBeg = loopDesc.lpConstInit;
     unsigned int iterLim = loopDesc.lpConstLimit();
     unsigned int iterVar = loopDesc.lpIterVar();
     unsigned int iterInc = loopDesc.lpIterConst();
 
+    unsigned int newLoopBodyLimit = 4 / iterInc;
+    unsigned int newLoopLimit     = iterCount / newLoopBodyLimit;
+    if (iterCount % newLoopBodyLimit != 0)
+    {
+        return false;
+    }
+
+    jitstd::vector<BasicBlock*> bbNewlyRecorded(getAllocator());
+    for (unsigned int curBodyCount = 0; curBodyCount != newLoopBodyLimit; ++curBodyCount)
+    {
+        for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
+        {
+            jitstd::vector<GenTree*> gtContainsVar(getAllocator());
+            if (true)
+            {
+                BasicBlock* oldBottomNext = bbEnd->bbNext;
+                bbBeg->bbNext             = oldBottomNext;
+                oldBottomNext->bbPrev     = bbBeg;
+                optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
+
+                return false;
+            }
+
+            // the record should be connected. like 0 - 1 - 2 - 3 - 4 ....
+            // that means, increasing 2 on iterator should has arr[var + 0], arr[var + 1].
+            // we are not optimzing hard codes.
+            if (gtContainsVar.size() != iterInc || gtContainsVar.size() % 2 != 0)
+            {
+                return false;
+            }
+
+            // this is check phase
+            // starting with 1, because there is no add with first access
+            // its arr[var], no adds.
+            for (unsigned int accessCnt = 1; accessCnt < gtContainsVar.size(); ++accessCnt)
+            {
+                GenTree* gtVExpr = gtContainsVar[accessCnt];
+                if (gtVExpr->OperGet() != GT_ADD)
+                {
+                    // its not add expression... seems hard to check. ignoring it.
+                    // TODO : support for GT_MUL expression.
+                    return false;
+                }
+
+                GenTree* gtOP1 = gtVExpr->gtGetOp1();
+                GenTree* gtOP2 = gtVExpr->gtGetOp2();
+                if (gtOP1->OperGet() == GT_LCL_VAR)
+                {
+                    std::swap(gtOP1, gtOP2);
+                }
+
+                if (gtOP1->OperGet() != GT_CNS_INT || gtOP1->gtIntCon.gtIconVal != accessCnt)
+                {
+                    // not adding constant or its not a connected values?
+                    return false;
+                }
+            }
+
+            // this is evoluting phase
+            for (unsigned int accessCnt = 0; accessCnt < gtContainsVar.size(); ++accessCnt)
+            {
+                GenTree* gtOldExpr = gtContainsVar[accessCnt];
+                GenTree* gtOldOP1  = gtOldExpr->gtGetOp1();
+                GenTree* gtOldOP2  = gtOldExpr->gtGetOp2();
+                if (gtOldOP1->OperGet() == GT_LCL_VAR)
+                {
+                    std::swap(gtOldOP1, gtOldOP2);
+                }
+
+                // this is new GenTree expression.
+                GenTree* gtNewCnsExpr =
+                    gtNewIconNode(iterBeg + accessCnt + (curBodyCount * iterCount), gtOldOP1->TypeGet());
+
+                if (gtOldExpr->OperGet() == GT_ADD)
+                {
+                    // replace cns operand if its GT_ADD. we don't need to replace whole body.
+                    gtOldExpr->ReplaceOperand(&gtOldOP1, gtNewCnsExpr);
+                    continue;
+                }
+                
+                // if its not GT_ADD, we are changing body of GenTree expression.
+                // this can be when its start of loop (iterBeg + accessCnt == 0)
+                GenTree* gtNewVarExpr = gtOldOP2;
+                GenTree* gtNewAddExpr =
+                    gtNewOperNode(genTreeOps::GT_ADD, gtOldExpr->TypeGet(), gtNewCnsExpr, gtNewVarExpr);
+
+                gtOldExpr->ReplaceWith(gtNewAddExpr, this);
+            }
+
+            if (bbCur == bbEnd)
+            {
+                break;
+            }
+        }
+    }
     return true;
 }
 
