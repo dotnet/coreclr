@@ -14,6 +14,14 @@ namespace System.Diagnostics
     /// </summary>
     public partial class StackFrame
     {
+        /// <summary>
+        /// Called from the class "StackTrace"
+        /// </summary>
+        internal StackFrame(bool DummyFlag1, bool DummyFlag2)
+        {
+            InitMembers();
+        }
+
         private void BuildStackFrame(int skipFrames, bool needFileInfo)
         {
             StackFrameHelper StackF = new StackFrameHelper(null);
