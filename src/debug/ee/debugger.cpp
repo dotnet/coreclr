@@ -15103,7 +15103,7 @@ HRESULT Debugger::TerminateAppDomainIPC(void)
     m_pAppDomainCB->m_iNumOfUsedSlots = 0;
     m_pAppDomainCB->m_iTotalSlots = 0;
 
-    // Now delete the memory alloacted for AppDomainInfo  array
+    // Now delete the memory allocated for AppDomainInfo  array
     delete [] m_pAppDomainCB->m_rgListOfAppDomains;
     m_pAppDomainCB->m_rgListOfAppDomains = NULL;
 
