@@ -1939,7 +1939,7 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodDef(mdMethodDef md, unsigned m
     CORINFO_METHOD_HANDLE handle = NULL;
     CompileStatus         result = NOT_COMPILED;
 
-    if (ShouldCompileMethodDef(md))
+    if (methodProfilingDataFlags != 0 || ShouldCompileMethodDef(md))
     {
         handle = m_pPreloader->LookupMethodDef(md);
         if (handle == nullptr)
@@ -1989,7 +1989,7 @@ ZapImage::CompileStatus ZapImage::TryCompileInstantiatedMethod(CORINFO_METHOD_HA
             return COMPILE_EXCLUDED;
     }
 
-    if (!ShouldCompileInstantiatedMethod(handle))
+    if (methodProfilingDataFlags == 0 && !ShouldCompileInstantiatedMethod(handle))
         return COMPILE_EXCLUDED;
 
     // If we compiling this method because it was specified by the IBC profile data
@@ -2093,17 +2093,17 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
     }
     else  // we are compiling methods for the cold region
     {
+        // Retrieve any information that we have about a previous compilation attempt of this method
+        const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
+        
         // When Partial Ngen is specified we will omit the AOT native code for every
         // method that was not executed based on the profile data.
         //
-        if (m_zapper->m_pOpt->m_fPartialNGen)
+        if (pEntry == nullptr && m_zapper->m_pOpt->m_fPartialNGen)
         {
             // returning COMPILE_COLD_EXCLUDED excludes this method from the AOT native image
             return COMPILE_COLD_EXCLUDED;
         }
-
-        // Retrieve any information that we have about a previous compilation attempt of this method
-        const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
 
         if (pEntry != nullptr)
         { 
