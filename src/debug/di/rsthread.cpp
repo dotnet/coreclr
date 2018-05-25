@@ -4184,7 +4184,7 @@ void CordbUnmanagedThread::SetupForSkipBreakpoint(NativePatch * pNativePatch)
     }
 #endif
 #if defined(DBG_TARGET_X86)
-    STRESS_LOG2(LF_CORDB, LL_INFO100, "CUT::SetupSkip. adddr=%p. Opcode=%x\n", pNativePatch->pAddress, (DWORD) pNativePatch->opcode);
+    STRESS_LOG2(LF_CORDB, LL_INFO100, "CUT::SetupSkip. addr=%p. Opcode=%x\n", pNativePatch->pAddress, (DWORD) pNativePatch->opcode);
 #endif
 
     // Replace the BP w/ the opcode.
@@ -4224,11 +4224,11 @@ void CordbUnmanagedThread::FixupForSkipBreakpoint()
     if (GetProcess()->GetNativePatch(m_pPatchSkipAddress) != NULL)
     {
         ApplyRemotePatch(GetProcess(), m_pPatchSkipAddress);
-        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. adddr=%p\n", m_pPatchSkipAddress);
+        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. addr=%p\n", m_pPatchSkipAddress);
     }
     else
     {
-        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-readding. adddr=%p\n", m_pPatchSkipAddress);
+        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-readding. addr=%p\n", m_pPatchSkipAddress);
     }
 
     m_pPatchSkipAddress = NULL;
