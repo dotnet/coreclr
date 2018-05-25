@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 using System.Text;
 using System;
 using System.IO;
@@ -13,7 +12,7 @@ namespace System.Diagnostics
     /// <summary>
     /// There is no good reason for the methods of this class to be virtual.
     /// </summary>
-    public class StackFrame
+    public partial class StackFrame
     {
         /// <summary>
         /// Reflection information for the method if available, null otherwise.
@@ -47,7 +46,9 @@ namespace System.Diagnostics
         /// </summary>
         private int _columnNumber;
 
+#if CORECLR
         [System.Runtime.Serialization.OptionalField]
+#endif
 		/// <summary>
         /// This flag is set to true when the frame represents a rethrow marker.
         /// </summary>
@@ -70,7 +71,7 @@ namespace System.Diagnostics
         public StackFrame()
         {
             InitMembers();
-            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, false);// iSkipFrames=0
+            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, false);
         }
 
         /// <summary>
@@ -79,7 +80,7 @@ namespace System.Diagnostics
         public StackFrame(bool needFileInfo)
         {
             InitMembers();
-            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, needFileInfo);// iSkipFrames=0
+            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, needFileInfo);
         }
 
         /// <summary>
@@ -237,15 +238,18 @@ namespace System.Diagnostics
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(255);
+#if !CORECLR
+            bool includeFileInfoIfAvailable;
+#endif
 
             if (_method != null)
             {
                 sb.Append(_method.Name);
 
                 // deal with the generic portion of the method
-                if (_method is MethodInfo && ((MethodInfo)_method).IsGenericMethod)
+                if (_method is MethodInfo methodInfo && methodInfo.IsGenericMethod)
                 {
-                    Type[] typars = ((MethodInfo)_method).GetGenericArguments();
+                    Type[] typars = methodInfo.GetGenericArguments();
 
                     sb.Append('<');
                     int k = 0;
@@ -263,7 +267,17 @@ namespace System.Diagnostics
 
                     sb.Append('>');
                 }
+#if !CORECLR
+                includeFileInfoIfAvailable = true;
+            }
+            else
+            {
+                includeFileInfoIfAvailable = AppendStackFrameWithoutMethodBase(sb);
+            }
 
+            if (includeFileInfoIfAvailable)
+            {
+#endif
                 sb.Append(" at offset ");
                 if (_nativeOffset == OFFSET_UNKNOWN)
                     sb.Append("<offset unknown>");
