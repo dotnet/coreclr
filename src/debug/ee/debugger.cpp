@@ -12965,7 +12965,7 @@ BOOL EnCSequencePointHelper::ShouldSetRemapBreakpoint(unsigned int offsetIndex)
 
 //-----------------------------------------------------------------------------
 // For each function that's EnC-ed, the EE will call either UpdateFunction
-// (if the function already is loaded + jitted) or Addfunction
+// (if the function already is loaded + jitted) or AddFunction
 // 
 // This is called before the EE updates the MethodDesc, so pMD does not yet
 // point to the version we'll be remapping to.
