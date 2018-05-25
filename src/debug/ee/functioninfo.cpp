@@ -1566,6 +1566,7 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     {
         return NULL;
     }
+
     if (startAddr == NULL)
     {
         // This will grab the start address for the current code version.
