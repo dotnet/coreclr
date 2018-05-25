@@ -16,7 +16,7 @@ namespace System.Diagnostics
         private MethodBase method;
         private int offset;
         private int ILOffset;
-        private String strFileName;
+        private string strFileName;
         private int iLineNumber;
         private int iColumnNumber;
 
@@ -76,7 +76,7 @@ namespace System.Diagnostics
         // name and line number.  Use when you don't want to use the 
         // debugger's line mapping logic.
         //
-        public StackFrame(String fileName, int lineNumber)
+        public StackFrame(string fileName, int lineNumber)
         {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
@@ -90,7 +90,7 @@ namespace System.Diagnostics
         // name, line number and column number.  Use when you don't want to 
         // use the debugger's line mapping logic.
         //
-        public StackFrame(String fileName, int lineNumber, int colNumber)
+        public StackFrame(string fileName, int lineNumber, int colNumber)
         {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
@@ -119,7 +119,7 @@ namespace System.Diagnostics
             ILOffset = iOffset;
         }
 
-        internal virtual void SetFileName(String strFName)
+        internal virtual void SetFileName(string strFName)
         {
             strFileName = strFName;
         }
@@ -173,7 +173,7 @@ namespace System.Diagnostics
         // information is normally extracted from the debugging symbols
         // for the executable.
         //
-        public virtual String GetFileName()
+        public virtual string GetFileName()
         {
             return strFileName;
         }
@@ -199,7 +199,7 @@ namespace System.Diagnostics
 
         // Builds a readable representation of the stack frame
         //
-        public override String ToString()
+        public override string ToString()
         {
             StringBuilder sb = new StringBuilder(255);
 
