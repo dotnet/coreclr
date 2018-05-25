@@ -4228,7 +4228,7 @@ void CordbUnmanagedThread::FixupForSkipBreakpoint()
     }
     else
     {
-        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-readding. addr=%p\n", m_pPatchSkipAddress);
+        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-reading. addr=%p\n", m_pPatchSkipAddress);
     }
 
     m_pPatchSkipAddress = NULL;
