@@ -1939,7 +1939,7 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodDef(mdMethodDef md, unsigned m
     CORINFO_METHOD_HANDLE handle = NULL;
     CompileStatus         result = NOT_COMPILED;
 
-    if (methodProfilingDataFlags != 0 || ShouldCompileMethodDef(md))
+    if (ShouldCompileMethodDef(md))
     {
         handle = m_pPreloader->LookupMethodDef(md);
         if (handle == nullptr)
@@ -1989,7 +1989,7 @@ ZapImage::CompileStatus ZapImage::TryCompileInstantiatedMethod(CORINFO_METHOD_HA
             return COMPILE_EXCLUDED;
     }
 
-    if (methodProfilingDataFlags == 0 && !ShouldCompileInstantiatedMethod(handle))
+    if (!ShouldCompileInstantiatedMethod(handle))
         return COMPILE_EXCLUDED;
 
     // If we compiling this method because it was specified by the IBC profile data
