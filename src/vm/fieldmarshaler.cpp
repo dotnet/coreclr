@@ -2027,7 +2027,7 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             }
 
             // The cleanup work list is not used to clean up the native contents. It is used
-            // to handle cleanup of any additionnal resources the FieldMarshalers allocate.
+            // to handle cleanup of any additional resources the FieldMarshalers allocate.
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
         }
