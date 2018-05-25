@@ -7704,7 +7704,7 @@ void LinearScan::resolveEdges()
     // We will try to avoid resolution across critical edges in cases where all the critical-edge
     // targets of a block have the same home.  We will then split the edges only for the
     // remaining mismatches.  We visit the out-edges, as that allows us to share the moves that are
-    // common among allt he targets.
+    // common among all the targets.
 
     if (hasCriticalEdges)
     {
