@@ -53,7 +53,7 @@ namespace R2RDump
         public List<R2RMethod> R2RMethods { get; }
 
         /// <summary>
-        /// Initializes the fields of the R2RHeader
+        /// Initializes the fields of the R2RHeader and R2RMethods
         /// </summary>
         /// <param name="filename">PE image</param>
         /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>

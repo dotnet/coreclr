@@ -11,10 +11,18 @@ namespace R2RDump
 {
     class R2RDump
     {
-        private Dictionary<string, Argument> _args = new Dictionary<string, Argument>();
-        bool _raw;
-        bool _verbose;
-        bool _disasm;
+        private bool _help = false;
+        private IReadOnlyList<string> _inputFilenames = Array.Empty<string>();
+        private string _outputFilename = null;
+        private bool _verbose = false;
+        private bool _raw = false;
+        private bool _header = false;
+        private bool _disasm = false;
+        private IReadOnlyList<string> _queries = Array.Empty<string>();
+        private IReadOnlyList<string> _keywords = Array.Empty<string>();
+        private IReadOnlyList<int> _runtimeFunctions = Array.Empty<int>();
+        private IReadOnlyList<string> _sections = Array.Empty<string>();
+        private bool _diff = false;
 
         private R2RDump()
         {
@@ -22,44 +30,25 @@ namespace R2RDump
 
         private ArgumentSyntax ParseCommandLine(string[] args)
         {
-            bool help = false;
-            IReadOnlyList<string> inputFilenames = Array.Empty<string>();
-            string outputFilePath = null;
-            bool diff = false;
-            bool header = false;
-            _raw = false;
-            _verbose = false;
-            _disasm = false;
-            IReadOnlyList<string> queries = Array.Empty<string>();
-            IReadOnlyList<string> keywords = Array.Empty<string>();
-            IReadOnlyList<int> rtfids = Array.Empty<int>();
-            IReadOnlyList<string> sections = Array.Empty<string>();
-
             ArgumentSyntax argSyntax = ArgumentSyntax.Parse(args, syntax =>
             {
                 syntax.ApplicationName = "R2RDump";
                 syntax.HandleHelp = false;
                 syntax.HandleErrors = false;
 
-                syntax.DefineOption("h|help", ref help, "Help message for R2RDump");
-                syntax.DefineOptionList("i|in", ref inputFilenames, "Input file(s) to compile");
-                syntax.DefineOption("o|out", ref outputFilePath, "Output file path");
-                syntax.DefineOption("v|verbose", ref _verbose, "Dump the contents of each section or the native code of each method");
+                syntax.DefineOption("h|help", ref _help, "Help message for R2RDump");
+                syntax.DefineOptionList("i|in", ref _inputFilenames, "Input file(s) to dump. Expects them to by ReadyToRun images");
+                syntax.DefineOption("o|out", ref _outputFilename, "Output file path. Dumps everything to the specified file except help message and exception messages");
+                syntax.DefineOption("v|verbose", ref _verbose, "Dump the contents of each section or the native code of each method"); // not yet implemented
                 syntax.DefineOption("raw", ref _raw, "Dump the raw bytes of each section or runtime function");
-                syntax.DefineOption("l|less", ref header, "Only dump R2R header");
+                syntax.DefineOption("l|less", ref _header, "Only dump R2R header");
                 syntax.DefineOption("d|disasm", ref _disasm, "Show disassembly of methods or runtime functions");
-                syntax.DefineOptionList("q|query", ref queries, "Query method by exact name, signature, row id or token");
-                syntax.DefineOptionList("k|keyword", ref keywords, "Search method by keyword");
-                syntax.DefineOptionList("r|rtf", ref rtfids, ArgStringToInt, "Get one runtime function by id");
-                syntax.DefineOptionList("s|section", ref sections, "Get section by keyword");
-                syntax.DefineOption("diff", ref diff, "Compare two R2R images");
+                syntax.DefineOptionList("q|query", ref _queries, "Query method by exact name, signature, row id or token");
+                syntax.DefineOptionList("k|keyword", ref _keywords, "Search method by keyword");
+                syntax.DefineOptionList("r|rtf", ref _runtimeFunctions, ArgStringToInt, "Get one runtime function by id or relative virtual address");
+                syntax.DefineOptionList("s|section", ref _sections, "Get section by keyword");
+                syntax.DefineOption("diff", ref _diff, "Compare two R2R images"); // not yet implemented
             });
-
-            var options = argSyntax.GetOptions();
-            foreach (Argument option in options)
-            {
-                _args[option.Name] = option;
-            }
 
             return argSyntax;
         }
@@ -70,6 +59,11 @@ namespace R2RDump
             return ArgStringToInt(arg, out isNum);
         }
 
+        /// <summary>
+        /// Converts string passed as cmd line args into int, works for hexidecimal with 0x as prefix
+        /// </summary>
+        /// <param name="arg">The argument string to convert</param>
+        /// <param name="isNum">Set to false if conversion failed</param>
         private int ArgStringToInt(string arg, out bool isNum)
         {
             int n = -1;
@@ -87,20 +81,21 @@ namespace R2RDump
             Console.WriteLine($"Warning: {warning}");
         }
 
-        private void WriteDivider(string title = null)
+        private void WriteDivider(string title)
         {
-            if (title != null)
-            {
-                Console.WriteLine("============== " + title + " ==============");
-            }
-            else
-            {
-                Console.WriteLine("------------------");
-            }
-            
+            Console.WriteLine("============== " + title + " ==============");
             Console.WriteLine();
         }
 
+        private void WriteSubDivider()
+        {
+            Console.WriteLine("------------------");
+            Console.WriteLine();
+        }
+
+        /// <summary>
+        /// Dumps the R2RHeader and all the sections in the header
+        /// </summary>
         private void DumpHeader(R2RReader r2r)
         {
             Console.WriteLine(r2r.R2RHeader.ToString());
@@ -115,9 +110,12 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Dumps one R2RSection
+        /// </summary>
         private void DumpSection(R2RReader r2r, R2RSection section)
         {
-            WriteDivider();
+            WriteSubDivider();
             Console.WriteLine(section.ToString());
             if (_raw)
             {
@@ -125,6 +123,10 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Dumps one R2RMethod. 
+        /// If <param>rtf</param> is not null, output the specified runtime function. Otherwise output all runtime functions of the method
+        /// </summary>
         private void DumpMethod(R2RReader r2r, R2RMethod method, RuntimeFunction rtf = null)
         {
             Console.WriteLine(method.ToString());
@@ -148,10 +150,17 @@ namespace R2RDump
                     Console.WriteLine(r2r.DumpBytes(rtf.StartAddress, (uint)rtf.Size));
                 }
             }
-            WriteDivider();
+            WriteSubDivider();
         }
 
-        private void MethodQuery(R2RReader r2r, string title, IReadOnlyList<string> queries, bool exact)
+        // <summary>
+        /// For each query in the list of queries, search for all methods matching the query by name, signature or id
+        /// </summary>
+        /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
+        /// <param name="title">The title to print, "R2R Methods by Query" or "R2R Methods by Keyword"</param>
+        /// <param name="queries">The keywords/ids to search for</param>
+        /// <param name="exact">Specifies whether to look for methods with names/signatures/ids matching the method exactly or partially</param>
+        private void QueryMethod(R2RReader r2r, string title, IReadOnlyList<string> queries, bool exact)
         {
             if (queries.Count > 0)
             {
@@ -160,11 +169,11 @@ namespace R2RDump
             foreach (string q in queries)
             {
                 List<R2RMethod> res = new List<R2RMethod>();
-                GetMethod(r2r, q, exact, res);
+                FindMethod(r2r, q, exact, res);
 
                 Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
                 Console.WriteLine();
-                WriteDivider();
+                WriteSubDivider();
                 foreach (R2RMethod method in res)
                 {
                     DumpMethod(r2r, method);
@@ -173,7 +182,12 @@ namespace R2RDump
             }
         }
 
-        private void SectionQuery(R2RReader r2r, IReadOnlyList<string> queries)
+        // <summary>
+        /// For each query in the list of queries, search for all sections by the name or value of the ReadyToRunSectionType enum
+        /// </summary>
+        /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
+        /// <param name="queries">The names/values to search for</param>
+        private void QuerySection(R2RReader r2r, IReadOnlyList<string> queries)
         {
             if (queries.Count > 0)
             {
@@ -182,7 +196,7 @@ namespace R2RDump
             foreach (string q in queries)
             {
                 List<R2RSection> res = new List<R2RSection>();
-                GetSection(r2r, q, res);
+                FindSection(r2r, q, res);
 
                 Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
                 Console.WriteLine();
@@ -194,7 +208,13 @@ namespace R2RDump
             }
         }
 
-        private void RTFQuery(R2RReader r2r, IReadOnlyList<int> queries)
+        // <summary>
+        /// For each query in the list of queries, search for a runtime function by id. 
+        /// The method containing the runtime function gets outputted, along with the single runtime function that was searched
+        /// </summary>
+        /// <param name="r2r">Contains all the extracted info about the ReadyToRun image</param>
+        /// <param name="queries">The ids to search for</param>
+        private void QueryRuntimeFunction(R2RReader r2r, IReadOnlyList<int> queries)
         {
             if (queries.Count > 0)
             {
@@ -204,10 +224,10 @@ namespace R2RDump
             {
                 Console.WriteLine("id: " + q);
                 Console.WriteLine();
-                WriteDivider();
+                WriteSubDivider();
 
                 R2RMethod method = null;
-                RuntimeFunction rtf = GetRuntimeFunction(r2r, q, out method);
+                RuntimeFunction rtf = FindRuntimeFunction(r2r, q, out method);
 
                 if (method == null)
                 {
@@ -218,26 +238,23 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Outputs specified headers, sections, methods or runtime functions for one ReadyToRun image
+        /// </summary>
+        /// <param name="r2r">The structure containing the info of the ReadyToRun image</param>
         public void Dump(R2RReader r2r)
         {
-            IReadOnlyList<string> queries = (IReadOnlyList<string>)_args["q"].Value;
-            IReadOnlyList<string> keywords = (IReadOnlyList<string>)_args["k"].Value;
-            IReadOnlyList<int> rtfids = (IReadOnlyList<int>)_args["r"].Value;
-            IReadOnlyList<string> sections = (IReadOnlyList<string>)_args["s"].Value;
-
-            bool dumpHeader = (bool)_args["l"].Value;
-
             Console.WriteLine($"Filename: {r2r.Filename}");
             Console.WriteLine($"Machine: {r2r.Machine}");
             Console.WriteLine($"ImageBase: 0x{r2r.ImageBase:X8}");
             Console.WriteLine();
 
-            if (queries.Count == 0 && keywords.Count == 0 && rtfids.Count == 0) //dump all sections and methods
+            if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0) //dump all sections and methods
             {
                 WriteDivider("R2R Header");
                 DumpHeader(r2r);
                 
-                if (!dumpHeader)
+                if (!_header)
                 {
                     WriteDivider("R2R Methods");
                     Console.WriteLine();
@@ -249,7 +266,7 @@ namespace R2RDump
             }
             else //dump queried sections/methods/runtimeFunctions
             {
-                if (dumpHeader)
+                if (_header)
                 {
                     Console.WriteLine(r2r.R2RHeader.ToString());
                     if (_raw)
@@ -258,17 +275,22 @@ namespace R2RDump
                     }
                 }
 
-                SectionQuery(r2r, sections);
-                RTFQuery(r2r, rtfids);
-                MethodQuery(r2r, "R2R Methods by Query", queries, true);
-                MethodQuery(r2r, "R2R Methods by Keyword", keywords, false);
+                QuerySection(r2r, _sections);
+                QueryRuntimeFunction(r2r, _runtimeFunctions);
+                QueryMethod(r2r, "R2R Methods by Query", _queries, true);
+                QueryMethod(r2r, "R2R Methods by Keyword", _keywords, false);
             }
 
             Console.WriteLine("========================================================");
             Console.WriteLine();
         }
 
-        private bool match(R2RMethod method, string query, bool exact)
+        /// <summary>
+        /// Returns true if the name/signature/id of <param>method</param> matches <param>query</param>
+        /// </summary>
+        /// <param name="exact">Specifies exact or partial match</param>
+        /// <remarks>Case-insensitive and ignores whitespace</remarks>
+        private bool Match(R2RMethod method, string query, bool exact)
         {
             bool isNum;
             int id = ArgStringToInt(query, out isNum);
@@ -295,7 +317,11 @@ namespace R2RDump
             return idMatch || sigMatch;
         }
 
-        private bool match(R2RSection section, string query)
+        /// <summary>
+        /// Returns true if the name or value of the ReadyToRunSectionType of <param>section</param> matches <param>query</param>
+        /// </summary>
+        /// <remarks>Case-insensitive</remarks>
+        private bool Match(R2RSection section, string query)
         {
             bool isNum;
             int queryInt = ArgStringToInt(query, out isNum);
@@ -304,42 +330,63 @@ namespace R2RDump
             return (isNum && (int)section.Type == queryInt) || typeName.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        public void GetMethod(R2RReader r2r, string query, bool exact, List<R2RMethod> res)
+        /// <summary>
+        /// Finds all R2RMethods by name/signature/id matching <param>query</param>
+        /// </summary>
+        /// <param name="r2r">Contains all extracted info about the ReadyToRun image</param>
+        /// <param name="query">The name/signature/id to search for</param>
+        /// <param name="exact">Specifies exact or partial match</param>
+        /// <out name="res">List of all matching methods</out>
+        /// <remarks>Case-insensitive and ignores whitespace</remarks>
+        public void FindMethod(R2RReader r2r, string query, bool exact, List<R2RMethod> res)
         {
             foreach (R2RMethod method in r2r.R2RMethods)
             {
-                if (match(method, query, exact))
+                if (Match(method, query, exact))
                 {
                     res.Add(method);
                 }
             }
         }
 
-        public void GetSection(R2RReader r2r, string query, List<R2RSection> res)
+        /// <summary>
+        /// Finds all R2RSections by name or value of the ReadyToRunSectionType matching <param>query</param>
+        /// </summary>
+        /// <param name="r2r">Contains all extracted info about the ReadyToRun image</param>
+        /// <param name="query">The name or value to search for</param>
+        /// <out name="res">List of all matching sections</out>
+        /// <remarks>Case-insensitive</remarks>
+        public void FindSection(R2RReader r2r, string query, List<R2RSection> res)
         {
             foreach (R2RSection section in r2r.R2RHeader.Sections.Values)
             {
-                if (match(section, query))
+                if (Match(section, query))
                 {
                     res.Add(section);
                 }
             }
         }
 
-        public RuntimeFunction GetRuntimeFunction(R2RReader r2r, int rtfid, out R2RMethod m)
+        /// <summary>
+        /// Returns the runtime function with id matching <param>rtfQuery</param>
+        /// </summary>
+        /// <param name="r2r">Contains all extracted info about the ReadyToRun image</param>
+        /// <param name="rtfQuery">The name or value to search for</param>
+        /// <out name="method">Gets set to the method containing the runtime function</out>
+        public RuntimeFunction FindRuntimeFunction(R2RReader r2r, int rtfQuery, out R2RMethod method)
         {
-            foreach (R2RMethod method in r2r.R2RMethods)
+            foreach (R2RMethod m in r2r.R2RMethods)
             {
-                foreach (RuntimeFunction rtf in method.RuntimeFunctions)
+                foreach (RuntimeFunction rtf in m.RuntimeFunctions)
                 {
-                    if (rtf.Id == rtfid)
+                    if (rtf.Id == rtfQuery || (rtf.StartAddress >= rtfQuery && rtf.StartAddress + rtf.Size < rtfQuery))
                     {
-                        m = method;
+                        method = m;
                         return rtf;
                     }
                 }
             }
-            m = null;
+            method = null;
             return null;
         }
 
@@ -347,33 +394,33 @@ namespace R2RDump
         {
             ArgumentSyntax syntax = ParseCommandLine(args);
             
-            if ((bool)_args["h"].Value)
+            if (_help)
             {
                 Console.WriteLine(syntax.GetHelpText());
                 return 0;
             }
 
-            IReadOnlyList<string> inputFilenames = (IReadOnlyList<string>)_args["i"].Value;
-            if (inputFilenames.Count == 0)
+            if (_inputFilenames.Count == 0)
                 throw new ArgumentException("Input filename must be specified (--in <file>)");
 
+            // open output file
             FileStream fileStream = null;
             StreamWriter writer = null;
-            string outputFilename = (string)_args["o"].Value;
-            if (outputFilename != null)
+            if (_outputFilename != null)
             {
-                fileStream = new FileStream((string)_args["o"].Value, FileMode.Create, FileAccess.Write);
+                fileStream = new FileStream(_outputFilename, FileMode.Create, FileAccess.Write);
                 writer = new StreamWriter(fileStream);
                 Console.SetOut(writer);
             }
 
-            foreach (string filename in inputFilenames)
+            foreach (string filename in _inputFilenames)
             {
                 R2RReader r2r = new R2RReader(filename);
                 Dump(r2r);
             }
 
-            if (outputFilename != null)
+            // close output file
+            if (_outputFilename != null)
             {
                 Console.SetOut(Console.Out);
                 writer.Close();
