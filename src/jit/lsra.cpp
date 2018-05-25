@@ -10140,7 +10140,7 @@ void LinearScan::verifyFinalAllocation()
     }
 
     // Now, verify the resolution blocks.
-    // Currently these are nearly always at the end of the method, but that may not alwyas be the case.
+    // Currently these are nearly always at the end of the method, but that may not always be the case.
     // So, we'll go through all the BBs looking for blocks whose bbNum is greater than bbNumMaxBeforeResolution.
     for (BasicBlock* currentBlock = compiler->fgFirstBB; currentBlock != nullptr; currentBlock = currentBlock->bbNext)
     {
