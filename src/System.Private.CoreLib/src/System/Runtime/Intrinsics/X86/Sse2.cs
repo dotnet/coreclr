@@ -1307,7 +1307,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_setzero_pd (void)
         ///   HELPER: XORPD
         /// </summary>
-        public static Vector128<T> SetZeroVector128<T>() where T : struct
+        public static Vector128<T> SetZeroVector128<T>() where T : unmanaged
         {
             return SetZeroVector128<T>();
         }

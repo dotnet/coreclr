@@ -248,7 +248,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128d _mm_broadcastsd_pd (__m128d a)
         ///   VMOVDDUP xmm, xmm
         /// </summary>
-        public static Vector128<T> BroadcastScalarToVector128<T>(Vector128<T> value) where T : struct
+        public static Vector128<T> BroadcastScalarToVector128<T>(Vector128<T> value) where T : unmanaged
         {
             return BroadcastScalarToVector128<T>(value);
         }
@@ -267,7 +267,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m256d _mm256_broadcastsd_pd (__m128d a)
         ///   VBROADCASTSD ymm, xmm
         /// </summary>
-        public static Vector256<T> BroadcastScalarToVector256<T>(Vector128<T> value) where T : struct
+        public static Vector256<T> BroadcastScalarToVector256<T>(Vector128<T> value) where T : unmanaged
         {
             return BroadcastScalarToVector256<T>(value);
         }

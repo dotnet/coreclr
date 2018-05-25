@@ -524,7 +524,7 @@ namespace System.Runtime.Intrinsics.X86
         /// __m128 _mm_castsi128_ps (__m128i a)
         ///   HELPER - No Codegen
         /// </summary>
-        public static Vector128<U> StaticCast<T, U>(Vector128<T> value) where T : struct where U : struct
+        public static Vector128<U> StaticCast<T, U>(Vector128<T> value) where T : unmanaged where U : unmanaged
         {
             return StaticCast<T, U>(value);
         }
