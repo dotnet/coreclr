@@ -803,7 +803,7 @@ void IUnkEntry::ReleaseStream()
     }
 }
 
-// Indicates if the COM component being wrapped by the IUnkEntry aggreates the FTM
+// Indicates if the COM component being wrapped by the IUnkEntry aggregates the FTM
 bool IUnkEntry::IsFreeThreaded()
 {
     LIMITED_METHOD_CONTRACT;
