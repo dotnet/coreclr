@@ -1209,7 +1209,7 @@ HRESULT CordbThread::CreateEval(ICorDebugEval ** ppEval)
 // we can compare DAC & the RS and make sure DACs working.
 void CheckAgainstDAC(CordbFunction * pFunc, void * pIP, mdMethodDef mdExpected)
 {
-    // This is a hook to add DAC checks agaisnt a {function, ip}
+    // This is a hook to add DAC checks against a {function, ip}
 }
 
 
