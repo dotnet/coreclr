@@ -1639,7 +1639,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     //
     //   Each field has an alignment requirement. The alignment-requirement
     //   of a scalar field is the smaller of its size and the declared packsize.
-    //   The alighnment-requirement of a struct field is the smaller of the
+    //   The alignment-requirement of a struct field is the smaller of the
     //   declared packsize and the largest of the alignment-requirement
     //   of its fields. The alignment requirement of an array is that
     //   of one of its elements.
