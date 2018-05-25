@@ -11115,7 +11115,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
                     pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
-                                                               (TADDR)pEvent->SetIP.startAddress);
+                                                               PINSTRToPCODE((TADDR)pEvent->SetIP.startAddress));
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))

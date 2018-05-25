@@ -1559,13 +1559,13 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     CONTRACTL_END;
 
     _ASSERTE(fd != NULL);
+    ARM_ONLY(_ASSERTE((startAddr & THUMB_CODE) == 1))
 
     // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
     if (fd->IsDynamicMethod())
     {
         return NULL;
     }
-
     if (startAddr == NULL)
     {
         // This will grab the start address for the current code version.
