@@ -8527,7 +8527,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
     CONTRACTL_END;
 
     PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
-        kP2EETriggers,
+        kP2EETriggers | kP2EEAllowableAfterAttach,
         (LF_CORPROF, 
          LL_INFO1000, 
          "**PROF: RequestReJIT.\n"));
