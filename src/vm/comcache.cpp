@@ -1226,7 +1226,7 @@ DWORD WINAPI MDAContextSwitchDeadlockThreadProc(LPVOID lpParameter)
 
     if (retval == WAIT_TIMEOUT)
     {
-        // We didn't transition into the context within the alloted timeout period.
+        // We didn't transition into the context within the allotted timeout period.
         // We'll fire the mda and close the event, but we can't delete is as the
         //  thread may still complete the transition and attempt to signal the event.
         //  So we'll just leak it and let the transition thread recognize that the
