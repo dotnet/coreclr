@@ -10,207 +10,242 @@ using System.Reflection;
 
 namespace System.Diagnostics
 {
-    // There is no good reason for the methods of this class to be virtual.
+    /// <summary>
+    /// There is no good reason for the methods of this class to be virtual.
+    /// </summary>
     public class StackFrame
     {
-        private MethodBase method;
-        private int offset;
-        private int ILOffset;
-        private string strFileName;
-        private int iLineNumber;
-        private int iColumnNumber;
+        /// <summary>
+        /// Reflection information for the method if available, null otherwise.
+        /// </summary>
+        private MethodBase _method;
+
+        /// <summary>
+        /// Native offset of the current instruction within the current method if available,
+        /// OFFSET_UNKNOWN otherwise.
+        /// </summary>
+        private int _nativeOffset;
+
+        /// <summary>
+        /// IL offset of the current instruction within the current method if available,
+        /// OFFSET_UNKNOWN otherwise.
+        /// </summary>
+        private int _ilOffset;
+
+        /// <summary>
+        /// Source file name representing the current code location if available, null otherwise.
+        /// </summary>
+        private string _fileName;
+
+        /// <summary>
+        /// Line number representing the current code location if available, 0 otherwise.
+        /// </summary>
+        private int _lineNumber;
+
+        /// <summary>
+        /// Column number representing the current code location if available, 0 otherwise.
+        /// </summary>
+        private int _columnNumber;
 
         [System.Runtime.Serialization.OptionalField]
-        private bool fIsLastFrameFromForeignExceptionStackTrace;
+		/// <summary>
+        /// This flag is set to true when the frame represents a rethrow marker.
+        /// </summary>
+        private bool _isLastFrameFromForeignExceptionStackTrace;
 
         internal void InitMembers()
         {
-            method = null;
-            offset = OFFSET_UNKNOWN;
-            ILOffset = OFFSET_UNKNOWN;
-            strFileName = null;
-            iLineNumber = 0;
-            iColumnNumber = 0;
-            fIsLastFrameFromForeignExceptionStackTrace = false;
+            _method = null;
+            _nativeOffset = OFFSET_UNKNOWN;
+            _ilOffset = OFFSET_UNKNOWN;
+            _fileName = null;
+            _lineNumber = 0;
+            _columnNumber = 0;
+            _isLastFrameFromForeignExceptionStackTrace = false;
         }
 
-        // Constructs a StackFrame corresponding to the active stack frame.
+        /// <summary>
+        /// Constructs a StackFrame corresponding to the active stack frame.
+        /// </summary>
         public StackFrame()
         {
             InitMembers();
             BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, false);// iSkipFrames=0
         }
 
-        // Constructs a StackFrame corresponding to the active stack frame.
-        public StackFrame(bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a StackFrame corresponding to the active stack frame.
+        /// </summary>
+        public StackFrame(bool needFileInfo)
         {
             InitMembers();
-            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, fNeedFileInfo);// iSkipFrames=0
+            BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, needFileInfo);// iSkipFrames=0
         }
 
-        // Constructs a StackFrame corresponding to a calling stack frame.
-        // 
+        /// <summary>
+        /// Constructs a StackFrame corresponding to a calling stack frame.
+        /// </summary>
         public StackFrame(int skipFrames)
         {
             InitMembers();
             BuildStackFrame(skipFrames + StackTrace.METHODS_TO_SKIP, false);
         }
 
-        // Constructs a StackFrame corresponding to a calling stack frame.
-        // 
-        public StackFrame(int skipFrames, bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a StackFrame corresponding to a calling stack frame.
+        /// </summary>
+        public StackFrame(int skipFrames, bool needFileInfo)
         {
             InitMembers();
-            BuildStackFrame(skipFrames + StackTrace.METHODS_TO_SKIP, fNeedFileInfo);
+            BuildStackFrame(skipFrames + StackTrace.METHODS_TO_SKIP, needFileInfo);
         }
 
-
-        // Called from the class "StackTrace"
-        // 
-        internal StackFrame(bool DummyFlag1, bool DummyFlag2)
-        {
-            InitMembers();
-        }
-
-        // Constructs a "fake" stack frame, just containing the given file
-        // name and line number.  Use when you don't want to use the 
-        // debugger's line mapping logic.
-        //
+        /// <summary>
+        /// Constructs a "fake" stack frame, just containing the given file
+        /// name and line number.  Use when you don't want to use the
+        /// debugger's line mapping logic.
+        /// </summary>
         public StackFrame(string fileName, int lineNumber)
         {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
-            strFileName = fileName;
-            iLineNumber = lineNumber;
-            iColumnNumber = 0;
+            _fileName = fileName;
+            _lineNumber = lineNumber;
+            _columnNumber = 0;
         }
 
-
-        // Constructs a "fake" stack frame, just containing the given file
-        // name, line number and column number.  Use when you don't want to 
-        // use the debugger's line mapping logic.
-        //
+        /// <summary>
+        /// Constructs a "fake" stack frame, just containing the given file
+        /// name, line number and column number.  Use when you don't want to
+        /// use the debugger's line mapping logic.
+        /// </summary>
         public StackFrame(string fileName, int lineNumber, int colNumber)
         {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
-            strFileName = fileName;
-            iLineNumber = lineNumber;
-            iColumnNumber = colNumber;
+            _fileName = fileName;
+            _lineNumber = lineNumber;
+            _columnNumber = colNumber;
         }
 
-
-        // Constant returned when the native or IL offset is unknown
+        /// <summary>
+        /// Constant returned when the native or IL offset is unknown
+        /// </summary>
         public const int OFFSET_UNKNOWN = -1;
-
 
         internal virtual void SetMethodBase(MethodBase mb)
         {
-            method = mb;
+            _method = mb;
         }
 
         internal virtual void SetOffset(int iOffset)
         {
-            offset = iOffset;
+            _nativeOffset = iOffset;
         }
 
         internal virtual void SetILOffset(int iOffset)
         {
-            ILOffset = iOffset;
+            _ilOffset = iOffset;
         }
 
         internal virtual void SetFileName(string strFName)
         {
-            strFileName = strFName;
+            _fileName = strFName;
         }
 
         internal virtual void SetLineNumber(int iLine)
         {
-            iLineNumber = iLine;
+            _lineNumber = iLine;
         }
 
         internal virtual void SetColumnNumber(int iCol)
         {
-            iColumnNumber = iCol;
+            _columnNumber = iCol;
         }
 
         internal virtual void SetIsLastFrameFromForeignExceptionStackTrace(bool fIsLastFrame)
         {
-            fIsLastFrameFromForeignExceptionStackTrace = fIsLastFrame;
+            _isLastFrameFromForeignExceptionStackTrace = fIsLastFrame;
         }
 
         internal virtual bool GetIsLastFrameFromForeignExceptionStackTrace()
         {
-            return fIsLastFrameFromForeignExceptionStackTrace;
+            return _isLastFrameFromForeignExceptionStackTrace;
         }
 
-        // Returns the method the frame is executing
-        // 
+        /// <summary>
+        /// Returns the method the frame is executing
+        /// </summary>
         public virtual MethodBase GetMethod()
         {
-            return method;
+            return _method;
         }
 
-        // Returns the offset from the start of the native (jitted) code for the
-        // method being executed
-        // 
+        /// <summary>
+        /// Returns the offset from the start of the native (jitted) code for the
+        /// method being executed
+        /// </summary>
         public virtual int GetNativeOffset()
         {
-            return offset;
+            return _nativeOffset;
         }
 
 
-        // Returns the offset from the start of the IL code for the
-        // method being executed.  This offset may be approximate depending
-        // on whether the jitter is generating debuggable code or not.
-        // 
+        /// <summary>
+        /// Returns the offset from the start of the IL code for the
+        /// method being executed.  This offset may be approximate depending
+        /// on whether the jitter is generating debuggable code or not.
+        /// </summary>
         public virtual int GetILOffset()
         {
-            return ILOffset;
+            return _ilOffset;
         }
 
-        // Returns the file name containing the code being executed.  This 
-        // information is normally extracted from the debugging symbols
-        // for the executable.
-        //
+        /// <summary>
+        /// Returns the file name containing the code being executed.  This
+        /// information is normally extracted from the debugging symbols
+        /// for the executable.
+        /// </summary>
         public virtual string GetFileName()
         {
-            return strFileName;
+            return _fileName;
         }
 
-        // Returns the line number in the file containing the code being executed.  
-        // This information is normally extracted from the debugging symbols
-        // for the executable.
-        //
+        /// <summary>
+        /// Returns the line number in the file containing the code being executed.
+        /// This information is normally extracted from the debugging symbols
+        /// for the executable.
+        /// </summary>
         public virtual int GetFileLineNumber()
         {
-            return iLineNumber;
+            return _lineNumber;
         }
 
-        // Returns the column number in the line containing the code being executed.  
-        // This information is normally extracted from the debugging symbols
-        // for the executable.
-        //
+        /// <summary>
+        /// Returns the column number in the line containing the code being executed.
+        /// This information is normally extracted from the debugging symbols
+        /// for the executable.
+        /// </summary>
         public virtual int GetFileColumnNumber()
         {
-            return iColumnNumber;
+            return _columnNumber;
         }
 
-
-        // Builds a readable representation of the stack frame
-        //
+        /// <summary>
+        /// Builds a readable representation of the stack frame
+        /// </summary>
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(255);
 
-            if (method != null)
+            if (_method != null)
             {
-                sb.Append(method.Name);
+                sb.Append(_method.Name);
 
                 // deal with the generic portion of the method
-                if (method is MethodInfo && ((MethodInfo)method).IsGenericMethod)
+                if (_method is MethodInfo && ((MethodInfo)_method).IsGenericMethod)
                 {
-                    Type[] typars = ((MethodInfo)method).GetGenericArguments();
+                    Type[] typars = ((MethodInfo)_method).GetGenericArguments();
 
                     sb.Append('<');
                     int k = 0;
@@ -230,23 +265,23 @@ namespace System.Diagnostics
                 }
 
                 sb.Append(" at offset ");
-                if (offset == OFFSET_UNKNOWN)
+                if (_nativeOffset == OFFSET_UNKNOWN)
                     sb.Append("<offset unknown>");
                 else
-                    sb.Append(offset);
+                    sb.Append(_nativeOffset);
 
                 sb.Append(" in file:line:column ");
 
-                bool useFileName = (strFileName != null);
+                bool useFileName = (_fileName != null);
 
                 if (!useFileName)
                     sb.Append("<filename unknown>");
                 else
-                    sb.Append(strFileName);
+                    sb.Append(_fileName);
                 sb.Append(':');
-                sb.Append(iLineNumber);
+                sb.Append(_lineNumber);
                 sb.Append(':');
-                sb.Append(iColumnNumber);
+                sb.Append(_columnNumber);
             }
             else
             {
@@ -258,11 +293,11 @@ namespace System.Diagnostics
         }
 
 
-        private void BuildStackFrame(int skipFrames, bool fNeedFileInfo)
+        private void BuildStackFrame(int skipFrames, bool needFileInfo)
         {
             StackFrameHelper StackF = new StackFrameHelper(null);
 
-            StackF.InitializeSourceInfo(0, fNeedFileInfo, null);
+            StackF.InitializeSourceInfo(0, needFileInfo, null);
 
             int iNumOfFrames = StackF.GetNumberOfFrames();
 
@@ -270,14 +305,14 @@ namespace System.Diagnostics
 
             if ((iNumOfFrames - skipFrames) > 0)
             {
-                method = StackF.GetMethodBase(skipFrames);
-                offset = StackF.GetOffset(skipFrames);
-                ILOffset = StackF.GetILOffset(skipFrames);
-                if (fNeedFileInfo)
+                _method = StackF.GetMethodBase(skipFrames);
+                _nativeOffset = StackF.GetOffset(skipFrames);
+                _ilOffset = StackF.GetILOffset(skipFrames);
+                if (needFileInfo)
                 {
-                    strFileName = StackF.GetFilename(skipFrames);
-                    iLineNumber = StackF.GetLineNumber(skipFrames);
-                    iColumnNumber = StackF.GetColumnNumber(skipFrames);
+                    _fileName = StackF.GetFilename(skipFrames);
+                    _lineNumber = StackF.GetLineNumber(skipFrames);
+                    _columnNumber = StackF.GetColumnNumber(skipFrames);
                 }
             }
         }
