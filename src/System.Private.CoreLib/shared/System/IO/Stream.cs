@@ -29,7 +29,7 @@ using System.Reflection;
 
 namespace System.IO
 {
-    public abstract class Stream : MarshalByRefObject, IDisposable
+    public abstract partial class Stream : MarshalByRefObject, IDisposable
     {
         public static readonly Stream Null = new NullStream();
 
@@ -401,9 +401,6 @@ namespace System.IO
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern bool HasOverriddenBeginEndRead();
-
         private Task<Int32> BeginEndReadAsync(Byte[] buffer, Int32 offset, Int32 count)
         {
             if (!HasOverriddenBeginEndRead())
@@ -708,9 +705,6 @@ namespace System.IO
                 ArrayPool<byte>.Shared.Return(localBuffer);
             }
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern bool HasOverriddenBeginEndWrite();
 
         private Task BeginEndWriteAsync(Byte[] buffer, Int32 offset, Int32 count)
         {
