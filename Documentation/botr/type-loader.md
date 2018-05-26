@@ -96,7 +96,7 @@ If **MyClass** fails to load, for example because it's supposed to be defined in
 
 ## Key Data Structures
 
-The most universal type designation in the CLR is the **TypeHandle**. It's an abstract entity which encapsulates a pointer to either a **MethodTable** (representing "ordinary" types like **System.Object** or **List<string>** ) or a **TypeDesc** (representing byrefs, pointers, function pointers, arrays, and generic variables). It constitutes the identity of a type in that two handles are equal if and only if they represent the same type. To save space, the fact that a **TypeHandle** contains a **TypeDesc** is indicated by setting the second lowest bit of the pointer to 1 (i.e. (ptr | 2)) instead of using additional flags<sup>2</sup>. **TypeDesc** is "abstract" and has the following inheritance hierarchy.
+The most universal type designation in the CLR is the **TypeHandle**. It's an abstract entity which encapsulates a pointer to either a **MethodTable** (representing "ordinary" types like **System.Object** or **List&lt;string>**) or a **TypeDesc** (representing byrefs, pointers, function pointers, arrays, and generic variables). It constitutes the identity of a type in that two handles are equal if and only if they represent the same type. To save space, the fact that a **TypeHandle** contains a **TypeDesc** is indicated by setting the second lowest bit of the pointer to 1 (i.e. (ptr | 2)) instead of using additional flags<sup>2</sup>. **TypeDesc** is "abstract" and has the following inheritance hierarchy.
 
 ![Figure 2](../images/typeloader-fig2.png)
 
@@ -108,7 +108,7 @@ Abstract type descriptor. The concrete descriptor type is determined by flags.
 
 **TypeVarTypeDesc**
 
-Represents a type variable, i.e. the **T** in **List<T>** or in **Array.Sort<T>** (see the part about generics below). Type variables are never shared between multiple types or methods so each variable has its one and only owner.
+Represents a type variable, i.e. the **T** in **List&lt;T>** or in **Array.Sort&lt;T>** (see the part about generics below). Type variables are never shared between multiple types or methods so each variable has its one and only owner.
 
 **FnPtrTypeDesc**
 
@@ -189,11 +189,11 @@ operation and normally needs to access only information in the
 
 **Generic Parameter**
 
-A placeholder to be substituted by another type; the **T** in the declaration of **List<T>**. Sometimes called formal type parameter. A generic parameter has a name and optional generic constraints.
+A placeholder to be substituted by another type; the **T** in the declaration of **List&lt;T>**. Sometimes called formal type parameter. A generic parameter has a name and optional generic constraints.
 
 **Generic Argument**
 
-A type being substituted for a generic parameter; the **int** in **List<int>**. Note that a generic parameter can also be used as an argument. Consider:
+A type being substituted for a generic parameter; the **int** in **List&lt;int>**. Note that a generic parameter can also be used as an argument. Consider:
 
 	List<T> GetList<T>()
 	{
