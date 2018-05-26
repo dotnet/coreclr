@@ -3124,7 +3124,7 @@ TypeHandle EEJitManager::ResolveEHClause(EE_ILEXCEPTION_CLAUSE* pEHClause,
         }
         else
         {
-            // If we raced in here with aother thread and got held up on the lock, then we just need to return the
+            // If we raced in here with another thread and got held up on the lock, then we just need to return the
             // type handle that the other thread put into the clause.
             // The typeHnd we found and the typeHnd the racing thread found should always be the same
             _ASSERTE(typeHnd.AsPtr() == pEHClause->TypeHandle);
