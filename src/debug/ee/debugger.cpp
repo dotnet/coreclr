@@ -1306,7 +1306,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ULONG cApparant = 0;
+    ULONG cApparent = 0;
     ULONG cOfficial = 0;
 
     if (NULL != m_pcEntries)
@@ -1320,7 +1320,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
                dcp->pFD != (MethodDesc*)0xcdcdcdcd &&
                dcp->mi != NULL)
             {
-                cApparant++;
+                cApparent++;
 
                 _ASSERTE( dcp->pFD == dcp->mi->m_fd );
                 LOG((LF_CORDB, LL_INFO1000, "DMIT::CDT:Entry:0x%p mi:0x%p\nPrevs:\n",
