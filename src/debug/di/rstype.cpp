@@ -636,7 +636,7 @@ LReallyObject:
 // Make a CordbType for a function pointer type (ELEMENT_TYPE_FNPTR).
 // 
 // Arguments:
-//   pAppDomain - the Appdomian the type lives in.
+//   pAppDomain - the Appdomain the type lives in.
 //   elementType - must be ELEMENT_TYPE_FNPTR.
 //   pInst - instantiation information.
 //   ppResultType - OUT: out-parameter to hold resulting CordbType
