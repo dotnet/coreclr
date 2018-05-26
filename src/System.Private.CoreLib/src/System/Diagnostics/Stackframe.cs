@@ -45,5 +45,7 @@ namespace System.Diagnostics
                 }
             }
         }
+
+        private bool IsFileInfoIfAvailable() => true;
     }
 }

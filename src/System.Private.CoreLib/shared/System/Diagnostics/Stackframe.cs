@@ -235,9 +235,6 @@ namespace System.Diagnostics
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(255);
-#if !CORECLR
-            bool includeFileInfoIfAvailable;
-#endif
 
             if (_method != null)
             {
@@ -264,17 +261,10 @@ namespace System.Diagnostics
 
                     sb.Append('>');
                 }
-#if !CORECLR
-                includeFileInfoIfAvailable = true;
-            }
-            else
-            {
-                includeFileInfoIfAvailable = AppendStackFrameWithoutMethodBase(sb);
             }
 
-            if (includeFileInfoIfAvailable)
+            if (IncludeFileInfoIfAvailable())
             {
-#endif
                 sb.Append(" at offset ");
                 if (_nativeOffset == OFFSET_UNKNOWN)
                     sb.Append("<offset unknown>");
