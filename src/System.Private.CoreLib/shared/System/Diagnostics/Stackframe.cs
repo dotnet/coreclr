@@ -46,15 +46,12 @@ namespace System.Diagnostics
         /// </summary>
         private int _columnNumber;
 
-#if CORECLR
-        [System.Runtime.Serialization.OptionalField]
-#endif
 		/// <summary>
         /// This flag is set to true when the frame represents a rethrow marker.
         /// </summary>
         private bool _isLastFrameFromForeignExceptionStackTrace;
 
-        internal void InitMembers()
+        private void InitMembers()
         {
             _method = null;
             _nativeOffset = OFFSET_UNKNOWN;
