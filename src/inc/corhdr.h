@@ -318,7 +318,8 @@ typedef enum CorTypeAttr
     tdUnicodeClass          =   0x00010000,     // LPTSTR is interpreted as UNICODE
     tdAutoClass             =   0x00020000,     // LPTSTR is interpreted automatically
     tdCustomFormatClass     =   0x00030000,     // A non-standard encoding specified by CustomFormatMask
-    tdCustomFormatMask      =   0x00C00000,     // Use this mask to retrieve non-standard encoding information for native interop. The meaning of the values of these 2 bits is unspecified.
+    tdUTF8Class             =   0x00050000,     // LPTSTR is interpreted as UTF8
+    tdCustomFormatMask      =   0x00C00000,     // Use this mask to retrieve non-standard encoding information for native interop. The meaning of the values of these 1 bit is unspecified.
 
     // end string format mask
 
@@ -361,6 +362,7 @@ typedef enum CorTypeAttr
 #define IsTdAnsiClass(x)                    (((x) & tdStringFormatMask) == tdAnsiClass)
 #define IsTdUnicodeClass(x)                 (((x) & tdStringFormatMask) == tdUnicodeClass)
 #define IsTdAutoClass(x)                    (((x) & tdStringFormatMask) == tdAutoClass)
+#define IsTdUTF8Class(x)                    (((x) & tdUTF8Class) == tdUTF8Class)
 #define IsTdCustomFormatClass(x)            (((x) & tdStringFormatMask) == tdCustomFormatClass)
 #define IsTdBeforeFieldInit(x)              ((x) & tdBeforeFieldInit)
 #define IsTdForwarder(x)                    ((x) & tdForwarder)
@@ -681,11 +683,12 @@ typedef enum  CorPinvokeMap
     pmNoMangle          = 0x0001,   // Pinvoke is to use the member name as specified.
 
     // Use this mask to retrieve the CharSet information.
-    pmCharSetMask       = 0x0006,
+    pmCharSetMask       = 0x000E,
     pmCharSetNotSpec    = 0x0000,
     pmCharSetAnsi       = 0x0002,
     pmCharSetUnicode    = 0x0004,
     pmCharSetAuto       = 0x0006,
+    pmCharSetUTF8       = 0x0008,
 
 
     pmBestFitUseAssem   = 0x0000,
@@ -718,6 +721,7 @@ typedef enum  CorPinvokeMap
 #define IsPmCharSetAnsi(x)                  (((x) & pmCharSetMask) == pmCharSetAnsi)
 #define IsPmCharSetUnicode(x)               (((x) & pmCharSetMask) == pmCharSetUnicode)
 #define IsPmCharSetAuto(x)                  (((x) & pmCharSetMask) == pmCharSetAuto)
+#define IsPmCharSetUTF8(x)                  (((x) & pmCharSetMask) == pmCharSetUTF8)
 
 #define IsPmSupportsLastError(x)            ((x) & pmSupportsLastError)
 

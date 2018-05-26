@@ -19,11 +19,12 @@ namespace System.Runtime.InteropServices
     internal enum PInvokeMap
     {
         NoMangle = 0x0001,   // Pinvoke is to use the member name as specified.
-        CharSetMask = 0x0006,   // Heuristic used in data type & name mapping.
+        CharSetMask = 0x000E,   // Heuristic used in data type & name mapping.
         CharSetNotSpec = 0x0000,
         CharSetAnsi = 0x0002,
         CharSetUnicode = 0x0004,
         CharSetAuto = 0x0006,
+        CharSetUTF8 = 0x0008,
 
         PinvokeOLE = 0x0020,   // Heuristic: pinvoke will return hresult, with return value becoming the retval param. Not relevant for fields. 
         SupportsLastError = 0x0040,   // Information about target function. Not relevant for fields.

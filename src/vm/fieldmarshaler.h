@@ -101,12 +101,12 @@ enum NStructFieldType
 //  fail    - throws a typeload exception
 //
 // If S_OK,
-//   *pNLType            gets set to nltAnsi or nltUnicode
+//   *pNLType            gets set to nltAnsi or nltUnicode or nltUTF8
 //   *pPackingSize       declared packing size
 //   *pfExplicitoffsets  offsets explicit in metadata or computed?
 //=======================================================================
 BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, mdTypeDef cl, 
-                            MethodTable *pParentMT, BYTE *pPackingSize, BYTE *pNLTType,
+                            MethodTable *pParentMT, BYTE *pPackingSize, CorNativeLinkType *pNLTType,
                             BOOL *pfExplicitOffsets);
 
 

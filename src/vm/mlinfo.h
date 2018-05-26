@@ -611,6 +611,18 @@ public:
         return m_nolowerbounds;
     }
 
+    BOOL IsAnsi()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_ms == MARSHAL_SCENARIO_NDIRECT && m_nlType == nltAnsi;
+    }
+
+    BOOL IsUTF8()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_ms == MARSHAL_SCENARIO_NDIRECT && m_nlType == nltUTF8;
+    }
+
 #ifdef FEATURE_COMINTEROP
     void SetHiddenLengthParamIndex(UINT16 index)
     {
@@ -754,7 +766,7 @@ private:
     UINT16          m_managedArgSize;
 
     MarshalScenario m_ms;
-    BOOL            m_fAnsi;
+    CorNativeLinkType   m_nlType;
     BOOL            m_fDispItf;
     BOOL            m_fInspItf;
 #ifdef FEATURE_COMINTEROP
@@ -823,11 +835,11 @@ public:
         WRAPPER_NO_CONTRACT;
     }
 
-    void InitForNativeArray(MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, CorNativeType elementNativeType, BOOL isAnsi);
-    void InitForFixedArray(TypeHandle elemTypeHnd, CorNativeType elementNativeType, BOOL isAnsi);
+    void InitForNativeArray(MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, CorNativeType elementNativeType, CorNativeLinkType nlType);
+    void InitForFixedArray(TypeHandle elemTypeHnd, CorNativeType elementNativeType, CorNativeLinkType nlType);
 
 #ifdef FEATURE_COMINTEROP    
-    void InitForSafeArray(MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, VARTYPE elementVT, BOOL isAnsi);
+    void InitForSafeArray(MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, VARTYPE elementVT, CorNativeLinkType nlType);
     void InitForHiddenLengthArray(TypeHandle elemTypeHnd);
 #endif // FEATURE_COMINTEROP
     
@@ -866,9 +878,25 @@ public:
             GC_NOTRIGGER;
             MODE_ANY;
         }
-        CONTRACTL_END;        
+        CONTRACTL_END;
         
         return m_vtElement != VT_EMPTY;
+    }
+
+    BOOL IsAnsi()
+    {
+        LIMITED_METHOD_CONTRACT;
+        // compatibility
+        if (m_arrayNativeType == NATIVE_TYPE_ARRAY)
+            return m_ms == MarshalInfo::MARSHAL_SCENARIO_NDIRECT && m_nlType == nltAnsi;
+
+        return m_nlType == nltAnsi;
+    }
+
+    BOOL IsUTF8()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nlType == nltUTF8;
     }
 
     BOOL IsSafeArraySubTypeExplicitlySpecified()
@@ -908,7 +936,7 @@ public:
 
 protected:    
     // Helper function that does the actual work to figure out the element type handle and var type.    
-    void InitElementInfo(CorNativeType arrayNativeType, MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, CorNativeType elementNativeType, BOOL isAnsi);
+    void InitElementInfo(CorNativeType arrayNativeType, MarshalInfo::MarshalScenario ms, TypeHandle elemTypeHnd, CorNativeType elementNativeType, CorNativeLinkType nlType);
 
     VARTYPE GetPointerSize()
     {
@@ -930,7 +958,9 @@ protected:
     VARTYPE m_vtElement;
     DWORD m_errorResourceId;
     ArrayMarshalInfoFlags m_flags;
-
+    CorNativeLinkType m_nlType;
+    CorNativeType m_arrayNativeType;
+    MarshalInfo::MarshalScenario m_ms;
 #ifdef FEATURE_COMINTEROP    
     WinMDAdapter::RedirectedTypeIndex m_redirectedTypeIndex;
     SIZE_T m_cbElementSize;

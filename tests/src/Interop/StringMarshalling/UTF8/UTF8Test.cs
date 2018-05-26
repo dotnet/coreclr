@@ -14,6 +14,7 @@ class UTF8StringTests
     [DllImport("UTF8TestNative", CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAs(UnmanagedType.LPUTF8Str)]
     public static extern string StringParameterInOut([In, Out][MarshalAs(UnmanagedType.LPUTF8Str)]string s, int index);
+    
     public static void TestInOutStringParameter(string orgString, int index)
     {
         string passedString = orgString;
@@ -23,6 +24,21 @@ class UTF8StringTests
         if (!(nativeString == expectedNativeString))
         {
             throw new Exception("StringParameterInOut: nativeString != expecedNativeString ");
+        }
+    }
+    
+    [DllImport("UTF8TestNative", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.UTF8)]
+    public static extern string StringParameterInOut_CharSetUTF8([In, Out] string s, int index);
+    
+    public static void TestInOutStringParameter_CharSetUTF8(string orgString, int index)
+    {
+        string passedString = orgString;
+        string expectedNativeString = passedString;
+
+        string nativeString = StringParameterInOut_CharSetUTF8(passedString, index);
+        if (!(nativeString == expectedNativeString))
+        {
+            throw new Exception("StringParameterInOut_CharSetUTF8: nativeString != expecedNativeString ");
         }
     }
 
@@ -229,7 +245,10 @@ class Test
     {
         // Test string as [In,Out] parameter
         for (int i = 0; i < utf8Strings.Length; i++)
+        {
             UTF8StringTests.TestInOutStringParameter(utf8Strings[i], i);
+            UTF8StringTests.TestInOutStringParameter_CharSetUTF8(utf8Strings[i], i);
+        }
 
         // Test string as [Out] parameter
         for (int i = 0; i < utf8Strings.Length; i++)

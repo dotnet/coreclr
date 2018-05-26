@@ -2499,11 +2499,12 @@ void MDInfo::DisplayPinvokeInfo(mdToken inToken)
     VWriteLine("\t\tModule ref:       %08x", tkModuleRef);
             
     sFlags[0] = 0;
-    ISFLAG(Pm, NoMangle);           
+    ISFLAG(Pm, NoMangle);
     ISFLAG(Pm, CharSetNotSpec);
-    ISFLAG(Pm, CharSetAnsi);        
+    ISFLAG(Pm, CharSetAnsi);
     ISFLAG(Pm, CharSetUnicode); 
     ISFLAG(Pm, CharSetAuto);
+    ISFLAG(Pm, CharSetUTF8);
     ISFLAG(Pm, SupportsLastError);  
     ISFLAG(Pm, CallConvWinapi); 
     ISFLAG(Pm, CallConvCdecl);  
@@ -2925,6 +2926,9 @@ void MDInfo::DisplayCorNativeLink(COR_NATIVE_LINK *pCorNLnk, const char *preFix)
         break;
     case nltAuto:
         VWriteLine("%s%s%s(%02x)", preFix, curField, "nltAuto", pCorNLnk->m_linkType);
+        break;
+    case nltUTF8:
+        VWriteLine("%s%s%s(%02x)", preFix, curField, "nltUTF8", pCorNLnk->m_linkType);
         break;
     default:
         _ASSERTE(!"Invalid Native Link Type!");

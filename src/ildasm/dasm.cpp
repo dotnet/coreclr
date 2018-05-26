@@ -1197,6 +1197,7 @@ BOOL PrintClassList()
             if (IsTdAnsiClass(dwClassAttrs))        szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(ansi) ");
             if (IsTdUnicodeClass(dwClassAttrs))     szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(unicode) ");
             if (IsTdAutoClass(dwClassAttrs))        szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(autochar) ");
+            if (IsTdUTF8Class(dwClassAttrs))        szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(utf8) ");
             if (IsTdImport(dwClassAttrs))           szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(import) ");
             if (IsTdWindowsRuntime(dwClassAttrs))   szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(windowsruntime) ");
             //if (IsTdEnum(dwClassAttrs))             szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"(enum) ");
@@ -1288,6 +1289,7 @@ char* DumpPinvokeMap(DWORD   dwMappingFlags, const char  *szImportName,
     if(IsPmCharSetAnsi(dwMappingFlags))         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," ansi");
     if(IsPmCharSetUnicode(dwMappingFlags))      szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," unicode");
     if(IsPmCharSetAuto(dwMappingFlags))         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," autochar");
+    if(IsPmCharSetUTF8(dwMappingFlags))         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," utf8");
     if(IsPmSupportsLastError(dwMappingFlags))   szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," lasterr");
     if(IsPmCallConvWinapi(dwMappingFlags))      szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," winapi");
     if(IsPmCallConvCdecl(dwMappingFlags))       szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," cdecl");
@@ -4591,6 +4593,7 @@ BOOL DumpClass(mdTypeDef cl, DWORD dwEntryPointToken, void* GUICookie, ULONG Wha
     if (IsTdAnsiClass(dwClassAttrs))                szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"ansi ");
     if (IsTdUnicodeClass(dwClassAttrs))             szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"unicode ");
     if (IsTdAutoClass(dwClassAttrs))                szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"autochar ");
+    if (IsTdUTF8Class(dwClassAttrs))                szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"utf8 ");
     if (IsTdImport(dwClassAttrs))                   szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"import ");
     if (IsTdWindowsRuntime(dwClassAttrs))           szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"windowsruntime ");
     if (IsTdSerializable(dwClassAttrs))             szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),"serializable ");

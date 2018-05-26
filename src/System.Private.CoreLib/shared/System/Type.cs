@@ -96,6 +96,7 @@ namespace System
         public bool IsAnsiClass => (GetAttributeFlagsImpl() & TypeAttributes.StringFormatMask) == TypeAttributes.AnsiClass;
         public bool IsAutoClass => (GetAttributeFlagsImpl() & TypeAttributes.StringFormatMask) == TypeAttributes.AutoClass;
         public bool IsUnicodeClass => (GetAttributeFlagsImpl() & TypeAttributes.StringFormatMask) == TypeAttributes.UnicodeClass;
+        public bool IsUTF8Class => (GetAttributeFlagsImpl() & TypeAttributes.UTF8Class) == TypeAttributes.UTF8Class;
 
         public bool IsCOMObject => IsCOMObjectImpl();
         protected abstract bool IsCOMObjectImpl();

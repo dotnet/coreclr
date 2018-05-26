@@ -49,6 +49,7 @@ namespace System.Reflection
         UnicodeClass = 0x00010000,     // LPTSTR is interpreted as UNICODE
         AutoClass = 0x00020000,     // LPTSTR is interpreted automatically
         CustomFormatClass = 0x00030000,     // A non-standard encoding specified by CustomFormatMask
+        UTF8Class = 0x00050000,     // LPTSTR is interpreted as UTF8
         CustomFormatMask = 0x00C00000,     // Use this mask to retrieve non-standard encoding information for native interop. The meaning of the values of these 2 bits is unspecified.
 
         // end string format mask

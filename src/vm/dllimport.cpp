@@ -2823,14 +2823,16 @@ PInvokeStaticSigInfo::PInvokeStaticSigInfo(MethodDesc* pMD, ThrowOnError throwOn
         // PInvokeStaticSigInfo::DllImportInit.
         switch( namedArgs[MDA_CharSet].val.u4 )
         {
-        case 0:
-        case nltAnsi:
-            nlt = nltAnsi; break;
-        case nltUnicode:
-        case nltAuto:   // Since Win9x isn't supported anymore, nltAuto always represents unicode strings.
-            nlt = nltUnicode; break;
-        default:
-            hr = E_FAIL; goto ErrExit;
+            case 0:
+            case nltAnsi:
+                nlt = nltAnsi; break;
+            case nltUnicode:
+            case nltAuto:   // Since Win9x isn't supported anymore, nltAuto always represents unicode strings.
+                nlt = nltUnicode; break;
+            case nltUTF8:
+                nlt = nltUTF8; break;
+            default:
+                hr = E_FAIL; goto ErrExit;
         }
         SetCharSet ( nlt );
         SetBestFitMapping (namedArgs[MDA_BestFitMapping].val.u1);
@@ -2947,7 +2949,7 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
     // PInvokeStaticSigInfo::PInvokeStaticSigInfo.
     
     // charset : CorPinvoke -> CorNativeLinkType
-    CorPinvokeMap charSetMask = (CorPinvokeMap)(mappingFlags & (pmCharSetNotSpec | pmCharSetAnsi | pmCharSetUnicode | pmCharSetAuto));
+    CorPinvokeMap charSetMask = (CorPinvokeMap)(mappingFlags & pmCharSetMask);
     if (charSetMask == pmCharSetNotSpec || charSetMask == pmCharSetAnsi)
     {
         SetCharSet (nltAnsi);
@@ -2956,6 +2958,10 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
     {
         // Since Win9x isn't supported anymore, pmCharSetAuto always represents unicode strings.
         SetCharSet (nltUnicode);
+    }
+    else if (charSetMask == pmCharSetUTF8)
+    {
+        SetCharSet (nltUTF8);
     }
     else
     {
@@ -3600,7 +3606,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
     }
     else
     {
-        _ASSERTE(nlType == nltAnsi || nlType == nltUnicode);
+        _ASSERTE(nlType == nltAnsi || nlType == nltUnicode || nlType == nltUTF8);
     }
     Module *pModule = pSigDesc->m_pModule;
 

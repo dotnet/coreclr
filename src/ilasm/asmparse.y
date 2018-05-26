@@ -77,7 +77,7 @@
 
 %token VALUE_ VALUETYPE_ NATIVE_ INSTANCE_ SPECIALNAME_ FORWARDER_
 %token STATIC_ PUBLIC_ PRIVATE_ FAMILY_ FINAL_ SYNCHRONIZED_ INTERFACE_ SEALED_ NESTED_
-%token ABSTRACT_ AUTO_ SEQUENTIAL_ EXPLICIT_ ANSI_ UNICODE_ AUTOCHAR_ IMPORT_ ENUM_
+%token ABSTRACT_ AUTO_ SEQUENTIAL_ EXPLICIT_ ANSI_ UNICODE_ AUTOCHAR_ UTF8_ IMPORT_ ENUM_
 %token VIRTUAL_ NOINLINING_ AGGRESSIVEINLINING_ NOOPTIMIZATION_ UNMANAGEDEXP_ BEFOREFIELDINIT_
 %token STRICT_ RETARGETABLE_ WINDOWSRUNTIME_ NOPLATFORM_
 %token METHOD_ FIELD_ PINNED_ MODREQ_ MODOPT_ SERIALIZABLE_ PROPERTY_ TYPE_
@@ -434,6 +434,7 @@ classAttr               : /* EMPTY */                       { $$ = (CorRegTypeAt
                         | classAttr ANSI_                   { $$ = (CorRegTypeAttr) (($1 & ~tdStringFormatMask) | tdAnsiClass); }
                         | classAttr UNICODE_                { $$ = (CorRegTypeAttr) (($1 & ~tdStringFormatMask) | tdUnicodeClass); }
                         | classAttr AUTOCHAR_               { $$ = (CorRegTypeAttr) (($1 & ~tdStringFormatMask) | tdAutoClass); }
+                        | classAttr UTF8_                   { $$ = (CorRegTypeAttr) (($1 & ~tdStringFormatMask) | tdUTF8Class); }
                         | classAttr IMPORT_                 { $$ = (CorRegTypeAttr) ($1 | tdImport); }
                         | classAttr SERIALIZABLE_           { $$ = (CorRegTypeAttr) ($1 | tdSerializable); }
                         | classAttr WINDOWSRUNTIME_         { $$ = (CorRegTypeAttr) ($1 | tdWindowsRuntime); }
@@ -815,6 +816,7 @@ pinvAttr                : /* EMPTY */                       { $$ = (CorPinvokeMa
                         | pinvAttr ANSI_                    { $$ = (CorPinvokeMap) ($1 | pmCharSetAnsi); }
                         | pinvAttr UNICODE_                 { $$ = (CorPinvokeMap) ($1 | pmCharSetUnicode); }
                         | pinvAttr AUTOCHAR_                { $$ = (CorPinvokeMap) ($1 | pmCharSetAuto); }
+                        | pinvAttr UTF8_                    { $$ = (CorPinvokeMap) ($1 | pmCharSetUTF8); }
                         | pinvAttr LASTERR_                 { $$ = (CorPinvokeMap) ($1 | pmSupportsLastError); }
                         | pinvAttr WINAPI_                  { $$ = (CorPinvokeMap) ($1 | pmCallConvWinapi); }
                         | pinvAttr CDECL_                   { $$ = (CorPinvokeMap) ($1 | pmCallConvCdecl); }

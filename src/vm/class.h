@@ -352,7 +352,7 @@ class EEClassLayoutInfo
     static VOID CollectLayoutFieldMetadataThrowing(
        mdTypeDef cl,                // cl of the NStruct being loaded
        BYTE packingSize,            // packing size (from @dll.struct)
-       BYTE nlType,                 // nltype (from @dll.struct)
+       CorNativeLinkType nlType,                 // nltype (from @dll.struct)
 #ifdef FEATURE_COMINTEROP
        BOOL isWinRT,                // Is the type a WinRT type
 #endif // FEATURE_COMINTEROP

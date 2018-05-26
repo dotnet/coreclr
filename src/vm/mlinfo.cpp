@@ -1518,7 +1518,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
     m_BestFit                       = BestFit;
     m_ThrowOnUnmappableChar         = ThrowOnUnmappableChar;
     m_ms                            = ms;
-    m_fAnsi                         = (ms == MARSHAL_SCENARIO_NDIRECT) && (nlType == nltAnsi);
+    m_nlType                        = nlType;
     m_managedArgSize                = 0;
     m_nativeArgSize                 = 0;
     m_pCMHelper                     = NULL;
@@ -1816,7 +1816,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     break;
 
                 case NATIVE_TYPE_DEFAULT:
-                    m_type = ( (m_ms == MARSHAL_SCENARIO_NDIRECT && m_fAnsi) ? MARSHAL_TYPE_ANSICHAR : MARSHAL_TYPE_GENERIC_U2 );
+                    m_type = (IsAnsi() ? MARSHAL_TYPE_ANSICHAR : MARSHAL_TYPE_GENERIC_U2);
                     break;
 
                 default:
@@ -2187,7 +2187,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                                 m_resID = IDS_EE_BADMARSHALPARAM_STRINGBUILDER;
                                 IfFailGoto(E_FAIL, lFail);
                             }
-                            m_type = m_fAnsi ? MARSHAL_TYPE_VBBYVALSTR : MARSHAL_TYPE_VBBYVALSTRW;
+                            m_type = IsAnsi() ? MARSHAL_TYPE_VBBYVALSTR : MARSHAL_TYPE_VBBYVALSTRW;
                             break;
                         }
 
@@ -2224,9 +2224,13 @@ MarshalInfo::MarshalInfo(Module* pModule,
                             }
                             else
 #endif // FEATURE_COMINTEROP
-                            if (m_fAnsi)
+                            if (IsAnsi())
                             {
                                 m_type = builder ? MARSHAL_TYPE_LPSTR_BUFFER : MARSHAL_TYPE_LPSTR;
+                            }
+                            else if (IsUTF8())
+                            {
+                                m_type = builder ? MARSHAL_TYPE_UTF8_BUFFER : MARSHAL_TYPE_LPUTF8STR;
                             }
                             else
                             {
@@ -2464,7 +2468,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
 #endif // FEATURE_COMINTEROP
 
                         case NATIVE_TYPE_ASANY:
-                            m_type = m_fAnsi ? MARSHAL_TYPE_ASANYA : MARSHAL_TYPE_ASANYW;
+                            m_type = IsAnsi() ? MARSHAL_TYPE_ASANYA : MARSHAL_TYPE_ASANYW;
                             break;
 
                         default:
@@ -3095,7 +3099,7 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, UINT16
 #ifdef FEATURE_COMINTEROP
     if (m_type == MARSHAL_TYPE_SAFEARRAY)
     {
-        arrayMarshalInfo.InitForSafeArray(m_ms, thElement, pParamInfo->m_SafeArrayElementVT, m_fAnsi);
+        arrayMarshalInfo.InitForSafeArray(m_ms, thElement, pParamInfo->m_SafeArrayElementVT, m_nlType);
     }
     else if (m_type == MARSHAL_TYPE_HIDDENLENGTHARRAY)
     {
@@ -3105,7 +3109,7 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, UINT16
 #endif // FEATURE_COMINTEROP
     {
         _ASSERTE(m_type == MARSHAL_TYPE_NATIVEARRAY);
-        arrayMarshalInfo.InitForNativeArray(m_ms, thElement, pParamInfo->m_ArrayElementType, m_fAnsi);
+        arrayMarshalInfo.InitForNativeArray(m_ms, thElement, pParamInfo->m_ArrayElementType, m_nlType);
     }
 
     // Make sure the marshalling information is valid.
@@ -4747,24 +4751,24 @@ void MarshalInfo::MarshalHiddenLengthArgument(NDirectStubLinker *psl, BOOL manag
     }                                           \
     while (0)                                   
 
-void ArrayMarshalInfo::InitForNativeArray(MarshalInfo::MarshalScenario ms, TypeHandle thElement, CorNativeType ntElement, BOOL isAnsi)
+void ArrayMarshalInfo::InitForNativeArray(MarshalInfo::MarshalScenario ms, TypeHandle thElement, CorNativeType ntElement, CorNativeLinkType nlType)
 {
-    WRAPPER_NO_CONTRACT;        
-    InitElementInfo(NATIVE_TYPE_ARRAY, ms, thElement, ntElement, isAnsi);
+    WRAPPER_NO_CONTRACT;
+    InitElementInfo(NATIVE_TYPE_ARRAY, ms, thElement, ntElement, nlType);
 }
 
-void ArrayMarshalInfo::InitForFixedArray(TypeHandle thElement, CorNativeType ntElement, BOOL isAnsi)
+void ArrayMarshalInfo::InitForFixedArray(TypeHandle thElement, CorNativeType ntElement, CorNativeLinkType nlType)
 {
-    WRAPPER_NO_CONTRACT;        
-    InitElementInfo(NATIVE_TYPE_FIXEDARRAY, MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, ntElement, isAnsi);
+    WRAPPER_NO_CONTRACT;
+    InitElementInfo(NATIVE_TYPE_FIXEDARRAY, MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, ntElement, nlType);
 }
 
-#ifdef FEATURE_COMINTEROP    
-void ArrayMarshalInfo::InitForSafeArray(MarshalInfo::MarshalScenario ms, TypeHandle thElement, VARTYPE vtElement, BOOL isAnsi)
+#ifdef FEATURE_COMINTEROP
+void ArrayMarshalInfo::InitForSafeArray(MarshalInfo::MarshalScenario ms, TypeHandle thElement, VARTYPE vtElement, CorNativeLinkType nlType)
 {
     STANDARD_VM_CONTRACT;
     
-    InitElementInfo(NATIVE_TYPE_SAFEARRAY, ms, thElement, NATIVE_TYPE_DEFAULT, isAnsi);
+    InitElementInfo(NATIVE_TYPE_SAFEARRAY, ms, thElement, NATIVE_TYPE_DEFAULT, nlType);
 
     if (IsValid() && vtElement != VT_EMPTY)
     {
@@ -4889,7 +4893,7 @@ LExit:;
 }
 #endif // FEATURE_COMINTEROP
 
-void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInfo::MarshalScenario ms, TypeHandle thElement, CorNativeType ntElement, BOOL isAnsi)
+void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInfo::MarshalScenario ms, TypeHandle thElement, CorNativeType ntElement, CorNativeLinkType nlType)
 {
     CONTRACT_VOID
     {
@@ -4898,6 +4902,10 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
         POSTCONDITION(!IsValid() || !m_thElement.IsNull());
     }
     CONTRACT_END;
+
+    m_nlType = nlType;
+    m_ms = ms;
+    m_arrayNativeType = arrayNativeType;
 
     CorElementType etElement = ELEMENT_TYPE_END;    
     
@@ -4948,7 +4956,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                     m_vtElement = VT_UI2;
                 else
 #endif // FEATURE_COMINTEROP
-                    m_vtElement = isAnsi ? VTHACK_ANSICHAR : VT_UI2;                    
+                    m_vtElement = IsAnsi() ? VTHACK_ANSICHAR : VT_UI2;
         }
     }
     else if (etElement == ELEMENT_TYPE_BOOLEAN)
@@ -5034,7 +5042,19 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                     else
 #endif // FEATURE_COMINTEROP
                     {
-                        m_vtElement = static_cast<VARTYPE>(isAnsi ? VT_LPSTR : VT_LPWSTR);
+                        if (IsAnsi())
+                        {
+                            m_vtElement = VT_LPSTR;
+                        }
+                        else if (IsUTF8())
+                        {
+                            // TODO: VarEnum doesn't have a type for UTF8
+                            m_vtElement = VT_LPSTR;
+                        }
+                        else
+                        {
+                            m_vtElement = VT_LPWSTR;
+                        }
                     }
                     break;
 #ifdef FEATURE_COMINTEROP
@@ -5065,6 +5085,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                     break;
                 }
 
+                case NATIVE_TYPE_LPUTF8STR:
                 default:
                     ReportInvalidArrayMarshalInfo(IDS_EE_BADMARSHAL_STRINGARRAY);
             }

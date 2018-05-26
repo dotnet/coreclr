@@ -64,11 +64,11 @@ static const NFTDataBaseEntry NFTDataBase[] =
 //  fail    - throws a typeload exception
 //
 // If TRUE,
-//   *pNLType            gets set to nltAnsi or nltUnicode
+//   *pNLType            gets set to nltAnsi or nltUnicode or nltUTF8
 //   *pPackingSize       declared packing size
 //   *pfExplicitoffsets  offsets explicit in metadata or computed?
 //=======================================================================
-BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, mdTypeDef cl, MethodTable*pParentMT, BYTE *pPackingSize, BYTE *pNLTType, BOOL *pfExplicitOffsets)
+BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, mdTypeDef cl, MethodTable*pParentMT, BYTE *pPackingSize, CorNativeLinkType *pNLTType, BOOL *pfExplicitOffsets)
 {
     CONTRACTL
     {
@@ -157,6 +157,10 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, 
         // We no longer support Win9x so TdAuto always maps to Unicode.
         *pNLTType = nltUnicode;
     }
+    else if (IsTdUTF8Class(clFlags))
+    {
+        *pNLTType = nltUTF8;
+    }
     else
     {
         pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);
@@ -180,24 +184,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, 
     return TRUE;
 }
 
-typedef enum
-{
-    ParseNativeTypeFlag_None    = 0x00,
-    ParseNativeTypeFlag_IsAnsi  = 0x01,
-
-#ifdef FEATURE_COMINTEROP
-    ParseNativeTypeFlag_IsWinRT = 0x02,
-#endif // FEATURE_COMINTEROP
-}
-ParseNativeTypeFlags;
-
-inline ParseNativeTypeFlags operator|=(ParseNativeTypeFlags& lhs, ParseNativeTypeFlags rhs)
-{
-    LIMITED_METHOD_CONTRACT;
-    lhs = static_cast<ParseNativeTypeFlags>(lhs | rhs);
-    return lhs;
-}
-
 #ifdef _PREFAST_
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
@@ -205,7 +191,7 @@ inline ParseNativeTypeFlags operator|=(ParseNativeTypeFlags& lhs, ParseNativeTyp
 VOID ParseNativeType(Module*                     pModule,
                          PCCOR_SIGNATURE             pCOMSignature,
                          DWORD                       cbCOMSignature,
-                         ParseNativeTypeFlags        flags,
+                         CorNativeLinkType           nltype,
                          LayoutRawFieldInfo*         pfwalk,
                          PCCOR_SIGNATURE             pNativeType,
                          ULONG                       cbNativeType,
@@ -213,6 +199,10 @@ VOID ParseNativeType(Module*                     pModule,
                          mdTypeDef                   cl,
                          const SigTypeContext *      pTypeContext,
                          BOOL                       *pfDisqualifyFromManagedSequential  // set to TRUE if needed (never set to FALSE, it may come in as TRUE!)
+#ifdef FEATURE_COMINTEROP
+                        ,
+                        BOOL                        isWinRT          // Is the type a WinRT type
+#endif // FEATURE_COMINTEROP
 #ifdef _DEBUG
                          ,
                          LPCUTF8                     szNamespace,
@@ -240,12 +230,18 @@ do                                                      \
     ((FieldMarshaler*)&(pfwalk->m_FieldMarshaler))->SetNStructFieldType(nfttype); \
 } while(0)
 
-    BOOL                fAnsi               = (flags & ParseNativeTypeFlag_IsAnsi);
+    BOOL fAnsi = nltype == nltAnsi;
+    BOOL fUTF8 = nltype == nltUTF8;
 #ifdef FEATURE_COMINTEROP
-    BOOL                fIsWinRT            = (flags & ParseNativeTypeFlag_IsWinRT);
+    if (isWinRT)
+    {
+        // WinRT types have nlType == nltAnsi but should be treated as Unicode
+        fAnsi = FALSE;
+        fUTF8 = FALSE;
+    }
 #endif // FEATURE_COMINTEROP
     CorElementType      corElemType         = ELEMENT_TYPE_END;
-    PCCOR_SIGNATURE     pNativeTypeStart    = pNativeType;    
+    PCCOR_SIGNATURE     pNativeTypeStart    = pNativeType;
     ULONG               cbNativeTypeStart   = cbNativeType;
     CorNativeType       ntype;
     BOOL                fDefault;
@@ -267,7 +263,7 @@ do                                                      \
     }
 
 #ifdef FEATURE_COMINTEROP
-    if (fIsWinRT && !fDefault)
+    if (isWinRT && !fDefault)
     {
         // Do not allow any MarshalAs in WinRT scenarios - marshaling is fully described by the field type.
         INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_MARSHAL_AS));
@@ -386,7 +382,7 @@ do                                                      \
             if (fDefault)
             {
 #ifdef FEATURE_COMINTEROP
-                if (fIsWinRT)
+                if (isWinRT)
                 {
                     INITFIELDMARSHALER(NFT_CBOOL, FieldMarshaler_CBool, ());
                 }
@@ -508,7 +504,7 @@ do                                                      \
         case ELEMENT_TYPE_I: //fallthru
         case ELEMENT_TYPE_U:
 #ifdef FEATURE_COMINTEROP
-            if (fIsWinRT)
+            if (isWinRT)
             {
                 INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
@@ -552,7 +548,7 @@ do                                                      \
 
         case ELEMENT_TYPE_PTR:
 #ifdef FEATURE_COMINTEROP
-            if (fIsWinRT)
+            if (isWinRT)
             {
                 INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
@@ -581,7 +577,7 @@ do                                                      \
             if (!thNestedType.GetMethodTable())
                 break;
 #ifdef FEATURE_COMINTEROP
-            if (fIsWinRT && sigElemType == ELEMENT_TYPE_GENERICINST)
+            if (isWinRT && sigElemType == ELEMENT_TYPE_GENERICINST)
             {
                 // If this is a generic value type, lets see whether it is a Nullable<T>
                 TypeHandle genType = fsig.GetLastTypeHandleThrowing();
@@ -648,7 +644,7 @@ do                                                      \
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DATETIMEOFFSET));
                 }
             }
-            else if (fIsWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
+            else if (isWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
             {
                 INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
             }
@@ -722,7 +718,7 @@ do                                                      \
 #ifdef FEATURE_COMINTEROP                
             else if (ntype == NATIVE_TYPE_INTF || thNestedType.IsInterface())
             {
-                if (fIsWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
+                if (isWinRT && !thNestedType.GetMethodTable()->IsLegalNonArrayWinRTType())
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 }
@@ -750,7 +746,7 @@ do                                                      \
                 if (fDefault)
                 {
 #ifdef FEATURE_COMINTEROP
-                    if (fIsWinRT)
+                    if (isWinRT)
                     {
                         INITFIELDMARSHALER(NFT_HSTRING, FieldMarshaler_HSTRING, ());
                     }
@@ -760,6 +756,10 @@ do                                                      \
                     {
                         ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
                         INITFIELDMARSHALER(NFT_STRINGANSI, FieldMarshaler_StringAnsi, (BestFit, ThrowOnUnmappableChar));
+                    }
+                    else if(fUTF8)
+                    {
+                        INITFIELDMARSHALER(NFT_STRINGUTF8, FieldMarshaler_StringUtf8, ());
                     }
                     else
                     {
@@ -780,8 +780,8 @@ do                                                      \
                             break;
                         
                         case NATIVE_TYPE_LPUTF8STR:
-							INITFIELDMARSHALER(NFT_STRINGUTF8, FieldMarshaler_StringUtf8, ());
-							break;
+                            INITFIELDMARSHALER(NFT_STRINGUTF8, FieldMarshaler_StringUtf8, ());
+                            break;
 
                         case NATIVE_TYPE_LPTSTR:
                             // We no longer support Win9x so LPTSTR always maps to a Unicode string.
@@ -832,11 +832,11 @@ do                                                      \
                 }
             }
 #ifdef FEATURE_COMINTEROP
-            else if (fIsWinRT && fsig.IsClass(g_TypeClassName))
+            else if (isWinRT && fsig.IsClass(g_TypeClassName))
             {   // Note: If the System.Type field is in non-WinRT struct, do not change the previously shipped behavior
                 INITFIELDMARSHALER(NFT_SYSTEMTYPE, FieldMarshaler_SystemType, ());
             }
-            else if (fIsWinRT && fsig.IsClass(g_ExceptionClassName))  // Marshal Windows.Foundation.HResult as System.Exception for WinRT.
+            else if (isWinRT && fsig.IsClass(g_ExceptionClassName))  // Marshal Windows.Foundation.HResult as System.Exception for WinRT.
             {
                 INITFIELDMARSHALER(NFT_WINDOWSFOUNDATIONHRESULT, FieldMarshaler_Exception, ());
             }
@@ -889,7 +889,7 @@ do                                                      \
                     }
 
                     ArrayMarshalInfo arrayMarshalInfo(amiRuntime);
-                    arrayMarshalInfo.InitForSafeArray(MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, vtElement, fAnsi);
+                    arrayMarshalInfo.InitForSafeArray(MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, vtElement, nltype);
 
                     if (!arrayMarshalInfo.IsValid())
                     {
@@ -972,7 +972,7 @@ do                                                      \
                 }
             }
 #ifdef FEATURE_COMINTEROP
-            else if (fIsWinRT)
+            else if (isWinRT)
             {
                 // no other reference types are allowed as field types in WinRT
                 INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
@@ -997,7 +997,7 @@ do                                                      \
         case ELEMENT_TYPE_ARRAY:
         {
 #ifdef FEATURE_COMINTEROP
-            if (fIsWinRT)
+            if (isWinRT)
             {
                 INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 break;
@@ -1039,7 +1039,7 @@ do                                                      \
                     elementNativeType = (CorNativeType)CorSigUncompressData(pNativeType);
 
                 ArrayMarshalInfo arrayMarshalInfo(amiRuntime);
-                arrayMarshalInfo.InitForFixedArray(thElement, elementNativeType, fAnsi);
+                arrayMarshalInfo.InitForFixedArray(thElement, elementNativeType, nltype);
 
                 if (!arrayMarshalInfo.IsValid())
                 {
@@ -1074,7 +1074,7 @@ do                                                      \
                     vtElement = (VARTYPE) (CorSigUncompressData(/*modifies*/pNativeType));
 
                 ArrayMarshalInfo arrayMarshalInfo(amiRuntime);
-                arrayMarshalInfo.InitForSafeArray(MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, vtElement, fAnsi);
+                arrayMarshalInfo.InitForSafeArray(MarshalInfo::MARSHAL_SCENARIO_FIELD, thElement, vtElement, nltype);
 
                 if (!arrayMarshalInfo.IsValid())
                 {
@@ -1106,7 +1106,7 @@ do                                                      \
         INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_BADMANAGED));
     }
 #ifdef FEATURE_COMINTEROP
-    else if (fIsWinRT && !NFTDataBase[pfwalk->m_nft].m_fWinRTSupported)
+    else if (isWinRT && !NFTDataBase[pfwalk->m_nft].m_fWinRTSupported)
     {
         // the field marshaler we came up with is not supported in WinRT scenarios
         ZeroMemory(&pfwalk->m_FieldMarshaler, MAXFIELDMARSHALERSIZE);
@@ -1242,7 +1242,7 @@ BOOL IsStructMarshalable(TypeHandle th)
 VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
    mdTypeDef      cl,               // cl of the NStruct being loaded
    BYTE           packingSize,      // packing size (from @dll.struct)
-   BYTE           nlType,           // nltype (from @dll.struct)
+   CorNativeLinkType      nlType,           // nltype (from @dll.struct)
 #ifdef FEATURE_COMINTEROP
    BOOL           isWinRT,          // Is the type a WinRT type
 #endif // FEATURE_COMINTEROP
@@ -1416,20 +1416,10 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
                 szFieldName = "Invalid FieldDef record";
             }
 #endif
-
-            ParseNativeTypeFlags flags = ParseNativeTypeFlag_None;
-#ifdef FEATURE_COMINTEROP
-            if (isWinRT)
-                flags |= ParseNativeTypeFlag_IsWinRT;
-            else // WinRT types have nlType == nltAnsi but should be treated as Unicode
-#endif // FEATURE_COMINTEROP
-            if (nlType == nltAnsi)
-                flags |=  ParseNativeTypeFlag_IsAnsi;
-
             ParseNativeType(pModule,
                             pCOMSignature,
                             cbCOMSignature,
-                            flags,
+                            nlType,
                             pfwalk,
                             pNativeType,
                             cbNativeType,
@@ -1437,6 +1427,10 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
                             cl,
                             pTypeContext,
                             &fDisqualifyFromManagedSequential
+#ifdef FEATURE_COMINTEROP
+                            ,
+                            isWinRT          // Is the type a WinRT type
+#endif // FEATURE_COMINTEROP
 #ifdef _DEBUG
                             ,
                             szNamespace,

@@ -69,6 +69,7 @@
     KYWD( "ansi",           ANSI_,              NO_VALUE )
     KYWD( "unicode",        UNICODE_,           NO_VALUE )
     KYWD( "autochar",       AUTOCHAR_,          NO_VALUE )
+    KYWD( "utf8",           UTF8_,              NO_VALUE )
     KYWD( "import",         IMPORT_,            NO_VALUE )
     KYWD( "enum",           ENUM_,              NO_VALUE )
     KYWD( "virtual",        VIRTUAL_,           NO_VALUE )

@@ -1148,6 +1148,7 @@ HRESULT RegMeta::_HandleKnownCustomAttribute(    // S_OK or error.
             case 2: dwFlags |= pmCharSetAnsi;    break;
             case 3: dwFlags |= pmCharSetUnicode; break;
             case 4: dwFlags |= pmCharSetAuto;    break;
+            case 5: dwFlags |= pmCharSetUTF8;    break;
             default: 
                 _ASSERTE(!"Flags are out of sync! ");
                 break;
@@ -1409,6 +1410,9 @@ HRESULT RegMeta::_HandleKnownCustomAttribute(    // S_OK or error.
                 break;
             case 4: // Auto
                 dwFlags = (dwFlags & ~tdStringFormatMask) | tdAutoClass;
+                break;
+            case 5: // UTF8
+                dwFlags = (dwFlags & ~tdStringFormatMask) | tdUTF8Class;
                 break;
             default: 
                 IfFailGo(PostError(META_E_CA_INVALID_VALUE)); 

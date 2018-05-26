@@ -87,12 +87,12 @@ namespace System.Reflection
     {
         NoMangle = 0x0001,
 
-
-        CharSetMask = 0x0006,
+        CharSetMask = 0x000E,
         CharSetNotSpec = 0x0000,
         CharSetAnsi = 0x0002,
         CharSetUnicode = 0x0004,
         CharSetAuto = 0x0006,
+        CharSetUTF8 = 0x0008,
 
 
         BestFitUseAssem = 0x0000,

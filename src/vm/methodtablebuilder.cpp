@@ -11929,7 +11929,8 @@ ClassLoader::CreateTypeHandleForTypeDefThrowing(
 
     GetEnclosingClassThrowing(pInternalImport, pModule, cl, &tdEnclosing);
 
-    BYTE nstructPackingSize = 0, nstructNLT = 0;
+    BYTE nstructPackingSize = 0;
+    CorNativeLinkType nstructNLT = (CorNativeLinkType)0;
     BOOL fExplicitOffsets = FALSE;
     // NOTE: HasLayoutMetadata does not load classes
     BOOL fHasLayout = 

@@ -2189,6 +2189,7 @@ namespace System.Reflection
                 case PInvokeAttributes.CharSetAnsi: charSet = CharSet.Ansi; break;
                 case PInvokeAttributes.CharSetUnicode: charSet = CharSet.Unicode; break;
                 case PInvokeAttributes.CharSetAuto: charSet = CharSet.Auto; break;
+                case PInvokeAttributes.CharSetUTF8: charSet = CharSet.UTF8; break;
 
                 // Invalid: default to CharSet.None
                 default: break;
@@ -2305,13 +2306,21 @@ namespace System.Reflection
             }
 
             CharSet charSet = CharSet.None;
-            switch (type.Attributes & TypeAttributes.StringFormatMask)
+            if (type.IsUTF8Class)
             {
-                case TypeAttributes.AnsiClass: charSet = CharSet.Ansi; break;
-                case TypeAttributes.AutoClass: charSet = CharSet.Auto; break;
-                case TypeAttributes.UnicodeClass: charSet = CharSet.Unicode; break;
-                default: Debug.Fail("Unreachable code"); break;
+                charSet = CharSet.UTF8;
             }
+            else
+            {
+                switch (type.Attributes & TypeAttributes.StringFormatMask)
+                {
+                    case TypeAttributes.AnsiClass: charSet = CharSet.Ansi; break;
+                    case TypeAttributes.AutoClass: charSet = CharSet.Auto; break;
+                    case TypeAttributes.UnicodeClass: charSet = CharSet.Unicode; break;
+                    default: Debug.Fail("Unreachable code"); break;
+                }
+            }
+
             type.GetRuntimeModule().MetadataImport.GetClassLayout(type.MetadataToken, out pack, out size);
 
             // Metadata parameter checking should not have allowed 0 for packing size.
