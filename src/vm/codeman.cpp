@@ -452,7 +452,7 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
         EEJitManager::CodeHeapIterator heapIterator(NULL, NULL);
 
         // Currently m_CodeHeapCritSec is given the CRST_UNSAFE_ANYMODE flag which allows it to be taken in a GC_NOTRIGGER
-        // region but also disallows GC_TRIGGERS.  We need GC_TRIGGERS because we take annother lock.   Ideally we would
+        // region but also disallows GC_TRIGGERS.  We need GC_TRIGGERS because we take another lock.   Ideally we would
         // fix m_CodeHeapCritSec to not have the CRST_UNSAFE_ANYMODE flag, but I currently reached my threshold for fixing
         // contracts.
         CONTRACT_VIOLATION(GCViolation);
