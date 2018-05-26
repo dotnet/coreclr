@@ -203,6 +203,9 @@ namespace R2RDump
             return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
         }
 
+        /// <summary>
+        /// Reads the method entrypoint from the offset. Used for non-generic methods
+        /// </summary>
         private int GetEntryPointIdFromOffset(int offset)
         {
             // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
@@ -228,6 +231,9 @@ namespace R2RDump
             return (int)id;
         }
 
+        /// <summary>
+        /// Returns a formatted string containing a block of bytes from the relative virtual address and size
+        /// </summary>
         public string DumpBytes(int rva, uint size)
         {
             StringBuilder sb = new StringBuilder();
@@ -237,6 +243,7 @@ namespace R2RDump
             {
                 throw new IndexOutOfRangeException();
             }
+            sb.Append("    ");
             if (rva % 16 != 0)
             {
                 int floor = rva / 16 * 16;
@@ -253,6 +260,7 @@ namespace R2RDump
                 if ((rva + i) % 16 == 15 && i != size - 1)
                 {
                     sb.AppendLine();
+                    sb.Append("    ");
                 }
             }
             sb.AppendLine();

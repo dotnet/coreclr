@@ -64,6 +64,11 @@ namespace R2RDump
 
             return sb.ToString();
         }
+
+        public string DumpBytes(R2RReader r2r)
+        {
+            return r2r.DumpBytes(StartAddress, (uint)Size);
+        }
     }
 
     class R2RMethod

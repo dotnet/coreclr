@@ -14,7 +14,6 @@ namespace R2RDump
         private bool _help = false;
         private IReadOnlyList<string> _inputFilenames = Array.Empty<string>();
         private string _outputFilename = null;
-        private bool _verbose = false;
         private bool _raw = false;
         private bool _header = false;
         private bool _disasm = false;
@@ -39,8 +38,7 @@ namespace R2RDump
                 syntax.DefineOption("h|help", ref _help, "Help message for R2RDump");
                 syntax.DefineOptionList("i|in", ref _inputFilenames, "Input file(s) to dump. Expects them to by ReadyToRun images");
                 syntax.DefineOption("o|out", ref _outputFilename, "Output file path. Dumps everything to the specified file except help message and exception messages");
-                syntax.DefineOption("v|verbose", ref _verbose, "Dump the contents of each section or the native code of each method"); // not yet implemented
-                syntax.DefineOption("raw", ref _raw, "Dump the raw bytes of each section or runtime function");
+                syntax.DefineOption("v|verbose|raw", ref _raw, "Dump the raw bytes of each section or runtime function");
                 syntax.DefineOption("l|less", ref _header, "Only dump R2R header");
                 syntax.DefineOption("d|disasm", ref _disasm, "Show disassembly of methods or runtime functions");
                 syntax.DefineOptionList("q|query", ref _queries, "Query method by exact name, signature, row id or token");
@@ -96,17 +94,20 @@ namespace R2RDump
         /// <summary>
         /// Dumps the R2RHeader and all the sections in the header
         /// </summary>
-        private void DumpHeader(R2RReader r2r)
+        private void DumpHeader(R2RReader r2r, bool dumpSections)
         {
             Console.WriteLine(r2r.R2RHeader.ToString());
             if (_raw)
             {
-                Console.WriteLine(r2r.DumpBytes(r2r.R2RHeader.RelativeVirtualAddress, (uint)r2r.R2RHeader.Size));
+                Console.WriteLine(r2r.R2RHeader.DumpBytes(r2r));
             }
-            WriteDivider("R2R Sections");
-            foreach (R2RSection section in r2r.R2RHeader.Sections.Values)
+            if (dumpSections)
             {
-                DumpSection(r2r, section);
+                WriteDivider("R2R Sections");
+                foreach (R2RSection section in r2r.R2RHeader.Sections.Values)
+                {
+                    DumpSection(r2r, section);
+                }
             }
         }
 
@@ -119,7 +120,7 @@ namespace R2RDump
             Console.WriteLine(section.ToString());
             if (_raw)
             {
-                Console.WriteLine(r2r.DumpBytes(section.RelativeVirtualAddress, (uint)section.Size));
+                Console.WriteLine(section.DumpBytes(r2r));
             }
         }
 
@@ -129,6 +130,7 @@ namespace R2RDump
         /// </summary>
         private void DumpMethod(R2RReader r2r, R2RMethod method, RuntimeFunction rtf = null)
         {
+            WriteSubDivider();
             Console.WriteLine(method.ToString());
 
             if (rtf == null)
@@ -138,7 +140,7 @@ namespace R2RDump
                     Console.WriteLine($"{runtimeFunction}");
                     if (_raw)
                     {
-                        Console.WriteLine(r2r.DumpBytes(runtimeFunction.StartAddress, (uint)runtimeFunction.Size));
+                        Console.WriteLine(runtimeFunction.DumpBytes(r2r));
                     }
                 }
             }
@@ -147,10 +149,9 @@ namespace R2RDump
                 Console.WriteLine(rtf);
                 if (_raw)
                 {
-                    Console.WriteLine(r2r.DumpBytes(rtf.StartAddress, (uint)rtf.Size));
+                    Console.WriteLine(rtf.DumpBytes(r2r));
                 }
             }
-            WriteSubDivider();
         }
 
         // <summary>
@@ -173,12 +174,10 @@ namespace R2RDump
 
                 Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
                 Console.WriteLine();
-                WriteSubDivider();
                 foreach (R2RMethod method in res)
                 {
                     DumpMethod(r2r, method);
                 }
-                
             }
         }
 
@@ -204,7 +203,6 @@ namespace R2RDump
                 {
                     DumpSection(r2r, section);
                 }
-
             }
         }
 
@@ -224,7 +222,6 @@ namespace R2RDump
             {
                 Console.WriteLine("id: " + q);
                 Console.WriteLine();
-                WriteSubDivider();
 
                 R2RMethod method = null;
                 RuntimeFunction rtf = FindRuntimeFunction(r2r, q, out method);
@@ -249,10 +246,10 @@ namespace R2RDump
             Console.WriteLine($"ImageBase: 0x{r2r.ImageBase:X8}");
             Console.WriteLine();
 
-            if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0) //dump all sections and methods
+            if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0 && _sections.Count == 0) //dump all sections and methods
             {
                 WriteDivider("R2R Header");
-                DumpHeader(r2r);
+                DumpHeader(r2r, true);
                 
                 if (!_header)
                 {
@@ -268,11 +265,7 @@ namespace R2RDump
             {
                 if (_header)
                 {
-                    Console.WriteLine(r2r.R2RHeader.ToString());
-                    if (_raw)
-                    {
-                        Console.WriteLine(r2r.DumpBytes(r2r.R2RHeader.RelativeVirtualAddress, (uint)r2r.R2RHeader.Size));
-                    }
+                    DumpHeader(r2r, false);
                 }
 
                 QuerySection(r2r, _sections);
