@@ -2135,7 +2135,7 @@ void SimpleComCallWrapper::EnumConnectionPoints(IEnumConnectionPoints **ppEnumCP
 //                    marshalling code.
 //  Stubs : adjust this pointer and jump to the appropriate address,
 //  Marshalling params and results, based on the method signature the stub jumps to
-//  approp. code to handle marshalling and unmarshalling.
+//  appropriate code to handle marshalling and unmarshalling.
 //  
 //--------------------------------------------------------------------------
 
