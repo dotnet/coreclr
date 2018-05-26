@@ -3447,10 +3447,10 @@ void Debugger::getBoundaries(MethodDesc * md,
     {
         // We don't look up PDBs for mscorlib.  This is not quite right, but avoids
         // a bootstrapping problem.  When an EXE loads, it has the option of setting
-        // the COM appartment model to STA if we need to.  It is important that no
+        // the COM apartment model to STA if we need to.  It is important that no
         // other Coinitialize happens before this.  Since loading the PDB reader uses
         // com we can not come first.  However managed code IS run before the COM
-        // appartment model is set, and thus we have a problem since this code is
+        // apartment model is set, and thus we have a problem since this code is
         // called for when JITTing managed code.    We avoid the problem by just
         // bailing for mscorlib.
         return;
