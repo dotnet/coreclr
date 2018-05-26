@@ -338,7 +338,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
     {
     // this one is included because we need a "seed" type to uniquely hash FNPTR types, 
     // i.e. the nullary FNPTR type is used as the type constructor for all function pointer types, 
-    // when combined with an approproiate instantiation.
+    // when combined with an appropriate instantiation.
     case ELEMENT_TYPE_FNPTR: 
         // fall through ...
 
