@@ -19,22 +19,20 @@ namespace System.Collections.Generic
     internal partial class ArraySortHelper<T>
         : IArraySortHelper<T>
     {
-        private static volatile IArraySortHelper<T> defaultArraySortHelper;
+        private static readonly IArraySortHelper<T> defaultArraySortHelper = CreateArraySortHelper();
 
         public static IArraySortHelper<T> Default
         {
             get
             {
-                IArraySortHelper<T> sorter = defaultArraySortHelper;
-                if (sorter == null)
-                    sorter = CreateArraySortHelper();
-
-                return sorter;
+                return defaultArraySortHelper;
             }
         }
 
         private static IArraySortHelper<T> CreateArraySortHelper()
         {
+            IArraySortHelper<T> defaultArraySortHelper;
+
             if (typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
             {
                 defaultArraySortHelper = (IArraySortHelper<T>)RuntimeTypeHandle.Allocate(typeof(GenericArraySortHelper<string>).TypeHandle.Instantiate(new Type[] { typeof(T) }));
@@ -71,22 +69,20 @@ namespace System.Collections.Generic
     internal partial class ArraySortHelper<TKey, TValue>
         : IArraySortHelper<TKey, TValue>
     {
-        private static volatile IArraySortHelper<TKey, TValue> defaultArraySortHelper;
+        private static readonly IArraySortHelper<TKey, TValue> defaultArraySortHelper = CreateArraySortHelper();
 
         public static IArraySortHelper<TKey, TValue> Default
         {
             get
             {
-                IArraySortHelper<TKey, TValue> sorter = defaultArraySortHelper;
-                if (sorter == null)
-                    sorter = CreateArraySortHelper();
-
-                return sorter;
+                return defaultArraySortHelper;
             }
         }
 
         private static IArraySortHelper<TKey, TValue> CreateArraySortHelper()
         {
+            IArraySortHelper<TKey, TValue> defaultArraySortHelper;
+
             if (typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey)))
             {
                 defaultArraySortHelper = (IArraySortHelper<TKey, TValue>)RuntimeTypeHandle.Allocate(typeof(GenericArraySortHelper<string, string>).TypeHandle.Instantiate(new Type[] { typeof(TKey), typeof(TValue) }));
