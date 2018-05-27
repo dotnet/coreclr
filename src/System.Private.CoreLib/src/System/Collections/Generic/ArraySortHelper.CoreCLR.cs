@@ -43,16 +43,6 @@ namespace System.Collections.Generic
             }
             return defaultArraySortHelper;
         }
-
-        void IArraySortHelper<T>.Sort(T[] keys, int index, int length, IComparer<T> comparer)
-        {
-            Sort(keys, index, length, comparer);
-        }
-
-        int IArraySortHelper<T>.BinarySearch(T[] array, int index, int length, T value, IComparer<T> comparer)
-        {
-            return BinarySearch(array, index, length, value, comparer);
-        }
     }
 
     internal partial class GenericArraySortHelper<T>
@@ -93,11 +83,6 @@ namespace System.Collections.Generic
             }
             return defaultArraySortHelper;
         }
-
-        void IArraySortHelper<TKey, TValue>.Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer)
-        {
-            Sort(keys, values, index, length, comparer);
-        }        
     }
 
     internal partial class GenericArraySortHelper<TKey, TValue>
