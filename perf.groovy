@@ -101,6 +101,24 @@ def static getOSGroup(def os) {
                                     batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\Jit\\Performance\\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi")
                                 }
                             }
+							
+                            post {
+                                always {
+								    echo 'Uploading artifacts files to Azure Blob Storage'
+									batchFile("powershell .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 " +
+										"-inputFiles " +
+											"\".\\bin\\sandbox_logs\\**\\*_log.txt\", " +
+											"\".\\bin\\sandbox_logs\\**\\*.csv\", " +
+											"\".\\bin\\sandbox_logs\\**\\*.xml\", " +
+											"\".\\bin\\sandbox_logs\\**\\*.log\", " +
+											"\".\\bin\\sandbox_logs\\**\\*.md\", " +
+											"\".\\bin\\sandbox_logs\\**\\*.etl\", " +
+											"\".\\machinedata.json" " +
+										"-container \"{projectFolder}\" "+
+										"-fileName \"{jobName}\" "+
+										"-token \"todo\"")
+								}
+                            }
                         }
 
                         if (isSmoketest) {
@@ -108,11 +126,7 @@ def static getOSGroup(def os) {
                         }
                         def archiveSettings = new ArchivalSettings()
                         archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
-                        archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
-                        archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                         archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
-                        archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
-                        archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
                         archiveSettings.addFiles('machinedata.json')
                         archiveSettings.setAlwaysArchive()
 
