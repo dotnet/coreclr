@@ -92,11 +92,11 @@ In the IL, MyClass is referred to using a metadata token. In order to generate a
 	    }
 	}
 
-If **MyClass** fails to load, for example because it's supposed to be defined in another assembly and it was accidentally removed in the newest build, then this code will still throw **TypeLoadException**. The reason that the catch block did not catch it is that it never ran! The exception occurred during JITting and would only be catchable in the method that called **CreateClass** and caused it to be JITted. In addition, it may not be always obvious at which point the JITting is triggered due to inlining, so users should not expect and rely on deterministic behavior.
+If `MyClass` fails to load, for example because it's supposed to be defined in another assembly and it was accidentally removed in the newest build, then this code will still throw `TypeLoadException`. The reason that the catch block did not catch it is that it never ran! The exception occurred during JITting and would only be catchable in the method that called `CreateClass` and caused it to be JITted. In addition, it may not be always obvious at which point the JITting is triggered due to inlining, so users should not expect and rely on deterministic behavior.
 
 ## Key Data Structures
 
-The most universal type designation in the CLR is the **TypeHandle**. It's an abstract entity which encapsulates a pointer to either a **MethodTable** (representing "ordinary" types like **System.Object** or **List&lt;string>**) or a **TypeDesc** (representing byrefs, pointers, function pointers, arrays, and generic variables). It constitutes the identity of a type in that two handles are equal if and only if they represent the same type. To save space, the fact that a **TypeHandle** contains a **TypeDesc** is indicated by setting the second lowest bit of the pointer to 1 (i.e. (ptr | 2)) instead of using additional flags<sup>2</sup>. **TypeDesc** is "abstract" and has the following inheritance hierarchy.
+The most universal type designation in the CLR is the **TypeHandle**. It's an abstract entity which encapsulates a pointer to either a **MethodTable** (representing "ordinary" types like `System.Object` or `List<string>`) or a **TypeDesc** (representing byrefs, pointers, function pointers, arrays, and generic variables). It constitutes the identity of a type in that two handles are equal if and only if they represent the same type. To save space, the fact that a **TypeHandle** contains a **TypeDesc** is indicated by setting the second lowest bit of the pointer to 1 (i.e. (ptr | 2)) instead of using additional flags<sup>2</sup>. **TypeDesc** is "abstract" and has the following inheritance hierarchy.
 
 ![Figure 2](../images/typeloader-fig2.png)
 
@@ -108,7 +108,7 @@ Abstract type descriptor. The concrete descriptor type is determined by flags.
 
 **TypeVarTypeDesc**
 
-Represents a type variable, i.e. the **T** in **List&lt;T>** or in **Array.Sort&lt;T>** (see the part about generics below). Type variables are never shared between multiple types or methods so each variable has its one and only owner.
+Represents a type variable, i.e. the `T` in `List<T>` or in `Array.Sort<T>` (see the part about generics below). Type variables are never shared between multiple types or methods so each variable has its one and only owner.
 
 **FnPtrTypeDesc**
 
@@ -116,7 +116,7 @@ Represents a function pointer, essentially a variable-length list of type handle
 
 **ParamTypeDesc**
 
-This descriptor represents a byref and pointer types. Byrefs are the results of the **ref** and **out** C# keywords applied to method parameters<sup>3</sup> whereas pointer types are unmanaged pointers to data used in unsafe C# and managed C++.
+This descriptor represents a byref and pointer types. Byrefs are the results of the `ref` and `out` C# keywords applied to method parameters<sup>3</sup> whereas pointer types are unmanaged pointers to data used in unsafe C# and managed C++.
 
 **ArrayTypeDesc**
 
@@ -145,7 +145,7 @@ ends with 2, 6, A, or E, then it's not a **MethodTable** and the extra
 bit has to be cleared in order to successfully inspect the
 **TypeDesc**.
 
-<sup>3</sup> Note that the difference between **ref** and **out** is just in a
+<sup>3</sup> Note that the difference between `ref` and `out` is just in a
 parameter attribute. As far as the type system is concerned, they are
 both the same type.
 
@@ -153,18 +153,18 @@ both the same type.
 
 When the type loader is asked to load a specified type, identified for example by a typedef/typeref/typespec **token** and a **Module** , it does not do all the work atomically at once. The loading is done in phases instead. The reason for this is that the type usually depends on other types and requiring it to be fully loaded before it can be referred to by other types would result in infinite recursion and deadlocks. Consider:
 
-	classA<T> : C<B<T>>
+	class A<T> : C<B<T>>
 	{ }
 
-	classB<T> : C<A<T>>
+	class B<T> : C<A<T>>
 	{ }
 
-	classC<T>
+	class C<T>
 	{ }
 
-These are valid types and apparently **A** depends on **B** and **B** depends on **A**.
+These are valid types and apparently `A` depends on `B` and `B` depends on `A`.
 
-The loader initially creates the structure(s) representing the type and initializes them with data that can be obtained without loading other types. When this "no-dependencies" work is done, the structure(s) can be referred from other places, usually by sticking pointers to them into another structures. After that the loader progresses in incremental steps and fills the structure(s) with more and more information until it finally arrives at a fully loaded type. In the above example, the base types of **A** and **B** will be approximated by something that does not include the other type, and substituted by the real thing later.
+The loader initially creates the structure(s) representing the type and initializes them with data that can be obtained without loading other types. When this "no-dependencies" work is done, the structure(s) can be referred from other places, usually by sticking pointers to them into another structures. After that the loader progresses in incremental steps and fills the structure(s) with more and more information until it finally arrives at a fully loaded type. In the above example, the base types of `A` and `B` will be approximated by something that does not include the other type, and substituted by the real thing later.
 
 The exact half-loaded state is described by the so-called load level, starting with CLASS\_LOAD\_BEGIN, ending with CLASS\_LOADED, and having a couple of intermediate levels in between. There are rich and useful comments about individual load levels in the [classloadlevel.h](https://github.com/dotnet/coreclr/blob/master/src/vm/classloadlevel.h) source file. Notice that although types can be saved in NGEN images, the representing structures cannot be simply mapped or blitted into memory and used without additional work called "restoring". The fact that a type came from an NGEN image and needs to be restored is also captured by its load level.
 
@@ -189,18 +189,18 @@ operation and normally needs to access only information in the
 
 **Generic Parameter**
 
-A placeholder to be substituted by another type; the **T** in the declaration of **List&lt;T>**. Sometimes called formal type parameter. A generic parameter has a name and optional generic constraints.
+A placeholder to be substituted by another type; the `T` in the declaration of `List<T>`. Sometimes called formal type parameter. A generic parameter has a name and optional generic constraints.
 
 **Generic Argument**
 
-A type being substituted for a generic parameter; the **int** in **List&lt;int>**. Note that a generic parameter can also be used as an argument. Consider:
+A type being substituted for a generic parameter; the `int` in `List<int>`. Note that a generic parameter can also be used as an argument. Consider:
 
 	List<T> GetList<T>()
 	{
 	    return new List<T>();
 	}
 
-The method has one generic parameter **T** which is used as a generic argument for the generic list class.
+The method has one generic parameter `T` which is used as a generic argument for the generic list class.
 
 **Generic Constraint**
 
@@ -262,26 +262,26 @@ type, they have the typical instantiation in mind. Example:
 	public class A<S, T, U> {}
 
 The C# `typeof(A<,,>)` compiles to ldtoken A\'3 which makes the
-runtime load **A`3** instantiated at **S** , **T** , **U**.
+runtime load ``A`3`` instantiated at `S` , `T` , `U`.
 
 **Canonical Instantiation**
 
 An instantiation where all generic arguments are
-**System.\_\_Canon**. **System.\_\_Canon** is an internal type defined
+`System.__Canon`. `System.__Canon` is an internal type defined
 in **mscorlib** and its task is just to be well-known and different
 from any other type which may be used as a generic
 argument. Types/methods with canonical instantiation are used as
 representatives of all instantiations and carry information shared by
-all instantiations. Since **System.\_\_Canon** can obviously not
+all instantiations. Since `System.__Canon` can obviously not
 satisfy any constraints that the respective generic parameter may have
 on it, constraint checking is special-cased with respect to
-**System.\_\_Canon** and ignores these violations.
+`System.__Canon` and ignores these violations.
 
 ### 2.2.2 Sharing
 
 With the advent of generics, the number of types loaded by the runtime
 tends to be higher. Although generic types with different
-instantiations (for example **List&lt;string>** and **List&lt;object>**)
+instantiations (for example `List<string>` and `List<object>`)
 are different types each with its own **MethodTable** , it turns out
 that there is a considerable amount of information that they can
 share. This sharing has a positive impact on the memory footprint and
@@ -295,7 +295,7 @@ Currently all instantiations containing reference types share the same
 **EEClass** and its **MethodDescs**. This is feasible because all
 references are of the same size - 4 or 8 bytes - and hence the layout
 of all these types is the same. The figure illustrates this for
-**List&lt;object>** and **List&lt;string>**. The canonical **MethodTable**
+`List<object>` and `List<string>`. The canonical **MethodTable**
 was created automatically before the first reference type
 instantiation was loaded and contains data which is hot but not
 instantiation specific like non-virtual slots or
