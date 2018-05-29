@@ -52,7 +52,7 @@ namespace System.Diagnostics
         {
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, null);
+            CaptureStackTrace(METHODS_TO_SKIP, needFileInfo, null, null);
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace System.Diagnostics
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, null);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, needFileInfo, null, null);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace System.Diagnostics
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, e);
+            CaptureStackTrace(METHODS_TO_SKIP, needFileInfo, null, e);
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace System.Diagnostics
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, e);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, needFileInfo, null, e);
         }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace System.Diagnostics
 
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool fNeedFileInfo, Exception e);
+        internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool needFileInfo, Exception e);
 
         internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)
         {
@@ -194,16 +194,17 @@ namespace System.Diagnostics
             return iRetVal;
         }
 
-        // Retrieves an object with stack trace information encoded.
-        // It leaves out the first "iSkip" lines of the stacktrace.
-        //
-        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Thread targetThread, Exception e)
+        /// <summary>
+        /// Retrieves an object with stack trace information encoded.
+        /// It leaves out the first "iSkip" lines of the stacktrace.
+        /// </summary>
+        private void CaptureStackTrace(int iSkip, bool needFileInfo, Thread targetThread, Exception e)
         {
             m_iMethodsToSkip += iSkip;
 
             StackFrameHelper StackF = new StackFrameHelper(targetThread);
             
-            StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
+            StackF.InitializeSourceInfo(0, needFileInfo, e);
 
             m_iNumOfFrames = StackF.GetNumberOfFrames();
 
@@ -226,7 +227,7 @@ namespace System.Diagnostics
 
                     sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
 
-                    if (fNeedFileInfo)
+                    if (needFileInfo)
                     {
                         sfTemp.SetFileName(StackF.GetFilename(i));
                         sfTemp.SetLineNumber(StackF.GetLineNumber(i));
@@ -302,8 +303,10 @@ namespace System.Diagnostics
             return ToString(TraceFormat.TrailingNewLine);
         }
 
-        // TraceFormat is Used to specify options for how the 
-        // string-representation of a StackTrace should be generated.
+        /// <summary>
+        /// TraceFormat is Used to specify options for how the 
+        /// string-representation of a StackTrace should be generated.
+        /// </summary>
         internal enum TraceFormat
         {
             Normal,
@@ -311,8 +314,10 @@ namespace System.Diagnostics
             NoResourceLookup    // to prevent infinite resource recusion
         }
 
-        // Builds a readable representation of the stack trace, specifying 
-        // the format for backwards compatibility.
+        /// <summary>
+        /// Builds a readable representation of the stack trace, specifying 
+        /// the format for backwards compatibility.
+        /// </summary>
         internal string ToString(TraceFormat traceFormat)
         {
             bool displayFilenames = true;   // we'll try, but demand may fail
