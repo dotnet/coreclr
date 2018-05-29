@@ -471,7 +471,7 @@ EventPipeProvider* EventPipe::CreateProvider(const SString &providerName, EventP
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
