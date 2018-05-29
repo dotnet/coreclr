@@ -17,16 +17,23 @@ using System.Runtime.Versioning;
 
 namespace System.Diagnostics
 {
-    // Class which represents a description of a stack trace
-    // There is no good reason for the methods of this class to be virtual.  
+    /// <summary>
+    /// Class which represents a description of a stack trace
+    /// There is no good reason for the methods of this class to be virtual.
+    /// In order to ensure trusted code can trust the data it gets from a
+    /// StackTrace, we use an InheritanceDemand to prevent partially-trusted
+    /// subclasses.
+    /// </summary>
     public class StackTrace
     {
-        private StackFrame[] frames;
+        private StackFrame[] _stackFrames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
         private int m_iMethodsToSkip;
 
-        // Constructs a stack trace from the current location.
+        /// <summary>
+        /// Constructs a stack trace from the current location.
+        /// </summary>
         public StackTrace()
         {
             m_iNumOfFrames = 0;
@@ -34,18 +41,20 @@ namespace System.Diagnostics
             CaptureStackTrace(METHODS_TO_SKIP, false, null, null);
         }
 
-        // Constructs a stack trace from the current location.
-        //
-        public StackTrace(bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a stack trace from the current location.
+        /// </summary>
+        public StackTrace(bool needFileInfo)
         {
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
             CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, null);
         }
 
-        // Constructs a stack trace from the current location, in a caller's
-        // frame
-        //
+        /// <summary>
+        /// Constructs a stack trace from the current location, in a caller's
+        /// frame
+        /// </summary>
         public StackTrace(int skipFrames)
         {
             if (skipFrames < 0)
@@ -58,10 +67,11 @@ namespace System.Diagnostics
             CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false, null, null);
         }
 
-        // Constructs a stack trace from the current location, in a caller's
-        // frame
-        //
-        public StackTrace(int skipFrames, bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a stack trace from the current location, in a caller's
+        /// frame
+        /// </summary>
+        public StackTrace(int skipFrames, bool needFileInfo)
         {
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
@@ -73,8 +83,9 @@ namespace System.Diagnostics
             CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, null);
         }
 
-
-        // Constructs a stack trace from the current location.
+        /// <summary>
+        /// Constructs a stack trace from the current location.
+        /// </summary>
         public StackTrace(Exception e)
         {
             if (e == null)
@@ -85,9 +96,10 @@ namespace System.Diagnostics
             CaptureStackTrace(METHODS_TO_SKIP, false, null, e);
         }
 
-        // Constructs a stack trace from the current location.
-        //
-        public StackTrace(Exception e, bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a stack trace from the current location.
+        /// </summary>
+        public StackTrace(Exception e, bool needFileInfo)
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
@@ -97,9 +109,10 @@ namespace System.Diagnostics
             CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, e);
         }
 
-        // Constructs a stack trace from the current location, in a caller's
-        // frame
-        //
+        /// <summary>
+        /// Constructs a stack trace from the current location, in a caller's
+        /// frame
+        /// </summary>
         public StackTrace(Exception e, int skipFrames)
         {
             if (e == null)
@@ -115,10 +128,11 @@ namespace System.Diagnostics
             CaptureStackTrace(skipFrames + METHODS_TO_SKIP, false, null, e);
         }
 
-        // Constructs a stack trace from the current location, in a caller's
-        // frame
-        //
-        public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo)
+        /// <summary>
+        /// Constructs a stack trace from the current location, in a caller's
+        /// frame
+        /// </summary>
+        public StackTrace(Exception e, int skipFrames, bool needFileInfo)
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
@@ -133,14 +147,14 @@ namespace System.Diagnostics
             CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, e);
         }
 
-
-        // Constructs a "fake" stack trace, just containing a single frame.  
-        // Does not have the overhead of a full stack trace.
-        //
+        /// <summary>
+        /// Constructs a "fake" stack trace, just containing a single frame.
+        /// Does not have the overhead of a full stack trace.
+        /// </summary>
         public StackTrace(StackFrame frame)
         {
-            frames = new StackFrame[1];
-            frames[0] = frame;
+            _stackFrames = new StackFrame[1];
+            _stackFrames[0] = frame;
             m_iMethodsToSkip = 0;
             m_iNumOfFrames = 1;
         }
@@ -195,7 +209,7 @@ namespace System.Diagnostics
 
             if (m_iNumOfFrames != 0)
             {
-                frames = new StackFrame[m_iNumOfFrames];
+                _stackFrames = new StackFrame[m_iNumOfFrames];
 
                 for (int i = 0; i < m_iNumOfFrames; i++)
                 {
@@ -216,7 +230,7 @@ namespace System.Diagnostics
                         sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
                     }
 
-                    frames[i] = sfTemp;
+                    _stackFrames[i] = sfTemp;
                 }
 
                 // CalculateFramesToSkip skips all frames in the System.Diagnostics namespace,
@@ -234,7 +248,7 @@ namespace System.Diagnostics
             // In case this is the same object being re-used, set frames to null
             else
             {
-                frames = null;
+                _stackFrames = null;
             }
         }
 
@@ -245,37 +259,39 @@ namespace System.Diagnostics
             get { return m_iNumOfFrames; }
         }
 
-
-        // Returns a given stack frame.  Stack frames are numbered starting at
-        // zero, which is the last stack frame pushed.
-        //
+        /// <summary>
+        /// Returns a given stack frame.  Stack frames are numbered starting at
+        /// zero, which is the last stack frame pushed.
+        /// </summary>
         public virtual StackFrame GetFrame(int index)
         {
-            if ((frames != null) && (index < m_iNumOfFrames) && (index >= 0))
-                return frames[index + m_iMethodsToSkip];
+            if ((_stackFrames != null) && (index < m_iNumOfFrames) && (index >= 0))
+                return _stackFrames[index + m_iMethodsToSkip];
 
             return null;
         }
 
-        // Returns an array of all stack frames for this stacktrace.
-        // The array is ordered and sized such that GetFrames()[i] == GetFrame(i)
-        // The nth element of this array is the same as GetFrame(n). 
-        // The length of the array is the same as FrameCount.
-        // 
+        /// <summary>
+        /// Returns an array of all stack frames for this stacktrace.
+        /// The array is ordered and sized such that GetFrames()[i] == GetFrame(i)
+        /// The nth element of this array is the same as GetFrame(n).
+        /// The length of the array is the same as FrameCount.
+        /// </summary>
         public virtual StackFrame[] GetFrames()
         {
-            if (frames == null || m_iNumOfFrames <= 0)
+            if (_stackFrames == null || m_iNumOfFrames <= 0)
                 return null;
 
             // We have to return a subset of the array. Unfortunately this
             // means we have to allocate a new array and copy over.
             StackFrame[] array = new StackFrame[m_iNumOfFrames];
-            Array.Copy(frames, m_iMethodsToSkip, array, 0, m_iNumOfFrames);
+            Array.Copy(_stackFrames, m_iMethodsToSkip, array, 0, m_iNumOfFrames);
             return array;
         }
 
-        // Builds a readable representation of the stack trace
-        //
+        /// <summary>
+        /// Builds a readable representation of the stack trace
+        /// </summary>
         public override string ToString()
         {
             // Include a trailing newline for backwards compatibility
