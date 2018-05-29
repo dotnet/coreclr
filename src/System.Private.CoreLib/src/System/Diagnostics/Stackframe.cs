@@ -46,6 +46,6 @@ namespace System.Diagnostics
             }
         }
 
-        private bool IsFileInfoIfAvailable() => true;
+        private bool AppendStackFrameWithoutMethodBase(StringBuilder sb) => false;
     }
 }
