@@ -113,7 +113,7 @@ def static getOSGroup(def os) {
 											"\".\\bin\\sandbox_logs\\**\\*.log\", " +
 											"\".\\bin\\sandbox_logs\\**\\*.md\", " +
 											"\".\\bin\\sandbox_logs\\**\\*.etl\", " +
-											"\".\\machinedata.json" " +
+											"\".\\machinedata.json\" " +
 										"-container \"${projectFolder}\" "+
 										"-fileName \"${jobName}\" "+
 										"-token \"todo\"")
