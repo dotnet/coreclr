@@ -3119,8 +3119,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
     {
         switch (oper)
         {
-            GenTreeIntConCommon* con;
-
 #ifdef _TARGET_ARM_
             case GT_CNS_LNG:
                 costSz = 9;
@@ -3134,12 +3132,12 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 goto COMMON_CNS;
 
             case GT_CNS_INT:
-
+            {
                 // If the constant is a handle then it will need to have a relocation
                 //  applied to it.
                 // Any constant that requires a reloc must use the movw/movt sequence
                 //
-                con = tree->AsIntConCommon();
+                GenTreeIntConCommon* con = tree->AsIntConCommon();
 
                 if (con->ImmedValNeedsReloc(this) || !codeGen->validImmForInstr(INS_mov, tree->gtIntCon.gtIconVal))
                 {
@@ -3160,6 +3158,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     costEx = 1;
                 }
                 goto COMMON_CNS;
+            }
 
 #elif defined _TARGET_XARCH_
 
@@ -3178,7 +3177,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 // If the constant is a handle then it will need to have a relocation
                 //  applied to it.
                 //
-                con = tree->AsIntConCommon();
+                GenTreeIntConCommon* con = tree->AsIntConCommon();
 
                 bool iconNeedsReloc = con->ImmedValNeedsReloc(this);
 
@@ -17421,7 +17420,19 @@ bool GenTree::isRMWHWIntrinsic(Compiler* comp)
 
     switch (AsHWIntrinsic()->gtHWIntrinsicId)
     {
+        // TODO-XArch-Cleanup: Move this switch block to be table driven.
+
         case NI_SSE42_Crc32:
+        case NI_FMA_MultiplyAdd:
+        case NI_FMA_MultiplyAddNegated:
+        case NI_FMA_MultiplyAddNegatedScalar:
+        case NI_FMA_MultiplyAddScalar:
+        case NI_FMA_MultiplyAddSubtract:
+        case NI_FMA_MultiplySubtract:
+        case NI_FMA_MultiplySubtractAdd:
+        case NI_FMA_MultiplySubtractNegated:
+        case NI_FMA_MultiplySubtractNegatedScalar:
+        case NI_FMA_MultiplySubtractScalar:
             return true;
 
         default:

@@ -547,7 +547,6 @@ bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
         case InstructionSet_AES:
         case InstructionSet_BMI1:
         case InstructionSet_BMI2:
-        case InstructionSet_FMA:
         case InstructionSet_PCLMULQDQ:
             return false;
 
@@ -563,6 +562,7 @@ bool Compiler::isFullyImplmentedISAClass(InstructionSet isa)
         case InstructionSet_SSE3:
         case InstructionSet_SSSE3:
         case InstructionSet_SSE41:
+        case InstructionSet_FMA:
         case InstructionSet_LZCNT:
         case InstructionSet_POPCNT:
             return true;
@@ -978,7 +978,6 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
     assert((simdSize == 16) || (simdSize == 0));
 
     CORINFO_ARG_LIST_HANDLE argList = sig->args;
-    CORINFO_CLASS_HANDLE    argClass;
     var_types               argType = TYP_UNKNOWN;
 
     switch (intrinsic)

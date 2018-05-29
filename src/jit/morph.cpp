@@ -2123,9 +2123,8 @@ GenTree* Compiler::fgMakeTmpArgNode(unsigned tmpVarNum UNIX_AMD64_ABI_ONLY_ARG(c
         // Otherwise, it will return TYP_UNKNOWN and we will pass by reference.
 
         bool                 passedInRegisters = false;
-        structPassingKind    kind;
-        CORINFO_CLASS_HANDLE clsHnd         = varDsc->lvVerTypeInfo.GetClassHandle();
-        var_types            structBaseType = getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd);
+        CORINFO_CLASS_HANDLE clsHnd            = varDsc->lvVerTypeInfo.GetClassHandle();
+        var_types            structBaseType    = getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd);
 
         if (structBaseType != TYP_UNKNOWN)
         {
@@ -4531,14 +4530,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 void Compiler::fgMorphSystemVStructArgs(GenTreeCall* call, bool hasStructArgument)
 {
     unsigned flagsSummary = 0;
-    GenTree* args;
-    GenTree* argx;
 
     if (hasStructArgument)
     {
         fgArgInfo* allArgInfo = call->fgArgInfo;
 
-        for (args = call->gtCallArgs; args != nullptr; args = args->gtOp.gtOp2)
+        for (GenTree* args = call->gtCallArgs; args != nullptr; args = args->gtOp.gtOp2)
         {
             // For late arguments the arg tree that is overridden is in the gtCallLateArgs list.
             // For such late args the gtCallArgList contains the setup arg node (evaluating the arg.)
@@ -7081,7 +7078,7 @@ GenTree* Compiler::fgMorphField(GenTree* tree, MorphAddrContext* mac)
 //    If successful, callee's IR is inserted in place of the call, and
 //    is marked with an InlineContext.
 //
-//    If unsuccessful, the transformations done in anticpation of a
+//    If unsuccessful, the transformations done in anticipation of a
 //    possible inline are undone, and the candidate flag on the call
 //    is cleared.
 
