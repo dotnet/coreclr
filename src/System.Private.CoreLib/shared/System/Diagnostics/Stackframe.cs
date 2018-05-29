@@ -46,7 +46,7 @@ namespace System.Diagnostics
         /// </summary>
         private int _columnNumber;
 
-		/// <summary>
+        /// <summary>
         /// This flag is set to true when the frame represents a rethrow marker.
         /// </summary>
         private bool _isLastFrameFromForeignExceptionStackTrace;
