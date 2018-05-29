@@ -19,7 +19,6 @@ using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security;
 using Microsoft.Win32;
 
 namespace System.Threading
@@ -29,8 +28,6 @@ namespace System.Threading
         //Per-appDomain quantum (in ms) for which the thread keeps processing
         //requests in the current domain.
         public const uint TP_QUANTUM = 30U;
-
-        public static readonly int processorCount = Environment.ProcessorCount;
 
         public static volatile bool vmTpInitialized;
         public static bool enableWorkerTracking;
@@ -43,6 +40,8 @@ namespace System.Threading
     {
         internal static class WorkStealingQueueList
         {
+            internal static int QueueSerachStart;
+
             private static volatile WorkStealingQueue[] _queues = new WorkStealingQueue[0];
 
             public static WorkStealingQueue[] Queues => _queues;
@@ -380,7 +379,7 @@ namespace System.Threading
 
         private Internal.PaddingFor32 pad1;
 
-        private volatile int numOutstandingThreadRequests = 0;
+        private int threadRequestOutstanding = 0;
 
         private Internal.PaddingFor32 pad2;
 
@@ -395,23 +394,13 @@ namespace System.Threading
 
         internal void EnsureThreadRequested()
         {
-            //
-            // If we have not yet requested #procs threads from the VM, then request a new thread
-            // as needed
+            // If we have not yet a thread request outstanding from the VM, then request a new thread
             //
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
-            //
-            int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            if (Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
             {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
-                if (prev == count)
-                {
-                    ThreadPool.RequestWorkerThread();
-                    break;
-                }
-                count = prev;
+                ThreadPool.RequestWorkerThread();
             }
         }
 
@@ -423,16 +412,7 @@ namespace System.Threading
             // Note that there is a separate count in the VM which has already been decremented by the VM
             // by the time we reach this point.
             //
-            int count = numOutstandingThreadRequests;
-            while (count > 0)
-            {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
-                if (prev == count)
-                {
-                    break;
-                }
-                count = prev;
-            }
+            Volatile.Write(ref threadRequestOutstanding, 0);
         }
 
         public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
@@ -475,7 +455,15 @@ namespace System.Threading
                 int c = queues.Length;
                 Debug.Assert(c > 0, "There must at least be a queue for this thread.");
                 int maxIndex = c - 1;
-                int i = tl.random.Next(c);
+
+                // Get the current search start and set to -1 to indicate no preference
+                int i = Interlocked.Exchange(ref WorkStealingQueueList.QueueSerachStart, -1);
+                if (i == -1)
+                {
+                    // Current start was -1, so choose a random start
+                    i = tl.random.Next(c);
+                }
+
                 while (c > 0)
                 {
                     i = (i < maxIndex) ? i + 1 : 0;
@@ -489,6 +477,13 @@ namespace System.Threading
                         }
                     }
                     c--;
+                }
+
+                if (callback != null)
+                {
+                    // Set the search start to the next queue, if it is currently set to no preference
+                    i = (i < maxIndex) ? i + 1 : 0;
+                    Interlocked.CompareExchange(ref WorkStealingQueueList.QueueSerachStart, i, -1);
                 }
             }
 
