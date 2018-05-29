@@ -614,7 +614,7 @@ namespace System.Diagnostics.Tracing
             }
 
             Debug.Assert(m_eventData != null);
-            Debug.Assert(m_provider != null);
+            Debug.Assert(m_eventPipeProvider != null);
             int cnt = m_eventData.Length;
             for (int i = 0; i < cnt; i++)
             {
@@ -632,7 +632,7 @@ namespace System.Diagnostics.Tracing
 
                 fixed (byte *pMetadata = metadata)
                 {
-                    IntPtr eventHandle = m_provider.m_eventProvider.DefineEventHandle(
+                    IntPtr eventHandle = m_eventPipeProvider.m_eventProvider.DefineEventHandle(
                         eventID,
                         eventName,
                         keywords,
@@ -1171,6 +1171,10 @@ namespace System.Diagnostics.Tracing
                         {
                             if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
+#if FEATURE_PERFTRACING
+                            if (!m_eventPipeProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                                ThrowEventSourceException(m_eventData[eventId].Name);
+#endif // FEATURE_PERFTRACING
                         }
                         else
                         {
@@ -1195,7 +1199,7 @@ namespace System.Diagnostics.Tracing
                     }
 #endif // FEATURE_MANAGED_ETW
 
-                    if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
+                            if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
                         WriteToAllListeners(eventId, pActivityId, relatedActivityId, eventDataCount, data);
                 }
                 catch (Exception ex)
@@ -1261,7 +1265,6 @@ namespace System.Diagnostics.Tracing
             if (disposing)
             {
 #if FEATURE_MANAGED_ETW
-#if !FEATURE_PERFTRACING
                 // Send the manifest one more time to ensure circular buffers have a chance to get to this information
                 // even in scenarios with a high volume of ETW events.
                 if (m_eventSourceEnabled)
@@ -1274,11 +1277,17 @@ namespace System.Diagnostics.Tracing
                     { }           // If it fails, simply give up.   
                     m_eventSourceEnabled = false;
                 }
-#endif
                 if (m_provider != null)
                 {
                     m_provider.Dispose();
                     m_provider = null;
+                }
+#endif
+#if FEATURE_PERFTRACING
+                if (m_eventPipeProvider != null)
+                {
+                    m_eventPipeProvider.Dispose();
+                    m_eventPipeProvider = null;
                 }
 #endif
             }
@@ -1316,6 +1325,17 @@ namespace System.Diagnostics.Tracing
                     ThrowEventSourceException(eventName);
             }
 #endif // FEATURE_MANAGED_ETW
+#if FEATURE_PERFTRACING
+            if (m_eventPipeProvider == null)
+            {
+                ThrowEventSourceException(eventName);
+            }
+            else
+            {
+                if (!m_eventPipeProvider.WriteEventRaw(ref eventDescriptor, eventHandle, activityID, relatedActivityID, dataCount, data))
+                    ThrowEventSourceException(eventName);
+            }
+#endif // FEATURE_PERFTRACING
         }
 
         // FrameworkEventSource is on the startup path for the framework, so we have this internal overload that it can use
@@ -1364,14 +1384,20 @@ namespace System.Diagnostics.Tracing
                 //Enable Implicit Activity tracker
                 m_activityTracker = ActivityTracker.Instance;
 
-#if FEATURE_MANAGED_ETW
+#if FEATURE_MANAGED_ETW || FEATURE_PERFTRACING
                 // Create and register our provider traits.  We do this early because it is needed to log errors 
                 // In the self-describing event case. 
                 this.InitializeProviderMetadata();
-
+#endif
+#if FEATURE_MANAGED_ETW
                 // Register the provider with ETW
-                var provider = new OverideEventProvider(this);
-                provider.Register(this);
+                var etwProvider = new OverideEventProvider(this, EventProviderType.ETW);
+                etwProvider.Register(this);
+#endif
+#if FEATURE_PERFTRACING
+                // Register the provider with EventPipe
+                var eventPipeProvider = new OverideEventProvider(this, EventProviderType.EventPipe);
+                eventPipeProvider.Register(this);
 #endif
                 // Add the eventSource to the global (weak) list.  
                 // This also sets m_id, which is the index in the list. 
@@ -1380,7 +1406,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW
                 // OK if we get this far without an exception, then we can at least write out error messages. 
                 // Set m_provider, which allows this.  
-                m_provider = provider;
+                m_provider = etwProvider;
 
 #if PLATFORM_WINDOWS
 #if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
@@ -1403,6 +1429,10 @@ namespace System.Diagnostics.Tracing
                 }
 #endif // PLATFORM_WINDOWS
 #endif // FEATURE_MANAGED_ETW
+
+#if FEATURE_PERFTRACING
+                m_eventPipeProvider = eventPipeProvider;
+#endif
                 Debug.Assert(!m_eventSourceEnabled);     // We can't be enabled until we are completely initted.  
                 // We are logically completely initialized at this point.  
                 m_completelyInited = true;
@@ -1841,6 +1871,10 @@ namespace System.Diagnostics.Tracing
                         {
                             if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
+#if FEATURE_PERFTRACING
+                            if (!m_eventPipeProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
+                                ThrowEventSourceException(m_eventData[eventId].Name);
+#endif // FEATURE_PERFTRACING
                         }
                         else
                         {
@@ -1865,7 +1899,7 @@ namespace System.Diagnostics.Tracing
                         }
                     }
 #endif // FEATURE_MANAGED_ETW
-                    if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
+                            if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
                     {
 #if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
                         // Maintain old behavior - object identity is preserved
@@ -2030,7 +2064,7 @@ namespace System.Diagnostics.Tracing
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEventString(EventLevel level, long keywords, string msgString)
         {
-#if FEATURE_MANAGED_ETW && !FEATURE_PERFTRACING
+#if FEATURE_MANAGED_ETW
             if (m_provider != null)
             {
                 string eventName = "EventSourceMessage";
@@ -2257,7 +2291,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         private class OverideEventProvider : EventProvider
         {
-            public OverideEventProvider(EventSource eventSource)
+            public OverideEventProvider(EventSource eventSource, EventProviderType providerType)
+                : base(providerType)
             {
                 this.m_eventSource = eventSource;
             }
@@ -2390,6 +2425,10 @@ namespace System.Diagnostics.Tracing
             if (m_provider == null)     // If we failed to construct
                 return;
 #endif // FEATURE_MANAGED_ETW
+#if FEATURE_PERFTRACING
+            if (m_eventPipeProvider == null)
+                return;
+#endif
 
             m_outOfBandMessageCount = 0;
             bool shouldReport = (commandArgs.perEventSourceSessionId > 0) && (commandArgs.perEventSourceSessionId <= SessionMask.MAX);
@@ -2462,13 +2501,11 @@ namespace System.Diagnostics.Tracing
                     {
                         // eventSourceDispatcher == null means this is the ETW manifest
 
-#if !FEATURE_PERFTRACING
                         // Note that we unconditionally send the manifest whenever we are enabled, even if
                         // we were already enabled.   This is because there may be multiple sessions active
                         // and we can't know that all the sessions have seen the manifest.  
                         if (!SelfDescribingEvents)
                             SendManifest(m_rawManifest);
-#endif
                     }
 
                     // Turn on the enable bit before making the OnEventCommand callback  This allows you to do useful
@@ -3640,6 +3677,9 @@ namespace System.Diagnostics.Tracing
         internal volatile EventDispatcher m_Dispatchers;    // Linked list of code:EventDispatchers we write the data to (we also do ETW specially)
 #if FEATURE_MANAGED_ETW
         private volatile OverideEventProvider m_provider;   // This hooks up ETW commands to our 'OnEventCommand' callback
+#endif
+#if FEATURE_PERFTRACING
+        private volatile OverideEventProvider m_eventPipeProvider;
 #endif
         private bool m_completelyInited;                // The EventSource constructor has returned without exception.   
         private Exception m_constructionException;      // If there was an exception construction, this is it 
