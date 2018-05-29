@@ -398,7 +398,8 @@ namespace System.Threading
             //
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
-            if (Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
+            if (Volatile.Read(ref threadRequestOutstanding) == 0 && 
+                Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
             {
                 ThreadPool.RequestWorkerThread();
             }
@@ -412,7 +413,10 @@ namespace System.Threading
             // Note that there is a separate count in the VM which has already been decremented by the VM
             // by the time we reach this point.
             //
-            Volatile.Write(ref threadRequestOutstanding, 0);
+            if (Volatile.Read(ref threadRequestOutstanding) == 1)
+            {
+                Volatile.Write(ref threadRequestOutstanding, 0);
+            }
         }
 
         public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
