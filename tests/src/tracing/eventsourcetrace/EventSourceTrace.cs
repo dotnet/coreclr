@@ -50,59 +50,60 @@ namespace Tracing.Tests
         {
             bool pass = true;
 
-            SimpleEventSource eventSource = new SimpleEventSource();
-
-            using (var netPerfFile = NetPerfFile.Create(args))
+            using (SimpleEventSource eventSource = new SimpleEventSource())
             {
-                Console.WriteLine("\tStart: Enable tracing.");
-                TraceControl.Enable(GetConfig(eventSource, netPerfFile.Path));
-                Console.WriteLine("\tEnd: Enable tracing.\n");
-
-                Console.WriteLine("\tStart: Messaging.");
-                // Send messages
-                // Use random numbers and addition as a simple, human readble checksum
-                Random generator = new Random();
-                for(int i=0; i<messageIterations; i++)
+                using (var netPerfFile = NetPerfFile.Create(args))
                 {
-                    int x = generator.Next(1,1000);
-                    int y = generator.Next(1,1000);
-                    string formula = String.Format("{0} + {1} = {2}", x, y, x+y);
-                    
-                    eventSource.MathResult(x, y, x+y, formula);
-                }
-                Console.WriteLine("\tEnd: Messaging.\n");
+                    Console.WriteLine("\tStart: Enable tracing.");
+                    TraceControl.Enable(GetConfig(eventSource, netPerfFile.Path));
+                    Console.WriteLine("\tEnd: Enable tracing.\n");
 
-                Console.WriteLine("\tStart: Disable tracing.");
-                TraceControl.Disable();
-                Console.WriteLine("\tEnd: Disable tracing.\n");
-
-                Console.WriteLine("\tStart: Processing events from file.");
-                int msgCount = 0;
-                using (var trace = new TraceLog(TraceLog.CreateFromEventPipeDataFile(netPerfFile.Path)).Events.GetSource())
-                {
-                    var names = new HashSet<string>();
-
-                    trace.Dynamic.All += delegate(TraceEvent data)
+                    Console.WriteLine("\tStart: Messaging.");
+                    // Send messages
+                    // Use random numbers and addition as a simple, human readble checksum
+                    Random generator = new Random();
+                    for (int i = 0; i < messageIterations; i++)
                     {
-                        if (!names.Contains(data.ProviderName))
-                        {
-                            Console.WriteLine("\t{0}", data.ProviderName);
-                            names.Add(data.ProviderName);
-                        }
+                        int x = generator.Next(1, 1000);
+                        int y = generator.Next(1, 1000);
+                        string formula = String.Format("{0} + {1} = {2}", x, y, x + y);
 
-                        if (data.ProviderName == "SimpleEventSource")
-                        {
-                            msgCount += 1;
-                        }
-                    };
+                        eventSource.MathResult(x, y, x + y, formula);
+                    }
+                    Console.WriteLine("\tEnd: Messaging.\n");
 
-                    trace.Process();
+                    Console.WriteLine("\tStart: Disable tracing.");
+                    TraceControl.Disable();
+                    Console.WriteLine("\tEnd: Disable tracing.\n");
+
+                    Console.WriteLine("\tStart: Processing events from file.");
+                    int msgCount = 0;
+                    using (var trace = new TraceLog(TraceLog.CreateFromEventPipeDataFile(netPerfFile.Path)).Events.GetSource())
+                    {
+                        var names = new HashSet<string>();
+
+                        trace.Dynamic.All += delegate (TraceEvent data)
+                        {
+                            if (!names.Contains(data.ProviderName))
+                            {
+                                Console.WriteLine("\t{0}", data.ProviderName);
+                                names.Add(data.ProviderName);
+                            }
+
+                            if (data.ProviderName == "SimpleEventSource")
+                            {
+                                msgCount += 1;
+                            }
+                        };
+
+                        trace.Process();
+                    }
+                    Console.WriteLine("\tEnd: Processing events from file.\n");
+
+                    Console.WriteLine("\tProcessed {0} events from EventSource", msgCount);
+
+                    pass &= msgCount == messageIterations;
                 }
-                Console.WriteLine("\tEnd: Processing events from file.\n");
-
-                Console.WriteLine("\tProcessed {0} events from EventSource", msgCount);
-
-                pass &= msgCount == messageIterations;
             }
 
             return pass ? 100 : 0;
