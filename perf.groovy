@@ -100,12 +100,8 @@ def static getOSGroup(def os) {
                                     batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\perflab\\Perflab -library -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi")
                                     batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\Jit\\Performance\\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi")
                                 }
-                            }
-							
-                            post {
-                                always {
-								    echo 'Uploading artifacts files to Azure Blob Storage'
-									batchFile("powershell .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 " +
+								
+								batchFile("powershell .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 " +
 										"-inputFiles " +
 											"\".\\bin\\sandbox_logs\\**\\*_log.txt\", " +
 											"\".\\bin\\sandbox_logs\\**\\*.csv\", " +
@@ -117,7 +113,6 @@ def static getOSGroup(def os) {
 										"-container \"${projectFolder}\" "+
 										"-fileName \"${jobName}\" "+
 										"-token \"todo\"")
-								}
                             }
                         }
 
