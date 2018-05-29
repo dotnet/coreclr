@@ -26,10 +26,14 @@ namespace System.Diagnostics
     /// </summary>
     public class StackTrace
     {
-        private StackFrame[] _stackFrames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
         private int m_iMethodsToSkip;
+        
+        /// <summary>
+        /// Stack frames comprising this stack trace.
+        /// </summary>
+        private StackFrame[] _stackFrames;
 
         /// <summary>
         /// Constructs a stack trace from the current location.
@@ -153,8 +157,7 @@ namespace System.Diagnostics
         /// </summary>
         public StackTrace(StackFrame frame)
         {
-            _stackFrames = new StackFrame[1];
-            _stackFrames[0] = frame;
+            _stackFrames = new StackFrame[] { frame };
             m_iMethodsToSkip = 0;
             m_iNumOfFrames = 1;
         }
@@ -252,8 +255,9 @@ namespace System.Diagnostics
             }
         }
 
-        // Property to get the number of frames in the stack trace
-        //
+        /// <summary>
+        /// Property to get the number of frames in the stack trace
+        /// </summary>
         public virtual int FrameCount
         {
             get { return m_iNumOfFrames; }
