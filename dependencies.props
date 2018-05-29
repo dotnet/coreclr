@@ -23,8 +23,8 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>f48614552b7ebe6a20a413fe9b5e319c8c567304</CoreFxCurrentRef>
-    <CoreClrCurrentRef>f48614552b7ebe6a20a413fe9b5e319c8c567304</CoreClrCurrentRef>
+    <CoreFxCurrentRef>e455bb23eba181ab6c857c5117de4a14c0090bad</CoreFxCurrentRef>
+    <CoreClrCurrentRef>e455bb23eba181ab6c857c5117de4a14c0090bad</CoreClrCurrentRef>
     <BuildToolsCurrentRef>2f4e25ff2bccea64c3da62bff526f24ad3c032de</BuildToolsCurrentRef>
     <PgoDataCurrentRef>f48614552b7ebe6a20a413fe9b5e319c8c567304</PgoDataCurrentRef>
   </PropertyGroup>
@@ -41,7 +41,7 @@
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <CommandLineParserVersion>2.1.1</CommandLineParserVersion>
     <VCRuntimeVersion>1.2.0</VCRuntimeVersion>
-    
+
     <!-- Scenario tests install this version of Microsoft.NetCore.App, then patch coreclr binaries via xcopy. At the moment it is
          updated manually whenever breaking changes require it to move forward, but it would be nice if we could update it automatically
          as we do with many of the package versions above -->
