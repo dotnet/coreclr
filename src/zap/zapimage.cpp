@@ -2097,7 +2097,7 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
         const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
         
         // When Partial Ngen is specified we will omit the AOT native code for every
-        // method that was not executed based on the profile data.
+        // method that does not have profile data
         //
         if (pEntry == nullptr && m_zapper->m_pOpt->m_fPartialNGen)
         {

@@ -422,6 +422,7 @@ void ZapInfo::CompileMethod()
     if (m_currentMethodInfo.ILCodeSize == 0)
         return;
 
+    // If we are doing partial ngen, only compile methods with profile data
     if (!CurrentMethodHasProfileData() && m_zapper->m_pOpt->m_fPartialNGen)
         return;
 
