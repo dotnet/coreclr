@@ -831,7 +831,7 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
 {
     // This is perhaps temporary -- maybe should be done elsewhere.  Label GT_INDs on LHS of assignments, so we
     // can skip these during (at least) value numbering.
-    if (tree->OperIsAssignment())
+    if (tree->OperIs(GT_ASG))
     {
         GenTree* lhs     = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
         GenTree* trueLhs = lhs->gtEffectiveVal(/*commaOnly*/ true);
@@ -848,7 +848,7 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
     // Figure out if "tree" may make a new GC heap state (if we care for this block).
     if ((block->bbMemoryHavoc & memoryKindSet(GcHeap)) == 0)
     {
-        if (tree->OperIsAssignment() || tree->OperIsBlkOp())
+        if (tree->OperIs(GT_ASG) || tree->OperIsBlkOp())
         {
             if (m_pCompiler->ehBlockHasExnFlowDsc(block))
             {
@@ -927,8 +927,8 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
 
         if ((tree->gtFlags & GTF_VAR_USEASG) != 0)
         {
-            // This is a partial definition of a variable. The node records the SSA number
-            // of the use implied by this partial definition and the SSA number of the new
+            // This is a partial definition of a variable. The node records only the SSA number
+            // of the use that is implied by this partial definition. The SSA number of the new
             // definition will be recorded in the m_opAsgnVarDefSsaNums map.
             tree->AsLclVarCommon()->SetSsaNum(pRenameState->CountForUse(lclNum));
 
