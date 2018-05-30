@@ -11,37 +11,6 @@ namespace R2RDump
 {
     class R2RDump
     {
-        class R2RWriter
-        {
-            private Stream _stream;
-            private StreamWriter _writer;
-
-            public R2RWriter(Stream stream)
-            {
-                _stream = stream;
-                _writer = new StreamWriter(_stream)
-                {
-                    AutoFlush = true
-                };
-            }
-
-            public void Write(String s = "")
-            {
-                _writer.Write(s);
-            }
-
-            public void WriteLine(String s = "")
-            {
-                _writer.WriteLine(s);
-            }
-
-            public void Close()
-            {
-                _writer.Close();
-                _stream.Close();
-            }
-        }
-
         private bool _help = false;
         private IReadOnlyList<string> _inputFilenames = Array.Empty<string>();
         private string _outputFilename = null;
@@ -53,7 +22,7 @@ namespace R2RDump
         private IReadOnlyList<int> _runtimeFunctions = Array.Empty<int>();
         private IReadOnlyList<string> _sections = Array.Empty<string>();
         private bool _diff = false;
-        private R2RWriter _writer;
+        private TextWriter _writer;
 
         private R2RDump()
         {
@@ -110,7 +79,7 @@ namespace R2RDump
 
         public static void WriteWarning(string warning)
         {
-            Console.Out.WriteLine($"Warning: {warning}");
+            Console.WriteLine($"Warning: {warning}");
         }
 
         private void WriteDivider(string title)
@@ -459,12 +428,11 @@ namespace R2RDump
             // open output stream
             if (_outputFilename != null)
             {
-                FileStream fileStream = new FileStream(_outputFilename, FileMode.Create, FileAccess.Write);
-                _writer = new R2RWriter(fileStream);
+                _writer = File.CreateText(_outputFilename);
             }
             else
             {
-                _writer = new R2RWriter(Console.OpenStandardOutput());
+                _writer = Console.Out;
             }
 
             foreach (string filename in _inputFilenames)
@@ -487,7 +455,7 @@ namespace R2RDump
             }
             catch (Exception e)
             {
-                Console.Out.WriteLine("Error: " + e.ToString());
+                Console.WriteLine("Error: " + e.ToString());
                 return 1;
             }
         }
