@@ -63,8 +63,15 @@ namespace System
         {
             get
             {
-                // do any desired fixups to classname here when ClassName not null.
-                return ClassName == null ? base.Message : SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
+                if (ClassName == null)
+                {
+                    return base.Message;
+                }
+                else
+                {
+                    // do any desired fixups to classname here.
+                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
+                }
             }
         }
 
