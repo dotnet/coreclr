@@ -11,6 +11,37 @@ namespace R2RDump
 {
     class R2RDump
     {
+        class R2RWriter
+        {
+            private Stream _stream;
+            private StreamWriter _writer;
+
+            public R2RWriter(Stream stream)
+            {
+                _stream = stream;
+                _writer = new StreamWriter(_stream)
+                {
+                    AutoFlush = true
+                };
+            }
+
+            public void Write(String s = "")
+            {
+                _writer.Write(s);
+            }
+
+            public void WriteLine(String s = "")
+            {
+                _writer.WriteLine(s);
+            }
+
+            public void Close()
+            {
+                _writer.Close();
+                _stream.Close();
+            }
+        }
+
         private bool _help = false;
         private IReadOnlyList<string> _inputFilenames = Array.Empty<string>();
         private string _outputFilename = null;
@@ -22,6 +53,7 @@ namespace R2RDump
         private IReadOnlyList<int> _runtimeFunctions = Array.Empty<int>();
         private IReadOnlyList<string> _sections = Array.Empty<string>();
         private bool _diff = false;
+        private R2RWriter _writer;
 
         private R2RDump()
         {
@@ -78,19 +110,19 @@ namespace R2RDump
 
         public static void WriteWarning(string warning)
         {
-            Console.WriteLine($"Warning: {warning}");
+            Console.Out.WriteLine($"Warning: {warning}");
         }
 
         private void WriteDivider(string title)
         {
-            Console.WriteLine("============== " + title + " ==============");
-            Console.WriteLine();
+            _writer.WriteLine("============== " + title + " ==============");
+            _writer.WriteLine();
         }
 
         private void WriteSubDivider()
         {
-            Console.WriteLine("------------------");
-            Console.WriteLine();
+            _writer.WriteLine("------------------");
+            _writer.WriteLine();
         }
 
         /// <summary>
@@ -98,7 +130,7 @@ namespace R2RDump
         /// </summary>
         private void DumpHeader(R2RReader r2r, bool dumpSections)
         {
-            Console.WriteLine(r2r.R2RHeader.ToString());
+            _writer.WriteLine(r2r.R2RHeader.ToString());
             if (_raw)
             {
                 DumpBytes(r2r, r2r.R2RHeader.RelativeVirtualAddress, (uint)r2r.R2RHeader.Size);
@@ -119,7 +151,7 @@ namespace R2RDump
         private void DumpSection(R2RReader r2r, R2RSection section)
         {
             WriteSubDivider();
-            Console.WriteLine(section.ToString());
+            _writer.WriteLine(section.ToString());
             if (_raw)
             {
                 DumpBytes(r2r, section.RelativeVirtualAddress, (uint)section.Size);
@@ -132,7 +164,7 @@ namespace R2RDump
         private void DumpMethod(R2RReader r2r, R2RMethod method)
         {
             WriteSubDivider();
-            Console.WriteLine(method.ToString());
+            _writer.WriteLine(method.ToString());
 
             foreach (RuntimeFunction runtimeFunction in method.RuntimeFunctions)
             {
@@ -145,11 +177,12 @@ namespace R2RDump
         /// </summary>
         private void DumpRuntimeFunction(R2RReader r2r, RuntimeFunction rtf)
         {
-            Console.WriteLine(rtf);
+            _writer.WriteLine(rtf.ToString());
             if (_raw)
             {
                 DumpBytes(r2r, rtf.StartAddress, (uint)rtf.Size);
             }
+            _writer.WriteLine();
         }
 
         /// <summary>
@@ -162,27 +195,27 @@ namespace R2RDump
             {
                 throw new IndexOutOfRangeException();
             }
-            Console.Write("    ");
+            _writer.Write("    ");
             if (rva % 16 != 0)
             {
                 int floor = rva / 16 * 16;
-                Console.Write($"{floor:X8}:");
-                Console.Write(new String(' ', (rva - floor) * 3));
+                _writer.Write($"{floor:X8}:");
+                _writer.Write(new String(' ', (rva - floor) * 3));
             }
             for (uint i = 0; i < size; i++)
             {
                 if ((rva + i) % 16 == 0)
                 {
-                    Console.Write($"{rva + i:X8}:");
+                    _writer.Write($"{rva + i:X8}:");
                 }
-                Console.Write($" {r2r.Image[start + i]:X2}");
+                _writer.Write($" {r2r.Image[start + i]:X2}");
                 if ((rva + i) % 16 == 15 && i != size - 1)
                 {
-                    Console.WriteLine();
-                    Console.Write("    ");
+                    _writer.WriteLine();
+                    _writer.Write("    ");
                 }
             }
-            Console.WriteLine();
+            _writer.WriteLine();
         }
 
         // <summary>
@@ -202,8 +235,8 @@ namespace R2RDump
             {
                 IList<R2RMethod> res = FindMethod(r2r, q, exact);
 
-                Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
-                Console.WriteLine();
+                _writer.WriteLine(res.Count + " result(s) for \"" + q + "\"");
+                _writer.WriteLine();
                 foreach (R2RMethod method in res)
                 {
                     DumpMethod(r2r, method);
@@ -226,8 +259,8 @@ namespace R2RDump
             {
                 IList<R2RSection> res = FindSection(r2r, q);
 
-                Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
-                Console.WriteLine();
+                _writer.WriteLine(res.Count + " result(s) for \"" + q + "\"");
+                _writer.WriteLine();
                 foreach (R2RSection section in res)
                 {
                     DumpSection(r2r, section);
@@ -256,7 +289,7 @@ namespace R2RDump
                     WriteWarning("Unable to find by id " + q);
                     continue;
                 }
-                Console.WriteLine(rtf.Method.Signature);
+                _writer.WriteLine(rtf.Method.Signature);
                 DumpRuntimeFunction(r2r, rtf);
             }
         }
@@ -267,10 +300,10 @@ namespace R2RDump
         /// <param name="r2r">The structure containing the info of the ReadyToRun image</param>
         public void Dump(R2RReader r2r)
         {
-            Console.WriteLine($"Filename: {r2r.Filename}");
-            Console.WriteLine($"Machine: {r2r.Machine}");
-            Console.WriteLine($"ImageBase: 0x{r2r.ImageBase:X8}");
-            Console.WriteLine();
+            _writer.WriteLine($"Filename: {r2r.Filename}");
+            _writer.WriteLine($"Machine: {r2r.Machine}");
+            _writer.WriteLine($"ImageBase: 0x{r2r.ImageBase:X8}");
+            _writer.WriteLine();
 
             if (_queries.Count == 0 && _keywords.Count == 0 && _runtimeFunctions.Count == 0 && _sections.Count == 0) //dump all sections and methods
             {
@@ -280,7 +313,7 @@ namespace R2RDump
                 if (!_header)
                 {
                     WriteDivider("R2R Methods");
-                    Console.WriteLine();
+                    _writer.WriteLine();
                     foreach (R2RMethod method in r2r.R2RMethods)
                     {
                         DumpMethod(r2r, method);
@@ -300,8 +333,8 @@ namespace R2RDump
                 QueryMethod(r2r, "R2R Methods by Keyword", _keywords, false);
             }
 
-            Console.WriteLine("========================================================");
-            Console.WriteLine();
+            _writer.WriteLine("========================================================");
+            _writer.WriteLine();
         }
 
         /// <summary>
@@ -416,21 +449,22 @@ namespace R2RDump
             
             if (_help)
             {
-                Console.WriteLine(syntax.GetHelpText());
+                _writer.WriteLine(syntax.GetHelpText());
                 return 0;
             }
 
             if (_inputFilenames.Count == 0)
                 throw new ArgumentException("Input filename must be specified (--in <file>)");
 
-            // open output file
-            FileStream fileStream = null;
-            StreamWriter writer = null;
+            // open output stream
             if (_outputFilename != null)
             {
-                fileStream = new FileStream(_outputFilename, FileMode.Create, FileAccess.Write);
-                writer = new StreamWriter(fileStream);
-                Console.SetOut(writer);
+                FileStream fileStream = new FileStream(_outputFilename, FileMode.Create, FileAccess.Write);
+                _writer = new R2RWriter(fileStream);
+            }
+            else
+            {
+                _writer = new R2RWriter(Console.OpenStandardOutput());
             }
 
             foreach (string filename in _inputFilenames)
@@ -439,14 +473,9 @@ namespace R2RDump
                 Dump(r2r);
             }
 
-            // close output file
-            if (_outputFilename != null)
-            {
-                Console.SetOut(Console.Out);
-                writer.Close();
-                fileStream.Close();
-            }
-
+            // close output stream
+            _writer.Close();
+            
             return 0;
         }
 
