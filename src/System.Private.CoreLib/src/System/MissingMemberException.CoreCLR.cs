@@ -19,22 +19,6 @@ namespace System
 {
     public partial class MissingMemberException : MemberAccessException, ISerializable
     {
-        public override string Message
-        {
-            get
-            {
-                if (ClassName == null)
-                {
-                    return base.Message;
-                }
-                else
-                {
-                    // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : ""));
-                }
-            }
-        }
-
         // Called to format signature
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern string FormatSignature(byte[] signature);

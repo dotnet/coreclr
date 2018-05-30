@@ -59,6 +59,15 @@ namespace System
             info.AddValue("MMSignature", Signature, typeof(byte[]));
         }
 
+        public override string Message
+        {
+            get
+            {
+                // do any desired fixups to classname here when ClassName not null.
+                return ClassName == null ? base.Message : SR.Format(SR.MissingMember_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : string.Empty));
+            }
+        }
+
         // If ClassName != null, GetMessage will construct on the fly using it
         // and the other variables. This allows customization of the
         // format depending on the language environment.
