@@ -681,7 +681,7 @@ namespace System
             {
                 return _HResult;
             }
-            protected set
+            set
             {
                 _HResult = value;
             }
