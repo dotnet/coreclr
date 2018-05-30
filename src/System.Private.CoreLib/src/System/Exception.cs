@@ -335,12 +335,6 @@ namespace System
             return remoteStackTraceString + tempStackTraceString;
         }
 
-        // [FriendAccessAllowed]
-        internal void SetErrorCode(int hr)
-        {
-            HResult = hr;
-        }
-
         // Sets the help link for this exception.
         // This should be in a URL/URN form, such as:
         // "file:///C:/Applications/Bazzal/help.html#ErrorNum42"
