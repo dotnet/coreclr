@@ -230,42 +230,5 @@ namespace R2RDump
 
             return (int)id;
         }
-
-        /// <summary>
-        /// Returns a formatted string containing a block of bytes from the relative virtual address and size
-        /// </summary>
-        public string DumpBytes(int rva, uint size)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            uint start = (uint)GetOffset(rva);
-            if (start > Image.Length || start + size > Image.Length)
-            {
-                throw new IndexOutOfRangeException();
-            }
-            sb.Append("    ");
-            if (rva % 16 != 0)
-            {
-                int floor = rva / 16 * 16;
-                sb.Append($"{floor:X8}:");
-                sb.Append(new String(' ', (rva - floor) * 3));
-            }
-            for (uint i = 0; i < size; i++)
-            {
-                if ((rva + i) % 16 == 0)
-                {
-                    sb.Append($"{rva + i:X8}:");
-                }
-                sb.Append($" {Image[start + i]:X2}");
-                if ((rva + i) % 16 == 15 && i != size - 1)
-                {
-                    sb.AppendLine();
-                    sb.Append("    ");
-                }
-            }
-            sb.AppendLine();
-
-            return sb.ToString();
-        }
     }
 }

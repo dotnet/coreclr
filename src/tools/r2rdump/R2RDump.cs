@@ -101,7 +101,7 @@ namespace R2RDump
             Console.WriteLine(r2r.R2RHeader.ToString());
             if (_raw)
             {
-                Console.WriteLine(r2r.R2RHeader.DumpBytes(r2r));
+                DumpBytes(r2r, r2r.R2RHeader.RelativeVirtualAddress, (uint)r2r.R2RHeader.Size);
             }
             if (dumpSections)
             {
@@ -122,7 +122,7 @@ namespace R2RDump
             Console.WriteLine(section.ToString());
             if (_raw)
             {
-                Console.WriteLine(section.DumpBytes(r2r));
+                DumpBytes(r2r, section.RelativeVirtualAddress, (uint)section.Size);
             }
         }
 
@@ -148,8 +148,41 @@ namespace R2RDump
             Console.WriteLine(rtf);
             if (_raw)
             {
-                Console.WriteLine(rtf.DumpBytes(r2r));
+                DumpBytes(r2r, rtf.StartAddress, (uint)rtf.Size);
             }
+        }
+
+        /// <summary>
+        /// Prints a formatted string containing a block of bytes from the relative virtual address and size
+        /// </summary>
+        public void DumpBytes(R2RReader r2r, int rva, uint size)
+        {
+            uint start = (uint)r2r.GetOffset(rva);
+            if (start > r2r.Image.Length || start + size > r2r.Image.Length)
+            {
+                throw new IndexOutOfRangeException();
+            }
+            Console.Write("    ");
+            if (rva % 16 != 0)
+            {
+                int floor = rva / 16 * 16;
+                Console.Write($"{floor:X8}:");
+                Console.Write(new String(' ', (rva - floor) * 3));
+            }
+            for (uint i = 0; i < size; i++)
+            {
+                if ((rva + i) % 16 == 0)
+                {
+                    Console.Write($"{rva + i:X8}:");
+                }
+                Console.Write($" {r2r.Image[start + i]:X2}");
+                if ((rva + i) % 16 == 15 && i != size - 1)
+                {
+                    Console.WriteLine();
+                    Console.Write("    ");
+                }
+            }
+            Console.WriteLine();
         }
 
         // <summary>
@@ -216,9 +249,6 @@ namespace R2RDump
             }
             foreach (int q in queries)
             {
-                Console.WriteLine("id: " + q);
-                Console.WriteLine();
-
                 RuntimeFunction rtf = FindRuntimeFunction(r2r, q);
 
                 if (rtf == null)
@@ -226,6 +256,7 @@ namespace R2RDump
                     WriteWarning("Unable to find by id " + q);
                     continue;
                 }
+                Console.WriteLine(rtf.Method.Signature);
                 DumpRuntimeFunction(r2r, rtf);
             }
         }

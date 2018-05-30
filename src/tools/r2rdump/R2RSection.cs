@@ -51,10 +51,5 @@ namespace R2RDump
             sb.AppendLine($"Size: {Size} bytes");
             return sb.ToString();
         }
-
-        public string DumpBytes(R2RReader r2r)
-        {
-            return r2r.DumpBytes(RelativeVirtualAddress, (uint)Size);
-        }
     }
 }

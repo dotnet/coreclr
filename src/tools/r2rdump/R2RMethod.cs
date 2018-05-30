@@ -37,7 +37,10 @@ namespace R2RDump
         /// </summary>
         public int UnwindRVA { get; }
 
-        public R2RMethod Method;
+        /// <summary>
+        /// The method that this runtime function belongs to
+        /// </summary>
+        public R2RMethod Method { get; }
 
         public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, R2RMethod method)
         {
@@ -66,11 +69,6 @@ namespace R2RDump
             }
 
             return sb.ToString();
-        }
-
-        public string DumpBytes(R2RReader r2r)
-        {
-            return r2r.DumpBytes(StartAddress, (uint)Size);
         }
     }
 
