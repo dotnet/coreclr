@@ -36,7 +36,7 @@ namespace System.IO
         //We pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
         // The CopyTo/CopyToAsync buffer is short-lived and is likely to be collected at Gen0, and it offers a significant
         // improvement in Copy performance.
-        private const int _DefaultCopyBufferSize = 81920;
+        private const int DefaultCopyBufferSize = 81920;
 
         // To implement Async IO operations on streams that don't support async IO
 
@@ -184,7 +184,7 @@ namespace System.IO
 
         private int GetCopyBufferSize()
         {
-            int bufferSize = _DefaultCopyBufferSize;
+            int bufferSize = DefaultCopyBufferSize;
 
             if (CanSeek)
             {
@@ -871,25 +871,13 @@ namespace System.IO
         {
             internal NullStream() { }
 
-            public override bool CanRead
-            {
-                get { return true; }
-            }
+            public override bool CanRead => true;
 
-            public override bool CanWrite
-            {
-                get { return true; }
-            }
+            public override bool CanWrite => true;
 
-            public override bool CanSeek
-            {
-                get { return true; }
-            }
+            public override bool CanSeek => true;
 
-            public override long Length
-            {
-                get { return 0; }
-            }
+            public override long Length => 0;
 
             public override long Position
             {
@@ -1024,7 +1012,7 @@ namespace System.IO
 
 
         /// <summary>Used as the IAsyncResult object when using asynchronous IO methods on the base Stream class.</summary>
-        internal sealed class SynchronousAsyncResult : IAsyncResult
+        private sealed class SynchronousAsyncResult : IAsyncResult
         {
             private readonly Object _stateObject;
             private readonly bool _isWrite;
@@ -1117,7 +1105,7 @@ namespace System.IO
 
         // SyncStream is a wrapper around a stream that takes 
         // a lock for every operation making it thread safe.
-        internal sealed class SyncStream : Stream, IDisposable
+        private sealed class SyncStream : Stream, IDisposable
         {
             private Stream _stream;
 
@@ -1128,28 +1116,13 @@ namespace System.IO
                 _stream = stream;
             }
 
-            public override bool CanRead
-            {
-                get { return _stream.CanRead; }
-            }
+            public override bool CanRead => _stream.CanRead;
 
-            public override bool CanWrite
-            {
-                get { return _stream.CanWrite; }
-            }
+            public override bool CanWrite => _stream.CanWrite;
 
-            public override bool CanSeek
-            {
-                get { return _stream.CanSeek; }
-            }
+            public override bool CanSeek => _stream.CanSeek;
 
-            public override bool CanTimeout
-            {
-                get
-                {
-                    return _stream.CanTimeout;
-                }
-            }
+            public override bool CanTimeout => _stream.CanTimeout;
 
             public override long Length
             {
