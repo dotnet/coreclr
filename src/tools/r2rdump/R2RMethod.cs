@@ -37,7 +37,9 @@ namespace R2RDump
         /// </summary>
         public int UnwindRVA { get; }
 
-        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva)
+        public R2RMethod Method;
+
+        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, R2RMethod method)
         {
             Id = id;
             StartAddress = startRva;
@@ -45,6 +47,7 @@ namespace R2RDump
             if (endRva == -1)
                 Size = -1;
             UnwindRVA = unwindRva;
+            Method = method;
         }
 
         public override string ToString()
@@ -118,7 +121,7 @@ namespace R2RDump
         /// <summary>
         /// All the runtime functions of this method
         /// </summary>
-        public List<RuntimeFunction> RuntimeFunctions { get; }
+        public IList<RuntimeFunction> RuntimeFunctions { get; }
 
         /// <summary>
         /// The id of the entrypoint runtime function

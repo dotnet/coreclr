@@ -33,17 +33,17 @@ namespace R2RDump
             {
                 syntax.ApplicationName = "R2RDump";
                 syntax.HandleHelp = false;
-                syntax.HandleErrors = false;
+                syntax.HandleErrors = true;
 
                 syntax.DefineOption("h|help", ref _help, "Help message for R2RDump");
                 syntax.DefineOptionList("i|in", ref _inputFilenames, "Input file(s) to dump. Expects them to by ReadyToRun images");
                 syntax.DefineOption("o|out", ref _outputFilename, "Output file path. Dumps everything to the specified file except help message and exception messages");
                 syntax.DefineOption("v|verbose|raw", ref _raw, "Dump the raw bytes of each section or runtime function");
-                syntax.DefineOption("l|less", ref _header, "Only dump R2R header");
+                syntax.DefineOption("header", ref _header, "Dump R2R header");
                 syntax.DefineOption("d|disasm", ref _disasm, "Show disassembly of methods or runtime functions");
                 syntax.DefineOptionList("q|query", ref _queries, "Query method by exact name, signature, row id or token");
                 syntax.DefineOptionList("k|keyword", ref _keywords, "Search method by keyword");
-                syntax.DefineOptionList("r|rtf", ref _runtimeFunctions, ArgStringToInt, "Get one runtime function by id or relative virtual address");
+                syntax.DefineOptionList("r|runtimefunction", ref _runtimeFunctions, ArgStringToInt, "Get one runtime function by id or relative virtual address");
                 syntax.DefineOptionList("s|section", ref _sections, "Get section by keyword");
                 syntax.DefineOption("diff", ref _diff, "Compare two R2R images"); // not yet implemented
             });
@@ -53,25 +53,27 @@ namespace R2RDump
 
         private int ArgStringToInt(string arg)
         {
-            bool isNum;
-            return ArgStringToInt(arg, out isNum);
+            int n;
+            if (!ArgStringToInt(arg, out n))
+            {
+                throw new ArgumentException("Can't parse argument to int");
+            }
+            return n;
         }
 
         /// <summary>
         /// Converts string passed as cmd line args into int, works for hexidecimal with 0x as prefix
         /// </summary>
         /// <param name="arg">The argument string to convert</param>
-        /// <param name="isNum">Set to false if conversion failed</param>
-        private int ArgStringToInt(string arg, out bool isNum)
+        /// <param name="n">The integer representation</param>
+        private bool ArgStringToInt(string arg, out int n)
         {
-            int n = -1;
+			arg = arg.Trim();
             if (arg.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
-                isNum = int.TryParse(arg.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out n);
-                return n;
+                return int.TryParse(arg.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out n);
             }
-            isNum = int.TryParse(arg, out n);
-            return n;
+            return int.TryParse(arg, out n);
         }
 
         public static void WriteWarning(string warning)
@@ -126,31 +128,27 @@ namespace R2RDump
 
         /// <summary>
         /// Dumps one R2RMethod. 
-        /// If <param>rtf</param> is not null, output the specified runtime function. Otherwise output all runtime functions of the method
         /// </summary>
-        private void DumpMethod(R2RReader r2r, R2RMethod method, RuntimeFunction rtf = null)
+        private void DumpMethod(R2RReader r2r, R2RMethod method)
         {
             WriteSubDivider();
             Console.WriteLine(method.ToString());
 
-            if (rtf == null)
+            foreach (RuntimeFunction runtimeFunction in method.RuntimeFunctions)
             {
-                foreach (RuntimeFunction runtimeFunction in method.RuntimeFunctions)
-                {
-                    Console.WriteLine($"{runtimeFunction}");
-                    if (_raw)
-                    {
-                        Console.WriteLine(runtimeFunction.DumpBytes(r2r));
-                    }
-                }
+                DumpRuntimeFunction(r2r, runtimeFunction);
             }
-            else
+        }
+
+        /// <summary>
+        /// Dumps one runtime function. 
+        /// </summary>
+        private void DumpRuntimeFunction(R2RReader r2r, RuntimeFunction rtf)
+        {
+            Console.WriteLine(rtf);
+            if (_raw)
             {
-                Console.WriteLine(rtf);
-                if (_raw)
-                {
-                    Console.WriteLine(rtf.DumpBytes(r2r));
-                }
+                Console.WriteLine(rtf.DumpBytes(r2r));
             }
         }
 
@@ -169,8 +167,7 @@ namespace R2RDump
             }
             foreach (string q in queries)
             {
-                List<R2RMethod> res = new List<R2RMethod>();
-                FindMethod(r2r, q, exact, res);
+                IList<R2RMethod> res = FindMethod(r2r, q, exact);
 
                 Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
                 Console.WriteLine();
@@ -194,8 +191,7 @@ namespace R2RDump
             }
             foreach (string q in queries)
             {
-                List<R2RSection> res = new List<R2RSection>();
-                FindSection(r2r, q, res);
+                IList<R2RSection> res = FindSection(r2r, q);
 
                 Console.WriteLine(res.Count + " result(s) for \"" + q + "\"");
                 Console.WriteLine();
@@ -223,15 +219,14 @@ namespace R2RDump
                 Console.WriteLine("id: " + q);
                 Console.WriteLine();
 
-                R2RMethod method = null;
-                RuntimeFunction rtf = FindRuntimeFunction(r2r, q, out method);
+                RuntimeFunction rtf = FindRuntimeFunction(r2r, q);
 
-                if (method == null)
+                if (rtf == null)
                 {
                     WriteWarning("Unable to find by id " + q);
                     continue;
                 }
-                DumpMethod(r2r, method, rtf);
+                DumpRuntimeFunction(r2r, rtf);
             }
         }
 
@@ -285,8 +280,8 @@ namespace R2RDump
         /// <remarks>Case-insensitive and ignores whitespace</remarks>
         private bool Match(R2RMethod method, string query, bool exact)
         {
-            bool isNum;
-            int id = ArgStringToInt(query, out isNum);
+            int id;
+            bool isNum = ArgStringToInt(query, out id);
             bool idMatch = isNum && (method.Rid == id || method.Token == id);
 
             bool sigMatch = false;
@@ -316,8 +311,8 @@ namespace R2RDump
         /// <remarks>Case-insensitive</remarks>
         private bool Match(R2RSection section, string query)
         {
-            bool isNum;
-            int queryInt = ArgStringToInt(query, out isNum);
+            int queryInt;
+            bool isNum = ArgStringToInt(query, out queryInt);
             string typeName = Enum.GetName(typeof(R2RSection.SectionType), section.Type);
 
             return (isNum && (int)section.Type == queryInt) || typeName.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -331,8 +326,9 @@ namespace R2RDump
         /// <param name="exact">Specifies exact or partial match</param>
         /// <out name="res">List of all matching methods</out>
         /// <remarks>Case-insensitive and ignores whitespace</remarks>
-        public void FindMethod(R2RReader r2r, string query, bool exact, List<R2RMethod> res)
+        public IList<R2RMethod> FindMethod(R2RReader r2r, string query, bool exact)
         {
+            List<R2RMethod> res = new List<R2RMethod>();
             foreach (R2RMethod method in r2r.R2RMethods)
             {
                 if (Match(method, query, exact))
@@ -340,6 +336,7 @@ namespace R2RDump
                     res.Add(method);
                 }
             }
+            return res;
         }
 
         /// <summary>
@@ -349,8 +346,9 @@ namespace R2RDump
         /// <param name="query">The name or value to search for</param>
         /// <out name="res">List of all matching sections</out>
         /// <remarks>Case-insensitive</remarks>
-        public void FindSection(R2RReader r2r, string query, List<R2RSection> res)
+        public IList<R2RSection> FindSection(R2RReader r2r, string query)
         {
+            List<R2RSection> res = new List<R2RSection>();
             foreach (R2RSection section in r2r.R2RHeader.Sections.Values)
             {
                 if (Match(section, query))
@@ -358,6 +356,7 @@ namespace R2RDump
                     res.Add(section);
                 }
             }
+            return res;
         }
 
         /// <summary>
@@ -365,8 +364,7 @@ namespace R2RDump
         /// </summary>
         /// <param name="r2r">Contains all extracted info about the ReadyToRun image</param>
         /// <param name="rtfQuery">The name or value to search for</param>
-        /// <out name="method">Gets set to the method containing the runtime function</out>
-        public RuntimeFunction FindRuntimeFunction(R2RReader r2r, int rtfQuery, out R2RMethod method)
+        public RuntimeFunction FindRuntimeFunction(R2RReader r2r, int rtfQuery)
         {
             foreach (R2RMethod m in r2r.R2RMethods)
             {
@@ -374,12 +372,10 @@ namespace R2RDump
                 {
                     if (rtf.Id == rtfQuery || (rtf.StartAddress >= rtfQuery && rtf.StartAddress + rtf.Size < rtfQuery))
                     {
-                        method = m;
                         return rtf;
                     }
                 }
             }
-            method = null;
             return null;
         }
 

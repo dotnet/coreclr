@@ -50,7 +50,7 @@ namespace R2RDump
         /// The runtime functions and method signatures of each method
         /// TODO: generic methods
         /// </summary>
-        public List<R2RMethod> R2RMethods { get; }
+        public IList<R2RMethod> R2RMethods { get; }
 
         /// <summary>
         /// Initializes the fields of the R2RHeader and R2RMethods
@@ -183,7 +183,7 @@ namespace R2RDump
                             }
                             int unwindRva = NativeReader.ReadInt32(Image, ref curOffset);
 
-                            method.RuntimeFunctions.Add(new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva));
+                            method.RuntimeFunctions.Add(new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, method));
                             runtimeFunctionId++;
                         }
                         while (runtimeFunctionId < nRuntimeFunctions && !isEntryPoint[runtimeFunctionId]);
