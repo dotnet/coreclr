@@ -1237,6 +1237,9 @@ namespace System.IO
 
             public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
+#if CORERT
+                throw new NotImplementedException(); // TODO: https://github.com/dotnet/corert/issues/3251
+#else
                 bool overridesBeginRead = _stream.HasOverriddenBeginEndRead();
 
                 lock (_stream)
@@ -1251,6 +1254,7 @@ namespace System.IO
                         _stream.BeginRead(buffer, offset, count, callback, state) :
                         _stream.BeginReadInternal(buffer, offset, count, callback, state, serializeAsynchronously: true, apm: true);
                 }
+#endif
             }
 
             public override int EndRead(IAsyncResult asyncResult)
@@ -1294,6 +1298,9 @@ namespace System.IO
 
             public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
+#if CORERT
+                throw new NotImplementedException(); // TODO: https://github.com/dotnet/corert/issues/3251
+#else
                 bool overridesBeginWrite = _stream.HasOverriddenBeginEndWrite();
 
                 lock (_stream)
@@ -1308,6 +1315,7 @@ namespace System.IO
                         _stream.BeginWrite(buffer, offset, count, callback, state) :
                         _stream.BeginWriteInternal(buffer, offset, count, callback, state, serializeAsynchronously: true, apm: true);
                 }
+#endif
             }
 
             public override void EndWrite(IAsyncResult asyncResult)
