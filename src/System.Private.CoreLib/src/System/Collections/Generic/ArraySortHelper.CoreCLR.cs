@@ -19,13 +19,13 @@ namespace System.Collections.Generic
     internal partial class ArraySortHelper<T>
         : IArraySortHelper<T>
     {
-        private static readonly IArraySortHelper<T> defaultArraySortHelper = CreateArraySortHelper();
+        private static readonly IArraySortHelper<T> s_defaultArraySortHelper = CreateArraySortHelper();
 
         public static IArraySortHelper<T> Default
         {
             get
             {
-                return defaultArraySortHelper;
+                return s_defaultArraySortHelper;
             }
         }
 
@@ -59,13 +59,13 @@ namespace System.Collections.Generic
     internal partial class ArraySortHelper<TKey, TValue>
         : IArraySortHelper<TKey, TValue>
     {
-        private static readonly IArraySortHelper<TKey, TValue> defaultArraySortHelper = CreateArraySortHelper();
+        private static readonly IArraySortHelper<TKey, TValue> s_defaultArraySortHelper = CreateArraySortHelper();
 
         public static IArraySortHelper<TKey, TValue> Default
         {
             get
             {
-                return defaultArraySortHelper;
+                return s_defaultArraySortHelper;
             }
         }
 
