@@ -76,6 +76,6 @@
        extends [mscorlib]System.ValueType
 {
   .pack 0
-  .size 28
+  .size 12
   .field private int32 Padding
 } // end of class StructY
