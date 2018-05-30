@@ -341,8 +341,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Math.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MathF.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\mda.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\MissingFieldException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\MissingMemberException.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\MissingFieldException.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\MissingMemberException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Number.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\PinnableBufferCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RtType.cs" />

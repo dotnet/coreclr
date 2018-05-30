@@ -9,17 +9,13 @@
 **
 =============================================================================*/
 
-
-using System;
 using System.Runtime.Serialization;
-using System.Runtime.CompilerServices;
-using System.Globalization;
 
 namespace System
 {
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public class MissingFieldException : MissingMemberException, ISerializable
+    public partial class MissingFieldException : MissingMemberException
     {
         public MissingFieldException()
             : base(SR.Arg_MissingFieldException)
@@ -49,25 +45,5 @@ namespace System
             : base(info, context)
         {
         }
-
-        public override String Message
-        {
-            get
-            {
-                if (ClassName == null)
-                {
-                    return base.Message;
-                }
-                else
-                {
-                    // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingField_Name, (Signature != null ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
-                }
-            }
-        }
-
-        // If ClassName != null, Message will construct on the fly using it
-        // and the other variables. This allows customization of the
-        // format depending on the language environment.
     }
 }
