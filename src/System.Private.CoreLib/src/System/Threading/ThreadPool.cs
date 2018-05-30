@@ -390,17 +390,26 @@ namespace System.Threading
             ThreadPoolWorkQueueThreadLocals.threadLocals ??
             (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
 
-        internal void EnsureThreadRequested()
+        internal void RequestThread()
         {
             // If we have not yet a thread request outstanding from the VM, then request a new thread
             //
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
-            if (Volatile.Read(ref threadRequestOutstanding) == 0 && 
-                Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
+            if (Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
             {
                 ThreadPool.RequestWorkerThread();
             }
+        }
+
+        internal void EnsureThreadRequested()
+        {
+            // Thread is exiting while there are items in the queue, make an unconditional ThreadRequest
+            //
+            // Note that there is a separate count in the VM which will also be incremented in this case, 
+            // which is handled by RequestWorkerThread.
+            Volatile.Write(ref threadRequestOutstanding, 1);
+            ThreadPool.RequestWorkerThread();
         }
 
         internal void MarkThreadRequestSatisfied()
@@ -411,10 +420,7 @@ namespace System.Threading
             // Note that there is a separate count in the VM which has already been decremented by the VM
             // by the time we reach this point.
             //
-            if (Volatile.Read(ref threadRequestOutstanding) == 1)
-            {
-                Volatile.Write(ref threadRequestOutstanding, 0);
-            }
+            Volatile.Write(ref threadRequestOutstanding, 0);
         }
 
         public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
@@ -435,7 +441,7 @@ namespace System.Threading
                 workItems.Enqueue(callback);
             }
 
-            EnsureThreadRequested();
+            RequestThread();
         }
 
         internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
@@ -541,9 +547,10 @@ namespace System.Threading
 
                     //
                     // If we found work, there may be more work.  Ask for another thread so that the other work can be processed
-                    // in parallel.  Note that this will only ask for a max of #procs threads, so it's safe to call it for every dequeue.
+                    // in parallel. Make sure there is a thread request for the other work.
+                    // It's capped at 1 outstanding thread request so is safe to call it for every dequeue.
                     //
-                    workQueue.EnsureThreadRequested();
+                    workQueue.RequestThread();
 
                     //
                     // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
