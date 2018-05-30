@@ -39,7 +39,14 @@ namespace System
             HResult = HResults.COR_E_MISSINGMEMBER;
         }
 
-        protected MissingMemberException(SerializationInfo info, StreamingContext context) : base(info, context)
+        public MissingMemberException(string className, string memberName)
+        {
+            ClassName = className;
+            MemberName = memberName;
+        }
+
+        protected MissingMemberException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
             ClassName = info.GetString("MMClassName");
             MemberName = info.GetString("MMMemberName");
@@ -66,12 +73,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String FormatSignature(byte[] signature);
 
-        public MissingMemberException(String className, String memberName)
-        {
-            ClassName = className;
-            MemberName = memberName;
-        }
-
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -84,8 +85,8 @@ namespace System
         // If ClassName != null, GetMessage will construct on the fly using it
         // and the other variables. This allows customization of the
         // format depending on the language environment.
-        protected String ClassName;
-        protected String MemberName;
+        protected string ClassName;
+        protected string MemberName;
         protected byte[] Signature;
     }
 }

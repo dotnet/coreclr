@@ -39,7 +39,14 @@ namespace System
             HResult = HResults.COR_E_MISSINGFIELD;
         }
 
-        protected MissingFieldException(SerializationInfo info, StreamingContext context) : base(info, context)
+        public MissingFieldException(string className, string fieldName)
+        {
+            ClassName = className;
+            MemberName = fieldName;
+        }
+
+        protected MissingFieldException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
         }
 
@@ -57,12 +64,6 @@ namespace System
                     return SR.Format(SR.MissingField_Name, (Signature != null ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
                 }
             }
-        }
-
-        public MissingFieldException(String className, String fieldName)
-        {
-            ClassName = className;
-            MemberName = fieldName;
         }
 
         // If ClassName != null, Message will construct on the fly using it
