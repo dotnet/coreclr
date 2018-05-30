@@ -9,11 +9,7 @@
 **
 =============================================================================*/
 
-
-using System;
 using System.Runtime.Serialization;
-using System.Runtime.CompilerServices;
-using System.Globalization;
 
 namespace System
 {
@@ -23,15 +19,8 @@ namespace System
         {
             get
             {
-                if (ClassName == null)
-                {
-                    return base.Message;
-                }
-                else
-                {
-                    // do any desired fixups to classname here.
-                    return SR.Format(SR.MissingField_Name, (Signature != null ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
-                }
+                // do any desired fixups to classname here.
+                return ClassName == null ? base.Message : SR.Format(SR.MissingField_Name, (Signature != null ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
             }
         }
     }
