@@ -40,8 +40,6 @@ namespace System.Threading
     {
         internal static class WorkStealingQueueList
         {
-            internal static int QueueSerachStart;
-
             private static volatile WorkStealingQueue[] _queues = new WorkStealingQueue[0];
 
             public static WorkStealingQueue[] Queues => _queues;
@@ -459,15 +457,7 @@ namespace System.Threading
                 int c = queues.Length;
                 Debug.Assert(c > 0, "There must at least be a queue for this thread.");
                 int maxIndex = c - 1;
-
-                // Get the current search start and set to -1 to indicate no preference
-                int i = Interlocked.Exchange(ref WorkStealingQueueList.QueueSerachStart, -1);
-                if (i == -1)
-                {
-                    // Current start was -1, so choose a random start
-                    i = tl.random.Next(c);
-                }
-
+                int i = tl.random.Next(c);
                 while (c > 0)
                 {
                     i = (i < maxIndex) ? i + 1 : 0;
@@ -481,13 +471,6 @@ namespace System.Threading
                         }
                     }
                     c--;
-                }
-
-                if (callback != null)
-                {
-                    // Set the search start to the next queue, if it is currently set to no preference
-                    i = (i < maxIndex) ? i + 1 : 0;
-                    Interlocked.CompareExchange(ref WorkStealingQueueList.QueueSerachStart, i, -1);
                 }
             }
 
