@@ -44,11 +44,11 @@ namespace System.Diagnostics
         /// <summary>
         /// Constructs a stack trace from the current location.
         /// </summary>
-        public StackTrace(bool needFileInfo)
+        public StackTrace(bool fNeedFileInfo)
         {
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, needFileInfo, null, null);
+            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, null);
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace System.Diagnostics
         /// Constructs a stack trace from the current location, in a caller's
         /// frame
         /// </summary>
-        public StackTrace(int skipFrames, bool needFileInfo)
+        public StackTrace(int skipFrames, bool fNeedFileInfo)
         {
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
@@ -80,7 +80,7 @@ namespace System.Diagnostics
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, needFileInfo, null, null);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, null);
         }
 
         /// <summary>
@@ -99,14 +99,14 @@ namespace System.Diagnostics
         /// <summary>
         /// Constructs a stack trace from the current location.
         /// </summary>
-        public StackTrace(Exception e, bool needFileInfo)
+        public StackTrace(Exception e, bool fNeedFileInfo)
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
 
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
-            CaptureStackTrace(METHODS_TO_SKIP, needFileInfo, null, e);
+            CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, e);
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace System.Diagnostics
         /// Constructs a stack trace from the current location, in a caller's
         /// frame
         /// </summary>
-        public StackTrace(Exception e, int skipFrames, bool needFileInfo)
+        public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo)
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
@@ -144,7 +144,7 @@ namespace System.Diagnostics
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
 
-            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, needFileInfo, null, e);
+            CaptureStackTrace(skipFrames + METHODS_TO_SKIP, fNeedFileInfo, null, e);
         }
 
         /// <summary>
@@ -160,7 +160,7 @@ namespace System.Diagnostics
 
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool needFileInfo, Exception e);
+        internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool fNeedFileInfo, Exception e);
 
         internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)
         {
@@ -194,13 +194,13 @@ namespace System.Diagnostics
         /// Retrieves an object with stack trace information encoded.
         /// It leaves out the first "iSkip" lines of the stacktrace.
         /// </summary>
-        private void CaptureStackTrace(int iSkip, bool needFileInfo, Thread targetThread, Exception e)
+        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Thread targetThread, Exception e)
         {
             m_iMethodsToSkip += iSkip;
 
             StackFrameHelper StackF = new StackFrameHelper(targetThread);
             
-            StackF.InitializeSourceInfo(0, needFileInfo, e);
+            StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
 
             m_iNumOfFrames = StackF.GetNumberOfFrames();
 
@@ -223,7 +223,7 @@ namespace System.Diagnostics
 
                     sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
 
-                    if (needFileInfo)
+                    if (fNeedFileInfo)
                     {
                         sfTemp.SetFileName(StackF.GetFilename(i));
                         sfTemp.SetLineNumber(StackF.GetLineNumber(i));
