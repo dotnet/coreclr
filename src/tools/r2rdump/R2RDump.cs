@@ -435,15 +435,25 @@ namespace R2RDump
                 _writer = Console.Out;
             }
 
-            foreach (string filename in _inputFilenames)
+            try
             {
-                R2RReader r2r = new R2RReader(filename);
-                Dump(r2r);
+                foreach (string filename in _inputFilenames)
+                {
+                    R2RReader r2r = new R2RReader(filename);
+                    Dump(r2r);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error: " + e.ToString());
+                return 1;
+            }
+            finally
+            {
+                // close output stream
+                _writer.Close();
             }
 
-            // close output stream
-            _writer.Close();
-            
             return 0;
         }
 
