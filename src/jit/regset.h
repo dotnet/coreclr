@@ -94,6 +94,11 @@ public:
         return (rsModifiedRegsMask & mask) != 0;
     }
 
+    void verifyRegUsed(regNumber reg) const
+    {
+        assert(rsRegsModified(genRegMask(reg)));
+    }
+
 public: // TODO-Cleanup: Should be private, but GCInfo uses them
     __declspec(property(get = GetMaskVars, put = SetMaskVars)) regMaskTP rsMaskVars; // mask of registers currently
                                                                                      // allocated to variables
@@ -190,7 +195,6 @@ public:
         regSet   = rs;
     }
 
-    void rsTrackRegTrash(regNumber reg);
     void rsTrackRegIntCns(regNumber reg, ssize_t val);
     void rsTrackRegLclVar(regNumber reg, unsigned var);
     void rsTrackRegCopy(regNumber reg1, regNumber reg2);
