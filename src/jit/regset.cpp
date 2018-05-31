@@ -71,6 +71,20 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
+void RegSet::verifyRegUsed(regNumber reg) const
+{
+    assert(rsRegsModified(genRegMask(reg)));
+}
+
+void RegSet::verifyRegistersUsed(regMaskTP regMask) const
+{
+    if (m_rsCompiler->opts.MinOpts() || m_rsCompiler->opts.compDbgCode)
+    {
+        return;
+    }
+    assert(rsRegsModified(regMask));
+}
+
 void RegSet::rsClearRegsModified()
 {
     assert(m_rsCompiler->lvaDoneFrameLayout < Compiler::FINAL_FRAME_LAYOUT);
