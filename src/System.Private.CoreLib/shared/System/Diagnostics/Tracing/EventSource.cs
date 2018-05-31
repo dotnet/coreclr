@@ -1169,7 +1169,7 @@ namespace System.Diagnostics.Tracing
                     {
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
+                            if (!m_etwProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
 #if FEATURE_PERFTRACING
                             if (!m_eventPipeProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, relatedActivityId, eventDataCount, (IntPtr)data))
@@ -1277,10 +1277,10 @@ namespace System.Diagnostics.Tracing
                     { }           // If it fails, simply give up.   
                     m_eventSourceEnabled = false;
                 }
-                if (m_provider != null)
+                if (m_etwProvider != null)
                 {
-                    m_provider.Dispose();
-                    m_provider = null;
+                    m_etwProvider.Dispose();
+                    m_etwProvider = null;
                 }
 #endif
 #if FEATURE_PERFTRACING
@@ -1315,13 +1315,13 @@ namespace System.Diagnostics.Tracing
             IntPtr data)
         {
 #if FEATURE_MANAGED_ETW
-            if (m_provider == null)
+            if (m_etwProvider == null)
             {
                 ThrowEventSourceException(eventName);
             }
             else
             {
-                if (!m_provider.WriteEventRaw(ref eventDescriptor, eventHandle, activityID, relatedActivityID, dataCount, data))
+                if (!m_etwProvider.WriteEventRaw(ref eventDescriptor, eventHandle, activityID, relatedActivityID, dataCount, data))
                     ThrowEventSourceException(eventName);
             }
 #endif // FEATURE_MANAGED_ETW
@@ -1406,7 +1406,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW
                 // OK if we get this far without an exception, then we can at least write out error messages. 
                 // Set m_provider, which allows this.  
-                m_provider = etwProvider;
+                m_etwProvider = etwProvider;
 
 #if PLATFORM_WINDOWS
 #if (!ES_BUILD_STANDALONE && !ES_BUILD_PN)
@@ -1420,7 +1420,7 @@ namespace System.Diagnostics.Tracing
                         System.Runtime.InteropServices.GCHandle.Alloc(this.providerMetadata, System.Runtime.InteropServices.GCHandleType.Pinned);
                     IntPtr providerMetadata = metadataHandle.AddrOfPinnedObject();
 
-                    setInformationResult = m_provider.SetInformation(
+                    setInformationResult = m_etwProvider.SetInformation(
                         UnsafeNativeMethods.ManifestEtw.EVENT_INFO_CLASS.SetTraits,
                         providerMetadata,
                         (uint)this.providerMetadata.Length);
@@ -1869,7 +1869,7 @@ namespace System.Diagnostics.Tracing
                     {
                         if (!SelfDescribingEvents)
                         {
-                            if (!m_provider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
+                            if (!m_etwProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
                                 ThrowEventSourceException(m_eventData[eventId].Name);
 #if FEATURE_PERFTRACING
                             if (!m_eventPipeProvider.WriteEvent(ref m_eventData[eventId].Descriptor, m_eventData[eventId].EventHandle, pActivityId, childActivityID, args))
@@ -2065,7 +2065,7 @@ namespace System.Diagnostics.Tracing
         private unsafe void WriteEventString(EventLevel level, long keywords, string msgString)
         {
 #if FEATURE_MANAGED_ETW
-            if (m_provider != null)
+            if (m_etwProvider != null)
             {
                 string eventName = "EventSourceMessage";
                 if (SelfDescribingEvents)
@@ -2100,7 +2100,7 @@ namespace System.Diagnostics.Tracing
                         data.Ptr = (ulong)msgStringPtr;
                         data.Size = (uint)(2 * (msgString.Length + 1));
                         data.Reserved = 0;
-                        m_provider.WriteEvent(ref descr, IntPtr.Zero, null, null, 1, (IntPtr)((void*)&data));
+                        m_etwProvider.WriteEvent(ref descr, IntPtr.Zero, null, null, 1, (IntPtr)((void*)&data));
                     }
                 }
             }
@@ -2422,7 +2422,7 @@ namespace System.Diagnostics.Tracing
             Debug.Assert(m_completelyInited);
 
 #if FEATURE_MANAGED_ETW
-            if (m_provider == null)     // If we failed to construct
+            if (m_etwProvider == null)     // If we failed to construct
                 return;
 #endif // FEATURE_MANAGED_ETW
 #if FEATURE_PERFTRACING
@@ -2594,7 +2594,7 @@ namespace System.Diagnostics.Tracing
                 if (eventId >= m_eventData.Length)
                     return false;
 #if FEATURE_MANAGED_ETW
-                if (m_provider != null)
+                if (m_etwProvider != null)
                     m_eventData[eventId].EnabledForBlobSerializedListeners = value;
 #endif
             }
@@ -2735,9 +2735,9 @@ namespace System.Diagnostics.Tracing
                 while (dataLeft > 0)
                 {
                     dataDescrs[1].Size = (uint)Math.Min(dataLeft, chunkSize);
-                    if (m_provider != null)
+                    if (m_etwProvider != null)
                     {
-                        if (!m_provider.WriteEvent(ref manifestDescr, IntPtr.Zero, null, null, 2, (IntPtr)dataDescrs))
+                        if (!m_etwProvider.WriteEvent(ref manifestDescr, IntPtr.Zero, null, null, 2, (IntPtr)dataDescrs))
                         {
                             // Turns out that if users set the BufferSize to something less than 64K then WriteEvent
                             // can fail.   If we get this failure on the first chunk try again with something smaller
@@ -3676,7 +3676,7 @@ namespace System.Diagnostics.Tracing
         // Dispatching state 
         internal volatile EventDispatcher m_Dispatchers;    // Linked list of code:EventDispatchers we write the data to (we also do ETW specially)
 #if FEATURE_MANAGED_ETW
-        private volatile OverideEventProvider m_provider;   // This hooks up ETW commands to our 'OnEventCommand' callback
+        private volatile OverideEventProvider m_etwProvider;   // This hooks up ETW commands to our 'OnEventCommand' callback
 #endif
 #if FEATURE_PERFTRACING
         private volatile OverideEventProvider m_eventPipeProvider;
