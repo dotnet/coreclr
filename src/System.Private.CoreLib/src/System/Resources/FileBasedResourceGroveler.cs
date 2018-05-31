@@ -42,7 +42,6 @@ namespace System.Resources
             ResourceSet rs = null;
 
             // Don't use Assembly manifest, but grovel on disk for a file.
-
             // Create new ResourceSet, if a file exists on disk for it.
             String tempFileName = _mediator.GetResourceFileName(culture);
             fileName = FindResourceFile(culture, tempFileName);
@@ -93,17 +92,22 @@ namespace System.Resources
             // look in .
             if (File.Exists(fileName))
                 return fileName;
-
+                
             return null;  // give up.
         }
 
-        // Constructs a new ResourceSet for a given file name.
+        // Constructs a new ResourceSet for a given file name.  The logic in
+        // here avoids a ReflectionPermission check for our RuntimeResourceSet
+        // for perf and working set reasons.
         private ResourceSet CreateResourceSet(String file)
         {
             Debug.Assert(file != null, "file shouldn't be null; check caller");
 
             if (_mediator.UserResourceSet == null)
             {
+                // Explicitly avoid CreateInstance if possible, because it
+                // requires ReflectionPermission to call private & protected
+                // constructors.  
                 return new RuntimeResourceSet(file);
             }
             else
