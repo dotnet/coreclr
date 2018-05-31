@@ -380,10 +380,19 @@ namespace System.Collections.Generic
 
             if (buckets != null)
             {
+                int collisionCount = 0;
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
                 for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next)
                 {
                     if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
+
+                    if (collisionCount >= entries.Length)
+                    {
+                        // The chain of entries forms a loop; which means a concurrent update has happened.
+                        // Break out of the loop and throw, rather than looping forever.
+                        ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                    }
+                    collisionCount++;
                 }
             }
             return -1;
@@ -431,6 +440,12 @@ namespace System.Collections.Generic
                     return false;
                 }
 #if FEATURE_RANDOMIZED_STRING_HASHING
+                if (collisionCount >= entries.Length)
+                {
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                }
                 collisionCount++;
 #endif
             }
