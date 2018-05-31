@@ -1559,7 +1559,6 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     CONTRACTL_END;
 
     _ASSERTE(fd != NULL);
-    ARM_ONLY(_ASSERTE((startAddr & THUMB_CODE) == 1));
 
     // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
     if (fd->IsDynamicMethod())
@@ -1587,6 +1586,7 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     //
     // We haven't got the lock yet so we'll repeat this lookup once
     // we've taken the lock.
+    ARM_ONLY(_ASSERTE((startAddr & THUMB_CODE) == 1));
     DebuggerJitInfo * pResult = FindJitInfo(fd, startAddr);
     if (pResult != NULL)
     {
