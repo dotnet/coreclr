@@ -258,7 +258,7 @@ namespace R2RDump
                     WriteWarning("Unable to find by id " + q);
                     continue;
                 }
-                _writer.WriteLine(rtf.Method.Signature);
+                _writer.WriteLine(rtf.Method.SignatureString);
                 DumpRuntimeFunction(r2r, rtf);
             }
         }
@@ -323,7 +323,7 @@ namespace R2RDump
                 sigMatch = method.Name.Equals(query, StringComparison.OrdinalIgnoreCase);
                 if (!sigMatch)
                 {
-                    string sig = method.Signature.Replace(" ", "");
+                    string sig = method.SignatureString.Replace(" ", "");
                     string q = query.Replace(" ", "");
                     int iMatch = sig.IndexOf(q, StringComparison.OrdinalIgnoreCase);
                     sigMatch = (iMatch == 0 || (iMatch > 0 && iMatch == (sig.Length - q.Length) && sig[iMatch - 1] == '.'));
@@ -331,7 +331,7 @@ namespace R2RDump
             }
             else
             {
-                string sig = method.ReturnType + method.Signature.Replace(" ", "");
+                string sig = method.Signature.ReturnType + method.SignatureString.Replace(" ", "");
                 sigMatch = (sig.IndexOf(query.Replace(" ", ""), StringComparison.OrdinalIgnoreCase) >= 0);
             }
 

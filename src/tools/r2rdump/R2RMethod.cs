@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
@@ -87,19 +88,21 @@ namespace R2RDump
         /// <summary>
         /// The signature with format: namespace.class.methodName<S, T, ...>(S, T, ...)
         /// </summary>
-        public string Signature { get; }
+        public string SignatureString { get; }
 
         public bool IsGeneric { get; }
 
-        /// <summary>
+        /*/// <summary>
         /// The return type of the method
         /// </summary>
-        public SignatureType ReturnType { get; }
+        public string ReturnType { get; }
 
         /// <summary>
         /// The argument types of the method
         /// </summary>
-        public SignatureType[] ArgTypes { get; }
+        public string[] ArgTypes { get; }*/
+
+        public MethodSignature<string> Signature { get; }
 
         /// <summary>
         /// The type that the method belongs to
@@ -129,7 +132,7 @@ namespace R2RDump
         /// <summary>
         /// Maps all the generic parameters to the type in the instance
         /// </summary>
-        Dictionary<string, GenericInstance> _genericParamInstanceMap;
+        Dictionary<string, string> _genericParamInstanceMap;
 
         [Flags]
         public enum EncodeMethodSigFlags
@@ -204,7 +207,7 @@ namespace R2RDump
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
             GenericParameterHandleCollection genericParams = _methodDef.GetGenericParameters();
-            _genericParamInstanceMap = new Dictionary<string, GenericInstance>();
+            _genericParamInstanceMap = new Dictionary<string, string>();
             
             int argCount = signatureReader.ReadCompressedInteger();
             if (IsGeneric)
@@ -212,19 +215,16 @@ namespace R2RDump
                 argCount = signatureReader.ReadCompressedInteger();
             }
 
-            ReturnType = new SignatureType(ref signatureReader, mdReader, genericParams);
-            ArgTypes = new SignatureType[argCount];
-            for (int i = 0; i < argCount; i++)
-            {
-                ArgTypes[i] = new SignatureType(ref signatureReader, mdReader, genericParams);
-            }
-
+            DisassemblingTypeProvider provider = new DisassemblingTypeProvider();
             if (IsGeneric && instanceArgs != null && tok != null)
             {
                 InitGenericInstances(genericParams, instanceArgs, tok);
             }
+            
+            DisassemblingGenericContext genericContext = new DisassemblingGenericContext(new string[0], _genericParamInstanceMap.Values.ToArray());
+            Signature = _methodDef.DecodeSignature(provider, genericContext);
 
-            Signature = GetSignature();
+            SignatureString = GetSignature();
         }
 
         private void InitGenericInstances(GenericParameterHandleCollection genericParams, GenericElementTypes[] instanceArgs, uint[] tok)
@@ -234,32 +234,17 @@ namespace R2RDump
                 throw new BadImageFormatException("Generic param indices out of bounds");
             }
 
-            for (int i = 0; i < genericParams.Count; i++)
+            for (int i = 0; i < instanceArgs.Length; i++)
             {
-                var key = _mdReader.GetString(_mdReader.GetGenericParameter(genericParams.ElementAt(i)).Name);
-
+                string key = _mdReader.GetString(_mdReader.GetGenericParameter(genericParams.ElementAt(i)).Name);
+                string name = instanceArgs[i].ToString();
                 if (instanceArgs[i] == GenericElementTypes.ValueType)
                 {
-                    string classname = _mdReader.GetString(_mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i])).Name);
-                    _genericParamInstanceMap[key] = new GenericInstance(instanceArgs[i], classname);
-                }
-                else
-                {
-                    _genericParamInstanceMap[key] = new GenericInstance(instanceArgs[i], Enum.GetName(typeof(GenericElementTypes), instanceArgs[i]));
-                }
-            }
+                    var t = _mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i]));
+                    name = _mdReader.GetString(t.Name);
 
-            if ((ReturnType.Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
-            {
-                ReturnType.GenericInstance = _genericParamInstanceMap[ReturnType.TypeName];
-            }
-
-            for (int i = 0; i < ArgTypes.Length; i++)
-            {
-                if ((ArgTypes[i].Flags & SignatureType.SignatureTypeFlags.GENERIC) != 0)
-                {
-                    ArgTypes[i].GenericInstance = _genericParamInstanceMap[ArgTypes[i].TypeName];
                 }
+                _genericParamInstanceMap[key] = name;
             }
         }
 
@@ -279,20 +264,20 @@ namespace R2RDump
                     {
                         sb.Append(", ");
                     }
-                    sb.AppendFormat($"{instance.TypeName}");
+                    sb.AppendFormat($"{instance}");
                     i++;
                 }
                 sb.Append(">");
             }
 
             sb.Append("(");
-            for (int i = 0; i < ArgTypes.Length; i++)
+            for (int i = 0; i < Signature.ParameterTypes.Length; i++)
             {
                 if (i > 0)
                 {
                     sb.Append(", ");
                 }
-                sb.AppendFormat($"{ArgTypes[i].ToString()}");
+                sb.AppendFormat($"{Signature.ParameterTypes[i]}");
             }
             sb.Append(")");
 
@@ -303,7 +288,7 @@ namespace R2RDump
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendLine($"{ReturnType.ToString()} {Signature}");
+            sb.AppendLine($"{Signature.ReturnType} {SignatureString}");
 
             sb.AppendLine($"Token: 0x{Token:X8}");
             sb.AppendLine($"Rid: {Rid}");
