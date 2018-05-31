@@ -23,6 +23,7 @@ namespace R2RDump
         private IReadOnlyList<string> _sections = Array.Empty<string>();
         private bool _diff = false;
         private long _disassembler;
+        private bool _types = false;
         private TextWriter _writer;
 
         private R2RDump()
@@ -47,7 +48,8 @@ namespace R2RDump
                 syntax.DefineOptionList("k|keyword", ref _keywords, "Search method by keyword");
                 syntax.DefineOptionList("r|runtimefunction", ref _runtimeFunctions, ArgStringToInt, "Get one runtime function by id or relative virtual address");
                 syntax.DefineOptionList("s|section", ref _sections, "Get section by keyword");
-                syntax.DefineOption("diff", ref _diff, "Compare two R2R images"); // not yet implemented
+                syntax.DefineOption("types", ref _types, "Dump available types");
+                syntax.DefineOption("diff", ref _diff, "Compare two R2R images (not yet implemented)"); // not yet implemented
             });
 
             return argSyntax;
@@ -196,6 +198,20 @@ namespace R2RDump
             _writer.WriteLine();
         }
 
+        private void DumpAvailableTypes(R2RReader r2r)
+        {
+            WriteDivider("Available Types");
+            foreach (Tuple<string, string> pair in r2r.AvailableTypes)
+            {
+                if (!pair.Item1.Equals(""))
+                {
+                    Console.Write($"{pair.Item1}.");
+                }
+                Console.WriteLine(pair.Item2);
+            }
+            Console.WriteLine();
+        }
+
         // <summary>
         /// For each query in the list of queries, search for all methods matching the query by name, signature or id
         /// </summary>
@@ -309,6 +325,11 @@ namespace R2RDump
                 QueryRuntimeFunction(r2r, _runtimeFunctions);
                 QueryMethod(r2r, "R2R Methods by Query", _queries, true);
                 QueryMethod(r2r, "R2R Methods by Keyword", _keywords, false);
+            }
+
+            if (_types)
+            {
+                DumpAvailableTypes(r2r);
             }
 
             _writer.WriteLine("=============================================================");
