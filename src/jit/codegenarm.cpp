@@ -1624,7 +1624,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                    (CorInfoHelpFunc)helper == CORINFO_HELP_PROF_FCN_LEAVE);
     }
 
-    regTracker.rsTrashRegSet(RBM_CALLEE_TRASH);
+    regSet.verifyRegistersUsed(RBM_CALLEE_TRASH);
 }
 
 //------------------------------------------------------------------------

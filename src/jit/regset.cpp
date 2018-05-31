@@ -62,30 +62,6 @@ void RegTracker::rsTrackRegLclVar(regNumber reg, unsigned var)
     regSet->rsSetRegsModified(genRegMask(reg));
 }
 
-/*****************************************************************************
- *
- *  A little helper to trash the given set of registers.
- *  Usually used after a call has been generated.
- */
-
-void RegTracker::rsTrashRegSet(regMaskTP regMask)
-{
-    if (compiler->opts.MinOpts() || compiler->opts.compDbgCode)
-    {
-        return;
-    }
-    regMaskTP regBit = 1;
-    for (regNumber regNum = REG_FIRST; regMask != 0; regNum = REG_NEXT(regNum), regBit <<= 1)
-    {
-        if (regBit & regMask)
-        {
-            // TODO, it will be gone anyway
-            // rsTrackRegTrash(regNum);
-            regMask -= regBit;
-        }
-    }
-}
-
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

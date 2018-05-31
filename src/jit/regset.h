@@ -99,6 +99,15 @@ public:
         assert(rsRegsModified(genRegMask(reg)));
     }
 
+    void RegSet::verifyRegistersUsed(regMaskTP regMask)
+    {
+        if (m_rsCompiler->opts.MinOpts() || m_rsCompiler->opts.compDbgCode)
+        {
+            return;
+        }
+        assert(rsRegsModified(regMask));
+    }
+
 public: // TODO-Cleanup: Should be private, but GCInfo uses them
     __declspec(property(get = GetMaskVars, put = SetMaskVars)) regMaskTP rsMaskVars; // mask of registers currently
                                                                                      // allocated to variables
@@ -196,6 +205,5 @@ public:
     }
 
     void rsTrackRegLclVar(regNumber reg, unsigned var);
-    void rsTrashRegSet(regMaskTP regMask);
 };
 #endif // _REGSET_H
