@@ -197,7 +197,6 @@ public:
 
     void rsTrackRegIntCns(regNumber reg, ssize_t val);
     void rsTrackRegLclVar(regNumber reg, unsigned var);
-    void rsTrackRegCopy(regNumber reg1, regNumber reg2);
     void rsTrashRegSet(regMaskTP regMask);
 };
 #endif // _REGSET_H

@@ -867,7 +867,7 @@ void CodeGen::genCodeForBinary(GenTree* treeNode)
     else
     {
         inst_RV_RV(ins_Copy(targetType), targetReg, op1reg, targetType);
-        regTracker.rsTrackRegCopy(targetReg, op1reg);
+        regSet.verifyRegUsed(targetReg);
         gcInfo.gcMarkRegPtrVal(targetReg, targetType);
         dst = treeNode;
         src = op2;

@@ -4243,7 +4243,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
                 getEmitter()->emitIns_R_R(insCopy, size, xtraReg, begRegNum);
 
-                regTracker.rsTrackRegCopy(xtraReg, begRegNum);
+                regSet.verifyRegUsed(xtraReg);
 
                 *pXtraRegClobbered = true;
 
@@ -4260,7 +4260,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
                     getEmitter()->emitIns_R_R(insCopy, size, destRegNum, srcRegNum);
 
-                    regTracker.rsTrackRegCopy(destRegNum, srcRegNum);
+                    regSet.verifyRegUsed(destRegNum);
 
                     /* mark 'src' as processed */
                     noway_assert(srcReg < argMax);
@@ -4312,7 +4312,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
                 getEmitter()->emitIns_R_R(insCopy, size, destRegNum, xtraReg);
 
-                regTracker.rsTrackRegCopy(destRegNum, xtraReg);
+                regSet.verifyRegUsed(destRegNum);
 
                 psiMoveToReg(varNumSrc);
 

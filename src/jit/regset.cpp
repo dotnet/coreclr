@@ -74,18 +74,6 @@ void RegTracker::rsTrackRegLclVar(regNumber reg, unsigned var)
     regSet->rsSetRegsModified(genRegMask(reg));
 }
 
-/*****************************************************************************/
-
-void RegTracker::rsTrackRegCopy(regNumber reg1, regNumber reg2)
-{
-    /* Keep track of which registers we ever touch */
-
-    assert(reg1 < REG_COUNT);
-    assert(reg2 < REG_COUNT);
-
-    regSet->rsSetRegsModified(genRegMask(reg1));
-}
-
 /*****************************************************************************
  *
  *  A little helper to trash the given set of registers.
