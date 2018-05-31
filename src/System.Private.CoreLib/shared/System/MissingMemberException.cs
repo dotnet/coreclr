@@ -2,15 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*=============================================================================
-**
-**
-**
-** Purpose: The exception class for versioning problems with DLLS.
-**
-**
-=============================================================================*/
-
 using System.Runtime.Serialization;
 
 namespace System
