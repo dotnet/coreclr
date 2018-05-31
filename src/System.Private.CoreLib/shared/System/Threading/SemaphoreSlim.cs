@@ -349,7 +349,7 @@ namespace System.Threading
                     var spinner = new SpinWait();
                     while (spinner.Count < spinCount)
                     {
-                        spinner.SpinOnce(sleep1Threshold: 0);
+                        spinner.SpinOnce(sleep1Threshold: -1);
 
                         if (m_currentCount != 0)
                         {

@@ -143,11 +143,11 @@ namespace System.Threading
         /// Performs a single spin.
         /// </summary>
         /// <param name="sleep1Threshold">
-        /// A minimum spin count after which <code>Thread.Sleep(1)</code> may be used. Zero may be used to disable the use of
-        /// <code>Thread.Sleep(1)</code>.
+        /// A minimum spin count after which <code>Thread.Sleep(1)</code> may be used. A value of <code>-1</code> may be used to
+        /// disable the use of <code>Thread.Sleep(1)</code>.
         /// </param>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// <paramref name="sleep1Threshold"/> is less than zero.
+        /// <paramref name="sleep1Threshold"/> is less than <code>-1</code>.
         /// </exception>
         /// <remarks>
         /// This is typically called in a loop, and may change in behavior based on the number of times a
@@ -155,13 +155,13 @@ namespace System.Threading
         /// </remarks>
         public void SpinOnce(int sleep1Threshold)
         {
-            if (sleep1Threshold < 0)
+            if (sleep1Threshold < -1)
             {
-                throw new ArgumentOutOfRangeException(nameof(sleep1Threshold), sleep1Threshold, SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(sleep1Threshold), sleep1Threshold, SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
             // So that NextSpinWillYield behaves as expected:
-            if (sleep1Threshold != 0 && sleep1Threshold < YieldThreshold && !PlatformHelper.IsSingleProcessor)
+            if (sleep1Threshold >= 0 && sleep1Threshold < YieldThreshold && !PlatformHelper.IsSingleProcessor)
             {
                 sleep1Threshold = YieldThreshold;
             }
@@ -171,10 +171,10 @@ namespace System.Threading
 
         private void SpinOnceCore(int sleep1Threshold)
         {
-            Debug.Assert(sleep1Threshold >= 0);
+            Debug.Assert(sleep1Threshold >= -1);
 
             // So that NextSpinWillYield behaves as requested:
-            Debug.Assert(sleep1Threshold == 0 || sleep1Threshold >= YieldThreshold || PlatformHelper.IsSingleProcessor);
+            Debug.Assert(sleep1Threshold < 0 || sleep1Threshold >= YieldThreshold || PlatformHelper.IsSingleProcessor);
 
             // (_count - YieldThreshold) % 2 == 0: The purpose of this check is to interleave Thread.Yield/Sleep(0) with
             // Thread.SpinWait. Otherwise, the following issues occur:
@@ -187,7 +187,7 @@ namespace System.Threading
             //     contention), they may switch between one another, delaying work that can make progress.
             if ((
                     _count >= YieldThreshold &&
-                    ((_count >= sleep1Threshold && sleep1Threshold != 0) || (_count - YieldThreshold) % 2 == 0)
+                    ((_count >= sleep1Threshold && sleep1Threshold >= 0) || (_count - YieldThreshold) % 2 == 0)
                 ) ||
                 PlatformHelper.IsSingleProcessor)
             {
@@ -206,7 +206,7 @@ namespace System.Threading
                 // configured to use the (default) coarse-grained system timer.
                 //
 
-                if (_count >= sleep1Threshold && sleep1Threshold != 0)
+                if (_count >= sleep1Threshold && sleep1Threshold >= 0)
                 {
                     RuntimeThread.Sleep(1);
                 }

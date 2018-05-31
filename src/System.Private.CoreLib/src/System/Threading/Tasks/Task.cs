@@ -3013,7 +3013,7 @@ namespace System.Threading.Tasks
             var spinner = new SpinWait();
             while (spinner.Count < spinCount)
             {
-                spinner.SpinOnce(sleep1Threshold: 0);
+                spinner.SpinOnce(sleep1Threshold: -1);
 
                 if (IsCompleted)
                 {
