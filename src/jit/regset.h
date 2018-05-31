@@ -174,25 +174,4 @@ private:
     void rsMarkSpill(GenTree* tree, regNumber reg);
 };
 
-//-------------------------------------------------------------------------
-//
-//  These are used to track the contents of the registers during
-//  code generation.
-//
-//  Only integer registers are tracked.
-//
-
-class RegTracker
-{
-    Compiler* compiler;
-    RegSet*   regSet;
-
-public:
-    void rsTrackInit(Compiler* comp, RegSet* rs)
-    {
-        compiler = comp;
-        regSet   = rs;
-    }
-};
-
 #endif // _REGSET_H
