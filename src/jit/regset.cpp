@@ -36,18 +36,6 @@ const regMaskSmall regMasks[] = {
 };
 #endif
 
-/*****************************************************************************/
-
-// inline
-void RegTracker::rsTrackRegIntCns(regNumber reg, ssize_t val)
-{
-    assert(genIsValidIntReg(reg));
-
-    /* Keep track of which registers we ever touch */
-
-    regSet->rsSetRegsModified(genRegMask(reg));
-}
-
 /*****************************************************************************
  *
  *  Record the fact that the given register now contains the given local

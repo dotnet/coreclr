@@ -195,7 +195,6 @@ public:
         regSet   = rs;
     }
 
-    void rsTrackRegIntCns(regNumber reg, ssize_t val);
     void rsTrackRegLclVar(regNumber reg, unsigned var);
     void rsTrashRegSet(regMaskTP regMask);
 };

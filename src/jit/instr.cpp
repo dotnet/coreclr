@@ -2133,7 +2133,7 @@ void CodeGen::instGen_Set_Reg_To_Zero(emitAttr size, regNumber reg, insFlags fla
 #else
 #error "Unknown _TARGET_"
 #endif
-    regTracker.rsTrackRegIntCns(reg, 0);
+    regSet.verifyRegUsed(reg);
 }
 
 /*****************************************************************************

@@ -119,7 +119,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
         }
     }
 
-    regTracker.rsTrackRegIntCns(reg, imm);
+    regSet.verifyRegUsed(reg);
 }
 
 //------------------------------------------------------------------------
