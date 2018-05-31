@@ -193,7 +193,6 @@ public:
         compiler = comp;
         regSet   = rs;
     }
-
-    void rsTrackRegLclVar(regNumber reg, unsigned var);
 };
+
 #endif // _REGSET_H

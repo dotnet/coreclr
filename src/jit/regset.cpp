@@ -36,32 +36,6 @@ const regMaskSmall regMasks[] = {
 };
 #endif
 
-/*****************************************************************************
- *
- *  Record the fact that the given register now contains the given local
- *  variable. Pointers are handled specially since reusing the register
- *  will extend the lifetime of a pointer register which is not a register
- *  variable.
- */
-
-void RegTracker::rsTrackRegLclVar(regNumber reg, unsigned var)
-{
-    LclVarDsc* varDsc = &compiler->lvaTable[var];
-    assert(reg != REG_STK);
-#if CPU_HAS_FP_SUPPORT
-    assert(varTypeIsFloating(varDsc->TypeGet()) == false);
-#endif
-
-    if (compiler->lvaTable[var].lvAddrExposed)
-    {
-        return;
-    }
-
-    /* Keep track of which registers we ever touch */
-
-    regSet->rsSetRegsModified(genRegMask(reg));
-}
-
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
