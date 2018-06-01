@@ -5876,9 +5876,11 @@ bool         NDirect::s_fSecureLoadLibrarySupported = false;
 #ifdef FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_W PAL_SHLIB_SUFFIX_W
 #define PLATFORM_SHARED_LIB_PREFIX_W PAL_SHLIB_PREFIX_W
+#define PLATFORM_PATH_DELIM W("/")
 #else // !FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_W W(".dll")
 #define PLATFORM_SHARED_LIB_PREFIX_W W("")
+#define PLATFORM_PATH_DELIM W("\\")
 #endif // !FEATURE_PAL
 
 // static
@@ -6034,62 +6036,76 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
 }
 
 #ifdef FEATURE_PAL
-static void DetermineLibNameVariations(const WCHAR* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
-    if (libNameIsRelativePath)
-    {
-        // We check if the suffix is contained in the name, because on Linux it is common to append
-        // a version number to the library name (e.g. 'libicuuc.so.57').
-        bool containsSuffix;
-        SString::CIterator it = libName.Begin();
-        if (libName.Find(it, PLATFORM_SHARED_LIB_SUFFIX_W))
-        {
-            it += wcslen(PLATFORM_SHARED_LIB_SUFFIX_W);
-            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
-        }
-        else
-        {
-            containsSuffix = false;
-        }
+    // Supported lib name variations
+    static const int MaxFmtCount = 4;
+    static auto NameFmt = W("%.0s%s%.0s");
+    static auto PrefixNameFmt = W("%s%s%.0s");
+    static auto NameSuffixFmt = W("%.0s%s%s");
+    static auto PrefixNameSuffixFmt = W("%s%s%s");
 
-        if (containsSuffix)
-        {
-            static const WCHAR* const SuffixLast[] =
-            {
-                W("%.0s%s"),   // name
-                W("%s%s%.0s"), // prefix+name
-                W("%.0s%s%s"), // name+suffix
-                W("%s%s%s")    // prefix+name+suffix
-            };
-            *libNameVariations = SuffixLast;
-            *numberOfVariations = COUNTOF(SuffixLast);
-        }
-        else
-        {
-            static const WCHAR* const SuffixFirst[] =
-            {
-                W("%.0s%s%s"), // name+suffix
-                W("%s%s%s"),   // prefix+name+suffix
-                W("%.0s%s"),   // name
-                W("%s%s%.0s")  // prefix+name
-            };
-            *libNameVariations = SuffixFirst;
-            *numberOfVariations = COUNTOF(SuffixFirst);
-        }
+    int varCount = 0;
+    if (!libNameIsRelativePath)
+    {
+        _ASSERTE(*numberOfVariations >= 1);
+        libNameVariations[varCount++] = NameFmt;
     }
     else
     {
-        static const WCHAR* const NameOnly[] =
+        // We check if the suffix is contained in the name, because on Linux it is common to append
+        // a version number to the library name (e.g. 'libicuuc.so.57').
+        bool containsSuffix = false;
+        SString::CIterator it = libName.Begin();
+        if (libName.Find(it, PLATFORM_SHARED_LIB_SUFFIX_W))
         {
-            W("%.0s%s")
-        };
-        *libNameVariations = NameOnly;
-        *numberOfVariations = COUNTOF(NameOnly);
+            it += COUNTOF(PLATFORM_SHARED_LIB_SUFFIX_W);
+            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
+        }
+
+        // If the path contains a path delimiter, we don't add a prefix
+        it = libName.Begin();
+        bool containsDelim = libName.Find(it, PLATFORM_PATH_DELIM);
+
+        _ASSERTE(*numberOfVariations >= MaxFmtCount);
+        if (containsSuffix)
+        {
+            libNameVariations[varCount++] = NameFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameFmt;
+
+            libNameVariations[varCount++] = NameSuffixFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameSuffixFmt;
+        }
+        else
+        {
+            libNameVariations[varCount++] = NameSuffixFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameSuffixFmt;
+
+            libNameVariations[varCount++] = NameFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameFmt;
+        }
     }
+
+    *numberOfVariations = varCount;
 }
 #else // FEATURE_PAL
-static void DetermineLibNameVariations(const WCHAR* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
+    // Supported lib name variations
+    static int MaxFmtCount = 2;
+    static auto NameFmt = W("%.0s%s%.0s");
+    static auto NameSuffixFmt = W("%.0s%s%s");
+
+    int varCount = 0;
+
     // The purpose of following code is to workaround LoadLibrary limitation: 
     // LoadLibrary won't append extension if filename itself contains '.'. Thus it will break the following scenario:
     // [DllImport("A.B")] // The full name for file is "A.B.dll". This is common code pattern for cross-platform PInvoke
@@ -6104,23 +6120,17 @@ static void DetermineLibNameVariations(const WCHAR* const** libNameVariations, i
         // If the string specifies a full path, the function searches only that path for the module.
         // If the string specifies a module name without a path and the file name extension is omitted, the function appends the default library extension .dll to the module name.
         // To prevent the function from appending .dll to the module name, include a trailing point character (.) in the module name string.
-        static const WCHAR* const NameOnly[] =
-        {
-            W("%.0s%s")
-        };
-        *libNameVariations = NameOnly;
-        *numberOfVariations = COUNTOF(NameOnly);
+        *libNameVariations[varCount++] = NameFmt;
     }
     else
     {
-        static const WCHAR* const SuffixLast[] =
-        {
-            W("%.0s%s"),   // name
-            W("%.0s%s%s"), // name+suffix
-        };
-        *libNameVariations = SuffixLast;
-        *numberOfVariations = COUNTOF(SuffixLast);
+        _ASSERTE(*numberOfVariations >= MaxFmtCount);
+
+        libNameVariations[varCount++] = NameFmt;
+        libNameVariations[varCount++] = NameSuffixFmt;
     }
+
+    *numberOfVariations = varCount;
 }
 #endif // FEATURE_PAL
 
@@ -6194,18 +6204,16 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     // even if it has one, or to leave off a prefix like "lib" even if it has one
     // (both of these are typically done to smooth over cross-platform differences). 
     // We try to dlopen with such variations on the original.
-    const WCHAR* const* prefixSuffixCombinations = nullptr;
-    int numberOfVariations = 0;
-    DetermineLibNameVariations(&prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
+    const WCHAR* prefixSuffixCombinations[4] = {};
+    int numberOfVariations = COUNTOF(prefixSuffixCombinations);
+    DetermineLibNameVariations(prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
     for (int i = 0; hmod == NULL && i < numberOfVariations; i++)
     {
         SString currLibNameVariation;
         currLibNameVariation.Printf(prefixSuffixCombinations[i], PLATFORM_SHARED_LIB_PREFIX_W, wszLibName, PLATFORM_SHARED_LIB_SUFFIX_W);
-        if (hmod == NULL)
-        {
-            // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
-            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
-        }
+
+        // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
 
         BOOL searchAssemblyDirectory = TRUE;
         if (hmod == NULL)
