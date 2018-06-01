@@ -58,14 +58,14 @@ namespace System.Text
         public override unsafe int GetByteCount(char[] chars, int index, int count)
         {
             // Validate input parameters
-            if (chars == null)
-                throw new ArgumentNullException("chars", SR.ArgumentNull_Array);
+            if (null == chars)
+                throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
 
-            if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? "index" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (index < 0 | count < 0)
+                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - index < count)
-                throw new ArgumentOutOfRangeException("chars", SR.ArgumentOutOfRange_IndexCountBuffer);
+                throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
 
             // If no input, return 0, avoid fixed empty array problem
             if (count == 0)
@@ -84,8 +84,8 @@ namespace System.Text
         public override unsafe int GetByteCount(String chars)
         {
             // Validate input
-            if (chars==null)
-                throw new ArgumentNullException("chars");
+            if (null == chars)
+                throw new ArgumentNullException(nameof(chars));
 
             fixed (char* pChars = chars)
                 return GetByteCount(pChars, chars.Length, null);
@@ -99,11 +99,11 @@ namespace System.Text
         public override unsafe int GetByteCount(char* chars, int count)
         {
             // Validate Parameters
-            if (chars == null)
-                throw new ArgumentNullException("chars", SR.ArgumentNull_Array);
+            if (null == chars)
+                throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
 
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // Call it with empty encoder
             return GetByteCount(chars, count, null);
@@ -117,17 +117,17 @@ namespace System.Text
         public override unsafe int GetBytes(String chars, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? "chars" : "bytes"), SR.ArgumentNull_Array);
+            if (null == chars | null == bytes)
+                throw new ArgumentNullException((null == chars ? nameof(chars) : nameof(bytes)), SR.ArgumentNull_Array);
 
-            if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? "charIndex" : "charCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (charIndex < 0 | charCount < 0)
+                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
-                throw new ArgumentOutOfRangeException("chars", SR.ArgumentOutOfRange_IndexCount);
+                throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCount);
 
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-                throw new ArgumentOutOfRangeException("byteIndex", SR.ArgumentOutOfRange_Index);
+            if (byteIndex < 0 | byteIndex > bytes.Length)
+                throw new ArgumentOutOfRangeException(nameof(byteIndex), SR.ArgumentOutOfRange_Index);
 
             int byteCount = bytes.Length - byteIndex;
 
@@ -153,17 +153,17 @@ namespace System.Text
                                                byte[] bytes, int byteIndex)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? "chars" : "bytes"), SR.ArgumentNull_Array);
+            if (null == chars | null == bytes)
+                throw new ArgumentNullException((null == chars ? nameof(chars) : nameof(bytes)), SR.ArgumentNull_Array);
 
-            if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? "charIndex" : "charCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (charIndex < 0 | charCount < 0)
+                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
-                throw new ArgumentOutOfRangeException("chars", SR.ArgumentOutOfRange_IndexCountBuffer);
+                throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-                throw new ArgumentOutOfRangeException("byteIndex", SR.ArgumentOutOfRange_Index);
+            if (byteIndex < 0 | byteIndex > bytes.Length)
+                throw new ArgumentOutOfRangeException(nameof(byteIndex), SR.ArgumentOutOfRange_Index);
 
             // If nothing to encode return 0
             if (charCount == 0)
@@ -185,11 +185,11 @@ namespace System.Text
         public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? "bytes" : "chars", SR.ArgumentNull_Array);
+            if (null == bytes | null == chars)
+                throw new ArgumentNullException(null == bytes ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
-            if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? "charCount" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (charCount < 0 | byteCount < 0)
+                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             return GetBytes(chars, charCount, bytes, byteCount, null);
         }
@@ -205,14 +205,14 @@ namespace System.Text
         public override unsafe int GetCharCount(byte[] bytes, int index, int count)
         {
             // Validate Parameters
-            if (bytes == null)
-                throw new ArgumentNullException("bytes", SR.ArgumentNull_Array);
+            if (null == bytes)
+                throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
-            if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? "index" : "count"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (index < 0 | count < 0)
+                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - index < count)
-                throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
+                throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
 
             // If no input just return 0, fixed doesn't like 0 length arrays
             if (count == 0)
@@ -231,11 +231,11 @@ namespace System.Text
         public override unsafe int GetCharCount(byte* bytes, int count)
         {
             // Validate Parameters
-            if (bytes == null)
-                throw new ArgumentNullException("bytes", SR.ArgumentNull_Array);
+            if (null == bytes)
+                throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             return GetCharCount(bytes, count, null);
         }
@@ -249,17 +249,17 @@ namespace System.Text
                                               char[] chars, int charIndex)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? "bytes" : "chars", SR.ArgumentNull_Array);
+            if (null == bytes | null == chars)
+                throw new ArgumentNullException(null == bytes ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
-            if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? "byteIndex" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (byteIndex < 0 | byteCount < 0)
+                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            if ( bytes.Length - byteIndex < byteCount)
-                throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
+            if (bytes.Length - byteIndex < byteCount)
+                throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
 
-            if (charIndex < 0 || charIndex > chars.Length)
-                throw new ArgumentOutOfRangeException("charIndex", SR.ArgumentOutOfRange_Index);
+            if (charIndex < 0 | charIndex > chars.Length)
+                throw new ArgumentOutOfRangeException(nameof(charIndex), SR.ArgumentOutOfRange_Index);
 
             // If no input, return 0 & avoid fixed problem
             if (byteCount == 0)
@@ -281,11 +281,11 @@ namespace System.Text
         public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? "bytes" : "chars", SR.ArgumentNull_Array);
+            if (null == bytes | null == chars)
+                throw new ArgumentNullException(null == bytes ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
-            if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? "charCount" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (charCount < 0 | byteCount < 0)
+                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             return GetChars(bytes, byteCount, chars, charCount, null);
         }
@@ -301,15 +301,15 @@ namespace System.Text
         public override unsafe string GetString(byte[] bytes, int byteIndex, int byteCount)
         {
             // Validate Parameters
-            if (bytes == null)
-                throw new ArgumentNullException("bytes", SR.ArgumentNull_Array);
+            if (null == bytes)
+                throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
-            if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? "byteIndex" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
+            if (byteIndex < 0 | byteCount < 0)
+                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
 
             if (bytes.Length - byteIndex < byteCount)
-                throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
+                throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
 
             // Avoid problems with empty input buffer
             if (byteCount == 0) return string.Empty;
@@ -335,7 +335,7 @@ namespace System.Text
             // Assert because we shouldn't be able to have a null encoder.
             Debug.Assert(encoderFallback != null, "[ASCIIEncoding.GetByteCount]Attempting to use null fallback encoder");
 
-            char charLeftOver = (char)0;
+            char charLeftOver = default;
             EncoderReplacementFallback fallback = null;
 
             // Start by assuming default count, then +/- for fallback characters
@@ -418,7 +418,7 @@ namespace System.Text
 
             // Go ahead and do it, including the fallback.
             char ch;
-            while ((ch = (fallbackBuffer == null) ? '\0' : fallbackBuffer.InternalGetNextChar()) != 0 ||
+            while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
                     chars < charEnd)
             {
                 // First unwind any fallback
@@ -433,7 +433,7 @@ namespace System.Text
                 // no chars >= 0x80 are allowed.
                 if (ch > 0x7f)
                 {
-                    if (fallbackBuffer == null)
+                    if (null == fallbackBuffer)
                     {
                         // Initialize the buffer
                         if (encoder == null)
@@ -454,7 +454,7 @@ namespace System.Text
                 byteCount++;
             }
 
-            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
+            Debug.Assert(null == fallbackBuffer || fallbackBuffer.Remaining == 0,
                 "[ASCIIEncoding.GetByteCount]Expected Empty fallback buffer");
 
             return byteCount;
@@ -473,7 +473,7 @@ namespace System.Text
             Debug.Assert(encoderFallback != null, "[ASCIIEncoding.GetBytes]Attempting to use null encoder fallback");
 
             // Get any left over characters
-            char charLeftOver = (char)0;
+            char charLeftOver = default;
             EncoderReplacementFallback fallback = null;
 
             // For fallback we may need a fallback buffer, we know we aren't default fallback.
@@ -535,7 +535,7 @@ namespace System.Text
                         // Have to have room
                         // Throw even if doing no throw version because this is just 1 char,
                         // so buffer will never be big enough
-                        if (byteCount == 0)
+                        if (0 == byteCount)
                             ThrowBytesOverflow(encoder, true);
 
                         // This'll make sure we still have more room and also make sure our return value is correct.
@@ -564,7 +564,7 @@ namespace System.Text
                     // Clear encoder
                     if (encoder != null)
                     {
-                        encoder._charLeftOver = (char)0;
+                        encoder._charLeftOver = default;
                         encoder._charsUsed = (int)(chars - charStart);
                     }
 
@@ -598,11 +598,11 @@ namespace System.Text
 
             // Go ahead and do it, including the fallback.
             char ch;
-            while ((ch = (fallbackBuffer == null) ? '\0' : fallbackBuffer.InternalGetNextChar()) != 0 ||
+            while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
                     chars < charEnd)
             {
                 // First unwind any fallback
-                if (ch == 0)
+                if (default == ch)
                 {
                     // No fallback, just get next char
                     ch = *chars;
@@ -614,7 +614,7 @@ namespace System.Text
                 if (ch > 0x7f)
                 {
                     // Initialize the buffer
-                    if (fallbackBuffer == null)
+                    if (null == fallbackBuffer)
                     {
                         if (encoder == null)
                             fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
@@ -637,7 +637,7 @@ namespace System.Text
                 if (bytes >= byteEnd)
                 {
                     // didn't use this char, we'll throw or use buffer
-                    if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false)
+                    if (null == fallbackBuffer || fallbackBuffer.bFallingBack == false)
                     {
                         Debug.Assert(chars > charStart || bytes == byteStart,
                             "[ASCIIEncoding.GetBytes]Expected chars to have advanced already.");
@@ -660,16 +660,16 @@ namespace System.Text
             if (encoder != null)
             {
                 // Fallback stuck it in encoder if necessary, but we have to clear MustFlush cases
-                if (fallbackBuffer != null && !fallbackBuffer.bUsedEncoder)
+                if (fallbackBuffer != null && false == fallbackBuffer.bUsedEncoder)
                     // Clear it in case of MustFlush
-                    encoder._charLeftOver = (char)0;
+                    encoder._charLeftOver = default;
 
                 // Set our chars used count
                 encoder._charsUsed = (int)(chars - charStart);
             }
 
-            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0 ||
-                (encoder != null && !encoder._throwOnOverflow),
+            Debug.Assert(null == fallbackBuffer || fallbackBuffer.Remaining == 0 ||
+                (encoder != null && false == encoder._throwOnOverflow),
                 "[ASCIIEncoding.GetBytes]Expected Empty fallback buffer at end");
 
             return (int)(bytes - byteStart);
@@ -685,12 +685,12 @@ namespace System.Text
             // ASCII doesn't do best fit, so don't have to check for it, find out which decoder fallback we're using
             DecoderReplacementFallback fallback = null;
 
-            if (decoder == null)
+            if (null == decoder)
                 fallback = this.DecoderFallback as DecoderReplacementFallback;
             else
             {
                 fallback = decoder.Fallback as DecoderReplacementFallback;
-                Debug.Assert(!decoder._throwOnOverflow || !decoder.InternalHasFallbackBuffer ||
+                Debug.Assert(false == decoder._throwOnOverflow | false == decoder.InternalHasFallbackBuffer |
                     decoder.FallbackBuffer.Remaining == 0,
                     "[ASCIICodePageEncoding.GetCharCount]Expected empty fallback buffer");
             }
@@ -708,7 +708,6 @@ namespace System.Text
 
             // Have to do it the hard way.
             // Assume charCount will be == count
-            int charCount = count;
             byte[] byteBuffer = new byte[1];
 
             // Do it our fast way
@@ -724,9 +723,9 @@ namespace System.Text
                 // If unknown we have to do fallback count
                 if (b >= 0x80)
                 {
-                    if (fallbackBuffer == null)
+                    if (null == fallbackBuffer)
                     {
-                        if (decoder == null)
+                        if (null == decoder)
                             fallbackBuffer = this.DecoderFallback.CreateFallbackBuffer();
                         else
                             fallbackBuffer = decoder.FallbackBuffer;
@@ -735,17 +734,17 @@ namespace System.Text
 
                     // Use fallback buffer
                     byteBuffer[0] = b;
-                    charCount--;            // Have to unreserve the one we already allocated for b
-                    charCount += fallbackBuffer.InternalFallback(byteBuffer, bytes);
+                    count--;            // Have to unreserve the one we already allocated for b
+                    count += fallbackBuffer.InternalFallback(byteBuffer, bytes);
                 }
             }
 
             // Fallback buffer must be empty
-            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
+            Debug.Assert(null == fallbackBuffer || fallbackBuffer.Remaining == 0,
                 "[ASCIIEncoding.GetCharCount]Expected Empty fallback buffer");
 
             // Converted sequence is same length as input
-            return charCount;
+            return count;
         }
 
         internal override unsafe int GetChars(byte* bytes, int byteCount,
@@ -768,12 +767,13 @@ namespace System.Text
             DecoderReplacementFallback fallback = null;
             char* charsForFallback;
 
-            if (decoder == null)
+            if (null == decoder)
                 fallback = this.DecoderFallback as DecoderReplacementFallback;
             else
             {
                 fallback = decoder.Fallback as DecoderReplacementFallback;
-                Debug.Assert(!decoder._throwOnOverflow || !decoder.InternalHasFallbackBuffer ||
+                Debug.Assert(false == decoder._throwOnOverflow || 
+                    false == decoder.InternalHasFallbackBuffer ||
                     decoder.FallbackBuffer.Remaining == 0,
                     "[ASCIICodePageEncoding.GetChars]Expected empty fallback buffer");
             }
@@ -825,9 +825,9 @@ namespace System.Text
                 if (b >= 0x80)
                 {
                     // This is an invalid byte in the ASCII encoding.
-                    if (fallbackBuffer == null)
+                    if (null == fallbackBuffer)
                     {
-                        if (decoder == null)
+                        if (null == decoder)
                             fallbackBuffer = this.DecoderFallback.CreateFallbackBuffer();
                         else
                             fallbackBuffer = decoder.FallbackBuffer;
@@ -839,10 +839,7 @@ namespace System.Text
 
                     // Note that chars won't get updated unless this succeeds
                     charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
-                    bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
-                    chars = charsForFallback;
-
-                    if (!fallbackResult)
+                    if(false == fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback))
                     {
                         // May or may not throw, but we didn't get this byte
                         Debug.Assert(bytes > byteStart || chars == charStart,
@@ -850,8 +847,9 @@ namespace System.Text
                         bytes--;                                            // unused byte
                         fallbackBuffer.InternalReset();                     // Didn't fall this back
                         ThrowCharsOverflow(decoder, chars == charStart);    // throw?
-                        break;                                              // don't throw, but stop loop
+                        break;
                     }
+                    chars = charsForFallback;
                 }
                 else
                 {
@@ -871,11 +869,11 @@ namespace System.Text
             }
 
             // Might have had decoder fallback stuff.
-            if (decoder != null)
+            if (null != decoder)
                 decoder._bytesUsed = (int)(bytes - byteStart);
 
             // Expect Empty fallback buffer for GetChars
-            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
+            Debug.Assert(null == fallbackBuffer || fallbackBuffer.Remaining == 0,
                 "[ASCIIEncoding.GetChars]Expected Empty fallback buffer");
 
             return (int)(chars - charStart);
@@ -891,55 +889,41 @@ namespace System.Text
             // Characters would be # of characters + 1 in case high surrogate is ? * max fallback
             long byteCount = (long)charCount + 1;
 
-            if (EncoderFallback.MaxCharCount > 1)
-                byteCount *= EncoderFallback.MaxCharCount;
-
             // 1 to 1 for most characters.  Only surrogates with fallbacks have less.
-
-            if (byteCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GetByteCountOverflow);
-            return (int)byteCount;
+            return (byteCount *= EncoderFallback.MaxCharCount) > int.MaxValue 
+                ? 
+                throw new ArgumentOutOfRangeException(nameof(charCount), SR.ArgumentOutOfRange_GetByteCountOverflow) 
+                : 
+                (int)byteCount;
         }
 
 
         public override int GetMaxCharCount(int byteCount)
         {
             if (byteCount < 0)
-                throw new ArgumentOutOfRangeException(nameof(byteCount),
-                     SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // Just return length, SBCS stay the same length because they don't map to surrogate
-            long charCount = (long)byteCount;
+            long charCount = byteCount;
 
             // 1 to 1 for most characters.  Only surrogates with fallbacks have less, unknown fallbacks could be longer.
-            if (DecoderFallback.MaxCharCount > 1)
-                charCount *= DecoderFallback.MaxCharCount;
-
-            if (charCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_GetCharCountOverflow);
-
-            return (int)charCount;
+            return (charCount *= DecoderFallback.MaxCharCount) > int.MaxValue 
+                ? 
+                throw new ArgumentOutOfRangeException(nameof(byteCount), SR.ArgumentOutOfRange_GetCharCountOverflow) 
+                : 
+                (int)charCount;
         }
 
         // True if and only if the encoding only uses single byte code points.  (Ie, ASCII, 1252, etc)
 
         public override bool IsSingleByte
         {
-            get
-            {
-                return true;
-            }
+            get => true;
         }
 
-        public override Decoder GetDecoder()
-        {
-            return new DecoderNLS(this);
-        }
+        public override Decoder GetDecoder() => new DecoderNLS(this);
 
 
-        public override Encoder GetEncoder()
-        {
-            return new EncoderNLS(this);
-        }
+        public override Encoder GetEncoder() => new EncoderNLS(this);
     }
 }

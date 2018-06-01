@@ -16,25 +16,21 @@ namespace System.Text
 
         public static EncoderFallback ReplacementFallback
         {
-            get
-            {
-                if (s_replacementFallback == null)
-                    Interlocked.CompareExchange<EncoderFallback>(ref s_replacementFallback, new EncoderReplacementFallback(), null);
-
-                return s_replacementFallback;
-            }
+            get => s_replacementFallback 
+                ?? 
+                Interlocked.CompareExchange<EncoderFallback>(ref s_replacementFallback, new EncoderReplacementFallback(), null) 
+                ?? 
+                s_replacementFallback;
         }
 
 
         public static EncoderFallback ExceptionFallback
         {
-            get
-            {
-                if (s_exceptionFallback == null)
-                    Interlocked.CompareExchange<EncoderFallback>(ref s_exceptionFallback, new EncoderExceptionFallback(), null);
-
-                return s_exceptionFallback;
-            }
+            get => s_exceptionFallback 
+                ??
+                Interlocked.CompareExchange<EncoderFallback>(ref s_exceptionFallback, new EncoderExceptionFallback(), null) 
+                ??
+                s_exceptionFallback;
         }
 
         // Fallback
@@ -79,7 +75,7 @@ namespace System.Text
 
         public virtual void Reset()
         {
-            while (GetNextChar() != (char)0) ;
+            while (GetNextChar() != default) ;
         }
 
         // Internal items to help us figure out what we're doing as far as error messages, etc.
@@ -119,9 +115,22 @@ namespace System.Text
         internal char InternalGetNextChar()
         {
             char ch = GetNextChar();
-            bFallingBack = (ch != 0);
-            if (ch == 0) iRecursionCount = 0;
-            return ch;
+
+            //bFallingBack = (ch != default);
+            //if (default == ch) iRecursionCount = 0;
+            //return ch;
+
+            switch (ch)
+            {
+                case default(char): //can't use simple default syntax in switch...
+                    iRecursionCount = 0;
+                    bFallingBack = false;
+                    return ch;
+                default:
+                    bFallingBack = true;
+                    return ch;
+            }
+            
         }
 
         // Fallback the current character using the remaining buffer and encoder if necessary
@@ -149,7 +158,7 @@ namespace System.Text
                 {
                     // Nothing left in input buffer
                     // No input, return 0 if mustflush is false
-                    if (this.encoder != null && !this.encoder.MustFlush)
+                    if (this.encoder != null && false == this.encoder.MustFlush)
                     {
                         // Done, nothing to fallback
                         if (this.setEncoder)
@@ -191,7 +200,7 @@ namespace System.Text
         }
 
         // private helper methods
-        internal void ThrowLastCharRecursive(int charRecursive)
+        static internal void ThrowLastCharRecursive(int charRecursive)
         {
             // Throw it, using our complete character
             throw new ArgumentException(
