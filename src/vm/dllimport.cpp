@@ -5876,11 +5876,9 @@ bool         NDirect::s_fSecureLoadLibrarySupported = false;
 #ifdef FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_W PAL_SHLIB_SUFFIX_W
 #define PLATFORM_SHARED_LIB_PREFIX_W PAL_SHLIB_PREFIX_W
-#define PLATFORM_PATH_DELIM W("/")
 #else // !FEATURE_PAL
 #define PLATFORM_SHARED_LIB_SUFFIX_W W(".dll")
 #define PLATFORM_SHARED_LIB_PREFIX_W W("")
-#define PLATFORM_PATH_DELIM W("\\")
 #endif // !FEATURE_PAL
 
 // static
@@ -6036,19 +6034,20 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
 }
 
 #ifdef FEATURE_PAL
+static const int MaxVariationCount = 4;
 static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
     // Supported lib name variations
-    static const int MaxFmtCount = 4;
     static auto NameFmt = W("%.0s%s%.0s");
     static auto PrefixNameFmt = W("%s%s%.0s");
     static auto NameSuffixFmt = W("%.0s%s%s");
     static auto PrefixNameSuffixFmt = W("%s%s%s");
 
+    _ASSERTE(*numberOfVariations >= MaxVariationCount);
+
     int varCount = 0;
     if (!libNameIsRelativePath)
     {
-        _ASSERTE(*numberOfVariations >= 1);
         libNameVariations[varCount++] = NameFmt;
     }
     else
@@ -6065,9 +6064,8 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 
         // If the path contains a path delimiter, we don't add a prefix
         it = libName.Begin();
-        bool containsDelim = libName.Find(it, PLATFORM_PATH_DELIM);
+        bool containsDelim = libName.Find(it, DIRECTORY_SEPARATOR_STR_W);
 
-        _ASSERTE(*numberOfVariations >= MaxFmtCount);
         if (containsSuffix)
         {
             libNameVariations[varCount++] = NameFmt;
@@ -6097,12 +6095,14 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
     *numberOfVariations = varCount;
 }
 #else // FEATURE_PAL
+static const int MaxVariationCount = 2;
 static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
     // Supported lib name variations
-    static int MaxFmtCount = 2;
     static auto NameFmt = W("%.0s%s%.0s");
     static auto NameSuffixFmt = W("%.0s%s%s");
+
+    _ASSERTE(*numberOfVariations >= MaxVariationCount);
 
     int varCount = 0;
 
@@ -6120,12 +6120,10 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
         // If the string specifies a full path, the function searches only that path for the module.
         // If the string specifies a module name without a path and the file name extension is omitted, the function appends the default library extension .dll to the module name.
         // To prevent the function from appending .dll to the module name, include a trailing point character (.) in the module name string.
-        *libNameVariations[varCount++] = NameFmt;
+        libNameVariations[varCount++] = NameFmt;
     }
     else
     {
-        _ASSERTE(*numberOfVariations >= MaxFmtCount);
-
         libNameVariations[varCount++] = NameFmt;
         libNameVariations[varCount++] = NameSuffixFmt;
     }
@@ -6204,7 +6202,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     // even if it has one, or to leave off a prefix like "lib" even if it has one
     // (both of these are typically done to smooth over cross-platform differences). 
     // We try to dlopen with such variations on the original.
-    const WCHAR* prefixSuffixCombinations[4] = {};
+    const WCHAR* prefixSuffixCombinations[MaxVariationCount] = {};
     int numberOfVariations = COUNTOF(prefixSuffixCombinations);
     DetermineLibNameVariations(prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
     for (int i = 0; hmod == NULL && i < numberOfVariations; i++)
