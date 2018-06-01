@@ -50,6 +50,9 @@ namespace Tracing.Tests
         {
             bool pass = true;
 
+            Console.WriteLine("Press any key to continue.");
+            Console.ReadKey();
+
             using (SimpleEventSource eventSource = new SimpleEventSource())
             {
                 using (var netPerfFile = NetPerfFile.Create(args))
