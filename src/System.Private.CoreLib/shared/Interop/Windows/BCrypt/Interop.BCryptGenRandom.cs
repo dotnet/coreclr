@@ -20,14 +20,6 @@ internal partial class Interop
 
         private const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
 
-        internal enum NTSTATUS : uint
-        {
-            STATUS_SUCCESS = 0x0,
-            STATUS_NOT_FOUND = 0xc0000225,
-            STATUS_INVALID_PARAMETER = 0xc000000d,
-            STATUS_NO_MEMORY = 0xc0000017,
-        }
-
         [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
         private static extern unsafe NTSTATUS BCryptGenRandom(IntPtr hAlgorithm, byte* pbBuffer, int cbBuffer, int dwFlags);
     }
