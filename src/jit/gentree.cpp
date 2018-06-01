@@ -1917,6 +1917,10 @@ AGAIN:
                 add = tree->gtStrCon.gtSconCPX;
                 break;
 
+            case GT_CNS_UTF8STR:
+                add = tree->gtUtf8StrCon.gtSconCPX;
+                break;
+
             case GT_JMP:
                 add = tree->gtVal.gtVal1;
                 break;
@@ -3131,6 +3135,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 goto COMMON_CNS;
 
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
                 // Uses movw/movt
                 costSz = 7;
                 costEx = 3;
@@ -3173,6 +3178,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 goto COMMON_CNS;
 
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
                 costSz = 4;
                 costEx = 1;
                 goto COMMON_CNS;
@@ -3209,6 +3215,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #elif defined(_TARGET_ARM64_)
             case GT_CNS_LNG:
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
             case GT_CNS_INT:
                 // TODO-ARM64-NYI: Need cost estimates.
                 costSz = 1;
@@ -3218,6 +3225,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 #else
             case GT_CNS_LNG:
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
             case GT_CNS_INT:
 #error "Unknown _TARGET_"
 #endif
@@ -5087,6 +5095,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_CNS_LNG:
         case GT_CNS_DBL:
         case GT_CNS_STR:
+        case GT_CNS_UTF8STR:
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:
@@ -6069,6 +6078,24 @@ GenTree* Compiler::gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle)
     GenTree* node = new (this, GT_CALL) GenTreeStrCon(CPX, scpHandle DEBUGARG(/*largeNode*/ true));
 #else
     GenTree* node = new (this, GT_CNS_STR) GenTreeStrCon(CPX, scpHandle DEBUGARG(/*largeNode*/ true));
+#endif
+
+    return node;
+}
+
+GenTree* Compiler::gtNewUtf8SconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle, CORINFO_CLASS_HANDLE stringClass)
+{
+
+#if SMALL_TREE_NODES
+
+    /* 'GT_CNS_UTF8STR' nodes later get transformed into 'GT_CALL' */
+
+    assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_CNS_UTF8STR]);
+
+    GenTree* node = new (this, GT_CALL) GenTreeUtf8StrCon(CPX, scpHandle, stringClass DEBUGARG(/*largeNode*/ true));
+#else
+    GenTree* node =
+        new (this, GT_CNS_UTF8STR) GenTreeUtf8StrCon(CPX, scpHandle, stringClass DEBUGARG(/*largeNode*/ true));
 #endif
 
     return node;
@@ -7268,6 +7295,11 @@ GenTree* Compiler::gtCloneExpr(
                 copy = gtNewSconNode(tree->gtStrCon.gtSconCPX, tree->gtStrCon.gtScpHnd);
                 goto DONE;
 
+            case GT_CNS_UTF8STR:
+                copy = gtNewUtf8SconNode(tree->gtUtf8StrCon.gtSconCPX, tree->gtUtf8StrCon.gtScpHnd,
+                                         tree->gtUtf8StrCon.gtStringClass);
+                goto DONE;
+
             case GT_LCL_VAR:
 
                 if (tree->gtLclVarCommon.gtLclNum == varNum)
@@ -8171,6 +8203,14 @@ bool Compiler::gtCompareTree(GenTree* op1, GenTree* op2)
                 }
                 break;
 
+            case GT_CNS_UTF8STR:
+                if ((op1->gtUtf8StrCon.gtSconCPX == op2->gtUtf8StrCon.gtSconCPX) &&
+                    (op1->gtUtf8StrCon.gtStringClass == op2->gtUtf8StrCon.gtStringClass))
+                {
+                    return true;
+                }
+                break;
+
             case GT_LCL_VAR:
                 if (op1->gtLclVarCommon.gtLclNum == op2->gtLclVarCommon.gtLclNum)
                 {
@@ -8728,6 +8768,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_CNS_LNG:
         case GT_CNS_DBL:
         case GT_CNS_STR:
+        case GT_CNS_UTF8STR:
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:
@@ -10487,6 +10528,9 @@ void Compiler::gtDispConst(GenTree* tree)
             break;
         case GT_CNS_STR:
             printf("<string constant>");
+            break;
+        case GT_CNS_UTF8STR:
+            printf("<utf8 string constant>");
             break;
         default:
             assert(!"unexpected constant node");
@@ -13744,7 +13788,8 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
 
             /* String nodes are an RVA at this point */
 
-            if (op1->gtOper == GT_CNS_STR || op2->gtOper == GT_CNS_STR)
+            if (op1->gtOper == GT_CNS_STR || op2->gtOper == GT_CNS_STR || op1->gtOper == GT_CNS_UTF8STR ||
+                op2->gtOper == GT_CNS_UTF8STR)
             {
                 return tree;
             }
@@ -16744,6 +16789,16 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
             // For literal strings, we know the class and that the
             // value is not null.
             objClass   = impGetStringClass();
+            *isExact   = true;
+            *isNonNull = true;
+            break;
+        }
+
+        case GT_CNS_UTF8STR:
+        {
+            // For literal strings, we know the class and that the
+            // value is not null.
+            objClass   = tree->gtUtf8StrCon.gtStringClass;
             *isExact   = true;
             *isNonNull = true;
             break;

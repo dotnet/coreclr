@@ -26,6 +26,7 @@ public:
     static FCDECL4(Object*, CreateDynamicAssembly, AppDomainBaseObject* refThisUNSAFE, AssemblyNameBaseObject* assemblyNameUNSAFE, StackCrawlMark* stackMark, INT32 access);
     static FCDECL2(Object*, GetAssemblies, AppDomainBaseObject* refThisUNSAFE, CLR_BOOL fForIntrospection); 
     static FCDECL2(Object*, GetOrInternString, AppDomainBaseObject* refThisUNSAFE, StringObject* pStringUNSAFE);
+    static FCDECL2(Object*, GetOrInternUtf8String, AppDomainBaseObject* refThisUNSAFE, Utf8StringObject* pStringUNSAFE);
     static FCDECL1(void, CreateContext, AppDomainBaseObject *refThisUNSAFE);
     static void QCALLTYPE SetupBindingPaths(__in_z LPCWSTR wszTrustedPlatformAssemblies, __in_z LPCWSTR wszPlatformResourceRoots, __in_z LPCWSTR wszAppPaths, __in_z LPCWSTR wszAppNiPaths, __in_z LPCWSTR appLocalWinMD);
     static FCDECL1(void, Unload, INT32 dwId);

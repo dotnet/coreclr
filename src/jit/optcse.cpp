@@ -2673,6 +2673,7 @@ bool Compiler::optIsCSEcandidate(GenTree* tree)
         case GT_CNS_LNG:
         case GT_CNS_DBL:
         case GT_CNS_STR:
+        case GT_CNS_UTF8STR:
             return true; // We reach here only when CSE_CONSTS is enabled
 
         case GT_ARR_ELEM:

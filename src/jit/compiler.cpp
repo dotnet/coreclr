@@ -10138,6 +10138,11 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             chars += printf("CONST(STR)");
             break;
 
+        case GT_CNS_UTF8STR:
+
+            chars += printf("CONST(UTF8STR)");
+            break;
+
         case GT_JMP:
 
         {

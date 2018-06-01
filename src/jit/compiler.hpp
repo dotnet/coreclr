@@ -4570,6 +4570,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_CNS_LNG:
         case GT_CNS_DBL:
         case GT_CNS_STR:
+        case GT_CNS_UTF8STR:
         case GT_MEMORYBARRIER:
         case GT_JMP:
         case GT_JCC:

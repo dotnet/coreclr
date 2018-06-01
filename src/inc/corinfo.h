@@ -725,6 +725,12 @@ inline CorInfoType strip(CorInfoTypeWithMod val) {
     return CorInfoType(val & CORINFO_TYPE_MASK);
 }
 
+enum CorInfoLiteralStringTypeFlag
+{
+    CORINFO_STRING_RID_MASK     = 0x7FFFFFFF, // Lower 31 bits are string data
+    CORINFO_STRING_UTF8STRING = 0x80000000, // High flag bit
+};
+
 // The enumeration is returned in 'getSig'
 
 enum CorInfoCallConv

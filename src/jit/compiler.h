@@ -2089,6 +2089,8 @@ public:
 
     GenTree* gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle);
 
+    GenTree* gtNewUtf8SconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle, CORINFO_CLASS_HANDLE stringClass);
+
     GenTree* gtNewZeroConNode(var_types type);
 
     GenTree* gtNewOneConNode(var_types type);
@@ -9419,6 +9421,7 @@ public:
             case GT_CNS_LNG:
             case GT_CNS_DBL:
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
             case GT_MEMORYBARRIER:
             case GT_JMP:
             case GT_JCC:

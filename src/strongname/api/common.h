@@ -146,6 +146,7 @@ typedef DPTR(class ReJitManager)        PTR_ReJitManager;
 typedef DPTR(struct ReJitInfo)          PTR_ReJitInfo;
 typedef DPTR(struct SharedReJitInfo)    PTR_SharedReJitInfo;
 typedef DPTR(class StringObject)        PTR_StringObject;
+typedef DPTR(class Utf8StringObject)    PTR_Utf8StringObject;
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 #ifdef STUB_DISPATCH
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;

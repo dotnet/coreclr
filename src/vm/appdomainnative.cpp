@@ -409,6 +409,32 @@ FCIMPL2(Object*, AppDomainNative::GetOrInternString, AppDomainBaseObject* refThi
 }
 FCIMPLEND
 
+FCIMPL2(Object*, AppDomainNative::GetOrInternUtf8String, AppDomainBaseObject* refThisUNSAFE, Utf8StringObject* pStringUNSAFE)
+{
+    FCALL_CONTRACT;
+
+    UTF8STRINGREF    refRetVal  = NULL;
+    APPDOMAINREF     refThis    = (APPDOMAINREF) refThisUNSAFE;
+    UTF8STRINGREF    pString    = (UTF8STRINGREF)    pStringUNSAFE;
+
+    HELPER_METHOD_FRAME_BEGIN_RET_2(refThis, pString);
+
+    ValidateArg(refThis);
+
+    if (pString == NULL)
+        COMPlusThrow(kArgumentNullException, W("ArgumentNull_String"));
+
+    UTF8STRINGREF* stringVal = refThis->GetDomain()->GetOrInternUtf8String(&pString);
+    if (stringVal != NULL)
+    {
+        refRetVal = *stringVal;
+    }
+
+    HELPER_METHOD_FRAME_END();
+    return OBJECTREFToObject(refRetVal);
+}
+FCIMPLEND
+
 
 FCIMPL1(Object*, AppDomainNative::GetDynamicDir, AppDomainBaseObject* refThisUNSAFE)
 {

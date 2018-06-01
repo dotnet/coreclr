@@ -2978,13 +2978,13 @@ HCIMPL1(Utf8StringObject*, FramedAllocateUtf8String, DWORD stringLength)
 {
     FCALL_CONTRACT;
 
-    Utf8StringObject* result = NULL;
+    UTF8STRINGREF result = NULL;
     HELPER_METHOD_FRAME_BEGIN_RET_0();    // Set up a frame
 
     result = SlowAllocateUtf8String(stringLength);
 
     HELPER_METHOD_FRAME_END();
-    return result;
+    return((Utf8StringObject*) OBJECTREFToObject(result));
 }
 HCIMPLEND
 
@@ -2997,7 +2997,7 @@ OBJECTHANDLE ConstructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd, mdToken meta
         MODE_ANY;
     } CONTRACTL_END;
 
-    _ASSERTE(TypeFromToken(metaTok) == mdtString);
+    _ASSERTE(TypeFromToken(metaTok & ~CORINFO_STRING_UTF8STRING) == mdtString);
 
     Module* module = GetModule(scopeHnd);
 
@@ -3032,7 +3032,9 @@ HCIMPL2(Object *, JIT_StrCns, unsigned rid, CORINFO_MODULE_HANDLE scopeHnd)
     HELPER_METHOD_FRAME_BEGIN_RET_0();
 
     // Retrieve the handle to the COM+ string object.
-    hndStr = ConstructStringLiteral(scopeHnd, RidToToken(rid, mdtString));
+    // Don't use RidToToken here as the "rid" also may contain the CORINFO_STRING_UTF8STRING 
+    // flag to indicate this should be a Utf8String
+    hndStr = ConstructStringLiteral(scopeHnd, rid | mdtString); 
     HELPER_METHOD_FRAME_END();
 
     // Don't use ObjectFromHandle; this isn't a real handle

@@ -382,6 +382,7 @@ void Compiler::impSaveStackState(SavedStack* savePtr, bool copy)
                     case GT_CNS_LNG:
                     case GT_CNS_DBL:
                     case GT_CNS_STR:
+                    case GT_CNS_UTF8STR:
                     case GT_LCL_VAR:
                         table->val = gtCloneExpr(tree);
                         break;
@@ -3380,6 +3381,14 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 return impHWIntrinsic(ni, method, sig, mustExpand);
             }
 #endif // FEATURE_HW_INTRINSICS
+
+            // Attempting to expand the Utf8String literal intrinsic is required
+            // But we don't actually need to expand it for correctness, so mustExpand
+            // will be set to false (later) if it can't be expanded
+            if (ni == NI_System_Runtime_CompilerServices_RuntimeHelpers_GetUtf8StringLiteral)
+            {
+                mustExpand = true;
+            }
         }
     }
 
@@ -3918,6 +3927,26 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
                 break;
             }
 
+            case NI_System_Runtime_CompilerServices_RuntimeHelpers_GetUtf8StringLiteral:
+            {
+                GenTree* op1 = impStackTop(0).val;
+                mustExpand   = false; // We don't actually have to expand this intrinsic, in case we can't expand it.
+                if (op1->OperGet() == GT_CNS_STR)
+                {
+                    // Check to see if string type is variable size
+                    CORINFO_CLASS_HANDLE stringClass = sig->retTypeClass;
+                    if (info.compCompHnd->getClassAttribs(stringClass) & CORINFO_FLG_VAROBJSIZE)
+                    {
+                        op1          = impPopStack().val;
+                        unsigned val = op1->gtStrCon.gtSconCPX;
+                        assert((val & CORINFO_STRING_UTF8STRING) == 0);
+                        retNode =
+                            gtNewUtf8SconNode(val | CORINFO_STRING_UTF8STRING, op1->gtStrCon.gtScpHnd, stringClass);
+                    }
+                }
+                break;
+            }
+
             default:
                 break;
         }
@@ -4074,6 +4103,15 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
         if ((strcmp(className, "EqualityComparer`1") == 0) && (strcmp(methodName, "get_Default") == 0))
         {
             result = NI_System_Collections_Generic_EqualityComparer_get_Default;
+        }
+    }
+    else if (strcmp(namespaceName, "System.Runtime.CompilerServices") == 0)
+    {
+        if ((strcmp(className, "RuntimeHelpers") == 0) && (strcmp(methodName, "GetUtf8StringLiteral") == 0))
+        {
+            // Checking that the Utf8String being worked with is a runtime special Utf8String by checking for variable
+            // length object size is done at intrinsic expansion time
+            result = NI_System_Runtime_CompilerServices_RuntimeHelpers_GetUtf8StringLiteral;
         }
     }
 

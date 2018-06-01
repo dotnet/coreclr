@@ -368,15 +368,19 @@ typedef DPTR(EEUtf8StringHashTable) PTR_EEUtf8StringHashTable;
 // contain embedded nulls.  An EEStringData struct is used for the key
 // which contains the length of the item.  Note that this string is
 // not necessarily null terminated and should never be treated as such.
-const DWORD ONLY_LOW_CHARS_MASK = 0x80000000;
+const DWORD UTF8_DATA_MASK = 0x80000000;
 
 class EEStringData
 {
 private:
-    LPCWSTR         szString;           // The string data.
+    union
+    {
+        LPCWSTR        szString;           // The string data.
+        LPCSTR         szUtf8String;       // The string data.
+    };
     DWORD           cch;                // Characters in the string.
 #ifdef _DEBUG
-    BOOL            bDebugOnlyLowChars;      // Does the string contain only characters less than 0x80?
+    BOOL            bDebugOnlyUtf8;
     DWORD           dwDebugCch;
 #endif // _DEBUG
 
@@ -386,32 +390,30 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-        SetStringBuffer(NULL);
+        SetUTF16StringBuffer(NULL);
         SetCharCount(0);
-        SetIsOnlyLowChars(FALSE);
+        SetIsUtf8(FALSE);
     };
     EEStringData(DWORD cchString, LPCWSTR str) : cch(0)
     { 
         LIMITED_METHOD_CONTRACT;
 
-        SetStringBuffer(str);
+        SetUTF16StringBuffer(str);
         SetCharCount(cchString);
-        SetIsOnlyLowChars(FALSE);
     };
-    EEStringData(DWORD cchString, LPCWSTR str, BOOL onlyLow) : cch(0)
+    EEStringData(DWORD cchString, LPCSTR str) : cch(0)
     { 
         LIMITED_METHOD_CONTRACT;
 
-        SetStringBuffer(str);
+        SetUTF8StringBuffer(str);
         SetCharCount(cchString);
-        SetIsOnlyLowChars(onlyLow);
     };
     inline ULONG GetCharCount() const
     { 
         LIMITED_METHOD_CONTRACT;
 
-        _ASSERTE ((cch & ~ONLY_LOW_CHARS_MASK) == dwDebugCch);
-        return (cch & ~ONLY_LOW_CHARS_MASK); 
+        _ASSERTE ((cch & ~UTF8_DATA_MASK) == dwDebugCch);
+        return (cch & ~UTF8_DATA_MASK); 
     }
     inline void SetCharCount(ULONG _cch)
     {
@@ -420,36 +422,51 @@ public:
 #ifdef _DEBUG
         dwDebugCch = _cch;
 #endif // _DEBUG
-        cch = ((DWORD)_cch) | (cch & ONLY_LOW_CHARS_MASK);
+        cch = ((DWORD)_cch) | (cch & UTF8_DATA_MASK);
     }
-    inline LPCWSTR GetStringBuffer() const
+    inline LPCWSTR GetUTF16StringBuffer() const
     { 
         LIMITED_METHOD_CONTRACT;
-
+        _ASSERTE(!GetIsUtf8());
         return (szString); 
     }
-    inline void SetStringBuffer(LPCWSTR _szString)
+    inline void SetUTF16StringBuffer(LPCWSTR _szString)
     {
         LIMITED_METHOD_CONTRACT;
-
+        SetIsUtf8(FALSE);
         szString = _szString;
     }
-    inline BOOL GetIsOnlyLowChars() const 
+    inline LPCSTR GetUTF8StringBuffer() const
+    { 
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(GetIsUtf8());
+        return (szUtf8String); 
+    }
+    inline void SetUTF8StringBuffer(LPCSTR _szString)
+    {
+        LIMITED_METHOD_CONTRACT;
+        SetIsUtf8(TRUE);
+        szUtf8String = _szString;
+    }
+    inline BOOL GetIsUtf8() const 
     { 
         LIMITED_METHOD_CONTRACT;
 
-        _ASSERTE(bDebugOnlyLowChars == ((cch & ONLY_LOW_CHARS_MASK) ? TRUE : FALSE));
-        return ((cch & ONLY_LOW_CHARS_MASK) ? TRUE : FALSE); 
+        _ASSERTE(bDebugOnlyUtf8 == ((cch & UTF8_DATA_MASK) ? TRUE : FALSE));
+        return ((cch & UTF8_DATA_MASK) ? TRUE : FALSE); 
     }
-    inline void SetIsOnlyLowChars(BOOL bIsOnlyLowChars)
+    inline void SetIsUtf8(BOOL bIsUtf8)
     {
         LIMITED_METHOD_CONTRACT;
 
 #ifdef _DEBUG
-        bDebugOnlyLowChars = bIsOnlyLowChars;
+        bDebugOnlyUtf8 = bIsUtf8;
 #endif // _DEBUG
-        bIsOnlyLowChars ? (cch |= ONLY_LOW_CHARS_MASK) : (cch &= ~ONLY_LOW_CHARS_MASK);        
+        bIsUtf8 ? (cch |= UTF8_DATA_MASK) : (cch &= ~UTF8_DATA_MASK);        
     }
+    bool Equals(EEStringData *stringData);
+    DWORD HashUTF16();
+    DWORD HashEither();
 };
 
 class EEUnicodeHashTableHelper
@@ -477,6 +494,18 @@ public:
 };
 
 typedef EEHashTable<EEStringData *, EEUnicodeStringLiteralHashTableHelper, TRUE> EEUnicodeStringLiteralHashTable;
+
+class EEUnicodeUtf8StringLiteralHashTableHelper
+{
+public:
+    static EEHashEntry_t * AllocateEntry(EEStringData *pKey, BOOL bDeepCopy, AllocationHeap Heap);
+    static void            DeleteEntry(EEHashEntry_t *pEntry, AllocationHeap Heap);
+    static BOOL            CompareKeys(EEHashEntry_t *pEntry, EEStringData *pKey);
+    static DWORD           Hash(EEStringData *pKey);
+    static void            ReplaceKey(EEHashEntry_t *pEntry, EEStringData *pNewKey);
+};
+
+typedef EEHashTable<EEStringData *, EEUnicodeUtf8StringLiteralHashTableHelper, TRUE> EEUnicodeUtf8StringLiteralHashTable;
 
 
 // Generic pointer hash table helper.

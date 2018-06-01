@@ -39,6 +39,7 @@ GTNODE(CNS_INT          , GenTreeIntCon      ,0,GTK_LEAF|GTK_CONST)
 GTNODE(CNS_LNG          , GenTreeLngCon      ,0,GTK_LEAF|GTK_CONST)
 GTNODE(CNS_DBL          , GenTreeDblCon      ,0,GTK_LEAF|GTK_CONST)
 GTNODE(CNS_STR          , GenTreeStrCon      ,0,GTK_LEAF|GTK_CONST)
+GTNODE(CNS_UTF8STR      , GenTreeUtf8StrCon  ,0,GTK_LEAF|GTK_CONST)
 
 //-----------------------------------------------------------------------------
 //  Unary  operators (1 operand):

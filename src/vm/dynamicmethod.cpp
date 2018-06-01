@@ -881,6 +881,7 @@ void DynamicMethodDesc::Destroy(BOOL fDomainUnload)
 void LCGMethodResolver::Reset()
 {
     m_DynamicStringLiterals = NULL;
+    m_DynamicUtf8StringLiterals = NULL;
     m_recordCodePointer     = NULL;
     m_UsedIndCellList       = NULL;
     m_pJumpStubCache        = NULL;
@@ -953,7 +954,7 @@ void LCGMethodResolver::Destroy(BOOL fDomainUnload)
     }
 
     // Get the global string literal interning map
-    GlobalStringLiteralMap* pStringLiteralMap = SystemDomain::GetGlobalStringLiteralMapNoCreate();
+    GlobalStringLiteralMap<StringLiteralEntry>* pStringLiteralMap = SystemDomain::GetGlobalStringLiteralMapNoCreate();
 
     // release references to all the string literals used in this Dynamic Method
     if (pStringLiteralMap != NULL)
@@ -968,6 +969,24 @@ void LCGMethodResolver::Destroy(BOOL fDomainUnload)
         {
             m_DynamicStringLiterals->m_pEntry->Release();
             m_DynamicStringLiterals = m_DynamicStringLiterals->m_pNext;
+        }
+    }
+
+    GlobalStringLiteralMap<Utf8StringLiteralEntry>* pUtf8StringLiteralMap = SystemDomain::GetGlobalUtf8StringLiteralMapNoCreate();
+
+    // release references to all the string literals used in this Dynamic Method
+    if (pUtf8StringLiteralMap != NULL)
+    {
+        // lock the global string literal interning map
+        // we cannot use GetGlobalStringLiteralMap() here because it might throw
+        CrstHolder gch(pUtf8StringLiteralMap->GetHashTableCrstGlobal());
+
+        // Access to m_DynamicStringLiterals doesn't need to be syncrhonized because 
+        // this can be run in only one thread: the finalizer thread.
+        while (m_DynamicUtf8StringLiterals != NULL)
+        {
+            m_DynamicUtf8StringLiterals->m_pEntry->Release();
+            m_DynamicUtf8StringLiterals = m_DynamicUtf8StringLiterals->m_pNext;
         }
     }
 
@@ -1190,6 +1209,8 @@ LCGMethodResolver::ConstructStringLiteral(mdToken metaTok)
     OBJECTHANDLE string = NULL;
     STRINGREF strRef = GetStringLiteral(metaTok);
 
+    bool utf8StringLiteral = ((metaTok & CORINFO_STRING_UTF8STRING) != 0);
+
     GCPROTECT_BEGIN(strRef);
 
     if (strRef != NULL)
@@ -1197,7 +1218,7 @@ LCGMethodResolver::ConstructStringLiteral(mdToken metaTok)
         // Instead of storing the string literal in the appdomain specific string literal map,
         // we store it in the dynamic method specific string liternal list
         // This way we can release it when the dynamic method is collected.
-        string = (OBJECTHANDLE)GetOrInternString(&strRef);
+        string = (OBJECTHANDLE)GetOrInternString(utf8StringLiteral, &strRef);
     }
 
     GCPROTECT_END();
@@ -1213,8 +1234,7 @@ LCGMethodResolver::IsValidStringRef(mdToken metaTok)
     STANDARD_VM_CONTRACT;
 
     GCX_COOP();
-
-    return GetStringLiteral(metaTok) != NULL;
+    return GetStringLiteral(metaTok & ~CORINFO_STRING_UTF8STRING) != NULL;
 }
 
 //---------------------------------------------------------------------------------------
@@ -1241,20 +1261,10 @@ LCGMethodResolver::GetStringLiteral(
     return getStringLiteral.Call_RetSTRINGREF(args);
 }
 
-// This method will get the interned string by calling GetInternedString on the 
-// global string liternal interning map. It will also store the returned entry
-// in m_DynamicStringLiterals
-STRINGREF* LCGMethodResolver::GetOrInternString(STRINGREF *pProtectedStringRef)
+template<class TEntryType>
+OBJECTREF* GetOrInternStringHelper(GlobalStringLiteralMap<TEntryType> *pStringLiteralMap, DynamicStringLiteralTemplate<TEntryType>** ppDynamicStringLiterals, typename TEntryType::RefType *pProtectedStringRef, ChunkAllocator *pJitTempData)
 {
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pProtectedStringRef));
-    } CONTRACTL_END;
-
-    // Get the global string literal interning map
-    GlobalStringLiteralMap* pStringLiteralMap = SystemDomain::GetGlobalStringLiteralMap();
+    WRAPPER_NO_CONTRACT;
 
     // Calculating the hash: EEUnicodeHashTableHelper::GetHash
     EEStringData StringData = EEStringData((*pProtectedStringRef)->GetStringLength(), (*pProtectedStringRef)->GetBuffer());
@@ -1263,19 +1273,40 @@ STRINGREF* LCGMethodResolver::GetOrInternString(STRINGREF *pProtectedStringRef)
     // lock the global string literal interning map
     CrstHolder gch(pStringLiteralMap->GetHashTableCrstGlobal());
     
-    StringLiteralEntryHolder pEntry(pStringLiteralMap->GetInternedString(pProtectedStringRef, dwHash, /* bAddIfNotFound */ TRUE));
+    typename GlobalStringLiteralMap<TEntryType>::StringLiteralEntryHolder pEntry(pStringLiteralMap->GetInternedString(pProtectedStringRef, dwHash, /* bAddIfNotFound */ TRUE));
 
-    DynamicStringLiteral* pStringLiteral = (DynamicStringLiteral*)m_jitTempData.New(sizeof(DynamicStringLiteral));
+    DynamicStringLiteralTemplate<TEntryType>* pStringLiteral = (DynamicStringLiteralTemplate<TEntryType>*)pJitTempData->New(sizeof(DynamicStringLiteralTemplate<TEntryType>));
     pStringLiteral->m_pEntry = pEntry.Extract();
 
     // Add to m_DynamicStringLiterals:
     //  we don't need to check for duplicate because the string literal entries in 
     //      the global string literal map are ref counted.
-    pStringLiteral->m_pNext = m_DynamicStringLiterals;
-    m_DynamicStringLiterals = pStringLiteral;
+    pStringLiteral->m_pNext = *ppDynamicStringLiterals;
+    *ppDynamicStringLiterals = pStringLiteral;
 
-    return pStringLiteral->m_pEntry->GetStringObject();
+    return (OBJECTREF*)pStringLiteral->m_pEntry->GetStringObject();
+}
 
+// This method will get the interned string by calling GetInternedString on the 
+// global string liternal interning map. It will also store the returned entry
+// in m_DynamicStringLiterals
+OBJECTREF* LCGMethodResolver::GetOrInternString(bool isUtf8StringLiteral, STRINGREF *pProtectedStringRef)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pProtectedStringRef));
+    } CONTRACTL_END;
+
+    if (!isUtf8StringLiteral)
+    {
+        return GetOrInternStringHelper<StringLiteralEntry>(SystemDomain::GetGlobalStringLiteralMap(), &m_DynamicStringLiterals, (STRINGREF *)pProtectedStringRef, &m_jitTempData);
+    }
+    else
+    {
+        return GetOrInternStringHelper<Utf8StringLiteralEntry>(SystemDomain::GetGlobalUtf8StringLiteralMap(), &m_DynamicUtf8StringLiterals, (UTF8STRINGREF *)pProtectedStringRef, &m_jitTempData);
+    }
 }
 
 // AddToUsedIndCellList adds a IndCellList link to the beginning of m_UsedIndCellList. It is called by

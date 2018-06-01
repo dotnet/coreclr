@@ -40,6 +40,7 @@ LoaderAllocator::LoaderAllocator()
     m_pFuncPtrStubs = NULL;
     m_hLoaderAllocatorObjectHandle = NULL;
     m_pStringLiteralMap = NULL;
+    m_pUtf8StringLiteralMap = NULL;
     
     m_cReferences = (UINT32)-1;
     
@@ -1263,6 +1264,8 @@ SIZE_T LoaderAllocator::EstimateSize()
         retval+=m_pStubHeap->GetSize();   
     if(m_pStringLiteralMap)
         retval+=m_pStringLiteralMap->GetSize();
+    if(m_pUtf8StringLiteralMap)
+        retval+=m_pUtf8StringLiteralMap->GetSize();
 #ifndef CROSSGEN_COMPILE
     if(m_pVirtualCallStubManager)
         retval+=m_pVirtualCallStubManager->GetSize();
@@ -1490,6 +1493,25 @@ STRINGREF *LoaderAllocator::GetStringObjRefPtrFromUnicodeString(EEStringData *pS
     return m_pStringLiteralMap->GetStringLiteral(pStringData, TRUE, !CanUnload());
 }
 
+UTF8STRINGREF *LoaderAllocator::GetUtf8StringObjRefPtrFromUnicodeString(EEStringData *pStringData)
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pStringData));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+    if (m_pUtf8StringLiteralMap == NULL)
+    {
+        LazyInitUtf8StringLiteralMap();
+    }
+    _ASSERTE(m_pUtf8StringLiteralMap);
+    return m_pUtf8StringLiteralMap->GetStringLiteral(pStringData, TRUE, !CanUnload());
+}
+
 //*****************************************************************************
 void LoaderAllocator::LazyInitStringLiteralMap()
 {
@@ -1502,13 +1524,35 @@ void LoaderAllocator::LazyInitStringLiteralMap()
     }
     CONTRACTL_END;
 
-    NewHolder<StringLiteralMap> pStringLiteralMap(new StringLiteralMap());
+    NewHolder<StringLiteralMap<StringLiteralEntry>> pStringLiteralMap(new StringLiteralMap<StringLiteralEntry>());
 
     pStringLiteralMap->Init();
 
-    if (InterlockedCompareExchangeT<StringLiteralMap *>(&m_pStringLiteralMap, pStringLiteralMap, NULL) == NULL)
+    if (InterlockedCompareExchangeT<StringLiteralMap<StringLiteralEntry> *>(&m_pStringLiteralMap, pStringLiteralMap, NULL) == NULL)
     {
         pStringLiteralMap.SuppressRelease();
+    }
+}
+
+//*****************************************************************************
+void LoaderAllocator::LazyInitUtf8StringLiteralMap()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    NewHolder<StringLiteralMap<Utf8StringLiteralEntry>> pUtf8StringLiteralMap(new StringLiteralMap<Utf8StringLiteralEntry>());
+
+    pUtf8StringLiteralMap->Init();
+
+    if (InterlockedCompareExchangeT<StringLiteralMap<Utf8StringLiteralEntry> *>(&m_pUtf8StringLiteralMap, pUtf8StringLiteralMap, NULL) == NULL)
+    {
+        pUtf8StringLiteralMap.SuppressRelease();
     }
 }
 
@@ -1526,6 +1570,12 @@ void LoaderAllocator::CleanupStringLiteralMap()
     {
         delete m_pStringLiteralMap;
         m_pStringLiteralMap = NULL;
+    }
+
+    if (m_pUtf8StringLiteralMap)
+    {
+        delete m_pUtf8StringLiteralMap;
+        m_pUtf8StringLiteralMap = NULL;
     }
 }
 
@@ -1565,6 +1615,44 @@ STRINGREF *LoaderAllocator::GetOrInternString(STRINGREF *pString)
     }
     _ASSERTE(m_pStringLiteralMap);
     return m_pStringLiteralMap->GetInternedString(pString, TRUE, !CanUnload());
+}
+
+UTF8STRINGREF *LoaderAllocator::IsUtf8StringInterned(UTF8STRINGREF *pString)
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pString));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+    if (m_pUtf8StringLiteralMap == NULL)
+    {
+        LazyInitUtf8StringLiteralMap();
+    }
+    _ASSERTE(m_pUtf8StringLiteralMap);
+    return m_pUtf8StringLiteralMap->GetInternedString(pString, FALSE, !CanUnload());
+}
+
+UTF8STRINGREF *LoaderAllocator::GetOrInternUtf8String(UTF8STRINGREF *pString)
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pString));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+    if (m_pUtf8StringLiteralMap == NULL)
+    {
+        LazyInitUtf8StringLiteralMap();
+    }
+    _ASSERTE(m_pUtf8StringLiteralMap);
+    return m_pUtf8StringLiteralMap->GetInternedString(pString, TRUE, !CanUnload());
 }
 
 void AssemblyLoaderAllocator::RegisterHandleForCleanup(OBJECTHANDLE objHandle)

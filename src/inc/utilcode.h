@@ -3014,6 +3014,7 @@ inline DWORD HashThreeToOne(DWORD a, DWORD b, DWORD c)
     return c;
 }
 
+// Required to have the same hash behavior as the HashBytesState based hashing logic below
 inline ULONG HashBytes(BYTE const *pbData, size_t iSize)
 {
     LIMITED_METHOD_CONTRACT;
@@ -3026,6 +3027,37 @@ inline ULONG HashBytes(BYTE const *pbData, size_t iSize)
         hash = ((hash << 5) + hash) ^ *pbData;
     }
     return hash;
+}
+
+struct HashBytesState
+{
+    ULONG hash;
+};
+
+// Required to have the same hash behavior as the HashBytes based hashing logic above
+inline void InitHashBytesState(HashBytesState *pHashState)
+{
+    LIMITED_METHOD_CONTRACT;
+    pHashState->hash = 5381;
+}
+
+// Required to have the same hash behavior as the HashBytes based hashing logic above
+inline void AddBytesToHash(HashBytesState *pHashState, BYTE const *pbData, size_t iSize)
+{
+    LIMITED_METHOD_CONTRACT;
+    BYTE const *pbDataEnd = pbData + iSize;
+
+    for (/**/ ; pbData < pbDataEnd; pbData++)
+    {
+        pHashState->hash = ((pHashState->hash << 5) + pHashState->hash) ^ *pbData;
+    }
+}
+
+// Required to have the same hash behavior as the HashBytes based hashing logic above
+inline ULONG GetHashFromHashBytesState(HashBytesState *pHashState)
+{
+    LIMITED_METHOD_CONTRACT;
+    return pHashState->hash;
 }
 
 // Helper function for hashing a string char by char.

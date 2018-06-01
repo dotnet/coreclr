@@ -4489,7 +4489,7 @@ void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickByt
         GC_TRIGGERS;
         MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(TypeFromToken(token) == mdtString);
+        PRECONDITION(TypeFromToken(token & ~CORINFO_STRING_UTF8STRING) == mdtString);
     }
     CONTRACTL_END;
 
@@ -4503,7 +4503,7 @@ void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickByt
     }
     
 #if !BIGENDIAN 
-    pstrData->SetStringBuffer(pString);
+    pstrData->SetUTF16StringBuffer(pString);
 #else // !!BIGENDIAN
     _ASSERTE(pqb != NULL);
 
@@ -4513,7 +4513,7 @@ void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickByt
     memcpy((void*)pSwapped, (void*)pString, dwCharCount*sizeof(WCHAR));
     SwapStringLength(pSwapped, dwCharCount);
 
-    pstrData->SetStringBuffer(pSwapped);
+    pstrData->SetUTF16StringBuffer(pSwapped);
 #endif // !!BIGENDIAN
 
         // MD and String look at this bit in opposite ways.  Here's where we'll do the conversion.
@@ -4521,7 +4521,6 @@ void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickByt
         // String sets the bit to true if the string doesn't contain characters greater than 80.
 
     pstrData->SetCharCount(dwCharCount);
-    pstrData->SetIsOnlyLowChars(!fIs80Plus);
 }
 
 #ifndef CROSSGEN_COMPILE
@@ -4580,7 +4579,7 @@ OBJECTHANDLE Module::ResolveStringRefHelper(DWORD token, BaseDomain *pDomain, PT
 
             // Is this the string we are trying to resolve?
             if (pStrData->GetCharCount() == stringRef->GetStringLength() &&
-                memcmp((void*)pStrData->GetStringBuffer(),
+                memcmp((void*)pStrData->GetUTF16StringBuffer(),
                         (void*) stringRef->GetBuffer(),
                         pStrData->GetCharCount()*sizeof(WCHAR)) == 0)
             {
@@ -4602,7 +4601,7 @@ OBJECTHANDLE Module::ResolveStringRef(DWORD token, BaseDomain *pDomain, bool bNe
         GC_TRIGGERS;
         MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM());
-        PRECONDITION(TypeFromToken(token) == mdtString);
+        PRECONDITION(TypeFromToken(token & ~CORINFO_STRING_UTF8STRING) == mdtString);
     }
     CONTRACTL_END;
 
@@ -4618,9 +4617,10 @@ OBJECTHANDLE Module::ResolveStringRef(DWORD token, BaseDomain *pDomain, bool bNe
 
     GCX_COOP();
 
+    bool utf8StringLiteral = ((token & CORINFO_STRING_UTF8STRING) != 0);
     // We can only do this for native images as they guarantee that resolvestringref will be
     // called only once per string from this module. @TODO: We really dont have any way of asserting
-    // this, which would be nice... (and is needed to guarantee correctness)
+    // this, which would be nice... (and is needed to guarantee correctness) (Utf8String doesn't support this path)
 #ifdef FEATURE_PREJIT 
     if (HasNativeImage() && IsNoStringInterning())
     {
@@ -4689,14 +4689,22 @@ OBJECTHANDLE Module::ResolveStringRef(DWORD token, BaseDomain *pDomain, bool bNe
         // Allocate handle
         OBJECTREF* pRef = pDomain->AllocateObjRefPtrsInLargeTable(1);
 
-        STRINGREF str = AllocateStringObject(&strData);
-        SetObjectReference(pRef, str, NULL);
+        if (utf8StringLiteral)
+        {
+            UTF8STRINGREF str = AllocateUTF8StringObject(&strData);
+            SetObjectReference(pRef, str, NULL);
+        }
+        else
+        {
+            STRINGREF str = AllocateStringObject(&strData);
+            SetObjectReference(pRef, str, NULL);
+        }
 
         #ifdef LOGGING 
         int length = strData.GetCharCount();
         length = min(length, 100);
         WCHAR *szString = (WCHAR *)_alloca((length + 1) * sizeof(WCHAR));
-        memcpyNoGCRefs((void*)szString, (void*)strData.GetStringBuffer(), length * sizeof(WCHAR));
+        memcpyNoGCRefs((void*)szString, (void*)strData.GetUTF16StringBuffer(), length * sizeof(WCHAR));
         szString[length] = '\0';
         LOG((LF_APPDOMAIN, LL_INFO10000, "String literal \"%S\" won't be interned due to NoInterningAttribute\n", szString));
         #endif // LOGGING
@@ -4715,7 +4723,10 @@ INTERN_OLD_STYLE:
     else
         pLoaderAllocator = pDomain->GetLoaderAllocator();
         
-    string = (OBJECTHANDLE)pLoaderAllocator->GetStringObjRefPtrFromUnicodeString(&strData);
+    if (utf8StringLiteral)
+        string = (OBJECTHANDLE)pLoaderAllocator->GetUtf8StringObjRefPtrFromUnicodeString(&strData);
+    else
+        string = (OBJECTHANDLE)pLoaderAllocator->GetStringObjRefPtrFromUnicodeString(&strData);
 
     return string;
 }

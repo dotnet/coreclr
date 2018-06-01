@@ -662,6 +662,7 @@ OPTIMIZECAST:
             case GT_CNS_LNG:
             case GT_CNS_DBL:
             case GT_CNS_STR:
+            case GT_CNS_UTF8STR:
             {
                 GenTree* oldTree = tree;
 
@@ -8956,7 +8957,20 @@ GenTree* Compiler::fgMorphConst(GenTree* tree)
 
     tree->gtFlags &= ~(GTF_ALL_EFFECT | GTF_REVERSE_OPS);
 
-    if (tree->OperGet() != GT_CNS_STR)
+    unsigned              CPX;
+    CORINFO_MODULE_HANDLE ScpHnd;
+
+    if (tree->OperGet() == GT_CNS_STR)
+    {
+        CPX    = tree->gtStrCon.gtSconCPX;
+        ScpHnd = tree->gtStrCon.gtScpHnd;
+    }
+    else if (tree->OperGet() == GT_CNS_UTF8STR)
+    {
+        CPX    = tree->gtUtf8StrCon.gtSconCPX;
+        ScpHnd = tree->gtUtf8StrCon.gtScpHnd;
+    }
+    else
     {
         return tree;
     }
@@ -8967,7 +8981,7 @@ GenTree* Compiler::fgMorphConst(GenTree* tree)
 
     if (compCurBB->bbJumpKind == BBJ_THROW)
     {
-        CorInfoHelpFunc helper = info.compCompHnd->getLazyStringLiteralHelper(tree->gtStrCon.gtScpHnd);
+        CorInfoHelpFunc helper = info.compCompHnd->getLazyStringLiteralHelper(ScpHnd);
         if (helper != CORINFO_HELP_UNDEF)
         {
             // For un-important blocks, we want to construct the string lazily
@@ -8975,12 +8989,12 @@ GenTree* Compiler::fgMorphConst(GenTree* tree)
             GenTreeArgList* args;
             if (helper == CORINFO_HELP_STRCNS_CURRENT_MODULE)
             {
-                args = gtNewArgList(gtNewIconNode(RidFromToken(tree->gtStrCon.gtSconCPX), TYP_INT));
+                args = gtNewArgList(gtNewIconNode(RidFromToken(CPX) | (CPX & CORINFO_STRING_UTF8STRING), TYP_INT));
             }
             else
             {
-                args = gtNewArgList(gtNewIconNode(RidFromToken(tree->gtStrCon.gtSconCPX), TYP_INT),
-                                    gtNewIconEmbScpHndNode(tree->gtStrCon.gtScpHnd));
+                args = gtNewArgList(gtNewIconNode(RidFromToken(CPX) | (CPX & CORINFO_STRING_UTF8STRING), TYP_INT),
+                                    gtNewIconEmbScpHndNode(ScpHnd));
             }
 
             tree = gtNewHelperCallNode(helper, TYP_REF, args);
@@ -8988,11 +9002,10 @@ GenTree* Compiler::fgMorphConst(GenTree* tree)
         }
     }
 
-    assert(tree->gtStrCon.gtScpHnd == info.compScopeHnd || !IsUninitialized(tree->gtStrCon.gtScpHnd));
+    assert(ScpHnd == info.compScopeHnd || !IsUninitialized(ScpHnd));
 
     LPVOID         pValue;
-    InfoAccessType iat =
-        info.compCompHnd->constructStringLiteral(tree->gtStrCon.gtScpHnd, tree->gtStrCon.gtSconCPX, &pValue);
+    InfoAccessType iat = info.compCompHnd->constructStringLiteral(ScpHnd, CPX, &pValue);
 
     tree = gtNewStringLiteralNode(iat, pValue);
 

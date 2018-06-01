@@ -685,6 +685,9 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern string GetOrInternString(string str);
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal extern Utf8String GetOrInternUtf8String(Utf8String str);
+
         public int Id => GetId();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
