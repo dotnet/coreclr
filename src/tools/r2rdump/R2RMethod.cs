@@ -43,7 +43,9 @@ namespace R2RDump
         /// </summary>
         public R2RMethod Method { get; }
 
-        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, R2RMethod method)
+        public UnwindInfo UnwindInfo { get; }
+
+        public RuntimeFunction(R2RReader r2r, int id, int startRva, int endRva, int unwindRva, R2RMethod method)
         {
             Id = id;
             StartAddress = startRva;
@@ -52,6 +54,9 @@ namespace R2RDump
                 Size = -1;
             UnwindRVA = unwindRva;
             Method = method;
+
+            int unwindOffset = r2r.GetOffset(unwindRva);
+            UnwindInfo = new UnwindInfo(r2r.Image, unwindOffset);
         }
 
         public override string ToString()
@@ -132,7 +137,7 @@ namespace R2RDump
         /// <summary>
         /// Maps all the generic parameters to the type in the instance
         /// </summary>
-        Dictionary<string, string> _genericParamInstanceMap;
+        private Dictionary<string, string> _genericParamInstanceMap;
 
         [Flags]
         public enum EncodeMethodSigFlags
