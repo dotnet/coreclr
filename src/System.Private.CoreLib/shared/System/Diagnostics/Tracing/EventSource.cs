@@ -1199,7 +1199,7 @@ namespace System.Diagnostics.Tracing
                     }
 #endif // FEATURE_MANAGED_ETW
 
-                            if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
+                    if (m_Dispatchers != null && m_eventData[eventId].EnabledForAnyListener)
                         WriteToAllListeners(eventId, pActivityId, relatedActivityId, eventDataCount, data);
                 }
                 catch (Exception ex)
