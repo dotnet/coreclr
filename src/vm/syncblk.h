@@ -85,7 +85,6 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 
 #include "synch.h"
 
-
 // At a negative offset from each Object is an ObjHeader.  The 'size' of the
 // object includes these bytes.  However, we rely on the previous object allocation
 // to zero out the ObjHeader for the current allocation.  And the limits of the
@@ -1614,7 +1613,7 @@ struct ThreadQueue
 // The true size of an object is whatever C++ thinks, plus the ObjHeader we
 // allocate before it.
 
-#define ObjSizeOf(c)    (sizeof(c) + sizeof(ObjHeader))
+#define ObjSizeOf(c)    (CrossBitness_SizeOf(c) + OBJHEADER_SIZE)
 
 
 inline void AwareLock::SetPrecious()
