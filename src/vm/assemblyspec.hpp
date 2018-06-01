@@ -603,8 +603,6 @@ class AssemblySpecBindingCache
         return pSpec->Hash();
     }
 
-    void Dump();
-    
 #if !defined(DACCESS_COMPILE)
     void GetAllAssemblies(SetSHash<PTR_DomainAssembly>& assemblyList)
     {

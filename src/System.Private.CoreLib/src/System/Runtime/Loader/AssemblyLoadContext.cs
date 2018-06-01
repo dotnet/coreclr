@@ -423,6 +423,13 @@ namespace System.Runtime.Loader
                 if (state == InternalState.Unloading)
                 {
                     state = InternalState.Unloaded;
+                    lock (ContextsToUnload)
+                    {
+                        if (!_isProcessExiting)
+                        {
+                            ContextsToUnload.Remove(id);
+                        }
+                    }
                 }
                 else
                 {

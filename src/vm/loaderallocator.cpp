@@ -1506,7 +1506,7 @@ DispatchToken LoaderAllocator::TryLookupDispatchToken(UINT32 typeId, UINT32 slot
     }
 }
 
-void LoaderAllocator::InitVirtualCallStubManager(BaseDomain * pDomain, BOOL fCollectible /* = FALSE */)
+void LoaderAllocator::InitVirtualCallStubManager(BaseDomain * pDomain)
 {
     STANDARD_VM_CONTRACT;
 

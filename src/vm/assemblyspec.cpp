@@ -1336,7 +1336,6 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInter
 
     AssemblyBinding* pEntry = (AssemblyBinding *)m_map.LookupValue(lookupKey, pSpec);
 
-#if defined(FEATURE_CORECLR)
     // Reset the binding context if one was originally never present in the AssemblySpec and we didnt find any entry
     // in the cache.
     if (fGetBindingContextFromParent)
@@ -1346,7 +1345,6 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInter
             pSpec->SetBindingContext(NULL);
         }
     }
-#endif
     
     return pEntry;
 }
@@ -1570,9 +1568,15 @@ BOOL AssemblySpecBindingCache::StoreAssembly(AssemblySpec *pSpec, DomainAssembly
     if (entry == (AssemblyBinding *) INVALIDENTRY)
     {
         AssemblyBindingHolder abHolder;
-        entry = abHolder.CreateAssemblyBinding(m_pHeap);
 
-        entry->Init(pSpec,pAssembly->GetFile(),pAssembly,NULL,m_pHeap, abHolder.GetPamTracker());
+        LoaderHeap* pHeap = m_pHeap;
+        if (pAssembly->IsCollectible())
+        {
+            pHeap = pAssembly->GetLoaderAllocator()->GetHighFrequencyHeap();
+        }
+
+        entry = abHolder.CreateAssemblyBinding(pHeap);
+        entry->Init(pSpec,pAssembly->GetFile(),pAssembly,NULL,pHeap, abHolder.GetPamTracker());
 
         m_map.InsertValue(key, entry);
 
@@ -1649,17 +1653,34 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
         }
     }
 
-    //printf("Dump before StoreFile %s %p\n", pSpec->GetName(), pFile);
-    //Dump();
-
     AssemblyBinding *entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
 
     if (entry == (AssemblyBinding *) INVALIDENTRY)
     {
         AssemblyBindingHolder abHolder;
-        entry = abHolder.CreateAssemblyBinding(m_pHeap);
 
-        entry->Init(pSpec,pFile,NULL,NULL,m_pHeap, abHolder.GetPamTracker());
+        LoaderHeap* pHeap = m_pHeap;
+
+#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        if (pBinderContextForLookup != NULL)
+        {
+            LoaderAllocator* pLoaderAllocator = NULL;
+
+            // Assemblies loaded with AssemblyLoadContext need to use a different heap if
+            // marked as collectible
+            SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
+            if (SUCCEEDED(pBinderContextForLookup->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
+            {
+                pAssemblyLoadContext->GetLoaderAllocator(&pLoaderAllocator);
+                _ASSERTE(pLoaderAllocator != NULL);
+                pHeap = pLoaderAllocator->GetHighFrequencyHeap();
+            }
+        }
+#endif
+
+        entry = abHolder.CreateAssemblyBinding(pHeap);
+
+        entry->Init(pSpec,pFile,NULL,NULL,pHeap, abHolder.GetPamTracker());
 
         m_map.InsertValue(key, entry);
         abHolder.SuppressRelease();
@@ -1796,24 +1817,6 @@ BOOL AssemblySpecBindingCache::RemoveAssembly(DomainAssembly* pAssembly)
     }
 
     RETURN result;
-}
-
-void AssemblySpecBindingCache::Dump()
-{
-    PtrHashMap::PtrIterator i = m_map.begin();
-    while (!i.end())
-    {
-        AssemblyBinding *b = (AssemblyBinding*)i.GetValue();
-        ICLRPrivBinder* context = ((AssemblySpec*)b)->GetBindingContext();
-        UINT_PTR binderID = 0;
-        if (context != NULL) 
-        {
-            context->GetBinderID(&binderID);
-        }
-
-        printf("AssemblySpecBindingCache: %s DomainAssembly: %p PEFile: %p BindingID: %p\n", ((AssemblySpec*)b)->GetName(), b->GetAssembly(), b->GetFile(), binderID);
-        ++i;
-    }
 }
 
 /* static */

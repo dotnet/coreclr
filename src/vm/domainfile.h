@@ -782,7 +782,7 @@ private:
     Volatile<bool>                          m_fHostAssemblyPublished;
     Volatile<bool>                          m_fCalculatedShouldLoadDomainNeutral;
     Volatile<bool>                          m_fShouldLoadDomainNeutral;
-    LoaderAllocator*                        m_pLoaderAllocator;
+    PTR_LoaderAllocator                     m_pLoaderAllocator;
     DomainAssembly*                         m_NextDomainAssemblyInSameALC;
 
   public:
