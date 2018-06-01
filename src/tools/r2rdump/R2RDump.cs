@@ -87,7 +87,8 @@ namespace R2RDump
 
         private void WriteDivider(string title)
         {
-            _writer.WriteLine("============== " + title + " ==============");
+            int len = 61 - title.Length - 2;
+            _writer.WriteLine(new String('=', len/2) + " " + title + " " + new String('=', (int)Math.Ceiling(len/2.0)));
             _writer.WriteLine();
         }
 
@@ -110,6 +111,8 @@ namespace R2RDump
             if (dumpSections)
             {
                 WriteDivider("R2R Sections");
+                _writer.WriteLine($"{r2r.R2RHeader.Sections.Count} sections");
+                _writer.WriteLine();
                 foreach (R2RSection section in r2r.R2RHeader.Sections.Values)
                 {
                     DumpSection(r2r, section);
@@ -307,6 +310,7 @@ namespace R2RDump
                 if (!_header)
                 {
                     WriteDivider("R2R Methods");
+                    _writer.WriteLine($"{r2r.R2RMethods.Count} methods");
                     _writer.WriteLine();
                     foreach (R2RMethod method in r2r.R2RMethods)
                     {
