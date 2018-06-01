@@ -3187,12 +3187,6 @@ MethodTableBuilder::EnumerateClassMethods()
             type = METHOD_TYPE_NORMAL;
         }
 
-        // PInvoke methods are not permitted on collectible types
-        if ((type == METHOD_TYPE_NDIRECT) && GetAssembly()->IsCollectible())
-        {
-            BuildMethodTableThrowException(IDS_CLASSLOAD_COLLECTIBLEPINVOKE);
-        }
-
         // Generic methods should always be METHOD_TYPE_INSTANTIATED
         if ((numGenericMethodArgs != 0) && (type != METHOD_TYPE_INSTANTIATED))
         {
