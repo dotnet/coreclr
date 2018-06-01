@@ -12,6 +12,7 @@
 
 #include "common.h"
 #include "strsafe.h"
+#include "corbbtprof.h"
 
 #include "zaprelocs.h"
 
@@ -1744,7 +1745,10 @@ void ZapImage::CompileColdRegion()
     CORINFO_METHOD_HANDLE handle = m_pPreloader->NextUncompiledMethod();
     while (handle != NULL)
     {
-        TryCompileInstantiatedMethod(handle, 0);
+        // For Partial NGen we set the ReadMethodCode bit to force us to include these kinds of generic methods.
+        //
+        unsigned defaultGenericMethodProfilingDataFlags = (m_zapper->m_pOpt->m_fPartialNGen) ? (1 << ReadMethodCode) : 0;
+        TryCompileInstantiatedMethod(handle, defaultGenericMethodProfilingDataFlags);
         handle = m_pPreloader->NextUncompiledMethod();
     }
     
@@ -1961,7 +1965,7 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodDef(mdMethodDef md, unsigned m
 
     // Don't bother compiling the IL_STUBS if we failed to compile the parent IL method
     //
-    if (methodCompileStatus == COMPILE_SUCCEED)
+    if ((methodCompileStatus == COMPILE_SUCCEED) || (methodCompileStatus == COMPILE_EXCLUDED))
     {
         CompileMethodStubContext context(this, methodProfilingDataFlags);
 
@@ -2020,7 +2024,7 @@ ZapImage::CompileStatus ZapImage::TryCompileInstantiatedMethod(CORINFO_METHOD_HA
 
     // Don't bother compiling the IL_STUBS if we failed to compile the parent IL method
     //
-    if (methodCompileStatus == COMPILE_SUCCEED)
+    if ((methodCompileStatus == COMPILE_SUCCEED) || (methodCompileStatus == COMPILE_EXCLUDED))
     {
         CompileMethodStubContext context(this, methodProfilingDataFlags);
 
@@ -2093,15 +2097,6 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
     }
     else  // we are compiling methods for the cold region
     {
-        // When Partial Ngen is specified we will omit the AOT native code for every
-        // method that was not executed based on the profile data.
-        //
-        if (m_zapper->m_pOpt->m_fPartialNGen)
-        {
-            // returning COMPILE_COLD_EXCLUDED excludes this method from the AOT native image
-            return COMPILE_COLD_EXCLUDED;
-        }
-
         // Retrieve any information that we have about a previous compilation attempt of this method
         const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
 
@@ -2132,11 +2127,24 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
 
     CORINFO_MODULE_HANDLE module;
 
-    // We only compile IL_STUBs from the current assembly
+    // We compile all IL_STUBs from the current assembly
     if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB))
+    {
         module = m_hModule;
-    else
+    }
+    else  // this not an IL_STUB method
+    {
+        // When Partial Ngen is specified we will omit the AOT native code for every
+        // method that was not executed based on the profile data.
+        //
+        if ((methodProfilingDataFlags == 0) && (m_zapper->m_pOpt->m_fPartialNGen))
+        {
+            // returning COMPILE_COLD_EXCLUDED excludes this method from the AOT native image
+            return COMPILE_COLD_EXCLUDED;
+        }
+
         module = m_zapper->m_pEEJitInfo->getMethodModule(handle);
+    }
 
     ZapInfo zapInfo(this, md, handle, module, methodProfilingDataFlags);
 
