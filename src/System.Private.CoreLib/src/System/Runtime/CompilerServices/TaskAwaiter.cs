@@ -61,7 +61,12 @@ namespace System.Runtime.CompilerServices
         // Its layout must remain the same.
 
         /// <summary>The task being awaited.</summary>
-        internal readonly Task m_task;
+#if CORECLR
+        internal
+#else
+        private
+#endif
+        readonly Task m_task;
 
         /// <summary>Initializes the <see cref="TaskAwaiter"/>.</summary>
         /// <param name="task">The <see cref="System.Threading.Tasks.Task"/> to be awaited.</param>
@@ -424,9 +429,19 @@ namespace System.Runtime.CompilerServices
             // Its layout must remain the same.
 
             /// <summary>The task being awaited.</summary>
-            internal readonly Task m_task;
+#if CORECLR
+            internal
+#else
+            private
+#endif
+            readonly Task m_task; 
             /// <summary>Whether to attempt marshaling back to the original context.</summary>
-            internal readonly bool m_continueOnCapturedContext;
+#if CORECLR
+            internal
+#else
+            private
+#endif
+            readonly bool m_continueOnCapturedContext; 
 
             /// <summary>Initializes the <see cref="ConfiguredTaskAwaiter"/>.</summary>
             /// <param name="task">The <see cref="System.Threading.Tasks.Task"/> to await.</param>
