@@ -42,7 +42,7 @@ namespace System.Text
                     else
                     {
                         // Low, did we have a high?
-                        if (!bFoundHigh)
+                        if (false == bFoundHigh)
                         {
                             // Didn't have one, make if fail when we stop
                             bFoundHigh = true;
@@ -65,40 +65,20 @@ namespace System.Text
 
         public String DefaultString
         {
-            get
-            {
-                return _strDefault;
-            }
+            get => _strDefault;
         }
 
-        public override EncoderFallbackBuffer CreateFallbackBuffer()
-        {
-            return new EncoderReplacementFallbackBuffer(this);
-        }
+        public override EncoderFallbackBuffer CreateFallbackBuffer() => new EncoderReplacementFallbackBuffer(this);
 
         // Maximum number of characters that this instance of this fallback could return
         public override int MaxCharCount
         {
-            get
-            {
-                return _strDefault.Length;
-            }
+            get => _strDefault.Length;
         }
 
-        public override bool Equals(Object value)
-        {
-            EncoderReplacementFallback that = value as EncoderReplacementFallback;
-            if (that != null)
-            {
-                return (_strDefault == that._strDefault);
-            }
-            return (false);
-        }
+        public override bool Equals(Object value) => value is EncoderReplacementFallback that ? (_strDefault == that._strDefault) : false;
 
-        public override int GetHashCode()
-        {
-            return _strDefault.GetHashCode();
-        }
+        public override int GetHashCode() => _strDefault.GetHashCode();
     }
 
 
@@ -135,33 +115,34 @@ namespace System.Text
 
             // Go ahead and get our fallback
             // Divide by 2 because we aren't a surrogate pair
-            _fallbackCount = _strDefault.Length / 2;
+            //_fallbackCount = _strDefault.Length / 2;
+            _fallbackCount = _strDefault.Length >> 1;
             _fallbackIndex = -1;
 
-            return _fallbackCount != 0;
+            return 0 != _fallbackCount;
         }
 
         public override bool Fallback(char charUnknownHigh, char charUnknownLow, int index)
         {
             // Double check input surrogate pair
-            if (!Char.IsHighSurrogate(charUnknownHigh))
+            if (false == Char.IsHighSurrogate(charUnknownHigh))
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
                     SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
 
-            if (!Char.IsLowSurrogate(charUnknownLow))
+            if (false == Char.IsLowSurrogate(charUnknownLow))
                 throw new ArgumentOutOfRangeException(nameof(charUnknownLow),
                     SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
 
             // If we had a buffer already we're being recursive, throw, it's probably at the suspect
             // character in our array.
-            if (_fallbackCount >= 1)
+            if (1 >= _fallbackCount)
                 ThrowLastCharRecursive(Char.ConvertToUtf32(charUnknownHigh, charUnknownLow));
 
             // Go ahead and get our fallback
             _fallbackCount = _strDefault.Length;
             _fallbackIndex = -1;
 
-            return _fallbackCount != 0;
+            return 0 != _fallbackCount;
         }
 
         public override char GetNextChar()
@@ -173,14 +154,14 @@ namespace System.Text
 
             // Do we have anything left? 0 is now last fallback char, negative is nothing left
             if (_fallbackCount < 0)
-                return '\0';
+                return default;
 
             // Need to get it out of the buffer.
             // Make sure it didn't wrap from the fast count-- path
-            if (_fallbackCount == int.MaxValue)
+            if (int.MaxValue == _fallbackCount)
             {
                 _fallbackCount = -1;
-                return '\0';
+                return default;
             }
 
             // Now make sure its in the expected range
@@ -207,11 +188,8 @@ namespace System.Text
         // How many characters left to output?
         public override int Remaining
         {
-            get
-            {
-                // Our count is 0 for 1 character left.
-                return (_fallbackCount < 0) ? 0 : _fallbackCount;
-            }
+            // Our count is 0 for 1 character left.
+            get => (_fallbackCount < 0) ? 0 : _fallbackCount;
         }
 
         // Clear the buffer

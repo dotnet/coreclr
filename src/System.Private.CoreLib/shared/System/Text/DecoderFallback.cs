@@ -41,6 +41,7 @@ namespace System.Text
         // internal methods that cannot be overridden that let us do our fallback thing
         // These wrap the internal methods so that we can check for people doing stuff that's incorrect
 
+            //Span here would be helpful.
         public abstract bool Fallback(byte[] bytesUnknown, int index);
 
         // Get next character
@@ -90,6 +91,8 @@ namespace System.Text
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*
         // Don't touch ref chars unless we succeed
+
+            //Span here would be helpful.
         internal unsafe virtual bool InternalFallback(byte[] bytes, byte* pBytes, ref char* chars)
         {
             Debug.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
@@ -192,7 +195,7 @@ namespace System.Text
         }
 
         // private helper methods
-        internal void ThrowLastBytesRecursive(byte[] bytesUnknown)
+        static internal void ThrowLastBytesRecursive(byte[] bytesUnknown)
         {
             // Create a string representation of our bytes.
             StringBuilder strBytes = new StringBuilder(bytesUnknown.Length * 3);
