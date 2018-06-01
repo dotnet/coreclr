@@ -32,6 +32,7 @@ namespace System.Diagnostics.Tracing
     sealed internal class FrameworkEventSource : EventSource
     {
         // Defines the singleton instance for the Resources ETW provider
+        // This field wil be accessed through reflection by System.Runtime.WindowsRuntime
         public static readonly FrameworkEventSource Log = new FrameworkEventSource();
 
         // Keyword definitions.  These represent logical groups of events that can be turned on and off independently
