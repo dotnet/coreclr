@@ -1227,6 +1227,8 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
             // Some of the initialization functions are not virtual. Call through the derived class
             // to prevent calling the base class version.
             loaderAllocator->Init(pCurDomain);
+            loaderAllocator->InitVirtualCallStubManager(pCurDomain, fIsCollectible);
+
             // Setup the managed proxy now, but do not actually transfer ownership to it.
             // Once everything is setup and nothing can fail anymore, the ownership will be
             // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
