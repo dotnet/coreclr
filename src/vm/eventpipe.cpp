@@ -554,7 +554,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(s_pSession != NULL);
     }
     CONTRACTL_END;
 
@@ -577,6 +576,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         // We can't procede without a configuration
         return;
     }
+    _ASSERTE(s_pSession != NULL);
 
     // If the activity id isn't specified, pull it from the current thread.
     if(pActivityId == NULL)

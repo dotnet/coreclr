@@ -434,7 +434,7 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentException(SR.EventSource_InvalidCommand, nameof(command));
             }
 
-            eventSource.SendCommand(null, 0, 0, command, true, EventLevel.LogAlways, EventKeywords.None, commandArguments);
+            eventSource.SendCommand(null, EventProviderType.ETW, 0, 0, command, true, EventLevel.LogAlways, EventKeywords.None, commandArguments);
         }
 
 #if !ES_BUILD_STANDALONE
@@ -1165,7 +1165,7 @@ namespace System.Diagnostics.Tracing
                     }
 
 #if FEATURE_MANAGED_ETW
-                    if (m_eventData[eventId].EnabledForBlobSerializedListeners)
+                    if (m_eventData[eventId].EnabledForETW || m_eventData[eventId].EnabledForEventPipe)
                     {
                         if (!SelfDescribingEvents)
                         {
@@ -1865,7 +1865,7 @@ namespace System.Diagnostics.Tracing
                     }
 
 #if FEATURE_MANAGED_ETW
-                    if (m_eventData[eventId].EnabledForBlobSerializedListeners)
+                    if (m_eventData[eventId].EnabledForETW || m_eventData[eventId].EnabledForEventPipe)
                     {
                         if (!SelfDescribingEvents)
                         {
@@ -2295,16 +2295,18 @@ namespace System.Diagnostics.Tracing
                 : base(providerType)
             {
                 this.m_eventSource = eventSource;
+                this.m_eventProviderType = providerType;
             }
             protected override void OnControllerCommand(ControllerCommand command, IDictionary<string, string> arguments,
                                                               int perEventSourceSessionId, int etwSessionId)
             {
                 // We use null to represent the ETW EventListener.  
                 EventListener listener = null;
-                m_eventSource.SendCommand(listener, perEventSourceSessionId, etwSessionId,
+                m_eventSource.SendCommand(listener, m_eventProviderType, perEventSourceSessionId, etwSessionId,
                                           (EventCommand)command, IsEnabled(), Level, MatchAnyKeyword, arguments);
             }
             private EventSource m_eventSource;
+            private EventProviderType m_eventProviderType;
         }
 #endif
 
@@ -2333,7 +2335,8 @@ namespace System.Diagnostics.Tracing
             public IntPtr EventHandle;              // EventPipeEvent handle.
             public EventTags Tags;
             public bool EnabledForAnyListener;      // true if any dispatcher has this event turned on
-            public bool EnabledForBlobSerializedListeners;  // is this event on for the ETW and/or EventPipe?
+            public bool EnabledForETW;              // is this event on for ETW?
+            public bool EnabledForEventPipe;        // is this event on for EventPipe?
 
             public bool HasRelatedActivityID;       // Set if the event method's first parameter is a Guid named 'relatedActivityId'
 #pragma warning disable 0649
@@ -2377,12 +2380,12 @@ namespace System.Diagnostics.Tracing
         //     * The 'enabled' 'level', matchAnyKeyword' arguments are ignored (must be true, 0, 0).  
         // 
         // dispatcher == null has special meaning. It is the 'ETW' dispatcher.
-        internal void SendCommand(EventListener listener, int perEventSourceSessionId, int etwSessionId,
+        internal void SendCommand(EventListener listener, EventProviderType eventProviderType, int perEventSourceSessionId, int etwSessionId,
                                   EventCommand command, bool enable,
                                   EventLevel level, EventKeywords matchAnyKeyword,
                                   IDictionary<string, string> commandArguments)
         {
-            var commandArgs = new EventCommandEventArgs(command, commandArguments, this, listener, perEventSourceSessionId, etwSessionId, enable, level, matchAnyKeyword);
+            var commandArgs = new EventCommandEventArgs(command, commandArguments, this, listener, eventProviderType, perEventSourceSessionId, etwSessionId, enable, level, matchAnyKeyword);
             lock (EventListener.EventListenersLock)
             {
                 if (m_completelyInited)
@@ -2451,7 +2454,7 @@ namespace System.Diagnostics.Tracing
                 {
                     // Set it up using the 'standard' filtering bitfields (use the "global" enable, not session specific one)
                     for (int i = 0; i < m_eventData.Length; i++)
-                        EnableEventForDispatcher(commandArgs.dispatcher, i, IsEnabledByDefault(i, commandArgs.enable, commandArgs.level, commandArgs.matchAnyKeyword));
+                        EnableEventForDispatcher(commandArgs.dispatcher, commandArgs.eventProviderType, i, IsEnabledByDefault(i, commandArgs.enable, commandArgs.level, commandArgs.matchAnyKeyword));
 
                     if (commandArgs.enable)
                     {
@@ -2587,15 +2590,19 @@ namespace System.Diagnostics.Tracing
         /// of 'eventId.  If value is 'false' disable the event for that dispatcher.   If 'eventId' is out of
         /// range return false, otherwise true.  
         /// </summary>
-        internal bool EnableEventForDispatcher(EventDispatcher dispatcher, int eventId, bool value)
+        internal bool EnableEventForDispatcher(EventDispatcher dispatcher, EventProviderType eventProviderType, int eventId, bool value)
         {
             if (dispatcher == null)
             {
                 if (eventId >= m_eventData.Length)
                     return false;
 #if FEATURE_MANAGED_ETW
-                if (m_etwProvider != null)
-                    m_eventData[eventId].EnabledForBlobSerializedListeners = value;
+                if (m_etwProvider != null && eventProviderType == EventProviderType.ETW)
+                    m_eventData[eventId].EnabledForETW = value;
+#endif
+#if FEATURE_PERFTRACING
+                if (m_eventPipeProvider != null && eventProviderType == EventProviderType.EventPipe)
+                    m_eventData[eventId].EnabledForEventPipe = value;
 #endif
             }
             else
@@ -2615,7 +2622,7 @@ namespace System.Diagnostics.Tracing
         private bool AnyEventEnabled()
         {
             for (int i = 0; i < m_eventData.Length; i++)
-                if (m_eventData[i].EnabledForBlobSerializedListeners || m_eventData[i].EnabledForAnyListener)
+                if (m_eventData[i].EnabledForETW || m_eventData[i].EnabledForEventPipe || m_eventData[i].EnabledForAnyListener)
                     return true;
             return false;
         }
@@ -3923,7 +3930,7 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(eventSource));
             }
 
-            eventSource.SendCommand(this, 0, 0, EventCommand.Update, true, level, matchAnyKeyword, arguments);
+            eventSource.SendCommand(this, EventProviderType.None, 0, 0, EventCommand.Update, true, level, matchAnyKeyword, arguments);
         }
         /// <summary>
         /// Disables all events coming from eventSource identified by 'eventSource'.  
@@ -3937,7 +3944,7 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(eventSource));
             }
 
-            eventSource.SendCommand(this, 0, 0, EventCommand.Update, false, EventLevel.LogAlways, EventKeywords.None, null);
+            eventSource.SendCommand(this, EventProviderType.None, 0, 0, EventCommand.Update, false, EventLevel.LogAlways, EventKeywords.None, null);
         }
 
         /// <summary>
@@ -4282,7 +4289,7 @@ namespace System.Diagnostics.Tracing
         {
             if (Command != EventCommand.Enable && Command != EventCommand.Disable)
                 throw new InvalidOperationException();
-            return eventSource.EnableEventForDispatcher(dispatcher, eventId, true);
+            return eventSource.EnableEventForDispatcher(dispatcher, eventProviderType, eventId, true);
         }
 
         /// <summary>
@@ -4294,18 +4301,19 @@ namespace System.Diagnostics.Tracing
         {
             if (Command != EventCommand.Enable && Command != EventCommand.Disable)
                 throw new InvalidOperationException();
-            return eventSource.EnableEventForDispatcher(dispatcher, eventId, false);
+            return eventSource.EnableEventForDispatcher(dispatcher, eventProviderType, eventId, false);
         }
 
 #region private
 
         internal EventCommandEventArgs(EventCommand command, IDictionary<string, string> arguments, EventSource eventSource,
-            EventListener listener, int perEventSourceSessionId, int etwSessionId, bool enable, EventLevel level, EventKeywords matchAnyKeyword)
+            EventListener listener, EventProviderType eventProviderType, int perEventSourceSessionId, int etwSessionId, bool enable, EventLevel level, EventKeywords matchAnyKeyword)
         {
             this.Command = command;
             this.Arguments = arguments;
             this.eventSource = eventSource;
             this.listener = listener;
+            this.eventProviderType = eventProviderType;
             this.perEventSourceSessionId = perEventSourceSessionId;
             this.etwSessionId = etwSessionId;
             this.enable = enable;
@@ -4315,6 +4323,7 @@ namespace System.Diagnostics.Tracing
 
         internal EventSource eventSource;
         internal EventDispatcher dispatcher;
+        internal EventProviderType eventProviderType;
 
         // These are the arguments of sendCommand and are only used for deferring commands until after we are fully initialized. 
         internal EventListener listener;
