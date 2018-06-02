@@ -45,10 +45,48 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
+//------------------------------------------------------------------------
+// verifyRegUsed: verify that the register is marked as used.
+//
+// Arguments:
+//    reg - The register to verify.
+//
+// Return Value:
+//   None.
+//
+// Assumptions:
+//    The caller must have ensured that the register is already marked 
+//    as used.
+//
+// Notes:
+//     This method is intended to be called during code generation, and 
+//     should simply validate that the register (or registers) have 
+//     already been added to the modified set.
+
 void RegSet::verifyRegUsed(regNumber reg)
 {
+    // TODO-Cleanup: we need to identify the places where the register 
+    //               is not marked as used when this is called.
     rsSetRegsModified(genRegMask(reg));
 }
+
+//------------------------------------------------------------------------
+// verifyRegistersUsed: verify that the registers are marked as used.
+//
+// Arguments:
+//    regs - The registers to verify.
+//
+// Return Value:
+//   None.
+//
+// Assumptions:
+//    The caller must have ensured that the registers are already marked
+//    as used.
+//
+// Notes:
+//     This method is intended to be called during code generation, and
+//     should simply validate that the register (or registers) have
+//     already been added to the modified set.
 
 void RegSet::verifyRegistersUsed(regMaskTP regMask)
 {
@@ -56,6 +94,9 @@ void RegSet::verifyRegistersUsed(regMaskTP regMask)
     {
         return;
     }
+
+    // TODO-Cleanup: we need to identify the places where the registers
+    //               are not marked as used when this is called.
     rsSetRegsModified(regMask);
 }
 
