@@ -45,18 +45,18 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
-void RegSet::verifyRegUsed(regNumber reg) const
+void RegSet::verifyRegUsed(regNumber reg)
 {
-    assert(rsRegsModified(genRegMask(reg)));
+    rsSetRegsModified(genRegMask(reg));
 }
 
-void RegSet::verifyRegistersUsed(regMaskTP regMask) const
+void RegSet::verifyRegistersUsed(regMaskTP regMask)
 {
     if (m_rsCompiler->opts.MinOpts() || m_rsCompiler->opts.compDbgCode)
     {
         return;
     }
-    assert(rsRegsModified(regMask));
+    rsSetRegsModified(regMask);
 }
 
 void RegSet::rsClearRegsModified()

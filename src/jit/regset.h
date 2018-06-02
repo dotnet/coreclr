@@ -94,9 +94,9 @@ public:
         return (rsModifiedRegsMask & mask) != 0;
     }
 
-    void verifyRegUsed(regNumber reg) const;
+    void verifyRegUsed(regNumber reg);
 
-    void verifyRegistersUsed(regMaskTP regMask) const;
+    void verifyRegistersUsed(regMaskTP regMask);
 
 public: // TODO-Cleanup: Should be private, but GCInfo uses them
     __declspec(property(get = GetMaskVars, put = SetMaskVars)) regMaskTP rsMaskVars; // mask of registers currently
