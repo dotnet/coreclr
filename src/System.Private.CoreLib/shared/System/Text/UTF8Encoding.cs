@@ -715,14 +715,14 @@ namespace System.Text
                     break;
 
                 LongCodeWithMask:
-                    if (!BitConverter.IsLittleEndian)
+                    if (BitConverter.IsLittleEndian)
                     {
-                        // be careful about the sign extension
-                        ch = (int)(((uint)ch) >> 16);
+                        ch = (char)ch;
                     }
                     else
                     {
-                        ch = (char)ch;
+                        // be careful about the sign extension
+                        ch = (int)(((uint)ch) >> 16);
                     }
                     pSrc++;
 
@@ -1145,16 +1145,7 @@ namespace System.Text
                         }
 
                         // Unfortunately, this is endianess sensitive
-                        if (!BitConverter.IsLittleEndian)
-                        {
-                            *pTarget = (byte)(ch>>16);
-                            *(pTarget+1) = (byte)ch;
-                            pSrc += 4;
-                            *(pTarget+2) = (byte)(chc>>16);
-                            *(pTarget+3) = (byte)chc;
-                            pTarget += 4;
-                        }
-                        else
+                        if (BitConverter.IsLittleEndian)
                         {
                             *pTarget = (byte)ch;
                             *(pTarget + 1) = (byte)(ch >> 16);
@@ -1163,18 +1154,27 @@ namespace System.Text
                             *(pTarget + 3) = (byte)(chc >> 16);
                             pTarget += 4;
                         }
+                        else
+                        {
+                            *pTarget = (byte)(ch>>16);
+                            *(pTarget+1) = (byte)ch;
+                            pSrc += 4;
+                            *(pTarget+2) = (byte)(chc>>16);
+                            *(pTarget+3) = (byte)chc;
+                            pTarget += 4;
+                        }
                     }
                     continue;
 
                 LongCodeWithMask:
-                    if (!BitConverter.IsLittleEndian)
+                    if (BitConverter.IsLittleEndian)
                     {
-                        // be careful about the sign extension
-                        ch = (int)(((uint)ch) >> 16);
+                        ch = (char)ch;
                     }
                     else
                     {
-                        ch = (char)ch;
+                        // be careful about the sign extension
+                        ch = (int)(((uint)ch) >> 16);
                     }
                     pSrc++;
 
@@ -1574,23 +1574,23 @@ namespace System.Text
                     break;
 
                 LongCodeWithMask32:
-                    if (!BitConverter.IsLittleEndian)
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        ch &= 0xFF;
+                    }
+                    else
                     {
                         // be careful about the sign extension
                         ch = (int)(((uint)ch) >> 16);
                     }
-                    else
+                LongCodeWithMask16:
+                    if (BitConverter.IsLittleEndian)
                     {
                         ch &= 0xFF;
                     }
-                LongCodeWithMask16:
-                    if (!BitConverter.IsLittleEndian)
+                    else
                     {
                         ch = (int)(((uint)ch) >> 8);
-                    }
-                    else
-                    {
-                        ch &= 0xFF;
                     }
 
                     pSrc++;
@@ -2066,18 +2066,18 @@ namespace System.Text
                         }
 
                         // Unfortunately, this is endianess sensitive
-                        if (!BitConverter.IsLittleEndian)
-                        {
-                            *pTarget = (char)((ch >> 8) & 0x7F);
-                            pSrc += 2;
-                            *(pTarget+1) = (char)(ch & 0x7F);
-                            pTarget += 2;
-                        }
-                        else
+                        if (BitConverter.IsLittleEndian)
                         {
                             *pTarget = (char)(ch & 0x7F);
                             pSrc += 2;
                             *(pTarget + 1) = (char)((ch >> 8) & 0x7F);
+                            pTarget += 2;
+                        }
+                        else
+                        {
+                            *pTarget = (char)((ch >> 8) & 0x7F);
+                            pSrc += 2;
+                            *(pTarget+1) = (char)(ch & 0x7F);
                             pTarget += 2;
                         }
                     }
@@ -2093,20 +2093,7 @@ namespace System.Text
                         }
 
                         // Unfortunately, this is endianess sensitive
-                        if (!BitConverter.IsLittleEndian)
-                        {
-                            *pTarget = (char)((ch >> 24) & 0x7F);
-                            *(pTarget+1) = (char)((ch >> 16) & 0x7F);
-                            *(pTarget+2) = (char)((ch >> 8) & 0x7F);
-                            *(pTarget+3) = (char)(ch & 0x7F);
-                            pSrc += 8;
-                            *(pTarget+4) = (char)((chb >> 24) & 0x7F);
-                            *(pTarget+5) = (char)((chb >> 16) & 0x7F);
-                            *(pTarget+6) = (char)((chb >> 8) & 0x7F);
-                            *(pTarget+7) = (char)(chb & 0x7F);
-                            pTarget += 8;
-                        }
-                        else
+                        if (BitConverter.IsLittleEndian)
                         {
                             *pTarget = (char)(ch & 0x7F);
                             *(pTarget + 1) = (char)((ch >> 8) & 0x7F);
@@ -2119,27 +2106,40 @@ namespace System.Text
                             *(pTarget + 7) = (char)((chb >> 24) & 0x7F);
                             pTarget += 8;
                         }
+                        else
+                        {
+                            *pTarget = (char)((ch >> 24) & 0x7F);
+                            *(pTarget+1) = (char)((ch >> 16) & 0x7F);
+                            *(pTarget+2) = (char)((ch >> 8) & 0x7F);
+                            *(pTarget+3) = (char)(ch & 0x7F);
+                            pSrc += 8;
+                            *(pTarget+4) = (char)((chb >> 24) & 0x7F);
+                            *(pTarget+5) = (char)((chb >> 16) & 0x7F);
+                            *(pTarget+6) = (char)((chb >> 8) & 0x7F);
+                            *(pTarget+7) = (char)(chb & 0x7F);
+                            pTarget += 8;
+                        }
                     }
                     break;
 
                 LongCodeWithMask32:
-                    if (!BitConverter.IsLittleEndian)
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        ch &= 0xFF;
+                    }
+                    else
                     {
                         // be careful about the sign extension
                         ch = (int)(((uint)ch) >> 16);
                     }
-                    else
+                LongCodeWithMask16:
+                    if (BitConverter.IsLittleEndian)
                     {
                         ch &= 0xFF;
                     }
-                LongCodeWithMask16:
-                    if (!BitConverter.IsLittleEndian)
+                    else
                     {
                         ch = (int)(((uint)ch) >> 8);
-                    }
-                    else
-                    {
-                        ch &= 0xFF;
                     }
                     pSrc++;
                     if (ch <= 0x7F)
