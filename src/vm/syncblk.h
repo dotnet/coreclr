@@ -1609,13 +1609,6 @@ struct ThreadQueue
 #endif
 };
 
-
-// The true size of an object is whatever C++ thinks, plus the ObjHeader we
-// allocate before it.
-
-#define ObjSizeOf(c)    (CrossBitness_SizeOf(c) + OBJHEADER_SIZE)
-
-
 inline void AwareLock::SetPrecious()
 {
     LIMITED_METHOD_CONTRACT;
