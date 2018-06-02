@@ -424,7 +424,7 @@ int DbgBreakCheck(const char* szFile, int iLine, const char* szExpr)
             TerminateProcess(GetCurrentProcess(), 1);
             break;
 
-        // Tell caller to break at the correct loction.
+        // Tell caller to break at the correct location.
         case IDRETRY:
 
             if (IsDebuggerPresent())
