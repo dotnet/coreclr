@@ -6787,7 +6787,7 @@ public:
             pMeth->EndEnumInstances (h1);
         }
 
-        // if this is a generic method we need to add a defered bp
+        // if this is a generic method we need to add a deferred bp
         BOOL bGeneric = FALSE;
         pMeth->HasClassOrMethodInstantiation(&bGeneric);
 
