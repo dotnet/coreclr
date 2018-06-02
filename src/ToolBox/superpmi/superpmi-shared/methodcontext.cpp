@@ -472,7 +472,7 @@ bool MethodContext::Equal(MethodContext* other)
 //------------------------------------------------------------------------------
 // MethodContext::recGlobalContext
 //    This method copies any relevant global (i.e. per-JIT-instance) data from
-//    the given method context. Currently this is limited to configuiration
+//    the given method context. Currently this is limited to configuration
 //    values, but may grow to encompass other information in the future (e.g.
 //    any information that is exposed by the ICorJitHost interface and is
 //    therefore accessible outside the context of a call to
