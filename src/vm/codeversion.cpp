@@ -1987,7 +1987,7 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         CAN_TAKE_LOCK;
         PRECONDITION(CheckPointer(pActiveVersions));
@@ -2301,7 +2301,7 @@ HRESULT CodeVersionManager::EnumerateClosedMethodDescs(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         CAN_TAKE_LOCK;
         PRECONDITION(CheckPointer(pMD, NULL_OK));
