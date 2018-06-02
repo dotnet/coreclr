@@ -10,33 +10,9 @@ internal partial class Interop
 {
     internal partial class BCrypt
     {
-        internal static unsafe NTSTATUS BCryptGenRandom(byte* pbBuffer, int count)
-        {
-            Debug.Assert(pbBuffer != null);
-            Debug.Assert(count >= 0);
-
-            return BCryptGenRandom(IntPtr.Zero, pbBuffer, count, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-        }
-
-        private const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
+        internal const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
 
         [DllImport(Libraries.BCrypt, CharSet = CharSet.Unicode)]
-        private static extern unsafe NTSTATUS BCryptGenRandom(IntPtr hAlgorithm, byte* pbBuffer, int cbBuffer, int dwFlags);
-    }
-
-    internal static unsafe void GetRandomBytes(byte* buffer, int length)
-    {
-        BCrypt.NTSTATUS status = BCrypt.BCryptGenRandom(buffer, length);
-        if (status != BCrypt.NTSTATUS.STATUS_SUCCESS)
-        {
-            if (status == BCrypt.NTSTATUS.STATUS_NO_MEMORY)
-            {
-                throw new OutOfMemoryException();
-            }
-            else
-            {
-                throw new InvalidOperationException();
-            }
-        }
+        internal static extern unsafe NTSTATUS BCryptGenRandom(IntPtr hAlgorithm, byte* pbBuffer, int cbBuffer, int dwFlags);        
     }
 }
