@@ -5395,7 +5395,7 @@ void MethodContext::recCompareTypesForCast(CORINFO_CLASS_HANDLE fromClass,
 }
 void MethodContext::dmpCompareTypesForCast(DLDL key, DWORD value)
 {
-    printf("CompareTypesForCast key fromClas=%016llX, toClass=%016llx, result=%d", key.A, key.B, value);
+    printf("CompareTypesForCast key fromClass=%016llX, toClass=%016llx, result=%d", key.A, key.B, value);
 }
 TypeCompareState MethodContext::repCompareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLASS_HANDLE toClass)
 {
