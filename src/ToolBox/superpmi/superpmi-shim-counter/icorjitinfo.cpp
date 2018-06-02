@@ -1412,10 +1412,10 @@ InfoAccessType interceptor_ICJI::constructStringLiteral(CORINFO_MODULE_HANDLE mo
     return original_ICorJitInfo->constructStringLiteral(module, metaTok, ppValue);
 }
 
-bool interceptor_ICJI::convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken)
+bool interceptor_ICJI::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
 {
-    mcs->AddCall("convertCalliToCall");
-    return original_ICorJitInfo->convertCalliToCall(pResolvedToken);
+    mcs->AddCall("convertPInvokeCalliToCall");
+    return original_ICorJitInfo->convertPInvokeCalliToCall(pResolvedToken, fMustConvert);
 }
 
 InfoAccessType interceptor_ICJI::emptyStringLiteral(void** ppValue)

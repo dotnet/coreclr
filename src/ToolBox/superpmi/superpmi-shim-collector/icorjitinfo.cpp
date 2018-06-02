@@ -1825,11 +1825,11 @@ InfoAccessType interceptor_ICJI::constructStringLiteral(CORINFO_MODULE_HANDLE mo
     return temp;
 }
 
-bool interceptor_ICJI::convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken)
+bool interceptor_ICJI::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
 {
-    mc->cr->AddCall("convertCalliToCall");
-    bool result = original_ICorJitInfo->convertCalliToCall(pResolvedToken);
-    mc->recConvertCalliToCall(pResolvedToken, result);
+    mc->cr->AddCall("convertPInvokeCalliToCall");
+    bool result = original_ICorJitInfo->convertPInvokeCalliToCall(pResolvedToken, fMustConvert);
+    mc->recConvertPInvokeCalliToCall(pResolvedToken, fMustConvert, result);
     return result;
 }
 

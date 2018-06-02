@@ -1690,8 +1690,9 @@ void* ZapInfo::getTailCallCopyArgsThunk (
     return m_pImage->GetWrappers()->GetStub(pStub);
 }
 
-bool ZapInfo::convertCalliToCall(
-                    CORINFO_RESOLVED_TOKEN * pResolvedToken)
+bool ZapInfo::convertPInvokeCalliToCall(
+                    CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                    bool fMustConvert)
 {
     return false;
 }

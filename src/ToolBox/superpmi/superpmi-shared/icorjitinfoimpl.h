@@ -906,7 +906,7 @@ void MethodCompileComplete(CORINFO_METHOD_HANDLE methHnd);
 // return a thunk that will copy the arguments for the given signature.
 void* getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags);
 
-bool convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken);
+bool convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert);
 
 // return memory manager that the JIT can use to allocate a regular memory
 IEEMemoryManager* getMemoryManager();

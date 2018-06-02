@@ -3155,8 +3155,10 @@ public:
                     ) = 0;
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
-    virtual bool convertCalliToCall(
-                    CORINFO_RESOLVED_TOKEN * pResolvedToken) = 0;
+    virtual bool convertPInvokeCalliToCall(
+                    CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                    bool fMustConvert
+                    ) = 0;
 };
 
 /**********************************************************************************/

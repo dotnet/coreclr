@@ -6101,7 +6101,7 @@ void Compiler::impCheckForPInvokeCall(
             (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) || IsTargetAbi(CORINFO_CORERT_ABI)))
     {
         // PInvoke in CoreRT ABI must be always inlined. Non-inlineable CALLI cases have been
-        // converted to regular method calls earlier using convertCalliToCall.
+        // converted to regular method calls earlier using convertPInvokeCalliToCall.
 
         // PInvoke CALLI in IL stubs must be inlined
     }
@@ -6973,7 +6973,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
     {
         if (IsTargetAbi(CORINFO_CORERT_ABI))
         {
-            if (info.compCompHnd->convertCalliToCall(pResolvedToken))
+            // See comment in impCheckForPInvokeCall
+            BasicBlock* block = compIsForInlining() ? impInlineInfo->iciBlock : compCurBB;
+            if (info.compCompHnd->convertPInvokeCalliToCall(pResolvedToken, !impCanPInvokeInlineCallSite(block)))
             {
                 eeGetCallInfo(pResolvedToken, NULL, CORINFO_CALLINFO_ALLOWINSTPARAM, callInfo);
                 return impImportCall(CEE_CALL, pResolvedToken, NULL, NULL, prefixFlags, callInfo, rawILOffset);

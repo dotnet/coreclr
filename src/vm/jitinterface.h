@@ -950,7 +950,8 @@ public:
     void* getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
                                    CorInfoHelperTailCallSpecialHandling flags);
 
-    bool convertCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken);
+    bool convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                                   bool fMustConvert);
 
     void getFunctionEntryPoint(CORINFO_METHOD_HANDLE   ftn,                 /* IN  */
                                CORINFO_CONST_LOOKUP *  pResult,             /* OUT */
