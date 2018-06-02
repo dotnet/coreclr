@@ -69,7 +69,7 @@ HRESULT ExpressionNode::CreateExpressionNode(__in_z WCHAR* pExpression, Expressi
 }
 
 // Performs recursive expansion within the tree for nodes that are along the path to varToExpand.
-// Expansion involves calulating a set of child expressions from the current expression via
+// Expansion involves calculating a set of child expressions from the current expression via
 // field dereferencing, array index dereferencing, or casting to a base type.
 // For example if a tree was rooted with expression 'foo.bar' and varToExpand is '(Baz)foo.bar[9]'
 // then 'foo.bar', 'foo.bar[9]', and '(Baz)foo.bar[9]' nodes would all be expanded.
