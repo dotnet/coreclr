@@ -40,7 +40,7 @@
 // To resolve this problem, SOS now abstracts the target behind the IMachine interface, and uses 
 // calls on IMachine to take target-specific actions. It implements X86Machine, ARMMachine, and 
 // AMD64Machine. An instance of these exists in each appropriate host (e.g. the X86 version of SOS
-// contains instaces of X86Machine and ARMMachine, the ARM version contains an instance of 
+// contains instances of X86Machine and ARMMachine, the ARM version contains an instance of 
 // ARMMachine, and the AMD64 version contains an instance of AMD64Machine). The code included in 
 // each version if determined by the SosTarget*** MSBuild symbols, and SOS_TARGET_*** conditional 
 // compilation symbols (as specified in sos.targets).
