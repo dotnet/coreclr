@@ -4924,7 +4924,7 @@ DECLARE_API(GCHeapStat)
             return Status;
         }
 
-        // aggregate stats accross heaps / generation
+        // aggregate stats across heaps / generation
         GenUsageStat genUsageStat[4] = {0, 0, 0, 0};
 
         for (DWORD n = 0; n < dwNHeaps; n ++)
