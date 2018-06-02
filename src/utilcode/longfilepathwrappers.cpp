@@ -1288,7 +1288,7 @@ BOOL LongFile::IsPathNotFullyQualified(SString & path)
         return !IsDirectorySeparator(path[1]); // There is no valid way to specify a relative path with two initial slashes
     }
 
-    return !((path.GetCount() >= 3)           //The only way to specify a fixed path that doesn't begin with two slashes is the drive, colon, slash format- i.e. C:\
+    return !((path.GetCount() >= 3)           //The only way to specify a fixed path that doesn't begin with two slashes is the drive, colon, slash format- i.e. "C:\"
             && (path[1] == VolumeSeparatorChar)
             && IsDirectorySeparator(path[2]));
 }

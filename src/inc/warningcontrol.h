@@ -14,7 +14,6 @@
 
 #if defined(_MSC_VER)
 #pragma warning(error   :4007)   // 'main' : must be __cdecl
-#pragma warning(disable :4010)   // "single-line comment contains line-continuation character"
 #pragma warning(error   :4013)   // 'function' undefined - assuming extern returning int
 #pragma warning(error   :4071)   // no function prototype given
 #pragma warning(error   :4072)   // no function prototype given (fastcall)
