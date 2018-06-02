@@ -8587,7 +8587,7 @@ HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
     CONTRACTL_END;
 
     PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
-        kP2EETriggers,
+        kP2EEAllowableAfterAttach | kP2EETriggers,
         (LF_CORPROF, 
          LL_INFO1000, 
          "**PROF: RequestRevert.\n"));
