@@ -1663,7 +1663,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
 BOOL VerifyObject(const DacpGcHeapDetails &heap, DWORD_PTR objAddr, DWORD_PTR MTAddr, size_t objSize, BOOL bVerifyMember)
 {
     // This is only used by the other VerifyObject function if bVerifyMember is true,
-    // so we only intialize it if we need it for verifying object members.
+    // so we only initialize it if we need it for verifying object members.
     DacpHeapSegmentData seg;
 
     if (bVerifyMember)
@@ -2161,7 +2161,7 @@ void HeapTraverser::PrintRefs(size_t obj, size_t methodTable, size_t size)
     
     // TODO: pass info to callback having to lookup the MethodTableInfo again
     MethodTableInfo* info = g_special_mtCache.Lookup((DWORD_PTR)methodTable);
-    _ASSERTE(info->IsInitialized());    // This is the second pass, so we should be intialized
+    _ASSERTE(info->IsInitialized());    // This is the second pass, so we should be initialized
 
     if (!info->bContainsPointers)
         return;
