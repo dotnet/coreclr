@@ -1262,7 +1262,7 @@ bool CodeGen::genCreateAddrMode(GenTree*  addr,
 #if SCALED_ADDR_MODES
                                 unsigned* mulPtr,
 #endif // SCALED_ADDR_MODES
-                                ssize_t*  cnsPtr)
+                                ssize_t* cnsPtr)
 {
     /*
         The following indirections are valid address modes on x86/x64:

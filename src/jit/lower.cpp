@@ -4373,16 +4373,15 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     }
 
     // Find out if an addressing mode can be constructed
-    bool doAddrMode =
-        comp->codeGen->genCreateAddrMode(addr,     // address
-                                         true,     // fold
-                                         &rev,     // reverse ops
-                                         &base,    // base addr
-                                         &index,   // index val
+    bool doAddrMode = comp->codeGen->genCreateAddrMode(addr,   // address
+                                                       true,   // fold
+                                                       &rev,   // reverse ops
+                                                       &base,  // base addr
+                                                       &index, // index val
 #if SCALED_ADDR_MODES
-                                         &scale,   // scaling
-#endif // SCALED_ADDR_MODES
-                                         &offset); // displacement
+                                                       &scale,   // scaling
+#endif                                                           // SCALED_ADDR_MODES
+                                                       &offset); // displacement
 
     if (scale == 0)
     {

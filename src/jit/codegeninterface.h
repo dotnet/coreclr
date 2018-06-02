@@ -83,7 +83,7 @@ public:
 #if SCALED_ADDR_MODES
                                    unsigned* mulPtr,
 #endif // SCALED_ADDR_MODES
-                                   ssize_t*  cnsPtr) = 0;
+                                   ssize_t* cnsPtr) = 0;
 
     void genCalcFrameSize();
 

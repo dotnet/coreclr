@@ -43,7 +43,7 @@ public:
 #if SCALED_ADDR_MODES
                                    unsigned* mulPtr,
 #endif // SCALED_ADDR_MODES
-                                   ssize_t*  cnsPtr);
+                                   ssize_t* cnsPtr);
 
 private:
 #if defined(_TARGET_XARCH_)

@@ -3613,7 +3613,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                                                        &idx,  // index val
 #if SCALED_ADDR_MODES
                                                        &mul,  // scaling
-#endif // SCALED_ADDR_MODES
+#endif                                                        // SCALED_ADDR_MODES
                                                        &cns)) // displacement
                         {
                             // We can form a complex addressing mode, so mark each of the interior
