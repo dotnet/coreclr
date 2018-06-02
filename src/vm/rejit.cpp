@@ -623,18 +623,25 @@ HRESULT ReJitManager::UpdateActiveILVersions(
         {
             continue;
         }
-        if(!fEESuspended)
-        {
-            // As a potential future optimization we could speculatively try to update the jump stamps without
-            // suspending the runtime. That needs to be plumbed through BatchUpdateJumpStamps though.
-            ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_REJIT);
-            fEESuspended = TRUE;
-        }
 
-        _ASSERTE(ThreadStore::HoldingThreadStore());
-        hr = pCodeVersionManager->SetActiveILCodeVersions(pCodeActivationBatch->m_methodsToActivate.Ptr(), pCodeActivationBatch->m_methodsToActivate.Count(), fEESuspended, &errorRecords);
-        if (FAILED(hr))
-            break;
+        {
+            // SetActiveILCodeVersions takes the SystemDomain crst, which needs to be acquired before the 
+            // ThreadStore crsts
+            SystemDomain::LockHolder lh;
+
+            if(!fEESuspended)
+            {
+                // As a potential future optimization we could speculatively try to update the jump stamps without
+                // suspending the runtime. That needs to be plumbed through BatchUpdateJumpStamps though.
+                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_REJIT);
+                fEESuspended = TRUE;
+            }
+
+            _ASSERTE(ThreadStore::HoldingThreadStore());
+            hr = pCodeVersionManager->SetActiveILCodeVersions(pCodeActivationBatch->m_methodsToActivate.Ptr(), pCodeActivationBatch->m_methodsToActivate.Count(), fEESuspended, &errorRecords);
+            if (FAILED(hr))
+                break;
+        }
     }
     if (fEESuspended)
     {
