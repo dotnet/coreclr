@@ -1235,7 +1235,7 @@ VOID ExpressionNode::EvaluateExpressionVariableScanCallback(ICorDebugValue* pVal
 //  ppExpressionNode     - OUT - the resulting expression node
 //
 //
-//  Valid combinations of state comming into this method:
+//  Valid combinations of state coming into this method:
 //      The expression up to charactersParsed isn't recognized yet:
 //           pParsedValue = pParsedType = pParsedDefaultValue = NULL
 //           cchParsedDefaultValue = 0
