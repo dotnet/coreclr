@@ -471,6 +471,19 @@ STDAPI VarR8FromDec(DECIMAL FAR* pdecIn, double FAR* pdblOut)
     return NOERROR;
 }
 
+STDAPI VarHashFromDec(DECIMAL *pdecIn, LONG *phashOut)
+{
+    VALIDATEDECIMAL(*pdecIn); // E_INVALIDARG check
+
+    // cast value to max possible scale with multiplication in order to not accumulate inaccurency
+    double dbl = ((double)DECIMAL_LO64_GET(*pdecIn) + (double)DECIMAL_HI32(*pdecIn) * ds2to64.dbl) * fnDblPower10(DECMAX - DECIMAL_SCALE(*pdecIn));
+
+    ULONG split[2];
+    memcpy(split, &dbl, sizeof(dbl));
+    *phashOut = split[0] ^ split[1];
+    return NOERROR;
+}
+
 STDAPI VarCyFromDec(DECIMAL FAR* pdecIn, CY FAR* pcyOut)
 {
     SPLIT64  sdlTmp;

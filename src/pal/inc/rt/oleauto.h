@@ -131,4 +131,6 @@ STDAPI VarUI1FromR8(DOUBLE dblIn, BYTE * pbOut);
 STDAPI VarUI2FromR8(DOUBLE dblIn, USHORT *puiOut);
 STDAPI VarUI4FromR8(DOUBLE dblIn, ULONG *pulOut);
 
+STDAPI VarHashFromDec(DECIMAL *pdecIn, LONG *phashOut);
+
 #endif // _OLEAUTO_H_
