@@ -1228,7 +1228,7 @@ VOID ExpressionNode::EvaluateExpressionVariableScanCallback(ICorDebugValue* pVal
 //  pParsedType          - A debuggee type that should be used as the context for interpreting
 //                         pExpressionRemainder. 
 //  pParsedDefaultValue  - A fixed value from metadata that should be used as context for
-//                         interpretting pExpressionRemainder
+//                         interpreting pExpressionRemainder
 //  cchParsedDefaultValue- Size of pParsedDefaultValue
 //  pFrame               - A debuggee IL frame that disambiguates the thread and context needed
 //                         to evaluate a thread-static or context-static value
