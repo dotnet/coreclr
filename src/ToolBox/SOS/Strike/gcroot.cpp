@@ -516,7 +516,7 @@ int GCRootImpl::PrintRootsInOlderGen()
 
         if (!analyzeData.heap_analyze_success)
         {
-            ExtOut("Failed to gather needed data, possibly due to memory contraints in the debuggee.\n");
+            ExtOut("Failed to gather needed data, possibly due to memory constraints in the debuggee.\n");
             ExtOut("To try again re-issue the !FindRoots -gen <N> command.\n");
             return 0;
         }
@@ -558,7 +558,7 @@ int GCRootImpl::PrintRootsInOlderGen()
 
             if (!analyzeData.heap_analyze_success)
             {
-                ExtOut("Failed to gather needed data, possibly due to memory contraints in the debuggee.\n");
+                ExtOut("Failed to gather needed data, possibly due to memory constraints in the debuggee.\n");
                 ExtOut("To try again re-issue the !FindRoots -gen <N> command.\n");
                 continue;
             }
