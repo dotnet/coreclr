@@ -9041,7 +9041,7 @@ static const char * const str_interesting_data_points[] =
 static const char * const str_heap_compact_reasons[] = 
 {
     "low on ephemeral space",
-    "high fragmetation",
+    "high fragmentation",
     "couldn't allocate gaps",
     "user specfied compact LOH",
     "last GC before OOM",
