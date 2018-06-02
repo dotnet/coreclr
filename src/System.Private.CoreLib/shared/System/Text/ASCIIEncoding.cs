@@ -3,8 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Text
 {
@@ -326,6 +330,7 @@ namespace System.Text
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
         // an encoder or fallback may change that assumption
+        // Optimized by TryEncodeAsciiCharsToBytes
         internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
@@ -419,7 +424,8 @@ namespace System.Text
             // Go ahead and do it, including the fallback.
             char ch;
             while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
-                    chars < charEnd)
+                    chars < charEnd &&
+                    false == TryEncodeAsciiCharsToBytes(chars, null, byteCount, false))
             {
                 // First unwind any fallback
                 if (ch == 0)
@@ -460,6 +466,7 @@ namespace System.Text
             return byteCount;
         }
 
+        // Optimized by TryEncodeAsciiCharsToBytes
         internal override unsafe int GetBytes(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS encoder)
         {
@@ -554,11 +561,14 @@ namespace System.Text
                     }
 
                     // We just do a quick copy
-                    while (chars < charEnd)
+
+                    while (chars < charEnd && false == TryEncodeAsciiCharsToBytes(chars, bytes, byteCount))
                     {
                         char ch2 = *(chars++);
                         if (ch2 >= 0x0080) *(bytes++) = (byte)cReplacement;
                         else *(bytes++) = unchecked((byte)(ch2));
+                        // Adjust the amount of bytes remaining
+                        byteCount = (int)(bytes - byteStart);
                     }
 
                     // Clear encoder
@@ -599,8 +609,9 @@ namespace System.Text
             // Go ahead and do it, including the fallback.
             char ch;
             while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
-                    chars < charEnd)
-            {
+                    chars < charEnd && 
+                    false == TryEncodeAsciiCharsToBytes(chars, bytes, byteCount))
+            {                
                 // First unwind any fallback
                 if (default == ch)
                 {
@@ -654,6 +665,9 @@ namespace System.Text
                 // Go ahead and add it
                 *bytes = unchecked((byte)ch);
                 bytes++;
+
+                // Adjust the amount of bytes remaining
+                byteCount = (int)(bytes - byteStart);
             }
 
             // Need to do encoder stuff
@@ -676,6 +690,7 @@ namespace System.Text
         }
 
         // This is internal and called by something else,
+        // Optimized by TryGetAsciiChars
         internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS decoder)
         {
             // Just assert, we're called internally so these should be safe, checked already
@@ -708,13 +723,13 @@ namespace System.Text
 
             // Have to do it the hard way.
             // Assume charCount will be == count
-            byte[] byteBuffer = new byte[1];
+            byte[] byteBuffer = ArrayPool<byte>.Shared.Rent(1);
 
             // Do it our fast way
             byte* byteEnd = bytes + count;
 
             // Quick loop
-            while (bytes < byteEnd)
+            while (bytes < byteEnd && false == TryGetAsciiChars(bytes, null, count, false))
             {
                 // Faster if don't use *bytes++;
                 byte b = *bytes;
@@ -747,6 +762,270 @@ namespace System.Text
             return count;
         }
 
+        // Hackathon, Issue# 18208 - juliusfriedman@gmail.com
+        // Sourced from the implementations provided by benadams.
+        // Alternate implementations in C++ @ https://git.merproject.org/mer-core/qtbase/commit/34821e226a94858480e57bb25ac7655bfd19f1e6 with support for UTF-8 Etc for reference.
+
+        //https://github.com/benaadams/FrameworkBenchmarks/blob/9d940f533c14130ab5b627b61ab142c90abfbac3/frameworks/CSharp/aspnetcore-mono/PlatformBenchmarks/Utilities/BufferExtensionsText.cs#L245-L330
+
+        // Encode as bytes upto the first non-ASCII byte with respect to length, only writes to output if `write` is true.
+        private static unsafe bool TryEncodeAsciiCharsToBytes(char* input, byte* output, int length, bool write = true)
+        {
+            // Note: Not BIGENDIAN
+            const int Shift16Shift24 = (1 << 16) | (1 << 24);
+            const int Shift8Identity = (1 << 8) | (1);
+
+            var i = 0;
+
+            if (length < 4)
+                goto trailing;
+
+            var unaligned = (int)(((ulong)input) & 0x7) >> 1;
+            // Unaligned chars
+            for (; i < unaligned; i++)
+            {
+                var ch = input[i];
+                if (ch > 0x7f)
+                {
+                    goto exit; // Non-ascii
+                }
+                if(write) output[i] = (byte)ch; // Cast convert
+            }
+
+            // Aligned
+            int ulongDoubleCount = (length - i) & ~0x7;
+            for (; i < ulongDoubleCount; i += 8)
+            {
+                ulong inputUlong0 = *(ulong*)(input + i);
+                ulong inputUlong1 = *(ulong*)(input + i + 4);
+                // Pack 16 ASCII chars into 16 bytes
+                if ((inputUlong0 & 0xFF80FF80FF80FF80u) == 0)
+                {
+                    if (write)
+                        *(uint*)(output + i) =
+                        ((uint)((inputUlong0 * Shift16Shift24) >> 24) & 0xffff) |
+                        ((uint)((inputUlong0 * Shift8Identity) >> 24) & 0xffff0000);
+                }
+                else
+                {
+                    goto exit; // Non-ascii
+                }
+                if ((inputUlong1 & 0xFF80FF80FF80FF80u) == 0)
+                {
+                    if (write)
+                        *(uint*)(output + i + 4) =
+                        ((uint)((inputUlong1 * Shift16Shift24) >> 24) & 0xffff) |
+                        ((uint)((inputUlong1 * Shift8Identity) >> 24) & 0xffff0000);
+                }
+                else
+                {
+                    i += 4;
+                    goto exit; // Non-ascii
+                }
+            }
+            if (length - 4 > i)
+            {
+                ulong inputUlong = *(ulong*)(input + i);
+                if ((inputUlong & 0xFF80FF80FF80FF80u) == 0)
+                {
+                    // Pack 8 ASCII chars into 8 bytes
+                    if (write)
+                        *(uint*)(output + i) =
+                        ((uint)((inputUlong * Shift16Shift24) >> 24) & 0xffff) |
+                        ((uint)((inputUlong * Shift8Identity) >> 24) & 0xffff0000);
+                }
+                else
+                {
+                    goto exit; // Non-ascii
+                }
+
+                i += 4;
+            }
+
+        trailing:
+            for (; i < length; i++)
+            {
+                var ch = input[i];
+                if (ch > 0x7f)
+                {
+                    goto exit; // Hit non-ascii
+                }
+
+                if (write)
+                    output[i] = (byte)ch; // Cast convert
+            }
+
+        exit:
+            //consumed = i;
+            return length == i ? true : false;
+        }
+
+        //https://github.com/aspnet/KestrelHttpServer/blob/0aff4a0440c2f393c0b98e9046a8e66e30a56cb0/src/Kestrel.Core/Internal/Infrastructure/StringUtilities.cs#L12-L110
+
+        // Encode as char upto the first non-ASCII byte with respect to count, only writes to output if `write` is true.
+        static unsafe bool TryGetAsciiChars(byte* input, char* output, int count, bool write = true)
+        {
+            // Calculate end position
+            var end = input + count;
+            // Start as valid
+            var isValid = true;
+
+            do
+            {
+                // If Vector not-accelerated or remaining less than vector size
+                if (false == Vector.IsHardwareAccelerated || input > end - Vector<sbyte>.Count)
+                {
+                    if (IntPtr.Size == 8) // Use Intrinsic switch for branch elimination
+                    {
+                        // 64-bit: Loop longs by default
+                        while (input <= end - sizeof(long))
+                        {
+                            isValid &= CheckBytesInAsciiRange(((long*)input)[0]);
+
+                            if (false == isValid)
+                                return isValid;
+
+                            if (write)
+                            {
+                                output[0] = (char)input[0];
+                                output[1] = (char)input[1];
+                                output[2] = (char)input[2];
+                                output[3] = (char)input[3];
+                                output[4] = (char)input[4];
+                                output[5] = (char)input[5];
+                                output[6] = (char)input[6];
+                                output[7] = (char)input[7];
+                            }
+
+                            input += sizeof(long);
+                            output += sizeof(long);
+                        }
+                        if (input <= end - sizeof(int))
+                        {
+                            isValid &= CheckBytesInAsciiRange(((int*)input)[0]);
+
+                            if (false == isValid)
+                                return isValid;
+
+                            if (write)
+                            {
+                                output[0] = (char)input[0];
+                                output[1] = (char)input[1];
+                                output[2] = (char)input[2];
+                                output[3] = (char)input[3];
+                            }
+
+                            input += sizeof(int);
+                            output += sizeof(int);
+                        }
+                    }
+                    else
+                    {
+                        // 32-bit: Loop ints by default
+                        while (input <= end - sizeof(int))
+                        {
+                            isValid &= CheckBytesInAsciiRange(((int*)input)[0]);
+
+                            if (false == isValid)
+                                return isValid;
+
+                            if (write)
+                            {
+                                output[0] = (char)input[0];
+                                output[1] = (char)input[1];
+                                output[2] = (char)input[2];
+                                output[3] = (char)input[3];
+                            }
+
+                            input += sizeof(int);
+                            output += sizeof(int);
+                        }
+                    }
+                    if (input <= end - sizeof(short))
+                    {
+                        isValid &= CheckBytesInAsciiRange(((short*)input)[0]);
+
+                        if (false == isValid)
+                            return isValid;
+
+                        if (write)
+                        {
+                            output[0] = (char)input[0];
+                            output[1] = (char)input[1];
+                        }
+
+                        input += sizeof(short);
+                        output += sizeof(short);
+                    }
+                    if (input < end)
+                    {
+                        isValid &= CheckBytesInAsciiRange(((sbyte*)input)[0]);
+                        if (false == isValid)
+                            return isValid;
+                        if (write)
+                            output[0] = (char)input[0];
+                    }
+
+                    return isValid;
+                }
+
+                // do/while as entry condition already checked
+                do
+                {
+                    var vector = Unsafe.AsRef<Vector<sbyte>>(input);
+                    isValid &= CheckBytesInAsciiRange(vector);
+                    if (false == isValid)
+                        return isValid;
+                    if (write)
+                    Vector.Widen(
+                        vector,
+                        out Unsafe.AsRef<Vector<short>>(output),
+                        out Unsafe.AsRef<Vector<short>>(output + Vector<short>.Count));
+                    input += Vector<sbyte>.Count;
+                    output += Vector<sbyte>.Count;
+                } while (input <= end - Vector<sbyte>.Count);
+
+                // Vector path done, loop back to do non-Vector
+                // If is a exact multiple of vector size, bail now
+            } while (input < end);
+
+            return isValid;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // Needs a push
+        private static bool CheckBytesInAsciiRange(Vector<sbyte> check)
+        {
+            // Vectorized byte range check, signed byte > 0 for 1-127
+            return Vector.GreaterThanAll(check, Vector<sbyte>.Zero);
+        }
+
+        // Validate: bytes != 0 && bytes <= 127
+        //  Subtract 1 from all bytes to move 0 to high bits
+        //  bitwise or with self to catch all > 127 bytes
+        //  mask off high bits and check if 0
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // Needs a push
+        private static bool CheckBytesInAsciiRange(long check)
+        {
+            const long HighBits = unchecked((long)0x8080808080808080L);
+            return (((check - 0x0101010101010101L) | check) & HighBits) == 0;
+        }
+
+        private static bool CheckBytesInAsciiRange(int check)
+        {
+            const int HighBits = unchecked((int)0x80808080);
+            return (((check - 0x01010101) | check) & HighBits) == 0;
+        }
+
+        private static bool CheckBytesInAsciiRange(short check)
+        {
+            const short HighBits = unchecked((short)0x8080);
+            return (((short)(check - 0x0101) | check) & HighBits) == 0;
+        }
+
+        private static bool CheckBytesInAsciiRange(sbyte check) => check > 0;
+
+        // Optimized by TryGetAsciiChars
         internal override unsafe int GetChars(byte* bytes, int byteCount,
                                                 char* chars, int charCount, DecoderNLS decoder)
         {
@@ -778,6 +1057,8 @@ namespace System.Text
                     "[ASCIICodePageEncoding.GetChars]Expected empty fallback buffer");
             }
 
+            //Empty string is not allowed as replacement.
+
             if (fallback != null && fallback.MaxCharCount == 1)
             {
                 // Try it the fast way
@@ -793,8 +1074,9 @@ namespace System.Text
                     byteEnd = bytes + charCount;
                 }
 
-                // Quick loop, just do '?' replacement because we don't have fallbacks for decodings.
-                while (bytes < byteEnd)
+                // Quick loop, just do 'replacementChar' replacement because we don't have fallbacks for decodings.
+                // Perform the loop while there is an invalid ASCII char * bytes.
+                while (bytes < byteEnd && false == TryGetAsciiChars(bytes, chars, charCount))
                 {
                     byte b = *(bytes++);
                     if (b >= 0x80)
@@ -802,6 +1084,8 @@ namespace System.Text
                         *(chars++) = replacementChar;
                     else
                         *(chars++) = unchecked((char)b);
+                    //Adjust the amount of chars remaining.
+                    charCount = (int)(chars - charStart);
                 }
 
                 // bytes & chars used are the same
@@ -812,11 +1096,11 @@ namespace System.Text
 
             // Slower way's going to need a fallback buffer
             DecoderFallbackBuffer fallbackBuffer = null;
-            byte[] byteBuffer = new byte[1];
+            byte[] byteBuffer = ArrayPool<byte>.Shared.Rent(1);
             char* charEnd = chars + charCount;
 
-            // Not quite so fast loop
-            while (bytes < byteEnd)
+            // Not quite so fast loop when TryGetAsciiChars is false.
+            while (bytes < byteEnd && false == TryGetAsciiChars(bytes, chars, charCount))
             {
                 // Faster if don't use *bytes++;
                 byte b = *(bytes);
@@ -866,6 +1150,8 @@ namespace System.Text
                     *(chars) = unchecked((char)b);
                     chars++;
                 }
+                //Adjust the amount of chars remaining
+                charCount = (int)(chars - charStart);
             }
 
             // Might have had decoder fallback stuff.
@@ -878,7 +1164,6 @@ namespace System.Text
 
             return (int)(chars - charStart);
         }
-
 
         public override int GetMaxByteCount(int charCount)
         {

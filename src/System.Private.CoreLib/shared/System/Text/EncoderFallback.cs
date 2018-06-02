@@ -116,10 +116,6 @@ namespace System.Text
         {
             char ch = GetNextChar();
 
-            //bFallingBack = (ch != default);
-            //if (default == ch) iRecursionCount = 0;
-            //return ch;
-
             switch (ch)
             {
                 case default(char): //can't use simple default syntax in switch...
@@ -205,7 +201,7 @@ namespace System.Text
             // Throw it, using our complete character
             throw new ArgumentException(
                 SR.Format(SR.Argument_RecursiveFallback,
-                    charRecursive), nameof(charRecursive));
+                    charRecursive), nameof(charRecursive));//needs to be "chars"?
         }
     }
 }
