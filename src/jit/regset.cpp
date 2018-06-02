@@ -55,17 +55,17 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //   None.
 //
 // Assumptions:
-//    The caller must have ensured that the register is already marked 
+//    The caller must have ensured that the register is already marked
 //    as used.
 //
 // Notes:
-//     This method is intended to be called during code generation, and 
-//     should simply validate that the register (or registers) have 
+//     This method is intended to be called during code generation, and
+//     should simply validate that the register (or registers) have
 //     already been added to the modified set.
 
 void RegSet::verifyRegUsed(regNumber reg)
 {
-    // TODO-Cleanup: we need to identify the places where the register 
+    // TODO-Cleanup: we need to identify the places where the register
     //               is not marked as used when this is called.
     rsSetRegsModified(genRegMask(reg));
 }
