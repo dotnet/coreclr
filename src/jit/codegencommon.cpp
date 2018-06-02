@@ -1249,38 +1249,21 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
  *  #endif
  *      *cnsPtr     ...     integer constant [optional]
  *
- *  The 'mode' parameter may have one of the following values:
- *
- *  #if LEA_AVAILABLE
- *         +1       ...     we're trying to compute a value via 'LEA'
- *  #endif
- *
- *          0       ...     we're trying to form an address mode
- *
- *         -1       ...     we're generating code for an address mode,
- *                          and thus the address must already form an
- *                          address mode (without any further work)
- *
  *  IMPORTANT NOTE: This routine doesn't generate any code, it merely
  *                  identifies the components that might be used to
  *                  form an address mode later on.
  */
 
 bool CodeGen::genCreateAddrMode(GenTree*  addr,
-                                int       mode,
                                 bool      fold,
-                                regMaskTP regMask,
                                 bool*     revPtr,
                                 GenTree** rv1Ptr,
                                 GenTree** rv2Ptr,
 #if SCALED_ADDR_MODES
                                 unsigned* mulPtr,
-#endif
-                                unsigned* cnsPtr,
-                                bool      nogen)
+#endif // SCALED_ADDR_MODES
+                                ssize_t*  cnsPtr)
 {
-    assert(nogen == true);
-
     /*
         The following indirections are valid address modes on x86/x64:
 
@@ -1332,7 +1315,7 @@ bool CodeGen::genCreateAddrMode(GenTree*  addr,
     ssize_t cns;
 #if SCALED_ADDR_MODES
     unsigned mul;
-#endif
+#endif // SCALED_ADDR_MODES
 
     GenTree* tmp;
 
@@ -1368,7 +1351,7 @@ bool CodeGen::genCreateAddrMode(GenTree*  addr,
     cns = 0;
 #if SCALED_ADDR_MODES
     mul = 0;
-#endif
+#endif // SCALED_ADDR_MODES
 
 AGAIN:
     /* We come back to 'AGAIN' if we have an add of a constant, and we are folding that
@@ -1379,7 +1362,7 @@ AGAIN:
 
 #if SCALED_ADDR_MODES
     assert(mul == 0);
-#endif
+#endif // SCALED_ADDR_MODES
 
     /* Special case: keep constants as 'op2' */
 
@@ -1442,7 +1425,7 @@ AGAIN:
                         goto FOUND_AM;
                     }
                     break;
-#endif
+#endif // SCALED_ADDR_MODES && !defined(_TARGET_ARMARCH_)
 
                 default:
                     break;
@@ -1529,20 +1512,10 @@ AGAIN:
 
         case GT_NOP:
 
-            if (!nogen)
-            {
-                break;
-            }
-
             op1 = op1->gtOp.gtOp1;
             goto AGAIN;
 
         case GT_COMMA:
-
-            if (!nogen)
-            {
-                break;
-            }
 
             op1 = op1->gtOp.gtOp2;
             goto AGAIN;
@@ -1616,20 +1589,10 @@ AGAIN:
 
         case GT_NOP:
 
-            if (!nogen)
-            {
-                break;
-            }
-
             op2 = op2->gtOp.gtOp1;
             goto AGAIN;
 
         case GT_COMMA:
-
-            if (!nogen)
-            {
-                break;
-            }
 
             op2 = op2->gtOp.gtOp2;
             goto AGAIN;
@@ -1738,9 +1701,7 @@ FOUND_AM:
 #if SCALED_ADDR_MODES
     *mulPtr = mul;
 #endif
-    // TODO-Cleanup: The offset is signed and it should be returned as such. See also
-    // GenTreeAddrMode::gtOffset and its associated cleanup note.
-    *cnsPtr = (unsigned)cns;
+    *cnsPtr = cns;
 
     return true;
 }
