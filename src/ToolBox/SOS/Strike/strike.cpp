@@ -4206,7 +4206,7 @@ DECLARE_API(DumpAsync)
             }
 
             // Get the address and method table of the state machine.  While it'll generally be a struct,
-            // it is valid for it to be a class, so we accomodate both.
+            // it is valid for it to be a class, so we accommodate both.
             BOOL bStateMachineIsValueType = stateMachineField.Type == ELEMENT_TYPE_VALUETYPE;
             CLRDATA_ADDRESS stateMachineAddr;
             CLRDATA_ADDRESS stateMachineMT;
