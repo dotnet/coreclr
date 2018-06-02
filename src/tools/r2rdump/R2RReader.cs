@@ -56,7 +56,7 @@ namespace R2RDump
         /// <summary>
         /// The available types from READYTORUN_SECTION_AVAILABLE_TYPES
         /// </summary>
-        public List<Tuple<string, string>> AvailableTypes { get; }
+        public List<string> AvailableTypes { get; }
 
         /// <summary>
         /// Initializes the fields of the R2RHeader and R2RMethods
@@ -107,7 +107,7 @@ namespace R2RDump
                     ParseInstanceMethodEntrypoints(isEntryPoint);
                     ParseRuntimeFunctions(isEntryPoint, runtimeFunctionOffset, runtimeFunctionSize);
 
-                    AvailableTypes = new List<Tuple<string, string>>();
+                    AvailableTypes = new List<string>();
                     ParseAvailableTypes();
                 }
             }
@@ -226,11 +226,11 @@ namespace R2RDump
 
         private void ParseAvailableTypes()
         {
-            R2RSection instMethodEntryPointSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
-            int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
-            NativeParser parser = new NativeParser(Image, (uint)instMethodEntryPointsOffset);
-            NativeHashtable instMethodEntryPoints = new NativeHashtable(Image, parser);
-            NativeHashtable.AllEntriesEnumerator allEntriesEnum = instMethodEntryPoints.EnumerateAllEntries();
+            R2RSection availableTypesSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
+            int availableTypesOffset = GetOffset(availableTypesSection.RelativeVirtualAddress);
+            NativeParser parser = new NativeParser(Image, (uint)availableTypesOffset);
+            NativeHashtable availableTypes = new NativeHashtable(Image, parser);
+            NativeHashtable.AllEntriesEnumerator allEntriesEnum = availableTypes.EnumerateAllEntries();
             NativeParser curParser = allEntriesEnum.GetNext();
             while (!curParser.IsNull())
             {
@@ -239,8 +239,12 @@ namespace R2RDump
                 TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
 
                 TypeDefinition typeDef = _mdReader.GetTypeDefinition(typeDefHandle);
-                Tuple<string, string> pair = new Tuple<string, string>(_mdReader.GetString(typeDef.Namespace), _mdReader.GetString(typeDef.Name));
-                AvailableTypes.Add(pair);
+                string name = _mdReader.GetString(typeDef.Name);
+                if (!typeDef.Namespace.IsNil)
+                {
+                    name = _mdReader.GetString(typeDef.Namespace) + "." + name;
+                }
+                AvailableTypes.Add(name);
                 curParser = allEntriesEnum.GetNext();
             }
         }

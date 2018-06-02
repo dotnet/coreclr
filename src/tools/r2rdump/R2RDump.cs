@@ -204,15 +204,11 @@ namespace R2RDump
         private void DumpAvailableTypes(R2RReader r2r)
         {
             WriteDivider("Available Types");
-            foreach (Tuple<string, string> pair in r2r.AvailableTypes)
+            foreach (string name in r2r.AvailableTypes)
             {
-                if (!pair.Item1.Equals(""))
-                {
-                    Console.Write($"{pair.Item1}.");
-                }
-                Console.WriteLine(pair.Item2);
+                _writer.WriteLine(name);
             }
-            Console.WriteLine();
+            _writer.WriteLine();
         }
 
         // <summary>
