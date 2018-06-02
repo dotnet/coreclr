@@ -1219,7 +1219,6 @@ BOOL PAL_GetPALDirectoryWrapper(SString& pbuffer)
     }
     else 
     {
-        DWORD dwLength;
         hr = CopySystemDirectory(pPath, pbuffer);
     }
   

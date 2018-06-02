@@ -18,7 +18,6 @@
 #pragma warning(error   :4071)   // no function prototype given
 #pragma warning(error   :4072)   // no function prototype given (fastcall)
 #pragma warning(3               :4092)   // sizeof returns 'unsigned long'
-#pragma warning(disable :4101)   // "'%$S' : unreferenced local variable"
 //#pragma warning(error :4102)   // "'%$S' : unreferenced label"
 #pragma warning(3               :4121)   // structure is sensitive to alignment
 #pragma warning(3               :4125)   // decimal digit in octal sequence
