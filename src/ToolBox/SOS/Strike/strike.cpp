@@ -4445,8 +4445,8 @@ static const char *const str_fgm[] =
     "Failed to reserve memory", // fgm_reserve_segment
     "Didn't have enough memory to commit beginning of the segment", // fgm_commit_segment_beg
     "Didn't have enough memory to commit the new ephemeral segment", // fgm_commit_eph_segment
-    "Didn't have enough memory to grow the internal GC datastructures", // fgm_grow_table
-    "Didn't have enough memory to commit the internal GC datastructures", // fgm_commit_table
+    "Didn't have enough memory to grow the internal GC data structures", // fgm_grow_table
+    "Didn't have enough memory to commit the internal GC data structures", // fgm_commit_table
 };
 
 void PrintOOMInfo(DacpOomData* oomData)
