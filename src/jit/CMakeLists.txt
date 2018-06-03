@@ -130,6 +130,7 @@ if (WIN32)
     inline.h
     inlinepolicy.h
     instr.h
+    instrxarch.h
     instrs.h
     instrsarm.h
     instrsarm64.h
@@ -195,6 +196,7 @@ endif(WIN32)
 set( JIT_AMD64_SOURCES
   codegenxarch.cpp
   emitxarch.cpp
+  instrxarch.cpp
   lowerxarch.cpp
   lsraxarch.cpp
   simd.cpp
@@ -221,6 +223,7 @@ set( JIT_I386_SOURCES
   codegenxarch.cpp
   decomposelongs.cpp
   emitxarch.cpp
+  instrxarch.cpp
   lowerxarch.cpp
   lsraxarch.cpp
   simd.cpp

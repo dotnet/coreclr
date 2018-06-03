@@ -1324,13 +1324,10 @@ protected:
         regNumber r3;
     };
 
+#ifdef _TARGET_XARCH_
     insUpdateModes emitInsUpdateMode(instruction ins);
     insFormat emitInsModeFormat(instruction ins, insFormat base);
-
-    static const BYTE emitInsModeFmtTab[];
-#ifdef DEBUG
-    static const unsigned emitInsModeFmtCnt;
-#endif
+#endif // _TARGET_XARCH_
 
     size_t emitGetInstrDescSize(const instrDesc* id);
     size_t emitGetInstrDescSizeSC(const instrDesc* id);
@@ -2152,6 +2149,7 @@ inline bool emitter::emitIsScnsInsDsc(instrDesc* id)
     return id->idIsSmallDsc();
 }
 
+#ifdef _TARGET_XARCH_
 /*****************************************************************************
  *
  *  Given an instruction, return its "update mode" (RD/WR/RW).
@@ -2159,11 +2157,9 @@ inline bool emitter::emitIsScnsInsDsc(instrDesc* id)
 
 inline insUpdateModes emitter::emitInsUpdateMode(instruction ins)
 {
-#ifdef DEBUG
-    assert((unsigned)ins < emitInsModeFmtCnt);
-#endif
-    return (insUpdateModes)emitInsModeFmtTab[ins];
+    return InstructionInfo::getUpdateMode(ins);
 }
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************
  *

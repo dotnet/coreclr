@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-//  This file was previously known as instrs.h
-//
 /*****************************************************************************
  *  x86 instructions for  the JIT compiler
  *
@@ -27,24 +24,28 @@
   #error Unexpected target type
 #endif
 
-#ifndef INST1
-#error  At least INST1 must be defined before including this file.
+#ifndef INSTRUCTION
+#error Define INSTRUCTION before including this file
 #endif
+
 /*****************************************************************************/
 #ifndef INST0
-#define INST0(id, nm, fp, um, rf, wf, mr                )
+#define INST0(id, nm, fp, um, rf, wf, mr                ) INSTRUCTION(id, nm, fp, um, rf, wf, mr, BAD_CODE, BAD_CODE, BAD_CODE, BAD_CODE)
+#endif
+#ifndef INST1
+#define INST1(id, nm, fp, um, rf, wf, mr                ) INSTRUCTION(id, nm, fp, um, rf, wf, mr, BAD_CODE, BAD_CODE, BAD_CODE, BAD_CODE)
 #endif
 #ifndef INST2
-#define INST2(id, nm, fp, um, rf, wf, mr, mi            )
+#define INST2(id, nm, fp, um, rf, wf, mr, mi            ) INSTRUCTION(id, nm, fp, um, rf, wf, mr, mi, BAD_CODE, BAD_CODE, BAD_CODE)
 #endif
 #ifndef INST3
-#define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        )
+#define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) INSTRUCTION(id, nm, fp, um, rf, wf, mr, mi, rm, BAD_CODE, BAD_CODE)
 #endif
 #ifndef INST4
-#define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    )
+#define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) INSTRUCTION(id, nm, fp, um, rf, wf, mr, mi, rm, a4, BAD_CODE)
 #endif
 #ifndef INST5
-#define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr)
+#define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) INSTRUCTION(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr)
 #endif
 
 /*****************************************************************************/
@@ -730,6 +731,7 @@ INST0(align  , "align"        , 0, IUM_RD, 0, 0, BAD_CODE)
 #undef  INST3
 #undef  INST4
 #undef  INST5
+#undef  INSTRUCTION
 /*****************************************************************************/
 
 // clang-format on

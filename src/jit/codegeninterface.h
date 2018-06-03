@@ -97,8 +97,10 @@ protected:
     Compiler* compiler;
     bool      m_genAlignLoops;
 
+#if !defined(_TARGET_XARCH_)
 private:
     static const BYTE instInfo[INS_count];
+#endif // !_TARGET_XARCH_
 
 #define INST_FP 0x01 // is it a FP instruction?
 public:
