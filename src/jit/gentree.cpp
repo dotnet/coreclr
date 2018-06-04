@@ -12,6 +12,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
 #include "jitpch.h"
+#include "hwintrinsic.h"
 #include "simd.h"
 
 #ifdef _MSC_VER
@@ -3483,7 +3484,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 case GT_NEG:
                     // We need to ensure that -x is evaluated before x or else
                     // we get burned while adjusting genFPstkLevel in x*-x where
-                    // the rhs x is the last use of the enregsitered x.
+                    // the rhs x is the last use of the enregistered x.
                     //
                     // Even in the integer case we want to prefer to
                     // evaluate the side without the GT_NEG node, all other things
@@ -3570,8 +3571,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         bool rev;
 #if SCALED_ADDR_MODES
                         unsigned mul;
-#endif
-                        unsigned cns;
+#endif // SCALED_ADDR_MODES
+                        ssize_t  cns;
                         GenTree* base;
                         GenTree* idx;
 
@@ -3606,18 +3607,15 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                             }
                         }
                         if ((doAddrMode) &&
-                            codeGen->genCreateAddrMode(addr,     // address
-                                                       0,        // mode
-                                                       false,    // fold
-                                                       RBM_NONE, // reg mask
-                                                       &rev,     // reverse ops
-                                                       &base,    // base addr
-                                                       &idx,     // index val
+                            codeGen->genCreateAddrMode(addr,  // address
+                                                       false, // fold
+                                                       &rev,  // reverse ops
+                                                       &base, // base addr
+                                                       &idx,  // index val
 #if SCALED_ADDR_MODES
-                                                       &mul, // scaling
-#endif
-                                                       &cns,  // displacement
-                                                       true)) // don't generate code
+                                                       &mul,  // scaling
+#endif                                                        // SCALED_ADDR_MODES
+                                                       &cns)) // displacement
                         {
                             // We can form a complex addressing mode, so mark each of the interior
                             // nodes with GTF_ADDRMODE_NO_CSE and calculate a more accurate cost.
@@ -6258,8 +6256,7 @@ GenTreeCall* Compiler::gtNewCallNode(
         }
 
         // Make sure that there are no duplicate entries for a given call node
-        IL_OFFSETX value;
-        assert(!genCallSite2ILOffsetMap->Lookup(node, &value));
+        assert(!genCallSite2ILOffsetMap->Lookup(node));
         genCallSite2ILOffsetMap->Set(node, ilOffset);
     }
 
@@ -10813,10 +10810,6 @@ extern const char* const simdIntrinsicNames[] = {
 };
 #endif // FEATURE_SIMD
 
-#ifdef FEATURE_HW_INTRINSICS
-extern const char* getHWIntrinsicName(NamedIntrinsic intrinsic);
-#endif // FEATURE_HW_INTRINSICS
-
 /*****************************************************************************/
 
 void Compiler::gtDispTree(GenTree*     tree,
@@ -11143,7 +11136,7 @@ void Compiler::gtDispTree(GenTree*     tree,
             printf(" %s %s",
                    tree->gtHWIntrinsic.gtSIMDBaseType == TYP_UNKNOWN ? ""
                                                                      : varTypeName(tree->gtHWIntrinsic.gtSIMDBaseType),
-                   getHWIntrinsicName(tree->gtHWIntrinsic.gtHWIntrinsicId));
+                   HWIntrinsicInfo::lookupName(tree->gtHWIntrinsic.gtHWIntrinsicId));
         }
 #endif // FEATURE_HW_INTRINSICS
 
@@ -17387,8 +17380,7 @@ bool GenTree::isCommutativeHWIntrinsic() const
     assert(gtOper == GT_HWIntrinsic);
 
 #ifdef _TARGET_XARCH_
-    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-    return ((flags & HW_Flag_Commutative) != 0);
+    return HWIntrinsicInfo::IsCommutative(AsHWIntrinsic()->gtHWIntrinsicId);
 #else
     return false;
 #endif // _TARGET_XARCH_
@@ -17399,8 +17391,25 @@ bool GenTree::isContainableHWIntrinsic() const
     assert(gtOper == GT_HWIntrinsic);
 
 #ifdef _TARGET_XARCH_
-    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-    return ((flags & HW_Flag_NoContainment) == 0);
+    switch (AsHWIntrinsic()->gtHWIntrinsicId)
+    {
+        case NI_SSE_LoadAlignedVector128:
+        case NI_SSE_LoadScalarVector128:
+        case NI_SSE_LoadVector128:
+        case NI_SSE2_LoadAlignedVector128:
+        case NI_SSE2_LoadScalarVector128:
+        case NI_SSE2_LoadVector128:
+        case NI_AVX_LoadAlignedVector256:
+        case NI_AVX_LoadVector256:
+        {
+            return true;
+        }
+
+        default:
+        {
+            return false;
+        }
+    }
 #else
     return false;
 #endif // _TARGET_XARCH_
@@ -17414,8 +17423,7 @@ bool GenTree::isRMWHWIntrinsic(Compiler* comp)
 #ifdef _TARGET_XARCH_
     if (!comp->canUseVexEncoding())
     {
-        HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-        return ((flags & HW_Flag_NoRMWSemantics) == 0);
+        return HWIntrinsicInfo::HasRMWSemantics(AsHWIntrinsic()->gtHWIntrinsicId);
     }
 
     switch (AsHWIntrinsic()->gtHWIntrinsicId)
@@ -17433,10 +17441,14 @@ bool GenTree::isRMWHWIntrinsic(Compiler* comp)
         case NI_FMA_MultiplySubtractNegated:
         case NI_FMA_MultiplySubtractNegatedScalar:
         case NI_FMA_MultiplySubtractScalar:
+        {
             return true;
+        }
 
         default:
+        {
             return false;
+        }
     }
 #else
     return false;
@@ -17559,7 +17571,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryLoad sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if (category == HW_Category_MemoryLoad)
     {
         return true;
@@ -17569,7 +17581,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
         // Some AVX instructions here also have MemoryLoad sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }
@@ -17594,7 +17606,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryStore sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if (category == HW_Category_MemoryStore)
     {
         return true;
@@ -17604,7 +17616,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
         // Some AVX instructions here also have MemoryStore sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }
@@ -17626,7 +17638,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryLoad sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if ((category == HW_Category_MemoryLoad) || (category == HW_Category_MemoryStore))
     {
         return true;
@@ -17636,7 +17648,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
         // Some AVX instructions here also have MemoryLoad or MemoryStore sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }

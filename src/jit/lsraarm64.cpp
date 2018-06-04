@@ -1014,7 +1014,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 //------------------------------------------------------------------------
 // BuildHWIntrinsic: Set the NodeInfo for a GT_HWIntrinsic tree.
 //
@@ -1027,7 +1027,7 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 {
     NamedIntrinsic intrinsicID = intrinsicTree->gtHWIntrinsicId;
-    int            numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicTree);
+    int            numArgs     = HWIntrinsicInfo::lookupNumArgs(intrinsicTree);
 
     GenTree* op1      = intrinsicTree->gtGetOp1();
     GenTree* op2      = intrinsicTree->gtGetOp2();
@@ -1051,7 +1051,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
     bool op3IsDelayFree = false;
 
     // Create internal temps, and handle any other special requirements.
-    switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
+    switch (HWIntrinsicInfo::lookup(intrinsicID).form)
     {
         case HWIntrinsicInfo::Sha1HashOp:
             assert((numArgs == 3) && (op2 != nullptr) && (op3 != nullptr));

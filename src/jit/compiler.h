@@ -59,6 +59,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "emit.h"
 
+#include "hwintrinsic.h"
 #include "simd.h"
 
 // This is only used locally in the JIT to indicate that
@@ -1458,6 +1459,10 @@ class Compiler
     friend class LIR;
     friend class ObjectAllocator;
     friend struct GenTree;
+
+#ifdef FEATURE_HW_INTRINSICS
+    friend struct HWIntrinsicInfo;
+#endif // FEATURE_HW_INTRINSICS
 
 #ifndef _TARGET_64BIT_
     friend class DecomposeLongs;
@@ -2958,16 +2963,8 @@ protected:
                                        CORINFO_SIG_INFO*     sig,
                                        bool                  mustExpand);
 
-public:
-    static int numArgsOfHWIntrinsic(GenTreeHWIntrinsic* node);
-
 protected:
 #ifdef _TARGET_XARCH_
-    static InstructionSet lookupHWIntrinsicISA(const char* className);
-    static NamedIntrinsic lookupHWIntrinsic(const char* methodName, InstructionSet isa);
-    static InstructionSet isaOfHWIntrinsic(NamedIntrinsic intrinsic);
-    static bool isIntrinsicAnIsSupportedPropertyGetter(NamedIntrinsic intrinsic);
-    static bool isFullyImplmentedISAClass(InstructionSet isa);
     GenTree* impSSEIntrinsic(NamedIntrinsic        intrinsic,
                              CORINFO_METHOD_HANDLE method,
                              CORINFO_SIG_INFO*     sig,
@@ -3013,29 +3010,17 @@ protected:
                                 CORINFO_SIG_INFO*     sig,
                                 bool                  mustExpand);
     bool compSupportsHWIntrinsic(InstructionSet isa);
-    bool isScalarISA(InstructionSet isa);
-    static int ivalOfHWIntrinsic(NamedIntrinsic intrinsic);
-    unsigned simdSizeOfHWIntrinsic(NamedIntrinsic intrinsic, CORINFO_SIG_INFO* sig);
-    static GenTree* lastOpOfHWIntrinsic(GenTreeHWIntrinsic* node, int numArgs);
-    static instruction insOfHWIntrinsic(NamedIntrinsic intrinsic, var_types type);
-
-public:
-    static HWIntrinsicCategory categoryOfHWIntrinsic(NamedIntrinsic intrinsic);
 
 protected:
-    static HWIntrinsicFlag flagsOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
-    static int immUpperBoundOfHWIntrinsic(NamedIntrinsic intrinsic);
     GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
-    static bool isImmHWIntrinsic(NamedIntrinsic intrinsic, GenTree* lastOp);
     GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
-    bool hwIntrinsicSignatureTypeSupported(var_types retType, CORINFO_SIG_INFO* sig, HWIntrinsicFlag flags);
+    bool hwIntrinsicSignatureTypeSupported(var_types retType, CORINFO_SIG_INFO* sig, NamedIntrinsic intrinsic);
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM64_
     InstructionSet lookupHWIntrinsicISA(const char* className);
     NamedIntrinsic lookupHWIntrinsic(const char* className, const char* methodName);
     bool impCheckImmediate(GenTree* immediateOp, unsigned int max);
-    const HWIntrinsicInfo& getHWIntrinsicInfo(NamedIntrinsic);
 #endif // _TARGET_ARM64_
 #endif // FEATURE_HW_INTRINSICS
     GenTree* impArrayAccessIntrinsic(CORINFO_CLASS_HANDLE clsHnd,

@@ -4341,7 +4341,7 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     GenTree* base   = nullptr;
     GenTree* index  = nullptr;
     unsigned scale  = 0;
-    unsigned offset = 0;
+    ssize_t  offset = 0;
     bool     rev    = false;
 
     // TODO-1stClassStructs: This logic is here to preserve prior behavior. Note that previously
@@ -4373,8 +4373,15 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     }
 
     // Find out if an addressing mode can be constructed
-    bool doAddrMode =
-        comp->codeGen->genCreateAddrMode(addr, -1, true, 0, &rev, &base, &index, &scale, &offset, true /*nogen*/);
+    bool doAddrMode = comp->codeGen->genCreateAddrMode(addr,   // address
+                                                       true,   // fold
+                                                       &rev,   // reverse ops
+                                                       &base,  // base addr
+                                                       &index, // index val
+#if SCALED_ADDR_MODES
+                                                       &scale,   // scaling
+#endif                                                           // SCALED_ADDR_MODES
+                                                       &offset); // displacement
 
     if (scale == 0)
     {
@@ -4411,12 +4418,12 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     DISPNODE(base);
     if (index != nullptr)
     {
-        JITDUMP("  + Index * %u + %u\n    ", scale, offset);
+        JITDUMP("  + Index * %u + %d\n    ", scale, offset);
         DISPNODE(index);
     }
     else
     {
-        JITDUMP("  + %u\n", offset);
+        JITDUMP("  + %d\n", offset);
     }
 
     var_types addrModeType = addr->TypeGet();
@@ -4510,6 +4517,17 @@ GenTree* Lowering::LowerAdd(GenTree* node)
 bool Lowering::LowerUnsignedDivOrMod(GenTreeOp* divMod)
 {
     assert(divMod->OperIs(GT_UDIV, GT_UMOD));
+
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    if (!varTypeIsIntegral(divMod->TypeGet()))
+    {
+        assert(!"unreachable: integral GT_UDIV/GT_UMOD should get morphed into helper calls");
+    }
+    assert(varTypeIsFloating(divMod->TypeGet()));
+#endif // USE_HELPERS_FOR_INT_DIV
+#if defined(_TARGET_ARM64_)
+    assert(divMod->OperGet() != GT_UMOD);
+#endif // _TARGET_ARM64_
 
     GenTree* next     = divMod->gtNext;
     GenTree* dividend = divMod->gtGetOp1();
@@ -4710,17 +4728,20 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
     GenTree* dividend = divMod->gtGetOp1();
     GenTree* divisor  = divMod->gtGetOp2();
 
-    if (!divisor->IsCnsIntOrI())
-    {
-        return nullptr; // no transformations to make
-    }
-
     const var_types type = divMod->TypeGet();
     assert((type == TYP_INT) || (type == TYP_LONG));
 
 #if defined(USE_HELPERS_FOR_INT_DIV)
-    assert(!"unreachable: GT_DIV/GT_MOD should get morphed into helper calls");
+    assert(!"unreachable: integral GT_DIV/GT_MOD should get morphed into helper calls");
 #endif // USE_HELPERS_FOR_INT_DIV
+#if defined(_TARGET_ARM64_)
+    assert(node->OperGet() != GT_MOD);
+#endif // _TARGET_ARM64_
+
+    if (!divisor->IsCnsIntOrI())
+    {
+        return nullptr; // no transformations to make
+    }
 
     if (dividend->IsCnsIntOrI())
     {
@@ -4984,9 +5005,7 @@ GenTree* Lowering::LowerSignedDivOrMod(GenTree* node)
     GenTree* dividend = divMod->gtGetOp1();
     GenTree* divisor  = divMod->gtGetOp2();
 
-#ifdef _TARGET_XARCH_
-    if (!varTypeIsFloating(node->TypeGet()))
-#endif // _TARGET_XARCH_
+    if (varTypeIsIntegral(node->TypeGet()))
     {
         // LowerConstIntDivOrMod will return nullptr if it doesn't transform the node.
         GenTree* newNode = LowerConstIntDivOrMod(node);

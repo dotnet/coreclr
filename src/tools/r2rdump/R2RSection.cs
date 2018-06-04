@@ -1,4 +1,8 @@
-﻿using System;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -46,9 +50,9 @@ namespace R2RDump
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})\n");
-            sb.AppendFormat($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}\n");
-            sb.AppendFormat($"Size: {Size} bytes\n");
+            sb.AppendLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
+            sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+            sb.AppendLine($"Size: {Size} bytes");
             return sb.ToString();
         }
     }
