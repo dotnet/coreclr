@@ -283,6 +283,17 @@ namespace System.IO
             }
         }
 
+        /// <summary>
+        /// Equivalent to Write(stringBuilder.ToString()) however it uses the
+        /// StringBuilder.GetChunks() method to avoid creating the intermediate string 
+        /// </summary>
+        /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
+        public virtual void Write(StringBuilder value)
+        {
+            foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
+                Write(chunk);
+        }
+
         // Writes out a formatted string.  Uses the same semantics as
         // String.Format.
         // 
@@ -525,6 +536,17 @@ namespace System.IO
                 t.Item1.Write(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Equivalent to WriteAsync(stringBuilder.ToString()) however it uses the
+        /// StringBuilder.GetChunks() method to avoid creating the intermediate string 
+        /// </summary>
+        /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
+        public async virtual Task WriteAsync(StringBuilder value)
+        {
+            foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
+                await WriteAsync(chunk);
         }
 
         public Task WriteAsync(char[] buffer)
