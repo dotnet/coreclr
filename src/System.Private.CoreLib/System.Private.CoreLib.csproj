@@ -616,7 +616,6 @@
     <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" Condition="'$(FeatureCominterop)' == 'true'" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="src\System\PinnableBufferCacheEventSource.cs" />
     <Compile Include="src\System\Runtime\RuntimeImports.cs" />
   </ItemGroup>
   <Import Project="shared\System.Private.CoreLib.Shared.projitems" />
