@@ -223,6 +223,10 @@ def main(argv):
         proc = subprocess.Popen(["git", "diff", "--patch", "-U20"], env=my_env, stdout=patchFile)
         output,error = proc.communicate()
 
+    # shutdown the dotnet build servers before cleaning things up
+    proc = subprocess.Popen(["dotnet", "build-server", "shutdown"], env=my_env)
+    output,error = proc.communicate()
+
     if os.path.isdir(jitUtilsPath):
         print("Deleting " + jitUtilsPath)
         shutil.rmtree(jitUtilsPath, onerror=del_rw)
