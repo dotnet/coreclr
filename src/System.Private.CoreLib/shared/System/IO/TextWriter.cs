@@ -543,10 +543,10 @@ namespace System.IO
         /// StringBuilder.GetChunks() method to avoid creating the intermediate string 
         /// </summary>
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
-        public async virtual Task WriteAsync(StringBuilder value)
+        public async virtual Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
         {
             foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
-                await WriteAsync(chunk);
+                await WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
         }
 
         public Task WriteAsync(char[] buffer)
