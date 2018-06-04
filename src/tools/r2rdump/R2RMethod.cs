@@ -45,7 +45,7 @@ namespace R2RDump
 
         public UnwindInfo UnwindInfo { get; }
 
-        public RuntimeFunction(R2RReader r2r, int id, int startRva, int endRva, int unwindRva, R2RMethod method)
+        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, R2RMethod method, UnwindInfo unwindInfo)
         {
             Id = id;
             StartAddress = startRva;
@@ -54,9 +54,7 @@ namespace R2RDump
                 Size = -1;
             UnwindRVA = unwindRva;
             Method = method;
-
-            int unwindOffset = r2r.GetOffset(unwindRva);
-            UnwindInfo = new UnwindInfo(r2r.Image, unwindOffset);
+            UnwindInfo = unwindInfo;
         }
 
         public override string ToString()
@@ -177,7 +175,7 @@ namespace R2RDump
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(R2RReader r2r, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
+        public R2RMethod(MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
         {
             Token = _mdtMethodDef | rid;
             Rid = rid;
@@ -193,7 +191,7 @@ namespace R2RDump
             BlobReader signatureReader = mdReader.GetBlobReader(_methodDef.Signature);
 
             TypeDefinitionHandle declaringTypeHandle = _methodDef.GetDeclaringType();
-            DeclaringType = r2r.GetTypeDefFullName(declaringTypeHandle);
+            DeclaringType = R2RReader.GetTypeDefFullName(mdReader, declaringTypeHandle);
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;

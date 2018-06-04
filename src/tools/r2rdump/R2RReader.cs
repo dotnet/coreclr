@@ -140,7 +140,7 @@ namespace R2RDump
                 int offset = 0;
                 if (methodEntryPoints.TryGetAt(Image, rid - 1, ref offset))
                 {
-                    R2RMethod method = new R2RMethod(this, _mdReader, rid, GetEntryPointIdFromOffset(offset), null, null);
+                    R2RMethod method = new R2RMethod(_mdReader, rid, GetEntryPointIdFromOffset(offset), null, null);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
                     {
@@ -184,7 +184,7 @@ namespace R2RDump
 
                     uint id = curParser.GetUnsigned();
                     id = id >> 1;
-                    R2RMethod method = new R2RMethod(this, _mdReader, rid, (int)id, args, tokens);
+                    R2RMethod method = new R2RMethod(_mdReader, rid, (int)id, args, tokens);
                     if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
                     {
                         isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
@@ -216,8 +216,9 @@ namespace R2RDump
                         endRva = NativeReader.ReadInt32(Image, ref curOffset);
                     }
                     int unwindRva = NativeReader.ReadInt32(Image, ref curOffset);
+                    int unwindOffset = GetOffset(unwindRva);
 
-                    method.RuntimeFunctions.Add(new RuntimeFunction(this, runtimeFunctionId, startRva, endRva, unwindRva, method));
+                    method.RuntimeFunctions.Add(new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, method, new UnwindInfo(Image, unwindOffset)));
                     runtimeFunctionId++;
                 }
                 while (runtimeFunctionId < isEntryPoint.Length && !isEntryPoint[runtimeFunctionId]);
@@ -237,7 +238,7 @@ namespace R2RDump
                 uint rid = curParser.GetUnsigned();
                 rid = rid >> 1;
                 TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
-                AvailableTypes.Add(GetTypeDefFullName(typeDefHandle));
+                AvailableTypes.Add(GetTypeDefFullName(_mdReader, typeDefHandle));
                 curParser = allEntriesEnum.GetNext();
             }
         }
@@ -253,19 +254,22 @@ namespace R2RDump
             return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
         }
 
-        public string GetTypeDefFullName(TypeDefinitionHandle handle)
+        /// <summary>
+        /// Get the full name of a type, including parent classes and namespace
+        /// </summary>
+        public static string GetTypeDefFullName(MetadataReader mdReader, TypeDefinitionHandle handle)
         {
             TypeDefinition typeDef;
             string typeStr = "";
             do
             {
-                typeDef = _mdReader.GetTypeDefinition(handle);
-                typeStr = "." + _mdReader.GetString(typeDef.Name) + typeStr;
+                typeDef = mdReader.GetTypeDefinition(handle);
+                typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
                 handle = typeDef.GetDeclaringType();
             }
             while (!handle.IsNil);
 
-            return _mdReader.GetString(typeDef.Namespace) + typeStr;
+            return mdReader.GetString(typeDef.Namespace) + typeStr;
         }
 
         /// <summary>
