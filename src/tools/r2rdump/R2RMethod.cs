@@ -177,7 +177,7 @@ namespace R2RDump
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(byte[] image, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
+        public R2RMethod(R2RReader r2r, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
         {
             Token = _mdtMethodDef | rid;
             Rid = rid;
@@ -193,22 +193,7 @@ namespace R2RDump
             BlobReader signatureReader = mdReader.GetBlobReader(_methodDef.Signature);
 
             TypeDefinitionHandle declaringTypeHandle = _methodDef.GetDeclaringType();
-            TypeDefinition declaringTypeDef;
-            do
-            {
-                declaringTypeDef = mdReader.GetTypeDefinition(declaringTypeHandle);
-                DeclaringType = mdReader.GetString(declaringTypeDef.Name) + "." + DeclaringType;
-                declaringTypeHandle = declaringTypeDef.GetDeclaringType();
-            }
-            while (!declaringTypeHandle.IsNil);
-
-            NamespaceDefinitionHandle namespaceHandle = declaringTypeDef.NamespaceDefinition;
-            while (!namespaceHandle.IsNil)
-            {
-                NamespaceDefinition namespaceDef = mdReader.GetNamespaceDefinition(namespaceHandle);
-                DeclaringType = mdReader.GetString(namespaceDef.Name) + "." + DeclaringType;
-                namespaceHandle = namespaceDef.Parent;
-            }
+            DeclaringType = r2r.GetTypeDefFullName(declaringTypeHandle);
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
@@ -258,7 +243,7 @@ namespace R2RDump
         {
             StringBuilder sb = new StringBuilder();
 
-            sb.AppendFormat($"{DeclaringType}{Name}");
+            sb.AppendFormat($"{DeclaringType}.{Name}");
 
             if (IsGeneric)
             {
