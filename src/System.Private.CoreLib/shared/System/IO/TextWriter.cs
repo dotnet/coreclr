@@ -290,6 +290,10 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public virtual void Write(StringBuilder value)
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
                 Write(chunk);
         }
@@ -545,6 +549,10 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public async virtual Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             foreach (ReadOnlyMemory<char> chunk in value.GetChunks())
                 await WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
         }
@@ -767,6 +775,9 @@ namespace System.IO
             public override void Write(string value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void Write(StringBuilder value) => _out.Write(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(object value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
@@ -850,6 +861,13 @@ namespace System.IO
             public override Task WriteAsync(string value)
             {
                 Write(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
+            {
+                WriteAsync(value, cancellationToken);
                 return Task.CompletedTask;
             }
 
