@@ -88,7 +88,7 @@ def main(argv):
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.300/dotnet-sdk-2.1.300-linux-x64.tar.gz"
         dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
     elif platform == 'OSX':
-        dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.300/dotnet-sdk-2.1.300-macos-x64.tar.gz"
+        dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.300/dotnet-sdk-2.1.300-osx-x64.tar.gz"
         dotnetcliFilename = os.path.join(dotnetcliPath, 'dotnetcli-jitutils.tar.gz')
     elif platform == 'Windows_NT':
         dotnetcliUrl = "https://dotnetcli.azureedge.net/dotnet/Sdk/2.1.300/dotnet-sdk-2.1.300-win-x64.zip"
