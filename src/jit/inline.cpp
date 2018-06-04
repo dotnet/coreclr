@@ -96,7 +96,7 @@ const char* InlGetTargetString(InlineObservation obs)
     switch (t)
     {
         case InlineTarget::CALLER:
-            return "caller";
+                             return "caller";
         case InlineTarget::CALLEE:
             return "callee";
         case InlineTarget::CALLSITE:
