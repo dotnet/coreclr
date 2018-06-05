@@ -77,7 +77,7 @@ namespace System.Text
     public abstract class Encoding : ICloneable
     {
         // For netcore we use UTF8 as default encoding since ANSI isn't available
-        private static readonly UTF8Encoding.UTF8EncodingSealed s_defaultEncoding  = new UTF8Encoding.UTF8EncodingSealed(encoderShouldEmitUTF8Identifier: false);
+        private static readonly UTF8Encoding.UTF8EncodingSealed s_defaultEncoding = new UTF8Encoding.UTF8EncodingSealed(encoderShouldEmitUTF8Identifier: false);
 
         // Returns an encoding for the system's current ANSI code page.
         public static Encoding Default => s_defaultEncoding;
@@ -276,15 +276,24 @@ namespace System.Text
 
             switch (codepage)
             {
-                case CodePageDefault: return Default;            // 0
-                case CodePageUnicode: return Unicode;            // 1200
-                case CodePageBigEndian: return BigEndianUnicode; // 1201
-                case CodePageUTF32: return UTF32;                // 12000
-                case CodePageUTF32BE: return BigEndianUTF32;     // 12001
-                case CodePageUTF7: return UTF7;                  // 65000
-                case CodePageUTF8: return UTF8;                  // 65001
-                case CodePageASCII: return ASCII;                // 20127
-                case ISO_8859_1: return Latin1;                  // 28591
+                case CodePageDefault:
+                    return Default;            // 0
+                case CodePageUnicode:
+                    return Unicode;            // 1200
+                case CodePageBigEndian:
+                    return BigEndianUnicode; // 1201
+                case CodePageUTF32:
+                    return UTF32;                // 12000
+                case CodePageUTF32BE:
+                    return BigEndianUTF32;     // 12001
+                case CodePageUTF7:
+                    return UTF7;                  // 65000
+                case CodePageUTF8:
+                    return UTF8;                  // 65001
+                case CodePageASCII:
+                    return ASCII;                // 20127
+                case ISO_8859_1:
+                    return Latin1;                  // 28591
 
                 // We don't allow the following special code page values that Win32 allows.
                 case CodePageNoOEM:                              // 1 CP_OEMCP
@@ -1297,7 +1306,7 @@ namespace System.Text
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
             // This happens if user has implemented a decoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
-                SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars"); //hardcoded..
+                SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars");
         }
 
         internal void ThrowCharsOverflow(DecoderNLS decoder, bool nothingDecoded)
@@ -1324,7 +1333,7 @@ namespace System.Text
             {
                 _encoding = encoding;
             }
-            
+
             public Object GetRealObject(StreamingContext context)
             {
                 throw new PlatformNotSupportedException();

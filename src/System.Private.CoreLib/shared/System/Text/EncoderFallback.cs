@@ -79,7 +79,8 @@ namespace System.Text
 
         public virtual void Reset()
         {
-            while (GetNextChar() != (char)0) ;
+            while (GetNextChar() != (char)0)
+                ;
         }
 
         // Internal items to help us figure out what we're doing as far as error messages, etc.
@@ -120,7 +121,8 @@ namespace System.Text
         {
             char ch = GetNextChar();
             bFallingBack = (ch != 0);
-            if (ch == 0) iRecursionCount = 0;
+            if (ch == 0)
+                iRecursionCount = 0;
             return ch;
         }
 

@@ -84,7 +84,7 @@ namespace System.Text
         public override unsafe int GetByteCount(String chars)
         {
             // Validate input
-            if (chars==null)
+            if (chars == null)
                 throw new ArgumentNullException("chars");
 
             fixed (char* pChars = chars)
@@ -131,7 +131,8 @@ namespace System.Text
 
             int byteCount = bytes.Length - byteIndex;
 
-            fixed (char* pChars = chars) fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
+            fixed (char* pChars = chars)
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
 
@@ -172,7 +173,8 @@ namespace System.Text
             // Just call pointer version
             int byteCount = bytes.Length - byteIndex;
 
-            fixed (char* pChars = chars)  fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
+            fixed (char* pChars = chars)
+            fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 // Remember that byteCount is # to decode, not size of array.
                 return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
@@ -255,7 +257,7 @@ namespace System.Text
             if (byteIndex < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((byteIndex < 0 ? "byteIndex" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            if ( bytes.Length - byteIndex < byteCount)
+            if (bytes.Length - byteIndex < byteCount)
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
 
             if (charIndex < 0 || charIndex > chars.Length)
@@ -268,7 +270,8 @@ namespace System.Text
             // Just call pointer version
             int charCount = chars.Length - charIndex;
 
-            fixed (byte* pBytes = bytes) fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
+            fixed (byte* pBytes = bytes)
+            fixed (char* pChars = &MemoryMarshal.GetReference((Span<char>)chars))
                 // Remember that charCount is # to decode, not size of array
                 return GetChars(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, null);
         }
@@ -312,7 +315,8 @@ namespace System.Text
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
 
             // Avoid problems with empty input buffer
-            if (byteCount == 0) return string.Empty;
+            if (byteCount == 0)
+                return string.Empty;
 
             fixed (byte* pBytes = bytes)
                 return string.CreateStringFromEncoding(
@@ -557,8 +561,10 @@ namespace System.Text
                     while (chars < charEnd)
                     {
                         char ch2 = *(chars++);
-                        if (ch2 >= 0x0080) *(bytes++) = (byte)cReplacement;
-                        else *(bytes++) = unchecked((byte)(ch2));
+                        if (ch2 >= 0x0080)
+                            *(bytes++) = (byte)cReplacement;
+                        else
+                            *(bytes++) = unchecked((byte)(ch2));
                     }
 
                     // Clear encoder

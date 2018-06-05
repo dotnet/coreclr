@@ -14,7 +14,7 @@ namespace System.Text
         private static DecoderFallback s_exceptionFallback;
 
         public static DecoderFallback ReplacementFallback =>
-            s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback;        
+            s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback;
 
 
         public static DecoderFallback ExceptionFallback =>
@@ -59,7 +59,8 @@ namespace System.Text
 
         public virtual void Reset()
         {
-            while (GetNextChar() != (char)0) ;
+            while (GetNextChar() != (char)0)
+                ;
         }
 
         // Internal items to help us figure out what we're doing as far as error messages, etc.
