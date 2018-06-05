@@ -577,7 +577,7 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, i
     else
     {
         regNumber op1Reg = op1->gtRegNum;
-        emit->emitIns_R_R_I(ins, simdSize, targetReg, op1Reg, ival);
+        emit->emitIns_SIMD_R_R_I(ins, simdSize, targetReg, op1Reg, ival);
     }
 }
 
