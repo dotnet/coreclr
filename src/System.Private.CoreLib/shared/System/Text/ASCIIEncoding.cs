@@ -422,14 +422,13 @@ namespace System.Text
             // Now we may have fallback char[] already from the encoder
 
             // Go ahead and do it, including the fallback.
-            byte* nilBytes = null;
             char ch;
             while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
                     chars < charEnd &&
-                    false == TryEncodeAsciiCharsToBytes(ref chars, ref nilBytes, charCount, false))
+                    false == TryEncodeAsciiCharsToBytes(chars, null, byteCount, false))
             {
                 // First unwind any fallback
-                if (default == ch)
+                if (ch == 0)
                 {
                     // No fallback, just get next char
                     ch = *chars;
@@ -459,8 +458,6 @@ namespace System.Text
 
                 // We'll use this one
                 byteCount++;
-                // Adjust charCount;
-                charCount = (int)(charEnd - chars);
             }
 
             Debug.Assert(null == fallbackBuffer || fallbackBuffer.Remaining == 0,
@@ -545,7 +542,6 @@ namespace System.Text
                         // Have to have room
                         // Throw even if doing no throw version because this is just 1 char,
                         // so buffer will never be big enough
-                        // Was checked in the entry and never modified.
                         if (0 == byteCount)
                             ThrowBytesOverflow(encoder, true);
 
@@ -566,7 +562,7 @@ namespace System.Text
 
                     // We just do a quick copy
 
-                    while (chars < charEnd && false == TryEncodeAsciiCharsToBytes(ref chars, ref bytes, byteCount))
+                    while (chars < charEnd && false == TryEncodeAsciiCharsToBytes(chars, bytes, byteCount))
                     {
                         char ch2 = *(chars++);
                         if (ch2 >= 0x0080) *(bytes++) = (byte)cReplacement;
@@ -612,9 +608,9 @@ namespace System.Text
 
             // Go ahead and do it, including the fallback.
             char ch;
-            while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != default ||
+            while ((ch = (null == fallbackBuffer) ? default : fallbackBuffer.InternalGetNextChar()) != 0 ||
                     chars < charEnd && 
-                    false == TryEncodeAsciiCharsToBytes(ref chars, ref bytes, byteCount))
+                    false == TryEncodeAsciiCharsToBytes(chars, bytes, byteCount))
             {                
                 // First unwind any fallback
                 if (default == ch)
@@ -731,10 +727,9 @@ namespace System.Text
 
             // Do it our fast way
             byte* byteEnd = bytes + count;
-            char* nilChars = null;
 
             // Quick loop
-            while (bytes < byteEnd && false == TryGetAsciiChars(ref bytes, ref nilChars, (int)(bytes - byteEnd), false))
+            while (bytes < byteEnd && false == TryGetAsciiChars(bytes, null, count, false))
             {
                 // Faster if don't use *bytes++;
                 byte b = *bytes;
@@ -769,14 +764,12 @@ namespace System.Text
 
         // Hackathon, Issue# 18208 - juliusfriedman@gmail.com
         // Sourced from the implementations provided by benadams.
-        // Unrelated
-        // Blog post about text processing in SIMD https://woboq.com/blog/utf-8-processing-using-simd.html
-        // corefxlab https://github.com/dotnet/corefxlab/blob/d2264af73d5ee7275d636cf48e7ca5ac4331900c/src/System.Buffers.Experimental/System/Buffers/BufferExtensions.cs#L284 @ TryIndiciesOf
+        // Alternate implementations in C++ @ https://git.merproject.org/mer-core/qtbase/commit/34821e226a94858480e57bb25ac7655bfd19f1e6 with support for UTF-8 Etc for reference.
 
         //https://github.com/benaadams/FrameworkBenchmarks/blob/9d940f533c14130ab5b627b61ab142c90abfbac3/frameworks/CSharp/aspnetcore-mono/PlatformBenchmarks/Utilities/BufferExtensionsText.cs#L245-L330
 
         // Encode as bytes upto the first non-ASCII byte with respect to length, only writes to output if `write` is true.
-        private static unsafe bool TryEncodeAsciiCharsToBytes(ref char* input, ref byte* output, int length, bool write = true)
+        private static unsafe bool TryEncodeAsciiCharsToBytes(char* input, byte* output, int length, bool write = true)
         {
             // Note: Not BIGENDIAN
             const int Shift16Shift24 = (1 << 16) | (1 << 24);
@@ -870,7 +863,7 @@ namespace System.Text
         //https://github.com/aspnet/KestrelHttpServer/blob/0aff4a0440c2f393c0b98e9046a8e66e30a56cb0/src/Kestrel.Core/Internal/Infrastructure/StringUtilities.cs#L12-L110
 
         // Encode as char upto the first non-ASCII byte with respect to count, only writes to output if `write` is true.
-        static unsafe bool TryGetAsciiChars(ref byte* input, ref char* output, int count, bool write = true)
+        static unsafe bool TryGetAsciiChars(byte* input, char* output, int count, bool write = true)
         {
             // Calculate end position
             var end = input + count;
@@ -1046,7 +1039,6 @@ namespace System.Text
             byte* byteEnd = bytes + byteCount;
             byte* byteStart = bytes;
             char* charStart = chars;
-            char* charEnd = chars + charCount;
 
             // Note: ASCII doesn't do best fit, but we have to fallback if they use something > 0x7f
             // Only need decoder fallback buffer if not using ? fallback.
@@ -1084,7 +1076,7 @@ namespace System.Text
 
                 // Quick loop, just do 'replacementChar' replacement because we don't have fallbacks for decodings.
                 // Perform the loop while there is an invalid ASCII char * bytes.
-                while (bytes < byteEnd && false == TryGetAsciiChars(ref bytes, ref chars, (int)(chars - charEnd)))
+                while (bytes < byteEnd && false == TryGetAsciiChars(bytes, chars, charCount))
                 {
                     byte b = *(bytes++);
                     if (b >= 0x80)
@@ -1092,6 +1084,8 @@ namespace System.Text
                         *(chars++) = replacementChar;
                     else
                         *(chars++) = unchecked((char)b);
+                    //Adjust the amount of chars remaining.
+                    charCount = (int)(chars - charStart);
                 }
 
                 // bytes & chars used are the same
@@ -1099,12 +1093,14 @@ namespace System.Text
                     decoder._bytesUsed = (int)(bytes - byteStart);
                 return (int)(chars - charStart);
             }
+
             // Slower way's going to need a fallback buffer
             DecoderFallbackBuffer fallbackBuffer = null;
             byte[] byteBuffer = ArrayPool<byte>.Shared.Rent(1);
+            char* charEnd = chars + charCount;
 
             // Not quite so fast loop when TryGetAsciiChars is false.
-            while (bytes < byteEnd && false == TryGetAsciiChars(ref bytes, ref chars, (int)(chars - charEnd)))
+            while (bytes < byteEnd && false == TryGetAsciiChars(bytes, chars, charCount))
             {
                 // Faster if don't use *bytes++;
                 byte b = *(bytes);
@@ -1154,6 +1150,8 @@ namespace System.Text
                     *(chars) = unchecked((char)b);
                     chars++;
                 }
+                //Adjust the amount of chars remaining
+                charCount = (int)(chars - charStart);
             }
 
             // Might have had decoder fallback stuff.
