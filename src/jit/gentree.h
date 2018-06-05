@@ -758,7 +758,8 @@ public:
 //  well to make sure it's the right operator for the particular flag.
 //---------------------------------------------------------------------
 
-// NB: GTF_VAR_* are also used by GT_LCL_FLD.
+// NB: GTF_VAR_* and GTF_REG_* share the same namespace of flags.
+// These flags are also used by GT_LCL_FLD.
 #define GTF_VAR_DEF         0x80000000 // GT_LCL_VAR -- this is a definition
 #define GTF_VAR_USEASG      0x40000000 // GT_LCL_VAR -- this is a use/def for a x<op>=y
 #define GTF_VAR_CAST        0x10000000 // GT_LCL_VAR -- has been explictly cast (variable node may not be type of local)

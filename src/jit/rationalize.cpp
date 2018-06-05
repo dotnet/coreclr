@@ -16,8 +16,6 @@ genTreeOps storeForm(genTreeOps loadForm)
             return GT_STORE_LCL_VAR;
         case GT_LCL_FLD:
             return GT_STORE_LCL_FLD;
-            noway_assert(!"reg vars only supported in classic backend\n");
-            unreached();
         default:
             noway_assert(!"not a data load opcode\n");
             unreached();
