@@ -84,7 +84,7 @@ namespace System.Text
         public override unsafe int GetByteCount(String chars)
         {
             // Validate input
-            if (chars == null)
+            if (chars==null)
                 throw new ArgumentNullException("chars");
 
             fixed (char* pChars = chars)
@@ -131,7 +131,7 @@ namespace System.Text
 
             int byteCount = bytes.Length - byteIndex;
 
-            fixed (char* pChars = chars) fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
+            fixed (char* pChars = chars)  fixed (byte* pBytes = &MemoryMarshal.GetReference((Span<byte>)bytes))
                 return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
 
@@ -255,7 +255,7 @@ namespace System.Text
             if (byteIndex < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((byteIndex < 0 ? "byteIndex" : "byteCount"), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            if (bytes.Length - byteIndex < byteCount)
+            if ( bytes.Length - byteIndex < byteCount)
                 throw new ArgumentOutOfRangeException("bytes", SR.ArgumentOutOfRange_IndexCountBuffer);
 
             if (charIndex < 0 || charIndex > chars.Length)
