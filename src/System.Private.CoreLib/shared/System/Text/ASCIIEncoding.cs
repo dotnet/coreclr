@@ -58,7 +58,7 @@ namespace System.Text
         public override unsafe int GetByteCount(char[] chars, int index, int count)
         {
             // Validate input parameters
-            if (chars==null)
+            if (chars == null)
                 throw new ArgumentNullException("chars", SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
