@@ -18,15 +18,11 @@
 #pragma warning(error   :4071)   // no function prototype given
 #pragma warning(error   :4072)   // no function prototype given (fastcall)
 #pragma warning(3               :4092)   // sizeof returns 'unsigned long'
-//#pragma warning(error :4102)   // "'%$S' : unreferenced label"
 #pragma warning(3               :4121)   // structure is sensitive to alignment
-#pragma warning(3               :4125)   // decimal digit in octal sequence
 #pragma warning(3               :4130)   // logical operation on address of string constant
 #pragma warning(3               :4132)   // const object should be initialized
 #pragma warning(error   :4171)   // no function prototype given (old style)
 #pragma warning(4               :4177)   // pragma data_seg s/b at global scope
-#pragma warning(4               :4206)   // Source File is empty
-#pragma warning(3               :4212)   // function declaration used ellipsis
 #pragma warning(error           :4259)   // pure virtual function was not defined
 #pragma warning(disable         :4291)   // delete not defined for new, c++ exception may cause leak
 #pragma warning(disable         :4302)   // truncation from '%$S' to '%$S'
@@ -53,9 +49,6 @@
 
 #pragma warning(3               :4530)   // C++ exception handler used, but unwind semantics are not enabled. Specify -GX
 #pragma warning(error   :4551)   // Function call missing argument list
-
-#pragma warning(error   :4700)   // Local used w/o being initialized
-#pragma warning(error   :4806)   // unsafe operation involving type 'bool'
 
 #if defined(_DEBUG) && (!defined(_MSC_FULL_VER) || (_MSC_FULL_VER <= 181040116))
 // The CLR header file check.h, macro CHECK_MSG_EX, can create unreachable code if the LEAVE_DEBUG_ONLY_CODE
