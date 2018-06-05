@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Text;
+
 namespace R2RDump
 {
     struct UnwindCode
@@ -27,6 +29,25 @@ namespace R2RDump
             OffsetHigh = OpInfo;
 
             FrameOffset = NativeReader.ReadUInt16(image, ref offset);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"    {{");
+            sb.AppendLine($"        CodeOffset: {CodeOffset}");
+            sb.AppendLine($"        UnwindOp: {UnwindOp}");
+            sb.AppendLine($"        OpInfo: {OpInfo}");
+            sb.AppendLine($"    }}");
+            sb.AppendLine($"    {{");
+            sb.AppendLine($"        OffsetLow: {OffsetLow}");
+            sb.AppendLine($"        UnwindOp: {UnwindOp}");
+            sb.AppendLine($"        OffsetHigh: {OffsetHigh}");
+            sb.AppendLine($"    }}");
+            sb.AppendLine($"    FrameOffset: {FrameOffset}");
+
+            return sb.ToString();
         }
     }
 
@@ -65,6 +86,27 @@ namespace R2RDump
             PersonalityRoutineRVA = NativeReader.ReadUInt32(image, ref offset);
 
             Size = _offsetofUnwindCode + CountOfUnwindCodes * _sizeofUnwindCode + sizeof(uint);
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine($"    Version: {Version}");
+            sb.AppendLine($"    Flags: 0x{Flags:X8}");
+            sb.AppendLine($"    SizeOfProlog: {SizeOfProlog}");
+            sb.AppendLine($"    CountOfUnwindCodes: {CountOfUnwindCodes}");
+            sb.AppendLine($"    FrameRegister: {FrameRegister}");
+            sb.AppendLine($"    FrameOffset: {FrameOffset}");
+            sb.AppendLine("    Unwind Codes");
+            for (int i = 0; i < CountOfUnwindCodes; i++)
+            {
+                sb.AppendLine(UnwindCode[i].ToString());
+            }
+            sb.AppendLine($"    PersonalityRoutineRVA: 0x{PersonalityRoutineRVA:X8}");
+            sb.AppendLine($"    Size: {Size}");
+
+            return sb.ToString();
         }
     }
 }
