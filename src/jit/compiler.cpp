@@ -9210,6 +9210,8 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
             case GT_LCL_FLD_ADDR:
             case GT_STORE_LCL_FLD:
             case GT_STORE_LCL_VAR:
+            case GT_REG_VAR:
+
                 if (tree->gtFlags & GTF_VAR_DEF)
                 {
                     chars += printf("[VAR_DEF]");
@@ -9244,9 +9246,12 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     chars += printf("[VAR_CSE_REF]");
                 }
 #endif
-                if (tree->gtFlags & GTF_REG_BIRTH)
+                if (op == GT_REG_VAR)
                 {
-                    chars += printf("[REG_BIRTH]");
+                    if (tree->gtFlags & GTF_REG_BIRTH)
+                    {
+                        chars += printf("[REG_BIRTH]");
+                    }
                 }
                 break;
 
@@ -9892,6 +9897,8 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
+        case GT_REG_VAR:
+
             lclNum = tree->gtLclVarCommon.gtLclNum;
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
@@ -9946,6 +9953,19 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                                 break;
                         }
                     }
+                }
+            }
+
+            if (op == GT_REG_VAR)
+            {
+                if (isFloatRegType(tree->gtType))
+                {
+                    assert(tree->gtRegVar.gtRegNum == tree->gtRegNum);
+                    chars += printf("(FPV%u)", tree->gtRegNum);
+                }
+                else
+                {
+                    chars += printf("(%s)", comp->compRegVarName(tree->gtRegVar.gtRegNum));
                 }
             }
 

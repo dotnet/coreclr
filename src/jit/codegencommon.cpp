@@ -451,7 +451,7 @@ regMaskTP CodeGenInterface::genGetRegMask(const LclVarDsc* varDsc)
 // inline
 regMaskTP CodeGenInterface::genGetRegMask(GenTree* tree)
 {
-    assert(tree->gtOper == GT_LCL_VAR);
+    assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_REG_VAR);
 
     regMaskTP        regMask = RBM_NONE;
     const LclVarDsc* varDsc  = compiler->lvaTable + tree->gtLclVarCommon.gtLclNum;
@@ -3210,8 +3210,9 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
     // We classify the "tgt" trees as follows:
     // If "tgt" is of the form (where [ x ] indicates an optional x, and { x1, ..., xn } means "one of the x_i forms"):
-    //    IND [-> ADDR -> IND] -> { GT_LCL_VAR, ADD({GT_LCL_VAR}, X), ADD(X, (GT_LCL_VAR)) }
-    // then let "v" be the GT_LCL_VAR.
+    //    IND [-> ADDR -> IND] -> { GT_LCL_VAR, GT_REG_VAR, ADD({GT_LCL_VAR, GT_REG_VAR}, X), ADD(X, (GT_LCL_VAR,
+    //    GT_REG_VAR)) }
+    // then let "v" be the GT_LCL_VAR or GT_REG_VAR.
     //   * If "v" is the return buffer argument, classify as CWBKind_RetBuf.
     //   * If "v" is another by-ref argument, classify as CWBKind_ByRefArg.
     //   * Otherwise, classify as CWBKind_OtherByRefLocal.
@@ -3228,17 +3229,17 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
         {
             indArg = indArg->gtOp.gtOp1->gtOp.gtOp1;
         }
-        if (indArg->gtOper == GT_LCL_VAR)
+        if (indArg->gtOper == GT_LCL_VAR || indArg->gtOper == GT_REG_VAR)
         {
             lcl = indArg;
         }
         else if (indArg->gtOper == GT_ADD)
         {
-            if (indArg->gtOp.gtOp1->gtOper == GT_LCL_VAR)
+            if (indArg->gtOp.gtOp1->gtOper == GT_LCL_VAR || indArg->gtOp.gtOp1->gtOper == GT_REG_VAR)
             {
                 lcl = indArg->gtOp.gtOp1;
             }
-            else if (indArg->gtOp.gtOp2->gtOper == GT_LCL_VAR)
+            else if (indArg->gtOp.gtOp2->gtOper == GT_LCL_VAR || indArg->gtOp.gtOp2->gtOper == GT_REG_VAR)
             {
                 lcl = indArg->gtOp.gtOp2;
             }
@@ -3249,6 +3250,11 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
             unsigned lclNum = 0;
             if (lcl->gtOper == GT_LCL_VAR)
                 lclNum = lcl->gtLclVarCommon.gtLclNum;
+            else
+            {
+                assert(lcl->gtOper == GT_REG_VAR);
+                lclNum = lcl->gtRegVar.gtLclNum;
+            }
             if (lclNum == compiler->info.compRetBuffArg)
             {
                 wbKind = CWBKind_RetBuf; // Ret buff.  Can happen if the struct exceeds the size limit.
