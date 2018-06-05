@@ -2056,18 +2056,10 @@ void CodeGen::genFMAIntrinsic(GenTreeHWIntrinsic* node)
 //
 void CodeGen::genLZCNTIntrinsic(GenTreeHWIntrinsic* node)
 {
-    NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
-    GenTree*       op1         = node->gtGetOp1();
-    regNumber      targetReg   = node->gtRegNum;
-    assert(targetReg != REG_NA);
-    var_types targetType = node->TypeGet();
-    regNumber op1Reg     = op1->gtRegNum;
+    assert(node->gtHWIntrinsicId == NI_LZCNT_LeadingZeroCount);
+
     genConsumeOperands(node);
-
-    assert(intrinsicId == NI_LZCNT_LeadingZeroCount);
-
-    inst_RV_RV(INS_lzcnt, targetReg, op1Reg, targetType, emitTypeSize(targetType));
-
+    genHWIntrinsic_R_RM(node, INS_lzcnt, emitTypeSize(node->TypeGet()));
     genProduceReg(node);
 }
 
@@ -2090,18 +2082,10 @@ void CodeGen::genPCLMULQDQIntrinsic(GenTreeHWIntrinsic* node)
 //
 void CodeGen::genPOPCNTIntrinsic(GenTreeHWIntrinsic* node)
 {
-    NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
-    GenTree*       op1         = node->gtGetOp1();
-    regNumber      targetReg   = node->gtRegNum;
-    assert(targetReg != REG_NA);
-    var_types targetType = node->TypeGet();
-    regNumber op1Reg     = op1->gtRegNum;
+    assert(node->gtHWIntrinsicId == NI_POPCNT_PopCount);
+
     genConsumeOperands(node);
-
-    assert(intrinsicId == NI_POPCNT_PopCount);
-
-    inst_RV_RV(INS_popcnt, targetReg, op1Reg, targetType, emitTypeSize(targetType));
-
+    genHWIntrinsic_R_RM(node, INS_popcnt, emitTypeSize(node->TypeGet()));
     genProduceReg(node);
 }
 
