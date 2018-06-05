@@ -2793,6 +2793,49 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                     }
                 }
 
+                case HW_Category_IMM:
+                {
+                    bool supportsRegOptional = false;
+
+                    switch (intrinsicId)
+                    {
+                        case NI_SSE_Shuffle:
+                        case NI_SSE2_Insert:
+                        case NI_SSE2_Shuffle:
+                        case NI_SSSE3_AlignRight:
+                        case NI_SSE41_Blend:
+                        case NI_SSE41_DotProduct:
+                        case NI_SSE41_Insert:
+                        case NI_SSE41_MultipleSumAbsoluteDifferences:
+                        case NI_AVX_Blend:
+                        case NI_AVX_Compare:
+                        case NI_AVX_CompareScalar:
+                        case NI_AVX_DotProduct:
+                        case NI_AVX_Insert:
+                        case NI_AVX_Permute2x128:
+                        case NI_AVX_Shuffle:
+                        case NI_AVX2_Permute2x128:
+                        {
+                            if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
+                            {
+                                MakeSrcContained(node, op2);
+                            }
+                            else if (supportsRegOptional)
+                            {
+                                op2->SetRegOptional();
+                            }
+                            break;
+                        }
+
+                        default:
+                        {
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+
                 default:
                 {
                     // TODO-XArch-CQ: Assert that this is unreached after we have ensured the relevant node types are

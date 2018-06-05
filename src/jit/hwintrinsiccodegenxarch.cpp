@@ -133,7 +133,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 else if ((ival != -1) && varTypeIsFloating(baseType))
                 {
                     assert((ival >= 0) && (ival <= 127));
-                    genHWIntrinsic_R_R_RM_I(node, ins);
+                    genHWIntrinsic_R_R_RM_I(node, ins, ival);
                 }
                 else if (category == HW_Category_MemoryLoad)
                 {
@@ -207,7 +207,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                     assert(ival == -1);
 
                     auto emitSwCase = [&](int8_t i) {
-                        emit->emitIns_SIMD_R_R_R_I(ins, simdSize, targetReg, op1Reg, op2Reg, i);
+                        genHWIntrinsic_R_R_RM_I(node, ins, i);
                     };
 
                     if (op3->IsCnsIntOrI())
@@ -702,8 +702,9 @@ void CodeGen::genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins)
 // Arguments:
 //    node - The hardware intrinsic node
 //    ins  - The instruction being generated
+//    ival - The immediate value
 //
-void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins)
+void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival)
 {
     var_types targetType = node->TypeGet();
     regNumber targetReg  = node->gtRegNum;
@@ -712,11 +713,24 @@ void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins)
     emitAttr  simdSize   = EA_ATTR(node->gtSIMDSize);
     emitter*  emit       = getEmitter();
 
-    int ival = HWIntrinsicInfo::lookupIval(node->gtHWIntrinsicId);
-    assert((ival >= 0) && (ival <= 127));
-
     // TODO-XArch-CQ: Commutative operations can have op1 be contained
     // TODO-XArch-CQ: Non-VEX encoded instructions can have both ops contained
+
+    if (op1->OperIsList())
+    {
+        assert(op2 == nullptr);
+
+        GenTreeArgList* argList = op1->AsArgList();
+
+        op1     = argList->Current();
+        argList = argList->Rest();
+
+        op2     = argList->Current();
+        argList = argList->Rest();
+
+        assert(argList->Current() != nullptr);
+        assert(argList->Rest() == nullptr);
+    }
 
     regNumber op1Reg = op1->gtRegNum;
 
