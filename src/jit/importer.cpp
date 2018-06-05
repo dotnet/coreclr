@@ -2048,7 +2048,6 @@ GenTree* Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken
         // Use a GT_AND to check for the lowest bit and indirect if it is set
         GenTree* test  = gtNewOperNode(GT_AND, TYP_INT, slot, gtNewIconNode(1));
         GenTree* relop = gtNewOperNode(GT_EQ, TYP_INT, test, gtNewIconNode(0));
-        relop->gtFlags |= GTF_RELOP_QMARK;
 
         // slot = GT_IND(slot - 1)
         slot           = gtNewLclvNode(slotLclNum, TYP_I_IMPL);
@@ -2085,7 +2084,6 @@ GenTree* Compiler::impRuntimeLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken
 
     // Check for null and possibly call helper
     GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, handle, gtNewIconNode(0, TYP_I_IMPL));
-    relop->gtFlags |= GTF_RELOP_QMARK;
 
     GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_I_IMPL,
                                                        gtNewNothingNode(), // do nothing if nonnull
@@ -3451,9 +3449,11 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
         // TODO-ARM-CQ: reenable treating Interlocked operation as intrinsic
+
+        // Note that CORINFO_INTRINSIC_InterlockedAdd32/64 are not actually used.
+        // Anyway, we can import them as XADD and leave it to lowering/codegen to perform
+        // whatever optimizations may arise from the fact that result value is not used.
         case CORINFO_INTRINSIC_InterlockedAdd32:
-            interlockedOperator = GT_LOCKADD;
-            goto InterlockedBinOpCommon;
         case CORINFO_INTRINSIC_InterlockedXAdd32:
             interlockedOperator = GT_XADD;
             goto InterlockedBinOpCommon;
@@ -3463,8 +3463,6 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
 #ifdef _TARGET_64BIT_
         case CORINFO_INTRINSIC_InterlockedAdd64:
-            interlockedOperator = GT_LOCKADD;
-            goto InterlockedBinOpCommon;
         case CORINFO_INTRINSIC_InterlockedXAdd64:
             interlockedOperator = GT_XADD;
             goto InterlockedBinOpCommon;
@@ -10011,7 +10009,6 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     //
     temp    = new (this, GT_COLON) GenTreeColon(TYP_REF, condTrue, condFalse);
     qmarkMT = gtNewQmarkNode(TYP_REF, condMT, temp);
-    condMT->gtFlags |= GTF_RELOP_QMARK;
 
     GenTree* qmarkNull;
     //
@@ -10026,7 +10023,6 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
     temp      = new (this, GT_COLON) GenTreeColon(TYP_REF, gtClone(op1), qmarkMT);
     qmarkNull = gtNewQmarkNode(TYP_REF, condNull, temp);
     qmarkNull->gtFlags |= GTF_QMARK_CAST_INSTOF;
-    condNull->gtFlags |= GTF_RELOP_QMARK;
 
     // Make QMark node a top level node by spilling it.
     unsigned tmp = lvaGrabTemp(true DEBUGARG("spilling QMark2"));
@@ -14703,7 +14699,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     op1 = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), op1);
                     op1 = gtNewQmarkNode(TYP_VOID, condBox, op1);
-                    condBox->gtFlags |= GTF_RELOP_QMARK;
 
                     // QMARK nodes cannot reside on the evaluation stack. Because there
                     // may be other trees on the evaluation stack that side-effect the
@@ -15782,10 +15777,20 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
 
             if (returnType != originalCallType)
             {
-                JITDUMP("Return type mismatch, have %s, needed %s\n", varTypeName(returnType),
-                        varTypeName(originalCallType));
-                compInlineResult->NoteFatal(InlineObservation::CALLSITE_RETURN_TYPE_MISMATCH);
-                return false;
+                // Allow TYP_BYREF to be returned as TYP_I_IMPL and vice versa
+                if (((returnType == TYP_BYREF) && (originalCallType == TYP_I_IMPL)) ||
+                    ((returnType == TYP_I_IMPL) && (originalCallType == TYP_BYREF)))
+                {
+                    JITDUMP("Allowing return type mismatch: have %s, needed %s\n", varTypeName(returnType),
+                            varTypeName(originalCallType));
+                }
+                else
+                {
+                    JITDUMP("Return type mismatch: have %s, needed %s\n", varTypeName(returnType),
+                            varTypeName(originalCallType));
+                    compInlineResult->NoteFatal(InlineObservation::CALLSITE_RETURN_TYPE_MISMATCH);
+                    return false;
+                }
             }
 
             // Below, we are going to set impInlineInfo->retExpr to the tree with the return

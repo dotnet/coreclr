@@ -363,6 +363,39 @@ bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
     }
 }
 
+//------------------------------------------------------------------------
+// IsDstSrcImmAvxInstruction: Checks if the instruction has a "reg, reg/mem, imm" or
+//                            "reg/mem, reg, imm" form for the legacy, VEX, and EVEX
+//                            encodings.
+//
+// Arguments:
+//    instruction -- processor instruction to check
+//
+// Return Value:
+//    true if instruction has a "reg, reg/mem, imm" or "reg/mem, reg, imm" encoding
+//    form for the legacy, VEX, and EVEX encodings.
+//
+//    That is, the instruction takes two operands, one of which is immediate, and it
+//    does not need to encode any data in the VEX.vvvv field.
+//
+static bool IsDstSrcImmAvxInstruction(instruction ins)
+{
+    switch (ins)
+    {
+        case INS_extractps:
+        case INS_pextrb:
+        case INS_pextrw:
+        case INS_pextrd:
+        case INS_pextrq:
+        case INS_pshufd:
+        case INS_pshufhw:
+        case INS_pshuflw:
+            return true;
+        default:
+            return false;
+    }
+}
+
 // -------------------------------------------------------------------
 // Is4ByteSSE4Instruction: Returns true if the SSE4 instruction
 // is a 4-byte opcode.
@@ -3996,7 +4029,7 @@ void emitter::emitIns_AR(instruction ins, emitAttr attr, regNumber base, int off
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, insFormat fmt)
+void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir)
 {
     ssize_t    offs = indir->Offset();
     instrDesc* id   = emitNewInstrAmd(attr, offs);
@@ -4004,7 +4037,7 @@ void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTre
     id->idIns(ins);
     id->idReg1(reg1);
 
-    emitHandleMemOp(indir, id, fmt, ins);
+    emitHandleMemOp(indir, id, IF_RRW_ARD, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
     id->idCodeSize(sz);
@@ -4131,8 +4164,7 @@ void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int 
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_R_A(
-    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, insFormat fmt)
+void emitter::emitIns_R_R_A(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir)
 {
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
@@ -4144,7 +4176,7 @@ void emitter::emitIns_R_R_A(
     id->idReg1(reg1);
     id->idReg2(reg2);
 
-    emitHandleMemOp(indir, id, fmt, ins);
+    emitHandleMemOp(indir, id, IF_RWR_RRD_ARD, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
     id->idCodeSize(sz);
@@ -5359,192 +5391,455 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 }
 
 #ifdef FEATURE_HW_INTRINSICS
-void emitter::emitIns_SIMD_R_R_A(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_I: emits the code for a SIMD instruction that takes a register operand, an immediate operand
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int ival)
 {
-    if (UseVEXEncoding())
+    if (UseVEXEncoding() || IsDstSrcImmAvxInstruction(ins))
     {
-        emitIns_R_R_A(ins, attr, reg, reg1, indir, IF_RWR_RRD_ARD);
+        emitIns_R_R_I(ins, attr, targetReg, op1Reg, ival);
     }
     else
     {
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_A(ins, attr, reg, indir, IF_RRW_ARD);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_AR(ins, attr, reg, reg1, base, 0);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_AR(ins, attr, reg, base, 0);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_C(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_C(ins, attr, reg, reg1, fldHnd, offs);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_C(ins, attr, reg, fldHnd, offs);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_R(ins, attr, reg, reg1, reg2);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            // Ensure we aren't overwriting op2
-            assert(reg2 != reg);
-
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_R(ins, attr, reg, reg2);
+        emitIns_R_I(ins, attr, targetReg, ival);
     }
 }
 
 //------------------------------------------------------------------------
-// IsDstSrcImmAvxInstruction: check if instruction has "R(M) R(M) I" format
-// for EVEX, VEX and legacy SSE encodings and has no (E)VEX.NDS
+// emitIns_SIMD_R_R_A: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                     and that returns a value in register
 //
 // Arguments:
-//    instruction -- processor instruction to check
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    indir     -- The GenTreeIndir used for the memory address
 //
-// Return Value:
-//    true if instruction has "R(M) R(M) I" format and has no (E)VEX.NDS
-//
-static bool IsDstSrcImmAvxInstruction(instruction ins)
+void emitter::emitIns_SIMD_R_R_A(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTreeIndir* indir)
 {
-    switch (ins)
+    if (UseVEXEncoding())
     {
-        case INS_extractps:
-        case INS_pextrb:
-        case INS_pextrw:
-        case INS_pextrd:
-        case INS_pextrq:
-        case INS_pshufd:
-        case INS_pshufhw:
-        case INS_pshuflw:
-            return true;
-        default:
-            return false;
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int ival)
-{
-    if (UseVEXEncoding() || IsDstSrcImmAvxInstruction(ins))
-    {
-        emitIns_R_R_I(ins, attr, reg, reg1, ival);
+        emitIns_R_R_A(ins, attr, targetReg, op1Reg, indir);
     }
     else
     {
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_I(ins, attr, reg, ival);
+        emitIns_R_A(ins, attr, targetReg, indir);
     }
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR: emits the code for a SIMD instruction that takes a register operand, a base memory register,
+//                      and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    base      -- The base register used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_AR(ins, attr, targetReg, op1Reg, base, 0);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_AR(ins, attr, targetReg, base, 0);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C: emits the code for a SIMD instruction that takes a register operand, a field handle + offset,
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+void emitter::emitIns_SIMD_R_R_C(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, CORINFO_FIELD_HANDLE fldHnd, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C(ins, attr, targetReg, op1Reg, fldHnd, offs);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_C(ins, attr, targetReg, fldHnd, offs);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R: emits the code for a SIMD instruction that takes two register operands, and that returns a
+//                     value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//
+void emitter::emitIns_SIMD_R_R_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R(ins, attr, targetReg, op1Reg, op2Reg);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op2
+            assert(op2Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_R(ins, attr, targetReg, op2Reg);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S: emits the code for a SIMD instruction that takes a register operand, a variable index + offset,
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+void emitter::emitIns_SIMD_R_R_S(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int varx, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S(ins, attr, targetReg, op1Reg, varx, offs);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_S(ins, attr, targetReg, varx, offs);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_A_I: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                       an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    indir     -- The GenTreeIndir used for the memory address
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_A_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTreeIndir* indir, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_A_I(ins, attr, targetReg, op1Reg, indir, ival, IF_RWR_RRD_ARD_CNS);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_A_I(ins, attr, targetReg, indir, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR_I: emits the code for a SIMD instruction that takes a register operand, a base memory register,
+//                        an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    base      -- The base register used for the memory address
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_AR_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_AR_I(ins, attr, targetReg, op1Reg, base, 0, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_AR_I(ins, attr, targetReg, base, 0, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C_I: emits the code for a SIMD instruction that takes a register operand, a field handle + offset,
+//                       an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_C_I(instruction          ins,
+                                   emitAttr             attr,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   CORINFO_FIELD_HANDLE fldHnd,
+                                   int                  offs,
+                                   int                  ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C_I(ins, attr, targetReg, op1Reg, fldHnd, offs, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_C_I(ins, attr, targetReg, fldHnd, offs, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_I: emits the code for a SIMD instruction that takes two register operands, an immediate operand,
+//                       and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_R_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R_I(ins, attr, targetReg, op1Reg, op2Reg, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op2
+            assert(op2Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_R_I(ins, attr, targetReg, op2Reg, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S_I: emits the code for a SIMD instruction that takes a register operand, a variable index + offset,
+//                       an imediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_S_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int varx, int offs, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S_I(ins, attr, targetReg, op1Reg, varx, offs, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_S_I(ins, attr, targetReg, varx, offs, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_A: emits the code for a SIMD instruction that takes two register operands, a GenTreeIndir address,
+//                       and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
 void emitter::emitIns_SIMD_R_R_R_A(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, GenTreeIndir* indir)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, GenTreeIndir* indir)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_A(ins, attr, reg, reg2, indir, IF_RWR_RRD_ARD);
+    emitIns_R_R_A(ins, attr, targetReg, op2Reg, indir);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_AR: emits the code for a SIMD instruction that takes two register operands, a base memory
+//                        register, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op2Reg    -- The register of the second operand
+//    base      -- The base register used for the memory address
+//
 void emitter::emitIns_SIMD_R_R_R_AR(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber base)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, regNumber base)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_AR(ins, attr, reg, reg2, base, 0);
+    emitIns_R_R_AR(ins, attr, targetReg, op2Reg, base, 0);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_C: emits the code for a SIMD instruction that takes two register operands, a field handle +
+//                       offset, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
 void emitter::emitIns_SIMD_R_R_R_C(instruction          ins,
                                    emitAttr             attr,
-                                   regNumber            reg,
-                                   regNumber            reg1,
-                                   regNumber            reg2,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   regNumber            op2Reg,
                                    CORINFO_FIELD_HANDLE fldHnd,
                                    int                  offs)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_C(ins, attr, reg, reg2, fldHnd, offs);
+    emitIns_R_R_C(ins, attr, targetReg, op2Reg, fldHnd, offs);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_R: emits the code for a SIMD instruction that takes three register operands, and that returns a
+//                     value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    op3Reg    -- The register of the second operand
+//
 void emitter::emitIns_SIMD_R_R_R_R(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber reg3)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, regNumber op3Reg)
 {
     if (IsFMAInstruction(ins))
     {
         assert(UseVEXEncoding());
 
-        if (reg != reg1)
+        if (op1Reg != targetReg)
         {
             // Ensure we aren't overwriting op2 or op3
 
-            assert(reg != reg2);
-            assert(reg != reg3);
+            assert(op2Reg != targetReg);
+            assert(op3Reg != targetReg);
 
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
 
-        emitIns_R_R_R(ins, attr, reg, reg2, reg3);
+        emitIns_R_R_R(ins, attr, targetReg, op2Reg, op3Reg);
     }
     else if (UseVEXEncoding())
     {
@@ -5565,151 +5860,60 @@ void emitter::emitIns_SIMD_R_R_R_R(
             default:
                 break;
         }
-        emitIns_R_R_R_R(ins, attr, reg, reg1, reg2, reg3);
+        emitIns_R_R_R_R(ins, attr, targetReg, op1Reg, op2Reg, op3Reg);
     }
     else
     {
         assert(isSse41Blendv(ins));
         // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
-        if (reg3 != REG_XMM0)
+        if (op3Reg != REG_XMM0)
         {
             // Ensure we aren't overwriting op1 or op2
-            assert(reg1 != REG_XMM0);
-            assert(reg2 != REG_XMM0);
+            assert(op1Reg != REG_XMM0);
+            assert(op2Reg != REG_XMM0);
 
-            emitIns_R_R(INS_movaps, attr, REG_XMM0, reg3);
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
             // Ensure we aren't overwriting op2 or op3
-            assert(reg2 != reg);
-            assert((reg3 == REG_XMM0) || (reg != REG_XMM0));
+            assert(op2Reg != targetReg);
+            assert(op3Reg != targetReg);
 
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_R(ins, attr, reg, reg2);
+        emitIns_R_R(ins, attr, targetReg, op2Reg);
     }
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_S: emits the code for a SIMD instruction that takes two register operands, a variable index +
+//                       offset, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
 void emitter::emitIns_SIMD_R_R_R_S(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int varx, int offs)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, int varx, int offs)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_S(ins, attr, reg, reg2, varx, offs);
-}
-
-void emitter::emitIns_SIMD_R_R_S(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_S(ins, attr, reg, reg1, varx, offs);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_S(ins, attr, reg, varx, offs);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_A_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_A_I(ins, attr, reg, reg1, indir, ival, IF_RWR_RRD_ARD_CNS);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_A_I(ins, attr, reg, indir, ival);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_AR_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_AR_I(ins, attr, reg, reg1, base, 0, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_AR_I(ins, attr, reg, base, 0, ival);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_C_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_C_I(ins, attr, reg, reg1, fldHnd, offs, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_C_I(ins, attr, reg, fldHnd, offs, ival);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_R_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_R_I(ins, attr, reg, reg1, reg2, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            // Ensure we aren't overwriting op2
-            assert(reg2 != reg);
-
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_R_I(ins, attr, reg, reg2, ival);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_S_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_S_I(ins, attr, reg, reg1, varx, offs, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_S_I(ins, attr, reg, varx, offs, ival);
-    }
+    emitIns_R_R_S(ins, attr, targetReg, op2Reg, varx, offs);
 }
 #endif // FEATURE_HW_INTRINSICS
 
