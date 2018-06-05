@@ -16,7 +16,7 @@
 #pragma warning(error   :4007)   // 'main' : must be __cdecl
 #pragma warning(error   :4013)   // 'function' undefined - assuming extern returning int
 #pragma warning(3               :4092)   // sizeof returns 'unsigned long'
-//#pragma warning(error :4102)   // "'%$S' : unreferenced label"
+#pragma warning(error   :4102)   // "'%$S' : unreferenced label"
 #pragma warning(3               :4121)   // structure is sensitive to alignment
 #pragma warning(3               :4125)   // decimal digit in octal sequence
 #pragma warning(3               :4130)   // logical operation on address of string constant
