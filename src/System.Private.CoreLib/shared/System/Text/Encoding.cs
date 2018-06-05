@@ -1324,7 +1324,7 @@ namespace System.Text
             {
                 _encoding = encoding;
             }
-
+            
             public Object GetRealObject(StreamingContext context)
             {
                 throw new PlatformNotSupportedException();
