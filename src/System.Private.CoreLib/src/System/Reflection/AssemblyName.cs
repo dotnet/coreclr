@@ -34,8 +34,8 @@ namespace System.Reflection
         // AssemblyBaseObject structure in object.h
         //
         private string _Name;                  // Name
-        private byte[] _publicKey;
-        private byte[] _publicKeyToken;
+        private byte[] _PublicKey;
+        private byte[] _PublicKeyToken;
         private CultureInfo _CultureInfo;
         private string _CodeBase;              // Potential location to get the file
         private Version _Version;
@@ -49,13 +49,13 @@ namespace System.Reflection
         private AssemblyHashAlgorithm _HashAlgorithmForControl;
 
         private AssemblyVersionCompatibility _VersionCompatibility;
-        private AssemblyNameFlags _flags;
+        private AssemblyNameFlags _Flags;
 
         public AssemblyName()
         {
             _HashAlgorithm = AssemblyHashAlgorithm.None;
             _VersionCompatibility = AssemblyVersionCompatibility.SameMachine;
-            _flags = AssemblyNameFlags.None;
+            _Flags = AssemblyNameFlags.None;
         }
 
         // Set and get the name of the assembly. If this is a weak Name
@@ -125,7 +125,7 @@ namespace System.Reflection
         {
             get
             {
-                int x = (((int)_flags) & 0x70) >> 4;
+                int x = (((int)_Flags) & 0x70) >> 4;
                 if (x > 5)
                     x = 0;
                 return (ProcessorArchitecture)x;
@@ -135,8 +135,8 @@ namespace System.Reflection
                 int x = ((int)value) & 0x07;
                 if (x <= 5)
                 {
-                    _flags = (AssemblyNameFlags)((int)_flags & 0xFFFFFF0F);
-                    _flags |= (AssemblyNameFlags)(x << 4);
+                    _Flags = (AssemblyNameFlags)((int)_Flags & 0xFFFFFF0F);
+                    _Flags |= (AssemblyNameFlags)(x << 4);
                 }
             }
         }
@@ -145,7 +145,7 @@ namespace System.Reflection
         {
             get
             {
-                int x = (((int)_flags) & 0x00000E00) >> 9;
+                int x = (((int)_Flags) & 0x00000E00) >> 9;
                 if (x > 1)
                     x = 0;
                 return (AssemblyContentType)x;
@@ -155,8 +155,8 @@ namespace System.Reflection
                 int x = ((int)value) & 0x07;
                 if (x <= 1)
                 {
-                    _flags = (AssemblyNameFlags)((int)_flags & 0xFFFFF1FF);
-                    _flags |= (AssemblyNameFlags)(x << 9);
+                    _Flags = (AssemblyNameFlags)((int)_Flags & 0xFFFFF1FF);
+                    _Flags |= (AssemblyNameFlags)(x << 9);
                 }
             }
         }
@@ -168,14 +168,14 @@ namespace System.Reflection
         {
             AssemblyName name = new AssemblyName();
             name.Init(_Name,
-                      _publicKey,
-                      _publicKeyToken,
+                      _PublicKey,
+                      _PublicKeyToken,
                       _Version,
                       _CultureInfo,
                       _HashAlgorithm,
                       _VersionCompatibility,
                       _CodeBase,
-                      _flags,
+                      _Flags,
                       _StrongNameKeyPair);
             name._HashForControl = _HashForControl;
             name._HashAlgorithmForControl = _HashAlgorithmForControl;
@@ -210,31 +210,31 @@ namespace System.Reflection
         // will fail to load.
         public byte[] GetPublicKey()
         {
-            return _publicKey;
+            return _PublicKey;
         }
 
         public void SetPublicKey(byte[] publicKey)
         {
-            _publicKey = publicKey;
+            _PublicKey = publicKey;
 
             if (publicKey == null)
-                _flags &= ~AssemblyNameFlags.PublicKey;
+                _Flags &= ~AssemblyNameFlags.PublicKey;
             else
-                _flags |= AssemblyNameFlags.PublicKey;
+                _Flags |= AssemblyNameFlags.PublicKey;
         }
 
         // The compressed version of the public key formed from a truncated hash.
-        // Will throw a SecurityException if _publicKey is invalid
+        // Will throw a SecurityException if _PublicKey is invalid
         public byte[] GetPublicKeyToken()
         {
-            if (_publicKeyToken == null)
-                _publicKeyToken = nGetPublicKeyToken();
-            return _publicKeyToken;
+            if (_PublicKeyToken == null)
+                _PublicKeyToken = nGetPublicKeyToken();
+            return _PublicKeyToken;
         }
 
         public void SetPublicKeyToken(byte[] publicKeyToken)
         {
-            _publicKeyToken = publicKeyToken;
+            _PublicKeyToken = publicKeyToken;
         }
 
         // Flags modifying the name. So far the only flag is PublicKey, which
@@ -246,11 +246,11 @@ namespace System.Reflection
         // set or retrieved directly
         public AssemblyNameFlags Flags
         {
-            get { return (AssemblyNameFlags)((uint)_flags & 0xFFFFF10F); }
+            get { return (AssemblyNameFlags)((uint)_Flags & 0xFFFFF10F); }
             set
             {
-                _flags &= unchecked((AssemblyNameFlags)0x00000EF0);
-                _flags |= (value & unchecked((AssemblyNameFlags)0xFFFFF10F));
+                _Flags &= unchecked((AssemblyNameFlags)0x00000EF0);
+                _Flags |= (value & unchecked((AssemblyNameFlags)0xFFFFF10F));
             }
         }
 
@@ -279,7 +279,7 @@ namespace System.Reflection
                 if (this.Name == null)
                     return string.Empty;
                 // Do not call GetPublicKeyToken() here - that latches the result into AssemblyName which isn't a side effect we want.
-                byte[] pkt = _publicKeyToken ?? nGetPublicKeyToken();
+                byte[] pkt = _PublicKeyToken ?? nGetPublicKeyToken();
                 return AssemblyNameFormatter.ComputeDisplayName(Name, Version, CultureName, pkt, Flags, ContentType);
             }
         }
@@ -348,7 +348,7 @@ namespace System.Reflection
 
         internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
         {
-            ProcessorArchitecture = CalculateProcArchIndex(pek, ifm, _flags);
+            ProcessorArchitecture = CalculateProcArchIndex(pek, ifm, _Flags);
         }
 
         internal static ProcessorArchitecture CalculateProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm, AssemblyNameFlags flags)
@@ -405,14 +405,14 @@ namespace System.Reflection
 
             if (publicKey != null)
             {
-                _publicKey = new byte[publicKey.Length];
-                Array.Copy(publicKey, _publicKey, publicKey.Length);
+                _PublicKey = new byte[publicKey.Length];
+                Array.Copy(publicKey, _PublicKey, publicKey.Length);
             }
 
             if (publicKeyToken != null)
             {
-                _publicKeyToken = new byte[publicKeyToken.Length];
-                Array.Copy(publicKeyToken, _publicKeyToken, publicKeyToken.Length);
+                _PublicKeyToken = new byte[publicKeyToken.Length];
+                Array.Copy(publicKeyToken, _PublicKeyToken, publicKeyToken.Length);
             }
 
             if (version != null)
@@ -422,7 +422,7 @@ namespace System.Reflection
             _HashAlgorithm = hashAlgorithm;
             _VersionCompatibility = versionCompatibility;
             _CodeBase = codeBase;
-            _flags = flags;
+            _Flags = flags;
             _StrongNameKeyPair = keyPair;
         }
 
