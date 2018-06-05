@@ -3404,60 +3404,64 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         }
         else
         {
-            if ((JitConfig.JitOrder() & 1) == 1)
-            {
-                opts.dspOrder = true;
-            }
+            bool disEnabled = true;
 
-            if (JitConfig.JitGCDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+            // Setup assembly name list for disassembly, if not already set up.
+            if (!s_pJitDisasmIncludeAssembliesListInitialized)
             {
-                opts.dspGCtbls = true;
-            }
-
-            if (JitConfig.JitDisasm().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
-            {
-                // Assume we'll disassemble.
-                // But we may change our minds if there's an assembly level filter.
-                opts.disAsm = true;
-
-                // Setup assembly name list for disassembly, if not already set up.
-                if (!s_pJitDisasmIncludeAssembliesListInitialized)
+                const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
+                if (assemblyNameList != nullptr)
                 {
-                    const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
-                    if (assemblyNameList != nullptr)
-                    {
-                        s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
-                            AssemblyNamesList2(assemblyNameList, HostAllocator::getHostAllocator());
-                    }
-                    s_pJitDisasmIncludeAssembliesListInitialized = true;
+                    s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
+                        AssemblyNamesList2(assemblyNameList, HostAllocator::getHostAllocator());
                 }
+                s_pJitDisasmIncludeAssembliesListInitialized = true;
+            }
 
-                // If we have an assembly name list for disassembly, also check this method's assembly.
-                if (s_pJitDisasmIncludeAssembliesList != nullptr)
+            // If we have an assembly name list for disassembly, also check this method's assembly.
+            if (s_pJitDisasmIncludeAssembliesList != nullptr)
+            {
+                const char* assemblyName = info.compCompHnd->getAssemblyName(
+                    info.compCompHnd->getModuleAssembly(info.compCompHnd->getClassModule(info.compClassHnd)));
+
+                if (!s_pJitDisasmIncludeAssembliesList->IsInList(assemblyName))
                 {
-                    const char* assemblyName = info.compCompHnd->getAssemblyName(
-                        info.compCompHnd->getModuleAssembly(info.compCompHnd->getClassModule(info.compClassHnd)));
-
-                    if (!s_pJitDisasmIncludeAssembliesList->IsInList(assemblyName))
-                    {
-                        opts.disAsm = false;
-                    }
+                    disEnabled = false;
                 }
             }
 
-            if (JitConfig.JitDisasm().contains("SPILLED", nullptr, nullptr))
+            if (disEnabled)
             {
-                opts.disAsmSpilled = true;
-            }
+                if ((JitConfig.JitOrder() & 1) == 1)
+                {
+                    opts.dspOrder = true;
+                }
 
-            if (JitConfig.JitUnwindDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
-            {
-                opts.dspUnwind = true;
-            }
+                if (JitConfig.JitGCDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.dspGCtbls = true;
+                }
 
-            if (JitConfig.JitEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
-            {
-                opts.dspEHTable = true;
+                if (JitConfig.JitDisasm().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.disAsm = true;
+                }
+
+                if (JitConfig.JitDisasm().contains("SPILLED", nullptr, nullptr))
+                {
+                    opts.disAsmSpilled = true;
+                }
+
+                if (JitConfig.JitUnwindDump().contains(info.compMethodName, info.compClassName,
+                                                       &info.compMethodInfo->args))
+                {
+                    opts.dspUnwind = true;
+                }
+
+                if (JitConfig.JitEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.dspEHTable = true;
+                }
             }
         }
 
