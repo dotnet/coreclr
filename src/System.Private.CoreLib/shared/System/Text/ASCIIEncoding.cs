@@ -515,7 +515,6 @@ namespace System.Text
                 fallback = this.EncoderFallback as EncoderReplacementFallback;
             }
 
-            
             // See if we do the fast default or slightly slower fallback
             if (fallback != null && fallback.MaxCharCount == 1)
             {
