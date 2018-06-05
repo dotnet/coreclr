@@ -22,7 +22,6 @@
 #pragma warning(3               :4130)   // logical operation on address of string constant
 #pragma warning(3               :4132)   // const object should be initialized
 #pragma warning(4               :4177)   // pragma data_seg s/b at global scope
-#pragma warning(4               :4206)   // Source File is empty
 #pragma warning(3               :4212)   // function declaration used ellipsis
 #pragma warning(disable         :4291)   // delete not defined for new, c++ exception may cause leak
 #pragma warning(disable         :4302)   // truncation from '%$S' to '%$S'
