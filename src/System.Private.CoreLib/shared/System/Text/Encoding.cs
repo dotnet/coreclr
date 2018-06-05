@@ -276,24 +276,15 @@ namespace System.Text
 
             switch (codepage)
             {
-                case CodePageDefault:
-                    return Default;            // 0
-                case CodePageUnicode:
-                    return Unicode;            // 1200
-                case CodePageBigEndian:
-                    return BigEndianUnicode; // 1201
-                case CodePageUTF32:
-                    return UTF32;                // 12000
-                case CodePageUTF32BE:
-                    return BigEndianUTF32;     // 12001
-                case CodePageUTF7:
-                    return UTF7;                  // 65000
-                case CodePageUTF8:
-                    return UTF8;                  // 65001
-                case CodePageASCII:
-                    return ASCII;                // 20127
-                case ISO_8859_1:
-                    return Latin1;                  // 28591
+                 case CodePageDefault: return Default;            // 0
+                 case CodePageUnicode: return Unicode;            // 1200
+                 case CodePageBigEndian: return BigEndianUnicode; // 1201
+                 case CodePageUTF32: return UTF32;                // 12000
+                 case CodePageUTF32BE: return BigEndianUTF32;     // 12001
+                 case CodePageUTF7: return UTF7;                  // 65000
+                 case CodePageUTF8: return UTF8;                  // 65001
+                 case CodePageASCII: return ASCII;                // 20127
+                 case ISO_8859_1: return Latin1;                  // 28591
 
                 // We don't allow the following special code page values that Win32 allows.
                 case CodePageNoOEM:                              // 1 CP_OEMCP
