@@ -17012,7 +17012,7 @@ void GenTree::ParseArrayAddressWork(
                 // If one op is a constant, continue parsing down.
                 if (gtOp.gtOp2->IsCnsIntOrI())
                 {
-                    ssize_t subMul = 1 << gtOp.gtOp2->gtIntConCommon.IconValue();
+                    ssize_t subMul = size_t{1} << gtOp.gtOp2->gtIntConCommon.IconValue();
                     gtOp.gtOp1->ParseArrayAddressWork(comp, inputMul * subMul, pArr, pInxVN, pOffset, pFldSeq);
                     return;
                 }

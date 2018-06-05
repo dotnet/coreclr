@@ -27,7 +27,6 @@
 #pragma warning(disable         :4302)   // truncation from '%$S' to '%$S'
 #pragma warning(disable         :4311)   // pointer truncation from '%$S' to '%$S'
 #pragma warning(disable         :4312)   // '<function-style-cast>' : conversion from '%$S' to '%$S' of greater size
-#pragma warning(disable :4334)   // result of 32-bit shift implicitly converted to 64 bits
 #pragma warning(disable :4477)   // format string '%$S' requires an argument of type '%$S', but variadic argument %d has type '%$S'
 #pragma warning(3               :4530)   // C++ exception handler used, but unwind semantics are not enabled. Specify -GX
 #pragma warning(error   :4551)   // Function call missing argument list
