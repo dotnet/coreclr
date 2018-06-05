@@ -1,0 +1,459 @@
+[
+    {
+        "name": "System.Collections.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_IEnumerable_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.DebugView_Tests.TestDebuggerAttributes_Null",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Collections.Tests.DebugView_Tests.TestDebuggerAttributes",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                }
+            ]
+        }
+    }
+]

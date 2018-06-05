@@ -1,0 +1,1955 @@
+[
+    {
+        "name": "System.Collections.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_NullComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_TreeSubset_Int_Tests.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_AbsOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_ModOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_BadIntEqualityComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_ReturnsSameValueOnRepeatedCalls",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_IDictionary_NonGeneric_Tests.IDictionary_NonGeneric_IDictionaryEnumerator_Current_FromStartToFinish",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.List_Generic_Tests_int_ReadOnly.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_Int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_AbsOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_Keys_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_HashCodeAlwaysReturnsZero.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_IEnumerable_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_EquatableBackwardsOrder_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.LinkedList_Generic_Tests_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Queue_Generic_Tests_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_WrapStructural_SimpleInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.DebugView_Tests.TestDebuggerAttributes_Null",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Collections.Tests.DebugView_Tests.TestDebuggerAttributes",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedSet_Generic_Tests_int_With_Comparer_ModOfInt.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_ICollection_NonGeneric_Tests.IGenericSharedAPI_SerializeDeserialize",
+                    "reason": "System.Runtime.Serialization.SerializationException"
+                },
+                {
+                    "name": "System.Collections.Tests.Stack_ICollection_NonGeneric_Tests.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.HashSet_Generic_Tests_int_With_Comparer_SameAsDefaultComparer.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_Values_AsICollection.ICollection_NonGeneric_CopyTo_ArrayOfEnumType",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedDictionary_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.ICollection_Generic_Remove_DefaultValueContainedInCollection",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.Enumerator_MoveNext_AfterDisposal",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                },
+                {
+                    "name": "System.Collections.Tests.SortedList_Generic_Tests_int_int.ICollection_Generic_Contains_DefaultValueOnCollectionContainingDefaultValue",
+                    "reason": "$BlockedFromReflection_0_5b449e4c"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Extensions.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Reflection.Tests.AssemblyNameProxyTests.GetAssemblyName_AssemblyNameProxy",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Tests.UnloadingAndProcessExitTests.UnloadingEventMustHappenBeforeProcessExitEvent",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.GetFolderPath_Windows",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.GetFolderPath_UapExistAndAccessible",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_ArgumentException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_InnerException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.CurrentDirectory_SetToValidOtherDirectory",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.FailFast_ExpectFailureExitCode",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_StackOverflowException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.WorkingSet_Valid",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentTests.GetFolderPath_UapNotEmpty",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Tests.Environment_Exit.ExitCode_VoidMainAppReturnsSetValue",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.Environment_Exit.CheckExitCode",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringComparerTests.FromComparisonInvalidTest",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.ConvertTests.TryToBase64Chars_ProducesExpectedOutput",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.ConvertTests.ToBase64String_Span_ProducesExpectedOutput",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromUShort",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromFloat",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromBool",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromShort",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromUInt",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromDouble",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromLong",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromULong",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromInt",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ConvertFromChar",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterSpan.ToInt32",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.ConvertToUInt64Tests.FromSingle",
+                    "reason": "System.AggregateException"
+                },
+                {
+                    "name": "System.Tests.ConvertToUInt64Tests.FromDouble",
+                    "reason": "System.AggregateException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentStackTrace.StackTraceDoesNotStartWithInternalFrame",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.EnvironmentStackTrace.StackTraceTest",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.GetCommandLineArgs.GetCommandLineArgs_Invoke_ReturnsExpected",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.IO.Tests.PathTests_Windows.GetTempPath_SetEnvVar",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.SetEnvironmentVariable.EnvironmentVariableValueTooLarge_Throws",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.SetEnvironmentVariable.EnvironmentVariableTooLarge_Throws",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.UnhandledException_NotCalled_When_Handled",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.AssemblyResolve",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.Unload",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ProcessExit_Add_Remove",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.FirstChanceException_Called",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ClearShadowCopyPath",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.AssemblyResolve_RequestingAssembly",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.SetShadowCopyPath",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.SetCachePath",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.LoadBytes",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ExecuteAssembly",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.MonitoringIsEnabled",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ProcessExit_Called",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.IsDefaultAppDomain",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.toString",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.AssemblyResolve_IsNotCalledForCoreLibResources",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.SetThreadPrincipal",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ClearPrivatePath",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.TypeResolve",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.SetShadowCopyFiles",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.SetData_SameKeyMultipleTimes_ReplacesOldValue",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.GetData_SetData",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.FirstChanceException_Add_Remove",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.AssemblyLoad",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.Id",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ResourceResolve",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.GetAssemblies",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.ExecuteAssemblyByName",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.UnhandledException_Add_Remove",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AppDomainTests.AppendPrivatePath",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromInt",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromUShort",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromULong",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromShort",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ToInt32",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromDouble",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromLong",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromBool",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromFloat",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromUInt",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BitConverterArray.ConvertFromChar",
+                    "reason": "System.ArgumentException"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Reflection.Tests.MethodInfoTests.TestEquality2",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.GetField_NullName",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveMethodOfGenericClass",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveTypeFail",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.GetTypes",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.TestToString",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveStringFail",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveMember",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.FullyQualifiedName",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveMethodFail",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveType",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveMethod",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveField",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.ResolveFieldFail",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.GetField",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ModuleTests.GetFields",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Runtime.ExceptionServices.Tests.HandleProcessCorruptedStateExceptionsTests.ProcessExit_Called",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.BufferTests.SetByte",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BufferTests.GetByte",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.BufferTests.BlockCopy_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.CreateDelegateTests.CreateDelegate2_Target_GenericTypeParameter",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.UnitySerializationHolderTests.UnitySerializationHolderWithAssemblySingleton",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetCallingAssembly",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_NoSuchFile_ThrowsFileNotFoundException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.AssemblyLoadFromBytes",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.AssemblyLoadFromString",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.AssemblyLoadFromStringNeg",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_LoadFromUsingHashValue_Netcore",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFile_NoSuchPath_ThrowsArgumentException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetExecutingAssembly",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.UnsafeLoadFrom_SamePath_ReturnsEqualAssemblies",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFile_NullPath_Netcore_ThrowsArgumentNullException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_SecurityRuleSet_Netcore",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_HostContext",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetManifestResourceStream",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Load_AssemblyNameWithCodeBase",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetFile",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Equality",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetLoadedModules",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetAssembly",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_LoadWithPartialName",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_NullAssemblyFile_ThrowsArgumentNullException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.AssemblyLoadFromBytesWithSymbols",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.CreateInstance_Invalid",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_SamePath_ReturnsEqualAssemblies",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetSatelliteAssemblyNeg",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_LoadFile",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_GlobalAssemblyCache",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_WithHashValue_NetCoreCore_ThrowsNotSupportedException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.CreateInstance",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_IsFullyTrusted",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.AssemblyLoadFromBytesNeg",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.Test_LoadModule_Netcore",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_EmptyAssemblyFile_ThrowsArgumentException",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetAssembly_Nullery",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetModules_GetModule",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.GetFiles",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyTests.LoadFrom_SameIdentityAsAssemblyWithDifferentPath_ReturnsEqualAssemblies",
+                    "reason": "System.IO.FileNotFoundException"
+                },
+                {
+                    "name": "System.Tests.ArraySegment_Tests.CopyTo_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringSplitTests.SplitCharArraySeparator",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.ExceptionTests.Exception_TargetSite_Jit",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ExceptionTests.ThrowStatementDoesNotResetExceptionStackLineSameMethod",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.ExceptionTests.ThrowStatementDoesNotResetExceptionStackLineOtherMethod",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.TypedReferenceTests.NegativeMakeTypedReference",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.TypedReferenceTests.MakeTypedReference_ToObjectTests",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.ReadOnlyCollectionTests.CopyTo",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.IO.Tests.PathTooLongExceptionInteropTests.From_HR",
+                    "reason": "Xunit.Sdk.IsAssignableFromException"
+                },
+                {
+                    "name": "System.Reflection.Tests.InvokeRefReturnNetcoreTests.TestRefReturnNullableNoValue",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.InvokeRefReturnNetcoreTests.TestRefReturnOfPointer",
+                    "reason": "$BlockedFromReflection_6_1bc5f05b"
+                },
+                {
+                    "name": "System.Reflection.Tests.InvokeRefReturnNetcoreTests.TestRefReturnNullable",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Tests.ActivatorTests.TestingBindingFlags",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Tests.ActivatorTests.CreateInstance_Invalid",
+                    "reason": "System.TypeLoadException"
+                },
+                {
+                    "name": "System.Tests.DoubleTests.Test_ToString",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.DoubleTests.TryFormat",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsExtended.GetTypeByName",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsExtended.GetTypeByName_NoSuchType_ThrowsTypeLoadException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsExtended.GetTypeByNameCaseSensitiveTypeloadFailure",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsExtended.GetInterfaceMap",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_StartWhileInNoGCRegion_BlockingCollection",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_ExitThroughAllocation",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_SOHSize",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_SOHSize_LOHSize",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_TotalSizeOutOfRange",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_SOHSize_LOHSize_BlockingCollection",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.GetGeneration_WeakReference",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_EndNoGCRegion_ThrowsInvalidOperationException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_LOHSizeInvalid",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_StartWhileInNoGCRegion_LargeObjectHeapSize",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_StartWhileInNoGCRegion_BlockingCollectionAndLOH",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.GCNotificationTests",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_SettingLatencyMode_ThrowsInvalidOperationException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_StartWhileInNoGCRegion",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.GCExtendedTests.TryStartNoGCRegion_SOHSize_BlockingCollection",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.AttributeTests.DefaultHashCode",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.AttributeTests.Equals",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.AttributeTests.DefaultEquality",
+                    "reason": "Xunit.Sdk.NotEqualException"
+                },
+                {
+                    "name": "System.Tests.ActivatorNetcoreTests.CreateInstance_Invalid",
+                    "reason": "System.TypeLoadException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoTests.TestMethodInfoReflectedTypeDoesNotSurviveRuntimeHandles",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoTests.TestGenericMethodsInheritTheReflectedTypeOfTheirTemplate",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoTests.TestReflectedTypeIsPartOfIdentity",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoTests.TestDeclaringMethodOfTypeParametersOfInheritedMethods2",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoTests.TestDeclaringMethodOfTypeParametersOfInheritedMethods",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Tests.DecimalTests.Test_ToString",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.DecimalTests.TryFormat",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.SignatureTypeTests.SigTypeResolutionResilience",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.SignatureTypeTests.GetMethodWithGenericParameterCount",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.SignatureTypeTests.GetMethodOverloadTest",
+                    "reason": "System.ArgumentNullException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_DateTimeParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_StringParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_DecimalParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_ValueTypeParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_DecimalParameterWithAttributeAndMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_ParameterSpecification_ArrayOfMissing",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_AllPrimitiveParametersWithMissingValues",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_ReferenceTypeParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_AllPrimitiveParametersWithSomeExplicitValues",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_OptionalParameter_WithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_MissingTypeForDefaultParameter_Succeeds",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_MissingTypeForNonDefaultParameter_ThrowsArgumentException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_EnumParameterWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.DelegateTests.DynamicInvoke_DefaultParameter_NullableIntWithMissingValue",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyNameTests.Verify_EscapedCodeBase",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyNameTests.GetAssemblyName_LockedFile",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyNameTests.GetAssemblyName",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyNetCoreAppTests.AssemblyGetForwardedTypes",
+                    "reason": "System.Reflection.ReflectionTypeLoadException"
+                },
+                {
+                    "name": "System.Reflection.Tests.AssemblyNetCoreAppTests.AssemblyGetForwardedTypesLoadFailure",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.TypeTests.GetTypeByName_ViaReflection",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsNetcore.TestIsGenericParameter",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsNetcore.IsVariableBoundArray_FalseForSZArrayTypes",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsNetcore.TestIsByRefLike",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.TypeTestsNetcore.IsSZArray_TrueForSZArrayTypes",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.StringGetHashCodeTests.GetHashCodeWithStringComparer_UseSameStringInTwoProcesses_ReturnsDifferentHashCodes",
+                    "reason": "System.MissingMethodException"
+                },
+                {
+                    "name": "System.Collections.ObjectModel.Tests.CollectionTests.CopyTo",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToObject",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetName",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToString_UnsupportedEnumType_ThrowsArgumentException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetUnderlyingType",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetNames_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.Equals",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetValues_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.Parse_Invalid",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.Parse_Invalid_NetCoreApp11",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.Format_UnsupportedEnumType_ThrowsArgumentException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToObject_InvalidValue_ThrowsException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetNames_GetValues",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.GetName_Unsupported_ThrowsArgumentException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.IsDefined_UnsupportedEnumType_ThrowsInvalidOperationException",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToObject_InvalidEnumType_ThrowsException",
+                    "reason": "System.TypeLoadException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToString_InvalidUnicodeChars",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.HasFlag",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.ToString_Format",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.CompareTo",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.EnumTests.IsDefined",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "HandleTests.GenericMethodRuntimeMethodHandleTest",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.IO.Tests.FileNotFoundExceptionInteropTests.From_HR",
+                    "reason": "Xunit.Sdk.IsAssignableFromException"
+                },
+                {
+                    "name": "System.Reflection.Tests.ConstructorInfoTests.TestInvoke_Nullery",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.IO.Tests.FileLoadExceptionInteropTests.Fom_HR",
+                    "reason": "Xunit.Sdk.NotNullException"
+                },
+                {
+                    "name": "System.Tests.PseudoCustomAttributeTests.IsDefined",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.PseudoCustomAttributeTests.GetCustomAttributes",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.PseudoCustomAttributeTests.GetCustomAttribute",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoNetCoreAppTests.HasSameMetadataDefinitionAs_GenericTypeParameters",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MemberInfoNetCoreAppTests.HasSameMetadataDefinitionAs_ConstructedGenericMethods",
+                    "reason": "Xunit.Sdk.NotNullException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Insert_Float",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Insert_CharSpan",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.CopyTo",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Insert_Object",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Append_Double",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Insert_Double",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Append_CharPointer",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.CopyTo_CharSpan",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Append_Char",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Insert_String_Count",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Insert_CharArray",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Append_CharSpan",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Append_CharArray",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Append_Decimal",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Append_Float",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Test_Insert_Decimal",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MethodBaseTests.TestMethodBody",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_StartIndexNegative_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_IndexPlusLengthGreaterThanDestinationArrayLength_ThrowsArgumentException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Reverse_NonSZArrayWithMinValueLowerBound",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.CreateInstance_TypeNotRuntimeType_ThrowsArgumentException",
+                    "reason": "System.TypeLoadException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.CreateInstance",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Reverse_IndexLessThanLowerBound_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Resize",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.ForEach_Array_EvaluatesActionForEachElement",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.CopyTo_IndexGreaterThanDestinationArrayLength_ThrowsArgumentException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Reverse_SZArray",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.CreateInstance_NegativeLength_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.ConstrainedCopy",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.IndexOf_SZArray_NonInferrableEntries",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Sort_Array_Array_Int_Int_Invalid",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.BinarySearch_SZArray",
+                    "reason": "System.Reflection.MissingMetadataException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Sort_Array_Array_IComparer_Invalid",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.IList_CopyTo_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.BinarySearch_SZArray_NonInferrableEntries",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Sort_Array_Array_Invalid",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.LastIndexOf_NonInferrableEntries",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Clear",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_DestinationIndexNegative_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_NegativeLength_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.IndexOf_SZArray",
+                    "reason": "$BlockedFromReflection_6_1bc5f05b"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Reverse_IndexLessThanPositiveLowerBound_ThrowsArgumentOutOfRangeException",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.LastIndexOf_SZArray",
+                    "reason": "$BlockedFromReflection_6_1bc5f05b"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_SZArray",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.GetEnumerator",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Sort_Array_Array_Int_Int_IComparer_Invalid",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.Copy_IndexPlusLengthGreaterThanSourceArrayLength_ThrowsArgumentException",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.ArrayTests.GetEnumerator_Invalid",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Tests.SingleTests.Test_ToString",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.SingleTests.TryFormat",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeInterfaceMapNotInterface",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeFieldWithNull",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeInterfaceMapWithNull",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeEventWithNull",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeInterfaceMap",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.RuntimeReflectionExtensionsTests.GetRuntimeInterfaceMapNotImplemented",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Runtime.CompilerServices.Tests.RuntimeHelpersTests.PrepareGenericMethod",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Runtime.CompilerServices.Tests.RuntimeHelpersTests.PrepareDelegate",
+                    "reason": "System.ArgumentNullException"
+                },
+                {
+                    "name": "System.Runtime.CompilerServices.Tests.RuntimeHelpersTests.PrepareMethod",
+                    "reason": "Xunit.Sdk.ThrowsException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MethodBodyTests.Test_MethodBody_ExceptionHandlingClause",
+                    "reason": "System.PlatformNotSupportedException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MethodBaseNetcoreTests.Test_GetCurrentMethod_ConstructedGenericMethod",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.Reflection.Tests.MethodBaseNetcoreTests.Test_GetCurrentMethod_GenericMethodDefinition",
+                    "reason": "System.NullReferenceException"
+                },
+                {
+                    "name": "System.ComponentModel.Tests.DefaultValueAttributeTests.Equals",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.ComponentModel.Tests.EditorBrowsableAttributeTests.Equals",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_EquivalentDiacritics_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.ToCharArray",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_EquivalentDiacritics_EnglishUSCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.LastIndexOf_NullInStrings",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_InvariantCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.ToUpper_TurkishI_EnglishUSCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.LastIndexOf_TurkishI_EnglishUSCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Ctor_CharSpan",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_TurkishCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_CyrillicE_InvariantCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.InternTest",
+                    "reason": "Xunit.Sdk.TrueException"
+                },
+                {
+                    "name": "System.Tests.StringTests.LastIndexOfAny",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_EnglishUSCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Test_ToLower_Culture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Contains_StringComparison_TurkishI",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.ToUpper_TurkishI_TurkishCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.StartsWith",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.TrimEnd",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Ctor_CharArray",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOfAny",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.LastIndexOf_TurkishI_TurkishCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Length",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Ctor_Char_Int",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.LastIndexOf_TurkishI_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_NullInStrings",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_HungarianDoubleCompression_HungarianCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.TrimStart",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_EquivalentDiacritics_InvariantCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_EnglishUSCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Trim",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.CompareTest",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.ToUpper_TurkishI_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_CyrillicE_EnglishUSCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Equals_Encyclopaedia_ReturnsExpected",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Compare",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.EndsWith",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Concat_CharEnumerable",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Replace_StringComparison_TurkishI",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_TurkishI_TurkishCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_CyrillicE_EnglishUSCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Item_Get",
+                    "reason": "System.IndexOutOfRangeException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_EquivalentDiacritics_EnglishUSCulture_Char",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.CopyTo",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Ctor_CharPtr",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_CyrillicE_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.IndexOf_HungarianDoubleCompression_InvariantCulture",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Tests.StringTests.Ctor_CharPtr_Int_Int",
+                    "reason": "System.ArgumentException"
+                },
+                {
+                    "name": "System.IO.Tests.DirectoryNotFoundExceptionInteropTests.From_HR",
+                    "reason": "Xunit.Sdk.IsAssignableFromException"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Threading.Tasks.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Threading.Tasks.Tests.TaskRtTests.RunFromResult_FaultedTask",
+                    "reason": "Xunit.Sdk.NotNullException"
+                },
+                {
+                    "name": "System.Threading.Tasks.Tests.ExecutionContextFlowTest.SuppressFlow_TaskCapturesContextAccordingly",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tasks.Tests.AsyncTaskMethodBuilderTests.TaskMethodBuilderBoolean_UsesCompletedCache",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tasks.Tests.AsyncTaskMethodBuilderTests.TaskMethodBuilderRef_UsesCompletedCache",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tasks.Tests.AsyncTaskMethodBuilderTests.TaskMethodBuilderInt32_UsesCompletedCache",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tasks.Tests.TaskSchedulerTests.GetTaskSchedulersForDebugger_ReturnsDefaultScheduler",
+                    "reason": "System.NullReferenceException"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Threading.Tests",
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Threading.Tests.EventWaitHandleTests.PingPong",
+                    "reason": "System.TypeInitializationException"
+                },
+                {
+                    "name": "System.Threading.Tests.EventWaitHandleTests.Ctor_InvalidMode",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tests.MonitorTests.PulseAll_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tests.MonitorTests.Pulse_Invalid",
+                    "reason": "Xunit.Sdk.EqualException"
+                },
+                {
+                    "name": "System.Threading.Tests.MutexTests.CrossProcess_NamedMutex_ProtectedFileAccessAtomic",
+                    "reason": "System.AggregateException"
+                },
+                {
+                    "name": "System.Threading.Tests.MutexTests.Ctor_ImpersonateAnonymousAndTryCreateGlobalMutexTest",
+                    "reason": "System.InvalidOperationException"
+                },
+                {
+                    "name": "System.Threading.Tests.SemaphoreTests.PingPong",
+                    "reason": "System.TypeInitializationException"
+                }
+            ]
+        }
+    }
+]

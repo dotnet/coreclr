@@ -336,6 +336,12 @@
       "values": [],
       "defaultValue": ""
     },
+    "CreateTestHost": {
+      "description": "Place CoreFX test dependencies in bin/testhost folder for running CoreFX tests against",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
     "Verbosity": {
       "description": "Sets build verbosity.",
       "valueType": "passThrough",
@@ -502,6 +508,12 @@
           "description": "Runs test overlay target.",
           "settings": {
             "CreateTestOverlay": "default"
+          }
+        },
+        "testHost": {
+          "description": "Runs test host target.",
+          "settings": {
+            "CreateTestHost": "default"
           }
         },
         "priority": {

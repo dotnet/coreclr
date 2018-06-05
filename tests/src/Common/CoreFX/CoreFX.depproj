@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
+         This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
+    -->
+    <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
+    <Language>C#</Language>
+    <NugetTargetMoniker>.NETCoreApp,Version=v2.0</NugetTargetMoniker>
+    <NugetTargetMonikerShort>netcoreapp2.0</NugetTargetMonikerShort>
+    <ContainsPackageReferences>true</ContainsPackageReferences>
+    <CLRTestKind>SharedLibrary</CLRTestKind>
+    <IsTestProject>false</IsTestProject>
+
+    <FxTestUtilVer>4.6.0-preview1-26604-03</FxTestUtilVer>
+    <MXNEVer>2.2.0-preview1-02902-01</MXNEVer>
+  </PropertyGroup>
+
+      <!-- Switch RuntimeIdentifier according to currently running OSGroup -->
+    <PropertyGroup>
+        <RuntimeIdentifier Condition="'$(OSGroup)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
+        <RuntimeIdentifier Condition="'$(OSGroup)' == 'Linux'">linux-x64</RuntimeIdentifier>
+        <RuntimeIdentifier Condition="'$(OSGroup)' == 'OSX'">osx-x64</RuntimeIdentifier>
+        <NugetRuntimeIdentifier>$(RuntimeIdentifier)</NugetRuntimeIdentifier>
+    </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.extensibility.core">
+      <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="microsoft.xunit.netcore.extensions">
+      <Version>$(MXNEVer)</Version>
+    </PackageReference>
+    <PackageReference Include="CoreFx.Private.TestUtilities">
+        <Version>$(FxTestUtilVer)</Version>
+    </PackageReference>
+    <PackageReference Include="xunit.core">
+        <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="xunit.assert">
+        <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageToInclude Include="xunit.abstractions"/>
+    <PackageToInclude Include="xunit.assert"/>
+    <PackageToInclude Include="xunit.extensibility.core"/>
+    <PackageToInclude Include="xunit.extensibility.execution"/>
+    <PackageToInclude Include="xunit.runner.utility"/>
+    <PackageToInclude Include="CoreFx.Private.TestUtilities"/>
+    <PackageToInclude Include="microsoft.xunit.netcore.extensions" />
+  </ItemGroup>
+
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+
+  <PropertyGroup>
+    <ProjectAssetsFile>$(SourceDir)Common\CoreFX\obj\project.assets.json</ProjectAssetsFile>
+  </PropertyGroup>
+
+  <!-- TODO We don't need this -->
+  <Target Name="AddCoreFXDependencies" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(PackagesDir)CoreFx.Private.TestUtilities\$(FxTestUtilVer)')"
+            Text="Error: looks the package CoreFx.Private.TestUtilities.$(FxTestUtilVer) not restored or missing xunit.console.exe."
+    />
+    <ItemGroup>
+      <CoreFXReferenceCopyLocalPaths
+        Include="$(PackagesDir)CoreFx.Private.TestUtilities\$(FxTestUtilVer)\*.*">
+        <Private>false</Private>
+        <NuGetPackageId>CoreFx.Private.TestUtilities</NuGetPackageId>
+        <NuGetPackageVersion>$(FxTestUtilVer)</NuGetPackageVersion>
+      </CoreFXReferenceCopyLocalPaths>
+    </ItemGroup>
+</Target>
+</Project>
