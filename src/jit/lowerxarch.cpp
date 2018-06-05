@@ -2721,6 +2721,28 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                     break;
                 }
 
+                case HW_Category_Special:
+                {
+                    if (intrinsicId == NI_SSE2_CompareLessThan)
+                    {
+                        bool supportsRegOptional = false;
+
+                        if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
+                        {
+                            MakeSrcContained(node, op2);
+                        }
+                        else if (supportsRegOptional)
+                        {
+                            op2->SetRegOptional();
+                        }
+                    }
+                    else
+                    {
+                        unreached();
+                    }
+                    break;
+                }
+
                 default:
                 {
                     // TODO-XArch-CQ: Assert that this is unreached after we have ensured the relevant node types are
@@ -2791,6 +2813,34 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                             op3->SetRegOptional();
                         }
                     }
+                    else
+                    {
+                        bool supportsRegOptional = false;
+
+                        switch (intrinsicId)
+                        {
+                            case NI_SSE41_BlendVariable:
+                            case NI_AVX_BlendVariable:
+                            case NI_AVX2_BlendVariable:
+                            {
+                                if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
+                                {
+                                    MakeSrcContained(node, op2);
+                                }
+                                else if (supportsRegOptional)
+                                {
+                                    op2->SetRegOptional();
+                                }
+                                break;
+                            }
+
+                            default:
+                            {
+                                unreached();
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 case HW_Category_IMM:
@@ -2838,9 +2888,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 
                 default:
                 {
-                    // TODO-XArch-CQ: Assert that this is unreached after we have ensured the relevant node types are
-                    // handled.
-                    //                https://github.com/dotnet/coreclr/issues/16497
+                    unreached();
                     break;
                 }
             }

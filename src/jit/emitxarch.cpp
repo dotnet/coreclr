@@ -2700,6 +2700,8 @@ emitter::insFormat emitter::emitMapFmtAtoM(insFormat fmt)
             return IF_RWR_RRD_MRD;
         case IF_RWR_RRD_ARD_CNS:
             return IF_RWR_RRD_MRD_CNS;
+        case IF_RWR_RRD_ARD_RRD:
+            return IF_RWR_RRD_MRD_RRD;
 
         case IF_ARD_RRD:
             return IF_MRD_RRD;
@@ -4415,6 +4417,174 @@ void emitter::emitIns_R_R_S_I(
     emitCurIGsize += sz;
 }
 
+//------------------------------------------------------------------------
+// emitIns_R_R_A_R: emits the code for an instruction that takes a register operand, a GenTreeIndir address,
+//                  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
+void emitter::emitIns_R_R_A_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, GenTreeIndir* indir)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    int ival = (op3Reg - XMMBASE) << 4; // convert op3Reg to ival
+
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    emitHandleMemOp(indir, id, IF_RWR_RRD_ARD_RRD, ins);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_AR_R: emits the code for an instruction that takes a register operand, a base memory
+//                   register, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op3Reg    -- The register of the third operand
+//    base      -- The base register used for the memory address
+//    offs      -- The offset added to the memory address from base
+//
+void emitter::emitIns_R_R_AR_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, regNumber base, int offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    int ival = (op3Reg - XMMBASE) << 4; // convert op3Reg to ival
+
+    instrDesc* id = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_ARD_RRD);
+    id->idAddr()->iiaAddrMode.amBaseReg = base;
+    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_C_R: emits the code for an instruction that takes a register operand, a field handle +
+//                  offset,  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+void emitter::emitIns_R_R_C_R(instruction          ins,
+                              emitAttr             attr,
+                              regNumber            targetReg,
+                              regNumber            op1Reg,
+                              regNumber            op3Reg,
+                              CORINFO_FIELD_HANDLE fldHnd,
+                              int                  offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    // Static always need relocs
+    if (!jitStaticFldIsGlobAddr(fldHnd))
+    {
+        attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
+    }
+
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    int ival = (op3Reg - XMMBASE) << 4; // convert op3Reg to ival
+
+    instrDesc* id = emitNewInstrCnsDsp(attr, ival, offs);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_MRD_RRD);
+    id->idAddr()->iiaFieldHnd = fldHnd;
+
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_R_S: emits the code for a instruction that takes a register operand, a variable index +
+//                  offset, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+void emitter::emitIns_R_R_S_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, int varx, int offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    int ival = (op3Reg - XMMBASE) << 4; // convert op3Reg to ival
+
+    instrDesc* id = emitNewInstrCns(attr, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_SRD_RRD);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    UNATIVE_OFFSET sz =
+        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
 void emitter::emitIns_R_R_R_R(
     instruction ins, emitAttr attr, regNumber targetReg, regNumber reg1, regNumber reg2, regNumber reg3)
 {
@@ -5914,6 +6084,301 @@ void emitter::emitIns_SIMD_R_R_R_S(
     }
 
     emitIns_R_R_S(ins, attr, targetReg, op2Reg, varx, offs);
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_A_R: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                       another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_A_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, GenTreeIndir* indir)
+{
+    if (UseVEXEncoding())
+    {
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_A_R(ins, attr, targetReg, op1Reg, op3Reg, indir);
+    }
+    else
+    {
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
+        {
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
+        }
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3
+            assert(op3Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_A(ins, attr, targetReg, indir);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR_R: emits the code for a SIMD instruction that takes a register operand, a base memory
+//                        register, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op3Reg    -- The register of the third operand
+//    base      -- The base register used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_AR_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, regNumber base)
+{
+    if (UseVEXEncoding())
+    {
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_AR_R(ins, attr, targetReg, op1Reg, op3Reg, base, 0);
+    }
+    else
+    {
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
+        {
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
+        }
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3
+            assert(op3Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_AR(ins, attr, targetReg, base, 0);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C_R: emits the code for a SIMD instruction that takes a register operand, a field handle +
+//                       offset,  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+void emitter::emitIns_SIMD_R_R_C_R(instruction          ins,
+                                   emitAttr             attr,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   regNumber            op3Reg,
+                                   CORINFO_FIELD_HANDLE fldHnd,
+                                   int                  offs)
+{
+    if (UseVEXEncoding())
+    {
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_C_R(ins, attr, targetReg, op1Reg, op3Reg, fldHnd, offs);
+    }
+    else
+    {
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
+        {
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
+        }
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3
+            assert(op3Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_C(ins, attr, targetReg, fldHnd, offs);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S_R: emits the code for a SIMD instruction that takes a register operand, a variable index +
+//                       offset, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+void emitter::emitIns_SIMD_R_R_S_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, int varx, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_S_R(ins, attr, targetReg, op1Reg, op3Reg, varx, offs);
+    }
+    else
+    {
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
+        {
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
+        }
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3
+            assert(op3Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_S(ins, attr, targetReg, varx, offs);
+    }
 }
 #endif // FEATURE_HW_INTRINSICS
 
@@ -7957,6 +8422,18 @@ void emitter::emitDispIns(
             break;
         }
 
+        case IF_RWR_RRD_ARD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+            emitDispAddrMode(id);
+
+            emitGetInsAmdCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
+            break;
+        }
+
         case IF_ARD_RRD:
         case IF_AWR_RRD:
         case IF_ARW_RRD:
@@ -8135,6 +8612,19 @@ void emitter::emitDispIns(
             {
                 goto PRINT_CONSTANT;
             }
+            break;
+        }
+
+        case IF_RWR_RRD_SRD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+
+            emitGetInsCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
             break;
         }
 
@@ -8340,6 +8830,20 @@ void emitter::emitDispIns(
             {
                 goto PRINT_CONSTANT;
             }
+            break;
+        }
+
+        case IF_RWR_RRD_MRD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+
+            emitGetInsDcmCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
             break;
         }
 
@@ -12296,6 +12800,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             break;
 
         case IF_RWR_RRD_ARD_CNS:
+        case IF_RWR_RRD_ARD_RRD:
         {
             emitGetInsAmdCns(id, &cnsVal);
             code = insCodeRM(ins);
@@ -12469,6 +12974,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         }
 
         case IF_RWR_RRD_SRD_CNS:
+        case IF_RWR_RRD_SRD_RRD:
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));
@@ -12628,6 +13134,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         }
 
         case IF_RWR_RRD_MRD_CNS:
+        case IF_RWR_RRD_MRD_RRD:
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));

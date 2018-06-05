@@ -206,9 +206,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 {
                     assert(ival == -1);
 
-                    auto emitSwCase = [&](int8_t i) {
-                        genHWIntrinsic_R_R_RM_I(node, ins, i);
-                    };
+                    auto emitSwCase = [&](int8_t i) { genHWIntrinsic_R_R_RM_I(node, ins, i); };
 
                     if (op3->IsCnsIntOrI())
                     {
@@ -257,7 +255,22 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 }
                 else
                 {
-                    emit->emitIns_SIMD_R_R_R_R(ins, simdSize, targetReg, op1Reg, op2Reg, op3Reg);
+                    switch (intrinsicId)
+                    {
+                        case NI_SSE41_BlendVariable:
+                        case NI_AVX_BlendVariable:
+                        case NI_AVX2_BlendVariable:
+                        {
+                            genHWIntrinsic_R_R_RM_R(node, ins);
+                            break;
+                        }
+
+                        default:
+                        {
+                            unreached();
+                            break;
+                        };
+                    }
                 }
                 break;
             }
@@ -462,7 +475,7 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, i
     // TODO-XArch-CQ: Non-VEX encoded instructions can have both ops contained
 
     assert(targetReg != REG_NA);
-    assert(!node->OperIsCommutative());   // One operand intrinsics cannot be commutative
+    assert(!node->OperIsCommutative()); // One operand intrinsics cannot be commutative
 
     if (op1->isContained() || op1->isUsedFromSpillTemp())
     {
@@ -871,6 +884,143 @@ void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins,
         }
 
         emit->emitIns_SIMD_R_R_R_I(ins, simdSize, targetReg, op1Reg, op2Reg, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// genHWIntrinsic_R_R_RM_R: Generates the code for a hardware intrinsic node that takes a register operand, a
+//                          register/memory operand, another register operand, and that returns a value in register
+//
+// Arguments:
+//    node - The hardware intrinsic node
+//    ins  - The instruction being generated
+//
+void CodeGen::genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins)
+{
+    var_types targetType = node->TypeGet();
+    regNumber targetReg  = node->gtRegNum;
+    GenTree*  op1        = node->gtGetOp1();
+    GenTree*  op2        = node->gtGetOp2();
+    GenTree*  op3        = nullptr;
+    emitAttr  simdSize   = EA_ATTR(node->gtSIMDSize);
+    emitter*  emit       = getEmitter();
+
+    assert(op1->OperIsList());
+    assert(op2 == nullptr);
+
+    GenTreeArgList* argList = op1->AsArgList();
+
+    op1     = argList->Current();
+    argList = argList->Rest();
+
+    op2     = argList->Current();
+    argList = argList->Rest();
+
+    op3 = argList->Current();
+    assert(argList->Rest() == nullptr);
+
+    regNumber op1Reg = op1->gtRegNum;
+    regNumber op3Reg = op3->gtRegNum;
+
+    assert(targetReg != REG_NA);
+    assert(op1Reg != REG_NA);
+    assert(op3Reg != REG_NA);
+
+    if (op2->isContained() || op2->isUsedFromSpillTemp())
+    {
+        TempDsc* tmpDsc = nullptr;
+        unsigned varNum = BAD_VAR_NUM;
+        unsigned offset = (unsigned)-1;
+
+        if (op2->isUsedFromSpillTemp())
+        {
+            assert(op2->IsRegOptional());
+
+            // TODO-XArch-Cleanup: The getSpillTempDsc...tempRlsTemp code is a fairly common
+            //                     pattern. It could probably be extracted to its own method.
+            tmpDsc = getSpillTempDsc(op2);
+            varNum = tmpDsc->tdTempNum();
+            offset = 0;
+
+            compiler->tmpRlsTemp(tmpDsc);
+        }
+        else if (op2->OperIsHWIntrinsic())
+        {
+            emit->emitIns_SIMD_R_R_AR_R(ins, simdSize, targetReg, op1Reg, op2->gtGetOp1()->gtRegNum, op3Reg);
+            return;
+        }
+        else if (op2->isIndir())
+        {
+            GenTreeIndir* memIndir = op2->AsIndir();
+            GenTree*      memBase  = memIndir->gtOp1;
+
+            switch (memBase->OperGet())
+            {
+                case GT_LCL_VAR_ADDR:
+                {
+                    varNum = memBase->AsLclVarCommon()->GetLclNum();
+                    offset = 0;
+
+                    // Ensure that all the GenTreeIndir values are set to their defaults.
+                    assert(!memIndir->HasIndex());
+                    assert(memIndir->Scale() == 1);
+                    assert(memIndir->Offset() == 0);
+
+                    break;
+                }
+
+                case GT_CLS_VAR_ADDR:
+                {
+                    emit->emitIns_SIMD_R_R_C_R(ins, simdSize, targetReg, op1Reg, op3Reg, memBase->gtClsVar.gtClsVarHnd,
+                                               0);
+                    return;
+                }
+
+                default:
+                {
+                    emit->emitIns_SIMD_R_R_A_R(ins, simdSize, targetReg, op1Reg, op3Reg, memIndir);
+                    return;
+                }
+            }
+        }
+        else
+        {
+            switch (op2->OperGet())
+            {
+                case GT_LCL_FLD:
+                {
+                    GenTreeLclFld* lclField = op2->AsLclFld();
+
+                    varNum = lclField->GetLclNum();
+                    offset = lclField->gtLclFld.gtLclOffs;
+                    break;
+                }
+
+                case GT_LCL_VAR:
+                {
+                    assert(op2->IsRegOptional() || !compiler->lvaTable[op2->gtLclVar.gtLclNum].lvIsRegCandidate());
+                    varNum = op2->AsLclVar()->GetLclNum();
+                    offset = 0;
+                    break;
+                }
+
+                default:
+                    unreached();
+                    break;
+            }
+        }
+
+        // Ensure we got a good varNum and offset.
+        // We also need to check for `tmpDsc != nullptr` since spill temp numbers
+        // are negative and start with -1, which also happens to be BAD_VAR_NUM.
+        assert((varNum != BAD_VAR_NUM) || (tmpDsc != nullptr));
+        assert(offset != (unsigned)-1);
+
+        emit->emitIns_SIMD_R_R_S_R(ins, simdSize, targetReg, op1Reg, op3Reg, varNum, offset);
+    }
+    else
+    {
+        emit->emitIns_SIMD_R_R_R_R(ins, simdSize, targetReg, op1Reg, op2->gtRegNum, op3Reg);
     }
 }
 
