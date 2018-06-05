@@ -14,19 +14,22 @@ namespace System.Threading
     /// <summary>
     /// Synchronization primitive that can also be used for interprocess synchronization
     /// </summary>
-    public sealed class Mutex : WaitHandle
+    public sealed partial class Mutex : WaitHandle
     {
-        private const uint AccessRights =
-            (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.MUTEX_MODIFY_STATE;
+#if CORECLR
+        private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.MUTEX_MODIFY_STATE;
+#else
+        private const uint AccessRights = (uint)(Interop.Constants.MaximumAllowed | Interop.Constants.Synchronize | Interop.Constants.MutexModifyState);
+#endif
 
-#if PLATFORM_UNIX
+#if CORECLR && PLATFORM_UNIX
         // Maximum file name length on tmpfs file system.
         private const int WaitHandleNameMax = 255;
 #endif
 
         public Mutex(bool initiallyOwned, string name, out bool createdNew)
         {
-#if !PLATFORM_UNIX
+#if !PLATFORM_UNIX || !CORECLR
             VerifyNameForCreate(name);
 #endif
             CreateMutexCore(initiallyOwned, name, out createdNew);
@@ -34,7 +37,7 @@ namespace System.Threading
 
         public Mutex(bool initiallyOwned, string name)
         {
-#if !PLATFORM_UNIX
+#if !PLATFORM_UNIX || !CORECLR
             VerifyNameForCreate(name);
 #endif
             CreateMutexCore(initiallyOwned, name, out _);
@@ -81,12 +84,33 @@ namespace System.Threading
         // in a Mutex's ACL is MUTEX_ALL_ACCESS (0x1F0001).
         public void ReleaseMutex()
         {
+#if CORECLR
             if (!Win32Native.ReleaseMutex(safeWaitHandle))
             {
                 throw new ApplicationException(SR.Arg_SynchronizationLockException);
             }
+#else
+            // The field value is modifiable via the public <see cref="WaitHandle.SafeWaitHandle"/> property, save it locally
+            // to ensure that one instance is used in all places in this method
+            SafeWaitHandle waitHandle = _waitHandle;
+            if (waitHandle == null)
+            {
+                ThrowInvalidHandleException();
+            }
+
+            waitHandle.DangerousAddRef();
+            try
+            {
+                ReleaseMutexCore(waitHandle.DangerousGetHandle());
+            }
+            finally
+            {
+                waitHandle.DangerousRelease();
+            }
+#endif
         }
 
+#if CORECLR || !PLATFORM_UNIX
 #if !PLATFORM_UNIX
         private static void VerifyNameForCreate(string name)
         {
@@ -103,9 +127,13 @@ namespace System.Threading
             Debug.Assert(name == null || name.Length <= Interop.Kernel32.MAX_PATH);
 #endif
 
+#if CORECLR
             uint mutexFlags = initiallyOwned ? Win32Native.CREATE_MUTEX_INITIAL_OWNER : 0;
-
             SafeWaitHandle mutexHandle = Win32Native.CreateMutexEx(null, name, mutexFlags, AccessRights);
+#else
+            uint mutexFlags = initiallyOwned ? (uint)Interop.Constants.CreateMutexInitialOwner : 0;
+            SafeWaitHandle mutexHandle = Interop.mincore.CreateMutexEx(IntPtr.Zero, name, mutexFlags, AccessRights);
+#endif
             int errorCode = Marshal.GetLastWin32Error();
 
             if (mutexHandle.IsInvalid)
@@ -118,7 +146,11 @@ namespace System.Threading
 #endif
                 if (errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
+#if CORECLR
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
+#else
+                throw ExceptionFromCreationError(errorCode, name);
+#endif
             }
 
             createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
@@ -140,14 +172,16 @@ namespace System.Threading
 #if !PLATFORM_UNIX
             VerifyNameForCreate(name);
 #endif
-
             result = null;
             // To allow users to view & edit the ACL's, call OpenMutex
             // with parameters to allow us to view & edit the ACL.  This will
             // fail if we don't have permission to view or edit the ACL's.  
             // If that happens, ask for less permissions.
+#if CORECLR            
             SafeWaitHandle myHandle = Win32Native.OpenMutex(AccessRights, false, name);
-
+#else
+            SafeWaitHandle myHandle = Interop.mincore.OpenMutex(AccessRights, false, name);
+#endif
             if (myHandle.IsInvalid)
             {
                 int errorCode = Marshal.GetLastWin32Error();
@@ -166,13 +200,27 @@ namespace System.Threading
                 if (null != name && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     return OpenExistingResult.NameInvalid;
 
+#if CORECLR
                 // this is for passed through Win32Native Errors
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
+#else
+                throw ExceptionFromCreationError(errorCode, name);
+#endif
             }
 
             result = new Mutex(myHandle);
-
             return OpenExistingResult.Success;
         }
+
+#if !CORECLR
+        private static void ReleaseMutexCore(IntPtr handle)
+        {
+            if (!Interop.mincore.ReleaseMutex(handle))
+            {
+                ThrowSignalOrUnsignalException();
+            }    
+        }
+#endif
+#endif
     }
 }
