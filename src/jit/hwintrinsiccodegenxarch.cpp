@@ -96,7 +96,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                 else if ((ival != -1) && varTypeIsFloating(baseType))
                 {
                     assert((ival >= 0) && (ival <= 127));
-                    genHWIntrinsic_R_RM_I(node, ins);
+                    genHWIntrinsic_R_RM_I(node, ins, (int8_t)ival);
                 }
                 else
                 {
@@ -156,7 +156,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                         simdSize = emitTypeSize(TYP_INT);
                     }
 
-                    auto emitSwCase = [&](int8_t i) { emit->emitIns_SIMD_R_R_I(ins, simdSize, targetReg, op1Reg, i); };
+                    auto emitSwCase = [&](int8_t i) { genHWIntrinsic_R_RM_I(node, ins, i); };
 
                     if (op2->IsCnsIntOrI())
                     {
@@ -431,8 +431,9 @@ void CodeGen::genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emi
 // Arguments:
 //    node - The hardware intrinsic node
 //    ins  - The instruction being generated
+//    ival - The immediate value
 //
-void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins)
+void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival)
 {
     var_types targetType = node->TypeGet();
     regNumber targetReg  = node->gtRegNum;
@@ -440,15 +441,11 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins)
     emitAttr  simdSize   = EA_ATTR(node->gtSIMDSize);
     emitter*  emit       = getEmitter();
 
-    int ival = HWIntrinsicInfo::lookupIval(node->gtHWIntrinsicId);
-    assert((ival >= 0) && (ival <= 127));
-
     // TODO-XArch-CQ: Commutative operations can have op1 be contained
     // TODO-XArch-CQ: Non-VEX encoded instructions can have both ops contained
 
     assert(targetReg != REG_NA);
-    assert(node->gtGetOp2() == nullptr); // The second operand is implicit and comes from lookupIval
-    assert(!node->OperIsCommutative());  // One operand intrinsics cannot be commutative
+    assert(!node->OperIsCommutative());   // One operand intrinsics cannot be commutative
 
     if (op1->isContained() || op1->isUsedFromSpillTemp())
     {

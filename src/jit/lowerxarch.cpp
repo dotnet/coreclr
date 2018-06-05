@@ -2418,6 +2418,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                     break;
                 }
             }
+            break;
         }
 
         case HW_Category_SIMDScalar:
@@ -2633,6 +2634,90 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                         // TODO-XArch-CQ: For commutative nodes, either operand can be reg-optional.
                         //                https://github.com/dotnet/coreclr/issues/6361
                     }
+                    break;
+                }
+
+                case HW_Category_IMM:
+                {
+                    // We don't currently have any IMM intrinsics which are also commutative
+                    assert(!isCommutative);
+                    bool supportsRegOptional = false;
+
+                    switch (intrinsicId)
+                    {
+                        case NI_SSE2_ShiftLeftLogical:
+                        case NI_SSE2_ShiftRightArithmetic:
+                        case NI_SSE2_ShiftRightLogical:
+                        case NI_AVX2_ShiftLeftLogical:
+                        case NI_AVX2_ShiftRightArithmetic:
+                        case NI_AVX2_ShiftRightLogical:
+                        {
+                            // These intrinsics can have op2 be imm or reg/mem
+
+                            if (!HWIntrinsicInfo::isImmOp(intrinsicId, op2))
+                            {
+                                if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
+                                {
+                                    MakeSrcContained(node, op2);
+                                }
+                                else if (supportsRegOptional)
+                                {
+                                    op2->SetRegOptional();
+                                }
+                            }
+                            break;
+                        }
+
+                        case NI_SSE2_Shuffle:
+                        case NI_SSE2_ShuffleHigh:
+                        case NI_SSE2_ShuffleLow:
+                        {
+                            // These intrinsics have op2 as an imm and op1 as a reg/mem
+
+                            if (IsContainableHWIntrinsicOp(node, op1, &supportsRegOptional))
+                            {
+                                MakeSrcContained(node, op1);
+                            }
+                            else if (supportsRegOptional)
+                            {
+                                op1->SetRegOptional();
+                            }
+                            break;
+                        }
+
+                        case NI_AVX_Permute:
+                        {
+                            // These intrinsics can have op2 be imm or reg/mem
+                            // They also can have op1 be reg/mem and op2 be imm
+
+                            if (HWIntrinsicInfo::isImmOp(intrinsicId, op2))
+                            {
+                                if (IsContainableHWIntrinsicOp(node, op1, &supportsRegOptional))
+                                {
+                                    MakeSrcContained(node, op1);
+                                }
+                                else if (supportsRegOptional)
+                                {
+                                    op1->SetRegOptional();
+                                }
+                            }
+                            else if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
+                            {
+                                MakeSrcContained(node, op2);
+                            }
+                            else if (supportsRegOptional)
+                            {
+                                op2->SetRegOptional();
+                            }
+                            break;
+                        }
+
+                        default:
+                        {
+                            break;
+                        }
+                    }
+
                     break;
                 }
 
