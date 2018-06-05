@@ -1297,7 +1297,7 @@ namespace System.Text
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
             // This happens if user has implemented a decoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
-                SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars"); //hardcoded..
+                SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars");
         }
 
         internal void ThrowCharsOverflow(DecoderNLS decoder, bool nothingDecoded)
