@@ -16,7 +16,6 @@ namespace System.Text
         public static DecoderFallback ReplacementFallback =>
             s_replacementFallback ?? Interlocked.CompareExchange(ref s_replacementFallback, new DecoderReplacementFallback(), null) ?? s_replacementFallback;
 
-
         public static DecoderFallback ExceptionFallback =>
             s_exceptionFallback ?? Interlocked.CompareExchange<DecoderFallback>(ref s_exceptionFallback, new DecoderExceptionFallback(), null) ?? s_exceptionFallback;
 
