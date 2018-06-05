@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 using System.IO;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
@@ -16,11 +15,8 @@ namespace System.Threading
     /// </summary>
     public sealed partial class Mutex : WaitHandle
     {
-#if CORECLR
-        private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.MUTEX_MODIFY_STATE;
-#else
-        private const uint AccessRights = (uint)(Interop.Constants.MaximumAllowed | Interop.Constants.Synchronize | Interop.Constants.MutexModifyState);
-#endif
+        private const uint AccessRights =
+            (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.MUTEX_MODIFY_STATE;
 
 #if CORECLR && PLATFORM_UNIX
         // Maximum file name length on tmpfs file system.
@@ -29,17 +25,13 @@ namespace System.Threading
 
         public Mutex(bool initiallyOwned, string name, out bool createdNew)
         {
-#if !PLATFORM_UNIX || !CORECLR
             VerifyNameForCreate(name);
-#endif
             CreateMutexCore(initiallyOwned, name, out createdNew);
         }
 
         public Mutex(bool initiallyOwned, string name)
         {
-#if !PLATFORM_UNIX || !CORECLR
             VerifyNameForCreate(name);
-#endif
             CreateMutexCore(initiallyOwned, name, out _);
         }
 
@@ -111,15 +103,15 @@ namespace System.Threading
         }
 
 #if CORECLR || !PLATFORM_UNIX
-#if !PLATFORM_UNIX
         private static void VerifyNameForCreate(string name)
         {
+#if !PLATFORM_UNIX
             if (name != null && (Interop.Kernel32.MAX_PATH < name.Length))
             {
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
             }
-        }
 #endif
+        }
 
         private void CreateMutexCore(bool initiallyOwned, string name, out bool createdNew)
         {
@@ -169,9 +161,7 @@ namespace System.Threading
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             }
 
-#if !PLATFORM_UNIX
             VerifyNameForCreate(name);
-#endif
             result = null;
             // To allow users to view & edit the ACL's, call OpenMutex
             // with parameters to allow us to view & edit the ACL.  This will
