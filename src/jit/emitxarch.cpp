@@ -390,6 +390,8 @@ static bool IsDstSrcImmAvxInstruction(instruction ins)
         case INS_pshufd:
         case INS_pshufhw:
         case INS_pshuflw:
+        case INS_roundpd:
+        case INS_roundps:
             return true;
         default:
             return false;
