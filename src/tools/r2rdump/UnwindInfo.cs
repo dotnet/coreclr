@@ -34,18 +34,21 @@ namespace R2RDump
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
+            string tab2 = new string(' ', 8);
+            string tab3 = new string(' ', 12);
 
-            sb.AppendLine($"    {{");
-            sb.AppendLine($"        CodeOffset: {CodeOffset}");
-            sb.AppendLine($"        UnwindOp: {UnwindOp}");
-            sb.AppendLine($"        OpInfo: {OpInfo}");
-            sb.AppendLine($"    }}");
-            sb.AppendLine($"    {{");
-            sb.AppendLine($"        OffsetLow: {OffsetLow}");
-            sb.AppendLine($"        UnwindOp: {UnwindOp}");
-            sb.AppendLine($"        OffsetHigh: {OffsetHigh}");
-            sb.AppendLine($"    }}");
-            sb.AppendLine($"    FrameOffset: {FrameOffset}");
+            sb.AppendLine($"{tab2}{{");
+            sb.AppendLine($"{tab3}CodeOffset: {CodeOffset}");
+            sb.AppendLine($"{tab3}UnwindOp: {UnwindOp}");
+            sb.AppendLine($"{tab3}OpInfo: {OpInfo}");
+            sb.AppendLine($"{tab2}}}");
+            sb.AppendLine($"{tab2}{{");
+            sb.AppendLine($"{tab3}OffsetLow: {OffsetLow}");
+            sb.AppendLine($"{tab3}UnwindOp: {UnwindOp}");
+            sb.AppendLine($"{tab3}OffsetHigh: {OffsetHigh}");
+            sb.AppendLine($"{tab2}}}");
+            sb.AppendLine($"{tab2}FrameOffset: {FrameOffset}");
+            sb.AppendLine($"{tab2}------------------");
 
             return sb.ToString();
         }
@@ -91,20 +94,22 @@ namespace R2RDump
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
+            string tab = "    ";
 
-            sb.AppendLine($"    Version: {Version}");
-            sb.AppendLine($"    Flags: 0x{Flags:X8}");
-            sb.AppendLine($"    SizeOfProlog: {SizeOfProlog}");
-            sb.AppendLine($"    CountOfUnwindCodes: {CountOfUnwindCodes}");
-            sb.AppendLine($"    FrameRegister: {FrameRegister}");
-            sb.AppendLine($"    FrameOffset: {FrameOffset}");
-            sb.AppendLine("    Unwind Codes");
+            sb.AppendLine($"{tab}Version: {Version}");
+            sb.AppendLine($"{tab}Flags: 0x{Flags:X8}");
+            sb.AppendLine($"{tab}SizeOfProlog: {SizeOfProlog}");
+            sb.AppendLine($"{tab}CountOfUnwindCodes: {CountOfUnwindCodes}");
+            sb.AppendLine($"{tab}FrameRegister: {FrameRegister}");
+            sb.AppendLine($"{tab}FrameOffset: {FrameOffset}");
+            sb.AppendLine($"{tab}Unwind Codes:");
+            sb.AppendLine($"{tab}{tab}------------------");
             for (int i = 0; i < CountOfUnwindCodes; i++)
             {
-                sb.AppendLine(UnwindCode[i].ToString());
+                sb.Append(UnwindCode[i].ToString());
             }
-            sb.AppendLine($"    PersonalityRoutineRVA: 0x{PersonalityRoutineRVA:X8}");
-            sb.AppendLine($"    Size: {Size}");
+            sb.AppendLine($"{tab}PersonalityRoutineRVA: 0x{PersonalityRoutineRVA:X8}");
+            sb.AppendLine($"{tab}Size: {Size}");
 
             return sb.ToString();
         }
