@@ -841,6 +841,8 @@ public:
     OBJECTREF    m_Array[1];
 };
 
+#define OFFSETOF__PtrArray__m_Array               ARRAYBASE_SIZE
+
 /* a TypedByRef is a structure that is used to implement VB's BYREF variants.  
    it is basically a tuple of an address of some data along with a TypeHandle
    that indicates the type of the address */
@@ -2569,6 +2571,10 @@ private:
     OBJECTREF   _invocationList;
     INT_PTR     _invocationCount;
 };
+
+#define OFFSETOF__DelegateObject__target          OBJECT_SIZE /* m_pMethTab */
+#define OFFSETOF__DelegateObject__methodPtr       (OFFSETOF__DelegateObject__target + TARGET_POINTER_SIZE /* _target */ + TARGET_POINTER_SIZE /* _methodBase */)
+#define OFFSETOF__DelegateObject__methodPtrAux    (OFFSETOF__DelegateObject__methodPtr + TARGET_POINTER_SIZE /* _methodPtr */)
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<DelegateObject> DELEGATEREF;

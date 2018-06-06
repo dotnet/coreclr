@@ -10101,17 +10101,17 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
 
     // Delegate offsets
-    pEEInfoOut->offsetOfDelegateInstance    = DelegateObject::GetOffsetOfTarget();
-    pEEInfoOut->offsetOfDelegateFirstTarget = DelegateObject::GetOffsetOfMethodPtr();
+    pEEInfoOut->offsetOfDelegateInstance    = OFFSETOF__DelegateObject__target;
+    pEEInfoOut->offsetOfDelegateFirstTarget = OFFSETOF__DelegateObject__methodPtr;
 
     // Secure delegate offsets
-    pEEInfoOut->offsetOfSecureDelegateIndirectCell = DelegateObject::GetOffsetOfMethodPtrAux();
+    pEEInfoOut->offsetOfSecureDelegateIndirectCell = OFFSETOF__DelegateObject__methodPtrAux;
 
     // Remoting offsets
     pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;
     pEEInfoOut->offsetOfRealProxyServer    = (DWORD)-1;
 
-    pEEInfoOut->offsetOfObjArrayData       = (DWORD)PtrArray::GetDataOffset();
+    pEEInfoOut->offsetOfObjArrayData       = OFFSETOF__PtrArray__m_Array;
 
     pEEInfoOut->sizeOfReversePInvokeFrame  = (DWORD)-1;
 
