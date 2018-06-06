@@ -149,7 +149,9 @@ namespace System.Globalization
         }
 
         // FixDefaultShortDatePattern will convert the default short date pattern from using 'yy' to using 'yyyy'
-        // And will ensure the original pattern still exist in the list
+        // And will ensure the original pattern still exist in the list.
+        // doing that will have the short date pattern format the year as 4-digit number and not just 2-digit number.
+        // Example: June 5, 2018 will be formatted to something like 6/5/2018 instead of 6/5/18 fro en-US culture.
         private static void FixDefaultShortDatePattern(List<string> shortDatePatterns)
         {
             if (shortDatePatterns.Count == 0)
@@ -157,6 +159,8 @@ namespace System.Globalization
 
             string s = shortDatePatterns[0];
 
+            // We are not expecting any pattern have length more than 100.
+            // We have to do this check to prevent stack overflow as we allocate the buffer on the stack.
             if (s.Length > 100)
                 return;
 
@@ -192,7 +196,7 @@ namespace System.Globalization
                 return;
             }
 
-            if (index <= s.Length - 3 && s[index + 2] == 'y')
+            if (index + 2 < s.Length && s[index + 2] == 'y')
             {
                 // we have 'yyy' then nothing to do
                 return;
@@ -217,7 +221,7 @@ namespace System.Globalization
 
             shortDatePatterns[0] = modifiedPattern.ToString();
 
-            for (int i=1; i < shortDatePatterns.Count; i++)
+            for (int i = 1; i < shortDatePatterns.Count; i++)
             {
                 if (shortDatePatterns[i] == shortDatePatterns[0])
                 {
