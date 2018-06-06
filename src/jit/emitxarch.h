@@ -42,7 +42,8 @@ struct CnsVal
 UNATIVE_OFFSET emitInsSize(code_t code);
 UNATIVE_OFFSET emitInsSizeRM(instruction ins);
 UNATIVE_OFFSET emitInsSizeSV(code_t code, int var, int dsp);
-UNATIVE_OFFSET emitInsSizeSV(instrDesc* id, int var, int dsp, int val);
+UNATIVE_OFFSET emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp);
+UNATIVE_OFFSET emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp, int val);
 UNATIVE_OFFSET emitInsSizeRR(instruction ins, regNumber reg1, regNumber reg2, emitAttr attr);
 UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code);
 UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code, int val);
