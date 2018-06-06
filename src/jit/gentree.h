@@ -1083,7 +1083,7 @@ public:
     static bool OperIsLocal(genTreeOps gtOper)
     {
         bool result = (OperKind(gtOper) & GTK_LOCAL) != 0;
-        assert(result == (gtOper == GT_LCL_VAR || gtOper == GT_PHI_ARG || gtOper == GT_LCL_FLD || 
+        assert(result == (gtOper == GT_LCL_VAR || gtOper == GT_PHI_ARG || gtOper == GT_LCL_FLD ||
                           gtOper == GT_STORE_LCL_VAR || gtOper == GT_STORE_LCL_FLD));
         return result;
     }
