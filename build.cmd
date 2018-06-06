@@ -135,6 +135,17 @@ if /i "%1" == "release"             (set __BuildTypeRelease=1&set processedArgs=
 
 if /i "%1" == "-priority"           (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 
+REM Explicitly block -Rebuild.
+if /i "%1" == "Rebuild" (
+    echo "ERROR: 'Rebuild' is not supported.  Please remove it."
+    goto Usage
+)
+if /i "%1" == "-Rebuild" (
+    echo "ERROR: 'Rebuild' is not supported.  Please remove it."
+    goto Usage
+)
+
+
 REM All arguments after this point will be passed through directly to build.cmd on nested invocations
 REM using the "all" argument, and must be added to the __PassThroughArgs variable.
 if [!__PassThroughArgs!]==[] (
@@ -359,11 +370,12 @@ REM Find python and set it to the variable PYTHON
 echo import sys; sys.stdout.write(sys.executable) | (py -3 || py -2 || python3 || python2 || python) > %TEMP%\pythonlocation.txt 2> NUL
 set /p PYTHON=<%TEMP%\pythonlocation.txt
 
+if NOT DEFINED PYTHON (
+    echo %__MsgPrefix%Error: Could not find a python installation
+    exit /b 1
+)
+
 if /i "%__BuildNative%"=="1" (
-    if NOT DEFINED PYTHON (
-        echo %__MsgPrefix%Error: Could not find a python installation
-        exit /b 1
-    )
 
     echo %__MsgPrefix%Laying out dynamically generated files consumed by the native build system
     echo %__MsgPrefix%Laying out dynamically generated Event test files and etmdummy stub functions
@@ -374,6 +386,12 @@ if /i "%__BuildNative%"=="1" (
 
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesIncDir% --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
+)
+
+if /i "%__BuildCoreLib%"=="1" (
+
+    echo %__MsgPrefix%Laying out dynamically generated EventSource classes
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate %__IntermediatesEventingDir% || exit /b 1
 )
 
 if /i "%__DoCrossArchBuild%"=="1" (
@@ -391,6 +409,9 @@ if /i "%__DoCrossArchBuild%"=="1" (
 
     echo %__MsgPrefix%Laying out dynamically generated EventPipe Implementation
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEventPipe.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir!\eventpipe --nonextern || exit /b 1
+
+    echo %__MsgPrefix%Laying out dynamically generated EventSource classes
+    "!PYTHON!" -B -Wall %__SourceDir%\scripts\genRuntimeEventSources.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesEventingDir! || exit /b 1
 
     echo %__MsgPrefix%Laying out ETW event logging interface
     "!PYTHON!" -B -Wall %__SourceDir%\scripts\genEtwProvider.py --man %__SourceDir%\vm\ClrEtwAll.man --intermediate !__CrossCompIntermediatesIncDir! --exc %__SourceDir%\vm\ClrEtwAllMeta.lst || exit /b 1
@@ -880,7 +901,6 @@ echo -skiprestore: skip restoring packages ^(default: packages are restored duri
 echo -disableoss: Disable Open Source Signing for System.Private.CoreLib.
 echo -priority=^<N^> : specify a set of test that will be built and run, with priority N.
 echo -officialbuildid=^<ID^>: specify the official build ID to be used by this build.
-echo -Rebuild: passes /t:rebuild to the build projects.
 echo -crossgenaltjit ^<JIT dll^>: run crossgen using specified altjit ^(used for JIT testing^).
 echo portable : build for portable RID.
 echo.

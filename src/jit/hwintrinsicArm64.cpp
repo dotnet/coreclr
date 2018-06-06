@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "jitpch.h"
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 
 #ifdef FEATURE_HW_INTRINSICS
 
@@ -44,17 +44,22 @@ static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
 };
 // clang-format on
 
-extern const char* getHWIntrinsicName(NamedIntrinsic intrinsic)
+//------------------------------------------------------------------------
+// lookup: Gets the HWIntrinsicInfo associated with a given NamedIntrinsic
+//
+// Arguments:
+//    id -- The NamedIntrinsic associated with the HWIntrinsic to lookup
+//
+// Return Value:
+//    The HWIntrinsicInfo associated with id
+const HWIntrinsicInfo& HWIntrinsicInfo::lookup(NamedIntrinsic id)
 {
-    return hwIntrinsicInfoArray[intrinsic - NI_HW_INTRINSIC_START - 1].intrinsicName;
-}
+    assert(id != NI_Illegal);
 
-const HWIntrinsicInfo& Compiler::getHWIntrinsicInfo(NamedIntrinsic intrinsic)
-{
-    assert(intrinsic > NI_HW_INTRINSIC_START);
-    assert(intrinsic < NI_HW_INTRINSIC_END);
+    assert(id > NI_HW_INTRINSIC_START);
+    assert(id < NI_HW_INTRINSIC_END);
 
-    return hwIntrinsicInfoArray[intrinsic - NI_HW_INTRINSIC_START - 1];
+    return hwIntrinsicInfoArray[id - NI_HW_INTRINSIC_START - 1];
 }
 
 //------------------------------------------------------------------------
@@ -101,22 +106,20 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
         IsaFlag::Flag isaFlag = IsaFlag::flag(isa);
         for (int i = 0; i < NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START; i++)
         {
-            if ((isaFlag & hwIntrinsicInfoArray[i].isaflags) &&
-                strcmp(methodName, hwIntrinsicInfoArray[i].intrinsicName) == 0)
+            if ((isaFlag & hwIntrinsicInfoArray[i].isaflags) && strcmp(methodName, hwIntrinsicInfoArray[i].name) == 0)
             {
                 if (compSupports(isa))
                 {
                     // Intrinsic is supported on platform
-                    result = hwIntrinsicInfoArray[i].intrinsicID;
+                    result = hwIntrinsicInfoArray[i].id;
                 }
                 else
                 {
                     // When the intrinsic class is not supported
                     // Return NI_ARM64_PlatformNotSupported for all intrinsics
                     // Return NI_ARM64_IsSupported_False for the IsSupported property
-                    result = (hwIntrinsicInfoArray[i].intrinsicID != NI_ARM64_IsSupported_True)
-                                 ? NI_ARM64_PlatformNotSupported
-                                 : NI_ARM64_IsSupported_False;
+                    result = (hwIntrinsicInfoArray[i].id != NI_ARM64_IsSupported_True) ? NI_ARM64_PlatformNotSupported
+                                                                                       : NI_ARM64_IsSupported_False;
                 }
                 break;
             }
@@ -131,6 +134,57 @@ NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* me
 bool Compiler::impCheckImmediate(GenTree* immediateOp, unsigned int max)
 {
     return immediateOp->IsCnsIntOrI() && (immediateOp->AsIntConCommon()->IconValue() < max);
+}
+
+//------------------------------------------------------------------------
+// lookupNumArgs: gets the number of arguments for the hardware intrinsic.
+// This attempts to do a table based lookup but will fallback to the number
+// of operands in 'node' if the table entry is -1.
+//
+// Arguments:
+//    node      -- GenTreeHWIntrinsic* node with nullptr default value
+//
+// Return Value:
+//     number of arguments
+//
+int HWIntrinsicInfo::lookupNumArgs(const GenTreeHWIntrinsic* node)
+{
+    NamedIntrinsic intrinsic = node->gtHWIntrinsicId;
+
+    assert(intrinsic != NI_Illegal);
+    assert(intrinsic > NI_HW_INTRINSIC_START && intrinsic < NI_HW_INTRINSIC_END);
+
+    GenTree* op1     = node->gtGetOp1();
+    GenTree* op2     = node->gtGetOp2();
+    int      numArgs = 0;
+
+    if (op1 == nullptr)
+    {
+        return 0;
+    }
+
+    if (op1->OperIsList())
+    {
+        numArgs              = 0;
+        GenTreeArgList* list = op1->AsArgList();
+
+        while (list != nullptr)
+        {
+            numArgs++;
+            list = list->Rest();
+        }
+
+        // We should only use a list if we have 3 operands.
+        assert(numArgs >= 3);
+        return numArgs;
+    }
+
+    if (op2 == nullptr)
+    {
+        return 1;
+    }
+
+    return 2;
 }
 
 //------------------------------------------------------------------------
@@ -159,7 +213,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     var_types            simdBaseType  = TYP_UNKNOWN;
     unsigned             simdSizeBytes = 0;
 
-    switch (getHWIntrinsicInfo(intrinsic).form)
+    switch (HWIntrinsicInfo::lookup(intrinsic).form)
     {
         case HWIntrinsicInfo::SimdBinaryOp:
         case HWIntrinsicInfo::SimdInsertOp:
@@ -181,6 +235,8 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     // Simd instantiation type check
     if (simdClass != nullptr)
     {
+        compFloatingPointUsed = true;
+
         simdBaseType = getBaseTypeAndSizeOfSIMDType(simdClass, &simdSizeBytes);
 
         if (simdBaseType == TYP_UNKNOWN)
@@ -190,7 +246,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         simdType = getSIMDTypeForSize(simdSizeBytes);
     }
 
-    switch (getHWIntrinsicInfo(intrinsic).form)
+    switch (HWIntrinsicInfo::lookup(intrinsic).form)
     {
         case HWIntrinsicInfo::IsSupported:
             return gtNewIconNode((intrinsic == NI_ARM64_IsSupported_True) ? 1 : 0);
@@ -260,6 +316,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
         case HWIntrinsicInfo::Sha1RotateOp:
             assert(sig->numArgs == 1);
+            compFloatingPointUsed = true;
             return gtNewScalarHWIntrinsicNode(TYP_UINT, impPopStack().val, NI_ARM64_Sha1FixedRotate);
 
         default:

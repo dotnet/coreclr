@@ -1645,7 +1645,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
         // FieldDesc::GetOffset() does not include the size of Object
         if (!pFieldMT->IsValueType())
         {
-            pResult->offset += sizeof(Object);
+            pResult->offset += OBJECT_SIZE;
         }
     }
 
@@ -2226,7 +2226,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             {
                 // Get offset into the value class of the first pointer field (includes a +Object)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
-                size_t cbOffset = pByValueSeries->GetSeriesOffset() - sizeof(Object);
+                size_t cbOffset = pByValueSeries->GetSeriesOffset() - OBJECT_SIZE;
 
                 _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
                 _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
@@ -2789,7 +2789,7 @@ void CEEInfo::ScanInstantiation(Module * pModule, Instantiation inst)
 // is not "active". And we don't want to intercept every call during runtime, so during compile time we track static calls and 
 // everything that can result in new virtual calls.
 //
-// The current algoritm (scan the parent type chain and instantiation variables) is more than enough to maintain this invariant.
+// The current algorithm (scan the parent type chain and instantiation variables) is more than enough to maintain this invariant.
 // One could come up with a more efficient algorithm that still maintains the invariant, but it may introduce backward compatibility
 // issues.
 //
@@ -5684,7 +5684,7 @@ void CEEInfo::getCallInfo(
 
                 MethodTable* pTypeParamMT = typeParam.GetMethodTable();
 
-                // No accees check is need for Var, MVar, or FnPtr.
+                // No access check is need for Var, MVar, or FnPtr.
                 if (pTypeParamMT != NULL)
                     canAccessMethod = ClassLoader::CanAccessClass(&accessContext,
                                                                   pTypeParamMT,
@@ -9360,7 +9360,7 @@ unsigned CEEInfo::getFieldOffset (CORINFO_FIELD_HANDLE fieldHnd)
     }
     else if (!field->GetApproxEnclosingMethodTable()->IsValueType())
     {
-        result += sizeof(Object);
+        result += OBJECT_SIZE;
     }
 
     EE_TO_JIT_TRANSITION();
@@ -10627,7 +10627,7 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 
     // NOTE: the lack of JIT/EE transition markers in this method is intentional. Any
     //       transitions into the EE proper should occur either via the call to
-    //       `EEFilterException` (which is appropraitely marked) or via JIT/EE
+    //       `EEFilterException` (which is appropriately marked) or via JIT/EE
     //       interface calls made by `function`.
 
     bool success = true;
@@ -11496,8 +11496,8 @@ void CEEJitInfo::recordRelocation(void * location,
 
             // Write the 21 bits pc-relative page address into location.
             INT64 targetPage = (INT64)target & 0xFFFFFFFFFFFFF000LL;
-            INT64 lcoationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
-            INT64 relPage = (INT64)(targetPage - lcoationPage);
+            INT64 locationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
+            INT64 relPage = (INT64)(targetPage - locationPage);
             INT32 imm21 = (INT32)(relPage >> 12) & 0x1FFFFF;
             PutArm64Rel21((UINT32 *)location, imm21);
         }
@@ -13225,10 +13225,10 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     MethodDesc * pMD = NULL;
 
+#ifndef CROSSGEN_COMPILE
     PCCOR_SIGNATURE pSig;
     DWORD cSig;
-
-    mdSignature token;
+#endif // CROSSGEN_COMPILE
 
     size_t result = 0;
     
@@ -13345,12 +13345,13 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     case ENCODE_VARARGS_METHODDEF:
         {
-            token = TokenFromRid(
-                        CorSigUncompressData(pBlob),
-                        mdtMethodDef);
+            mdSignature token = TokenFromRid(
+                                    CorSigUncompressData(pBlob),
+                                    mdtMethodDef);
 
             IfFailThrow(pInfoModule->GetMDImport()->GetSigOfMethodDef(token, &cSig, &pSig));
-
+        }
+        {
         VarArgs:
             result = (size_t) CORINFO_VARARGS_HANDLE(currentModule->GetVASigCookie(Signature(pSig, cSig)));
         }

@@ -1949,7 +1949,7 @@ public:
     // Creates a raw OS thread; use this only for CLR-internal threads that never execute user code.
     // StackSizeBucket determines how large the stack should be.
     //
-    static HANDLE CreateUtilityThread(StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, DWORD flags = 0, DWORD* pThreadId = NULL);
+    static HANDLE CreateUtilityThread(StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, LPCWSTR pName, DWORD flags = 0, DWORD* pThreadId = NULL);
 
     //--------------------------------------------------------------
     // Destructor
@@ -4824,22 +4824,23 @@ public:
         LIMITED_METHOD_CONTRACT;
         PRECONDITION(!HasPendingGCStressInstructionUpdate());
 
-        m_pbDestCode = pbDestCode;
-        m_pbSrcCode = pbSrcCode;
+        VolatileStoreWithoutBarrier<BYTE*>(&m_pbSrcCode, pbSrcCode);
+        VolatileStore<BYTE*>(&m_pbDestCode, pbDestCode);
     }
     bool HasPendingGCStressInstructionUpdate()
     {
         LIMITED_METHOD_CONTRACT;
-        CONSISTENCY_CHECK((NULL == m_pbDestCode) == (NULL == m_pbSrcCode));
-        return m_pbDestCode != NULL;
+        BYTE* dest = VolatileLoad(&m_pbDestCode);
+        CONSISTENCY_CHECK((NULL == dest) || (NULL != VolatileLoadWithoutBarrier(&m_pbSrcCode)));
+        return dest != NULL;
     }
     void ClearGCStressInstructionUpdate()
     {
         LIMITED_METHOD_CONTRACT;
         PRECONDITION(HasPendingGCStressInstructionUpdate());
 
-        m_pbDestCode = NULL;
-        m_pbSrcCode = NULL;
+        VolatileStoreWithoutBarrier<BYTE*>(&m_pbDestCode, NULL);
+        VolatileStore<BYTE*>(&m_pbSrcCode, NULL);
     }
 #if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     void SetLastAVAddress(LPVOID address)

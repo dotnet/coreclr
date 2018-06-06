@@ -49,7 +49,6 @@ usage()
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
     echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
     echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
-    echo "-Rebuild: passes /t:rebuild to the build projects."
     echo "-stripSymbols - Optional argument to strip native symbols during the build."
     echo "-skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "-ignorewarnings - do not treat warnings as errors"
@@ -220,6 +219,9 @@ generate_event_logging_sources()
     echo "Laying out dynamically generated EventPipe Implementation"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
 
+    echo "Laying out dynamically generated EventSource classes"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
+
     # determine the logging system
     case $__BuildOS in
         Linux|FreeBSD)
@@ -242,7 +244,7 @@ generate_event_logging_sources()
 generate_event_logging()
 {
     # Event Logging Infrastructure
-    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
+    if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
         generate_event_logging_sources "$__IntermediatesDir" "the native build system"
     fi
 
@@ -877,6 +879,10 @@ while :; do
               echo "ERROR: 'osgroup' requires a non-empty option argument"
               exit 1
             fi
+            ;;
+        rebuild|-rebuild)
+            echo "ERROR: 'Rebuild' is not supported.  Please remove it."
+            exit 1
             ;;
 
         *)

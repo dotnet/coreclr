@@ -1547,7 +1547,7 @@ LPWSTR FormatTypeName (__out_ecount (maxChars) LPWSTR pszName, UINT maxChars)
 *                                                                      *
 *    This function is called to dump all fields of a managed object.   *  
 *    dwStartAddr specifies the beginning memory address.               *
-*    bFirst is used to avoid printing header everytime.                *
+*    bFirst is used to avoid printing header every time.               *
 *                                                                      *
 \**********************************************************************/
 void DisplayFields(CLRDATA_ADDRESS cdaMT, DacpMethodTableData *pMTD, DacpMethodTableFieldData *pMTFD, DWORD_PTR dwStartAddr, BOOL bFirst, BOOL bValueClass)
@@ -1772,7 +1772,7 @@ int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, __in_z LPCWSTR wszFieldName, BOOL 
 //                0 = field not found, 
 //              > 0 = offset to field from objAddr
 int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCWSTR wszFieldName,
-                        BOOL bFirst/*=TRUE*/)
+                        BOOL bFirst/*=TRUE*/, DacpFieldDescData* pDacpFieldDescData/*=NULL*/)
 {
 
 #define EXITPOINT(EXPR) do { if(!(EXPR)) { return -1; } } while (0)
@@ -1795,7 +1795,7 @@ int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCW
     if (dmtd.ParentMethodTable)
     {
         DWORD retVal = GetObjFieldOffset (cdaObj, dmtd.ParentMethodTable, 
-                                          wszFieldName, FALSE);
+                                          wszFieldName, FALSE, pDacpFieldDescData);
         if (retVal != 0)
         {
             // return in case of error or success.
@@ -1820,6 +1820,10 @@ int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCW
             NameForToken_s (TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
             if (_wcscmp (wszFieldName, g_mdName) == 0)
             {
+                if (pDacpFieldDescData != NULL)
+                {
+                    *pDacpFieldDescData = vFieldDesc;
+                }
                 return offset;
             }
             numInstanceFields ++;                        
@@ -1830,6 +1834,66 @@ int GetObjFieldOffset(CLRDATA_ADDRESS cdaObj, CLRDATA_ADDRESS cdaMT, __in_z LPCW
 
     // Field name not found...
     return 0;
+
+#undef EXITPOINT    
+}
+
+
+// Return value: -1 = error
+//               -2 = not found
+//             >= 0 = offset to field from cdaValue
+int GetValueFieldOffset(CLRDATA_ADDRESS cdaMT, __in_z LPCWSTR wszFieldName, DacpFieldDescData* pDacpFieldDescData)
+{
+#define EXITPOINT(EXPR) do { if(!(EXPR)) { return -1; } } while (0)
+
+    const int NOT_FOUND = -2;
+    DacpMethodTableData dmtd;
+    DacpMethodTableFieldData vMethodTableFields;
+    DacpFieldDescData vFieldDesc;
+    DacpModuleData module;
+    static DWORD numInstanceFields = 0; // Static due to recursion visiting parents
+    numInstanceFields = 0;
+
+    EXITPOINT(vMethodTableFields.Request(g_sos, cdaMT) == S_OK);
+
+    EXITPOINT(dmtd.Request(g_sos, cdaMT) == S_OK);
+    EXITPOINT(module.Request(g_sos, dmtd.Module) == S_OK);
+    if (dmtd.ParentMethodTable)
+    {
+        DWORD retVal = GetValueFieldOffset(dmtd.ParentMethodTable, wszFieldName, pDacpFieldDescData);
+        if (retVal != NOT_FOUND)
+        {
+            // Return in case of error or success. Fall through for field-not-found.
+            return retVal;
+        }
+    }
+
+    CLRDATA_ADDRESS dwAddr = vMethodTableFields.FirstField;
+    ToRelease<IMetaDataImport> pImport = MDImportForModule(&module);
+
+    while (numInstanceFields < vMethodTableFields.wNumInstanceFields)
+    {
+        EXITPOINT(vFieldDesc.Request(g_sos, dwAddr) == S_OK);
+
+        if (!vFieldDesc.bIsStatic)
+        {
+            NameForToken_s(TokenFromRid(vFieldDesc.mb, mdtFieldDef), pImport, g_mdName, mdNameLen, false);
+            if (_wcscmp(wszFieldName, g_mdName) == 0)
+            {
+                if (pDacpFieldDescData != NULL)
+                {
+                    *pDacpFieldDescData = vFieldDesc;
+                }
+                return vFieldDesc.dwOffset;
+            }
+            numInstanceFields++;
+        }
+
+        dwAddr = vFieldDesc.NextField;
+    }
+
+    // Field name not found...
+    return NOT_FOUND;
 
 #undef EXITPOINT    
 }
@@ -4824,7 +4888,7 @@ HRESULT InitCorDebugInterface()
     if(g_pCorDebugProcess != NULL)
     {
         // ICorDebugProcess4 is currently considered a private experimental interface on ICorDebug, it might go away so
-        // we need to be sure to handle its absense gracefully
+        // we need to be sure to handle its absence gracefully
         ToRelease<ICorDebugProcess4> pProcess4 = NULL;
         if(SUCCEEDED(g_pCorDebugProcess->QueryInterface(__uuidof(ICorDebugProcess4), (void**)&pProcess4)))
         {
@@ -6121,12 +6185,12 @@ HRESULT SymbolReader::LoadSymbolsForWindowsPDB(___in IMetaDataImport* pMD, ___in
     ToRelease<ISymUnmanagedBinder3> pSymBinder;
     if (FAILED(Status = CreateInstanceCustom(CLSID_CorSymBinder_SxS, 
                         IID_ISymUnmanagedBinder3, 
-                        W("diasymreader.dll"),
+                        NATIVE_SYMBOL_READER_DLL,
                         cciLatestFx|cciDacColocated|cciDbgPath, 
                         (void**)&pSymBinder)))
     {
         ExtOut("SOS Error: Unable to CoCreateInstance class=CLSID_CorSymBinder_SxS, interface=IID_ISymUnmanagedBinder3, hr=0x%x\n", Status);
-        ExtOut("This usually means the installation of .Net Framework on your machine is missing or needs repair\n");
+        ExtOut("This usually means SOS was unable to locate a suitable version of DiaSymReader. The dll searched for was '%S'\n", NATIVE_SYMBOL_READER_DLL);
         return Status;
     }
 

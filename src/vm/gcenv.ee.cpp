@@ -879,10 +879,17 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
 
-#if defined(_ARM64_)
+#if defined(_ARM64_) || defined(_ARM_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+
+#ifdef _ARM_
+        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
+        {
+            ::FlushWriteBarrierInstructionCache();
+        }
+#endif
 
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         if(!is_runtime_suspended)
@@ -1002,7 +1009,7 @@ bool GCToEEInterface::ForceFullGCToBeBlocking()
     // a blocking GC. In the past, this workaround was done to fix an Stress AV, but the root
     // cause of the AV was never discovered and this workaround remains in place.
     //
-    // It would be nice if this were not necessary. However, it's not clear if the aformentioned
+    // It would be nice if this were not necessary. However, it's not clear if the aforementioned
     // stress bug is still lurking and will return if this workaround is removed. We should
     // do some experiments: remove this workaround and see if the stress bug still repros.
     // If so, we should find the root cause instead of relying on this.
@@ -1185,7 +1192,7 @@ namespace
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const char* name)
+        const wchar_t* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1240,25 +1247,7 @@ namespace
 
             return 0;
         };
-
-        InlineSString<MaxThreadNameSize> wideName;
-        const WCHAR* namePtr = nullptr;
-        EX_TRY
-        {
-            if (name != nullptr)
-            {
-                wideName.SetUTF8(name);
-                namePtr = wideName.GetUnicode();
-            }
-        }
-        EX_CATCH
-        {
-            // we're not obligated to provide a name - if it's not valid,
-            // just report nullptr as the name.
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (!args.Thread->CreateNewThread(0, threadStub, &args, namePtr))
+        if (!args.Thread->CreateNewThread(0, threadStub, &args, name))
         {
             args.Thread->DecExternalCount(FALSE);
             args.ThreadStartedEvent.CloseEvent();
@@ -1286,7 +1275,7 @@ namespace
     bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const char* name)
+        const wchar_t* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1318,7 +1307,7 @@ namespace
             return 0;
         };
 
-        args.Thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, threadStub, &args);
+        args.Thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, threadStub, &args, name);
         if (args.Thread == INVALID_HANDLE_VALUE)
         {
             args.ThreadStartedEvent.CloseEvent();
@@ -1337,14 +1326,31 @@ namespace
 
 bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)
 {
+    InlineSString<MaxThreadNameSize> wideName;
+    const WCHAR* namePtr = nullptr;
+    EX_TRY
+    {
+        if (name != nullptr)
+        {
+            wideName.SetUTF8(name);
+            namePtr = wideName.GetUnicode();
+        }
+    }
+        EX_CATCH
+    {
+        // we're not obligated to provide a name - if it's not valid,
+        // just report nullptr as the name.
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+
     LIMITED_METHOD_CONTRACT;
     if (is_suspendable)
     {
-        return CreateSuspendableThread(threadStart, arg, name);
+        return CreateSuspendableThread(threadStart, arg, namePtr);
     }
     else
     {
-        return CreateNonSuspendableThread(threadStart, arg, name);
+        return CreateNonSuspendableThread(threadStart, arg, namePtr);
     }
 }
 

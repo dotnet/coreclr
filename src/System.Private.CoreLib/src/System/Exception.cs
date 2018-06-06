@@ -335,12 +335,6 @@ namespace System
             return remoteStackTraceString + tempStackTraceString;
         }
 
-        // [FriendAccessAllowed]
-        internal void SetErrorCode(int hr)
-        {
-            HResult = hr;
-        }
-
         // Sets the help link for this exception.
         // This should be in a URL/URN form, such as:
         // "file:///C:/Applications/Bazzal/help.html#ErrorNum42"
@@ -681,7 +675,7 @@ namespace System
             {
                 return _HResult;
             }
-            protected set
+            set
             {
                 _HResult = value;
             }
@@ -726,7 +720,6 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool nIsTransient(int hr);
-
 
         // This piece of infrastructure exists to help avoid deadlocks 
         // between parts of mscorlib that might throw an exception while 
