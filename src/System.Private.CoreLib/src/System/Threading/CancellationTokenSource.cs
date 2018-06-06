@@ -375,7 +375,6 @@ namespace System.Threading
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
