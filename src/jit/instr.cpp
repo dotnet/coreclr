@@ -32,20 +32,14 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 const char* CodeGen::genInsName(instruction ins)
 {
+#ifdef _TARGET_XARCH_
+    return InstructionInfo::getName(ins);
+#else
     // clang-format off
     static
     const char * const insNames[] =
     {
-#if defined(_TARGET_XARCH_)
-        #define INST0(id, nm, fp, um, rf, wf, mr                 ) nm,
-        #define INST1(id, nm, fp, um, rf, wf, mr                 ) nm,
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi             ) nm,
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm         ) nm,
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4     ) nm,
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr ) nm,
-        #include "instrs.h"
-
-#elif defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM_)
         #define INST1(id, nm, fp, ldst, fmt, e1                                 ) nm,
         #define INST2(id, nm, fp, ldst, fmt, e1, e2                             ) nm,
         #define INST3(id, nm, fp, ldst, fmt, e1, e2, e3                         ) nm,
@@ -76,6 +70,7 @@ const char* CodeGen::genInsName(instruction ins)
     assert(insNames[ins] != nullptr);
 
     return insNames[ins];
+#endif
 }
 
 void __cdecl CodeGen::instDisp(instruction ins, bool noNL, const char* fmt, ...)
@@ -213,9 +208,12 @@ void CodeGen::instGen(instruction ins)
 // static inline
 bool CodeGenInterface::instIsFP(instruction ins)
 {
+#ifdef _TARGET_XARCH_
+    return InstructionInfo::isFloatingPoint(ins);
+#else
     assert((unsigned)ins < _countof(instInfo));
-
     return (instInfo[ins] & INST_FP) != 0;
+#endif // _TARGET_XARCH_
 }
 
 #ifdef _TARGET_XARCH_

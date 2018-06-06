@@ -1107,61 +1107,6 @@ inline ssize_t emitter::emitGetInsCIdisp(instrDesc* id)
     }
 }
 
-/** ***************************************************************************
- *
- *  The following table is used by the instIsFP()/instUse/DefFlags() helpers.
- */
-
-#define INST_DEF_FL 0x20 // does the instruction set flags?
-#define INST_USE_FL 0x40 // does the instruction use flags?
-
-// clang-format off
-const BYTE          CodeGenInterface::instInfo[] =
-{
-    #define INST0(id, nm, fp, um, rf, wf, mr                 ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST1(id, nm, fp, um, rf, wf, mr                 ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi             ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm         ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4     ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #include "instrs.h"
-    #undef  INST0
-    #undef  INST1
-    #undef  INST2
-    #undef  INST3
-    #undef  INST4
-    #undef  INST5
-};
-// clang-format on
-
-/*****************************************************************************
- *
- *  Initialize the table used by emitInsModeFormat().
- */
-
-// clang-format off
-const BYTE          emitter::emitInsModeFmtTab[] =
-{
-    #define INST0(id, nm, fp, um, rf, wf, mr                ) um,
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) um,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) um,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) um,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) um,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) um,
-    #include "instrs.h"
-    #undef  INST0
-    #undef  INST1
-    #undef  INST2
-    #undef  INST3
-    #undef  INST4
-    #undef  INST5
-};
-// clang-format on
-
-#ifdef DEBUG
-unsigned const emitter::emitInsModeFmtCnt = _countof(emitInsModeFmtTab);
-#endif
-
 /*****************************************************************************
  *
  *  Combine the given base format with the update mode of the instuction.
@@ -1201,30 +1146,7 @@ bool emitter::emitInsCanOnlyWriteSSE2OrAVXReg(instrDesc* id)
 
 inline size_t insCode(instruction ins)
 {
-    // clang-format off
-    const static
-    size_t          insCodes[] =
-    {
-        #define INST0(id, nm, fp, um, rf, wf, mr                ) mr,
-        #define INST1(id, nm, fp, um, rf, wf, mr                ) mr,
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mr,
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mr,
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mr,
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mr,
-        #include "instrs.h"
-        #undef  INST0
-        #undef  INST1
-        #undef  INST2
-        #undef  INST3
-        #undef  INST4
-        #undef  INST5
-    };
-    // clang-format on
-
-    assert((unsigned)ins < _countof(insCodes));
-    assert((insCodes[ins] != BAD_CODE));
-
-    return insCodes[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_mr);
 }
 
 /*****************************************************************************
@@ -1234,30 +1156,7 @@ inline size_t insCode(instruction ins)
 
 inline size_t insCodeACC(instruction ins)
 {
-    // clang-format off
-    const static
-    size_t          insCodesACC[] =
-    {
-        #define INST0(id, nm, fp, um, rf, wf, mr                )
-        #define INST1(id, nm, fp, um, rf, wf, mr                )
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        )
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) a4,
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) a4,
-        #include "instrs.h"
-        #undef  INST0
-        #undef  INST1
-        #undef  INST2
-        #undef  INST3
-        #undef  INST4
-        #undef  INST5
-    };
-    // clang-format on
-
-    assert((unsigned)ins < _countof(insCodesACC));
-    assert((insCodesACC[ins] != BAD_CODE));
-
-    return insCodesACC[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_a4);
 }
 
 /*****************************************************************************
@@ -1267,57 +1166,13 @@ inline size_t insCodeACC(instruction ins)
 
 inline size_t insCodeRR(instruction ins)
 {
-    // clang-format off
-    const static
-    size_t          insCodesRR[] =
-    {
-        #define INST0(id, nm, fp, um, rf, wf, mr                )
-        #define INST1(id, nm, fp, um, rf, wf, mr                )
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        )
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    )
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) rr,
-        #include "instrs.h"
-        #undef  INST0
-        #undef  INST1
-        #undef  INST2
-        #undef  INST3
-        #undef  INST4
-        #undef  INST5
-    };
-    // clang-format on
-
-    assert((unsigned)ins < _countof(insCodesRR));
-    assert((insCodesRR[ins] != BAD_CODE));
-
-    return insCodesRR[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_rr);
 }
-
-// clang-format off
-const static
-size_t          insCodesRM[] =
-{
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                )
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) rm,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) rm,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) rm,
-    #include "instrs.h"
-    #undef  INST0
-    #undef  INST1
-    #undef  INST2
-    #undef  INST3
-    #undef  INST4
-    #undef  INST5
-};
-// clang-format on
 
 // Returns true iff the give CPU instruction has an RM encoding.
 inline bool hasCodeRM(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesRM));
-    return ((insCodesRM[ins] != BAD_CODE));
+    return InstructionInfo::supportsEncoding(ins, InsEncodingFmt_rm);
 }
 
 /*****************************************************************************
@@ -1327,37 +1182,13 @@ inline bool hasCodeRM(instruction ins)
 
 inline size_t insCodeRM(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesRM));
-    assert((insCodesRM[ins] != BAD_CODE));
-
-    return insCodesRM[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_rm);
 }
-
-// clang-format off
-const static
-size_t          insCodesMI[] =
-{
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                )
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mi,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mi,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mi,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mi,
-    #include "instrs.h"
-    #undef  INST0
-    #undef  INST1
-    #undef  INST2
-    #undef  INST3
-    #undef  INST4
-    #undef  INST5
-};
-// clang-format on
 
 // Returns true iff the give CPU instruction has an MI encoding.
 inline bool hasCodeMI(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesMI));
-    return ((insCodesMI[ins] != BAD_CODE));
+    return InstructionInfo::supportsEncoding(ins, InsEncodingFmt_mi);
 }
 
 /*****************************************************************************
@@ -1367,37 +1198,13 @@ inline bool hasCodeMI(instruction ins)
 
 inline size_t insCodeMI(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesMI));
-    assert((insCodesMI[ins] != BAD_CODE));
-
-    return insCodesMI[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_mi);
 }
-
-// clang-format off
-const static
-size_t          insCodesMR[] =
-{
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) mr,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mr,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mr,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mr,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mr,
-    #include "instrs.h"
-    #undef  INST0
-    #undef  INST1
-    #undef  INST2
-    #undef  INST3
-    #undef  INST4
-    #undef  INST5
-};
-// clang-format on
 
 // Returns true iff the give CPU instruction has an MR encoding.
 inline bool hasCodeMR(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesMR));
-    return ((insCodesMR[ins] != BAD_CODE));
+    return InstructionInfo::supportsEncoding(ins, InsEncodingFmt_mr);
 }
 
 /*****************************************************************************
@@ -1407,10 +1214,7 @@ inline bool hasCodeMR(instruction ins)
 
 inline size_t insCodeMR(instruction ins)
 {
-    assert((unsigned)ins < _countof(insCodesMR));
-    assert((insCodesMR[ins] != BAD_CODE));
-
-    return insCodesMR[ins];
+    return InstructionInfo::getEncoding(ins, InsEncodingFmt_mr);
 }
 
 // Return true if the instruction uses the SSE38 or SSE3A macro in instrsXArch.h.

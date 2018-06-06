@@ -15,13 +15,10 @@
 enum instruction : unsigned
 {
 #if defined(_TARGET_XARCH_)
-    #define INST0(id, nm, fp, um, rf, wf, mr                ) INS_##id,
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) INS_##id,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) INS_##id,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) INS_##id,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) INS_##id,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) INS_##id,
-    #include "instrs.h"
+
+#define INSTRUCTION(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) \
+    INS_##id,
+#include "instrs.h"
 
 #elif defined(_TARGET_ARM_)
     #define INST1(id, nm, fp, ldst, fmt, e1                                ) INS_##id,
@@ -57,7 +54,7 @@ enum instruction : unsigned
 
 /*****************************************************************************/
 
-enum insUpdateModes
+enum insUpdateModes : uint8_t
 {
     IUM_RD,
     IUM_WR,
@@ -327,6 +324,10 @@ enum InstructionSet
     InstructionSet_NONE       // No instruction set is available indicating an invalid value
 };
 // clang-format on
+
+#if defined(_TARGET_XARCH_)
+#include "instrxarch.h"
+#endif
 
 /*****************************************************************************/
 #endif //_INSTR_H_
