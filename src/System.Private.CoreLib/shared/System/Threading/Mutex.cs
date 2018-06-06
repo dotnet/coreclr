@@ -17,13 +17,11 @@ namespace System.Threading
     {
         public Mutex(bool initiallyOwned, string name, out bool createdNew)
         {
-            VerifyNameForCreate(name);
             CreateMutexCore(initiallyOwned, name, out createdNew);
         }
 
         public Mutex(bool initiallyOwned, string name)
         {
-            VerifyNameForCreate(name);
             CreateMutexCore(initiallyOwned, name, out _);
         }
 
@@ -51,7 +49,7 @@ namespace System.Threading
                 case OpenExistingResult.NameInvalid:
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
                 case OpenExistingResult.PathNotFound:
-                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, name);
+                    throw new DirectoryNotFoundException(SR.Format(SR.IO_PathNotFound_Path, name));
 
                 default:
                     return result;
@@ -60,36 +58,5 @@ namespace System.Threading
 
         public static bool TryOpenExisting(string name, out Mutex result) =>
             OpenExistingWorker(name, out result) == OpenExistingResult.Success;
-
-        // Note: To call ReleaseMutex, you must have an ACL granting you
-        // MUTEX_MODIFY_STATE rights (0x0001). The other interesting value
-        // in a Mutex's ACL is MUTEX_ALL_ACCESS (0x1F0001).
-        public void ReleaseMutex()
-        {
-#if CORECLR
-            if (!Interop.Kernel32.ReleaseMutex(safeWaitHandle))
-            {
-                throw new ApplicationException(SR.Arg_SynchronizationLockException);
-            }
-#else
-            // The field value is modifiable via the public <see cref="WaitHandle.SafeWaitHandle"/> property, save it locally
-            // to ensure that one instance is used in all places in this method
-            SafeWaitHandle waitHandle = _waitHandle;
-            if (waitHandle == null)
-            {
-                ThrowInvalidHandleException();
-            }
-
-            waitHandle.DangerousAddRef();
-            try
-            {
-                ReleaseMutexCore(waitHandle);
-            }
-            finally
-            {
-                waitHandle.DangerousRelease();
-            }
-#endif
-        }
     }
 }
