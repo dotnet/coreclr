@@ -10104,8 +10104,8 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     pEEInfoOut->offsetOfSecureDelegateIndirectCell = DelegateObject::GetOffsetOfMethodPtrAux();
 
     // Remoting offsets
-    pEEInfoOut->offsetOfTransparentProxyRP = TransparentProxyObject::GetOffsetOfRP();
-    pEEInfoOut->offsetOfRealProxyServer    = RealProxyObject::GetOffsetOfServerObject();
+    pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;
+    pEEInfoOut->offsetOfRealProxyServer    = (DWORD)-1;
 
     pEEInfoOut->offsetOfObjArrayData       = (DWORD)PtrArray::GetDataOffset();
 
