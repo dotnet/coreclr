@@ -10118,7 +10118,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;
     pEEInfoOut->offsetOfRealProxyServer    = (DWORD)-1;
 
-    pEEInfoOut->offsetOfObjArrayData       = OFFSETOF__PtrArray__m_Array;
+    pEEInfoOut->offsetOfObjArrayData       = OFFSETOF__PtrArray__m_Array_;
 
     pEEInfoOut->sizeOfReversePInvokeFrame  = (DWORD)-1;
 
