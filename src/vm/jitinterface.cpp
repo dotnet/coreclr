@@ -10094,11 +10094,16 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     {
         // inlinedCallFrameInfo is not used for R2R compilation
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
-    }
 
-    // Offsets into the Thread structure
-    pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
-    pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+        // Offsets into the Thread structure
+        pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
+        pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+    }
+    else
+    {
+        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;;
+        pEEInfoOut->offsetOfGCState     = (DWORD)-1;;
+    }
 
     // Delegate offsets
     pEEInfoOut->offsetOfDelegateInstance    = OFFSETOF__DelegateObject__target;
