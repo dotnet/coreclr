@@ -3819,13 +3819,23 @@ void Compiler::optUnrollLoops()
 
             /* Compute the estimated increase in code size for the unrolled loop */
 
-            ClrSafeInt<unsigned> fixedLoopCostSz(8);
-            ClrSafeInt<int>      unrollCostSz = ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(totalIter)) -
-                                           ClrSafeInt<int>(loopCostSz + fixedLoopCostSz);
+            ClrSafeInt<unsigned> costLoop(8);
+            ClrSafeInt<int>      costAfterUnrolled;
+            if (enablePartialUnroll)
+            {
+                // the maximum iteration when its partial unrolled is 4.
+                costAfterUnrolled =
+                    ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(4)) - ClrSafeInt<int>(loopCostSz + costLoop);
+            }
+            else
+            {
+                costAfterUnrolled = ClrSafeInt<int>(loopCostSz * ClrSafeInt<unsigned>(totalIter)) -
+                                    ClrSafeInt<int>(loopCostSz + costLoop);
+            }
 
             /* Don't unroll if too much code duplication would result. */
 
-            if (unrollCostSz.IsOverflow() || (unrollCostSz.Value() > unrollLimitSz))
+            if (costAfterUnrolled.IsOverflow() || (costAfterUnrolled.Value() > unrollLimitSz))
             {
                 goto DONE_LOOP;
             }
@@ -3842,7 +3852,7 @@ void Compiler::optUnrollLoops()
                     printf("..BB%02u", bottom->bbNum);
                 }
                 printf(" over V%02u from %u to %u", lvar, lbeg, llim);
-                printf(" unrollCostSz = %d\n", unrollCostSz);
+                printf(" costAfterUnrolled = %d\n", costAfterUnrolled);
                 printf("\n");
             }
 #endif
@@ -3895,7 +3905,7 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     BasicBlock*     bbInsertAfter = bbEnd;
     for (unsigned iterCur = iterBeg; iterCount; iterCount--)
     {
-        for (BasicBlock* bbCur = bbStart->bbNext;; bbCur = bbCur->bbNext)
+        for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
         {
             BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbCur->bbJumpKind, bbInsertAfter, true);
             blockMap.Set(bbCur, bbNew);
@@ -4033,18 +4043,24 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     unsigned int newLoopLimit     = iterCount / newLoopBodyLimit;
     if (iterCount % newLoopBodyLimit != 0)
     {
+        // TODO : Generate outer process if loop count does not fit with limit threshold.
+        //        this will not to process partial unroll if doesn't fits with it.
         return false;
     }
 
+    BasicBlock*                 bbInsertAfter = bbEnd;
     jitstd::vector<BasicBlock*> bbNewlyRecorded(getAllocator());
     for (unsigned int curBodyCount = 0; curBodyCount != newLoopBodyLimit; ++curBodyCount)
     {
         for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
         {
-            jitstd::vector<GenTree*> gtContainsVar(getAllocator());
-            if (true)
+            BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbCur->bbJumpKind, bbInsertAfter, true);
+            bbNewlyRecorded.push_back(bbNew);
+
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbCur))
             {
-                BasicBlock* oldBottomNext = bbEnd->bbNext;
+                // clone Expr dosn't handle anything.
+                BasicBlock* oldBottomNext = bbInsertAfter->bbNext;
                 bbBeg->bbNext             = oldBottomNext;
                 oldBottomNext->bbPrev     = bbBeg;
                 optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
@@ -4052,70 +4068,9 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                 return false;
             }
 
-            // the record should be connected. like 0 - 1 - 2 - 3 - 4 ....
-            // that means, increasing 2 on iterator should has arr[var + 0], arr[var + 1].
-            // we are not optimzing hard codes.
-            if (gtContainsVar.size() != iterInc || gtContainsVar.size() % 2 != 0)
+            if (curBodyCount == 0)
             {
-                return false;
-            }
 
-            // this is check phase
-            // starting with 1, because there is no add with first access
-            // its arr[var], no adds.
-            for (unsigned int accessCnt = 1; accessCnt < gtContainsVar.size(); ++accessCnt)
-            {
-                GenTree* gtVExpr = gtContainsVar[accessCnt];
-                if (gtVExpr->OperGet() != GT_ADD)
-                {
-                    // its not add expression... seems hard to check. ignoring it.
-                    // TODO : support for GT_MUL expression.
-                    return false;
-                }
-
-                GenTree* gtOP1 = gtVExpr->gtGetOp1();
-                GenTree* gtOP2 = gtVExpr->gtGetOp2();
-                if (gtOP1->OperGet() == GT_LCL_VAR)
-                {
-                    std::swap(gtOP1, gtOP2);
-                }
-
-                if (gtOP1->OperGet() != GT_CNS_INT || gtOP1->gtIntCon.gtIconVal != accessCnt)
-                {
-                    // not adding constant or its not a connected values?
-                    return false;
-                }
-            }
-
-            // this is evoluting phase
-            for (unsigned int accessCnt = 0; accessCnt < gtContainsVar.size(); ++accessCnt)
-            {
-                GenTree* gtOldExpr = gtContainsVar[accessCnt];
-                GenTree* gtOldOP1  = gtOldExpr->gtGetOp1();
-                GenTree* gtOldOP2  = gtOldExpr->gtGetOp2();
-                if (gtOldOP1->OperGet() == GT_LCL_VAR)
-                {
-                    std::swap(gtOldOP1, gtOldOP2);
-                }
-
-                // this is new GenTree expression.
-                GenTree* gtNewCnsExpr =
-                    gtNewIconNode(iterBeg + accessCnt + (curBodyCount * iterCount), gtOldOP1->TypeGet());
-
-                if (gtOldExpr->OperGet() == GT_ADD)
-                {
-                    // replace cns operand if its GT_ADD. we don't need to replace whole body.
-                    gtOldExpr->ReplaceOperand(&gtOldOP1, gtNewCnsExpr);
-                    continue;
-                }
-                
-                // if its not GT_ADD, we are changing body of GenTree expression.
-                // this can be when its start of loop (iterBeg + accessCnt == 0)
-                GenTree* gtNewVarExpr = gtOldOP2;
-                GenTree* gtNewAddExpr =
-                    gtNewOperNode(genTreeOps::GT_ADD, gtOldExpr->TypeGet(), gtNewCnsExpr, gtNewVarExpr);
-
-                gtOldExpr->ReplaceWith(gtNewAddExpr, this);
             }
 
             if (bbCur == bbEnd)
@@ -4140,7 +4095,8 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
     unsigned bytes = 0;
     unsigned count = 0;
 
-    for (GenTreeStmt* gtStmt = block->bbTreeList->AsStmt(); gtStmt != nullptr; gtStmt = gtStmt->gtNext->AsStmt())
+    for (GenTreeStmt* gtStmt = block->bbTreeList->AsStmt(); gtStmt->gtNext != nullptr;
+         gtStmt              = gtStmt->gtNext->AsStmt())
     {
         if (gtStmt == test || gtStmt == incr || gtStmt == init)
         {
@@ -4185,9 +4141,10 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
         count += 1;
     }
 
-    if (!bytes || bytes <= 64 || !count || count <= 8)
+    if (!bytes || bytes > 64 || count != 1)
     {
-        // we are not unrolling if inner ALU process is over 64 bytes, 8 counts. also skipping if its zero.
+        // we are not unrolling if inner ALU process is over 64 bytes. only for one count.
+        // TODO : implement for multiple inner ALU process?
         return false;
     }
 
