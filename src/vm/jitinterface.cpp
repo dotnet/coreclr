@@ -10090,7 +10090,11 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     JIT_TO_EE_TRANSITION();
 
-    InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+    if (!IsReadyToRunCompilation())
+    {
+        // inlinedCallFrameInfo is not used for R2R compilation
+        InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+    }
 
     // Offsets into the Thread structure
     pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
