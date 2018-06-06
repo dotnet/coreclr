@@ -884,12 +884,12 @@ namespace System
                         baseUtcDelta,
                         noDaylightTransitions: true);
 
-                // We skip old time zones information if their offset exceeds 14h
-                // See comment in NormalizeAdjustmentRuleOffset for more info
-                if (IsValidAdjustmentRuleOffest(timeZoneBaseUtcOffset, r))
+                if (!IsValidAdjustmentRuleOffest(timeZoneBaseUtcOffset, r))
                 {
-                    rulesList.Add(r);
+                    NormalizeAdjustmentRuleOffset(timeZoneBaseUtcOffset, ref r);
                 }
+
+                rulesList.Add(r);
             }
             else if (index < dts.Length)
             {

@@ -2024,19 +2024,11 @@ namespace System
             // Pacific/Saipan   0001-01-01  1845-01-01  -14:21:00
             //
             // have larger offset than currently supported by framework.
-            // We consider those dates legacy and ignore them.
             // If for whatever reason we find that time zone exceeding max
-            // offset of 14h is found after the time zone with valid offset
-            // this function will be called and will truncate the time.
-            // As of now we do not know about any such cases
-            // and do not expect this method to ever get called.
-            // If such situation happens we will provide invalid offset (max as we can give)
-            // so that previous time zone works correctly.
+            // offset of 14h this function will truncate it to the max valid offset.
             // Updating max offset may cause problems with interacting with SQL server
             // which uses SQL DATETIMEOFFSET field type which was originally designed to be
             // bit-for-bit compatible with DateTimeOffset.
-
-            Debug.Assert(false, "If we ever see this assert fail, we should consider updating changing max offsets");
 
             TimeSpan utcOffset = GetUtcOffset(baseUtcOffset, adjustmentRule);
 
