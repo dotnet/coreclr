@@ -59,9 +59,12 @@ namespace System.Threading
 
                 case OpenExistingResult.NameInvalid:
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
-
                 case OpenExistingResult.PathNotFound:
+#if CORECLR
                     throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, name);
+#else
+                    throw new IOException(SR.Format(SR.IO_PathNotFound_Path, name));
+#endif
 
                 default:
                     return result;
