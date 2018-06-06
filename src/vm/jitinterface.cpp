@@ -10092,7 +10092,6 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     if (!IsReadyToRunCompilation())
     {
-        // inlinedCallFrameInfo is not used for R2R compilation
         InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
 
         // Offsets into the Thread structure
@@ -10101,8 +10100,11 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     }
     else
     {
-        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;;
-        pEEInfoOut->offsetOfGCState     = (DWORD)-1;;
+        // inlinedCallFrameInfo is not used for R2R compilation
+        ZeroMemory(&pEEInfoOut->inlinedCallFrameInfo, sizeof(pEEInfoOut->inlinedCallFrameInfo));
+
+        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;
+        pEEInfoOut->offsetOfGCState     = (DWORD)-1;
     }
 
     // Delegate offsets
