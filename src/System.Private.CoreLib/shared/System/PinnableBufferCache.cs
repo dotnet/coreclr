@@ -13,11 +13,7 @@ using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 
-#if PINNABLEBUFFERCACHE_MSCORLIB
-namespace System.Threading
-#else
 namespace System
-#endif
 {
     internal sealed class PinnableBufferCache
     {
@@ -433,12 +429,10 @@ namespace System
         /// Did we put some buffers into m_NotGen2 to see if we can trim?
         /// </summary>
         private bool m_trimmingExperimentInProgress;
-#pragma warning disable 0649
         /// <summary>
         /// A forced minimum number of buffers.
         /// </summary>
         private int m_minBufferCount;
-#pragma warning restore 0649
 #if CORECLR || LOGGING
         /// <summary>
         /// The number of calls to Allocate.

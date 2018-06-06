@@ -26,8 +26,6 @@ using nuint = System.UInt32;
 
 namespace System
 {
-    //Only contains static methods.  Does not require serialization
-
     public static class Buffer
     {
         // Copies from one primitive array to another primitive array without
