@@ -99,7 +99,7 @@ namespace System.Threading
         // in a Mutex's ACL is MUTEX_ALL_ACCESS (0x1F0001).
         public void ReleaseMutex()
         {
-            if (!Interop.Kernel32.ReleaseMutex(safeWaitHandle))
+            if (!Interop.Kernel32.ReleaseMutex(_waitHandle))
             {
                 throw new ApplicationException(SR.Arg_SynchronizationLockException);
             }
