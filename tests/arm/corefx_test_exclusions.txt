@@ -9,6 +9,7 @@ System.Drawing.Common.Tests          # https://github.com/dotnet/coreclr/issues/
 System.Dynamic.Runtime.Tests         # https://github.com/dotnet/coreclr/issues/18295
 System.IO.FileSystem.Tests           # https://github.com/dotnet/coreclr/issues/16001
 System.IO.Ports.Tests                # https://github.com/dotnet/coreclr/issues/16001
+System.Linq.Expressions.Tests        # https://github.com/dotnet/coreclr/issues/18295 -- JitStress=2
 System.Management.Tests              # https://github.com/dotnet/coreclr/issues/16001
 System.Net.HttpListener.Tests        # https://github.com/dotnet/coreclr/issues/17584
 System.Runtime.Tests                 # https://github.com/dotnet/coreclr/issues/17585
