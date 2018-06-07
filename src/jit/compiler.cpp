@@ -9244,10 +9244,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     chars += printf("[VAR_CSE_REF]");
                 }
 #endif
-                if (tree->gtFlags & GTF_REG_BIRTH)
-                {
-                    chars += printf("[REG_BIRTH]");
-                }
                 break;
 
             case GT_NOP:
