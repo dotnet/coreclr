@@ -24499,7 +24499,8 @@ void Compiler::fgCloneFinally()
             {
                 BasicBlock* const placeToMoveAfter = firstCallFinallyBlock->bbPrev;
 
-                if (placeToMoveAfter->bbJumpDest == normalCallFinallyBlock)
+                if ((placeToMoveAfter->bbJumpKind == BBJ_ALWAYS) &&
+                    (placeToMoveAfter->bbJumpDest == normalCallFinallyBlock))
                 {
                     JITDUMP("Moving callfinally BB%02u to be first in line, before BB%02u\n",
                             normalCallFinallyBlock->bbNum, firstCallFinallyBlock->bbNum);
