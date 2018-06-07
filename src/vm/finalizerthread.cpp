@@ -913,8 +913,10 @@ void FinalizerThread::FinalizerThreadCreate()
     hEventShutDownToFinalizer = new CLREvent();
     hEventShutDownToFinalizer->CreateAutoEvent(FALSE);
 
+#ifdef FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
     _ASSERTE(s_pLowMemoryDetector == 0);
     s_pLowMemoryDetector = new UnixLowMemoryDetector();
+#endif // FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
 
     _ASSERTE(g_pFinalizerThread == 0);
     g_pFinalizerThread = SetupUnstartedThread();
