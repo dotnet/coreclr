@@ -720,7 +720,8 @@ parallel(
     ['x64', 'x86'].each { arch ->
         def architecture = arch
         def jobName = "sizeondisk_${arch}"
-        def newJob = job(Utilities.getFullJobName(project, jobName, false)) {
+        def isPR = false
+        def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
 
             wrappers {
                 credentialsBinding {
