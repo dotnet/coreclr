@@ -487,6 +487,7 @@ endif()
 if(CLR_CMAKE_PLATFORM_UNIX)
     list(APPEND VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/unixstubs.cpp
+        unixlowmem.cpp
     )
 endif(CLR_CMAKE_PLATFORM_UNIX)
 

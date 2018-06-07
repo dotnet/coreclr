@@ -22,12 +22,21 @@ BOOL FinalizerThread::fQuitFinalizer = FALSE;
 
 #if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
 #define LINUX_HEAP_DUMP_TIME_OUT 10000
+#define PERFORM_TASKS_IN_FINALIZER_WAIT_TIMEOUT
 
 extern bool s_forcedGCInProgress;
 ULONGLONG FinalizerThread::LastHeapDumpTime = 0;
 
 Volatile<BOOL> g_TriggerHeapDump = FALSE;
 #endif // __linux__
+
+
+#ifdef FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
+#define LOWMEMORY_CHECK_TIMEOUT 100
+#define PERFORM_TASKS_IN_FINALIZER_WAIT_TIMEOUT
+
+UnixLowMemoryDetector *FinalizerThread::s_pLowMemoryDetector = nullptr;
+#endif
 
 AppDomain * FinalizerThread::UnloadingAppDomain;
 
@@ -463,7 +472,9 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             cEventsForWait,                           // # objects to wait on
             &(MHandles[uiEventIndexOffsetForWait]),   // array of objects to wait on
             FALSE,          // bWaitAll == FALSE, so wait for first signal
-#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+#if defined (LOWMEMORY_CHECK_TIMEOUT)
+            LOWMEMORY_CHECK_TIMEOUT,
+#elif defined (LINUX_HEAP_DUMP_TIME_OUT)
             LINUX_HEAP_DUMP_TIME_OUT,
 #else
             INFINITE,       // timeout
@@ -498,18 +509,29 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             ProfilingAPIAttachDetach::ProcessSignaledAttachEvent();
             break;
 #endif // FEATURE_PROFAPI_ATTACH_DETACH
-#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+#ifdef PERFORM_TASKS_IN_FINALIZER_WAIT_TIMEOUT
         case (WAIT_TIMEOUT + kLowMemoryNotification):
         case (WAIT_TIMEOUT + kFinalizer):
+#ifdef FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
+            if (s_pLowMemoryDetector->IsLowMemory())
+            {
+                // low memory detected on unix: GC immediately
+                GetFinalizerThread()->DisablePreemptiveGC();
+                GCHeapUtilities::GetGCHeap()->GarbageCollect(0, true);
+                GetFinalizerThread()->EnablePreemptiveGC();
+            }
+#endif // FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
+#ifdef LINUX_HEAP_DUMP_TIME_OUT
             if (g_TriggerHeapDump)
             {
                 return;
             }
-
+#endif // LINUX_HEAP_DUMP_TIME_OUT
             break;
-#endif
+#endif // PERFORM_TASKS_IN_FINALIZER_WAIT_TIMEOUT
         default:
             //what's wrong?
+            
             _ASSERTE (!"Bad return code from WaitForMultipleObjects");
             return;
         }
@@ -890,6 +912,9 @@ void FinalizerThread::FinalizerThreadCreate()
     hEventFinalizerToShutDown->CreateAutoEvent(FALSE);
     hEventShutDownToFinalizer = new CLREvent();
     hEventShutDownToFinalizer->CreateAutoEvent(FALSE);
+
+    _ASSERTE(s_pLowMemoryDetector == 0);
+    s_pLowMemoryDetector = new UnixLowMemoryDetector();
 
     _ASSERTE(g_pFinalizerThread == 0);
     g_pFinalizerThread = SetupUnstartedThread();
