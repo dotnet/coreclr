@@ -1812,43 +1812,58 @@ void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
 void CodeGen::genSSE42Intrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicId = node->gtHWIntrinsicId;
+    regNumber      targetReg   = node->gtRegNum;
     GenTree*       op1         = node->gtGetOp1();
     GenTree*       op2         = node->gtGetOp2();
-    regNumber      targetReg   = node->gtRegNum;
-    assert(targetReg != REG_NA);
-    var_types targetType = node->TypeGet();
-    var_types baseType   = node->gtSIMDBaseType;
-
+    var_types      baseType    = node->gtSIMDBaseType;
+    var_types      targetType  = node->TypeGet();
+    emitter*       emit        = getEmitter();
+    
     regNumber op1Reg = op1->gtRegNum;
-    regNumber op2Reg = op2->gtRegNum;
     genConsumeOperands(node);
+
+    assert(targetReg != REG_NA);
+    assert(op1Reg != REG_NA);
+    assert(op2 != nullptr);
+    assert(!node->OperIsCommutative());
 
     switch (intrinsicId)
     {
         case NI_SSE42_Crc32:
+        {
             if (op1Reg != targetReg)
             {
-                assert(op2Reg != targetReg);
-                inst_RV_RV(INS_mov, targetReg, op1Reg, targetType, emitTypeSize(targetType));
+                assert(op2->gtRegNum != targetReg);
+                emit->emitIns_R_R(INS_mov, emitTypeSize(targetType), targetReg, op1Reg);
             }
 
-            if (baseType == TYP_UBYTE || baseType == TYP_USHORT) // baseType is the type of the second argument
+            // This makes the genHWIntrinsic_R_RM code much simpler, as we don't need an
+            // overload that explicitly takes the operands.
+            node->gtOp1 = op2;
+            node->gtOp2 = nullptr;
+
+            if ((baseType == TYP_UBYTE) || (baseType == TYP_USHORT)) // baseType is the type of the second argument
             {
                 assert(targetType == TYP_INT);
-                inst_RV_RV(INS_crc32, targetReg, op2Reg, baseType, emitTypeSize(baseType));
+                genHWIntrinsic_R_RM(node, INS_crc32, emitTypeSize(baseType));
             }
             else
             {
                 assert(op1->TypeGet() == op2->TypeGet());
-                assert(targetType == TYP_INT || targetType == TYP_LONG);
-                inst_RV_RV(INS_crc32, targetReg, op2Reg, targetType, emitTypeSize(targetType));
+                assert((targetType == TYP_INT) || (targetType == TYP_LONG));
+                genHWIntrinsic_R_RM(node, INS_crc32, emitTypeSize(targetType));
             }
 
             break;
+        }
+
         default:
+        {
             unreached();
             break;
+        }
     }
+
     genProduceReg(node);
 }
 
