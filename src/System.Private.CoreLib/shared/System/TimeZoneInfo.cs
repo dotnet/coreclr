@@ -2035,10 +2035,12 @@ namespace System
             // utc base offset delta increment
             TimeSpan adjustment = TimeSpan.Zero;
 
-            if (utcOffset > MaxOffset) {
+            if (utcOffset > MaxOffset)
+            {
                 adjustment = MaxOffset - utcOffset;
             }
-            else if (utcOffset < MinOffset) {
+            else if (utcOffset < MinOffset)
+            {
                 adjustment = MinOffset - utcOffset;
             }
 
