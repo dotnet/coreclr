@@ -62,6 +62,12 @@ namespace System.IO
             if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK)
             {
                 _fileHandle.Dispose();
+
+                var lastWin32Error = Marshal.GetLastWin32Error();
+                if (fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN && lastWin32Error != Interop.Errors.ERROR_SUCCESS)
+                {
+                    throw new ExternalException(Interop.Kernel32.GetMessage(lastWin32Error), lastWin32Error);
+                }
                 throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles);
             }
 
