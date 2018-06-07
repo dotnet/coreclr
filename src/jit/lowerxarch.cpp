@@ -2614,6 +2614,35 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                 case HW_Category_SIMDScalar:
                 case HW_Category_Scalar:
                 {
+                    if (HWIntrinsicInfo::GeneratesMultipleIns(intrinsicId))
+                    {
+                        switch (intrinsicId)
+                        {
+                            case NI_SSE_CompareLessThanOrderedScalar:
+                            case NI_SSE_CompareLessThanUnorderedScalar:
+                            case NI_SSE_CompareLessThanOrEqualOrderedScalar:
+                            case NI_SSE_CompareLessThanOrEqualUnorderedScalar:
+                            case NI_SSE2_CompareLessThanOrderedScalar:
+                            case NI_SSE2_CompareLessThanUnorderedScalar:
+                            case NI_SSE2_CompareLessThanOrEqualOrderedScalar:
+                            case NI_SSE2_CompareLessThanOrEqualUnorderedScalar:
+                            {
+                                // We need to swap the operands for CompareLessThanOrEqual
+                                node->gtOp1 = op2;
+                                node->gtOp2 = op1;
+                                op2 = op1;
+                                break;
+                            }
+
+                            default:
+                            {
+                                // TODO-XArch-CQ: The Compare*OrderedScalar and Compare*UnorderedScalar methods
+                                //                are commutative if you also inverse the intrinsic.
+                                break;
+                            }
+                        }
+                    }
+
                     bool supportsRegOptional = false;
 
                     if (IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional))
