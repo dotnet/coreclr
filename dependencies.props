@@ -1,5 +1,4 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" 
-  xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!-- NuGet package restore sources. -->
   <PropertyGroup>
@@ -176,6 +175,7 @@
   </ItemGroup>
 
   <!-- Override isolated build dependency versions with versions from Repo API. -->
-  <Import Project="$(DotNetPackageVersionPropsPath)" Condition="'$(DotNetPackageVersionPropsPath)' != ''" />
+  <Import Project="$(DotNetPackageVersionPropsPath)"
+          Condition="'$(DotNetPackageVersionPropsPath)' != ''" />
 
 </Project>

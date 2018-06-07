@@ -80,7 +80,7 @@ if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loo
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTests"           (set __CoreFXTests=true&shift&goto Arg_Loop)
-if /i "%1" == "CoreFXTestList"        (set __CoreFXTests=true&set _CoreFXTestList=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "CoreFXTestList"        (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
 if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "tieredcompilation"     (set COMPLUS_TieredCompilation=1&shift&goto Arg_Loop)
@@ -108,17 +108,12 @@ shift
 :: Done with argument processing. Check argument values for validity.
 
 if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Environment script %__TestEnv% not found && exit /b 1)
-if "%__PerfTests%"=="true" (
-    if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "PerfTests" and "GenerateLayoutOnly" && exit /b 1
-)
+if "%__PerfTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "PerfTests" and "GenerateLayoutOnly" && exit /b 1)
+if "%__CoreFXTests%"=="true" (if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "CoreFXTests" and "GenerateLayoutOnly" && exit /b 1)
 
-if "%__CoreFXTests%"=="true" (
-    if defined __GenerateLayoutOnly  echo %__MsgPrefix%Error: Don't specify both "CoreFXTests" and "GenerateLayoutOnly" && exit /b 1
-)
-
-if defined _CoreFXTestList (
-    if not exist %_CoreFXTestList% (
-        echo Couldn't find CoreFX test list %_CoreFXTestList%
+if defined __CoreFXTestList (
+    if not exist "%__CoreFXTestList%" (
+        echo %__MsgPrefix%Error: Couldn't find CoreFX Test List "%__CoreFXTestList%".
         exit /b 1
     )
 )
@@ -259,7 +254,7 @@ if "%__CollectDumps%"=="true" (
         mkdir "!__CrashDumpFolder!"
     )
 
-    :: Grab the current time befo\re execution begins. This will be used to determine which crash dumps
+    :: Grab the current time before execution begins. This will be used to determine which crash dumps
     :: will be uploaded.
     for /f "delims=" %%a in ('python !__DumplingHelperPath! get_timestamp') do @set __StartTime=%%a
 )
@@ -303,7 +298,6 @@ if errorlevel 1 (
 )  
 goto TestsDone
 
-
 REM =========================================================================================
 REM ===
 REM === Run CoreFX tests
@@ -333,22 +327,18 @@ if defined __GenerateTestHostOnly (
 if not exist %_CoreFXTestHost%\dotnet.exe echo CoreFX test host not found, please run runtest.cmd again && exit /b 1
 
 set /p _CoreFXTestRemoteURL=< "%__ProjectFilesDir%\CoreFX\CoreFXTestListURL.txt"
-if not defined _CoreFXTestList ( set _CoreFXTestList=%__ProjectFilesDir%\CoreFX\TopN.CoreFX.Windows.issues.json )
-if not exist %_CoreFXTestList% (
-    echo Couldn't find CoreFX test list %_CoreFXTestList%
-    exit /b 1
-)
+if not defined __CoreFXTestList ( set __CoreFXTestList=%__ProjectFilesDir%\CoreFX\TopN.CoreFX.Windows.issues.json )
 
 echo Downloading CoreFX Test Binaries
-echo "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%_CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
-call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%_CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
+echo "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
+call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
 if errorlevel 1 (
       exit /b 1
 )
 
 set _CoreFXTestExecutable=xunit.console.netcore.exe
 
-REM Set the log file name  to something Jenkins can understand
+REM Set the log file name to something Jenkins can understand
 set _CoreFX_TestLogFileName=testResults.xml
 for /D %%i in ("%_CoreFXTestBinariesPath%\*") do (
     if not exist "%%i\%_CoreFXTestExecutable%" echo "Error running CoreFX tests - %_CoreFXTestExecutable% not found" && exit /b 1
@@ -357,12 +347,11 @@ for /D %%i in ("%_CoreFXTestBinariesPath%\*") do (
     set _LogPath=%_CoreFXLogsDir%\!_TestName!
     if not exist "!_LogPath!"  (mkdir "!_LogPath!")
 
-    echo Running !_TestName!
-    echo Writing logs to !_LogPath!
-    echo To reproduce directly run:
+    echo %__MsgPrefix%Running !_TestName!
+    echo    Writing logs to !_LogPath!
+    echo    To reproduce directly run:
     echo "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\%_CoreFX_TestLogFileName%" -notrait category=nonnetcoreapptests -notrait category=nonwindowstests  -notrait category=failing
     call "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\\%_CoreFX_TestLogFileName%" -notrait category=nonnetcoreapptests -notrait category=nonwindowstests  -notrait category=failing
-    
 )
 goto TestsDone
 
@@ -563,7 +552,7 @@ REM ============================================================================
 
 :ResolveCoreFXDependencies
 set __BuildLogRootName=Tests_GenerateTestHost
-echo Building CoreFX Test Host
+echo %__MsgPrefix%Building CoreFX Test Host
 call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:GenerateTestHost=true 
 if errorlevel 1 (
     echo %__MsgPrefix%Test Host Dependency Resolution Failed
@@ -572,7 +561,6 @@ if errorlevel 1 (
 echo %__MsgPrefix%Created the Test Host layout with all dependencies in %_CoreFXTestHost%
 
 REM Publish and call the CoreFX test helper projects - should this be integrated into runtest.proj?
-
 REM Build Helper project
 echo "%_dotnet%" msbuild /t:Restore "%_CoreFXTestSetupUtility%"
 call "%_dotnet%" msbuild /t:Restore "%_CoreFXTestSetupUtility%"
@@ -586,7 +574,6 @@ if errorlevel 1 (
 )
 
 exit /b 0
-
 
 REM =========================================================================================
 REM ===
@@ -611,7 +598,6 @@ echo VSVersion ^<vs_version^>    - VS2015 or VS2017 ^(default: VS2017^).
 echo TestEnv ^<test_env_script^> - Run a custom script before every test to set custom test environment settings.
 echo AgainstPackages           - This indicates that we are running tests that were built against packages.
 echo GenerateLayoutOnly        - If specified will not run the tests and will only create the Runtime Dependency Layout
-echo GenerateTestHostOnly      - If specified will not run the tests and will only create the CoreFX test host Layout
 echo sequential                - Run tests sequentially (no parallelism).
 echo crossgen                  - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests.
 echo crossgenaltjit ^<altjit^>   - Precompile ^(crossgen^) the managed assemblies in CORE_ROOT before running the tests, using the given altjit.

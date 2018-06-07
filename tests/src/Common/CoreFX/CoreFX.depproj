@@ -61,18 +61,4 @@
     <ProjectAssetsFile>$(SourceDir)Common\CoreFX\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
-  <!-- TODO We don't need this -->
-  <Target Name="AddCoreFXDependencies" BeforeTargets="ResolveReferences">
-    <Error Condition="!Exists('$(PackagesDir)CoreFx.Private.TestUtilities\$(FxTestUtilVer)')"
-            Text="Error: looks the package CoreFx.Private.TestUtilities.$(FxTestUtilVer) not restored or missing xunit.console.exe."
-    />
-    <ItemGroup>
-      <CoreFXReferenceCopyLocalPaths
-        Include="$(PackagesDir)CoreFx.Private.TestUtilities\$(FxTestUtilVer)\*.*">
-        <Private>false</Private>
-        <NuGetPackageId>CoreFx.Private.TestUtilities</NuGetPackageId>
-        <NuGetPackageVersion>$(FxTestUtilVer)</NuGetPackageVersion>
-      </CoreFXReferenceCopyLocalPaths>
-    </ItemGroup>
-</Target>
 </Project>

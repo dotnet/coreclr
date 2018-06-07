@@ -8,8 +8,6 @@
     <NugetTargetMoniker>.NETCoreApp,Version=v2.2</NugetTargetMoniker>
     <NugetTargetMonikerShort>netcoreapp2.2</NugetTargetMonikerShort>
     <IsTestProject>false</IsTestProject>
-    <!-- Don't warn if some dependencies were rolled forward -->
-    <NoWarn>$(NoWarn);NU1603</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp">
@@ -31,7 +29,6 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
-
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>

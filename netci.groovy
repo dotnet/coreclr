@@ -2215,7 +2215,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             def workspaceRelativeFxRoot = "_/fx"
                             def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
                             def fxBranch = getFxBranch(branch)
-                            // Add script to run downloaded tests here
+
                             buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
                             // Archive and process (only) the test results

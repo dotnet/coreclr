@@ -249,7 +249,7 @@ set __BuildLogRootName=Tests_GenerateRuntimeLayout
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
 set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
@@ -379,7 +379,7 @@ set __BuildLogRootName=Tests_Overlay_Managed
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
 set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
@@ -391,14 +391,14 @@ if errorlevel 1 (
     echo     %__BuildErr%
     exit /b 1
 )
-xcopy /s /y "%CORE_ROOT_STAGE%" "%CORE_ROOT%"
 
+xcopy /s /y "%CORE_ROOT_STAGE%" "%CORE_ROOT%"
 
 set __BuildLogRootName=Tests_CoreFX_Testhost
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
 set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 

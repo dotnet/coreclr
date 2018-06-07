@@ -377,20 +377,16 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <Target Name="CreateTestHost" DependsOnTargets="ResolveTestHostDependencies">
-
     <MSBuild Projects="$(MSBuildProjectFile)"
             Targets="SetupTestingHost"/>
-            
+
     <MSBuild Projects="$(MSBuildProjectFile)"
             Targets="GenerateTestSharedFrameworkDepsFile"/>
-
   </Target>
 
-
   <UsingTask TaskName="GenerateDepsJson" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
-  <!-- After we build all the source libraries we need to generate a deps.json file for the shared test framework -->
+  <!-- After we copied all the framework libraries we need to generate a deps.json file for the shared test framework -->
   <Target Name="GenerateTestSharedFrameworkDepsFile" AfterTargets="SetupTestingHost">
-
     <ItemGroup>
       <!-- This is for HostPolicy, CoreCLR and Jit dependencies to continue to remain inside of the dep.json -->
       <ExceptionForDepsJson Include="microsoft.netcore.app" />
@@ -443,20 +439,10 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
           DestinationFolder="$(TestHostRootPath)" 
           SkipUnchangedFiles="true"
           UseHardlinksIfPossible="true"  />
-    <Exec Command="chmod +x $(TestHostRootPath)dotnet" Condition="'$(RunningOnUnix)' == 'true'"/>
 
     <Copy SourceFiles="@(CoreCLRBinaries)" 
           DestinationFolder="$(NETCoreAppTestSharedFrameworkPath)" 
           SkipUnchangedFiles="true" />
-
-    <!-- <Error Condition="'@(CoreFXReferenceCopyLocalPaths)' == ''" /> -->
-    
-    <Copy SourceFiles="@(CoreFXReferenceCopyLocalPaths)"
-          DestinationFolder="$(TestHostRootPath)" 
-          SkipUnchangedFiles="true"
-          UseHardlinksIfPossible="true" 
-    />
-
   </Target>
 
   <Target Name="RunPerfTests" Condition="'$(Performance)'=='true'">
@@ -487,6 +473,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
              Condition=" '$(BuildWrappers)'=='true' " />
 
     <!-- Execution -->
+
     <MSBuild Projects="$(MSBuildProjectFile)"
              Targets="CreateTestOverlay"
              Condition=" '$(GenerateRuntimeLayout)'=='true' "/>
