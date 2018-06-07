@@ -6,12 +6,6 @@
 #ifndef _FINALIZER_THREAD_H_
 #define _FINALIZER_THREAD_H_
 
-#include "unixlowmem.h"
-
-#if defined(__linux__) && defined(FEATURE_PAL)
-#define FEATURE_UNIX_LOW_MEMORY_NOTIFICATION
-#endif
-
 class FinalizerThread
 {
     static BOOL fRunFinalizersOnUnload;
@@ -20,10 +14,6 @@ class FinalizerThread
     
 #if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     static ULONGLONG LastHeapDumpTime;
-#endif
-
-#if defined(FEATURE_UNIX_LOW_MEMORY_NOTIFICATION)
-    static UnixLowMemoryDetector *s_pLowMemoryDetector;
 #endif
 
     static CLREvent *hEventFinalizer;

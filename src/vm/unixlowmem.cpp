@@ -5,51 +5,25 @@
 
 #include "common.h"
 #include "unixlowmem.h"
-#include <stdlib.h>
-#include "debugmacros.h"
 
-#ifdef FEATURE_PAL
+size_t UnixLowMemoryDetector::s_lowMemoryLimitBytes;
 
-UnixLowMemoryDetector::UnixLowMemoryDetector()
+void UnixLowMemoryDetector::Init()
 {
     LIMITED_METHOD_CONTRACT;
 
-    auto percent = max(min(ReadLowMemoryLimitPercent(), 100), 1);
-    this->m_szLowMemoryLimitBytes = ReadPhysicalMemoryLimitBytes() * percent / 100;
-}
-
-size_t UnixLowMemoryDetector::ReadLowMemoryLimitPercent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    char* defaultStackSizeStr = getenv("COMPlus_UnixLowMemoryLimitPercent");
-    if (defaultStackSizeStr != NULL)
-    {
-        errno = 0;
-        auto size = atoi(defaultStackSizeStr);
-
-        if (errno == 0)
-            return (size_t)size;
-    }
-    return 75; // default value
-}
-
-size_t UnixLowMemoryDetector::ReadPhysicalMemoryLimitBytes()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return PAL_GetRestrictedPhysicalMemoryLimit();
+    size_t percent = max(min(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_UnixLowMemoryLimitPercent), 100), 1);
+    s_lowMemoryLimitBytes = PAL_GetRestrictedPhysicalMemoryLimit() * percent / 100;
 }
 
 bool UnixLowMemoryDetector::IsLowMemory()
 {
     LIMITED_METHOD_CONTRACT;
 
-    size_t szWorkingSet;
-    if (FALSE == PAL_GetWorkingSetSize(&szWorkingSet))
+    size_t workingSet;
+    if (!PAL_GetWorkingSetSize(&workingSet))
         return false;
 
-    return szWorkingSet > this->m_szLowMemoryLimitBytes;
+    return workingSet > s_lowMemoryLimitBytes;
 }
 
-#endif
