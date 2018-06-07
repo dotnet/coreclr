@@ -43,6 +43,7 @@ def static getOSGroup(def os) {
                             wrappers {
                                 credentialsBinding {
                                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                                    string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                                 }
                             }
 
@@ -70,11 +71,20 @@ def static getOSGroup(def os) {
                             def benchViewName = isPR ? 'coreclr private %BenchviewCommitName%' : 'coreclr rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
                             def uploadString = isSmoketest ? '' : '-uploadToBenchview'
 
+                            def filesToArchive = "\"bin\\sandbox_logs\\**\\*_log.txt\", " +
+											"\"bin\\sandbox_logs\\**\\*.csv\", " +
+											"\"bin\\sandbox_logs\\**\\*.xml\", " +
+											"\"bin\\sandbox_logs\\**\\*.log\", " +
+											"\"bin\\sandbox_logs\\**\\*.md\", " +
+											"\"bin\\sandbox_logs\\**\\*.etl\", " +
+											"\"machinedata.json\""
+
+                            def uploadSteps = calculateArtifactsUploadCommands(project, branch, os, isPR, jobName, filesToArchive)
+
                             steps {
                                 // Batch
 
                                 batchFile("powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile \"%WORKSPACE%\\nuget.exe\"")
-                                batchFile("powershell .\\tests\\scripts\\azcopy\\Install-AzCopy.ps1")
                                 batchFile("if exist \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\" rmdir /s /q \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\"")
                                 batchFile("\"%WORKSPACE%\\nuget.exe\" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory \"%WORKSPACE%\" -Prerelease -ExcludeVersion")
                                 //Do this here to remove the origin but at the front of the branch name as this is a problem for BenchView
@@ -101,18 +111,9 @@ def static getOSGroup(def os) {
                                     batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\Jit\\Performance\\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi")
                                 }
 								
-								batchFile("powershell .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 " +
-										"-inputFiles " +
-											"\".\\bin\\sandbox_logs\\**\\*_log.txt\", " +
-											"\".\\bin\\sandbox_logs\\**\\*.csv\", " +
-											"\".\\bin\\sandbox_logs\\**\\*.xml\", " +
-											"\".\\bin\\sandbox_logs\\**\\*.log\", " +
-											"\".\\bin\\sandbox_logs\\**\\*.md\", " +
-											"\".\\bin\\sandbox_logs\\**\\*.etl\", " +
-											"\".\\machinedata.json\" " +
-										"-container \"${projectFolder}\" "+
-										"-fileName \"${jobName}\" "+
-										"-token \"todo\"")
+                                uploadSteps.each { uploadCommand ->
+                                    batchFile(uploadCommand)
+                                }
                             }
                         }
 
@@ -200,12 +201,14 @@ def static getOSGroup(def os) {
                             pgo_string = "nopgo"
                         }
 
-                        def newJob = job(Utilities.getFullJobName(project, "perf_throughput_perflab_${os}_${arch}_${opt_level}_${jit}_${pgo_string}", isPR)) {
+                        def jobName = "perf_throughput_perflab_${os}_${arch}_${opt_level}_${jit}_${pgo_string}"
+                        def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
                             // Set the label.
                             label('windows_server_2016_clr_perf')
                             wrappers {
                                 credentialsBinding {
                                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                                    string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                                 }
                             }
 
@@ -218,6 +221,10 @@ def static getOSGroup(def os) {
                             def configuration = 'Release'
                             def runType = isPR ? 'private' : 'rolling'
                             def benchViewName = isPR ? 'coreclr-throughput private %BenchviewCommitName%' : 'coreclr-throughput rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
+                            
+                            def filesToArchive = "\"throughput-*.csv\""
+
+                            def uploadSteps = calculateArtifactsUploadCommands(project, branch, os, isPR, jobName, filesToArchive)
 
                             steps {
                                 // Batch
@@ -235,14 +242,12 @@ def static getOSGroup(def os) {
                                 batchFile("py \"%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools\\machinedata.py\"")
                                 batchFile("set __TestIntermediateDir=int&&build.cmd ${configuration} ${architecture}${pgo_build} skiptests")
                                 batchFile("py -u tests\\scripts\\run-throughput-perf.py -arch ${arch} -os ${os} -configuration ${configuration} -opt_level ${opt_level} -jit_name ${jit}${pgo_test} -clr_root \"%WORKSPACE%\" -assembly_root \"%WORKSPACE%\\Microsoft.BenchView.ThroughputBenchmarks.${architecture}.${os}\\lib\" -benchview_path \"%WORKSPACE%\\Microsoft.Benchview.JSONFormat\\tools\" -run_type ${runType}")
+                                
+                                uploadSteps.each { uploadCommand ->
+                                    batchFile(uploadCommand)
+                                }
                             }
                         }
-
-                        // Save machinedata.json to /artifact/bin/ Jenkins dir
-                        def archiveSettings = new ArchivalSettings()
-                        archiveSettings.addFiles('throughput-*.csv')
-                        archiveSettings.setAlwaysArchive()
-                        Utilities.addArchival(newJob, archiveSettings)
 
                         Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
 
@@ -319,6 +324,7 @@ def static getFullPerfJobName(def project, def os, def isPR) {
             wrappers {
                 credentialsBinding {
                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                    string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                 }
             }
 
@@ -469,6 +475,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
                     wrappers {
                         credentialsBinding {
                             string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                            string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                         }
                     }
 
@@ -578,7 +585,8 @@ parallel(
             ['ryujit'].each { jit ->
                 ['full_opt', 'min_opt', 'tiered'].each { opt_level ->
                     def architecture = arch
-                    def newJob = job(Utilities.getFullJobName(project, "perf_scenarios_${os}_${arch}_${opt_level}_${jit}", isPR)) {
+                    def jobName = "perf_scenarios_${os}_${arch}_${opt_level}_${jit}"
+                    def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
 
                         def testEnv = ""
 
@@ -587,6 +595,7 @@ parallel(
                         wrappers {
                             credentialsBinding {
                                 string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                                string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                             }
                         }
 
@@ -605,6 +614,16 @@ parallel(
                         def runType = isPR ? 'private' : 'rolling'
                         def benchViewName = isPR ? 'CoreCLR-Scenarios private %BenchviewCommitName%' : 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
                         def uploadString = '-uploadToBenchview'
+                        
+                        def filesToArchive = "\"bin\\sandbox_logs\\**\\*_log.txt\", " +
+											"\"bin\\sandbox_logs\\**\\*.csv\", " +
+											"\"bin\\sandbox_logs\\**\\*.xml\", " +
+											"\"bin\\sandbox_logs\\**\\*.log\", " +
+											"\"bin\\sandbox_logs\\**\\*.md\", " +
+											"\"bin\\sandbox_logs\\**\\*.etl\", " +
+											"\"machinedata.json\""
+
+                        def uploadSteps = calculateArtifactsUploadCommands(project, branch, os, isPR, jobName, filesToArchive)
 
                         steps {
                             // Batch
@@ -634,16 +653,16 @@ parallel(
                             if (opt_level != 'min_opt') {
                                 batchFile("py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\Scenario\\JitBench -group CoreCLR-Scenarios -collectionFlags BranchMispredictions+CacheMisses+InstructionRetired")
                             }
+                            
+                            uploadSteps.each { uploadCommand ->
+                                batchFile(uploadCommand)
+                            }
                         }
                     }
 
                     def archiveSettings = new ArchivalSettings()
                     archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
                     archiveSettings.addFiles('machinedata.json')
                     archiveSettings.setAlwaysArchive()
 
@@ -700,11 +719,13 @@ parallel(
 ['Windows_NT'].each { os ->
     ['x64', 'x86'].each { arch ->
         def architecture = arch
-        def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", false)) {
+        def jobName = "sizeondisk_${arch}"
+        def newJob = job(Utilities.getFullJobName(project, jobName, false)) {
 
             wrappers {
                 credentialsBinding {
                     string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                    string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                 }
             }
 
@@ -715,6 +736,10 @@ parallel(
             def testBin = "%WORKSPACE%\\bin\\tests\\${os}.${architecture}.${configuration}"
             def coreRoot = "${testBin}\\Tests\\Core_Root"
             def benchViewTools = "%WORKSPACE%\\Microsoft.BenchView.JSONFormat\\tools"
+            
+            def filesToArchive = "\"bin\\toArchive\\**\", \"machinedata.json\""
+
+            def uploadSteps = calculateArtifactsUploadCommands(project, branch, os, isPR, jobName, filesToArchive)
 
             steps {
                 // Install nuget and get BenchView tools
@@ -748,17 +773,15 @@ parallel(
 
                 // If this is a PR, upload submission.json
                 batchFile("py \"${benchViewTools}\\upload.py\" submission.json --container coreclr")
+                
+                uploadSteps.each { uploadCommand ->
+                    batchFile(uploadCommand)
+                }
             }
         }
 
         Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
 
-        def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/toArchive/**')
-        archiveSettings.addFiles('machinedata.json')
-        archiveSettings.setAlwaysArchive()
-
-        Utilities.addArchival(newJob, archiveSettings)
         Utilities.standardJobSetup(newJob, project, false, "*/${branch}")
 
         // Set the cron job here.  We run nightly on each flavor, regardless of code changes
@@ -787,12 +810,14 @@ parallel(
             ['ryujit'].each { jit ->
                 ['full_opt'].each { opt_level ->
                     def architecture = arch
-                    def newJob = job(Utilities.getFullJobName(project, "perf_illink_${os}_${arch}_${opt_level}_${jit}", isPR)) {
+                    def jobName = "perf_illink_${os}_${arch}_${opt_level}_${jit}"
+                    def newJob = job(Utilities.getFullJobName(project, jobName, isPR)) {
 
                         def testEnv = ""
                         wrappers {
                             credentialsBinding {
                                 string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                                string('AZ_BLOB_LOGS_SAS_TOKEN', 'CoreCLR_Perf_AzBlob_SAS')
                             }
                         }
 
@@ -811,6 +836,16 @@ parallel(
                         def runType = isPR ? 'private' : 'rolling'
                         def benchViewName = isPR ? 'CoreCLR-Scenarios private %BenchviewCommitName%' : 'CoreCLR-Scenarios rolling %GIT_BRANCH_WITHOUT_ORIGIN% %GIT_COMMIT%'
                         def uploadString = '-uploadToBenchview'
+                        
+                        def filesToArchive = "\"bin\\sandbox_logs\\**\\*_log.txt\", " +
+											"\"bin\\sandbox_logs\\**\\*.csv\", " +
+											"\"bin\\sandbox_logs\\**\\*.xml\", " +
+											"\"bin\\sandbox_logs\\**\\*.log\", " +
+											"\"bin\\sandbox_logs\\**\\*.md\", " +
+											"\"bin\\sandbox_logs\\**\\*.etl\", " +
+											"\"machinedata.json\""
+
+                        def uploadSteps = calculateArtifactsUploadCommands(project, branch, os, isPR, jobName, filesToArchive)
 
                         steps {
                             // Batch
@@ -836,16 +871,16 @@ parallel(
                             // Scenario: ILLink
                             batchFile("\"%VS140COMNTOOLS%\\..\\..\\VC\\vcvarsall.bat\" x86_amd64 && " +
                             "py tests\\scripts\\run-xunit-perf.py ${runXUnitPerfCommonArgs} -testBinLoc bin\\tests\\${os}.${architecture}.${configuration}\\performance\\linkbench\\linkbench -group ILLink -nowarmup")
+
+                            uploadSteps.each { uploadCommand ->
+                                batchFile(uploadCommand)
+                            }
                         }
                     }
 
                     def archiveSettings = new ArchivalSettings()
                     archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
                     archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
-                    archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
                     archiveSettings.addFiles('machinedata.json')
                     archiveSettings.setAlwaysArchive()
 
@@ -885,6 +920,26 @@ parallel(
             }
         }
     }
+}
+
+def static calculateArtifactsUploadCommands(def project, def branch, def os, def isPR, def shortJobName, def filesToArchive) {
+    def uploadCommands = []
+    def fullBuildJobName = Utilities.getFullJobName(project, shortJobName, isPR)
+    def osGroup = getOSGroup(os)
+	
+    if (osGroup == 'Windows_NT')
+        uploadCommands += "powershell -NoProfile .\\tests\\scripts\\azcopy\\Install-AzCopy.ps1"
+        uploadCommands += "powershell -NoProfile .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 -inputFiles ${filesToArchive} -container \"${project}\\${branch}\" -fileName \"${fullBuildJobName}\""
+    }
+    else if (osGroup == 'Linux') {
+        println("TODO")
+    }
+    else {
+        println("Unexpected OS group: ${osGroup} for os ${os}")
+        assert false
+    }
+
+    return uploadCommands
 }
 
 Utilities.createHelperJob(this, project, branch,
