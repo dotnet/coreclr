@@ -6,6 +6,7 @@ System.Diagnostics.Process.Tests     # https://github.com/dotnet/coreclr/issues/
 System.Diagnostics.PerformanceCounter.Tests # https://github.com/dotnet/coreclr/issues/17799
 System.Diagnostics.StackTrace.Tests  # https://github.com/dotnet/coreclr/issues/17557 -- JitStress=1; https://github.com/dotnet/coreclr/issues/17558 -- JitStress=2
 System.Drawing.Common.Tests          # https://github.com/dotnet/coreclr/issues/16001
+System.Dynamic.Runtime.Tests         # https://github.com/dotnet/coreclr/issues/18295
 System.IO.FileSystem.Tests           # https://github.com/dotnet/coreclr/issues/16001
 System.IO.Ports.Tests                # https://github.com/dotnet/coreclr/issues/16001
 System.Management.Tests              # https://github.com/dotnet/coreclr/issues/16001
