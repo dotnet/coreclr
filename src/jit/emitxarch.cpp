@@ -8375,6 +8375,8 @@ void emitter::emitDispIns(
             }
             else if ((ins == INS_crc32) && (attr != EA_8BYTE))
             {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
                 printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
             }
             else
@@ -8594,6 +8596,8 @@ void emitter::emitDispIns(
             }
             else if ((ins == INS_crc32) && (attr != EA_8BYTE))
             {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
                 printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
             }
             else
@@ -8709,6 +8713,8 @@ void emitter::emitDispIns(
 #ifdef FEATURE_HW_INTRINSICS
             else if (ins == INS_crc32 && attr != EA_8BYTE)
             {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
                 printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
             }
 #endif // FEATURE_HW_INTRINSICS
@@ -8795,6 +8801,8 @@ void emitter::emitDispIns(
 #endif
             else if ((ins == INS_crc32) && (attr != EA_8BYTE))
             {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
                 printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
             }
             printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
@@ -10539,7 +10547,7 @@ BYTE* emitter::emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
                 dst += emitOutputByte(dst, 0x66);
             }
         }
-        
+
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 

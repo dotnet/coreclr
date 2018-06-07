@@ -2630,7 +2630,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                                 // We need to swap the operands for CompareLessThanOrEqual
                                 node->gtOp1 = op2;
                                 node->gtOp2 = op1;
-                                op2 = op1;
+                                op2         = op1;
                                 break;
                             }
 

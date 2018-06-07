@@ -25,6 +25,33 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "gcinfoencoder.h"
 
 //------------------------------------------------------------------------
+// assertIsContainableHWIntrinsicOp: Asserts that op is containable by node
+//
+// Arguments:
+//    lowering - The lowering phase from the compiler
+//    node     - The HWIntrinsic node that has the contained node
+//    op       - The op that is contained
+//
+static void assertIsContainableHWIntrinsicOp(Lowering* lowering, GenTreeHWIntrinsic* node, GenTree* op)
+{
+#if DEBUG
+    // The Lowering::IsContainableHWIntrinsicOp call is not quite right, since it follows pre-register allocation
+    // logic. However, this check is still important due to the various containment rules that SIMD intrinsics follow.
+    //
+    // We use isContainable to track the special HWIntrinsic node containment rules (for things like LoadAligned and
+    // LoadUnaligned) and we use the supportsRegOptional check to support general-purpose loads (both from stack
+    // spillage
+    // and for isUsedFromMemory contained nodes, in the case where the register allocator decided to not allocate a
+    // register
+    // in the first place).
+
+    bool supportsRegOptional = false;
+    bool isContainable       = lowering->IsContainableHWIntrinsicOp(node, op, &supportsRegOptional);
+    assert(isContainable || supportsRegOptional);
+#endif // DEBUG
+}
+
+//------------------------------------------------------------------------
 // genIsTableDrivenHWIntrinsic:
 //
 // Arguments:
@@ -355,8 +382,8 @@ void CodeGen::genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emi
         assert(targetReg != REG_NA);
 
         targetReg = op1->gtRegNum;
-        op1 = op2;
-        op2 = nullptr;
+        op1       = op2;
+        op2       = nullptr;
     }
     else
     {
@@ -369,12 +396,7 @@ void CodeGen::genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emi
     if (op1->isContained() || op1->isUsedFromSpillTemp())
     {
         assert(HWIntrinsicInfo::SupportsContainment(node->gtHWIntrinsicId));
-
-#if DEBUG
-        bool supportsRegOptional = false;
-        bool isContainable       = compiler->m_pLowering->IsContainableHWIntrinsicOp(node, op1, &supportsRegOptional);
-        assert(isContainable || (supportsRegOptional && op1->IsRegOptional()));
-#endif // DEBUG
+        assertIsContainableHWIntrinsicOp(compiler->m_pLowering, node, op1);
 
         TempDsc* tmpDsc = nullptr;
         unsigned varNum = BAD_VAR_NUM;
@@ -498,12 +520,7 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, i
     if (op1->isContained() || op1->isUsedFromSpillTemp())
     {
         assert(HWIntrinsicInfo::SupportsContainment(node->gtHWIntrinsicId));
-
-#if DEBUG
-        bool supportsRegOptional = false;
-        bool isContainable       = compiler->m_pLowering->IsContainableHWIntrinsicOp(node, op1, &supportsRegOptional);
-        assert(isContainable || (supportsRegOptional && op1->IsRegOptional()));
-#endif // DEBUG
+        assertIsContainableHWIntrinsicOp(compiler->m_pLowering, node, op1);
 
         TempDsc* tmpDsc = nullptr;
         unsigned varNum = BAD_VAR_NUM;
@@ -627,12 +644,7 @@ void CodeGen::genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins)
     if (op2->isContained() || op2->isUsedFromSpillTemp())
     {
         assert(HWIntrinsicInfo::SupportsContainment(node->gtHWIntrinsicId));
-
-#if DEBUG
-        bool supportsRegOptional = false;
-        bool isContainable       = compiler->m_pLowering->IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional);
-        assert(isContainable || (supportsRegOptional && op2->IsRegOptional()));
-#endif // DEBUG
+        assertIsContainableHWIntrinsicOp(compiler->m_pLowering, node, op2);
 
         TempDsc* tmpDsc = nullptr;
         unsigned varNum = BAD_VAR_NUM;
@@ -788,12 +800,7 @@ void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins,
     if (op2->isContained() || op2->isUsedFromSpillTemp())
     {
         assert(HWIntrinsicInfo::SupportsContainment(node->gtHWIntrinsicId));
-
-#if DEBUG
-        bool supportsRegOptional = false;
-        bool isContainable       = compiler->m_pLowering->IsContainableHWIntrinsicOp(node, op2, &supportsRegOptional);
-        assert(isContainable || (supportsRegOptional && op2->IsRegOptional()));
-#endif // DEBUG
+        assertIsContainableHWIntrinsicOp(compiler->m_pLowering, node, op2);
 
         TempDsc* tmpDsc = nullptr;
         unsigned varNum = BAD_VAR_NUM;
@@ -946,6 +953,9 @@ void CodeGen::genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins)
 
     if (op2->isContained() || op2->isUsedFromSpillTemp())
     {
+        assert(HWIntrinsicInfo::SupportsContainment(node->gtHWIntrinsicId));
+        assertIsContainableHWIntrinsicOp(compiler->m_pLowering, node, op2);
+
         TempDsc* tmpDsc = nullptr;
         unsigned varNum = BAD_VAR_NUM;
         unsigned offset = (unsigned)-1;
@@ -1726,9 +1736,9 @@ void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
             regNumber tmpReg = node->GetSingleTempReg();
             assert(HWIntrinsicInfo::lookupIns(intrinsicId, node->gtSIMDBaseType) == INS_ptest);
             emit->emitIns_SIMD_R_R_R(INS_pcmpeqd, emitTypeSize(TYP_SIMD16), tmpReg, tmpReg, tmpReg);
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
             emit->emitIns_R_R(INS_ptest, emitTypeSize(TYP_SIMD16), op1Reg, tmpReg);
             emit->emitIns_R(INS_setb, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
@@ -1736,18 +1746,18 @@ void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
         case NI_SSE41_TestZ:
         {
             assert(HWIntrinsicInfo::lookupIns(intrinsicId, node->gtSIMDBaseType) == INS_ptest);
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(INS_ptest, emitTypeSize(TYP_SIMD16), op1Reg, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, INS_ptest, emitTypeSize(TYP_SIMD16));
             emit->emitIns_R(INS_sete, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
         case NI_SSE41_TestC:
         {
             assert(HWIntrinsicInfo::lookupIns(intrinsicId, node->gtSIMDBaseType) == INS_ptest);
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(INS_ptest, emitTypeSize(TYP_SIMD16), op1Reg, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, INS_ptest, emitTypeSize(TYP_SIMD16));
             emit->emitIns_R(INS_setb, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
@@ -1755,9 +1765,9 @@ void CodeGen::genSSE41Intrinsic(GenTreeHWIntrinsic* node)
         case NI_SSE41_TestNotZAndNotC:
         {
             assert(HWIntrinsicInfo::lookupIns(intrinsicId, node->gtSIMDBaseType) == INS_ptest);
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(INS_ptest, emitTypeSize(TYP_SIMD16), op1Reg, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, INS_ptest, emitTypeSize(TYP_SIMD16));
             emit->emitIns_R(INS_seta, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
@@ -1824,7 +1834,7 @@ void CodeGen::genSSE42Intrinsic(GenTreeHWIntrinsic* node)
     var_types      baseType    = node->gtSIMDBaseType;
     var_types      targetType  = node->TypeGet();
     emitter*       emit        = getEmitter();
-    
+
     regNumber op1Reg = op1->gtRegNum;
     genConsumeOperands(node);
 
@@ -2006,25 +2016,25 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
 
         case NI_AVX_TestC:
         {
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(ins, attr, op1->gtRegNum, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, ins, attr);
             emit->emitIns_R(INS_setb, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
         case NI_AVX_TestNotZAndNotC:
         {
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(ins, attr, op1->gtRegNum, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, ins, attr);
             emit->emitIns_R(INS_seta, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
         case NI_AVX_TestZ:
         {
-            emit->emitIns_R_R(INS_xor, EA_4BYTE, targetReg, targetReg);
-            emit->emitIns_R_R(ins, attr, op1->gtRegNum, op2->gtRegNum);
+            genHWIntrinsic_R_RM(node, ins, attr);
             emit->emitIns_R(INS_sete, EA_1BYTE, targetReg);
+            emit->emitIns_R_R(INS_movzx, EA_1BYTE, targetReg, targetReg);
             break;
         }
 
