@@ -6,18 +6,15 @@
 #ifndef _UNIXLOWMEM_H_
 #define _UNIXLOWMEM_H_
 
-#ifdef FEATURE_PAL
 class UnixLowMemoryDetector
 {
-    size_t m_szLowMemoryLimitBytes;
+    static size_t s_lowMemoryLimitBytes;
 
 public:
-    UnixLowMemoryDetector();
+    static void Init();
+    static bool IsLowMemory();
 
-    size_t ReadLowMemoryLimitPercent();
-    size_t ReadPhysicalMemoryLimitBytes();
-    bool IsLowMemory();
+    virtual ~UnixLowMemoryDetector() = delete; // make it unconstructible
 };
 
-#endif
 #endif
