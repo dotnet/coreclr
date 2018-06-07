@@ -10107,7 +10107,7 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
         pEEInfoOut->offsetOfGCState     = (DWORD)-1;
     }
 
-#if (!defined(_WIN64) && !defined(_TARGET_64BIT_)) || (defined(_WIN64) && defined(_TARGET_64BIT_))
+#ifndef CROSSBITNESS_COMPILE
     // The assertions must hold in every non-crossbitness scenario
     _ASSERTE(OFFSETOF__DelegateObject__target       == DelegateObject::GetOffsetOfTarget());
     _ASSERTE(OFFSETOF__DelegateObject__methodPtr    == DelegateObject::GetOffsetOfMethodPtr());
