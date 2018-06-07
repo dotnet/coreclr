@@ -927,7 +927,7 @@ def static calculateArtifactsUploadCommands(def project, def branch, def os, def
     def fullBuildJobName = Utilities.getFullJobName(project, shortJobName, isPR)
     def osGroup = getOSGroup(os)
 	
-    if (osGroup == 'Windows_NT')
+    if (osGroup == 'Windows_NT') {
         uploadCommands += "powershell -NoProfile .\\tests\\scripts\\azcopy\\Install-AzCopy.ps1"
         uploadCommands += "powershell -NoProfile .\\tests\\scripts\\azcopy\\ZipAndUpload.ps1 -inputFiles ${filesToArchive} -container \"${project}\\${branch}\" -fileName \"${fullBuildJobName}\""
     }
