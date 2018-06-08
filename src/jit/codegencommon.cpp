@@ -8776,7 +8776,6 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                     break;
 
                 case IAT_RELPVALUE:
-#ifdef FEATURE_NGEN_RELOCS_OPTIMIZATIONS
                 {
                     // Load the address into a register, load relative indirect and call through a register
                     // We have to use R12 since we assume the argument registers are in use
@@ -8789,7 +8788,6 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                     regSet.verifyRegUsed(indCallReg);
                     break;
                 }
-#endif // FEATURE_NGEN_RELOCS_OPTIMIZATIONS
 
                 case IAT_PPVALUE:
                 default:
