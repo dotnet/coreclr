@@ -341,6 +341,7 @@ set _CoreFXTestExecutable=xunit.console.netcore.exe
 REM Set the log file name to something Jenkins can understand
 set _CoreFX_TestLogFileName=testResults.xml
 for /D %%i in ("%_CoreFXTestBinariesPath%\*") do (
+    pushd %%i
     if not exist "%%i\%_CoreFXTestExecutable%" echo "Error running CoreFX tests - %_CoreFXTestExecutable% not found" && exit /b 1
 
     set _TestName=%%~nxi
@@ -352,6 +353,7 @@ for /D %%i in ("%_CoreFXTestBinariesPath%\*") do (
     echo    To reproduce directly run:
     echo "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\%_CoreFX_TestLogFileName%" -notrait category=nonnetcoreapptests -notrait category=nonwindowstests  -notrait category=failing
     call "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\\%_CoreFX_TestLogFileName%" -notrait category=nonnetcoreapptests -notrait category=nonwindowstests  -notrait category=failing
+    popd
 )
 goto TestsDone
 

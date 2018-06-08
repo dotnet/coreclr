@@ -13,9 +13,9 @@
   <!-- TestHost destinations -->
   <PropertyGroup>
     <NETCoreAppTestSharedFxVersion>9.9.9</NETCoreAppTestSharedFxVersion>
-    <TestHostRootPath>$(BinDir)testhost/</TestHostRootPath>
-    <NETCoreAppTestHostFxrPath>$(TestHostRootPath)host/fxr/$(NETCoreAppTestSharedFxVersion)/</NETCoreAppTestHostFxrPath>
-    <NETCoreAppTestSharedFrameworkPath>$(TestHostRootPath)shared/Microsoft.NETCore.App/$(NETCoreAppTestSharedFxVersion)/</NETCoreAppTestSharedFrameworkPath>
+    <TestHostRootPath>$(BinDir)testhost\</TestHostRootPath>
+    <NETCoreAppTestHostFxrPath>$(TestHostRootPath)host\fxr\$(NETCoreAppTestSharedFxVersion)\</NETCoreAppTestHostFxrPath>
+    <NETCoreAppTestSharedFrameworkPath>$(TestHostRootPath)shared\Microsoft.NETCore.App\$(NETCoreAppTestSharedFxVersion)\</NETCoreAppTestSharedFrameworkPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -412,18 +412,21 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     <PropertyGroup Condition="'$(OSGroup)'=='Windows_NT'">
       <HostFxrFileName>hostfxr</HostFxrFileName>
       <DotnetExecutableName>dotnet.exe</DotnetExecutableName>
+      <HostFxrFileExtension>dll</HostFxrFileExtension>
     </PropertyGroup>
     
     <PropertyGroup Condition="'$(OSGroup)'!='Windows_NT'">
-      <HostFxrFileName >libhostfxr</HostFxrFileName>
-      <DotnetExecutableName>dotnet</DotnetExecutableName>      
+      <HostFxrFileName>libhostfxr</HostFxrFileName>
+      <HostFxrFileExtension Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'">so</HostFxrFileExtension>
+      <HostFxrFileExtension Condition="$(OSGroup) =='OSX'">dylib</HostFxrFileExtension>
+      <DotnetExecutableName>dotnet</DotnetExecutableName>
     </PropertyGroup>
-
+    
     <ItemGroup>
       <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" />
-      <HostFxFile Include="$(ToolsDir)\dotnetcli\**\$(HostFxrFileName).dll"/>
+      <HostFxFile Include="$(ToolsDir)\dotnetcli\**\$(HostFxrFileName).$(HostFxrFileExtension)" />
       <DotnetExe Include="$(ToolsDir)\dotnetcli\$(DotnetExecutableName)" />   
-      <HostPolicyFile Include="$(ToolsDir)\dotnetcli\**\hostpolicy.dll"/>
+      <HostPolicyFile Include="$(ToolsDir)\dotnetcli\**\hostpolicy.dll" />
     </ItemGroup>
 
     <Copy SourceFiles="@(HostFxFile)"
