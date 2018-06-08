@@ -8644,6 +8644,45 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         unwindStarted = true;
     }
 
+#ifdef FEATURE_NGEN_RELOCS_OPTIMIZATIONS
+#if !FEATURE_FASTTAILCALL
+    if (jmpEpilog)
+    {
+        // In case of FEATURE_NGEN_RELOCS_OPTIMIZATIONS and IAT_RELPVALUE jump at the end is done using
+        // relative indirection, so, additional helper register is required.
+        // We use LR just before it is going to be restored from stack, i.e.
+        //
+        //     movw r12, laddr
+        //     movt r12, haddr
+        //     mov lr, r12
+        //     ldr r12, [r12]
+        //     add r12, r12, lr
+        //     pop {lr}
+        //     ...
+        //     bx r12
+
+        GenTree* jmpNode = block->lastNode();
+
+        noway_assert(jmpNode->gtOper == GT_JMP);
+
+        CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
+        CORINFO_CONST_LOOKUP  addrInfo;
+        compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+
+        if (addrInfo.accessType == IAT_RELPVALUE)
+        {
+            regNumber indCallReg = REG_R12;
+            regNumber vptrReg1   = REG_LR;
+
+            instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+            getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, vptrReg1, indCallReg);
+            getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+            getEmitter()->emitIns_R_R(INS_add, EA_PTRSIZE, indCallReg, vptrReg1);
+        }
+    }
+#endif // !FEATURE_FASTTAILCALL
+#endif // FEATURE_NGEN_RELOCS_OPTIMIZATIONS
+
     genPopCalleeSavedRegisters(jmpEpilog);
 
     if (regSet.rsMaskPreSpillRegs(true) != RBM_NONE)
@@ -8654,6 +8693,12 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         int preSpillRegArgSize = genCountBits(regSet.rsMaskPreSpillRegs(true)) * REGSIZE_BYTES;
         inst_RV_IV(INS_add, REG_SPBASE, preSpillRegArgSize, EA_PTRSIZE);
         compiler->unwindAllocStack(preSpillRegArgSize);
+    }
+
+    if (jmpEpilog)
+    {
+        // We better not have used a pop PC to return otherwise this will be unreachable code
+        noway_assert(!genUsedPopToReturn);
     }
 
 #else  // _TARGET_ARM64_
@@ -8670,11 +8715,6 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
         noway_assert(block->bbJumpKind == BBJ_RETURN);
         noway_assert(block->bbTreeList != nullptr);
-
-#ifdef _TARGET_ARM_
-        // We better not have used a pop PC to return otherwise this will be unreachable code
-        noway_assert(!genUsedPopToReturn);
-#endif // _TARGET_ARM_
 
         /* figure out what jump we have */
         GenTree* jmpNode = block->lastNode();
@@ -8736,27 +8776,20 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                     break;
 
                 case IAT_RELPVALUE:
+#ifdef FEATURE_NGEN_RELOCS_OPTIMIZATIONS
                 {
                     // Load the address into a register, load relative indirect and call through a register
                     // We have to use R12 since we assume the argument registers are in use
+                    // LR is used as helper register right before it is restored from stack, thus,
+                    // all relative address calculations are performed before LR is restored.
                     callType   = emitter::EC_INDIR_R;
                     indCallReg = REG_R12;
                     addr       = NULL;
 
-                    regNumber vptrReg1     = REG_R11;
-                    regMaskTP vptrReg1Mask = genRegMask(vptrReg1);
-                    inst_IV(INS_push, (int)vptrReg1Mask);
-
-                    instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
-                    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, vptrReg1, indCallReg);
-                    getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
-                    getEmitter()->emitIns_R_R(INS_add, EA_PTRSIZE, indCallReg, vptrReg1);
-
-                    inst_IV(INS_pop, (int)vptrReg1Mask);
-
                     regSet.verifyRegUsed(indCallReg);
                     break;
                 }
+#endif // FEATURE_NGEN_RELOCS_OPTIMIZATIONS
 
                 case IAT_PPVALUE:
                 default:
