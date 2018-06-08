@@ -254,7 +254,7 @@ build_Tests()
 
     echo "Starting the Managed Tests Build..."
 
-    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
+    #build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
 
     if [ $? -ne 0 ]; then
         echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -270,7 +270,7 @@ build_Tests()
 
         if [ ! -f $__XUnitWrapperBuiltMarker ]; then
 
-            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers -MsBuildEventLogging=\" \" " "Test Xunit Wrapper"
+            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers" "-TargetsWindows=false" "Test Xunit Wrapper"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -524,7 +524,7 @@ __ZipTests=0
 __NativeTestIntermediatesDir=
 __RunTests=0
 __RebuildTests=0
-__BuildTestWrappers=0
+__BuildTestWrappers=1
 __GenerateLayoutOnly=
 __GenerateTestHostOnly=
 __priority1=

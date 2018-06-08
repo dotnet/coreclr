@@ -88,7 +88,8 @@ $(_XunitEpilog)
     <OutputType>Library</OutputType>
     <TargetFrameworkIdentifier Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">.NETFramework</TargetFrameworkIdentifier>
     <TargetFrameworkVersion Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">v4.5</TargetFrameworkVersion>
-    <NugetTargetMonikerShort Condition ="'$(BuildTestsAgainstPackages)' != 'true'">net45</NugetTargetMonikerShort>
+    <TargetFramework Condition="'$(BuildOS)' != 'Windows_NT'">netcoreapp2.0</TargetFramework>
+    <NugetTargetMonikerShort Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">net45</NugetTargetMonikerShort>
     <IsXunitWrapperProject>true</IsXunitWrapperProject>
     <SkipSigning>true</SkipSigning>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB}%3B{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -118,11 +119,6 @@ $(_XunitEpilog)
     </ProjectReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Runtime" />
-    <Reference Include="mscorlib" />
-  </ItemGroup>
   <Import Project="$(SourceDir)dir.targets" />
   <PropertyGroup>
     <OutDir>$(XunitTestBinBase)\$(CategoryWithSlash)\</OutDir>
@@ -329,7 +325,8 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
   <Target Name="GetListOfTestCmds">
     <ItemGroup>
-      <AllRunnableTestPaths Include="$(XunitTestBinBase)\**\*.cmd" />
+      <AllRunnableTestPaths Include="$(XunitTestBinBase)\**\*.cmd" Condition="'$(BuildOS)' == 'Windows_NT'" />
+      <AllRunnableTestPaths Include="$(XunitTestBinBase)\**\*.sh" Condition="'$(BuildOS)' != 'Windows_NT'" />
     </ItemGroup>
   </Target>
 
