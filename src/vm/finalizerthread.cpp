@@ -20,7 +20,7 @@
 BOOL FinalizerThread::fRunFinalizersOnUnload = FALSE;
 BOOL FinalizerThread::fQuitFinalizer = FALSE;
 
-#if defined(PLATFORM_UNIX) && defined(FEATURE_PAL)
+#if defined(FEATURE_PAL)
 #include "unixlowmem.h"
 
 #define LOWMEMORY_CHECK_TIMEOUT 100
@@ -474,7 +474,7 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             cEventsForWait,                           // # objects to wait on
             &(MHandles[uiEventIndexOffsetForWait]),   // array of objects to wait on
             FALSE,          // bWaitAll == FALSE, so wait for first signal
-#if defined (LOWMEMORY_CHECK_TIMEOUT)
+#ifdef LOWMEMORY_CHECK_TIMEOUT
             LOWMEMORY_CHECK_TIMEOUT,
 #else
             INFINITE,       // timeout
@@ -520,7 +520,7 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
                 GetFinalizerThread()->EnablePreemptiveGC();
             }
 #ifdef LINUX_HEAP_DUMP_TIME_OUT
-            if ((++uiTimeoutCounter > (LINUX_HEAP_DUMP_TIME_OUT / LOWMEMORY_CHECK_TIMEOUT))
+            if ((++uiTimeoutCounter >= (LINUX_HEAP_DUMP_TIME_OUT / LOWMEMORY_CHECK_TIMEOUT))
                 && g_TriggerHeapDump)
             {
                 return;

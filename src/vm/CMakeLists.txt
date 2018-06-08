@@ -489,14 +489,10 @@ if(CLR_CMAKE_PLATFORM_UNIX)
         ${ARCH_SOURCES_DIR}/unixstubs.cpp
         unixlowmem.cpp
     )
-endif(CLR_CMAKE_PLATFORM_UNIX)
-
-if(CLR_CMAKE_PLATFORM_UNIX)
     list(APPEND VM_SOURCES_WKS
         unixlowmem.cpp
     )
 endif(CLR_CMAKE_PLATFORM_UNIX)
-
 
 set(VM_SOURCES_DAC_ARCH
     gcinfodecoder.cpp
