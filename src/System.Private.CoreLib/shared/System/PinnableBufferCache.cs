@@ -13,11 +13,7 @@ using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 
-#if PINNABLEBUFFERCACHE_MSCORLIB
-namespace System.Threading
-#else
 namespace System
-#endif
 {
     internal sealed class PinnableBufferCache
     {
@@ -89,6 +85,7 @@ namespace System
             if (!m_FreeList.TryPop(out returnBuffer))
                 Restock(out returnBuffer);
 
+#if CORECLR || LOGGING
             // Computing free count is expensive enough that we don't want to compute it unless logging is on.
             if (PinnableBufferCacheEventSource.Log.IsEnabled())
             {
@@ -116,6 +113,7 @@ namespace System
 
                 PinnableBufferCacheEventSource.Log.AllocateBuffer(m_CacheName, PinnableBufferCacheEventSource.AddressOf(returnBuffer), returnBuffer.GetHashCode(), GC.GetGeneration(returnBuffer), m_FreeList.Count);
             }
+#endif
             return returnBuffer;
         }
 
@@ -435,11 +433,12 @@ namespace System
         /// A forced minimum number of buffers.
         /// </summary>
         private int m_minBufferCount;
+#if CORECLR || LOGGING
         /// <summary>
         /// The number of calls to Allocate.
         /// </summary>
         private int m_numAllocCalls;
-
+#endif
         #endregion
     }
 }
