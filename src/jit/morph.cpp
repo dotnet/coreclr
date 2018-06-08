@@ -4267,9 +4267,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
             // Build the mkrefany as a GT_FIELD_LIST
             GenTreeFieldList* fieldList = new (this, GT_FIELD_LIST)
-                GenTreeFieldList(argx->gtOp.gtOp1, OFFSETOF__CORINFO_RefAny__dataPtr, TYP_BYREF, nullptr);
+                GenTreeFieldList(argx->gtOp.gtOp1, OFFSETOF__CORINFO_TypedReference__dataPtr, TYP_BYREF, nullptr);
             (void)new (this, GT_FIELD_LIST)
-                GenTreeFieldList(argx->gtOp.gtOp2, OFFSETOF__CORINFO_RefAny__type, TYP_I_IMPL, fieldList);
+                GenTreeFieldList(argx->gtOp.gtOp2, OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL, fieldList);
             fgArgTabEntry* fp = Compiler::gtArgEntryByNode(call, argx);
             fp->node          = fieldList;
             args->gtOp.gtOp1  = fieldList;
@@ -4283,8 +4283,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
             // Build the mkrefany as a comma node:
             // (tmp.ptr=argx),(tmp.type=handle)
-            GenTreeLclFld* destPtrSlot  = gtNewLclFldNode(tmp, TYP_I_IMPL, OFFSETOF__CORINFO_RefAny__dataPtr);
-            GenTreeLclFld* destTypeSlot = gtNewLclFldNode(tmp, TYP_I_IMPL, OFFSETOF__CORINFO_RefAny__type);
+            GenTreeLclFld* destPtrSlot  = gtNewLclFldNode(tmp, TYP_I_IMPL, OFFSETOF__CORINFO_TypedReference__dataPtr);
+            GenTreeLclFld* destTypeSlot = gtNewLclFldNode(tmp, TYP_I_IMPL, OFFSETOF__CORINFO_TypedReference__type);
             destPtrSlot->gtFieldSeq     = GetFieldSeqStore()->CreateSingleton(GetRefanyDataField());
             destPtrSlot->gtFlags |= GTF_VAR_DEF;
             destTypeSlot->gtFieldSeq = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());

@@ -1269,11 +1269,11 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         destAddr =
             impCloneExpr(destAddr, &destAddrClone, structHnd, curLevel, pAfterStmt DEBUGARG("MKREFANY assignment"));
 
-        assert(OFFSETOF__CORINFO_RefAny__dataPtr == 0);
+        assert(OFFSETOF__CORINFO_TypedReference__dataPtr == 0);
         assert(destAddr->gtType == TYP_I_IMPL || destAddr->gtType == TYP_BYREF);
         GetZeroOffsetFieldMap()->Set(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
         GenTree*       ptrSlot         = gtNewOperNode(GT_IND, TYP_I_IMPL, destAddr);
-        GenTreeIntCon* typeFieldOffset = gtNewIconNode(OFFSETOF__CORINFO_RefAny__type, TYP_I_IMPL);
+        GenTreeIntCon* typeFieldOffset = gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL);
         typeFieldOffset->gtFieldSeq    = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());
         GenTree* typeSlot =
             gtNewOperNode(GT_IND, TYP_I_IMPL, gtNewOperNode(GT_ADD, destAddr->gtType, destAddrClone, typeFieldOffset));
@@ -14519,7 +14519,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     // Fetch the type from the correct slot
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                        gtNewIconNode(OFFSETOF__CORINFO_RefAny__type, TYP_I_IMPL));
+                                        gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL));
                     op1 = gtNewOperNode(GT_IND, TYP_BYREF, op1);
                 }
                 else
