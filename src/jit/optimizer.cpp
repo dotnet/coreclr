@@ -3996,113 +3996,139 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
             return false;
     }
 
-    struct BBExtractedData
+    struct BBExtractedInfo
     {
         BasicBlock*            bbOriginal;
         BasicBlock*            bbExtracted;
         jitstd::list<GenTree*> gtExtracted;
 
-        explicit BBExtractedData(BasicBlock* original, BasicBlock* bb, jitstd::list<GenTree*>&& gt)
+        explicit BBExtractedInfo(BasicBlock* original, BasicBlock* bb, jitstd::list<GenTree*>&& gt)
             : bbOriginal(original), bbExtracted(bb), gtExtracted(std::move(gt))
         {
         }
     };
 
-    jitstd::list<BBExtractedData> extracted(this->getAllocator());
-    for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
+    struct GTExtracedData
     {
-        BasicBlock*            bbExtracted = fgNewBasicBlock(bbCur->bbJumpKind);
-        jitstd::list<GenTree*> gtExtracted(this->getAllocator());
+        jitstd::list<GenTree*>* gtExtraced;
+        unsigned int            varNum;
+    };
 
-        if (!BasicBlock::CloneBlockState(this, bbExtracted, bbCur))
+    auto gtVisitor = [](GenTree** pTree, fgWalkData* data) -> fgWalkResult {
+        GenTree* tree = *pTree;
+
+        if (GenTreeLclVar* var = tree->AsLclVar())
         {
-            return false;
-        }
+            GTExtracedData* gtData = (GTExtracedData*)data->pCallbackData;
 
-        auto gtTreeVisitor = [](GenTree** pTree, fgWalkData* data) -> fgWalkResult {
-            GenTree* tree = *pTree;
-
-            if (GenTreeLclVar* var = tree->AsLclVar())
+            if (var->GetLclNum() == gtData->varNum)
             {
-                // data->pCallbackData has iterator LclVar. which will provided by fgWalkTree
-                // we are returning that
-                if (var->GetLclNum() == *(unsigned int*)data->pCallbackData)
+                // Get parent tree from matched local varaible.
+                gtData->gtExtraced->push_back(data->parent);
+            }
+        }
+        return fgWalkResult::WALK_CONTINUE;
+    };
+
+    jitstd::list<BBExtractedInfo> extracted(this->getAllocator());
+    for (unsigned int i = 0; i < newLoopBodyLimit; ++i)
+    {
+        for (BasicBlock* bbCur = bbBeg->bbNext;; bbCur = bbCur->bbNext)
+        {
+            BasicBlock*            bbExtracted = fgNewBasicBlock(bbCur->bbJumpKind);
+            jitstd::list<GenTree*> gtExtracted(this->getAllocator());
+
+            if (!BasicBlock::CloneBlockState(this, bbExtracted, bbCur))
+            {
+                return false;
+            }
+
+            for (GenTreeStmt* gtStmt = bbCur->bbTreeList->AsStmt(); gtStmt->gtNext != nullptr;
+                 gtStmt              = gtStmt->gtNext->AsStmt())
+            {
+                if (gtStmt == gtInit || gtStmt == gtIncr || gtStmt == gtTest)
                 {
-                    // Get parent tree from matched local varaible.
-                    *pTree = data->parentStack->Pop();
-                    return fgWalkResult::WALK_ABORT;
+                    continue;
                 }
-            }
-            return fgWalkResult::WALK_CONTINUE;
-        };
 
-        for (GenTreeStmt* gtStmt = bbCur->bbTreeList->AsStmt(); gtStmt->gtNext != nullptr;
-             gtStmt              = gtStmt->gtNext->AsStmt())
-        {
-            if (gtStmt == gtInit || gtStmt == gtIncr || gtStmt == gtTest)
+                GTExtracedData data;
+                data.gtExtraced = &gtExtracted;
+                data.varNum     = iterVar;
+                fgWalkTreePre(&gtStmt->gtStmtExpr, gtVisitor, &data, true, true);
+            }
+            extracted.push_back(BBExtractedInfo(bbCur, bbExtracted, std::move(gtExtracted)));
+
+            if (bbCur == bbEnd)
             {
-                continue;
+                // we've extracted original body blocks from loop
+                break;
             }
-
-            GenTree* gtWalked = gtStmt->gtStmtExpr;
-
-            fgWalkTreePre(&gtWalked, gtTreeVisitor, &iterVar, true, true);
-            if (gtWalked == nullptr)
-            {
-                continue;
-            }
-
-            gtExtracted.push_back(gtWalked);
-        }
-        extracted.push_back(BBExtractedData(bbCur, bbExtracted, std::move(gtExtracted)));
-
-        if (bbCur == bbEnd)
-        {
-            // we've extracted original body blocks from loop
-            break;
         }
     }
 
     BlockToBlockMap blockMap(getAllocator());
     BasicBlock*     bbInsertAfter = bbEnd;
-    for (unsigned int i = 0; i < newLoopBodyLimit; ++i)
+
+    unsigned int iter = iterBeg;
+    for (BBExtractedInfo& data : extracted)
     {
-        for (BBExtractedData& data : extracted)
+        if (iter != 0)
         {
-            if (i != 0)
+            for (GenTree* gtExpr : data.gtExtracted)
             {
-                for (GenTree* gtExpr : data.gtExtracted)
-                {
-                    GenTree* Op1 = gtExpr->gtGetOp1();
-                    GenTree* Op2 = gtExpr->gtGetOp2();
+                GenTree* Op1 = gtExpr->gtGetOp1();
 
-                    if (Op1->OperGet() != genTreeOps::GT_LCL_VAR)
-                    {
-                        std::swap(Op1, Op2);
-                    }
+                GenTree* newCns = gtNewIconNode(iter * newLoopBodyLimit, Op1->TypeGet());
+                GenTree* newAdd = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
 
-                    GenTree* newCns = gtNewIconNode(i * newLoopBodyLimit, Op1->TypeGet());
-                    GenTree* newAdd = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
-
-                    gtExpr->ReplaceOperand(&Op1, newAdd);
-                }
+                gtExpr->ReplaceOperand(&Op1, newAdd);
             }
-
-            BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(data.bbExtracted->bbJumpKind, bbInsertAfter, true);
-            if (!BasicBlock::CloneBlockState(this, bbNew, data.bbExtracted))
-            {
-                // clone Expr dosn't handle anything.
-                BasicBlock* oldBottomNext = bbInsertAfter->bbNext;
-                bbBeg->bbNext             = oldBottomNext;
-                oldBottomNext->bbPrev     = bbBeg;
-                optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
-
-                return false;
-            }
-
-            blockMap.Set(data.bbOriginal, bbNew);
         }
+
+        BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(data.bbExtracted->bbJumpKind, bbInsertAfter, true);
+        blockMap.Set(data.bbOriginal, bbNew);
+        if (!BasicBlock::CloneBlockState(this, bbNew, data.bbExtracted))
+        {
+            // clone Expr dosn't handle anything.
+            BasicBlock* oldBottomNext = bbInsertAfter->bbNext;
+            bbBeg->bbNext             = oldBottomNext;
+            oldBottomNext->bbPrev     = bbBeg;
+            optLoopTable[loopId].lpFlags |= LPFLG_DONT_UNROLL;
+
+            return false;
+        }
+
+        // Now redirect any branches within the newly-cloned iteration
+        for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
+        {
+            BasicBlock* bbNew = blockMap[bbCur];
+            optCopyBlkDest(bbCur, bbNew);
+            optRedirectBlock(bbNew, &blockMap);
+        }
+
+        switch (loopDesc.lpIterOper())
+        {
+            case genTreeOps::GT_ADD:
+                iter += iterInc;
+                break;
+
+            case genTreeOps::GT_SUB:
+                iter -= iterInc;
+                break;
+
+            default:
+                noway_assert(!"Unknown operator for constant loop iterator");
+                return false;
+        }
+
+        blockMap.Set(data.bbOriginal, bbNew);
     }
+
+    GenTree* incExpr = gtIncr->gtStmt.gtStmtExpr;
+
+    GenTree* cnsExpr = gtNewIconNode(newLoopBodyLimit, incExpr->TypeGet());
+    GenTree* newExpr = gtNewOperNode(genTreeOps::GT_MUL, incExpr->TypeGet(), cnsExpr, incExpr);
+    gtIncr->gtStmt.gtStmtExpr = newExpr;
 
     return true;
 }
