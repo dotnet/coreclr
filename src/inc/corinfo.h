@@ -1930,9 +1930,9 @@ struct CORINFO_VarArgInfo
 
 #define OFFSETOF__CORINFO_Array__length                   SIZEOF__CORINFO_Object
 #ifdef _TARGET_64BIT_
-#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */ + sizeof(unsigned) /* alignpad */)
+#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */ + sizeof(unsigned __int32) /* alignpad */)
 #else
-#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */)
+#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */)
 #endif
 
 #define OFFSETOF__CORINFO_RefArray__length                SIZEOF__CORINFO_Object
@@ -1941,7 +1941,7 @@ struct CORINFO_VarArgInfo
 #define OFFSETOF__CORINFO_RefAny__type                    (OFFSETOF__CORINFO_RefAny__dataPtr + TARGET_POINTER_SIZE /* dataPtr */)
 
 #define OFFSETOF__CORINFO_String__stringLen               SIZEOF__CORINFO_Object
-#define OFFSETOF__CORINFO_String__chars                   (OFFSETOF__CORINFO_String__stringLen + sizeof(unsigned) /* stringLen */)
+#define OFFSETOF__CORINFO_String__chars                   (OFFSETOF__CORINFO_String__stringLen + sizeof(unsigned __int32) /* stringLen */)
 
 enum CorInfoSecurityRuntimeChecks
 {
