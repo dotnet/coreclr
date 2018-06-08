@@ -38,8 +38,9 @@ namespace System.Diagnostics.Tracing
 
         internal void SetEventHandle(int eventID, IntPtr eventHandle)
         {
-            // NOTE: We don't take a lock here when re-sizing the table because the caller (NameInfo.GetOrCreateEventHandle) locks on this table before calling us.
-            // If this gets called outside of this path, then a lock is likely required to ensure that the data is not lost during concurrent re-size operations.
+            // Set operations must be serialized to ensure that re-size operations don't lose concurrent writes.
+            Debug.Assert(Monitor.IsEntered(this));
+
             if (eventID >= m_innerTable.Length)
             {
                 int newSize = m_innerTable.Length * 2;
