@@ -591,6 +591,42 @@ ULONG IncreaseScale(ULONG *rgulNum, ULONG ulPwr)
 }
 
 
+#define DECMAX 28
+FCIMPL1(INT32, COMDecimal::GetHashCode, DECIMAL *d)
+{
+    FCALL_CONTRACT;
+
+    ENSURE_OLEAUT32_LOADED();
+
+    _ASSERTE(d != NULL);
+    if (DECIMAL_SCALE(*d) > DECMAX || (DECIMAL_SIGN(*d) & ~DECIMAL_NEG) != 0)
+        return 0;
+
+    // perform accurate scale to highest decimal scale possible
+    ULONG rgulNum[3];
+    rgulNum[0] = DECIMAL_LO32(*d);
+    rgulNum[1] = DECIMAL_MID32(*d);
+    rgulNum[2] = DECIMAL_HI32(*d);
+
+    int inc = DECMAX - DECIMAL_SCALE(*d);
+    if (inc > 9) {
+        IncreaseScale(rgulNum, rgulPower10[9]);
+        inc -= 9;
+    }
+    if (inc > 9) {
+        IncreaseScale(rgulNum, rgulPower10[9]);
+        inc -= 9;
+    }
+    if (inc > 9) {
+        IncreaseScale(rgulNum, rgulPower10[9]);
+        inc -= 9;
+    }
+    IncreaseScale(rgulNum, rgulPower10[inc]);
+    return rgulNum[2] ^ rgulNum[1] ^ rgulNum[0] ^ DECIMAL_SIGN(*d);
+}
+FCIMPLEND
+
+
 /***
 * SearchScale
 *
