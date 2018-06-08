@@ -1926,6 +1926,23 @@ struct CORINFO_VarArgInfo
 
 #include <poppack.h>
 
+#define SIZEOF__CORINFO_Object                            TARGET_POINTER_SIZE /* methTable */
+
+#define OFFSETOF__CORINFO_Array__length                   SIZEOF__CORINFO_Object
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */ + sizeof(unsigned) /* alignpad */)
+#else
+#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */)
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+#define OFFSETOF__CORINFO_RefArray__length                SIZEOF__CORINFO_Object
+
+#define OFFSETOF__CORINFO_RefAny__dataPtr                 SIZEOF__CORINFO_Object
+#define OFFSETOF__CORINFO_RefAny__type                    (OFFSETOF__CORINFO_RefAny__dataPtr + TARGET_POINTER_SIZE /* dataPtr */)
+
+#define OFFSETOF__CORINFO_String__stringLen               SIZEOF__CORINFO_Object
+#define OFFSETOF__CORINFO_String__chars                   (OFFSETOF__CORINFO_String__stringLen + sizeof(unsigned) /* stringLen */)
+
 enum CorInfoSecurityRuntimeChecks
 {
     CORINFO_ACCESS_SECURITY_NONE                          = 0,
