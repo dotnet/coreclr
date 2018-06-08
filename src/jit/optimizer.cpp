@@ -3495,7 +3495,6 @@ void Compiler::optUnrollLoops()
 
         bool       enablePartialUnroll = false;
         bool       dupCond;
-        int        lval;
         int        lbeg;         // initial value for iterator
         int        llim;         // limit value for iterator
         unsigned   lvar;         // iterator lclVar #
