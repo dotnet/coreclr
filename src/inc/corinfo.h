@@ -1929,11 +1929,11 @@ struct CORINFO_VarArgInfo
 #define SIZEOF__CORINFO_Object                            TARGET_POINTER_SIZE /* methTable */
 
 #define OFFSETOF__CORINFO_Array__length                   SIZEOF__CORINFO_Object
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#ifdef _TARGET_64BIT_
 #define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */ + sizeof(unsigned) /* alignpad */)
 #else
 #define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned) /* length */)
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#endif
 
 #define OFFSETOF__CORINFO_RefArray__length                SIZEOF__CORINFO_Object
 
