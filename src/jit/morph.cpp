@@ -5762,12 +5762,12 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     }
     else if (tree->gtFlags & GTF_INX_REFARR_LAYOUT)
     {
-        lenOffs  = OFFSETOF__CORINFO_RefArray__length;
+        lenOffs  = OFFSETOF__CORINFO_Array__length;
         elemOffs = eeGetEEInfo()->offsetOfObjArrayData;
     }
     else // We have a standard array
     {
-        lenOffs  = OFFSETOF__CORINFO_RefArray__length;
+        lenOffs  = OFFSETOF__CORINFO_Array__length;
         elemOffs = OFFSETOF__CORINFO_Array__data;
     }
 

@@ -1935,8 +1935,6 @@ struct CORINFO_VarArgInfo
 #define OFFSETOF__CORINFO_Array__data                     (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */)
 #endif
 
-#define OFFSETOF__CORINFO_RefArray__length                SIZEOF__CORINFO_Object
-
 #define OFFSETOF__CORINFO_RefAny__dataPtr                 SIZEOF__CORINFO_Object
 #define OFFSETOF__CORINFO_RefAny__type                    (OFFSETOF__CORINFO_RefAny__dataPtr + TARGET_POINTER_SIZE /* dataPtr */)
 
