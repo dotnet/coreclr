@@ -42,10 +42,6 @@ namespace System.Diagnostics.Tracing
         internal readonly int identity;
         internal readonly byte[] nameMetadata;
 
-#if FEATURE_PERFTRACING
-        private readonly object eventHandleCreationLock = new object();
-#endif
-
         public NameInfo(string name, EventTags tags, int typeMetadataSize)
         {
             this.name = name;
@@ -87,7 +83,7 @@ namespace System.Diagnostics.Tracing
             IntPtr eventHandle;
             if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
-                lock (eventHandleCreationLock)
+                lock (eventHandleTable)
                 {
                     if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
                     {

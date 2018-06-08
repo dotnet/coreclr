@@ -14,7 +14,6 @@ namespace System.Diagnostics.Tracing
     {
         private const int DefaultLength = 10;
         private IntPtr[] m_innerTable;
-        private object m_innerTableUpdateLock = new object();
 
         internal TraceLoggingEventHandleTable()
         {
@@ -39,23 +38,22 @@ namespace System.Diagnostics.Tracing
 
         internal void SetEventHandle(int eventID, IntPtr eventHandle)
         {
-            lock (m_innerTableUpdateLock)
+            // NOTE: We don't take a lock here when re-sizing the table because the caller (NameInfo.GetOrCreateEventHandle) locks on this table before calling us.
+            // If this gets called outside of this path, then a lock is likely required to ensure that the data is not lost during concurrent re-size operations.
+            if (eventID >= m_innerTable.Length)
             {
-                if (eventID >= m_innerTable.Length)
+                int newSize = m_innerTable.Length * 2;
+                if (newSize <= eventID)
                 {
-                    int newSize = m_innerTable.Length * 2;
-                    if (newSize <= eventID)
-                    {
-                        newSize = eventID + 1;
-                    }
-
-                    IntPtr[] newTable = new IntPtr[newSize];
-                    Array.Copy(m_innerTable, 0, newTable, 0, m_innerTable.Length);
-                    Volatile.Write(ref m_innerTable, newTable);
+                    newSize = eventID + 1;
                 }
 
-                m_innerTable[eventID] = eventHandle;
+                IntPtr[] newTable = new IntPtr[newSize];
+                Array.Copy(m_innerTable, 0, newTable, 0, m_innerTable.Length);
+                Volatile.Write(ref m_innerTable, newTable);
             }
+
+            m_innerTable[eventID] = eventHandle;
         }
     }
 #endif
