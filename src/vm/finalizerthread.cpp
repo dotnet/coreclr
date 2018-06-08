@@ -428,6 +428,9 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
 
     while (1)
     {
+        bool bLowMem = false;
+        bool bHeapDump = false;
+
         // WaitForMultipleObjects will wait on the event handles in MHandles
         // starting at this offset
         UINT uiEventIndexOffsetForWait = 0;
@@ -486,20 +489,7 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             + uiEventIndexOffsetForWait)
         {
         case (WAIT_OBJECT_0 + kLowMemoryNotification):
-            //short on memory GC immediately
-            GetFinalizerThread()->DisablePreemptiveGC();
-            GCHeapUtilities::GetGCHeap()->GarbageCollect(0, true);
-            GetFinalizerThread()->EnablePreemptiveGC();
-            //wait only on the event for 2s
-            switch (event->Wait(2000, FALSE))
-            {
-            case (WAIT_OBJECT_0):
-                return;
-            case (WAIT_ABANDONED):
-                return;
-            case (WAIT_TIMEOUT):
-                break;
-            }
+            bLowMem = true;
             break;
         case (WAIT_OBJECT_0 + kFinalizer):
             return;
@@ -515,15 +505,13 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             if (UnixLowMemoryDetector::IsLowMemory())
             {
                 // low memory detected on unix: GC immediately
-                GetFinalizerThread()->DisablePreemptiveGC();
-                GCHeapUtilities::GetGCHeap()->GarbageCollect(0, true);
-                GetFinalizerThread()->EnablePreemptiveGC();
+                bLowMem = true;
             }
 #ifdef LINUX_HEAP_DUMP_TIME_OUT
             if ((++uiTimeoutCounter >= (LINUX_HEAP_DUMP_TIME_OUT / LOWMEMORY_CHECK_TIMEOUT))
                 && g_TriggerHeapDump)
             {
-                return;
+                bHeapDump = true;
             }
 #endif // LINUX_HEAP_DUMP_TIME_OUT
             break;
@@ -532,6 +520,28 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             //what's wrong?
             
             _ASSERTE (!"Bad return code from WaitForMultipleObjects");
+            return;
+        }
+
+        if (bLowMem)
+        {
+            //short on memory GC immediately
+            GetFinalizerThread()->DisablePreemptiveGC();
+            GCHeapUtilities::GetGCHeap()->GarbageCollect(0, true);
+            GetFinalizerThread()->EnablePreemptiveGC();
+            //wait only on the event for 2s
+            switch (event->Wait(2000, FALSE))
+            {
+            case (WAIT_OBJECT_0):
+                return;
+            case (WAIT_ABANDONED):
+                return;
+            case (WAIT_TIMEOUT):
+                break;
+            }
+        }
+        if (bHeapDump)
+        {
             return;
         }
     }
