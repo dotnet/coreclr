@@ -409,19 +409,21 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
 
   <Target Name="SetupTestingHost"  AfterTargets="CreateTestOverlay" Condition="'$(CreateTestHost)' != 'false'">
 
-    <PropertyGroup>
-      <HostFxrFileName Condition="'$(OSGroup)'=='Windows_NT'">hostfxr</HostFxrFileName>
-      <HostFxrFileName Condition="'$(OSGroup)'!='Windows_NT'">libhostfxr</HostFxrFileName>
+    <PropertyGroup Condition="'$(OSGroup)'=='Windows_NT'">
+      <HostFxrFileName>hostfxr</HostFxrFileName>
+      <DotnetExecutableName>dotnet.exe</DotnetExecutableName>
     </PropertyGroup>
     
+    <PropertyGroup Condition="'$(OSGroup)'!='Windows_NT'">
+      <HostFxrFileName >libhostfxr</HostFxrFileName>
+      <DotnetExecutableName>dotnet</DotnetExecutableName>      
+    </PropertyGroup>
+
     <ItemGroup>
       <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" />
-      <DotnetCLIFiles Include="$(ToolsDir)\dotnetcli\**\*" />
-      <HostFxFile Include="@(DotnetCLIFiles)" Condition="'%(DotnetCLIFiles.Filename)' == '$(HostFxrFileName)'" />
-      <DotnetExe Include="@(DotnetCLIFiles)" Condition="'%(DotnetCLIFiles.Filename)%(DotnetCLIFiles.Extension)' == 'dotnet.exe'" />   
-      <HostPolicyFile Include="@(DotnetCLIFiles)" Condition="'%(DotnetCLIFiles.Filename)' == 'hostpolicy'" />
-      <CoreCLRDLL Include="@(CoreCLRBinaries)" Condition="'%(CoreCLRBinaries.Filename)' == 'coreclr'" />      
-      <Message Text="Set hostfxfile to @(HostFxFile)" />
+      <HostFxFile Include="$(ToolsDir)\dotnetcli\**\$(HostFxrFileName).dll"/>
+      <DotnetExe Include="$(ToolsDir)\dotnetcli\$(DotnetExecutableName)" />   
+      <HostPolicyFile Include="$(ToolsDir)\dotnetcli\**\hostpolicy.dll"/>
     </ItemGroup>
 
     <Copy SourceFiles="@(HostFxFile)"
