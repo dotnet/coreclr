@@ -84,8 +84,8 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
         public IntPtr GetOrCreateEventHandle(EventProvider provider, TraceLoggingEventHandleTable eventHandleTable, EventDescriptor descriptor, TraceLoggingEventTypes eventTypes)
         {
-            IntPtr eventHandle = IntPtr.Zero;
-            if((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
+            IntPtr eventHandle;
+            if ((eventHandle = eventHandleTable[descriptor.EventId]) == IntPtr.Zero)
             {
                 lock (eventHandleCreationLock)
                 {

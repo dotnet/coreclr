@@ -1,7 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-using System.Runtime.CompilerServices;
+
 using System.Threading;
 
 namespace System.Diagnostics.Tracing
@@ -14,7 +14,6 @@ namespace System.Diagnostics.Tracing
     {
         private const int DefaultLength = 10;
         private IntPtr[] m_innerTable;
-        private object m_innerTableUpdateLock = new object();
 
         internal TraceLoggingEventHandleTable()
         {
@@ -50,7 +49,7 @@ namespace System.Diagnostics.Tracing
                 }
 
                 IntPtr[] newTable = new IntPtr[newSize];
-                Array.Copy(m_innerTable, newTable, m_innerTable.Length);
+                Array.Copy(m_innerTable, 0, newTable, 0, m_innerTable.Length);
                 Volatile.Write(ref m_innerTable, newTable);
             }
 

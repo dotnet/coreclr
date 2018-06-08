@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
 #endif
 
 #if FEATURE_PERFTRACING
-        private TraceLoggingEventHandleTable m_eventHandleTable = new TraceLoggingEventHandleTable();
+        private readonly TraceLoggingEventHandleTable m_eventHandleTable = new TraceLoggingEventHandleTable();
 #endif
 
         /// <summary>
