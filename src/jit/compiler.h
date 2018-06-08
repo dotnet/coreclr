@@ -1328,7 +1328,7 @@ public:
     // A struct arg must be one of the following:
     // - A node of struct type,
     // - A GT_FIELD_LIST, or
-    // - A GT_LCL_FLD node of a scalar type, passed in a single register or slot
+    // - A node of a scalar type, passed in a single register or slot
     //   (or two slots in the case of a struct pass on the stack as TYP_DOUBLE).
     //
     void checkIsStruct()
@@ -1337,7 +1337,6 @@ public:
         {
             if (!varTypeIsStruct(node) && !node->OperIs(GT_FIELD_LIST))
             {
-                assert(node->OperIs(GT_LCL_FLD));
                 // This is the case where we are passing a struct as a primitive type.
                 // On most targets, this is always a single register or slot.
                 // However, on ARM this could be two slots if it is TYP_DOUBLE.
