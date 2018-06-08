@@ -10,7 +10,8 @@
     <RootNamespace>Coreclr.TestWrapper</RootNamespace>
     <AssemblyName>Coreclr.TestWrapper</AssemblyName>
     <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion Condition ="'$(BuildOS)' == 'Windows_NT'">v4.5</TargetFrameworkVersion>
+    <TargetFramework Condition="'$(BuildOS)' != 'Windows_NT'">netcoreapp2.0</TargetFramework>
     <SkipSigning>true</SkipSigning>
     <CLRTestKind>BuildOnly</CLRTestKind>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
