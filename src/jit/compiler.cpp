@@ -782,11 +782,12 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         // We can't pass this as a primitive type.
     }
-    else if (structDesc.passedInRegisters && varTypeIsFloating(GetEightByteType(structDesc, 0)))
+    else if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
     {
         // If this is passed as a floating type, use that.
         // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
-        // directly, because it won't preserve small types.
+        // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
+        // we need to preserve small types.
         useType = GetEightByteType(structDesc, 0);
     }
     else

@@ -3611,11 +3611,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     if ((howToPassStruct == SPK_PrimitiveType) && // Passed in a single register
                         !isPow2(originalSize))                    // size is 3,5,6 or 7 bytes
                     {
-                        // if (argObj->gtObj.gtOp1->IsVarAddr()) // Is the source a LclVar?
-                        {
-                            // For ARM64 we pass structs that are 3,5,6,7 bytes in size in registers.
-                            originalSize = genTypeSize(structBaseType);
-                        }
+                        originalSize = genTypeSize(structBaseType);
                     }
 #endif //  _TARGET_ARM64_ || UNIX_AMD64_ABI
 
@@ -3857,7 +3853,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                             size = roundupSize / TARGET_POINTER_SIZE; // Normalize size to number of pointer sized items
                         }
                     }
-#endif
+#endif // UNIX_AMD64_ABI
                 }
 
 #if defined(_TARGET_64BIT_)
@@ -4132,7 +4128,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #ifdef FEATURE_HFA
                 if (!passUsingFloatRegs)
                 {
-                    // Note on Arm32 a HFA is passed in int regs for varargs
+                    // Note on ARM and ARM64 Windows, an HFA is passed in int regs for varargs
                     hfaType = TYP_UNDEF;
                 }
                 newArgEntry->setHfaType(hfaType, hfaSlots);

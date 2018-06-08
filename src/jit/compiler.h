@@ -1141,8 +1141,7 @@ struct fgArgTabEntry
 
 private:
     regNumberSmall regNums[MAX_ARG_REG_COUNT]; // The registers to use when passing this argument, set to REG_STK for
-                                               // arguments passed on
-                                               // the stack
+                                               // arguments passed on the stack
 public:
     unsigned numRegs; // Count of number of registers that this argument uses.
                       // Note that on ARM, if we have a double hfa, this reflects the number
@@ -1329,7 +1328,8 @@ public:
     // A struct arg must be one of the following:
     // - A node of struct type,
     // - A GT_FIELD_LIST, or
-    // - A node of a scalar type, passed in a single register or slot
+    // - A GT_LCL_FLD node of a scalar type, passed in a single register or slot
+    //   (or two slots in the case of a struct pass on the stack as TYP_DOUBLE).
     //
     void checkIsStruct()
     {
@@ -1337,7 +1337,21 @@ public:
         {
             if (!varTypeIsStruct(node) && !node->OperIs(GT_FIELD_LIST))
             {
-                assert((numRegs == 1) || ((numRegs == 0) && (numSlots == 1)));
+                assert(node->OperIs(GT_LCL_FLD));
+                // This is the case where we are passing a struct as a primitive type.
+                // On most targets, this is always a single register or slot.
+                // However, on ARM this could be two slots if it is TYP_DOUBLE.
+                bool isPassedAsPrimitiveType = ((numRegs == 1) || ((numRegs == 0) && (numSlots == 1)));
+#ifdef _TARGET_ARM_
+                if (!isPassedAsPrimitiveType)
+                {
+                    if (node->TypeGet() == TYP_DOUBLE && numRegs == 0 && (numSlots == 2))
+                    {
+                        isPassedAsPrimitiveType = true;
+                    }
+                }
+#endif // _TARGET_ARM_
+                assert(isPassedAsPrimitiveType);
             }
         }
         else
