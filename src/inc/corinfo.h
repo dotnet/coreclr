@@ -1930,9 +1930,9 @@ struct CORINFO_VarArgInfo
 
 #define OFFSETOF__CORINFO_Array__length                   SIZEOF__CORINFO_Object
 #ifdef _TARGET_64BIT_
-#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */ + sizeof(unsigned __int32) /* alignpad */)
+#define OFFSETOF__CORINFO_Array__data                     (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */ + sizeof(unsigned __int32) /* alignpad */)
 #else
-#define OFFSETOF__CORINFO_Array__u1Elems                  (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */)
+#define OFFSETOF__CORINFO_Array__data                     (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */)
 #endif
 
 #define OFFSETOF__CORINFO_RefArray__length                SIZEOF__CORINFO_Object

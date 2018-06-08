@@ -2204,7 +2204,7 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
         GenTreeBoundsChk* arrBndsChk = new (this, GT_ARR_BOUNDS_CHECK)
             GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, checkIndexExpr, arrLen, SCK_RNGCHK_FAIL);
 
-        offset += OFFSETOF__CORINFO_Array__u1Elems;
+        offset += OFFSETOF__CORINFO_Array__data;
         byrefNode = gtNewOperNode(GT_COMMA, arrayRef->TypeGet(), arrBndsChk, gtCloneExpr(arrayRef));
     }
     else
@@ -2681,7 +2681,7 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 // TODO-Cleanup: Though it happens to just work fine front-end phases are not aware of GT_LEA node.
                 // Therefore, convert these to use GT_ADDR .
                 copyBlkDst = new (this, GT_LEA)
-                    GenTreeAddrMode(TYP_BYREF, op2, op3, genTypeSize(baseType), OFFSETOF__CORINFO_Array__u1Elems);
+                    GenTreeAddrMode(TYP_BYREF, op2, op3, genTypeSize(baseType), OFFSETOF__CORINFO_Array__data);
                 doCopyBlk = true;
             }
         }

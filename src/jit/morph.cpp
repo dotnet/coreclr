@@ -5768,7 +5768,7 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     else // We have a standard array
     {
         lenOffs  = OFFSETOF__CORINFO_RefArray__length;
-        elemOffs = OFFSETOF__CORINFO_Array__u1Elems;
+        elemOffs = OFFSETOF__CORINFO_Array__data;
     }
 
     // In minopts, we expand GT_INDEX to GT_IND(GT_INDEX_ADDR) in order to minimize the size of the IR. As minopts
