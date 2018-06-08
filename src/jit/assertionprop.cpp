@@ -4701,6 +4701,9 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     relop->SetOper(evalsToTrue ? GT_EQ : GT_NE);
     relop->gtVNPair = ValueNumPair(vnLib, vnCns);
 
+    // Insert side effects back after they were removed from the JTrue stmt.
+    // It is important not to allow duplicates exist in the IR, that why we delete
+    // these side effects from the JTrue stmt before insert them back here.
     while (sideEffList != nullptr)
     {
         GenTree* newStmt;
@@ -4714,7 +4717,8 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
             newStmt     = fgInsertStmtNearEnd(block, sideEffList);
             sideEffList = nullptr;
         }
-
+        // fgMorphBlockStmt could potentially affect stmts after the current one,
+        // for example when it decides to fgRemoveRestOfBlock.
         fgMorphBlockStmt(block, newStmt->AsStmt() DEBUGARG(__FUNCTION__));
     }
 
