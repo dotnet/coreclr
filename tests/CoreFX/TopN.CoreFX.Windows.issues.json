@@ -1,47 +1,2018 @@
 [
     {
-        "name": "System.Collections.Tests",
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": [
-                {
-                    "name": "System.Collections.Tests.SortedList_Generic_Tests_string_string.ICollection_Generic_Remove_DefaultValueContainedInCollection",
-                    "reason": "Exclusion Sample"
-                }
-            ]
-        }
+      "name": "Common.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
     },
     {
-        "name": "System.Runtime.Extensions.Tests",
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": []
-        }
+      "name": "Microsoft.Win32.Registry.AccessControl.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
     },
     {
-        "name": "System.Runtime.Tests",
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": []
-        }
+      "name": "Microsoft.Win32.Registry.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
     },
     {
-        "name": "System.Threading.Tasks.Tests",
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": []
-        }
+      "name": "Microsoft.Win32.SystemEvents.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
     },
     {
-        "name": "System.Threading.Tests",
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": []
-        }
+      "name": "System.Console.Manual.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.Odbc.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.EventLog.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.PerformanceCounter.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Process.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.TraceSource.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Tracing.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.DirectoryServices.AccountManagement.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.DirectoryServices.Protocols.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.DirectoryServices.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Compression.Brotli.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Compression.Brotli.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Compression.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.AccessControl.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.Watcher.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.IsolatedStorage.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Pipes.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Linq.Expressions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Management.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Http.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.NameResolution.Pal.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.NameResolution.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Primitives.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Primitives.Pal.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Primitives.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Primitives.UnitTests.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Security.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Security.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebSockets.Client.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.TypeExtensions.CoreCLR.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Caching.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.InteropServices.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.InteropServices.WindowsRuntime.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Algorithms.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Cng.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Csp.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Pkcs.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.X509Certificates.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ServiceProcess.ServiceController.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.Axes.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.Properties.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.SDMSample.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.Streaming.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.TreeManipulation.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.xNodeBuilder.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.xNodeReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Schema.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XPath.XDocument.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Console.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.SqlClient.Stress.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.SqlClient.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.FileVersionInfo.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.DriveInfo.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.MemoryMappedFiles.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.MemoryMappedFiles.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Pipes.AccessControl.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Ports.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Http.WinHttpHandler.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Http.WinHttpHandler.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.HttpListener.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.NameResolution.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Ping.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Sockets.Async.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.InteropServices.RuntimeInformation.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.AccessControl.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Encoding.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.ProtectedData.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Principal.Windows.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.AccessControl.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Common.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Invariant.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Microsoft.CSharp.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Microsoft.XmlSerializer.Generator.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Concurrent.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Concurrent.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Immutable.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.NonGeneric.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.Annotations.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.Composition.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.TypeConverter.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.TypeConverter.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.Convention.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Console.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.Common.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Debug.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Process.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Drawing.Common.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Drawing.Primitives.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Globalization.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Globalization.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Compression.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Compression.ZipFile.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Pipelines.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.UnmanagedMemoryStream.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Json.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Linq.Parallel.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Linq.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Linq.Queryable.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Linq.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Memory.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Memory.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Http.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Http.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Mail.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.ServicePoint.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Sockets.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Sockets.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebSockets.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebSockets.WebSocketProtocol.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Numerics.Vectors.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Numerics.Vectors.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ObjectModel.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.CoreCLR.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.DispatchProxy.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Emit.ILGeneration.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Emit.Lightweight.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Emit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Metadata.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.TypeExtensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Extensions.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Loader.DefaultContext.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Loader.RefEmitLoadContext.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Loader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Numerics.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Numerics.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Json.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Xml.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Primitives.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Primitives.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Cryptography.Xml.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ServiceModel.Syndication.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.Encoding.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.Encoding.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.RegularExpressions.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.RegularExpressions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Channels.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tasks.Extensions.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tasks.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tasks.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Thread.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.ThreadPool.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ValueTuple.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.Misc.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlDocument.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlSerializer.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Xsl.XslCompiledTransformApi.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "XsltCompiler.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Canonicalization.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "CoreFx.Private.TestUtilities.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Microsoft.VisualBasic.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "Microsoft.Win32.Primitives.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.AppContext.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Buffers.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.CodeDom.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.NonGeneric.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Collections.Specialized.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.EventBasedAsync.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.Primitives.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.ComponentModel.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.AttributeModel.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.Hosting.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.Runtime.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Composition.TypedParts.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Configuration.ConfigurationManager.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.DataSetExtensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Data.SqlClient.ManualTesting.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Contracts.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.DiagnosticSource.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.StackTrace.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.TextWriterTraceListener.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Diagnostics.Tools.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Dynamic.Runtime.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Globalization.Calendars.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Globalization.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.FileSystem.Primitives.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Packaging.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.IO.Pipes.Performance.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Mail.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.NetworkInformation.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.Requests.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebClient.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebHeaderCollection.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Net.WebProxy.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Private.Uri.ExtendedFunctional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Private.Uri.Functional.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Private.Uri.Unit.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Context.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Reflection.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Resources.Reader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Resources.ResourceManager.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Resources.Writer.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.CompilerServices.Unsafe.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.CompilerServices.VisualC.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Handles.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Formatters.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Json.ReflectionOnly.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Json.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Xml.ReflectionOnly.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Runtime.Serialization.Xml.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Claims.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.Permissions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Security.SecureString.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.Encoding.CodePages.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.Encoding.Extensions.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Text.Encodings.Web.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Channels.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Overlapped.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tasks.Dataflow.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Tasks.Parallel.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Threading.Timer.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Transactions.Local.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Web.HttpUtility.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Linq.Events.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Misc.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.CharCheckingReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.CustomReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.FactoryReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.NameTable.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.ReaderSettings.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.RwFactory.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.SubtreeReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.WrappedReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlConvert.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlReader.ReadContentAs.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlReader.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlSystemPathResolver.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlWriter.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.RW.XmlWriterApi.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlDocument.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlSchema.XmlSchemaValidatorApi.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlSchemaSet.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlSerializer.ReflectionOnly.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XmlSerializer.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XPath.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.XPath.XmlDocument.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
+    },
+    {
+      "name": "System.Xml.Xsl.XslTransformApi.Tests",
+      "exclusions": {
+        "namespaces": null,
+        "classes": null,
+        "methods": null
+      }
     }
-]
+  ]
