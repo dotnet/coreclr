@@ -1744,7 +1744,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'corefx_innerloop':
                             if (configuration == 'Release') {
-                            Utilities.addGithubPRTrigger(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")                                
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")                                
                             }
                             break
 
