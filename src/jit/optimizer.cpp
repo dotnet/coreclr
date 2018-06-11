@@ -4050,9 +4050,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                     GenTree* Op1 = extracted->gtGetOp1();
                     GenTree* Op2 = extracted->gtGetOp2IfPresent();
 
-                    // LCL_VAR is usually on second operand in binaryOp. but its on first operand if its not
-                    // we are swapping Op1 and Op2 if its not reversed op. so Op1 is target LCL_VAR
-                    if (extracted->OperIsBinary())
+                    if (Op2 != nullptr)
                     {
                         if (!extracted->IsReverseOp())
                         {
@@ -4083,7 +4081,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
         // LCL_VAR is usually on second operand in binaryOp. but its on first operand if its not
         // we are swapping Op1 and Op2 if its not reversed op. so Op1 is target LCL_VAR
-        if (incExpr->OperIsBinary())
+        if (Op2 != nullptr)
         {
             if (!incExpr->IsReverseOp())
             {
