@@ -4091,11 +4091,18 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
             }
         }
 
+        if (Op1->OperGet() == genTreeOps::GT_CNS_INT)
+        {
+            GenTreeIntCon* cnsInt = Op1->AsIntCon();
+            cnsInt->SetIconValue(cnsInt->IconValue() * newLoopBodyLimit);
+
+            continue;
+        }
+
         GenTree* cnsExpr = gtNewIconNode(newLoopBodyLimit, Op1->TypeGet());
         GenTree* newExpr = gtNewOperNode(genTreeOps::GT_MUL, Op1->TypeGet(), cnsExpr, Op1);
         incExpr->ReplaceOperand(&Op1, newExpr);
     }
-    
 
 #ifdef DEBUG
     if (verbose)
