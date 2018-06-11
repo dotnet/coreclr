@@ -2358,7 +2358,7 @@ namespace System.Text
             // Calling GetBytesUnknown can adjust the pSrc pointer but we need to pass the pointer before the adjustment
             // to fallback.InternalFallback. The input pSrc to fallback.InternalFallback will only be used to calculate the
             // index inside bytesUnknown and if we pass the adjusted pointer we can end up with negative index values.
-            // we store the original pSrc in pOriginalSrc and then pass pOriginalSrc to fallback.InternalFallback
+            // We store the original pSrc in pOriginalSrc and then pass pOriginalSrc to fallback.InternalFallback.
             byte* pOriginalSrc = pSrc;
 
             // Get our byte[]
