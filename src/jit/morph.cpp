@@ -2747,9 +2747,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         // Note that some targets like Arm64 Unix should not need much work as
         // the ABI is the same. While other targets may only need small changes
         // such as amd64 Unix, which just expects RAX to pass numFPArguments.
-        NYI("Morhing Vararg call not yet implemented on non Windows targets.");
+        NYI("Morphing Vararg call not yet implemented on non Windows targets.");
     }
-#endif
+#endif // _TARGET_UNIX_
 
 #ifdef UNIX_AMD64_ABI
     // If fgMakeOutgoingStructArgCopy is called and copies are generated, hasStackArgCopy is set
