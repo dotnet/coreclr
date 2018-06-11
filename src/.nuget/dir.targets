@@ -41,14 +41,14 @@
 
     <ItemGroup>
       <!-- The symbols for these files are already in place together with respective *.ni.pdb -->
-      <IlForCrossGenedFie Include="@(CrossGenBinary -> '%(RootDir)%(Directory)IL\%(Filename).dll')">
+      <IlForCrossGenedFile Include="@(CrossGenBinary -> '%(RootDir)%(Directory)IL\%(Filename).dll')">
         <TargetPath>runtimes/$(PackageTargetRuntime)/il</TargetPath>
-      </IlForCrossGenedFie>
+      </IlForCrossGenedFile>
     </ItemGroup>
 
     <ItemGroup>
       <File Include="@(NativeWithSymbolFile)" />
-      <File Include="@(LongNameFile);@(IlForCrossGenedFie)">
+      <File Include="@(LongNameFile);@(IlForCrossGenedFile)">
         <IsSymbolFile>true</IsSymbolFile>
       </File>
     </ItemGroup>
