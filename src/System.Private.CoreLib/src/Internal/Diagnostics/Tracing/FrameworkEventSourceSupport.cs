@@ -13,13 +13,10 @@ namespace Internal.Diagnostics.Tracing
     //
     public static class FrameworkEventSourceSupport
     {
-        public static bool IsEnabled
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsEnabled(EventLevel level, EventKeywords keywords)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer);
-            }
+            return FrameworkEventSource.Log.IsEnabled(level, keywords);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
