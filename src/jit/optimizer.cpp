@@ -4022,11 +4022,6 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         // all extracted trees contains iterVar will be modified as partial threshold.
         for (GenTree* gtStmt = bbCur->bbTreeList; gtStmt->gtNext != nullptr; gtStmt = gtStmt->gtNext)
         {
-            if (gtStmt->OperGet() != genTreeOps::GT_STMT)
-            {
-                continue;
-            }
-
             if (gtStmt == gtInit || gtStmt == gtIncr || gtStmt == gtTest)
             {
                 continue;
