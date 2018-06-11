@@ -4020,9 +4020,13 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     {
         // Extract all tree's parent of that includes iterVar(which is LoopDsc::lpIterVar())
         // all extracted trees contains iterVar will be modified as partial threshold.
-        for (GenTree* gtStmt = bbCur->bbTreeList->AsStmt(); gtStmt->gtNext != nullptr; gtStmt = gtStmt->gtNext)
+        for (GenTree* gtStmt = bbCur->bbTreeList; gtStmt->gtNext != nullptr; gtStmt = gtStmt->gtNext)
         {
-            GenTree* gtExpr = gtStmt->AsStmt()->gtStmtExpr;
+            if (gtStmt->OperGet() != genTreeOps::GT_STMT)
+            {
+                continue;
+            }
+
             if (gtStmt == gtInit || gtStmt == gtIncr || gtStmt == gtTest)
             {
                 continue;
@@ -4034,13 +4038,12 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
             {
                 jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
 
-                GenTree* gtClonedExpr = gtCloneExpr(gtExpr);
-                GenTree* gtClonedStmt = fgNewStmtFromTree(gtClonedExpr);
+                GenTree* gtClonedStmt = gtCloneExpr(gtStmt);
 
                 GTExtractData data;
                 data.varExtracted = &gtExtracted;
                 data.varId        = iterVar;
-                fgWalkTreePre(&gtClonedExpr, gtVisitor, &data, true, true);
+                fgWalkTreePre(&gtClonedStmt, gtVisitor, &data, true, true);
 
                 // insert stmt after current.
                 gtStmt = fgInsertStmtAfter(bbCur, gtStmt, gtClonedStmt);
@@ -4050,7 +4053,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                     GenTree* Op1 = extracted->gtGetOp1();
                     GenTree* Op2 = extracted->gtGetOp2IfPresent();
 
-                    if (Op2 != nullptr)
+                    if (extracted->OperIsBinary())
                     {
                         if (!extracted->IsReverseOp())
                         {
@@ -4081,7 +4084,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
         // LCL_VAR is usually on second operand in binaryOp. but its on first operand if its not
         // we are swapping Op1 and Op2 if its not reversed op. so Op1 is target LCL_VAR
-        if (Op2 != nullptr)
+        if (incExpr->OperIsBinary())
         {
             if (!incExpr->IsReverseOp())
             {
@@ -4091,8 +4094,8 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
         if (Op1->OperGet() == genTreeOps::GT_CNS_INT)
         {
-            GenTreeIntCon* cnsInt = Op1->AsIntCon();
-            cnsInt->SetIconValue(cnsInt->IconValue() * newLoopBodyLimit);
+            GenTreeIntCon& cnsInt = Op1->gtIntCon;
+            cnsInt.SetIconValue(cnsInt.IconValue() * newLoopBodyLimit);
 
             continue;
         }
