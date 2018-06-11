@@ -7,7 +7,7 @@ using System.Globalization;
 
 namespace Internal.Resources
 {
-    // This is implemented in System.Runtime.WindowsRuntime as function System.Resources.WindowsRuntimeResourceManager,
+    // This is implemented in System.Runtime.WindowsRuntime as System.Resources.WindowsRuntimeResourceManager,
     // allowing us to ask for a WinRT-specific ResourceManager.
     public abstract class WindowsRuntimeResourceManagerBase
     {
