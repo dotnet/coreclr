@@ -155,7 +155,7 @@
     },
     {
       "environment": {},
-      "enabled": true,
+      "enabled": false,
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Sign Packages",
