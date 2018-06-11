@@ -1527,7 +1527,7 @@ BEGIN
 
     IDS_EE_WRONG_METADATA_VERSION           "'%1' has an incompatible metadata format. The assembly must be compiled using metadata format '%2'."
     IDS_CLASSLOAD_COLLECTIBLEFIXEDVTATTR   "Collectible type '%1' has unsupported FixedAddressValueTypeAttribute applied to a field."
-    IDS_EE_JIT_COMPILER_ERROR               "The JIT Compiler encountered invalid IL code."
+    IDS_EE_JIT_COMPILER_ERROR               "The Just-In-Time compiler encountered invalid IL code."
     IDS_EE_OBJECT_TO_VARIANT_NOT_SUPPORTED  "Invalid managed/unmanaged type combination (Marshaling to and from COM VARIANTs isn't supported)."
     IDS_EE_OBJECT_TO_ITF_NOT_SUPPORTED      "Invalid managed/unmanaged type combination (Marshaling to and from COM interface pointers isn't supported)."
 
