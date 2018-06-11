@@ -201,7 +201,7 @@ namespace System.Threading
                 MethodInfo createMethodInfo = factoryType.GetMethod("Create", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
                 createSynchronizationContextDelegate = (Func<object, SynchronizationContext>)Delegate.CreateDelegate(typeof(Func<object, SynchronizationContext>), createMethodInfo, /* throwOnBindFailure */ true);
 
-                Interlocked.CompareExchange(ref s_createSynchronizationContextDelegate, createSynchronizationContextDelegate, null);
+                s_createSynchronizationContextDelegate = createSynchronizationContextDelegate;
             }
 
             return s_createSynchronizationContextDelegate(dispatcher);
