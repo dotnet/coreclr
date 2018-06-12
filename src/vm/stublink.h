@@ -411,11 +411,11 @@ private:
 
         // Writes out the code element into memory following the
         // stub object.
-        bool EmitStub(Stub* pStub, int globalsize);
+        bool EmitStub(Stub* pStub, int globalsize, LoaderHeap* pHeap);
 
         CodeRun *GetLastCodeRunIfAny();
 
-        bool EmitUnwindInfo(Stub* pStub, int globalsize);
+        bool EmitUnwindInfo(Stub* pStub, int globalsize, LoaderHeap* pHeap);
 
 #if defined(_TARGET_AMD64_) && defined(STUBLINKER_GENERATES_UNWIND_INFO)
         UNWIND_CODE *AllocUnwindInfo (UCHAR Op, UCHAR nExtraSlots = 0);
