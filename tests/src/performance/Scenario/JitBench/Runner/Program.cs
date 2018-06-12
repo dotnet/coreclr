@@ -168,15 +168,15 @@ namespace JitBench
             string r2rEnv = Environment.GetEnvironmentVariable("COMPLUS_ReadyToRun");
             string ngenEnv = Environment.GetEnvironmentVariable("COMPLUS_ZapDisable");
             BenchmarkConfiguration envConfig = new BenchmarkConfiguration();
-            if(tieredEnv != null && tieredEnv != "0")
+            if(tieredEnv != null && tieredEnv == "0")
             {
-                envConfig.WithTiering();
+                envConfig.WithoutTiering();
             }
             if (minoptsEnv != null && minoptsEnv != "0")
             {
                 envConfig.WithMinOpts();
             }
-            if(r2rEnv != null && r2rEnv != "1")
+            if(r2rEnv != null && r2rEnv == "0")
             {
                 envConfig.WithNoR2R();
             }
@@ -199,10 +199,10 @@ namespace JitBench
             BenchmarkConfiguration[] possibleConfigs = new BenchmarkConfiguration[]
             {
                 new BenchmarkConfiguration(),
-                new BenchmarkConfiguration().WithTiering(),
-                new BenchmarkConfiguration().WithMinOpts(),
-                new BenchmarkConfiguration().WithNoR2R(),
-                new BenchmarkConfiguration().WithNoNgen()
+                new BenchmarkConfiguration().WithoutTiering(),
+                new BenchmarkConfiguration().WithoutTiering().WithMinOpts(),
+                new BenchmarkConfiguration().WithoutTiering().WithNoR2R(),
+                new BenchmarkConfiguration().WithoutTiering().WithNoNgen()
             };
             foreach(string configName in configNames)
             {
