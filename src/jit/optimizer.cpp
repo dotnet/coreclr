@@ -3886,7 +3886,7 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         }
 
         // Now redirect any branches within the newly-cloned iteration
-        for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
+        for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd; bbCur = bbCur->bbNext)
         {
             BasicBlock* bbNew = bbMap[bbCur];
             optCopyBlkDest(bbCur, bbNew);
