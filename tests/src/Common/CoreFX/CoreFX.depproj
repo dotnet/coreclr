@@ -2,63 +2,133 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
-         This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
-    -->
-    <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
-    <Language>C#</Language>
-    <NugetTargetMoniker>.NETCoreApp,Version=v2.0</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netcoreapp2.0</NugetTargetMonikerShort>
-    <ContainsPackageReferences>true</ContainsPackageReferences>
-    <CLRTestKind>SharedLibrary</CLRTestKind>
-    <IsTestProject>false</IsTestProject>
-
-    <FxTestUtilVer>4.6.0-preview1-26604-03</FxTestUtilVer>
-    <MXNEVer>2.2.0-preview1-02902-01</MXNEVer>
+      <RestoreOutputPath>$(SourceDir)Common\CoreFX\obj</RestoreOutputPath>
+      <Language>C#</Language>
+      <NugetTargetMoniker>.NETCoreApp,Version=v2.0</NugetTargetMoniker>
+      <NugetTargetMonikerShort>netcoreapp2.0</NugetTargetMonikerShort>
+      <ContainsPackageReferences>true</ContainsPackageReferences>
+      <CLRTestKind>SharedLibrary</CLRTestKind>
+      <IsTestProject>false</IsTestProject>
+      <!-- System.Composition and System.Composition.AttributedModel use different versioning conventions -->
+      <SystemCompositionVersions>1.3.0-preview3-26501-04</SystemCompositionVersions>
+      <CoreFxTestUtilsVersion>4.6.0-preview1-26604-03</CoreFxTestUtilsVersion>
+      <XUnitNetcoreExtensionsVersion>2.2.0-preview1-02902-01</XUnitNetcoreExtensionsVersion>
+      <!-- Xunit Abstractions is differently versioned then the rest of XUnit -->
+      <XUnitAbstractionsVersion>2.0.1</XUnitAbstractionsVersion>
   </PropertyGroup>
 
-      <!-- Switch RuntimeIdentifier according to currently running OSGroup -->
-    <PropertyGroup>
-        <RuntimeIdentifier Condition="'$(OSGroup)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
-        <RuntimeIdentifier Condition="'$(OSGroup)' == 'Linux'">linux-x64</RuntimeIdentifier>
-        <RuntimeIdentifier Condition="'$(OSGroup)' == 'OSX'">osx-x64</RuntimeIdentifier>
-        <NugetRuntimeIdentifier>$(RuntimeIdentifier)</NugetRuntimeIdentifier>
-    </PropertyGroup>
+  <!-- Switch RuntimeIdentifier according to currently running OSGroup -->
+  <PropertyGroup>
+      <RuntimeIdentifier Condition="'$(OSGroup)' == 'Windows_NT'">win-x64</RuntimeIdentifier>
+      <RuntimeIdentifier Condition="'$(OSGroup)' == 'Linux'">linux-x64</RuntimeIdentifier>
+      <RuntimeIdentifier Condition="'$(OSGroup)' == 'OSX'">osx-x64</RuntimeIdentifier>
+      <NugetRuntimeIdentifier>$(RuntimeIdentifier)</NugetRuntimeIdentifier>
+  </PropertyGroup>
 
   <ItemGroup>
+
+    <PackageReference Include="xunit.core">
+      <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="xunit.assert">
+      <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="xunit.abstractions">
+      <Version>$(XUnitAbstractionsVersion)</Version>
+    </PackageReference>
     <PackageReference Include="xunit.extensibility.core">
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
+    <PackageReference Include="xunit.extensibility.execution">
+      <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>    
+    <PackageReference Include="xunit.runner.utility">
+      <Version>$(XunitPackageVersion)</Version>
+    </PackageReference>
     <PackageReference Include="microsoft.xunit.netcore.extensions">
-      <Version>$(MXNEVer)</Version>
+      <Version>$(XUnitNetcoreExtensionsVersion)</Version>
     </PackageReference>
     <PackageReference Include="CoreFx.Private.TestUtilities">
-        <Version>$(FxTestUtilVer)</Version>
+      <Version>$(CoreFxTestUtilsVersion)</Version>
     </PackageReference>
-    <PackageReference Include="xunit.core">
-        <Version>$(XunitPackageVersion)</Version>
+    <PackageReference Include="System.Security.Cryptography.Xml">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
-    <PackageReference Include="xunit.assert">
-        <Version>$(XunitPackageVersion)</Version>
+    <PackageReference Include="System.CodeDom">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Management">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.Odbc">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.DirectoryServices">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.DirectoryServices.Protocols">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.ServiceProcess.ServiceController">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.IO.Packaging">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.IO.Pipelines">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.SqlClient">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Net.WebSockets.WebSocketProtocol">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.Caching">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Text.Encoding.CodePages">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.Pkcs">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.ServiceModel.Syndication">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Net.Http.WinHttpHandler">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Configuration.ConfigurationManager">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Composition.Hosting">
+      <Version>$(SystemCompositionVersions)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Composition.AttributedModel">
+      <Version>$(SystemCompositionVersions)</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup Condition="'$(OSGroup)' == 'Windows_NT'">
+    <!-- Windows Dependencies -->
+    <PackageReference Include="Microsoft.Win32.Registry.AccessControl">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Win32.SystemEvents">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageToInclude Include="xunit.abstractions"/>
-    <PackageToInclude Include="xunit.assert"/>
-    <PackageToInclude Include="xunit.extensibility.core"/>
-    <PackageToInclude Include="xunit.extensibility.execution"/>
-    <PackageToInclude Include="xunit.runner.utility"/>
-    <PackageToInclude Include="CoreFx.Private.TestUtilities"/>
-    <PackageToInclude Include="microsoft.xunit.netcore.extensions" />
+    <PackageToInclude Include="@(PackageReference -> '%(Identity)' )"/>
   </ItemGroup>
-
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
-
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\CoreFX\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
-
 </Project>

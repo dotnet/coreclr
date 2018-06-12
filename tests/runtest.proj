@@ -423,9 +423,15 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     </PropertyGroup>
     
     <ItemGroup>
-      <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" />
+      <!-- Workaround for packages on which Microsoft.NetCoreApp expresses a dependency 
+      The <PackageToInclude> element doesn't allow a version to be specified and we end up with clashing assembly versions in Core_Root-->
+      <NetCoreAppPackagedAssemblies Include="System.Text.Encoding.CodePages.dll"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" Exclude="$(CORE_ROOT)\**\@(NetCoreAppPackagedAssemblies -> '%(Identity)' )" />
       <HostFxFile Include="$(ToolsDir)\dotnetcli\**\$(HostFxrFileName).$(HostFxrFileExtension)" />
-      <DotnetExe Include="$(ToolsDir)\dotnetcli\$(DotnetExecutableName)" />   
+      <DotnetExe Include="$(ToolsDir)\dotnetcli\$(DotnetExecutableName)" />
       <HostPolicyFile Include="$(ToolsDir)\dotnetcli\**\hostpolicy.dll" />
     </ItemGroup>
 
