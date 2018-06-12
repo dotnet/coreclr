@@ -4470,6 +4470,11 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
                             (void**)&codeBlock, (void**)&coldCodeBlock, (void**)&consBlock);
 #endif
 
+    if (emitTotalColdCodeSize != 0)
+    {
+        assert(codeBlock + emitTotalHotCodeSize == coldCodeBlock);
+    }
+
     // if (emitConsDsc.dsdOffs)
     //     printf("Cons=%08X\n", consBlock);
 
