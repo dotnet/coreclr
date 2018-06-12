@@ -45,6 +45,13 @@
       <Visible>false</Visible>
     </AssemblyMetadata>
   </ItemGroup>
+  <!-- Platform specific properties -->
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <BaseAddress>0x180000000</BaseAddress>
+    <DefineConstants>BIT64;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Platform)' == 'x86'">
     <PlatformTarget>x86</PlatformTarget>
     <BaseAddress>0x10000000</BaseAddress>
