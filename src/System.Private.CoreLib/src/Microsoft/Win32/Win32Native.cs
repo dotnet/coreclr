@@ -130,8 +130,6 @@ namespace Microsoft.Win32
                                                            KEY_CREATE_SUB_KEY)
                                                           &
                                                           (~SYNCHRONIZE));
-        internal const int KEY_WOW64_64KEY = 0x0100;     //
-        internal const int KEY_WOW64_32KEY = 0x0200;     //
         internal const int REG_OPTION_NON_VOLATILE = 0x0000;     // (default) keys are persisted beyond reboot/unload
         internal const int REG_OPTION_VOLATILE = 0x0001;     // All keys created by the function are volatile
         internal const int REG_OPTION_CREATE_LINK = 0x0002;     // They key is a symbolic link
@@ -174,9 +172,6 @@ namespace Microsoft.Win32
         // CreateEventEx: flags
         internal const uint CREATE_EVENT_MANUAL_RESET = 0x1;
         internal const uint CREATE_EVENT_INITIAL_SET = 0x2;
-
-        // CreateMutexEx: flags
-        internal const uint CREATE_MUTEX_INITIAL_OWNER = 0x1;
 
         internal const int LMEM_FIXED = 0x0000;
         internal const int LMEM_ZEROINIT = 0x0040;
@@ -310,15 +305,6 @@ namespace Microsoft.Win32
 
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal static extern SafeWaitHandle OpenEvent(uint desiredAccess, bool inheritHandle, string name);
-
-        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle CreateMutexEx(SECURITY_ATTRIBUTES lpSecurityAttributes, string name, uint flags, uint desiredAccess);
-
-        [DllImport(Interop.Libraries.Kernel32, SetLastError = true, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal static extern SafeWaitHandle OpenMutex(uint desiredAccess, bool inheritHandle, string name);
-
-        [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
-        internal static extern bool ReleaseMutex(SafeWaitHandle handle);
 
         [DllImport(Interop.Libraries.Kernel32, SetLastError = true)]
         internal static extern bool CloseHandle(IntPtr handle);

@@ -1043,7 +1043,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // There is no difference between a null and empty HSTRING
             if (hstring == IntPtr.Zero)
             {
-                return String.Empty;
+                return string.Empty;
             }
 
             unsafe
@@ -1072,7 +1072,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 e = new Exception(message);
             }
 
-            e.SetErrorCode(hresult);
+            e.HResult = hresult;
             return e;
         }
 
@@ -1256,7 +1256,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public static String PtrToStringHString(IntPtr ptr)
+        public static string PtrToStringHString(IntPtr ptr)
         {
             if (!Environment.IsWinRTSupported)
             {

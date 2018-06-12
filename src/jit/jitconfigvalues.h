@@ -141,10 +141,12 @@ CONFIG_INTEGER(TailcallStress, W("TailcallStress"), 0)
 CONFIG_INTEGER(TreesBeforeAfterMorph, W("JitDumpBeforeAfterMorph"), 0) // If 1, display each tree before/after morphing
 CONFIG_METHODSET(JitBreak, W("JitBreak")) // Stops in the importer when compiling a specified method
 CONFIG_METHODSET(JitDebugBreak, W("JitDebugBreak"))
-CONFIG_METHODSET(JitDisasm, W("JitDisasm")) // Dumps disassembly for specified method
-CONFIG_METHODSET(JitDump, W("JitDump"))     // Dumps trees for specified method
-CONFIG_METHODSET(JitDumpIR, W("JitDumpIR")) // Dumps trees (in linear IR form) for specified method
-CONFIG_METHODSET(JitEHDump, W("JitEHDump")) // Dump the EH table for the method, as reported to the VM
+CONFIG_METHODSET(JitDisasm, W("JitDisasm"))                  // Dumps disassembly for specified method
+CONFIG_STRING(JitDisasmAssemblies, W("JitDisasmAssemblies")) // Only show JitDisasm and related info for methods
+                                                             // from this semicolon-delimited list of assemblies.
+CONFIG_METHODSET(JitDump, W("JitDump"))                      // Dumps trees for specified method
+CONFIG_METHODSET(JitDumpIR, W("JitDumpIR"))                  // Dumps trees (in linear IR form) for specified method
+CONFIG_METHODSET(JitEHDump, W("JitEHDump"))                  // Dump the EH table for the method, as reported to the VM
 CONFIG_METHODSET(JitExclude, W("JitExclude"))
 CONFIG_METHODSET(JitForceProcedureSplitting, W("JitForceProcedureSplitting"))
 CONFIG_METHODSET(JitGCDump, W("JitGCDump"))
@@ -263,10 +265,9 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #endif // !defined(DEBUG) && !defined(_DEBUG)
 
 // It was originally intended that JitMinOptsTrackGCrefs only be enabled for amd64 on CoreCLR. A mistake was
-// made, and it was enabled for x86 as well. However, it doesn't currently work with x86 legacy back-end, so
-// disable it for that. Whether it should continue to be enabled for x86 non-legacy-backend should be investigated.
+// made, and it was enabled for x86 as well. Whether it should continue to be enabled for x86 should be investigated.
 // This is tracked by issue https://github.com/dotnet/coreclr/issues/12415.
-#if (defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && !defined(LEGACY_BACKEND))
+#if (defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)) || defined(_TARGET_X86_)
 #define JitMinOptsTrackGCrefs_Default 0 // Not tracking GC refs in MinOpts is new behavior
 #else
 #define JitMinOptsTrackGCrefs_Default 1
@@ -303,8 +304,7 @@ CONFIG_METHODSET(JitOptRepeat, W("JitOptRepeat"))            // Runs optimizer m
 CONFIG_INTEGER(JitOptRepeatCount, W("JitOptRepeatCount"), 2) // Number of times to repeat opts when repeating
 #endif                                                       // defined(OPT_CONFIG)
 
-CONFIG_INTEGER(JitRegisterFP, W("JitRegisterFP"), 3) // Control FP enregistration
-CONFIG_INTEGER(JitTelemetry, W("JitTelemetry"), 1)   // If non-zero, gather JIT telemetry data
+CONFIG_INTEGER(JitTelemetry, W("JitTelemetry"), 1) // If non-zero, gather JIT telemetry data
 
 // Max # of MapSelect's considered for a particular top-level invocation.
 CONFIG_INTEGER(JitVNMapSelBudget, W("JitVNMapSelBudget"), DEFAULT_MAP_SELECT_BUDGET)

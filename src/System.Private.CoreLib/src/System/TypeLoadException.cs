@@ -32,19 +32,19 @@ namespace System
             HResult = HResults.COR_E_TYPELOAD;
         }
 
-        public TypeLoadException(String message)
+        public TypeLoadException(string message)
             : base(message)
         {
             HResult = HResults.COR_E_TYPELOAD;
         }
 
-        public TypeLoadException(String message, Exception inner)
+        public TypeLoadException(string message, Exception inner)
             : base(message, inner)
         {
             HResult = HResults.COR_E_TYPELOAD;
         }
 
-        public override String Message
+        public override string Message
         {
             get
             {
@@ -68,28 +68,28 @@ namespace System
                     if (ClassName == null)
                         ClassName = SR.IO_UnknownFileName;
 
-                    String format = null;
+                    string format = null;
                     GetTypeLoadExceptionMessage(ResourceId, JitHelpers.GetStringHandleOnStack(ref format));
-                    _message = String.Format(CultureInfo.CurrentCulture, format, ClassName, AssemblyName, MessageArg);
+                    _message = string.Format(CultureInfo.CurrentCulture, format, ClassName, AssemblyName, MessageArg);
                 }
             }
         }
 
-        public String TypeName
+        public string TypeName
         {
             get
             {
                 if (ClassName == null)
-                    return String.Empty;
+                    return string.Empty;
 
                 return ClassName;
             }
         }
 
         // This is called from inside the EE. 
-        private TypeLoadException(String className,
-                                  String assemblyName,
-                                  String messageArg,
+        private TypeLoadException(string className,
+                                  string assemblyName,
+                                  string messageArg,
                                   int resourceId)
         : base(null)
         {
@@ -127,9 +127,9 @@ namespace System
         // If ClassName != null, GetMessage will construct on the fly using it
         // and ResourceId (mscorrc.dll). This allows customization of the
         // class name format depending on the language environment.
-        private String ClassName;
-        private String AssemblyName;
-        private String MessageArg;
+        private string ClassName;
+        private string AssemblyName;
+        private string MessageArg;
         internal int ResourceId;
     }
 }

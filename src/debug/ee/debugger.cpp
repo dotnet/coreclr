@@ -1306,7 +1306,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ULONG cApparant = 0;
+    ULONG cApparent = 0;
     ULONG cOfficial = 0;
 
     if (NULL != m_pcEntries)
@@ -1320,7 +1320,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
                dcp->pFD != (MethodDesc*)0xcdcdcdcd &&
                dcp->mi != NULL)
             {
-                cApparant++;
+                cApparent++;
 
                 _ASSERTE( dcp->pFD == dcp->mi->m_fd );
                 LOG((LF_CORDB, LL_INFO1000, "DMIT::CDT:Entry:0x%p mi:0x%p\nPrevs:\n",
@@ -3221,10 +3221,7 @@ CodeRegionInfo CodeRegionInfo::GetCodeRegionInfo(DebuggerJitInfo *dji, MethodDes
 
         if (addr)
         {
-            PCODE pCode = (PCODE)dac_cast<TADDR>(addr);
-#ifdef _TARGET_ARM_
-            pCode |= THUMB_CODE;
-#endif
+            PCODE pCode = PINSTRToPCODE(dac_cast<TADDR>(addr));
             codeRegionInfo.InitializeFromStartAddress(pCode);
         }
 
@@ -3447,10 +3444,10 @@ void Debugger::getBoundaries(MethodDesc * md,
     {
         // We don't look up PDBs for mscorlib.  This is not quite right, but avoids
         // a bootstrapping problem.  When an EXE loads, it has the option of setting
-        // the COM appartment model to STA if we need to.  It is important that no
+        // the COM apartment model to STA if we need to.  It is important that no
         // other Coinitialize happens before this.  Since loading the PDB reader uses
         // com we can not come first.  However managed code IS run before the COM
-        // appartment model is set, and thus we have a problem since this code is
+        // apartment model is set, and thus we have a problem since this code is
         // called for when JITTing managed code.    We avoid the problem by just
         // bailing for mscorlib.
         return;
@@ -11118,7 +11115,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
                     pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
-                                                               (TADDR)pEvent->SetIP.startAddress);
+                                                               PINSTRToPCODE((TADDR)pEvent->SetIP.startAddress));
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))
@@ -12965,7 +12962,7 @@ BOOL EnCSequencePointHelper::ShouldSetRemapBreakpoint(unsigned int offsetIndex)
 
 //-----------------------------------------------------------------------------
 // For each function that's EnC-ed, the EE will call either UpdateFunction
-// (if the function already is loaded + jitted) or Addfunction
+// (if the function already is loaded + jitted) or AddFunction
 // 
 // This is called before the EE updates the MethodDesc, so pMD does not yet
 // point to the version we'll be remapping to.
@@ -13034,8 +13031,6 @@ HRESULT Debugger::UpdateFunction(MethodDesc* pMD, SIZE_T encVersion)
     // We only place the patches if we have jit info for this
     // function, i.e., its already been jitted. Otherwise, the EE will
     // pickup the new method on the next JIT anyway.
-
-    ICorDebugInfo::SourceTypes src;
 
     EnCSequencePointHelper sequencePointHelper(pJitInfo);
 
@@ -13720,6 +13715,10 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
     SPEW(fprintf(stderr, "0x%x D::FCHF: code=0x%08x, addr=0x%08x, Eip=0x%08x, Esp=0x%08x, EFlags=0x%08x\n",
         tid, pExceptionRecord->ExceptionCode, pExceptionRecord->ExceptionAddress, pContext->Eip, pContext->Esp,
         pContext->EFlags));
+#elif defined(_TARGET_ARM64_)
+    SPEW(fprintf(stderr, "0x%x D::FCHF: code=0x%08x, addr=0x%08x, Pc=0x%p, Sp=0x%p, EFlags=0x%08x\n",
+        tid, pExceptionRecord->ExceptionCode, pExceptionRecord->ExceptionAddress, pContext->Pc, pContext->Sp,
+        pContext->EFlags));
 #endif
 
     // This memory is used as IPC during the hijack. We will place a pointer to this in
@@ -13829,7 +13828,7 @@ LONG Debugger::FirstChanceSuspendHijackWorker(CONTEXT *pContext,
     }
 } 
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 void GenericHijackFuncHelper()
 {
 #if DOSPEW
@@ -13970,7 +13969,7 @@ void Debugger::SignalHijackStarted(void)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     SignalHijackStartedFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -13987,7 +13986,7 @@ void Debugger::ExceptionForRuntimeHandoffStart(void)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     ExceptionForRuntimeHandoffStartFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -14005,7 +14004,7 @@ void Debugger::ExceptionForRuntimeHandoffComplete(void)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     ExceptionForRuntimeHandoffCompleteFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -14021,7 +14020,7 @@ void Debugger::SignalHijackComplete(void)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     SignalHijackCompleteFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -14037,7 +14036,7 @@ void Debugger::ExceptionNotForRuntime(void)
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     ExceptionNotForRuntimeFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -14053,7 +14052,7 @@ void Debugger::NotifyRightSideOfSyncComplete(void)
 {
     WRAPPER_NO_CONTRACT;
     STRESS_LOG0(LF_CORDB, LL_INFO100000, "D::NRSOSC: Sending flare...\n");
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if defined(FEATURE_INTEROP_DEBUGGING)
     NotifyRightSideOfSyncCompleteFlare();
 #else
     _ASSERTE(!"@todo - port the flares to the platform your running on.");
@@ -15099,7 +15098,7 @@ HRESULT Debugger::TerminateAppDomainIPC(void)
     m_pAppDomainCB->m_iNumOfUsedSlots = 0;
     m_pAppDomainCB->m_iTotalSlots = 0;
 
-    // Now delete the memory alloacted for AppDomainInfo  array
+    // Now delete the memory allocated for AppDomainInfo  array
     delete [] m_pAppDomainCB->m_rgListOfAppDomains;
     m_pAppDomainCB->m_rgListOfAppDomains = NULL;
 

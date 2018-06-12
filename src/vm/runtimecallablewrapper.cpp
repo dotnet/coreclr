@@ -188,7 +188,7 @@ IUnknown *ComClassFactory::CreateInstanceFromClassFactory(IClassFactory *pClassF
                 {
                     // It's illegal for our helper to return a non-null bstrKey
                     // when the context is design-time. But we'll try to do the
-                    // right thing anway.
+                    // right thing anyway.
                     _ASSERTE(!"We're not supposed to get here, but we'll try to cope anyway.");
                     SysFreeString(bstrKey);
                     bstrKey = NULL;
@@ -914,7 +914,6 @@ void WinRTClassFactory::Init()
         // being binary breaking).
         // Note that we just ignore activation attributes if they occur on the wrong type of class
         LPCSTR attributeName;
-        UINT numExpectedParams;
         if (IsComposition())
         {
             attributeName = g_WindowsFoundationComposableAttributeClassName;

@@ -88,15 +88,12 @@ namespace System.Threading
 
         private static SafeWaitHandle CreateSemaphore(int initialCount, int maximumCount, string name)
         {
+#if !PLATFORM_WINDOWS
             if (name != null)
             {
-#if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-#else
-                if (name.Length > Interop.Kernel32.MAX_PATH)
-                    throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
-#endif
             }
+#endif
 
             Debug.Assert(initialCount >= 0);
             Debug.Assert(maximumCount >= 1);
@@ -128,15 +125,11 @@ namespace System.Threading
 
         private static OpenExistingResult OpenExistingWorker(string name, out Semaphore result)
         {
-#if PLATFORM_UNIX
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-#else
+#if PLATFORM_WINDOWS
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            if (name.Length > Interop.Kernel32.MAX_PATH)
-                throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, name, Interop.Kernel32.MAX_PATH), nameof(name));
 
             //Pass false to OpenSemaphore to prevent inheritedHandles
             SafeWaitHandle myHandle = Win32Native.OpenSemaphore(AccessRights, false, name);
@@ -159,7 +152,9 @@ namespace System.Threading
 
             result = new Semaphore(myHandle);
             return OpenExistingResult.Success;
-#endif   
+#else
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
+#endif
         }
 
         public int Release()

@@ -184,7 +184,7 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        public override void Emit(OpCode opcode, String str)
+        public override void Emit(OpCode opcode, string str)
         {
             if (str == null)
                 throw new ArgumentNullException(nameof(str));
@@ -216,8 +216,6 @@ namespace System.Reflection.Emit
             sig = GetMemberRefSignature(callingConvention,
                                         returnType,
                                         parameterTypes,
-                                        null,
-                                        null,
                                         optionalParameterTypes);
 
             EnsureCapacity(7);
@@ -416,7 +414,7 @@ namespace System.Reflection.Emit
         // debugger related calls. 
         //
         //
-        public override void UsingNamespace(String ns)
+        public override void UsingNamespace(string ns)
         {
             throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
@@ -442,6 +440,8 @@ namespace System.Reflection.Emit
 
         private int GetMemberRefToken(MethodBase methodInfo, Type[] optionalParameterTypes)
         {
+            Type[] parameterTypes;
+
             if (optionalParameterTypes != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
 
@@ -451,17 +451,21 @@ namespace System.Reflection.Emit
             if (rtMeth == null && dm == null)
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
-            SignatureHelper.ExtractParametersTypeArrays(
-                methodInfo.GetParametersNoCopy(),
-                out Type[] parameterTypes,
-                out Type[][] parameterTypeRequiredCustomModifiers,
-                out Type[][] parameterTypeOptionalCustomModifiers);
+            ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
+            if (paramInfo != null && paramInfo.Length != 0)
+            {
+                parameterTypes = new Type[paramInfo.Length];
+                for (int i = 0; i < paramInfo.Length; i++)
+                    parameterTypes[i] = paramInfo[i].ParameterType;
+            }
+            else
+            {
+                parameterTypes = null;
+            }
 
             SignatureHelper sig = GetMemberRefSignature(methodInfo.CallingConvention,
                                                      MethodBuilder.GetMethodBaseReturnType(methodInfo),
                                                      parameterTypes,
-                                                     parameterTypeRequiredCustomModifiers,
-                                                     parameterTypeOptionalCustomModifiers,
                                                      optionalParameterTypes);
 
             if (rtMeth != null)
@@ -474,24 +478,13 @@ namespace System.Reflection.Emit
                                                 CallingConventions call,
                                                 Type returnType,
                                                 Type[] parameterTypes,
-                                                Type[][] parameterTypeRequiredCustomModifiers,
-                                                Type[][] parameterTypeOptionalCustomModifiers,
                                                 Type[] optionalParameterTypes)
         {
             SignatureHelper sig = SignatureHelper.GetMethodSigHelper(call, returnType);
-
-            Debug.Assert(parameterTypeRequiredCustomModifiers == null
-                     || (parameterTypeRequiredCustomModifiers.Length == (parameterTypes?.Length ?? 0)));
-
-            Debug.Assert(parameterTypeOptionalCustomModifiers == null
-                     || (parameterTypeOptionalCustomModifiers.Length == (parameterTypes?.Length ?? 0)));
-
             if (parameterTypes != null)
             {
-                for (int i = 0; i < parameterTypes.Length; i++)
-                {
-                    sig.AddArgument(parameterTypes[i], parameterTypeRequiredCustomModifiers?[i], parameterTypeOptionalCustomModifiers?[i]);
-                }
+                foreach (Type t in parameterTypes)
+                    sig.AddArgument(t);
             }
             if (optionalParameterTypes != null && optionalParameterTypes.Length != 0)
             {
@@ -561,7 +554,7 @@ namespace System.Reflection.Emit
             return m_scope.GetTokenFor(varArgMeth);
         }
 
-        private int GetTokenForString(String s)
+        private int GetTokenForString(string s)
         {
             return m_scope.GetTokenFor(s);
         }
@@ -792,7 +785,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        internal override String GetStringLiteral(int token) { return m_scope.GetString(token); }
+        internal override string GetStringLiteral(int token) { return m_scope.GetString(token); }
 
 
         internal override void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle)
@@ -982,7 +975,7 @@ namespace System.Reflection.Emit
                     MethodBase m = RuntimeType.GetMethodBase(methodReal);
                     Type t = m.DeclaringType.GetGenericTypeDefinition();
 
-                    throw new ArgumentException(String.Format(
+                    throw new ArgumentException(string.Format(
                         CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGenericLcg, m, t));
                 }
             }

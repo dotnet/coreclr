@@ -422,6 +422,10 @@ void ZapInfo::CompileMethod()
     if (m_currentMethodInfo.ILCodeSize == 0)
         return;
 
+    // If we are doing partial ngen, only compile methods with profile data
+    if (!CurrentMethodHasProfileData() && m_zapper->m_pOpt->m_fPartialNGen)
+        return;
+
     // During ngen we look for a hint attribute on the method that indicates
     // the method should be preprocessed for early
     // preparation. This normally happens automatically, but for methods that
@@ -2642,8 +2646,6 @@ WORD ZapInfo::getRelocTypeHint(void * target)
 
 void ZapInfo::getModuleNativeEntryPointRange(void** pStart, void** pEnd)
 {
-    ULONG rvaStart, rvaEnd;
-
     // Initialize outparams to default range of (0,0).
     *pStart = 0;
     *pEnd = 0;

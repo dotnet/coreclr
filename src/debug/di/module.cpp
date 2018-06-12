@@ -4522,7 +4522,10 @@ HRESULT CordbNativeCode::EnumerateVariableHomes(ICorDebugVariableHomeEnum **ppEn
 int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
 {
 #if defined(DBG_TARGET_ARM)
-    return MAX_INSTRUCTION_LENGTH;
+    if (Is32BitInstruction(*(WORD*)ip))
+        return 4;
+    else
+        return 2;
 #elif defined(DBG_TARGET_ARM64)
     return MAX_INSTRUCTION_LENGTH;
 #elif defined(DBG_TARGET_X86)
@@ -4788,7 +4791,6 @@ int CordbNativeCode::GetCallInstructionLength(BYTE *ip, ULONG32 count)
                      return -1;
                  }
 
-                 BYTE *result;
                  WORD displace = -1;
 
                  // See: Tables A-15,16,17 in AMD Dev Manual 3 for information

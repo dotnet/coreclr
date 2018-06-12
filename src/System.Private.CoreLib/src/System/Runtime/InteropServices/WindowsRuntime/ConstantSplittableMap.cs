@@ -101,7 +101,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (!found)
             {
                 Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
-                e.SetErrorCode(HResults.E_BOUNDS);
+                e.HResult = HResults.E_BOUNDS;
                 throw e;
             }
 
@@ -150,12 +150,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default(TValue));
+            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default);
             int index = Array.BinarySearch(items, firstItemIndex, Count, searchKey, keyValuePairComparator);
 
             if (index < 0)
             {
-                value = default(TValue);
+                value = default;
                 return false;
             }
 
