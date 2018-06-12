@@ -3646,7 +3646,7 @@ void Compiler::optUnrollLoops()
             // only allows under 32 bytes ALU processes. not SIMD such as using Vector<T>
             // using vector will just make it more compilated process. so we will check all size of common ALU
             // processes.
-            for (block = head->bbNext; block != nullptr; block = block->bbNext)
+            for (block = head->bbNext; block != bottom->bbNext; block = block->bbNext)
             {
                 if (!block->bbFallsThrough() || block != block->bbJumpDest)
                 {
