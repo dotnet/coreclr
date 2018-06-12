@@ -4025,7 +4025,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                 continue;
             }
 
-            // Extract original gtStmt first. 
+            // Extract original gtStmt first.
             // and check there is something to modify with loop variable.
             // if there is nothing to modify. we will just pass it
             jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
