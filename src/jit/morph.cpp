@@ -4138,20 +4138,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 newArgEntry->isNonStandard = isNonStandard;
             }
 
-#ifdef _TARGET_ARM_
-            // Check for a split (partially enregistered) struct
-            if (!passUsingFloatRegs && (intArgRegNum + size) > MAX_REG_ARG)
-            {
-                // This indicates a partial enregistration of a struct type
-                assert((isStructArg) || argx->OperIsFieldList() || argx->OperIsCopyBlkOp() ||
-                       (argx->gtOper == GT_COMMA && (args->gtFlags & GTF_ASG)));
-                unsigned numRegsPartial = MAX_REG_ARG - intArgRegNum;
-                assert((unsigned char)numRegsPartial == numRegsPartial);
-                call->fgArgInfo->SplitArg(argIndex, numRegsPartial, size - numRegsPartial);
-                fgPtrArgCntCur += size - numRegsPartial;
-            }
-#endif // _TARGET_ARM_
-
             if (newArgEntry->isNonStandard)
             {
                 flagsSummary |= args->Current()->gtFlags;
@@ -4171,6 +4157,20 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 else
 #endif // defined(UNIX_AMD64_ABI)
                 {
+#ifdef _TARGET_ARM_
+                    // Check for a split (partially enregistered) struct
+                    if (!passUsingFloatRegs && (intArgRegNum + size) > MAX_REG_ARG)
+                    {
+                        // This indicates a partial enregistration of a struct type
+                        assert((isStructArg) || argx->OperIsFieldList() || argx->OperIsCopyBlkOp() ||
+                               (argx->gtOper == GT_COMMA && (args->gtFlags & GTF_ASG)));
+                        unsigned numRegsPartial = MAX_REG_ARG - intArgRegNum;
+                        assert((unsigned char)numRegsPartial == numRegsPartial);
+                        call->fgArgInfo->SplitArg(argIndex, numRegsPartial, size - numRegsPartial);
+                        fgPtrArgCntCur += size - numRegsPartial;
+                    }
+#endif // _TARGET_ARM_
+
                     newArgEntry->SetMultiRegNums();
                     if (passUsingFloatRegs)
                     {
