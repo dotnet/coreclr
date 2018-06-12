@@ -4015,7 +4015,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
     jitstd::vector<GenTree*> gtLoopBody(this->getAllocator());
 
-    unsigned iterCnt = iterInc;
+    bool isChanged = false;
     for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
     {
         // Extract all tree's parent of that includes iterVar(which is LoopDsc::lpIterVar())
@@ -4027,22 +4027,33 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                 continue;
             }
 
+            // Extract original gtStmt first. 
+            // and check there is something to modify with loop variable.
+            // if there is nothing to modify. we will just pass it
+            jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
+            GTExtractData            data;
+
+            data.varExtracted = &gtExtracted;
+            data.varId        = iterVar;
+            fgWalkTreePre(&gtStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
+
+            // nothing found...
+            if (gtExtracted.empty())
+            {
+                continue;
+            }
+
             // We strarting i with 1, because we have original one.
             // if new limit is 4. current BasicBlock has original one. so only needs 3.
             for (unsigned int i = 1; i < newLoopBodyLimit; ++i)
             {
-                jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
-
                 GenTree* gtClonedStmt = gtCloneExpr(gtStmt);
 
-                GTExtractData data;
-                data.varExtracted = &gtExtracted;
-                data.varId        = iterVar;
+                gtExtracted.clear();
                 fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
 
                 // insert stmt after current.
                 gtStmt = fgInsertStmtAfter(bbCur, gtStmt, gtClonedStmt);
-
                 for (GenTree* extracted : gtExtracted)
                 {
                     GenTree* Op1 = extracted->gtGetOp1();
@@ -4056,13 +4067,20 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                         }
                     }
 
-                    GenTree* newCns = gtNewIconNode(iterCnt, Op1->TypeGet());
+                    GenTree* newCns = gtNewIconNode(i * iterInc, Op1->TypeGet());
                     GenTree* newInc = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
                     extracted->ReplaceOperand(&Op1, newInc);
                 }
-                iterCnt += iterInc;
             }
+            // Set as changed. not to modify increaser if nothing changed.
+            isChanged = true;
         }
+    }
+
+    if (!isChanged)
+    {
+        // Nothing changed. don't modify increaser.
+        return false;
     }
 
     jitstd::vector<GenTree*> extractedIncr(this->getAllocator());
