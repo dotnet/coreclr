@@ -1343,29 +1343,32 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
 #ifdef DEBUG
 
-/*****************************************************************************
- *
- *  Make sure the code offsets of all instruction groups look reasonable.
- */
+//------------------------------------------------------------------------
+// emitCheckIGoffsets: Make sure the code offsets of all instruction groups look reasonable.
+//
+// Note: It checks that each instruction group starts right after the previous ig.
+// For the first cold ig offset is also should be the last hot ig + its size.
+// emitCurCodeOffs maintains distance for the split case to look like they are consistent.
+// Also it checks total code size.
+//
 void emitter::emitCheckIGoffsets()
 {
-    insGroup* tempIG;
-    size_t    offsIG;
+    size_t currentOffset = 0;
 
-    for (tempIG = emitIGlist, offsIG = 0; tempIG; tempIG = tempIG->igNext)
+    for (insGroup* tempIG = emitIGlist; tempIG != nullptr; tempIG = tempIG->igNext)
     {
-        if (tempIG->igOffs != offsIG)
+        if (tempIG->igOffs != currentOffset)
         {
-            printf("Block #%u has offset %08X, expected %08X\n", tempIG->igNum, tempIG->igOffs, offsIG);
+            printf("Block #%u has offset %08X, expected %08X\n", tempIG->igNum, tempIG->igOffs, currentOffset);
             assert(!"bad block offset");
         }
 
-        offsIG += tempIG->igSize;
+        currentOffset += tempIG->igSize;
     }
 
-    if (emitTotalCodeSize && emitTotalCodeSize != offsIG)
+    if (emitTotalCodeSize != 0 && emitTotalCodeSize != currentOffset)
     {
-        printf("Total code size is %08X, expected %08X\n", emitTotalCodeSize, offsIG);
+        printf("Total code size is %08X, expected %08X\n", emitTotalCodeSize, currentOffset);
 
         assert(!"bad total code size");
     }
@@ -7204,10 +7207,9 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
     static char     buf[4][TEMP_BUFFER_LEN];
     char*           retbuf;
 
-    insGroup*      ig;
     UNATIVE_OFFSET nextof = 0;
 
-    for (ig = emitIGlist; ig != nullptr; ig = ig->igNext)
+    for (insGroup* ig = emitIGlist; ig != nullptr; ig = ig->igNext)
     {
         assert(nextof == ig->igOffs);
 
