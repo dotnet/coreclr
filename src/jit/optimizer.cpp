@@ -4144,23 +4144,23 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
     unsigned bytes = 0;
     unsigned count = 0;
 
-    for (GenTreeStmt* gtStmt = block->bbTreeList->AsStmt(); gtStmt->gtNext != nullptr;
-         gtStmt              = gtStmt->gtNext->AsStmt())
+    for (GenTree* gtStmt = block->bbTreeList; gtStmt->gtNext != nullptr; gtStmt = gtStmt->gtNext)
     {
         if (gtStmt == test || gtStmt == incr || gtStmt == init)
         {
             continue;
         }
 
-        if (gtStmt->gtStmtExpr->OperGet() != GT_ASG)
+        GenTree* gtExpr = gtStmt->AsStmt()->gtStmtExpr;
+        if (gtExpr->OperGet() != GT_ASG)
         {
             // The loop body is always starting with ASG
             // the first operand of ASG node will be target of this loop body's process
             continue;
         }
 
-        GenTree* gtOP1 = gtStmt->gtStmtExpr->gtGetOp1(); // guessed as target value
-        GenTree* gtOP2 = gtStmt->gtStmtExpr->gtGetOp2(); // guessed as incr of target
+        GenTree* gtOP1 = gtExpr->gtGetOp1(); // guessed as target value
+        GenTree* gtOP2 = gtExpr->gtGetOp2(); // guessed as incr of target
 
         // We are only evulating simple process
         // gtOP2 might be checks or (like if stmt) something else so. skipping if its not a simple common ALU process.
