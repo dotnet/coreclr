@@ -4013,8 +4013,6 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         return fgWalkResult::WALK_CONTINUE;
     };
 
-    jitstd::vector<GenTree*> gtLoopBody(this->getAllocator());
-
     bool isChanged = false;
     for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
     {
