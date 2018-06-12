@@ -4038,7 +4038,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                 GTExtractData data;
                 data.varExtracted = &gtExtracted;
                 data.varId        = iterVar;
-                fgWalkTreePre(&gtClonedStmt, gtVisitor, &data, true, true);
+                fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
 
                 // insert stmt after current.
                 gtStmt = fgInsertStmtAfter(bbCur, gtStmt, gtClonedStmt);
