@@ -4015,7 +4015,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
     jitstd::vector<GenTree*> gtLoopBody(this->getAllocator());
 
-    unsigned iterCnt = iterBeg + iterInc;
+    unsigned iterCnt = iterInc;
     for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
     {
         // Extract all tree's parent of that includes iterVar(which is LoopDsc::lpIterVar())
