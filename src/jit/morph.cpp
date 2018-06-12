@@ -1128,7 +1128,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned  argNum,
                                     unsigned  numRegs,
                                     unsigned  alignment,
                                     bool      isStruct,
-                                    bool      isVararg=false)
+                                    bool      isVararg/*=false*/)
 {
     fgArgTabEntry* curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
@@ -1199,7 +1199,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned                                    
 #endif // defined(UNIX_AMD64_ABI)
 
 fgArgTabEntry* fgArgInfo::AddStkArg(
-    unsigned argNum, GenTree* node, GenTree* parent, unsigned numSlots, unsigned alignment, bool isStruct, bool isVararg=false)
+    unsigned argNum, GenTree* node, GenTree* parent, unsigned numSlots, unsigned alignment, bool isStruct, bool isVararg/*=false*/)
 {
     fgArgTabEntry* curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
