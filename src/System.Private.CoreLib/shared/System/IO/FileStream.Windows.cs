@@ -64,11 +64,12 @@ namespace System.IO
                 _fileHandle.Dispose();
 
                 var lastWin32Error = Marshal.GetLastWin32Error();
+                ExternalException win32Exception = null;
                 if (fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN && lastWin32Error != Interop.Errors.ERROR_SUCCESS)
                 {
-                    throw new ExternalException(Interop.Kernel32.GetMessage(lastWin32Error), lastWin32Error);
+                    win32Exception = new ExternalException(Interop.Kernel32.GetMessage(lastWin32Error), lastWin32Error);
                 }
-                throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles);
+                throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles, win32Exception);
             }
 
             // This is necessary for async IO using IO Completion ports via our 
