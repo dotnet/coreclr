@@ -8656,7 +8656,7 @@ REDO_RETURN_NODE:
     {
         // It is possible that we now have a lclVar of scalar type.
         // If so, don't transform it to GT_LCL_FLD.
-        if (varTypeIsStruct(lvaTable[op->AsLclVarCommon()->gtLclNum].lvType))
+        if (varTypeIsStruct(lvaTable[op->AsLclVar()->gtLclNum].lvType))
         {
             op->ChangeOper(GT_LCL_FLD);
         }

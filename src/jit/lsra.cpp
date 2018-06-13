@@ -1443,11 +1443,8 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 #if CPU_HAS_FP_SUPPORT
         case TYP_FLOAT:
         case TYP_DOUBLE:
-            if (compiler->opts.compDbgCode)
-            {
-                return false;
-            }
-            break;
+            return !compiler->opts.compDbgCode;
+
 #endif // CPU_HAS_FP_SUPPORT
 
         case TYP_INT:
@@ -1460,29 +1457,22 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
         case TYP_SIMD12:
         case TYP_SIMD16:
         case TYP_SIMD32:
-            if (varDsc->lvPromoted)
-            {
-                return false;
-            }
-            break;
+            return !varDsc->lvPromoted;
 
         // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
         // (passing & returning as TYP_LONG).
         case TYP_SIMD8:
+            return false;
 #endif // FEATURE_SIMD
 
         case TYP_STRUCT:
-        {
             return false;
-        }
-        break;
 
         case TYP_UNDEF:
         case TYP_UNKNOWN:
             noway_assert(!"lvType not set correctly");
             varDsc->lvType = TYP_INT;
-
-            __fallthrough;
+            return false;
 
         default:
             return false;

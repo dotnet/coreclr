@@ -358,7 +358,7 @@ private:
     // Any tracked lclVar accessed by a LCL_FLD or STORE_LCL_FLD should be marked doNotEnregister.
     // This method checks, and asserts in the DEBUG case if it is not so marked,
     // but in the non-DEBUG case (asserts disabled) set the flag so that we don't generate bad code.
-    // Thie ensures that the local's value is valid on-stack as expected for a *LCL_FLD.
+    // This ensures that the local's value is valid on-stack as expected for a *LCL_FLD.
     void verifyLclFldDoNotEnregister(unsigned lclNum)
     {
         LclVarDsc* varDsc = &(comp->lvaTable[lclNum]);
