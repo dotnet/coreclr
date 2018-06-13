@@ -90,9 +90,6 @@ namespace System
         internal const long MaxTicks = DaysTo10000 * TicksPerDay - 1;
         private const long MaxMillis = (long)DaysTo10000 * MillisPerDay;
 
-        internal const int MinYear = 1;
-        internal const int MaxYear = 9999;
-
         internal const long UnixEpochTicks = DaysTo1970 * TicksPerDay;
         private const long FileTimeOffset = DaysTo1601 * TicksPerDay;
         private const long DoubleDateOffset = DaysTo1899 * TicksPerDay;
@@ -456,7 +453,7 @@ namespace System
                 m = 12 + (i + 1) % 12;
                 y = y + (i - 11) / 12;
             }
-            if (y < MinYear || y > MaxYear)
+            if (y < 1 || y > 9999)
             {
                 throw new ArgumentOutOfRangeException(nameof(months), SR.ArgumentOutOfRange_DateArithmetic);
             }
@@ -547,7 +544,7 @@ namespace System
         // Will check the if the parameters are valid.
         private static long DateToTicks(int year, int month, int day)
         {
-            if (year >= MinYear && year <= MaxYear && month >= 1 && month <= 12)
+            if (year >= 1 && year <= 9999 && month >= 1 && month <= 12)
             {
                 int[] days = IsLeapYear(year) ? s_daysToMonth366 : s_daysToMonth365;
                 if (day >= 1 && day <= days[month] - days[month - 1])
@@ -1081,7 +1078,7 @@ namespace System
         //
         public static bool IsLeapYear(int year)
         {
-            if (year < MinYear || year > MaxYear)
+            if (year < 1 || year > 9999)
             {
                 throw new ArgumentOutOfRangeException(nameof(year), SR.ArgumentOutOfRange_Year);
             }
@@ -1558,7 +1555,7 @@ namespace System
         internal static Boolean TryCreate(int year, int month, int day, int hour, int minute, int second, int millisecond, out DateTime result)
         {
             result = DateTime.MinValue;
-            if (year < MinYear || year > MaxYear || month < 1 || month > 12)
+            if (year < 1 || year > 9999 || month < 1 || month > 12)
             {
                 return false;
             }
