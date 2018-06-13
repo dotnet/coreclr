@@ -160,8 +160,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(sleep1Threshold), sleep1Threshold, SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             }
 
-            // So that NextSpinWillYield behaves as expected:
-            if (sleep1Threshold >= 0 && sleep1Threshold < YieldThreshold && !PlatformHelper.IsSingleProcessor)
+            if (sleep1Threshold >= 0 && sleep1Threshold < YieldThreshold)
             {
                 sleep1Threshold = YieldThreshold;
             }
@@ -172,9 +171,7 @@ namespace System.Threading
         private void SpinOnceCore(int sleep1Threshold)
         {
             Debug.Assert(sleep1Threshold >= -1);
-
-            // So that NextSpinWillYield behaves as requested:
-            Debug.Assert(sleep1Threshold < 0 || sleep1Threshold >= YieldThreshold || PlatformHelper.IsSingleProcessor);
+            Debug.Assert(sleep1Threshold < 0 || sleep1Threshold >= YieldThreshold);
 
             // (_count - YieldThreshold) % 2 == 0: The purpose of this check is to interleave Thread.Yield/Sleep(0) with
             // Thread.SpinWait. Otherwise, the following issues occur:
