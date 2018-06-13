@@ -56,11 +56,19 @@ namespace System.Globalization
             return date.Year;
         }
 
+        // The year parameter represents an ISO week-numbering year (also called ISO year informally).
+        // Each week's year is the Gregorian year in which the Thursday falls.
+        // The first week of the year, hence, always contains 4 January.
+        // ISO week year numbering therefore slightly deviates from the Gregorian for some days close to 1 January.
         public static DateTime GetYearStart(int year)
         {
             return ToDateTime(year, MinWeek, DayOfWeek.Monday);
         }
 
+        // The year parameter represents an ISO week-numbering year (also called ISO year informally).
+        // Each week's year is the Gregorian year in which the Thursday falls.
+        // The first week of the year, hence, always contains 4 January.
+        // ISO week year numbering therefore slightly deviates from the Gregorian for some days close to 1 January.
         public static DateTime GetYearEnd(int year)
         {
             return ToDateTime(year, GetWeeksInYear(year), DayOfWeek.Sunday);
