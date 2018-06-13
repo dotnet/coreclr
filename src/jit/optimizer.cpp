@@ -3794,7 +3794,7 @@ void Compiler::optUnrollLoops()
 
         /* Create the unrolled loop statement list */
         {
-            isChanged =
+            isChanged |=
                 (enablePartialUnroll ? optPartialUnrollLoops(lnum, totalIter) : optFullUnrollLoops(lnum, totalIter));
 
             /* Make sure to update loop table */
@@ -3919,20 +3919,21 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
     /* if the HEAD is a BBJ_COND drop the condition (and make HEAD a BBJ_NONE block) */
     if (bbBeg->bbJumpKind == BBJ_COND)
     {
-        noway_assert(bbBeg->bbTreeList);
-        GenTree* gtTest = bbBeg->bbTreeList->gtPrev;
+        GenTree* phdr = bbBeg->bbTreeList;
+        noway_assert(phdr);
+        GenTree* test = phdr->gtPrev;
 
-        noway_assert(gtTest && (gtTest->gtNext == nullptr));
-        noway_assert(gtTest->gtOper == GT_STMT);
-        noway_assert(gtTest->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
+        noway_assert(test && (test->gtNext == nullptr));
+        noway_assert(test->gtOper == GT_STMT);
+        noway_assert(test->gtStmt.gtStmtExpr->gtOper == GT_JTRUE);
 
-        GenTree* gtInit = gtTest->gtPrev;
-        noway_assert(gtInit && (gtInit->gtNext == gtTest));
-        noway_assert(gtInit->gtOper == GT_STMT);
-        gtInit->gtNext = nullptr;
+        GenTree* init = test->gtPrev;
+        noway_assert(init && (init->gtNext == test));
+        noway_assert(init->gtOper == GT_STMT);
 
-        bbBeg->bbTreeList->gtPrev = gtInit;
-        bbBeg->bbJumpKind         = BBJ_NONE;
+        init->gtNext     = nullptr;
+        phdr->gtPrev     = init;
+        bbBeg->bbJumpKind = BBJ_NONE;
         bbBeg->bbFlags &= ~BBF_NEEDS_GCPOLL;
     }
     else
@@ -4012,6 +4013,8 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         }
         return fgWalkResult::WALK_CONTINUE;
     };
+    
+    jitstd::vector<GenTree*> gtProcNode(this->getAllocator());
 
     bool isChanged = false;
     for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
@@ -4041,36 +4044,16 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
                 continue;
             }
 
-            // We strarting i with 1, because we have original one.
-            // if new limit is 4. current BasicBlock has original one. so only needs 3.
-            for (unsigned int i = 1; i < newLoopBodyLimit; ++i)
+            // Or something complcate to resolve found.
+            for (GenTree* extracted : gtExtracted)
             {
-                GenTree* gtClonedStmt = gtCloneExpr(gtStmt);
-
-                gtExtracted.clear();
-                fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
-
-                // insert stmt after current.
-                gtStmt = fgInsertStmtAfter(bbCur, gtStmt, gtClonedStmt);
-                for (GenTree* extracted : gtExtracted)
+                if (!extracted->OperIsSimple())
                 {
-                    GenTree* Op1 = extracted->gtGetOp1();
-                    GenTree* Op2 = extracted->gtGetOp2IfPresent();
-
-                    if (extracted->OperIsBinary())
-                    {
-                        if (!extracted->IsReverseOp())
-                        {
-                            std::swap(Op1, Op2);
-                        }
-                    }
-
-                    GenTree* newCns = gtNewIconNode(i * iterInc, Op1->TypeGet());
-                    GenTree* newInc = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
-                    extracted->ReplaceOperand(&Op1, newInc);
+                    return false;
                 }
             }
-            // Set as changed. not to modify increaser if nothing changed.
+
+            gtProcNode.push_back(gtStmt);
             isChanged = true;
         }
     }
@@ -4079,6 +4062,45 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     {
         // Nothing changed. don't modify increaser.
         return false;
+    }
+
+    
+    for (GenTree* proc : gtProcNode)
+    {
+        // We strarting i with 1, because we have original one.
+        // if new limit is 4. current BasicBlock has original one. so only needs 3.
+        for (unsigned int i = 1; i < newLoopBodyLimit; ++i)
+        {
+            jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
+            GTExtractData            data;
+
+            data.varExtracted = &gtExtracted;
+            data.varId        = iterVar;
+
+            GenTree* gtClonedStmt = gtCloneExpr(proc);
+
+            gtExtracted.clear();
+            fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
+
+            // insert stmt after current.
+            for (GenTree* extracted : gtExtracted)
+            {
+                GenTree* Op1 = extracted->gtGetOp1();
+                GenTree* Op2 = extracted->gtGetOp2IfPresent();
+
+                if (extracted->OperIsBinary())
+                {
+                    if (!extracted->IsReverseOp())
+                    {
+                        std::swap(Op1, Op2);
+                    }
+                }
+
+                GenTree* newCns = gtNewIconNode(i * iterInc, Op1->TypeGet());
+                GenTree* newInc = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
+                extracted->ReplaceOperand(&Op1, newInc);
+            }
+        }
     }
 
     jitstd::vector<GenTree*> extractedIncr(this->getAllocator());
