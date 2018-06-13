@@ -853,7 +853,7 @@ namespace System.IO
             public override void WriteLine(string value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
-            public override void WriteLine(StringBuilder value) => _out.Write(value);
+            public override void WriteLine(StringBuilder value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(object value) => _out.WriteLine(value);
