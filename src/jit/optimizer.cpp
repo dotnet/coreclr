@@ -3931,8 +3931,8 @@ bool Compiler::optFullUnrollLoops(unsigned loopId, unsigned iterCount)
         noway_assert(init && (init->gtNext == test));
         noway_assert(init->gtOper == GT_STMT);
 
-        init->gtNext     = nullptr;
-        phdr->gtPrev     = init;
+        init->gtNext      = nullptr;
+        phdr->gtPrev      = init;
         bbBeg->bbJumpKind = BBJ_NONE;
         bbBeg->bbFlags &= ~BBF_NEEDS_GCPOLL;
     }
@@ -4013,7 +4013,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         }
         return fgWalkResult::WALK_CONTINUE;
     };
-    
+
     jitstd::vector<GenTree*> gtProcNode(this->getAllocator());
 
     bool isChanged = false;
