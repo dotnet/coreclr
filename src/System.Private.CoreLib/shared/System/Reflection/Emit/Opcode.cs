@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Threading;
 
 namespace System.Reflection.Emit
@@ -13,26 +12,26 @@ namespace System.Reflection.Emit
         // Use packed bitfield for flags to avoid code bloat
         //
 
-        internal const int OperandTypeMask = 0x1F;         // 000000000000000000000000000XXXXX
+        internal const int OperandTypeMask = 0x1F;              // 000000000000000000000000000XXXXX
 
-        internal const int FlowControlShift = 5;            // 00000000000000000000000XXXX00000
+        internal const int FlowControlShift = 5;                // 00000000000000000000000XXXX00000
         internal const int FlowControlMask = 0x0F;
 
-        internal const int OpCodeTypeShift = 9;            // 00000000000000000000XXX000000000
+        internal const int OpCodeTypeShift = 9;                 // 00000000000000000000XXX000000000
         internal const int OpCodeTypeMask = 0x07;
 
-        internal const int StackBehaviourPopShift = 12;           // 000000000000000XXXXX000000000000
-        internal const int StackBehaviourPushShift = 17;           // 0000000000XXXXX00000000000000000
+        internal const int StackBehaviourPopShift = 12;         // 000000000000000XXXXX000000000000
+        internal const int StackBehaviourPushShift = 17;        // 0000000000XXXXX00000000000000000
         internal const int StackBehaviourMask = 0x1F;
 
-        internal const int SizeShift = 22;           // 00000000XX0000000000000000000000
+        internal const int SizeShift = 22;                      // 00000000XX0000000000000000000000
         internal const int SizeMask = 0x03;
 
         internal const int EndsUncondJmpBlkFlag = 0x01000000;   // 0000000X000000000000000000000000
 
-        // unused                                                       // 0000XXX0000000000000000000000000
+        // unused                                               // 0000XXX0000000000000000000000000
 
-        internal const int StackChangeShift = 28;           // XXXX0000000000000000000000000000
+        internal const int StackChangeShift = 28;               // XXXX0000000000000000000000000000
 
         private OpCodeValues m_value;
         private int m_flags;
