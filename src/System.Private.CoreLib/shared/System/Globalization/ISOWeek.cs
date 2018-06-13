@@ -122,6 +122,9 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(week), SR.ArgumentOutOfRange_Week_ISO);
             }
 
+            // We allow 7 for convenience in cases where a user already has a valid ISO
+            // day of week value for Sunday. This means that both 0 and 7 will map to Sunday.
+            // The GetWeekday method will normalize this into the 1-7 range required by ISO.
             if ((int)dayOfWeek < 0 || (int)dayOfWeek > 7)
             {
                 throw new ArgumentOutOfRangeException(nameof(dayOfWeek), SR.ArgumentOutOfRange_DayOfWeek);
