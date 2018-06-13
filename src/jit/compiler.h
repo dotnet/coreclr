@@ -1429,7 +1429,7 @@ public:
                              unsigned  numRegs,
                              unsigned  alignment,
                              bool      isStruct,
-                             bool      isVararg=false);
+                             bool      isVararg = false);
 
 #ifdef UNIX_AMD64_ABI
     fgArgTabEntry* AddRegArg(unsigned                                                         argNum,
@@ -1444,8 +1444,13 @@ public:
                              const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
 #endif // UNIX_AMD64_ABI
 
-    fgArgTabEntry* AddStkArg(
-        unsigned argNum, GenTree* node, GenTree* parent, unsigned numSlots, unsigned alignment, bool isStruct, bool isVararg=false);
+    fgArgTabEntry* AddStkArg(unsigned argNum,
+                             GenTree* node,
+                             GenTree* parent,
+                             unsigned numSlots,
+                             unsigned alignment,
+                             bool     isStruct,
+                             bool     isVararg = false);
 
     void           RemorphReset();
     fgArgTabEntry* RemorphRegArg(

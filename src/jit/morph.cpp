@@ -1128,7 +1128,7 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned  argNum,
                                     unsigned  numRegs,
                                     unsigned  alignment,
                                     bool      isStruct,
-                                    bool      isVararg/*=false*/)
+                                    bool      isVararg /*=false*/)
 {
     fgArgTabEntry* curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
@@ -1198,8 +1198,13 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned                                    
 }
 #endif // defined(UNIX_AMD64_ABI)
 
-fgArgTabEntry* fgArgInfo::AddStkArg(
-    unsigned argNum, GenTree* node, GenTree* parent, unsigned numSlots, unsigned alignment, bool isStruct, bool isVararg/*=false*/)
+fgArgTabEntry* fgArgInfo::AddStkArg(unsigned argNum,
+                                    GenTree* node,
+                                    GenTree* parent,
+                                    unsigned numSlots,
+                                    unsigned alignment,
+                                    bool     isStruct,
+                                    bool     isVararg /*=false*/)
 {
     fgArgTabEntry* curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
@@ -2125,8 +2130,9 @@ GenTree* Compiler::fgMakeTmpArgNode(fgArgTabEntry* curArgTabEntry)
         bool passedAsPrimitive = false;
         if (curArgTabEntry->isSingleRegOrSlot())
         {
-            CORINFO_CLASS_HANDLE clsHnd         = varDsc->lvVerTypeInfo.GetClassHandle();
-            var_types            structBaseType = getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd, curArgTabEntry->isVararg);
+            CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+            var_types            structBaseType =
+                getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd, curArgTabEntry->isVararg);
 
             if (structBaseType != TYP_UNKNOWN)
             {
@@ -3139,8 +3145,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             assert(varTypeIsGC(call->gtCallObjp->gtType) || (call->gtCallObjp->gtType == TYP_I_IMPL));
 
             /* this is a register argument - put it in the table */
-            call->fgArgInfo->AddRegArg(argIndex, argx, nullptr, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1,
-                                       false, callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
+            call->fgArgInfo->AddRegArg(argIndex, argx, nullptr, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1, false,
+                                       callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
         }
         // this can't be a struct.
         assert(argx->gtType != TYP_STRUCT);
@@ -4135,8 +4141,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             else
             {
                 // This is a register argument - put it in the table
-                newArgEntry = call->fgArgInfo->AddRegArg(argIndex, argx, args, nextRegNum, size, argAlign,
-                                                         isStructArg, callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum)
+                newArgEntry = call->fgArgInfo->AddRegArg(argIndex, argx, args, nextRegNum, size, argAlign, isStructArg,
+                                                         callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum)
                                                              UNIX_AMD64_ABI_ONLY_ARG(&structDesc));
 
 #ifdef FEATURE_HFA
@@ -7257,7 +7263,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
                 unsigned typeSize = 0;
                 // We should have already broken out of the loop if we've set hasMultiByteStackArgs to true.
                 assert(!hasMultiByteStackArgs);
-                hasMultiByteStackArgs = !VarTypeIsMultiByteAndCanEnreg(argx->TypeGet(), objClass, &typeSize, false, false);
+                hasMultiByteStackArgs =
+                    !VarTypeIsMultiByteAndCanEnreg(argx->TypeGet(), objClass, &typeSize, false, false);
 
 #if defined(UNIX_AMD64_ABI)
                 SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
