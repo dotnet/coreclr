@@ -462,6 +462,16 @@ namespace System.IO
             Write(CoreNewLineStr);
         }
 
+        /// <summary>
+        /// Equivalent to WriteLine(stringBuilder.ToString()) however it uses the
+        /// StringBuilder.GetChunks() method to avoid creating the intermediate string 
+        /// </summary>
+        public virtual void WriteLine(StringBuilder value)
+        {
+            Write(value);
+            WriteLine();
+        }
+
         // Writes the text representation of an object followed by a line
         // terminator to the text stream.
         //
@@ -607,6 +617,17 @@ namespace System.IO
                 t.Item1.WriteLine(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Equivalent to WriteLineAsync(stringBuilder.ToString()) however it uses the
+        /// StringBuilder.GetChunks() method to avoid creating the intermediate string 
+        /// </summary>
+        /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
+        public async virtual Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
+        {
+            await WriteLineAsync(value, cancellationToken);
+            await WriteLineAsync(CoreNewLine, cancellationToken);
         }
 
         public Task WriteLineAsync(char[] buffer)
@@ -832,6 +853,9 @@ namespace System.IO
             public override void WriteLine(string value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void WriteLine(StringBuilder value) => _out.Write(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(object value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
@@ -889,6 +913,13 @@ namespace System.IO
             public override Task WriteLineAsync(string value)
             {
                 WriteLine(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
+            {
+                WriteLineAsync(value, cancellationToken);
                 return Task.CompletedTask;
             }
 
