@@ -642,12 +642,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             if (isSingleFloat32Struct(clsHnd))
 #else // !ARM_SOFTFP
             if (IsHfa(clsHnd)
-#if !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
                 // Arm64 Windows VarArg methods arguments will not
                 // classify HFA types, they will need to be treated
                 // as if they are not HFA types.
                 && !isVarArg
-#endif // !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
                 )
 #endif // ARM_SOFTFP
             {
@@ -831,11 +831,11 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         {
             // Structs that are HFA's are passed by value in multiple registers
             if (IsHfa(clsHnd)
-#if !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
                 && !isVarArg // Arm64 Windows VarArg methods arguments will not
                              // classify HFA types, they will need to be treated
                              // as if they are not HFA types.
-#endif                       // !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#endif                       // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
                 )
             {
                 // HFA's of count one should have been handled by getPrimitiveTypeForStruct

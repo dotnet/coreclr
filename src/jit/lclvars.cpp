@@ -2386,13 +2386,13 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
 
 void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
 {
-#if !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
     LclVarDsc* varDsc = &lvaTable[varNum];
     // For varargs methods incoming and outgoing arguments should not be treated
     // as HFA.
     varDsc->_lvIsHfa          = false;
     varDsc->_lvHfaTypeIsFloat = false;
-#endif // !defined(_TARGET_UNIX_) && defined(_TARGET_ARM64_)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
 }
 
 //------------------------------------------------------------------------

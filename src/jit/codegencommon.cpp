@@ -3470,12 +3470,12 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         // Change regType to the HFA type when we have a HFA argument
         if (varDsc->lvIsHfaRegArg())
         {
-#if defined(_TARGET_ARM64_) && !defined(_TARGET_UNIX_)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
             if (compiler->info.compIsVarArgs)
             {
                 assert(!"Illegal incoming HFA arg encountered in Vararg method.");
             }
-#endif // defined(_TARGET_ARM64_) && !defined(_TARGET_UNIX_)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
             regType = varDsc->GetHfaType();
         }
 
