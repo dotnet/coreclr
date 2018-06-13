@@ -20,12 +20,16 @@ namespace System.Globalization
 
             if (week < MinWeek)
             {
+                // If the week number obtained equals 0, it means that the
+                // given date belongs to the preceding (week-based) year.
                 return GetWeeksInYear(date.Year - 1);
             }
 
             if (week > GetWeeksInYear(date.Year))
             {
-                return 1;
+                // If a week number of 53 is obtained, one must check that
+                // the date is not actually in week 1 of the following year.
+                return MinWeek;
             }
 
             return week;
@@ -37,11 +41,15 @@ namespace System.Globalization
 
             if (week < MinWeek)
             {
+                // If the week number obtained equals 0, it means that the
+                // given date belongs to the preceding (week-based) year.
                 return date.Year - 1;
             }
 
             if (week > GetWeeksInYear(date.Year))
             {
+                // If a week number of 53 is obtained, one must check that
+                // the date is not actually in week 1 of the following year.
                 return date.Year + 1;
             }
 
@@ -58,7 +66,15 @@ namespace System.Globalization
             return ToDateTime(year, GetWeeksInYear(year), DayOfWeek.Sunday);
         }
 
-        // From https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year.
+        // From https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year:
+        //
+        // The long years, with 53 weeks in them, can be described by any of the following equivalent definitions:
+        //
+        // - Any year starting on Thursday and any leap year starting on Wednesday.
+        // - Any year ending on Thursday and any leap year ending on Friday.
+        // - Years in which 1 January and 31 December (in common years) or either (in leap years) are Thursdays.
+        //
+        // All other week-numbering years are short years and have 52 weeks.
         public static int GetWeeksInYear(int year)
         {
             if (year < MinYear || year > MaxYear)
