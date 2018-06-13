@@ -114,7 +114,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(week), SR.ArgumentOutOfRange_Week_ISO);
             }
 
-            if ((int)dayOfWeek < 0 || (int)dayOfWeek > 6)
+            if ((int)dayOfWeek < 0 || (int)dayOfWeek > 7)
             {
                 throw new ArgumentOutOfRangeException(nameof(dayOfWeek), SR.ArgumentOutOfRange_DayOfWeek);
             }
