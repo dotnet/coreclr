@@ -7,16 +7,11 @@ namespace System.Runtime.CompilerServices
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
     public sealed class CallerArgumentExpressionAttribute : Attribute
     {
-        public string ParameterName { get; }
-
         public CallerArgumentExpressionAttribute(string parameterName)
         {
-            if (parameterName == null)
-            {
-                throw new ArgumentNullException(nameof(parameterName));
-            }
-
             ParameterName = parameterName;
         }
+
+        public string ParameterName { get; }
     }
 }
