@@ -4064,7 +4064,6 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         return false;
     }
 
-    
     for (GenTree* proc : gtProcNode)
     {
         // We strarting i with 1, because we have original one.
