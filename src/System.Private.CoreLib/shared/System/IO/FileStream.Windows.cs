@@ -61,15 +61,15 @@ namespace System.IO
             int fileType = Interop.Kernel32.GetFileType(_fileHandle);
             if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK)
             {
+                var errorCode = Marshal.GetLastWin32Error();
+
                 _fileHandle.Dispose();
 
-                var lastWin32Error = Marshal.GetLastWin32Error();
-                ExternalException win32Exception = null;
-                if (fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN && lastWin32Error != Interop.Errors.ERROR_SUCCESS)
+                if (fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN && errorCode != Interop.Errors.ERROR_SUCCESS)
                 {
-                    win32Exception = new ExternalException(Interop.Kernel32.GetMessage(lastWin32Error), lastWin32Error);
+                    throw Win32Marshal.GetExceptionForWin32Error(errorCode);
                 }
-                throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles, win32Exception);
+                throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles);
             }
 
             // This is necessary for async IO using IO Completion ports via our 
