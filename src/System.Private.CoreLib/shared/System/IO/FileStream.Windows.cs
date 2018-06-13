@@ -61,7 +61,7 @@ namespace System.IO
             int fileType = Interop.Kernel32.GetFileType(_fileHandle);
             if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK)
             {
-                var errorCode = Marshal.GetLastWin32Error();
+                int errorCode = Marshal.GetLastWin32Error();
 
                 _fileHandle.Dispose();
 
