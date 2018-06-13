@@ -891,7 +891,7 @@ namespace System.IO
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
             {
-                WriteAsync(value);
+                Write(value);
                 return Task.CompletedTask;
             }
 
