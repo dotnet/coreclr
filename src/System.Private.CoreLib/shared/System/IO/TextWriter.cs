@@ -626,8 +626,8 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public async virtual Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
         {
-            await WriteAsync(value, cancellationToken);
-            await WriteAsync(CoreNewLine, cancellationToken);
+            await WriteAsync(value, cancellationToken).ConfigureAwait(false);
+            await WriteAsync(CoreNewLine, cancellationToken).ConfigureAwait(false);
         }
 
         public Task WriteLineAsync(char[] buffer)
