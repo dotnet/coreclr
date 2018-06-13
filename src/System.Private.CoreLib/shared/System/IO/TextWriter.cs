@@ -626,8 +626,8 @@ namespace System.IO
         /// <param name="value">The string (as a StringBuilder) to write to the stream</param>
         public async virtual Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
         {
-            await WriteLineAsync(value, cancellationToken);
-            await WriteLineAsync(CoreNewLine, cancellationToken);
+            await WriteAsync(value, cancellationToken);
+            await WriteAsync(CoreNewLine, cancellationToken);
         }
 
         public Task WriteLineAsync(char[] buffer)
@@ -891,7 +891,7 @@ namespace System.IO
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
             {
-                WriteAsync(value, cancellationToken);
+                WriteAsync(value);
                 return Task.CompletedTask;
             }
 
@@ -919,7 +919,7 @@ namespace System.IO
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
             {
-                WriteLineAsync(value, cancellationToken);
+                WriteLine(value);
                 return Task.CompletedTask;
             }
 
