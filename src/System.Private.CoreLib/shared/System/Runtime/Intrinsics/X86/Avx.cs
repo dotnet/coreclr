@@ -4,7 +4,7 @@
 
 using System;
 using System.Runtime.Intrinsics;
-using System.Runtime.CompilerServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.Intrinsics.X86
 {
@@ -241,13 +241,7 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static byte Extract(Vector256<byte> value, byte index)
         {
-            unsafe
-            {
-                index &= 0x1F;
-                byte* buffer = stackalloc byte[32];
-                Store(buffer, value);
-                return buffer[index];   
-            }
+            return Unsafe.Add<byte>(ref Unsafe.As<Vector256<byte>, byte>(ref value), index & 0x1F);
         }
 
 
@@ -257,13 +251,7 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static ushort Extract(Vector256<ushort> value, byte index)
         {
-            unsafe
-            {
-                index &= 0xF;
-                ushort* buffer = stackalloc ushort[16];
-                Store(buffer, value);
-                return buffer[index];
-            }
+            return Unsafe.Add<ushort>(ref Unsafe.As<Vector256<ushort>, ushort>(ref value), index & 0xF);
         }
 
         /// <summary>
@@ -272,13 +260,7 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static int Extract(Vector256<int> value, byte index)
         {
-            unsafe
-            {
-                index &= 0x7;
-                int* buffer = stackalloc int[8];
-                Store(buffer, value);
-                return buffer[index];
-            }
+            return Unsafe.Add<int>(ref Unsafe.As<Vector256<int>, int>(ref value), index & 0x7);
         }
 
         /// <summary>
@@ -287,13 +269,7 @@ namespace System.Runtime.Intrinsics.X86
         /// </summary>
         public static uint Extract(Vector256<uint> value, byte index)
         {
-            unsafe
-            {
-                index &= 0x7;
-                uint* buffer = stackalloc uint[8];
-                Store(buffer, value);
-                return buffer[index];
-            }
+            return Unsafe.Add<uint>(ref Unsafe.As<Vector256<uint>, uint>(ref value), index & 0x7);
         }
 
         /// <summary>
@@ -306,13 +282,7 @@ namespace System.Runtime.Intrinsics.X86
             {
                 throw new PlatformNotSupportedException();
             }
-            unsafe
-            {
-                index &= 0x3;
-                long* buffer = stackalloc long[4];
-                Store(buffer, value);
-                return buffer[index];
-            }
+            return Unsafe.Add<long>(ref Unsafe.As<Vector256<long>, long>(ref value), index & 0x3);
         }
 
         /// <summary>
@@ -325,13 +295,7 @@ namespace System.Runtime.Intrinsics.X86
             {
                 throw new PlatformNotSupportedException();
             }
-            unsafe
-            {
-                index &= 0x3;
-                ulong* buffer = stackalloc ulong[4];
-                Store(buffer, value);
-                return buffer[index];
-            }
+            return Unsafe.Add<ulong>(ref Unsafe.As<Vector256<ulong>, ulong>(ref value), index & 0x3);
         }
 
         /// <summary>
