@@ -124,8 +124,6 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
             {
                 arguments.Append("-notrait");
                 arguments.Append(" ");
-                arguments.Append("category=");
-
                 arguments.Append(traitToExclude);
                 arguments.Append(" ");
             }

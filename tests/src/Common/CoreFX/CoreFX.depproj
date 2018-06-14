@@ -72,6 +72,9 @@
     <PackageReference Include="System.Composition.TypedParts">
       <Version>$(SystemCompositionVersions)</Version>
     </PackageReference>
+    <PackageReference Include="System.ComponentModel.Composition">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
     <PackageReference Include="System.Data.Odbc">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
@@ -94,6 +97,9 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.IO.Pipelines">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.IO.Ports">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Management">
@@ -127,6 +133,12 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Text.Encodings.Web">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Threading.Channels">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Json">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
 

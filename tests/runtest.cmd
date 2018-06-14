@@ -331,7 +331,7 @@ if not defined __CoreFXTestList ( set __CoreFXTestList=%__ProjectFilesDir%\CoreF
 
 
 set _CoreFXTestExecutable=xunit.console.netcore.exe
-set _CoreFXTestExecutableArgs= --notrait nonnetcoreapptests --notrait nonwindowstests  --notrait failing --notrait IgnoreForCI
+set _CoreFXTestExecutableArgs= --notrait category=nonnetcoreapptests --notrait category=nonwindowstests  --notrait category=failing --notrait category=IgnoreForCI --notrait category=OuterLoop --notrait Benchmark=true
 
 REM Set the log file name to something Jenkins can understand
 set _CoreFX_TestLogFileName=testResults.xml
