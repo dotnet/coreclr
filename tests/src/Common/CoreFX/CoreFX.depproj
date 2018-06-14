@@ -51,55 +51,7 @@
     <PackageReference Include="CoreFx.Private.TestUtilities">
       <Version>$(CoreFxTestUtilsVersion)</Version>
     </PackageReference>
-    <PackageReference Include="System.Security.Cryptography.Xml">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
     <PackageReference Include="System.CodeDom">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Management">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Security.Cryptography.ProtectedData">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Data.Odbc">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.DirectoryServices">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.DirectoryServices.Protocols">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.ServiceProcess.ServiceController">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.IO.Packaging">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.IO.Pipelines">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Data.SqlClient">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Net.WebSockets.WebSocketProtocol">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Runtime.Caching">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Text.Encoding.CodePages">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Security.Cryptography.Pkcs">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.ServiceModel.Syndication">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="System.Net.Http.WinHttpHandler">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Configuration.ConfigurationManager">
@@ -111,6 +63,73 @@
     <PackageReference Include="System.Composition.AttributedModel">
       <Version>$(SystemCompositionVersions)</Version>
     </PackageReference>
+    <PackageReference Include="System.Composition.Convention">
+      <Version>$(SystemCompositionVersions)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Composition.Runtime">
+      <Version>$(SystemCompositionVersions)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Composition.TypedParts">
+      <Version>$(SystemCompositionVersions)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.Odbc">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Data.SqlClient">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.DirectoryServices">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.DirectoryServices.AccountManagement">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.DirectoryServices.Protocols">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Drawing.Common">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.IO.Packaging">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.IO.Pipelines">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Management">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Net.Http.WinHttpHandler">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Net.WebSockets.WebSocketProtocol">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Runtime.Caching">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.Pkcs">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Security.Cryptography.Xml">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.ServiceModel.Syndication">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.ServiceProcess.ServiceController">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Text.Encoding.CodePages">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Text.Encoding.Web">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+
   </ItemGroup>
   <ItemGroup Condition="'$(OSGroup)' == 'Windows_NT'">
     <!-- Windows Dependencies -->
