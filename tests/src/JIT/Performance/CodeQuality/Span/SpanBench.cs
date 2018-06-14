@@ -1050,8 +1050,208 @@ namespace Span
 
         #endregion
 
-        #endregion // TestSpanAPIs
+        #region TestSpanIndexOf<T>
 
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanIndexOfByte(int length)
+        {
+            var random = new Random(42);
+
+            var missingValues = new byte[] {1, 2, 3};
+
+            var array = new byte[length];
+            random.NextBytes(array);
+
+            for (int i = 0; i < array.Length; i++)
+            {
+                if (missingValues.Contains(array[i]))
+                {
+                    array[i] = 0;
+                }
+            }
+
+            InvokeTestSpanIndexOf<byte>(length, array, missingValues, random);
+        }
+
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanIndexOfInt(int length)
+        {
+            var random = new Random(42);
+
+            var missingValues = new[] {int.MaxValue - 2, int.MaxValue - 1, int.MaxValue};
+
+            var array = new int[length];
+
+            for (var i = 0; i < array.Length; i++)
+            {
+                array[i] = random.Next(int.MinValue, int.MaxValue - 5);
+            }
+            
+            InvokeTestSpanIndexOf<int>(length, array, missingValues, random);
+        }
+
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanIndexOfString(int length)
+        {
+            var random = new Random(42);
+
+            var missingValues = new[] {string.Empty, "!?--", "<>"};
+
+            var array = FillTestStringArray(random, length);
+
+            InvokeTestSpanIndexOf<string>(length, array, missingValues, random);
+        }
+
+        static void InvokeTestSpanIndexOf<T>(int length, T[] array, T[] missingValues, Random random) where T : IEquatable<T>
+        {
+            Invoke((int interactionCount) => TestSpanIndexOf<T>(array, missingValues, interactionCount, random),
+                "TestSpanIndexOf<{0}>({1})", typeof(T).Name, length);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestSpanIndexOf<T>(T[] array, T[] missingValues, int iterationCount, Random random) where T : IEquatable<T>
+        {
+            const int missingValueLookupFrequency = 10;
+
+            var span = new Span<T>(array);
+
+            for (var i = 0; i < iterationCount; i++)
+            {
+                T item;
+                if (i % missingValueLookupFrequency == 0)
+                {
+                    item = missingValues[random.Next(0, missingValues.Length)];
+                }
+                else
+                {
+                    item = array[random.Next(0, array.Length)];
+                }
+
+                span.IndexOf(item);
+            }
+        }
+
+        #endregion
+
+        #region TestSpanStartsWith<T>
+
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanStartsWithByte(int length)
+        {
+            var random = new Random(42);
+            
+            var array = new byte[length];
+            random.NextBytes(array);
+
+            InvokeTestSpanStartsWith<byte>(length, array, random);
+        }
+
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanStartsWithString(int length)
+        {
+            var random = new Random(42);
+
+            var array = FillTestStringArray(random, length);
+
+            InvokeTestSpanStartsWith<string>(length, array, random);
+        }
+
+        static void InvokeTestSpanStartsWith<T>(int length, T[] array, Random random) where T : IEquatable<T>
+        {
+            Invoke((int interactionCount) => TestSpanStartsWith<T>(array, interactionCount, random),
+                "TestSpanStartsWith<{0}>({1})", typeof(T).Name, length);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestSpanStartsWith<T>(T[] array, int iterationCount, Random random) where T : IEquatable<T>
+        {
+            var span = new Span<T>(array);
+            
+            for (var i = 0; i < iterationCount; i++)
+            {
+                var length = random.Next(2, array.Length - i);
+
+                var lookup = new ReadOnlySpan<T>(array, i, length);
+
+                span.StartsWith(lookup);
+            }
+        }
+
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
+        [InlineData(100)]
+        public static void TestSpanStartsWithMissingIndices(int length)
+        {
+            var random = new Random(42);
+
+            var array = FillTestStringArray(random, length);
+
+            Invoke((int interactionCount) => TestSpanStartsWithCloseMatches(array, interactionCount, random),
+                "TestSpanStartsWithMissingIndices<String>({0})", length);
+        }
+
+        static string[] FillTestStringArray(Random random, int length)
+        {
+            var array = new string[length];
+
+            for (var i = 0; i < array.Length; i++)
+            {
+                var stringLength = random.Next(4, 64);
+
+                var characters = new char[stringLength];
+
+                for (var j = 0; j < stringLength; j++)
+                {
+                    var c = (char)random.Next(65, 92);
+
+                    characters[j] = c;
+                }
+                
+                array[i] = new string(characters);
+            }
+
+            return array;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestSpanStartsWithCloseMatches<T>(T[] array, int iterationCount, Random random) where T : IEquatable<T>
+        {
+            var span = new Span<T>(array);
+
+            for (var i = 0; i < iterationCount; i++)
+            {
+                var blankOutIndex = random.Next(1, array.Length);
+
+                var ignorableLength = array.Length - blankOutIndex;
+                var numberOfIndicesToSkip = random.Next(0, Math.Min(ignorableLength, 10));
+
+                var lookupArray = new T[array.Length - numberOfIndicesToSkip];
+
+                var index = 0;
+                for (var j = 0; j < array.Length; j++)
+                {
+                    if (j >= blankOutIndex && j < blankOutIndex + numberOfIndicesToSkip)
+                    {
+                        continue;
+                    }
+
+                    lookupArray[index] = array[j];
+                    index++;
+                }
+
+                var lookup = new ReadOnlySpan<T>(lookupArray);
+
+                span.StartsWith(lookup);
+            }
+        }
+
+        #endregion
+
+        #endregion // TestSpanAPIs
 
         public static int Main(string[] args)
         {
