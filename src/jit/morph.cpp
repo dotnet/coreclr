@@ -4248,7 +4248,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             else
             {
                 // This is a stack argument - put it in the table
-                call->fgArgInfo->AddStkArg(argIndex, argx, args, size, argAlign, isStructArg);
+                call->fgArgInfo->AddStkArg(argIndex, argx, args, size, argAlign, isStructArg, isVararg);
             }
         }
 
