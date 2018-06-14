@@ -3323,6 +3323,12 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             }
         }
 
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+        // Make sure for vararg methods isHfaArg is not
+        // true.
+        isHfaArg = callIsVararg ? false : isHfaArg;
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+
         if (isHfaArg)
         {
             // If we have a HFA struct it's possible we transition from a method that originally
