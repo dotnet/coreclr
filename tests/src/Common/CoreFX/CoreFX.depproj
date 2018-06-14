@@ -126,7 +126,7 @@
     <PackageReference Include="System.Text.Encoding.CodePages">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
-    <PackageReference Include="System.Text.Encoding.Web">
+    <PackageReference Include="System.Text.Encodings.Web">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
 

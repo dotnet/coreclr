@@ -7,6 +7,8 @@ namespace CoreFX.TestUtils.TestFileSetup
 {
     public class RSPGenerator
     {
+        private const int MAX_THREAD_NUM = 10;
+
         public void GenerateRSPFile(XUnitTestAssembly testDefinition, string outputPath)
         {
             if (!Directory.Exists(outputPath))

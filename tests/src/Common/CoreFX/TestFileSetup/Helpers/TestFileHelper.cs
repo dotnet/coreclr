@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Schema;
 using Newtonsoft.Json.Schema.Generation;
 
-namespace CoreFX.TestUtils.TestFileSetup
+namespace CoreFX.TestUtils.TestFileSetup.Helpers
 {
     /// <summary>
     /// Defines the set of flags that represent exit codes
@@ -24,9 +24,10 @@ namespace CoreFX.TestUtils.TestFileSetup
     public enum ExitCode : int
     {
         Success = 0,
-        HttpError = 1,
-        IOError = 2,
-        JsonSchemaValidationError = 3,
+        TestFailure = 1,
+        HttpError = 2,
+        IOError = 3,
+        JsonSchemaValidationError = 4,
         UnknownError = 10
 
     }
@@ -35,83 +36,23 @@ namespace CoreFX.TestUtils.TestFileSetup
     /// This helper class is used to fetch CoreFX tests from a specified URL, unarchive them and create a flat directory structure
     /// through which to iterate.
     /// </summary>
-    public static class TestFileSetup
+    public class TestFileHelper
     {
-        private static HttpClient httpClient;
-        private static bool cleanTestBuild = false;
-
-        private static string outputDir;
-        private static string testUrl;
-        private static string testListPath;
-
-        public static void Main(string[] args)
+        private HttpClient httpClient;
+        public HttpClient HttpClient
         {
-            ExitCode exitCode = ExitCode.UnknownError;
-            ArgumentSyntax argSyntax = ParseCommandLine(args);
-
-            try
+            get
             {
-                if (!Directory.Exists(outputDir))
-                    Directory.CreateDirectory(outputDir);
-
-                if (cleanTestBuild)
+                if (httpClient == null)
                 {
-                    CleanBuild(outputDir);
+                    httpClient = new HttpClient();
                 }
-
-                // Map test names to their definitions
-                Dictionary<string, XUnitTestAssembly> testAssemblyDefinitions = DeserializeTestJson(testListPath);
-
-                SetupTests(testUrl, outputDir, testAssemblyDefinitions).Wait();
-                exitCode = ExitCode.Success;
+                return httpClient;
             }
-
-            catch (AggregateException e)
-            {
-                e.Handle(innerExc =>
-                {
-
-                    if (innerExc is HttpRequestException)
-                    {
-                        exitCode = ExitCode.HttpError;
-                        Console.WriteLine("Error downloading tests from: " + testUrl);
-                        Console.WriteLine(innerExc.Message);
-                        return true;
-                    }
-                    else if (innerExc is IOException)
-                    {
-                        exitCode = ExitCode.IOError;
-                        Console.WriteLine(innerExc.Message);
-                        return true;
-                    }
-                    else if (innerExc is JSchemaValidationException || innerExc is JsonSerializationException)
-                    {
-                        exitCode = ExitCode.JsonSchemaValidationError;
-                        Console.WriteLine("Error validating test list: ");
-                        Console.WriteLine(innerExc.Message);
-                        return true;
-                    }
-                    return false;
-                });
-            }
-
-            Environment.Exit((int)exitCode);
+            set{ httpClient = value; }
         }
 
-        private static ArgumentSyntax ParseCommandLine(string[] args)
-        {
-            ArgumentSyntax argSyntax = ArgumentSyntax.Parse(args, syntax =>
-            {
-                syntax.DefineOption("out|outDir|outputDirectory", ref outputDir, "Directory where tests are downloaded");
-                syntax.DefineOption("testUrl", ref testUrl, "URL, pointing to the list of tests");
-                syntax.DefineOption("testListJsonPath", ref testListPath, "JSON-formatted list of test assembly names to download");
-                syntax.DefineOption("clean|cleanOutputDir", ref cleanTestBuild, "Clean test assembly output directory");
-            });
-
-            return argSyntax;
-        }
-
-        private static Dictionary<string, XUnitTestAssembly> DeserializeTestJson(string testDefinitionFilePath)
+        public Dictionary<string, XUnitTestAssembly> DeserializeTestJson(string testDefinitionFilePath)
         {
             JSchemaGenerator jsonGenerator = new JSchemaGenerator();
 
@@ -166,7 +107,7 @@ namespace CoreFX.TestUtils.TestFileSetup
             return nameToTestAssemblyDef;
         }
 
-        private static async Task SetupTests(string jsonUrl, string destinationDirectory, Dictionary<string, XUnitTestAssembly> testDefinitions = null, bool runAllTests = false)
+        public async Task SetupTests(string jsonUrl, string destinationDirectory, Dictionary<string, XUnitTestAssembly> testDefinitions = null, bool runAllTests = false)
         {
             Debug.Assert(Directory.Exists(destinationDirectory));
             Debug.Assert(runAllTests || testDefinitions != null);
@@ -195,16 +136,11 @@ namespace CoreFX.TestUtils.TestFileSetup
             Directory.Delete(tempDirPath);
         }
 
-        private static async Task<Dictionary<string, XUnitTestAssembly>> GetTestUrls(string jsonUrl, Dictionary<string, XUnitTestAssembly> testDefinitions = null, bool runAllTests = false)
+        public async Task<Dictionary<string, XUnitTestAssembly>> GetTestUrls(string jsonUrl, Dictionary<string, XUnitTestAssembly> testDefinitions = null, bool runAllTests = false)
         {
-            if (httpClient is null)
-            {
-                httpClient = new HttpClient();
-            }
-
             Debug.Assert(runAllTests || testDefinitions != null);
             // Set up the json stream reader
-            using (var responseStream = await httpClient.GetStreamAsync(jsonUrl))
+            using (var responseStream = await HttpClient.GetStreamAsync(jsonUrl))
             using (var streamReader = new StreamReader(responseStream))
             using (var jsonReader = new JsonTextReader(streamReader))
             {
@@ -249,13 +185,8 @@ namespace CoreFX.TestUtils.TestFileSetup
             return testDefinitions;
         }
 
-        private static async Task GetTestArchives(Dictionary<string, XUnitTestAssembly> testPayloads, string downloadDir)
+        public async Task GetTestArchives(Dictionary<string, XUnitTestAssembly> testPayloads, string downloadDir)
         {
-            if (httpClient is null)
-            {
-                httpClient = new HttpClient();
-            }
-
             foreach (string testName in testPayloads.Keys)
             {
                 string payloadUri = testPayloads[testName].Url;
@@ -263,7 +194,7 @@ namespace CoreFX.TestUtils.TestFileSetup
                 if (!Uri.IsWellFormedUriString(payloadUri, UriKind.Absolute))
                     continue;
 
-                using (var response = await httpClient.GetStreamAsync(payloadUri))
+                using (var response = await HttpClient.GetStreamAsync(payloadUri))
                 {
                     if (response.CanRead)
                     {
@@ -287,7 +218,7 @@ namespace CoreFX.TestUtils.TestFileSetup
             }
         }
 
-        private static void ExpandArchivesInDirectory(string archiveDirectory, string destinationDirectory, bool cleanup = true)
+        public void ExpandArchivesInDirectory(string archiveDirectory, string destinationDirectory, bool cleanup = true)
         {
             Debug.Assert(Directory.Exists(archiveDirectory));
             Debug.Assert(Directory.Exists(destinationDirectory));
@@ -309,7 +240,7 @@ namespace CoreFX.TestUtils.TestFileSetup
             }
         }
 
-        private static void CleanBuild(string directoryToClean)
+        public void CleanBuild(string directoryToClean)
         {
             Debug.Assert(Directory.Exists(directoryToClean));
             DirectoryInfo dirInfo = new DirectoryInfo(directoryToClean);

@@ -329,32 +329,24 @@ if not exist %_CoreFXTestHost%\dotnet.exe echo CoreFX test host not found, pleas
 set /p _CoreFXTestRemoteURL=< "%__ProjectFilesDir%\CoreFX\CoreFXTestListURL.txt"
 if not defined __CoreFXTestList ( set __CoreFXTestList=%__ProjectFilesDir%\CoreFX\TopN.CoreFX.Windows.issues.json )
 
-echo Downloading CoreFX Test Binaries
-echo "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
-call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%"
-if errorlevel 1 (
-      exit /b 1
-)
 
 set _CoreFXTestExecutable=xunit.console.netcore.exe
-set _CoreFXTestExecutableArgs=-notrait category=nonnetcoreapptests -notrait category=nonwindowstests  -notrait category=failing -notrait category=IgnoreForCI
+set _CoreFXTestExecutableArgs= --notrait nonnetcoreapptests --notrait nonwindowstests  --notrait failing --notrait IgnoreForCI
 
 REM Set the log file name to something Jenkins can understand
 set _CoreFX_TestLogFileName=testResults.xml
-for /D %%i in ("%_CoreFXTestBinariesPath%\*") do (
-    pushd %%i
-    if not exist "%%i\%_CoreFXTestExecutable%" echo "Error running CoreFX tests - %_CoreFXTestExecutable% not found" && exit /b 1
+set _CoreFX_TestRunScriptName=CoreCLR_RunTest.cmd
 
-    set _TestName=%%~nxi
-    set _LogPath=%_CoreFXLogsDir%\!_TestName!
-    if not exist "!_LogPath!"  (mkdir "!_LogPath!")
 
-    echo %__MsgPrefix%Running !_TestName!
-    echo    Writing logs to !_LogPath!
-    echo    To reproduce directly run:
-    echo "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\%_CoreFX_TestLogFileName%" %_CoreFXTestExecutableArgs%
-    call "%_CoreFXTestHost%\dotnet.exe" "%%i\%_CoreFXTestExecutable%" "%%i\!_TestName!.dll" @"%%i\!_TestName!.rsp" -xml "!_LogPath!\\%_CoreFX_TestLogFileName%" %_CoreFXTestExecutableArgs%
-    popd
+echo Downloading and Running CoreFX Test Binaries
+echo call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --logPath %_CoreFXLogsDir%  --maxProcessCount 5 %_CoreFXTestExecutableArgs% 
+call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --log %_CoreFXLogsDir%  --maxProcessCount 5 %_CoreFXTestExecutableArgs% 
+if errorlevel 1 (
+      echo %__MsgPrefix%Running CoreFX tests finished with Failures
+      echo %__MsgPrefix%Check %_CoreFXLogsDir% for test run logs
+      exit /b 1
+)
+
 )
 goto TestsDone
 
