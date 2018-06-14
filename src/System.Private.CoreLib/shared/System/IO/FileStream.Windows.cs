@@ -61,11 +61,11 @@ namespace System.IO
             int fileType = Interop.Kernel32.GetFileType(_fileHandle);
             if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK)
             {
-                int errorCode = Marshal.GetLastWin32Error();
+                int errorCode = fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN ? Marshal.GetLastWin32Error() : Interop.Errors.ERROR_SUCCESS;
 
                 _fileHandle.Dispose();
 
-                if (fileType == Interop.Kernel32.FileTypes.FILE_TYPE_UNKNOWN && errorCode != Interop.Errors.ERROR_SUCCESS)
+                if (errorCode != Interop.Errors.ERROR_SUCCESS)
                 {
                     throw Win32Marshal.GetExceptionForWin32Error(errorCode);
                 }
