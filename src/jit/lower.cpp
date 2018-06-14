@@ -269,13 +269,6 @@ GenTree* Lowering::LowerNode(GenTree* node)
             break;
 #endif // FEATURE_HW_INTRINSICS
 
-        case GT_LCL_FLD:
-        {
-            // We should only encounter this for lclVars that are lvDoNotEnregister.
-            verifyLclFldDoNotEnregister(node->AsLclVarCommon()->gtLclNum);
-            break;
-        }
-
         case GT_LCL_VAR:
             WidenSIMD12IfNecessary(node->AsLclVarCommon());
             break;

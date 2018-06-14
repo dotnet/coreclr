@@ -203,11 +203,6 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
             }
         }
     }
-    if (storeLoc->OperIs(GT_STORE_LCL_FLD))
-    {
-        // We should only encounter this for lclVars that are lvDoNotEnregister.
-        verifyLclFldDoNotEnregister(storeLoc->gtLclNum);
-    }
     ContainCheckStoreLoc(storeLoc);
 }
 
