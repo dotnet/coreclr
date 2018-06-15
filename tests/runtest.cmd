@@ -339,8 +339,8 @@ set _CoreFX_TestRunScriptName=CoreCLR_RunTest.cmd
 
 
 echo Downloading and Running CoreFX Test Binaries
-echo call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --logPath %_CoreFXLogsDir%  --maxProcessCount 5 %_CoreFXTestExecutableArgs% 
-call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --log %_CoreFXLogsDir%  --maxProcessCount 5 %_CoreFXTestExecutableArgs% 
+echo call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --logPath %_CoreFXLogsDir%  %_CoreFXTestExecutableArgs% 
+call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --log %_CoreFXLogsDir% %_CoreFXTestExecutableArgs% 
 if errorlevel 1 (
       echo %__MsgPrefix%Running CoreFX tests finished with Failures
       echo %__MsgPrefix%Check %_CoreFXLogsDir% for test run logs
