@@ -190,7 +190,7 @@ namespace System
             }
 
             /// <summary>
-            /// Ensures the daylight delta is withing [-12, 12] hours
+            /// Ensures the daylight delta is within [-12, 12] hours
             /// </summary>>
             private static void AdjustDaylightDeltaToExpectedRange(ref TimeSpan daylightDelta, ref TimeSpan baseUtcOffsetDelta)
             {
