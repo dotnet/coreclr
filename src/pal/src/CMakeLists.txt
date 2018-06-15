@@ -45,7 +45,8 @@ else()
       message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev or libunwind-devel.")
     endif()
 
-    set(UNWIND_LIBS ${UNWIND_LIBS} ${UNWIND})endif(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+    set(UNWIND_LIBS ${UNWIND_LIBS} ${UNWIND})
+endif(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
 include(configure.cmake)
 
 project(coreclrpal)
