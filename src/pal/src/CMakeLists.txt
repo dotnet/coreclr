@@ -276,8 +276,29 @@ endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   if(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
-    find_library(UNWIND unwind)
-  endif()
+    if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
+      find_library(UNWIND_ARCH NAMES unwind-x86_64)
+    endif()
+
+    if(NOT UNWIND_ARCH STREQUAL UNWIND_ARCH-NOTFOUND)
+      target_link_libraries(coreclrpal ${UNWIND_ARCH})
+    endif()
+
+    find_library(UNWIND_GENERIC NAMES unwind-generic)
+
+    if(NOT UNWIND_GENERIC STREQUAL UNWIND_GENERIC-NOTFOUND)
+      target_link_libraries(coreclrpal ${UNWIND_GENERIC})
+    endif()
+
+    find_library(UNWIND NAMES unwind)
+
+    if(UNWIND STREQUAL UNWIND-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libunwind. Try installing libunwind8-dev or libunwind-devel.")
+    endif()
+
+    target_link_libraries(coreclrpal ${UNWIND})
+  endif(CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
+
   find_library(INTL intl)
   target_link_libraries(coreclrpal
     pthread
