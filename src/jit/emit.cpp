@@ -4332,8 +4332,6 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     }
 #endif
 
-    insGroup* ig;
-
     BYTE* consBlock;
     BYTE* codeBlock;
     BYTE* coldCodeBlock;
@@ -4706,7 +4704,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
 #define DEFAULT_CODE_BUFFER_INIT 0xcc
 
-    for (ig = emitIGlist; ig; ig = ig->igNext)
+    for (insGroup* ig = emitIGlist; ig != nullptr; ig = ig->igNext)
     {
         assert(!(ig->igFlags & IGF_PLACEHOLDER)); // There better not be any placeholder groups left
 
@@ -4726,7 +4724,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
         }
 
         /* Are we overflowing? */
-        if (ig->igNext && ig->igNum + 1 != ig->igNext->igNum)
+        if (ig->igNext && (ig->igNum + 1 != ig->igNext->igNum))
         {
             NO_WAY("Too many instruction groups");
         }
@@ -4874,14 +4872,14 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     /* Output any initialized data we may have */
 
-    if (emitConsDsc.dsdOffs)
+    if (emitConsDsc.dsdOffs != 0)
     {
         emitOutputDataSec(&emitConsDsc, consBlock);
     }
 
     /* Make sure all GC ref variables are marked as dead */
 
-    if (emitGCrFrameOffsCnt)
+    if (emitGCrFrameOffsCnt != 0)
     {
         unsigned    vn;
         int         of;
@@ -4912,15 +4910,12 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     if (emitFwdJumps)
     {
-        instrDescJmp* jmp;
-
-        for (jmp = emitJumpList; jmp; jmp = jmp->idjNext)
+        for (instrDescJmp* jmp = emitJumpList; jmp != nullptr; jmp = jmp->idjNext)
         {
-            insGroup* tgt;
 #ifdef _TARGET_XARCH_
             assert(jmp->idInsFmt() == IF_LABEL || jmp->idInsFmt() == IF_RWR_LABEL || jmp->idInsFmt() == IF_SWR_LABEL);
 #endif
-            tgt = jmp->idAddr()->iiaIGlabel;
+            insGroup* tgt = jmp->idAddr()->iiaIGlabel;
 
             if (jmp->idjTemp.idjAddr == nullptr)
             {
@@ -4937,7 +4932,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 #endif
 
 #if DEBUG_EMIT
-                if (jmp->idDebugOnlyInfo()->idNum == (unsigned)INTERESTING_JUMP_NUM || INTERESTING_JUMP_NUM == 0)
+                if ((jmp->idDebugOnlyInfo()->idNum == (unsigned)INTERESTING_JUMP_NUM) || (INTERESTING_JUMP_NUM == 0))
                 {
 #ifdef _TARGET_ARM_
                     printf("[5] This output is broken for ARM, since it doesn't properly decode the jump offsets of "
