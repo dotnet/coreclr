@@ -228,13 +228,26 @@ public delegate void SimpleDelegate();
 public delegate void GenericDelegate<T>();
 
 
+internal sealed class GCHandleWrapper
+{
+    public GCHandle Handle { get; private set; }
+
+    public GCHandleWrapper(GCHandle handle)
+    {
+        Handle = handle;
+    }
+
+    ~GCHandleWrapper()
+    {
+        Handle.Free();
+    }
+}
+
+// Create Value Instance
 internal static class Helper
 {
-    public static GCHandle GCHANDLE;
-    static Helper()
-    {
-        GCHANDLE = GCHandle.Alloc(Console.Out);
-    }
+    private static readonly GCHandleWrapper handleWrapper = new GCHandleWrapper(GCHandle.Alloc(Console.Out));
+    public static GCHandle GCHANDLE => handleWrapper.Handle;
 
     public static char Create(char val) { return 'c'; }
     public static bool Create(bool val) { return true; }
