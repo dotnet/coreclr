@@ -87,8 +87,10 @@ $(_XunitEpilog)
     <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
     <OutputType>Library</OutputType>
     <TargetFrameworkIdentifier Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">.NETFramework</TargetFrameworkIdentifier>
+    <TargetFrameworkIdentifier Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' != 'Windows_NT')">.NETCoreApp</TargetFrameworkIdentifier>
     <TargetFrameworkVersion Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">v4.5</TargetFrameworkVersion>
-    <TargetFramework Condition="'$(BuildOS)' != 'Windows_NT'">netcoreapp2.0</TargetFramework>
+    <TargetFrameworkVersion Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' != 'Windows_NT')">v2.2</TargetFrameworkVersion>
+    <TargetFramework Condition="'$(BuildOS)' != 'Windows_NT'">netcoreapp2.2</TargetFramework>
     <NugetTargetMonikerShort Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">net45</NugetTargetMonikerShort>
     <IsXunitWrapperProject>true</IsXunitWrapperProject>
     <SkipSigning>true</SkipSigning>

@@ -13,19 +13,26 @@
     </PackageReference>
     <PackageReference Include="xunit">
       <Version>$(XunitPackageVersion)</Version>
+      <ExcludeAssets>All</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="xunit.assert">
+      <ExcludeAssets>All</ExcludeAssets>
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.core">
       <Version>$(XunitPackageVersion)</Version>
+      <ExcludeAssets>All</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="xunit.runner.msbuild">
       <Version>$(XunitPackageVersion)</Version>
+      <ExcludeAssets>All</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.1;net45</TargetFrameworks>
+    <TargetFrameworks>netcoreapp2.2</TargetFrameworks>
     <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
     <RuntimeIdentifiers>$(TargetRid)</RuntimeIdentifiers>

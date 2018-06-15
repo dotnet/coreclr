@@ -362,7 +362,7 @@ build_Tests_internal()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} -MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+        buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
 
         echo "Building step '$stepName' via $buildCommand"
 
@@ -747,7 +747,7 @@ __CrossgenExe="$__CrossComponentBinDir/crossgen"
 
 isMSBuildOnNETCoreSupported
 
-# CI_SPECIFIC - On CI machines, $HOME may not be set. In such a case, create a subfolder and set the variable to set.
+# CI_SPECIFIC - On CI machines, $HOME may not be set. In such a case, create a subfolder and set the variable to it.
 # This is needed by CLI to function.
 if [ -z "$HOME" ]; then
     if [ ! -d "$__ProjectDir/temp_home" ]; then
