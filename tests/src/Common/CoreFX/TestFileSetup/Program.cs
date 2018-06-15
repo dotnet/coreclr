@@ -19,11 +19,11 @@ namespace CoreFX.TestUtils.TestFileSetup
         private static string outputDir;
         private static string testUrl;
         private static string testListPath;
-        private static bool cleanTestBuild = false;
+        private static bool cleanTestBuild;
 
         // Test Run Options
         private static string dotnetPath;
-        private static bool runTests = false;
+        private static bool runTests;
         private static int maximumDegreeOfParalellization;
         private static string logRootOutputPath;
 
@@ -33,7 +33,12 @@ namespace CoreFX.TestUtils.TestFileSetup
 
         public static void Main(string[] args)
         {
+            // Initialize default options
             exitCode = ExitCode.Success;
+            maximumDegreeOfParalellization = Environment.ProcessorCount;
+            runTests = false;
+            cleanTestBuild = false;
+
             ArgumentSyntax argSyntax = ParseCommandLine(args);
             try
             {
