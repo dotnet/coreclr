@@ -128,7 +128,7 @@ def call_msbuild(coreclr_repo_location,
     common_msbuild_arguments = ["/nologo", "/nodeReuse:false", "/p:Platform=%s" % arch]
 
     if sequential:
-        common_msbuild_arguments += ["/p:ParrallelRun=false"]
+        common_msbuild_arguments += ["/p:ParallelRun=false"]
     else:
         common_msbuild_arguments += ["/maxcpucount"]
 
