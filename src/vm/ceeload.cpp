@@ -2262,6 +2262,9 @@ void  Module::GetOffsetsForRegularStaticData(
     *pOutStaticHandleOffset = m_pRegularStaticOffsets[index*2];
 
     *pOutNonGCStaticOffset  = m_pRegularStaticOffsets[index*2 + 1];
+#ifdef CROSSBITNESS_COMPILE
+    *pOutNonGCStaticOffset += OFFSETOF__DomainLocalModule__m_pDataBlob_ - DomainLocalModule::OffsetOfDataBlob();
+#endif
 
     // Check we didnt go out of what we predicted we would need for the class
     if (*pOutStaticHandleOffset + sizeof(OBJECTREF*)*dwGCStaticHandles >
@@ -2323,6 +2326,9 @@ void  Module::GetOffsetsForThreadStaticData(
     *pOutStaticHandleOffset = m_pThreadStaticOffsets[index*2];
 
     *pOutNonGCStaticOffset  = m_pThreadStaticOffsets[index*2 + 1];
+#ifdef CROSSBITNESS_COMPILE
+    *pOutNonGCStaticOffset += OFFSETOF__ThreadLocalModule__m_pDataBlob - ThreadLocalModule::GetOffsetOfDataBlob();
+#endif
 
     // Check we didnt go out of what we predicted we would need for the class
     if (*pOutStaticHandleOffset + sizeof(OBJECTREF*)*dwGCStaticHandles >
