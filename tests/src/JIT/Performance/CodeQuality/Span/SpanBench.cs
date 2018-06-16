@@ -1174,9 +1174,11 @@ namespace Span
             
             for (var i = 0; i < iterationCount; i++)
             {
-                var length = random.Next(2, array.Length - i);
+                var index = random.Next(0, array.Length - 1);
 
-                var lookup = new ReadOnlySpan<T>(array, i, length);
+                var length = random.Next(1, array.Length - index);
+
+                var lookup = new ReadOnlySpan<T>(array, index, length);
 
                 span.StartsWith(lookup);
             }
