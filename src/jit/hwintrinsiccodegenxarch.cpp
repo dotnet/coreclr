@@ -1354,7 +1354,6 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
         }
 
         case NI_SSE_ConvertToSingle:
-        case NI_SSE_StaticCast:
         {
             assert(op2 == nullptr);
             if (op1Reg != targetReg)
@@ -2002,7 +2001,6 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
         }
 
         case NI_AVX_GetLowerHalf:
-        case NI_AVX_StaticCast:
         {
             assert(op2 == nullptr);
             regNumber op1Reg = op1->gtRegNum;
