@@ -13,8 +13,7 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// Attach restricted error information to the exception if it may apply to that exception, returning
         /// back the input value
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Exception AttachRestrictedErrorInfo(this Exception e)
+        public static Exception AttachRestrictedErrorInfo(Exception e)
         {
             // If there is no exception, then the restricted error info doesn't apply to it
             if (e != null)
@@ -72,7 +71,6 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// for the application to be invoked to process the error.
         /// </summary>
         /// <returns>true if the error was reported, false if not (ie running on Win8)</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool ReportUnhandledError(Exception ex)
         {
            return WindowsRuntimeMarshal.ReportUnhandledError(ex); 
