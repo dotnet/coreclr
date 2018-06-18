@@ -609,7 +609,6 @@ namespace System.StubHelpers
     }  // class DateMarshaler
 
 #if FEATURE_COMINTEROP
-    // [FriendAccessAllowed]
     internal static class InterfaceMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -621,7 +620,6 @@ namespace System.StubHelpers
         [DllImport(JitHelpers.QCall)]
         internal static extern void ClearNative(IntPtr pUnk);
 
-        // [FriendAccessAllowed]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern object ConvertToManagedWithoutUnboxing(IntPtr pNative);
     }  // class InterfaceMarshaler
@@ -645,10 +643,8 @@ namespace System.StubHelpers
         }
     }  // class InterfaceMarshaler
 
-    // [FriendAccessAllowed]
     internal static class EventArgsMarshaler
     {
-        // [FriendAccessAllowed]
         internal static IntPtr CreateNativeNCCEventArgsInstance(int action, object newItems, object oldItems, int newIndex, int oldIndex)
         {
             IntPtr newItemsIP = IntPtr.Zero;
@@ -673,7 +669,6 @@ namespace System.StubHelpers
             }
         }
 
-        // [FriendAccessAllowed]
         [DllImport(JitHelpers.QCall)]
         static internal extern IntPtr CreateNativePCEventArgsInstance([MarshalAs(UnmanagedType.HString)]string name);
 
