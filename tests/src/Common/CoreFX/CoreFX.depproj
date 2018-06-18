@@ -11,10 +11,10 @@
       <IsTestProject>false</IsTestProject>
       <!-- System.Composition and System.Composition.AttributedModel use different versioning conventions -->
       <SystemCompositionVersions>1.3.0-preview3-26501-04</SystemCompositionVersions>
-      <CoreFxTestUtilsVersion>4.6.0-preview1-26604-03</CoreFxTestUtilsVersion>
       <XUnitNetcoreExtensionsVersion>2.2.0-preview1-02902-01</XUnitNetcoreExtensionsVersion>
       <!-- Xunit Abstractions is differently versioned then the rest of XUnit -->
       <XUnitAbstractionsVersion>2.0.1</XUnitAbstractionsVersion>
+      <CoreFXXUnitPackageVersion>2.2.0-beta2-build3300</CoreFXXUnitPackageVersion>
   </PropertyGroup>
 
   <!-- Switch RuntimeIdentifier according to currently running OSGroup -->
@@ -26,30 +26,32 @@
   </PropertyGroup>
 
   <ItemGroup>
-
+    <PackageReference Include="xunit">
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
+    </PackageReference>
     <PackageReference Include="xunit.core">
-      <Version>$(XunitPackageVersion)</Version>
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.assert">
-      <Version>$(XunitPackageVersion)</Version>
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.abstractions">
       <Version>$(XUnitAbstractionsVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.extensibility.core">
-      <Version>$(XunitPackageVersion)</Version>
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.extensibility.execution">
-      <Version>$(XunitPackageVersion)</Version>
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
     </PackageReference>    
     <PackageReference Include="xunit.runner.utility">
-      <Version>$(XunitPackageVersion)</Version>
+      <Version>$(CoreFXXUnitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="microsoft.xunit.netcore.extensions">
       <Version>$(XUnitNetcoreExtensionsVersion)</Version>
     </PackageReference>
     <PackageReference Include="CoreFx.Private.TestUtilities">
-      <Version>$(CoreFxTestUtilsVersion)</Version>
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.CodeDom">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
@@ -112,6 +114,9 @@
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Runtime.Caching">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Reflection.Context">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="System.Security.Cryptography.ProtectedData">
