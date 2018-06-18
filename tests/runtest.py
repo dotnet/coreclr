@@ -69,17 +69,64 @@ def create_and_use_test_env(_os, env, func):
         in runtest.sh.
     """
 
-    if _os == "Windows_NT":
+    complus_vars = defaultdict(lambda: None)
+
+    for key in env:
+        value = env[key]
+        if "complus" in key.lower():
+            complus_vars[key] = value
+
+    if len(complus_vars.keys()) > 0:
+        print "Found COMPlus variables in the current environment"
+        print
+
+        file_header = None
+
+        if _os == "Windows_NT":
+            file_header = \
+"""@echo off
+REM Temporary test env for test run.
+
+"""
+        else:
+            file_header = \
+"""# Temporary test env for test run.
+
+"""
+
         with tempfile.NamedTemporaryFile() as test_env:
             with open(test_env.name, 'w') as file_handle:
-                for key in env:
-                    file_handle.write("set %s=%s%s" % (key, value, os.linesep))
+                file_handle.write(file_header)
+                
+                for key in complus_vars:
+                    value = complus_vars[key]
+                    command = None
+                    if _os == "Windows_NT":
+                        command = "set"
+                    else:
+                        command = "export"
+
+                    print "Unset %s" % key
+                    os.environ[key] = ""
+
+                    file_handle.write("%s %s=%s%s" % (command, key, value, os.linesep))
+
+            contents = None
+            with open(test_env.name) as file_handle:
+                contents = file_handle.read()
+
+            print
+            print "TestEnv: %s" % test_env.name
+            print 
+            print "Contents:"
+            print
+            print contents
+            print
 
             func(test_env.name)
-                
+
     else:
         func(None)
-
 
 def get_environment():
     """ Get all the COMPlus_* Environment variables
@@ -155,7 +202,7 @@ def call_msbuild(coreclr_repo_location,
     command += msbuild_log_args
 
     if host_os != "Windows_NT":
-        command = ["sh"] + command
+        command = ["bash"] + command
 
     print " ".join(command)
     subprocess.check_output(command)
