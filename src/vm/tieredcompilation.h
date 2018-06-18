@@ -26,11 +26,12 @@ public:
 
     void Init(ADID appDomainId);
 
-    void InitiateTier1CountingDelay();
-    void OnTier0JitInvoked();
-
+public:
     void OnMethodCalled(MethodDesc* pMethodDesc, DWORD currentCallCount, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToTier1Ref);
     void OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc);
+private:
+    bool TryInitiateTier1CountingDelay();
+public:
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
     void Shutdown();
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
@@ -44,6 +45,7 @@ private:
 
     static DWORD StaticOptimizeMethodsCallback(void* args);
     void OptimizeMethodsCallback();
+    void OptimizeMethods();
     void OptimizeMethod(NativeCodeVersion nativeCodeVersion);
     NativeCodeVersion GetNextMethodToOptimize();
     BOOL CompileCodeVersion(NativeCodeVersion nativeCodeVersion);
@@ -60,10 +62,11 @@ private:
     DWORD m_callCountOptimizationThreshhold;
     DWORD m_optimizationQuantumMs;
 
-    SpinLock m_tier1CountingDelayLock;
+    CrstExplicitInit m_tier1CountingDelayLock;
     SArray<MethodDesc*>* m_methodsPendingCountingForTier1;
     HANDLE m_tier1CountingDelayTimerHandle;
-    bool m_wasTier0JitInvokedSinceCountingDelayReset;
+    bool m_tier1CallCountingCandidateMethodRecentlyRecorded;
+    bool m_hasMethodsToOptimizeAfterDelay;
 
     CLREvent m_asyncWorkDoneEvent;
 };
