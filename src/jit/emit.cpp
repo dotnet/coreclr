@@ -4855,10 +4855,12 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
             if (actualHotCodeSize < allocatedHotCodeSize)
             {
                 // The allocated chunk is bigger than used, fill in unused space in it.
-                while (emitCurCodeOffs(cp) < allocatedHotCodeSize)
+                unsigned unusedSize = allocatedHotCodeSize - emitCurCodeOffs(cp);
+                for (unsigned i = 0; i < unusedSize; ++i)
                 {
                     *cp++ = DEFAULT_CODE_BUFFER_INIT;
                 }
+                assert(allocatedHotCodeSize == emitCurCodeOffs(cp));
             }
         }
 
@@ -5013,11 +5015,14 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     // Fill in eventual unused space, but do not report this space as used.
     // If you add this padding during the emitIGlist loop, then it will
     // emit offsets after the loop with wrong value (for example for GC ref variables).
-    while (emitCurCodeOffs(cp) < emitTotalCodeSize)
+    unsigned unusedSize = emitTotalCodeSize - emitCurCodeOffs(cp);
+    for (unsigned i = 0; i < unusedSize; ++i)
     {
         *cp++ = DEFAULT_CODE_BUFFER_INIT;
     }
+    assert(emitTotalCodeSize == emitCurCodeOffs(cp));
 
+    // Total code size is sum of all IG->size and doesn't include padding in the last IG.
     emitTotalCodeSize = actualCodeSize;
 
 #ifdef DEBUG
