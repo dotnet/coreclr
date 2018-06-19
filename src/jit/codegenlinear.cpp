@@ -998,7 +998,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         else if (unspillTree->OperIsPutArgSplit())
         {
             GenTreePutArgSplit* splitArg = unspillTree->AsPutArgSplit();
@@ -1026,6 +1026,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
+#ifdef _TARGET_ARM_
         else if (unspillTree->OperIsMultiRegOp())
         {
             GenTreeMultiRegOp* multiReg = unspillTree->AsMultiRegOp();
@@ -1052,7 +1053,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#endif
+#endif //_TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
         else
         {
             TempDsc* t = regSet.rsUnspillInPlace(unspillTree, unspillTree->gtRegNum);
@@ -1442,7 +1444,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 //------------------------------------------------------------------------
 // genConsumeArgRegSplit: Consume register(s) in Call node to set split struct argument.
 //                        Liveness update for the PutArgSplit node is not needed
@@ -1465,7 +1467,7 @@ void CodeGen::genConsumeArgSplitStruct(GenTreePutArgSplit* putArgNode)
 
     genCheckConsumeNode(putArgNode);
 }
-#endif
+#endif // FEATURE_ARG_SPLIT
 
 //------------------------------------------------------------------------
 // genPutArgStkFieldList: Generate code for a putArgStk whose source is a GT_FIELD_LIST
@@ -1497,11 +1499,12 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
         emitAttr  attr = emitTypeSize(type);
 
         // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
-        // argument area
-        getEmitter()->emitIns_S_R(ins_Store(type), attr, reg, outArgVarNum, argOffset);
-        argOffset += EA_SIZE_IN_BYTES(attr);
+        // argument area.
+        unsigned thisFieldOffset = argOffset + fieldListPtr->gtFieldOffset;
+        getEmitter()->emitIns_S_R(ins_Store(type), attr, reg, outArgVarNum, thisFieldOffset);
+
         // We can't write beyound the arg area
-        assert(argOffset <= compiler->lvaLclSize(outArgVarNum));
+        assert((thisFieldOffset + EA_SIZE_IN_BYTES(attr)) <= compiler->lvaLclSize(outArgVarNum));
     }
 }
 #endif // !_TARGET_X86_
@@ -1700,7 +1703,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
             else if (tree->OperIsPutArgSplit())
             {
                 GenTreePutArgSplit* argSplit = tree->AsPutArgSplit();
@@ -1717,6 +1720,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
+#ifdef _TARGET_ARM_
             else if (tree->OperIsMultiRegOp())
             {
                 GenTreeMultiRegOp* multiReg = tree->AsMultiRegOp();
@@ -1734,6 +1738,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                 }
             }
 #endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
             else
             {
                 regSet.rsSpillTree(tree->gtRegNum, tree);

@@ -690,11 +690,12 @@ inline bool isRegParamType(var_types type)
 //    typeSize  - Out param (if non-null) is updated with the size of 'type'.
 //    forReturn - this is true when we asking about a GT_RETURN context;
 //                this is false when we are asking about an argument context
+//    isVarArg  - whether or not this is a vararg fixed arg or variable argument
+//              - if so on arm64 windows getArgTypeForStruct will ignore HFA
+//              - types
 //
-inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(var_types            type,
-                                                    CORINFO_CLASS_HANDLE typeClass,
-                                                    unsigned*            typeSize,
-                                                    bool                 forReturn)
+inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(
+    var_types type, CORINFO_CLASS_HANDLE typeClass, unsigned* typeSize, bool forReturn, bool isVarArg)
 {
     bool     result = false;
     unsigned size   = 0;
@@ -710,7 +711,7 @@ inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(var_types            type,
         else
         {
             structPassingKind howToPassStruct;
-            type = getArgTypeForStruct(typeClass, &howToPassStruct, size);
+            type = getArgTypeForStruct(typeClass, &howToPassStruct, isVarArg, size);
         }
         if (type != TYP_UNKNOWN)
         {
@@ -4681,9 +4682,9 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_NULLCHECK:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
-#endif
+#endif // FEATURE_ARG_SPLIT
         case GT_RETURNTRAP:
             visitor(this->AsUnOp()->gtOp1);
             return;

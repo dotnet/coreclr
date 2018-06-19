@@ -585,8 +585,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         bool      isHfaArg         = false;
         var_types hfaType          = TYP_UNDEF;
 
+#if defined(_TARGET_ARM64_) && defined(_TARGET_UNIX_)
+        // Native varargs on arm64 unix use the regular calling convention.
+        if (!opts.compUseSoftFP)
+#else
         // Methods that use VarArg or SoftFP cannot have HFA arguments
         if (!info.compIsVarArgs && !opts.compUseSoftFP)
+#endif // defined(_TARGET_ARM64_) && defined(_TARGET_UNIX_)
         {
             // If the argType is a struct, then check if it is an HFA
             if (varTypeIsStruct(argType))
@@ -621,6 +626,24 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         // it enregistered, as long as we can split the rest onto the stack.
         unsigned cSlotsToEnregister = cSlots;
 
+#if defined(_TARGET_ARM64_) && FEATURE_ARG_SPLIT
+
+        // On arm64 Windows we will need to properly handle the case where a >8byte <=16byte
+        // struct is split between register r7 and virtual stack slot s[0]
+        // We will only do this for calls to vararg methods on Windows Arm64
+        //
+        // !!This does not affect the normal arm64 calling convention or Unix Arm64!!
+        if (this->info.compIsVarArgs && argType == TYP_STRUCT)
+        {
+            if (varDscInfo->canEnreg(TYP_INT, 1) &&     // The beginning of the struct can go in a register
+                !varDscInfo->canEnreg(TYP_INT, cSlots)) // The end of the struct can't fit in a register
+            {
+                cSlotsToEnregister = 1; // Force the split
+            }
+        }
+
+#endif // defined(_TARGET_ARM64_) && FEATURE_ARG_SPLIT
+
 #ifdef _TARGET_ARM_
         // On ARM we pass the first 4 words of integer arguments and non-HFA structs in registers.
         // But we pre-spill user arguments in varargs methods and structs.
@@ -638,6 +661,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // arguments passed in the integer registers but get homed immediately after the prolog.
                 if (!isHfaArg)
                 {
+                    // TODO-Arm32-Windows: vararg struct should be forced to split like
+                    // ARM64 above.
                     cSlotsToEnregister = 1; // HFAs must be totally enregistered or not, but other structs can be split.
                     preSpill           = true;
                 }
@@ -1260,6 +1285,10 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
     if ((varTypeIsStruct(type)))
     {
         lvaSetStruct(varNum, typeHnd, typeHnd != nullptr, !tiVerificationNeeded);
+        if (info.compIsVarArgs)
+        {
+            lvaSetStructUsedAsVarArg(varNum);
+        }
     }
     else
     {
@@ -1867,7 +1896,7 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
         // multiple registers?
-        if ((structPromotionInfo->fieldCnt != 2) && lvaIsMultiregStruct(varDsc))
+        if ((structPromotionInfo->fieldCnt != 2) && lvaIsMultiregStruct(varDsc, this->info.compIsVarArgs))
         {
             JITDUMP("Not promoting multireg struct local V%02u, because lvIsParam is true and #fields != 2\n", lclNum);
             shouldPromote = false;
@@ -2232,14 +2261,14 @@ void Compiler::lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregister
 }
 
 // Returns true if this local var is a multireg struct
-bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc)
+bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc, bool isVarArg)
 {
     if (varTypeIsStruct(varDsc->TypeGet()))
     {
         CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandleForValueClass();
         structPassingKind    howToPassStruct;
 
-        var_types type = getArgTypeForStruct(clsHnd, &howToPassStruct, varDsc->lvExactSize);
+        var_types type = getArgTypeForStruct(clsHnd, &howToPassStruct, isVarArg, varDsc->lvExactSize);
 
         if (howToPassStruct == SPK_ByValueAsHfa)
         {
@@ -2360,6 +2389,30 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         compGSReorderStackLayout = true;
         varDsc->lvIsUnsafeBuffer = true;
     }
+}
+
+//------------------------------------------------------------------------
+// lvaSetStructUsedAsVarArg: update hfa information for vararg struct args
+//
+// Arguments:
+//    varNum   -- number of the variable
+//
+// Notes:
+//    This only affects arm64 varargs on windows where we need to pass
+//    hfa arguments as if they are not HFAs.
+//
+//    This function should only be called if the struct is used in a varargs
+//    method.
+
+void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
+{
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+    LclVarDsc* varDsc = &lvaTable[varNum];
+    // For varargs methods incoming and outgoing arguments should not be treated
+    // as HFA.
+    varDsc->_lvIsHfa          = false;
+    varDsc->_lvHfaTypeIsFloat = false;
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
 }
 
 //------------------------------------------------------------------------
@@ -5177,6 +5230,20 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         argOffs += TARGET_POINTER_SIZE;
 #elif defined(_TARGET_ARM64_)
 // Register arguments on ARM64 only take stack space when they have a frame home.
+// Unless on windows and in a vararg method.
+#if FEATURE_ARG_SPLIT
+        if (this->info.compIsVarArgs)
+        {
+            if (varDsc->lvType == TYP_STRUCT && varDsc->lvOtherArgReg >= MAX_REG_ARG && varDsc->lvOtherArgReg != REG_NA)
+            {
+                // This is a split struct. It will account for an extra (8 bytes)
+                // of allignment.
+                varDsc->lvStkOffs += TARGET_POINTER_SIZE;
+                argOffs += TARGET_POINTER_SIZE;
+            }
+        }
+#endif // FEATURE_ARG_SPLIT
+
 #elif defined(_TARGET_ARM_)
         // On ARM we spill the registers in codeGen->regSet.rsMaskPreSpillRegArg
         // in the prolog, so we have to fill in lvStkOffs here

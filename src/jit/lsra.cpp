@@ -130,13 +130,15 @@ void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
     {
         tree->gtRegNum = reg;
     }
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
+#ifdef _TARGET_ARM_
     else if (tree->OperIsMultiRegOp())
     {
         assert(regIdx == 1);
         GenTreeMultiRegOp* mul = tree->AsMultiRegOp();
         mul->gtOtherReg        = reg;
     }
+#endif // _TARGET_ARM_
     else if (tree->OperGet() == GT_COPY)
     {
         assert(regIdx == 1);
@@ -148,7 +150,7 @@ void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
         GenTreePutArgSplit* putArg = tree->AsPutArgSplit();
         putArg->SetRegNumByIdx(reg, regIdx);
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
     else
     {
         assert(tree->IsMultiRegCall());
@@ -1357,7 +1359,10 @@ void LinearScan::identifyCandidatesExceptionDataflow()
 
 bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 {
-    // We shouldn't be called if opt settings do not permit register variables.
+    if (!enregisterLocalVars)
+    {
+        return false;
+    }
     assert((compiler->opts.compFlags & CLFLG_REGVAR) != 0);
 
     if (!varDsc->lvTracked)
@@ -1386,6 +1391,95 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
     {
         return false;
     }
+
+    // Don't enregister if the ref count is zero.
+    if (varDsc->lvRefCnt == 0)
+    {
+        varDsc->lvRefCntWtd = 0;
+        return false;
+    }
+
+    // Variables that are address-exposed are never enregistered, or tracked.
+    // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
+    // Pinned variables may not be tracked (a condition of the GCInfo representation)
+    // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
+    // references when using the general GC encoding.
+    unsigned lclNum = (unsigned)(varDsc - compiler->lvaTable);
+    if (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
+    {
+#ifdef DEBUG
+        Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
+        if (!varDsc->lvAddrExposed)
+        {
+            dner = Compiler::DNER_IsStruct;
+        }
+#endif // DEBUG
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(dner));
+        return false;
+    }
+    else if (varDsc->lvPinned)
+    {
+        varDsc->lvTracked = 0;
+#ifdef JIT32_GCENCODER
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_PinningRef));
+#endif // JIT32_GCENCODER
+        return false;
+    }
+
+    //  Are we not optimizing and we have exception handlers?
+    //   if so mark all args and locals as volatile, so that they
+    //   won't ever get enregistered.
+    //
+    if (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
+    {
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
+    }
+
+    if (varDsc->lvDoNotEnregister)
+    {
+        return false;
+    }
+
+    switch (genActualType(varDsc->TypeGet()))
+    {
+#if CPU_HAS_FP_SUPPORT
+        case TYP_FLOAT:
+        case TYP_DOUBLE:
+            return !compiler->opts.compDbgCode;
+
+#endif // CPU_HAS_FP_SUPPORT
+
+        case TYP_INT:
+        case TYP_LONG:
+        case TYP_REF:
+        case TYP_BYREF:
+            break;
+
+#ifdef FEATURE_SIMD
+        case TYP_SIMD12:
+        case TYP_SIMD16:
+        case TYP_SIMD32:
+            return !varDsc->lvPromoted;
+
+        // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
+        // (passing & returning as TYP_LONG).
+        case TYP_SIMD8:
+            return false;
+#endif // FEATURE_SIMD
+
+        case TYP_STRUCT:
+            return false;
+
+        case TYP_UNDEF:
+        case TYP_UNKNOWN:
+            noway_assert(!"lvType not set correctly");
+            varDsc->lvType = TYP_INT;
+            return false;
+
+        default:
+            return false;
+    }
+
     return true;
 }
 
@@ -1544,7 +1638,13 @@ void LinearScan::identifyCandidates()
         }
 #endif // DOUBLE_ALIGN
 
-        /* Track all locals that can be enregistered */
+        // Start with the assumption that it's a candidate.
+
+        varDsc->lvLRACandidate = 1;
+
+        // Start with lvRegister as false - set it true only if the variable gets
+        // the same register assignment throughout
+        varDsc->lvRegister = false;
 
         if (!isRegCandidate(varDsc))
         {
@@ -1556,124 +1656,9 @@ void LinearScan::identifyCandidates()
             continue;
         }
 
-        assert(varDsc->lvTracked);
-
-        varDsc->lvLRACandidate = 1;
-
-        // Start with lvRegister as false - set it true only if the variable gets
-        // the same register assignment throughout
-        varDsc->lvRegister = false;
-
-        /* If the ref count is zero */
-        if (varDsc->lvRefCnt == 0)
-        {
-            /* Zero ref count, make this untracked */
-            varDsc->lvRefCntWtd    = 0;
-            varDsc->lvLRACandidate = 0;
-        }
-
-        // Variables that are address-exposed are never enregistered, or tracked.
-        // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
-        // Pinned variables may not be tracked (a condition of the GCInfo representation)
-        // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
-        // references when using the general GC encoding.
-
-        if (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
-        {
-            varDsc->lvLRACandidate = 0;
-#ifdef DEBUG
-            Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
-            if (!varDsc->lvAddrExposed)
-            {
-                dner = Compiler::DNER_IsStruct;
-            }
-#endif // DEBUG
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(dner));
-        }
-        else if (varDsc->lvPinned)
-        {
-            varDsc->lvTracked = 0;
-#ifdef JIT32_GCENCODER
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_PinningRef));
-#endif // JIT32_GCENCODER
-        }
-
-        //  Are we not optimizing and we have exception handlers?
-        //   if so mark all args and locals as volatile, so that they
-        //   won't ever get enregistered.
-        //
-        if (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
-        {
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
-        }
-
-        if (varDsc->lvDoNotEnregister)
-        {
-            varDsc->lvLRACandidate                = 0;
-            localVarIntervals[varDsc->lvVarIndex] = nullptr;
-            continue;
-        }
-
-        var_types type = genActualType(varDsc->TypeGet());
-
-        switch (type)
-        {
-#if CPU_HAS_FP_SUPPORT
-            case TYP_FLOAT:
-            case TYP_DOUBLE:
-                if (compiler->opts.compDbgCode)
-                {
-                    varDsc->lvLRACandidate = 0;
-                }
-#ifdef ARM_SOFTFP
-                if (varDsc->lvIsParam && varDsc->lvIsRegArg)
-                {
-                    type = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
-                }
-#endif // ARM_SOFTFP
-                break;
-#endif // CPU_HAS_FP_SUPPORT
-
-            case TYP_INT:
-            case TYP_LONG:
-            case TYP_REF:
-            case TYP_BYREF:
-                break;
-
-#ifdef FEATURE_SIMD
-            case TYP_SIMD12:
-            case TYP_SIMD16:
-            case TYP_SIMD32:
-                if (varDsc->lvPromoted)
-                {
-                    varDsc->lvLRACandidate = 0;
-                }
-                break;
-
-            // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
-            // (passing & returning as TYP_LONG).
-            case TYP_SIMD8:
-#endif // FEATURE_SIMD
-
-            case TYP_STRUCT:
-            {
-                varDsc->lvLRACandidate = 0;
-            }
-            break;
-
-            case TYP_UNDEF:
-            case TYP_UNKNOWN:
-                noway_assert(!"lvType not set correctly");
-                varDsc->lvType = TYP_INT;
-
-                __fallthrough;
-
-            default:
-                varDsc->lvLRACandidate = 0;
-        }
-
         if (varDsc->lvLRACandidate)
         {
+            var_types type   = genActualType(varDsc->TypeGet());
             Interval* newInt = newInterval(type);
             newInt->setLocalNumber(compiler, lclNum, this);
             VarSetOps::AddElemD(compiler, registerCandidateVars, varDsc->lvVarIndex);
@@ -6459,7 +6444,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     ReturnTypeDesc* retTypeDesc = treeNode->AsCall()->GetReturnTypeDesc();
                     typ                         = retTypeDesc->GetReturnRegType(refPosition->getMultiRegIdx());
                 }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
                 else if (treeNode->OperIsPutArgSplit())
                 {
                     typ = treeNode->AsPutArgSplit()->GetRegType(refPosition->getMultiRegIdx());
@@ -6471,7 +6456,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     var_types typNode = treeNode->TypeGet();
                     typ               = (typNode == TYP_LONG) ? TYP_INT : typNode;
                 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
                 else
                 {
                     typ = treeNode->TypeGet();
@@ -6788,18 +6773,20 @@ void LinearScan::resolveRegisters()
                                 GenTreeCall* call = treeNode->AsCall();
                                 call->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
                             else if (treeNode->OperIsPutArgSplit())
                             {
                                 GenTreePutArgSplit* splitArg = treeNode->AsPutArgSplit();
                                 splitArg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
+#ifdef _TARGET_ARM_
                             else if (treeNode->OperIsMultiRegOp())
                             {
                                 GenTreeMultiRegOp* multiReg = treeNode->AsMultiRegOp();
                                 multiReg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
-#endif
+#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
                         }
 
                         // If the value is reloaded or moved to a different register, we need to insert
