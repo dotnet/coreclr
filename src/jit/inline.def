@@ -107,7 +107,6 @@ INLINE_OBSERVATION(UNSUPPORTED_OPCODE,        bool,   "unsupported opcode",     
 INLINE_OBSERVATION(DEBUG_CODEGEN,             bool,   "debug codegen",                 FATAL,       CALLER)
 INLINE_OBSERVATION(IS_JIT_NOINLINE,           bool,   "noinline per JitNoInlineRange", FATAL,       CALLER)
 INLINE_OBSERVATION(NEEDS_SECURITY_CHECK,      bool,   "needs security check",          FATAL,       CALLER)
-INLINE_OBSERVATION(PINVOKE_EH,                bool,   "PInvoke from method with EH",   FATAL,       CALLER)
 
 // ------ Caller Information -------
 
@@ -160,6 +159,7 @@ INLINE_OBSERVATION(REQUIRES_SAME_THIS,        bool,   "requires same this",     
 INLINE_OBSERVATION(RETURN_TYPE_MISMATCH,      bool,   "return type mismatch",          FATAL,       CALLSITE)
 INLINE_OBSERVATION(STFLD_NEEDS_HELPER,        bool,   "stfld needs helper",            FATAL,       CALLSITE)
 INLINE_OBSERVATION(TOO_MANY_LOCALS,           bool,   "too many locals",               FATAL,       CALLSITE)
+INLINE_OBSERVATION(PINVOKE_EH,                bool,   "PInvoke call site with EH",     FATAL,       CALLSITE)
 
 // ------ Call Site Performance ------- 
 

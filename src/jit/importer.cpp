@@ -19063,7 +19063,7 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
     {
         if (!impCanPInvokeInlineCallSite(compCurBB))
         {
-            inlineResult.NoteFatal(InlineObservation::CALLER_PINVOKE_EH);
+            inlineResult.NoteFatal(InlineObservation::CALLSITE_PINVOKE_EH);
             return;
         }
     }
