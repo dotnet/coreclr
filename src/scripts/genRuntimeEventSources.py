@@ -116,7 +116,7 @@ def generateEvent(eventNode, providerNode, outputFile, stringTable):
         # Calculate the number of arguments.
         for argumentNode in argumentNodes:
             if argumentNode.nodeName == "data":
-                if argumentNode.getAttribute("inType") != "win:Binary" and argumentNode.getAttribute("inType") != "win:AnsiString":
+                if argumentNode.getAttribute("inType") != "win:Binary" and argumentNode.getAttribute("inType") != "win:AnsiString" and argumentNode.getAttribute("count") == "":
                     argumentCount += 1
                 else:
                     break
