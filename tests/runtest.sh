@@ -1462,6 +1462,8 @@ fi
 
 export __TestEnv=$testEnv
 
+__ScriptPath="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 cd "$testRootDir"
 
 dumplingsListPath="$testRootDir/dumplings.txt"
@@ -1470,48 +1472,106 @@ dumplingsListPath="$testRootDir/dumplings.txt"
 rm -f "$dumplingsListPath"
 find $testRootDir -type f -name "local_dumplings.txt" -exec rm {} \;
 
-time_start=$(date +"%s")
-if [ -z "$testDirectories" ]
-then
-    # No test directories were specified, so run everything in the current
-    # directory and its subdirectories.
-    run_tests_in_directory "."
-else
-    # Otherwise, run all the tests in each specified test directory.
-    for testDir in "${testDirectories[@]}"
-    do
-        if [ ! -d "$testDir" ]; then
-            echo "Test directory does not exist: $testDir"
-        else
-            run_tests_in_directory "./$testDir"
-        fi
-    done
-fi
-finish_remaining_tests
 
-print_results
 
-find $testRootDir -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
+# Use uname to determine what the CPU is.
+CPUName=$(uname -p)
 
-if [ -s $dumplingsListPath ]; then
-    cat $dumplingsListPath
-else
-    rm $dumplingsListPath
+# Some Linux platforms report unknown for platform, but the arch for machine.
+if [ "$CPUName" == "unknown" ]; then
+    CPUName=$(uname -m)
 fi
 
-time_end=$(date +"%s")
-time_diff=$(($time_end-$time_start))
-echo "$(($time_diff / 60)) minutes and $(($time_diff % 60)) seconds taken to run CoreCLR tests."
+case $CPUName in
+    i686)
+        echo "Unsupported CPU $CPUName detected, build might not succeed!"
+        __BuildArch=x86
+        __HostArch=x86
+        ;;
 
-xunit_output_end
+    x86_64)
+        __BuildArch=x64
+        __HostArch=x64
+        ;;
 
-if [ "$CoreClrCoverage" == "ON" ]
-then
-    coreclr_code_coverage
-fi
+    armv7l)
+        echo "Unsupported CPU $CPUName detected, build might not succeed!"
+        __BuildArch=arm
+        __HostArch=arm
+        ;;
 
-if ((countFailedTests > 0)); then
-    exit $EXIT_CODE_TEST_FAILURE
-fi
+    aarch64)
+        __BuildArch=arm64
+        __HostArch=arm64
+        ;;
 
-exit $EXIT_CODE_SUCCESS
+    *)
+        echo "Unknown CPU $CPUName detected, configuring as if for x64"
+        __BuildArch=x64
+        __HostArch=x64
+        ;;
+esac
+
+# Use uname to determine what the OS is.
+OSName=$(uname -s)
+case $OSName in
+    Linux)
+        __BuildOS=Linux
+        __HostOS=Linux
+        ;;
+
+    Darwin)
+        __BuildOS=OSX
+        __HostOS=OSX
+        ;;
+
+    FreeBSD)
+        __BuildOS=FreeBSD
+        __HostOS=FreeBSD
+        ;;
+
+    OpenBSD)
+        __BuildOS=OpenBSD
+        __HostOS=OpenBSD
+        ;;
+
+    NetBSD)
+        __BuildOS=NetBSD
+        __HostOS=NetBSD
+        ;;
+
+    SunOS)
+        __BuildOS=SunOS
+        __HostOS=SunOS
+        ;;
+
+    *)
+        echo "Unsupported OS $OSName detected, configuring as if for Linux"
+        __BuildOS=Linux
+        __HostOS=Linux
+        ;;
+esac
+
+__BuildType=Debug
+
+
+__ProjectDir="$(dirname $__ScriptPath)"
+__BuildToolsDir="$__ProjectDir/Tools"
+__MSBuild="$__BuildToolsDir/msbuild.sh"
+__RootBinDir="$__ProjectDir/bin"
+__LogsDir="$__RootBinDir/Logs"
+__BuildLogRootName="TestRunResults"
+__BuildLog="$__LogsDir/${__BuildLogRootName}_${__BuildOS}_${__BuildArch}_${__BuildType}.log"
+__BuildWrn="$__LogsDir/${__BuildLogRootName}_${__BuildOS}_${__BuildArch}_${__BuildType}.wrn"
+__BuildErr="$__LogsDir/${__BuildLogRootName}_${__BuildOS}_${__BuildArch}_${__BuildType}.err"
+__MSBuildLogArgs="/fileloggerparameters:\"Verbosity=normal;LogFile=$__BuildLog\" \
+/fileloggerparameters1:\"WarningsOnly;LogFile=$__BuildWrn\" \
+/fileloggerparameters2:\"ErrorsOnly;LogFile=$__BuildErr\" \
+/consoleloggerparameters:Summary \
+/verbosity:minimal"
+
+buildCommand="$__MSBuild $__ProjectDir/tests/runtest.proj /p:RunTests=true /clp:showcommandline $__MSBuildLogArgs"
+buildCommand="$buildCommand /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__LogsDir=$__LogsDir"
+echo "$buildCommand"
+eval "$buildCommand"
+

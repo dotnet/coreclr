@@ -6,7 +6,6 @@
   <PropertyGroup>
     <XunitTestBinBase Condition="'$(XunitTestBinBase)'==''" >$(BaseOutputPathWithConfig)</XunitTestBinBase>
     <XunitWrapperGeneratedCSDirBase>$(XunitTestBinBase)\TestWrappers\</XunitWrapperGeneratedCSDirBase>
-    <XunitWrapperOutputIntermediatedDirBase>$(XunitTestBinBase)\Tests\</XunitWrapperOutputIntermediatedDirBase>
     <MSBuildEnableAllPropertyFunctions>1</MSBuildEnableAllPropertyFunctions>
   </PropertyGroup>
 
@@ -75,61 +74,42 @@ $(_XunitEpilog)
       </_XunitWrapperGen>
       <XunitWrapperGenCsProj>
         <![CDATA[
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project>
 
-  <Import Project="$(SourceDir)dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '%24(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '%24(Platform)' == '' ">AnyCPU</Platform>
-    <AssemblyName>$(XunitWrapper)</AssemblyName>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <TargetFrameworkIdentifier Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">.NETFramework</TargetFrameworkIdentifier>
-    <TargetFrameworkIdentifier Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' != 'Windows_NT')">.NETCoreApp</TargetFrameworkIdentifier>
-    <TargetFrameworkVersion Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">v4.5</TargetFrameworkVersion>
-    <TargetFrameworkVersion Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' != 'Windows_NT')">v2.2</TargetFrameworkVersion>
-    <TargetFramework Condition="'$(BuildOS)' != 'Windows_NT'">netcoreapp2.2</TargetFramework>
-    <NugetTargetMonikerShort Condition ="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">net45</NugetTargetMonikerShort>
-    <IsXunitWrapperProject>true</IsXunitWrapperProject>
-    <SkipSigning>true</SkipSigning>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB}%3B{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <SolutionDir Condition="%24(SolutionDir) == '' Or %24(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <CLRTestKind>BuildOnly</CLRTestKind>
-    <IsTestProject>true</IsTestProject>
+    <BaseIntermediateOutputPath>$(BaseIntermediateOutputPath)</BaseIntermediateOutputPath>
+    <BaseOutputPathWithConfig>$(BaseOutputPathWithConfig)</BaseOutputPathWithConfig>
+    <BuildProjectRelativeDir>%24(MSBuildProjectName)</BuildProjectRelativeDir>
+    <IntermediateOutputPath>%24(BaseIntermediateOutputPath)%24(BuildProjectRelativeDir)</IntermediateOutputPath>
+    <OutputPath>%24(BaseOutputPathWithConfig)%24(BuildProjectRelativeDir)</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
-  <!-- Default configurations to help VS understand the configurations -->
-  <PropertyGroup Condition=" '%24(Configuration)|%24(Platform)' == 'Debug|AnyCPU' ">
+
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <PropertyGroup Condition=" '%24(Configuration)|%24(Platform)' == 'Release|AnyCPU' ">
-  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="$(XunitWrapper).cs" />
   </ItemGroup>
+
   <ItemGroup>
-    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
-  </ItemGroup>
-   <ItemGroup>
-    <ProjectReference Include="$(SourceDir)Common\Desktop.Coreclr.TestWrapper\Desktop.Coreclr.TestWrapper.csproj" Condition="('$(BuildTestsAgainstPackages)' != 'true') And ('$(BuildOS)' == 'Windows_NT')">
-      <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>
-      <Name>coreclr</Name>
-    </ProjectReference>
-    <ProjectReference Include="$(SourceDir)Common\Coreclr.TestWrapper\Coreclr.TestWrapper.csproj" Condition="('$(BuildTestsAgainstPackages)' == 'true') Or ('$(BuildOS)' != 'Windows_NT')">
-      <Project>{8ffe99c0-22f8-4462-b839-970eac1b3472}</Project>
-      <Name>coreclr</Name>
-    </ProjectReference>
+    <ProjectReference Include="$(SourceDir)Common\Coreclr.TestWrapper\Coreclr.TestWrapper.csproj" />
   </ItemGroup>
 
-  <Import Project="$(SourceDir)dir.targets" />
-  <PropertyGroup>
-    <OutDir>$(XunitTestBinBase)\$(CategoryWithSlash)\</OutDir>
-    <ProjectAssetsFile Condition="'$(BuildTestsAgainstPackages)' != 'true'">%24(TestWrappersPackagesConfigFileDirectory)obj/project.assets.json</ProjectAssetsFile>
-  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.4.0-beta.2.build4010" />
+    <PackageReference Include="xunit.runner.console" Version="2.4.0-beta.2.build4010" />
+  </ItemGroup>
+
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
+
 </Project>
-        ]]>
+]]>
       </XunitWrapperGenCsProj>
-
     </PropertyGroup>
 
     <!-- <Exec Command="md" -->
@@ -149,7 +129,7 @@ $(_XunitEpilog)
   </Target>
 
   <Target Name="BuildXunitWrapper">
-    <MSBuild Projects="$(XunitWrapperSrcDir)\$(XunitWrapper).csproj"/>
+    <MSBuild Projects="$(XunitWrapperSrcDir)\$(XunitWrapper).csproj" Targets="Restore;Build" />
   </Target>
 
   <Target Name="CreateXunitFacts">
@@ -164,7 +144,6 @@ $(_XunitEpilog)
       <Category Condition="'$(RunningOnUnix)' == 'true'" >$([System.String]::Copy('$(CategoryWithSlash)').Replace('/','.'))</Category>
       <XunitWrapper>$(Category).XUnitWrapper</XunitWrapper>
       <XunitWrapperSrcDir>$(XunitWrapperGeneratedCSDirBase)$(Category)</XunitWrapperSrcDir>
-      <XunitWrapperOutputDir>$(XunitWrapperOutputIntermediatedDirBase)$(Category)</XunitWrapperOutputDir>
     </PropertyGroup>
     <PropertyGroup>
       <_XunitProlog Condition=" '$(_XunitProlog)'=='' ">
@@ -501,6 +480,6 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   </Target>
 
   <Target Name="Clean">
-    <RemoveDir Condition=" '$(BuildWrappers)'=='true'" Directories="$(XunitWrapperGeneratedCSDirBase);$(XunitWrapperOutputIntermediatedDirBase)" ContinueOnError="WarnAndContinue" />
+    <RemoveDir Condition=" '$(BuildWrappers)'=='true'" Directories="$(XunitWrapperGeneratedCSDirBase);" ContinueOnError="WarnAndContinue" />
   </Target>
 </Project>
