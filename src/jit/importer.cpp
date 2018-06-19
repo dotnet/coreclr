@@ -6097,8 +6097,7 @@ void Compiler::impCheckForPInvokeCall(
     }
     optNativeCallCount++;
 
-    if (methHnd == nullptr &&
-            (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) || IsTargetAbi(CORINFO_CORERT_ABI)))
+    if (methHnd == nullptr && (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) || IsTargetAbi(CORINFO_CORERT_ABI)))
     {
         // PInvoke in CoreRT ABI must be always inlined. Non-inlineable CALLI cases have been
         // converted to regular method calls earlier using convertPInvokeCalliToCall.
@@ -6977,8 +6976,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             BasicBlock* block = compIsForInlining() ? impInlineInfo->iciBlock : compCurBB;
             if (info.compCompHnd->convertPInvokeCalliToCall(pResolvedToken, !impCanPInvokeInlineCallSite(block)))
             {
-                eeGetCallInfo(pResolvedToken, NULL, CORINFO_CALLINFO_ALLOWINSTPARAM, callInfo);
-                return impImportCall(CEE_CALL, pResolvedToken, NULL, NULL, prefixFlags, callInfo, rawILOffset);
+                eeGetCallInfo(pResolvedToken, nullptr, CORINFO_CALLINFO_ALLOWINSTPARAM, callInfo);
+                return impImportCall(CEE_CALL, pResolvedToken, nullptr, nullptr, prefixFlags, callInfo, rawILOffset);
             }
         }
 
@@ -13332,9 +13331,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     memset(&resolvedToken, 0, sizeof(resolvedToken));
                     memset(&callInfo, 0, sizeof(callInfo));
 
-                    resolvedToken.token = getU4LittleEndian(codeAddr);
+                    resolvedToken.token        = getU4LittleEndian(codeAddr);
                     resolvedToken.tokenContext = impTokenLookupContextHandle;
-                    resolvedToken.tokenScope = info.compScopeHnd;
+                    resolvedToken.tokenScope   = info.compScopeHnd;
                 }
 
             CALL: // memberRef should be set.
