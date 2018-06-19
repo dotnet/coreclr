@@ -61,42 +61,42 @@ inline void LoaderAllocatorID::AddDomainAssembly(DomainAssembly* pAssembly)
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(m_type == LAT_Assembly);
 
-	// Link domain assembly together
-	if (m_pDomainAssembly != NULL)
-	{
-		pAssembly->SetNextDomainAssemblyInSameALC(m_pDomainAssembly);
-	}
+    // Link domain assembly together
+    if (m_pDomainAssembly != NULL)
+    {
+        pAssembly->SetNextDomainAssemblyInSameALC(m_pDomainAssembly);
+    }
     m_pDomainAssembly = pAssembly;
 }
 
 inline VOID* LoaderAllocatorID::GetValue()
 {
-	LIMITED_METHOD_DAC_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
     return m_pValue;
 }
 
 inline COUNT_T LoaderAllocatorID::Hash()
 {
-	LIMITED_METHOD_DAC_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
     return (COUNT_T)(SIZE_T)GetValue();
 }
 
 inline LoaderAllocatorType LoaderAllocatorID::GetType()
 {
-	LIMITED_METHOD_DAC_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
     return m_type;
 }
 
 inline DomainAssemblyIterator LoaderAllocatorID::GetDomainAssemblyIterator()
 {
-	LIMITED_METHOD_DAC_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
     _ASSERTE(m_type == LAT_Assembly);
     return DomainAssemblyIterator(m_pDomainAssembly);
 }
 
 inline AppDomain *LoaderAllocatorID::GetAppDomain()
 {
-	LIMITED_METHOD_DAC_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
     _ASSERTE(m_type == LAT_AppDomain);
     return m_pAppDomain;
 }

@@ -1291,7 +1291,6 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInter
     UPTR key = (UPTR)pSpec->Hash();
     UPTR lookupKey = key;
 
-#if defined(FEATURE_CORECLR)
     // On CoreCLR, we will use the BinderID as the key 
     ICLRPrivBinder *pBinderContextForLookup = NULL;
     AppDomain *pSpecDomain = pSpec->GetAppDomain();
@@ -1332,7 +1331,6 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInter
         _ASSERTE(SUCCEEDED(hr));
         lookupKey = key^binderID;
     }
-#endif
 
     AssemblyBinding* pEntry = (AssemblyBinding *)m_map.LookupValue(lookupKey, pSpec);
 

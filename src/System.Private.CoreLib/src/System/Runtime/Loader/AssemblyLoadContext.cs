@@ -38,12 +38,10 @@ namespace System.Runtime.Loader
         private static extern bool CanUseAppPathAssemblyLoadContextInCurrentDomain();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
 #if FEATURE_COLLECTIBLE_ALC
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext, bool isCollectible);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void PrepareForAssemblyLoadContextRelease(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyLoadContextStrong);
 #else
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext);
@@ -140,7 +138,6 @@ namespace System.Runtime.Loader
         public bool IsCollectible { get; }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
         private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContet, string ilPath, string niPath, ObjectHandleOnStack retAssembly);
 
         public static Assembly[] GetLoadedAssemblies()
