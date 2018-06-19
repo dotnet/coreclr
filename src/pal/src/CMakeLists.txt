@@ -16,7 +16,7 @@ if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/libunwind/include/tdep)
 
   add_subdirectory(libunwind)
-else()
+elseif(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
     if(PAL_CMAKE_PLATFORM_ARCH_ARM)
       find_library(UNWIND_ARCH NAMES unwind-arm)
     endif()
