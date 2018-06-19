@@ -76,9 +76,10 @@ namespace System.Globalization
             Debug.Assert(s != null, "s != null");
             Debug.Assert(index >= 0 && index < s.Length, "index < s.Length");
 
+            int c = (int)s[index];
             if (index < s.Length - 1)
             {
-                int temp1 = (int)s[index] - HIGH_SURROGATE_START;
+                int temp1 = c - HIGH_SURROGATE_START;
                 if (temp1 >= 0 && temp1 <= HIGH_SURROGATE_RANGE)
                 {
                     int temp2 = (int)s[index + 1] - LOW_SURROGATE_START;
@@ -89,7 +90,7 @@ namespace System.Globalization
                     }
                 }
             }
-            return ((int)s[index]);
+            return c;
         }
 
         ////////////////////////////////////////////////////////////////////////
