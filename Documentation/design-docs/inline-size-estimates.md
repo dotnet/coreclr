@@ -47,7 +47,7 @@ the number and kind of arguments passed from caller to callee.
 
 Note that it's entirely possible that `Overhead > CalleeSize`, so
 that `CallerSize' < CallerSize`, that is the inline not only results
-in faster code but also in smaller code. Indeed this state of affars
+in faster code but also in smaller code. Indeed this state of affairs
 is increasingly common with that advent of modern programming styles
 that emphasize building functionality out of lots of small procedures.
 
