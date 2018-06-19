@@ -8484,10 +8484,12 @@ HRESULT ProfToEEInterfaceImpl::GetReJITIDs(
     }
     CONTRACTL_END;
 
-    PROFILER_TO_CLR_ENTRYPOINT_SYNC((LF_CORPROF, 
-                                    LL_INFO1000, 
-                                    "**PROF: GetReJITIDs 0x%p.\n", 
-                                     functionId));     
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF, 
+        LL_INFO1000, 
+        "**PROF: GetReJITIDs 0x%p.\n", 
+         functionId));     
 
     if (functionId == 0)
     {
