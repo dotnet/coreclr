@@ -4684,7 +4684,8 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
 #define DEFAULT_CODE_BUFFER_INIT 0xcc
 
-    for (ig = emitIGlist; ig; ig = ig->igNext)
+    insGroup* lastIG = nullptr;
+    for (ig = emitIGlist; ig; lastIG = ig, ig = ig->igNext)
     {
         assert(!(ig->igFlags & IGF_PLACEHOLDER)); // There better not be any placeholder groups left
 
@@ -4698,6 +4699,13 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
             {
                 *cp++ = DEFAULT_CODE_BUFFER_INIT;
             }
+
+            // Update the size of the last hot code section IG to include all the hot code
+            // section padding, if any.
+
+            assert(lastIG != nullptr);
+            assert(emitTotalHotCodeSize >= actualHotCodeSize);
+            lastIG->igSize += emitTotalHotCodeSize - actualHotCodeSize;
 
             assert(coldCodeBlock);
             cp = coldCodeBlock;
