@@ -79,7 +79,10 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
                 (testDirectory) =>
                 {
                     if (RunExecutable(testDirectory, executableName, xunitTestTraits, logRootOutputPath) != 0)
+                    {
+                        Console.WriteLine("Test Run Failed " + testDirectory);
                         result = 1;
+                    }
                 }
                 );
             return result;

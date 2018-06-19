@@ -101,7 +101,9 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
             // Map test names to their definitions
             foreach (XUnitTestAssembly assembly in testAssemblies)
             {
-                nameToTestAssemblyDef.Add(assembly.Name, assembly);
+                // Filter disabled tests
+                if(assembly.IsEnabled)
+                    nameToTestAssemblyDef.Add(assembly.Name, assembly);
             }
 
             return nameToTestAssemblyDef;

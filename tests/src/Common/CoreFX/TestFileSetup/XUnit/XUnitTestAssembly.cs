@@ -12,6 +12,10 @@ namespace CoreFX.TestUtils.TestFileSetup
         public string Name;
 
         [JsonRequired]
+        [JsonProperty("enabled")]
+        public bool IsEnabled;
+
+        [JsonRequired]
         [JsonProperty("exclusions")]
         public Exclusions Exclusions;
 
