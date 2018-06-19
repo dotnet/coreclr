@@ -82,6 +82,9 @@ public:
     // to free their buffer for a very long time.
     void DeAllocateBuffers();
 
+    // Get next event.  This is used to dispatch events to EventListener.
+    EventPipeEventInstance* GetNextEvent();
+
 #ifdef _DEBUG
     bool EnsureConsistency();
 #endif // _DEBUG

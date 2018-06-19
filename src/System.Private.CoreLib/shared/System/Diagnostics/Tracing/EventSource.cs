@@ -2025,7 +2025,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // helper for writing to all EventListeners attached the current eventSource.  
-        private unsafe void WriteToAllListeners(int eventId, Guid* activityID, Guid* childActivityID, params object[] args)
+        internal unsafe void WriteToAllListeners(int eventId, Guid* activityID, Guid* childActivityID, params object[] args)
         {
             EventWrittenEventArgs eventCallbackArgs = new EventWrittenEventArgs(this);
             eventCallbackArgs.EventId = eventId;
@@ -3948,6 +3948,13 @@ namespace System.Diagnostics.Tracing
             }
 
             eventSource.SendCommand(this, EventProviderType.None, 0, 0, EventCommand.Update, true, level, matchAnyKeyword, arguments);
+
+#if FEATURE_PERFTRACING
+            if (eventSource.GetType() == typeof(RuntimeEventSource))
+            {
+                EventPipeEventDispatcher.Instance.SendCommand(this, EventCommand.Update, true, level, matchAnyKeyword);
+            }
+#endif // FEATURE_PERFTRACING
         }
         /// <summary>
         /// Disables all events coming from eventSource identified by 'eventSource'.  
@@ -4102,6 +4109,12 @@ namespace System.Diagnostics.Tracing
 #if !ES_BUILD_STANDALONE
             Debug.Assert(Monitor.IsEntered(EventListener.EventListenersLock));
 #endif
+
+#if FEATURE_PERFTRACING
+            // Remove the listener from the EventPipe dispatcher.
+            EventPipeEventDispatcher.Instance.RemoveEventListener(listenerToRemove);
+#endif // FEATURE_PERFTRACING
+
             // Foreach existing EventSource in the appdomain
             foreach (WeakReference eventSourceRef in s_EventSources)
             {
