@@ -5005,6 +5005,11 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
     unsigned actualCodeSize = emitCurCodeOffs(cp);
 
+#if EMITTER_STATS
+    totAllocdSize += emitTotalCodeSize;
+    totActualSize += actualCodeSize;
+#endif
+
     // Fill in eventual unused space, but do not report this space as used.
     // If you add this padding during the emitIGlist loop, then it will
     // emit offsets after the loop with wrong value (for example for GC ref variables).
@@ -5014,11 +5019,6 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
     }
 
     emitTotalCodeSize = actualCodeSize;
-
-#if EMITTER_STATS
-    totAllocdSize += emitTotalCodeSize;
-    totActualSize += actualCodeSize;
-#endif
 
 #ifdef DEBUG
 
