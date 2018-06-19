@@ -27,7 +27,7 @@ sort of size estimate `CallerSize'`.  The simplest estimate is that
 (1)  `CallerSize'` = `CallerSize + CalleeSize`
 ```
 
-However, calling conventions impose some addtional code overhead on
+However, calling conventions impose some additional code overhead on
 both the caller and callee. The caller must set up arguments in
 registers or on the stack, and if there is a return value, might need
 to move it or store it somewhere. It also might need to spill values
