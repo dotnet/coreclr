@@ -586,7 +586,6 @@ add_subdirectory(src/pal/prebuilt/inc)
 
 add_subdirectory(src/debug/debug-pal)
 
-add_definitions(-DFEATURE_COLLECTIBLE_ALC)
 if(WIN32)
   add_subdirectory(src/gc/sample)
 endif()

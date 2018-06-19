@@ -1185,11 +1185,7 @@ void QCALLTYPE AssemblyNative::GetImageRuntimeVersion(QCall::AssemblyHandle pAss
 
 /*static*/
 
-#ifdef FEATURE_COLLECTIBLE_ALC
 INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext, BOOL fIsCollectible)
-#else
-INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext)
-#endif
 {
     QCALL_CONTRACT;
 
@@ -1211,12 +1207,10 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
 
         // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
         AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
-#ifdef FEATURE_COLLECTIBLE_ALC
         if (fIsCollectible)
         {
             loaderAllocator->SetCollectible();
         }
-#endif
 
         OBJECTHANDLE loaderAllocatorHandle;
         GCX_COOP();
@@ -1236,18 +1230,13 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
         }
 
         // Create a strong handle to the LoaderAllocator
-        // If FEATURE_COLLECTIBLE_ALC is not defined, the LoaderAllocator will get never released
         loaderAllocatorHandle = pCurDomain->CreateHandle(pManagedLoaderAllocator);
 
         GCPROTECT_END();
 
         loaderAllocator->ActivateManagedTracking();
 
-#ifdef FEATURE_COLLECTIBLE_ALC
         IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
-#else
-        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, ptrManagedAssemblyLoadContext, &pBindContext));
-#endif
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);
     }
     else
@@ -1270,7 +1259,6 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     return ptrNativeAssemblyLoadContext;
 }
 
-#ifdef FEATURE_COLLECTIBLE_ALC
 /*static*/
 void QCALLTYPE AssemblyNative::PrepareForAssemblyLoadContextRelease(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
 {
@@ -1288,7 +1276,6 @@ void QCALLTYPE AssemblyNative::PrepareForAssemblyLoadContextRelease(INT_PTR ptrN
 
     END_QCALL;
 }
-#endif
 
 /*static*/
 BOOL QCALLTYPE AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext)

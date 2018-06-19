@@ -1659,7 +1659,7 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
 
         LoaderHeap* pHeap = m_pHeap;
 
-#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
         if (pBinderContextForLookup != NULL)
         {
             LoaderAllocator* pLoaderAllocator = NULL;
@@ -1674,7 +1674,7 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
                 pHeap = pLoaderAllocator->GetHighFrequencyHeap();
             }
         }
-#endif
+#endif // !CROSSGEN_COMPILE
 
         entry = abHolder.CreateAssemblyBinding(pHeap);
 

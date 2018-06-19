@@ -5562,7 +5562,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
     {
         LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
 
-#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
         ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
         if (pFileBinder != NULL)
         {
@@ -5577,7 +5577,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
                 VERIFY(pLoaderAllocator != NULL);
             }
         }
-#endif
+#endif // !CROSSGEN_COMPILE
         // Allocate the DomainAssembly a bit early to avoid GC mode problems. We could potentially avoid
         // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
         NewHolder<DomainAssembly> pDomainAssembly = new DomainAssembly(this, pFile, pLoaderAllocator);
@@ -5595,14 +5595,14 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
                 // We are the first one in - create the DomainAssembly
                 fileLock = FileLoadLock::Create(lock, pFile, pDomainAssembly);
                 pDomainAssembly.SuppressRelease();
-#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
                 if (pDomainAssembly->IsCollectible())
                 {
                     // We add the assembly to the LoaderAllocator only when we are sure that it can be added
                     // and won't be deleted in case of a concurrent load from the same ALC
                     ((AssemblyLoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(pDomainAssembly);
                 }
-#endif
+#endif // !CROSSGEN_COMPILE
             }
         }
         else
@@ -6087,28 +6087,11 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
         //
         // No entry yet - create one
         //
-#ifndef FEATURE_COLLECTIBLE_ALC
-        AllocMemTracker amTracker;
-        AllocMemTracker *pamTracker = &amTracker;
-
-        NativeImageDependenciesEntry * pNewEntry =
-            new (pamTracker->Track(GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(NativeImageDependenciesEntry)))))
-            NativeImageDependenciesEntry();
-
-        pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
-        pNewEntry->m_AssemblySpec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, GetLowFrequencyHeap(), pamTracker);
-
-        pNewEntry->m_guidMVID = *pGuid;
-
-        m_NativeImageDependencies.Add(pNewEntry);
-        amTracker.SuppressRelease();
-#else
         NativeImageDependenciesEntry * pNewEntry = new NativeImageDependenciesEntry();
         pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
         pNewEntry->m_AssemblySpec.CloneFields(AssemblySpec::ALL_OWNED);
         pNewEntry->m_guidMVID = *pGuid;
         m_NativeImageDependencies.Add(pNewEntry);
-#endif
     }
 }
 

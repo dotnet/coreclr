@@ -483,7 +483,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
             DomainAssembly* domainAssemblyToRemove = domainAssemblyIt;
             pAppDomain->RemoveAssembly(domainAssemblyToRemove);
 
-#if defined(FEATURE_COLLECTIBLE_ALC)
             if (!domainAssemblyToRemove->GetAssembly()->IsDynamic())
             {
                 pAppDomain->RemoveFileFromCache(domainAssemblyToRemove->GetFile());
@@ -492,7 +491,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
                 VERIFY(pAppDomain->RemoveAssemblyFromCache(domainAssemblyToRemove));
                 pAppDomain->RemoveNativeImageDependency(&spec);
             }
-#endif // defined(FEATURE_COLLECTIBLE_ALC)
 
             domainAssemblyIt++;
         }
@@ -583,10 +581,8 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         // (Also debugging NULL AVs if someone uses it accidentally is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
 
-#if defined(FEATURE_COLLECTIBLE_ALC)
         // Call the unloading event
         pDomainLoaderAllocatorDestroyIterator->OnUnloading();
-#endif
 
         // The following code was previously happening on delete ~DomainAssembly->Terminate
         // We are moving this part here in order to make sure that we can unload a LoaderAllocator
@@ -1590,7 +1586,6 @@ void DomainAssemblyIterator::operator++()
 
 #ifndef CROSSGEN_COMPILE
 
-#ifdef FEATURE_COLLECTIBLE_ALC
 AssemblyLoaderAllocator::~AssemblyLoaderAllocator()
 {
     if (m_binderToRelease != NULL)
@@ -1607,7 +1602,6 @@ void AssemblyLoaderAllocator::RegisterBinder(CLRPrivBinderAssemblyLoadContext* b
     _ASSERTE(m_binderToRelease == NULL);
     m_binderToRelease = binderToRelease;
 }
-#endif
 
 STRINGREF *LoaderAllocator::GetStringObjRefPtrFromUnicodeString(EEStringData *pStringData)
 {
@@ -1805,7 +1799,6 @@ void LoaderAllocator::CleanupFailedTypeInit()
     }
 }
 
-#ifdef FEATURE_COLLECTIBLE_ALC
 void AssemblyLoaderAllocator::OnUnloading()
 {
     CONTRACTL
@@ -1835,7 +1828,6 @@ void AssemblyLoaderAllocator::OnUnloading()
     // Release the managed ALC
     m_binderToRelease->ReleaseLoadContext();
 }
-#endif // FEATURE_COLLECTIBLE_ALC
 
 #endif // !CROSSGEN_COMPILE
 

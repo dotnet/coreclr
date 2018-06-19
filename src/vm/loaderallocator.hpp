@@ -29,9 +29,7 @@ enum LoaderAllocatorType
     LAT_Assembly
 };
 
-#if defined(FEATURE_COLLECTIBLE_ALC)
 class CLRPrivBinderAssemblyLoadContext;
-#endif
 
 // Iterator over a DomainAssembly in the same ALC
 class DomainAssemblyIterator
@@ -530,7 +528,7 @@ protected:
 public:    
     virtual LoaderAllocatorID* Id();
     AssemblyLoaderAllocator() : m_Id(LAT_Assembly)
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         , m_binderToRelease(NULL)
 #endif
     { LIMITED_METHOD_CONTRACT; }
@@ -552,17 +550,11 @@ public:
     virtual void CleanupHandles();
     CLRPrivBinderAssemblyLoadContext* GetBinder()
     {
-#if defined(FEATURE_COLLECTIBLE_ALC)
         return m_binderToRelease;
-#else
-        return NULL;
-#endif
     }
-#if defined(FEATURE_COLLECTIBLE_ALC)
     virtual ~AssemblyLoaderAllocator();
     void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
     virtual void OnUnloading();
-#endif // defined(FEATURE_COLLECTIBLE_ALC)
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 private:
@@ -578,7 +570,7 @@ private:
     };
     
     SList<HandleCleanupListItem> m_handleCleanupList;
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     CLRPrivBinderAssemblyLoadContext* m_binderToRelease;
 #endif
 };

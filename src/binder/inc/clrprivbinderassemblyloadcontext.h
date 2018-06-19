@@ -19,8 +19,6 @@ namespace BINDER_SPACE
 
 class AppDomain;
 
-#ifdef FEATURE_COLLECTIBLE_ALC
-
 class Object;
 class Assembly;
 class LoaderAllocator;
@@ -32,14 +30,8 @@ public:
         /* [retval][out] */ LoaderAllocator** pLoaderAllocator) = 0;
 };
 
-#endif // FEATURE_COLLECTIBLE_ALC
-
 class CLRPrivBinderAssemblyLoadContext :
-#ifndef FEATURE_COLLECTIBLE_ALC
-    public IUnknownCommon<ICLRPrivBinder>
-#else // !FEATURE_COLLECTIBLE_ALC
     public IUnknownCommon<ICLRPrivBinder, ICollectibleAssemblyLoadContext>
-#endif // FEATURE_COLLECTIBLE_ALC
 {
 public:
 
@@ -67,15 +59,11 @@ public:
             /* [out] */ HRESULT *pResult,
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
-#ifdef FEATURE_COLLECTIBLE_ALC
-
     //=========================================================================
     // IAssemblyLoadContext functions
     //-------------------------------------------------------------------------
     STDMETHOD(GetLoaderAllocator)(
         /* [retval][out] */ LoaderAllocator** pLoaderAllocator);
-
-#endif // FEATURE_COLLECTIBLE_ALC
 
 public:
     //=========================================================================
@@ -84,17 +72,13 @@ public:
 
     static HRESULT SetupContext(DWORD      dwAppDomainId,
                                 CLRPrivBinderCoreCLR *pTPABinder,
-#ifdef FEATURE_COLLECTIBLE_ALC
                                 LoaderAllocator* pLoaderAllocator,
                                 void* loaderAllocatorHandle,
-#endif
                                 UINT_PTR ptrAssemblyLoadContext,
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
 
-#ifdef FEATURE_COLLECTIBLE_ALC
     void PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext);
     void ReleaseLoadContext();
-#endif
 
     CLRPrivBinderAssemblyLoadContext();
     
@@ -124,10 +108,8 @@ private:
     
     INT_PTR m_ptrManagedAssemblyLoadContext;
 
-#ifdef FEATURE_COLLECTIBLE_ALC
     LoaderAllocator* m_pAssemblyLoaderAllocator;
     void* m_loaderAllocatorHandle;
-#endif
 };
 
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
