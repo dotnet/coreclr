@@ -83,6 +83,7 @@ $(_XunitEpilog)
     <IntermediateOutputPath>%24(BaseIntermediateOutputPath)%24(BuildProjectRelativeDir)</IntermediateOutputPath>
     <OutputPath>%24(BaseOutputPathWithConfig)%24(BuildProjectRelativeDir)</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
