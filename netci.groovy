@@ -1743,7 +1743,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             break
                         case 'corefx_innerloop':
-                            if (configuration == 'Release') {
+                            if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")                                
                             }
                             break
@@ -2587,7 +2587,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     }
 
     // Run basic corefx tests only on PR-triggered jobs
-    // Runs only under Release - running tests under Debug is slow
+    // Runs under Release and Checked 
     if (scenario == 'corefx_innerloop' && !isPR) {
         return false
     }
@@ -2809,7 +2809,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 if (os != 'Windows_NT'|| architecture != 'x64') {
                     return false
                 }
-                if(configuration != 'Release') {
+                if(configuration != 'Release' && configuration != 'Checked') {
                     return false
                 }
                 break
