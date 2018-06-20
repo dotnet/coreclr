@@ -4109,12 +4109,6 @@ namespace System.Diagnostics.Tracing
 #if !ES_BUILD_STANDALONE
             Debug.Assert(Monitor.IsEntered(EventListener.EventListenersLock));
 #endif
-
-#if FEATURE_PERFTRACING
-            // Remove the listener from the EventPipe dispatcher.
-            EventPipeEventDispatcher.Instance.RemoveEventListener(listenerToRemove);
-#endif // FEATURE_PERFTRACING
-
             // Foreach existing EventSource in the appdomain
             foreach (WeakReference eventSourceRef in s_EventSources)
             {
@@ -4146,6 +4140,11 @@ namespace System.Diagnostics.Tracing
                     }
                 }
             }
+
+#if FEATURE_PERFTRACING
+            // Remove the listener from the EventPipe dispatcher.
+            EventPipeEventDispatcher.Instance.RemoveEventListener(listenerToRemove);
+#endif // FEATURE_PERFTRACING
         }
 
         /// <summary>
