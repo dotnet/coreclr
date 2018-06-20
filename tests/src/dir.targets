@@ -70,9 +70,6 @@
   
   <Import Project="..\dir.targets" />
 
-  <Target Name="CreateManifestResourceNames" />
-  <Target Name="CoreCompile" />
-  
   <!-- If we are a run-only, that depends on another project, this is the "Build" we use. I.e. build all dependency projects, absolutely.
   -->
 
@@ -82,11 +79,9 @@
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != true">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != true And '$(BuildAllProjects)' == true And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
   </PropertyGroup>
-
-  <Target Name="Build" Condition="('$(CLRTestKind)'=='RunOnly') And '$(_WillCLRTestProjectBuild)'">
-    <MSBuild Projects="@(ProjectReference)" />
-    <MakeDir Condition="'$(CLRTestKind)' == 'RunOnly'" ContinueOnError="false" Directories="$(OutputPath)" />
-  </Target>
+  
+  <!-- don't overwrite the default build target if this is included in an SDK style project, as build has already been defined by this point -->
+ <Import Project="nonsdk.targets" Condition="'$(UsingMicrosoftNETSdk)' != 'true'" />
   
   <!-- We will use an imported build here in the instance that we have source that we need to build, and we are the correct priority...OR if we are being asked to build for
   a test with a higher priority. -->
