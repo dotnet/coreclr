@@ -1205,36 +1205,38 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
         // Initialize a custom Assembly Load Context
         CLRPrivBinderAssemblyLoadContext *pBindContext = NULL;
 
-        // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
-        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
+        AssemblyLoaderAllocator* loaderAllocator = NULL;
+        OBJECTHANDLE loaderAllocatorHandle = NULL;
+
         if (fIsCollectible)
         {
+            // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
+            loaderAllocator = new AssemblyLoaderAllocator();
             loaderAllocator->SetCollectible();
+
+            GCX_COOP();
+            LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+            GCPROTECT_BEGIN(pManagedLoaderAllocator);
+            {
+                GCX_PREEMP();
+                // Some of the initialization functions are not virtual. Call through the derived class
+                // to prevent calling the base class version.
+                loaderAllocator->Init(pCurDomain);
+                loaderAllocator->InitVirtualCallStubManager(pCurDomain);
+
+                // Setup the managed proxy now, but do not actually transfer ownership to it.
+                // Once everything is setup and nothing can fail anymore, the ownership will be
+                // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+                loaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
+            }
+
+            // Create a strong handle to the LoaderAllocator
+            loaderAllocatorHandle = pCurDomain->CreateHandle(pManagedLoaderAllocator);
+
+            GCPROTECT_END();
+
+            loaderAllocator->ActivateManagedTracking();
         }
-
-        OBJECTHANDLE loaderAllocatorHandle;
-        GCX_COOP();
-        LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
-        GCPROTECT_BEGIN(pManagedLoaderAllocator);
-        {
-            GCX_PREEMP();
-            // Some of the initialization functions are not virtual. Call through the derived class
-            // to prevent calling the base class version.
-            loaderAllocator->Init(pCurDomain);
-            loaderAllocator->InitVirtualCallStubManager(pCurDomain);
-
-            // Setup the managed proxy now, but do not actually transfer ownership to it.
-            // Once everything is setup and nothing can fail anymore, the ownership will be
-            // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
-            loaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
-        }
-
-        // Create a strong handle to the LoaderAllocator
-        loaderAllocatorHandle = pCurDomain->CreateHandle(pManagedLoaderAllocator);
-
-        GCPROTECT_END();
-
-        loaderAllocator->ActivateManagedTracking();
 
         IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);

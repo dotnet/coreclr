@@ -251,13 +251,19 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 // AssemblyLoadContext instance
                 pBinder->m_ptrManagedAssemblyLoadContext = ptrAssemblyLoadContext;
 
-                // Link to LoaderAllocator, keep a reference to it
-                VERIFY(pLoaderAllocator->AddReferenceIfAlive());
+                if (pLoaderAllocator != NULL)
+                {
+                    // Link to LoaderAllocator, keep a reference to it
+                    VERIFY(pLoaderAllocator->AddReferenceIfAlive());
+                }
                 pBinder->m_pAssemblyLoaderAllocator = pLoaderAllocator;
                 pBinder->m_loaderAllocatorHandle = loaderAllocatorHandle;
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-                ((AssemblyLoaderAllocator*)pLoaderAllocator)->RegisterBinder(pBinder);
+                if (pLoaderAllocator != NULL)
+                {
+                    ((AssemblyLoaderAllocator*)pLoaderAllocator)->RegisterBinder(pBinder);
+                }
 #endif
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
@@ -287,6 +293,9 @@ void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrM
     OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
     DestroyShortWeakHandle(handle);
     m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
+
+    _ASSERTE(m_pAssemblyLoaderAllocator != NULL);
+    _ASSERTE(m_loaderAllocatorHandle != NULL);
 
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
     // It will be deleted when the LoaderAllocator will be deleted
