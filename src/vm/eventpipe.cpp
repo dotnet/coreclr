@@ -221,6 +221,7 @@ void EventPipe::EnableOnStartup()
 
         // Create a new session.
         EventPipeSession *pSession = new EventPipeSession(
+            EventPipeSessionType::File,
             1024 /* 1 GB circular buffer */,
             NULL, /* pProviders */
             0 /* numProviders */);
@@ -293,7 +294,11 @@ void EventPipe::Enable(
     CONTRACTL_END;
 
     // Create a new session.
-    EventPipeSession *pSession = s_pConfig->CreateSession(circularBufferSizeInMB, pProviders, static_cast<unsigned int>(numProviders));
+    EventPipeSession *pSession = s_pConfig->CreateSession(
+        (strOutputPath != NULL) ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+        circularBufferSizeInMB,
+        pProviders,
+        static_cast<unsigned int>(numProviders));
 
     // Enable the session.
     Enable(strOutputPath, pSession);
@@ -416,7 +421,7 @@ void EventPipe::Disable()
                     { W("Microsoft-Windows-DotNETRuntimeRundown"), 0x80020138, static_cast<unsigned int>(EventPipeEventLevel::Verbose) } // Rundown provider.
                 };
                 // The circular buffer size doesn't matter because all events are written synchronously during rundown.
-                s_pSession = s_pConfig->CreateSession(1 /* circularBufferSizeInMB */, rundownProviders, numRundownProviders);
+                s_pSession = s_pConfig->CreateSession(EventPipeSessionType::File, 1 /* circularBufferSizeInMB */, rundownProviders, numRundownProviders);
                 s_pConfig->EnableRundown(s_pSession);
 
                 // Ask the runtime to emit rundown events.

@@ -29,6 +29,7 @@ EventPipeBufferManager::EventPipeBufferManager()
     m_numBuffersStolen = 0;
     m_numBuffersLeaked = 0;
     m_numEventsStored = 0;
+    m_numEventsDropped = 0;
     m_numEventsWritten = 0;
 #endif // _DEBUG
 }
@@ -76,7 +77,7 @@ EventPipeBufferManager::~EventPipeBufferManager()
     }
 }
 
-EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread, unsigned int requestSize)
+EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSession &session, Thread *pThread, unsigned int requestSize)
 {
     CONTRACTL
     {
@@ -133,11 +134,14 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(Thread *pThread
         }
     }
 
+    // Only steal buffers from other threads if the session being written to is a
+    // file-based session.  Streaming sessions will simply drop events.
+    // TODO: Add dropped events telemetry here.
     EventPipeBuffer *pNewBuffer = NULL;
-    if(!allocateNewBuffer)
+    if(!allocateNewBuffer && (session.GetSessionType() == EventPipeSessionType::File))
     {
         // We can't allocate a new buffer.
-        // Find the oldest buffer, zero it, and re-purpose it for this thread.
+        // Find the oldest buffer, de-allocate it, and re-purpose it for this thread.
 
         // Find the thread that contains the oldest stealable buffer, and get its list of buffers.
         EventPipeBufferList *pListToStealFrom = FindThreadToStealFrom();
@@ -363,7 +367,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         // to switch to preemptive mode here.
 
         unsigned int requestSize = sizeof(EventPipeEventInstance) + payload.GetSize();
-        pBuffer = AllocateBufferForThread(pThread, requestSize);
+        pBuffer = AllocateBufferForThread(session, pThread, requestSize);
     }
 
     // Try to write the event after we allocated (or stole) a buffer.
@@ -381,6 +385,10 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     if(!allocNewBuffer)
     {
         InterlockedIncrement(&m_numEventsStored);
+    }
+    else
+    {
+        InterlockedIncrement(&m_numEventsDropped);
     }
 #endif // _DEBUG
     return !allocNewBuffer;
