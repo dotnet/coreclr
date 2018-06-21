@@ -24,18 +24,16 @@ namespace System.Threading
             Debug.Assert(maximumCount >= 1);
             Debug.Assert(initialCount <= maximumCount);
 
-#if !PLATFORM_WINDOWS
+#if PLATFORM_UNIX
             if (name != null)
-            {
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-            }
-#endif      
+#endif
             SafeWaitHandle myHandle = Interop.Kernel32.CreateSemaphoreEx(IntPtr.Zero, initialCount, maximumCount, name, 0, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (myHandle.IsInvalid)
             {
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
+                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(
                         SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
@@ -61,11 +59,11 @@ namespace System.Threading
                 result = null;
                 int errorCode = Marshal.GetLastWin32Error();
 
-                if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
+                if (errorCode == Interop.Errors.ERROR_FILE_NOT_FOUND || errorCode ==  Interop.Errors.ERROR_INVALID_NAME)
                     return OpenExistingResult.NameNotFound;
-                if (Interop.Errors.ERROR_PATH_NOT_FOUND == errorCode)
+                if (errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                     return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
+                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     return OpenExistingResult.NameInvalid;
                 //this is for passed through NativeMethods Errors
                 throw Win32Marshal.GetExceptionForLastWin32Error();
@@ -85,9 +83,7 @@ namespace System.Threading
             // Non-Zero return 
             int previousCount;
             if (!Interop.Kernel32.ReleaseSemaphore(SafeWaitHandle, releaseCount, out previousCount))
-            {
                 throw new SemaphoreFullException();
-            }
 
             return previousCount;
         }

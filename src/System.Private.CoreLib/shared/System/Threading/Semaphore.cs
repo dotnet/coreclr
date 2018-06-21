@@ -33,19 +33,13 @@ namespace System.Threading
         private static void VerifyCounts(int initialCount, int maximumCount)
         {
             if (initialCount < 0)
-            {
                 throw new ArgumentOutOfRangeException(nameof(initialCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
 
             if (maximumCount < 1)
-            {
                 throw new ArgumentOutOfRangeException(nameof(maximumCount), SR.ArgumentOutOfRange_NeedPosNum);
-            }
 
             if (initialCount > maximumCount)
-            {
                 throw new ArgumentException(SR.Argument_SemaphoreInitialMaximum);
-            }
         }
 
         public static Semaphore OpenExisting(string name)
@@ -73,9 +67,7 @@ namespace System.Threading
         public int Release(int releaseCount)
         {
             if (releaseCount < 1)
-            {
                 throw new ArgumentOutOfRangeException(nameof(releaseCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
 
             return ReleaseCore(releaseCount);
         }
