@@ -29,7 +29,7 @@ namespace System.Runtime.Loader
         // synchronization primitive to protect against usage of this instance while unloading
         private readonly object unloadLock = new object();
 
-        // Indicates the state of this ALC (Alive or in Unloading/Unloaded state)
+        // Indicates the state of this ALC (Alive or in Unloading state)
         private InternalState state;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -56,7 +56,7 @@ namespace System.Runtime.Loader
             AppContext.Unloading += OnAppContextUnloading;
         }
 
-        protected AssemblyLoadContext() : this(false, true)
+        protected AssemblyLoadContext() : this(false, false)
         {
         }
 
@@ -77,9 +77,7 @@ namespace System.Runtime.Loader
                     throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Constructor_CannotInstantiateWhileUnloading"));
                 }
 
-                // If this is a collectible ALC, we are creating a weak handle that will be transformed to 
-                // a strong handle on unloading otherwise we use a strong handle in order to call any subscriber 
-                // to the Unload event when AppDomain.ProcessExit is called
+                // If this is a collectible ALC, we are creating a weak handle otherwise we use a strong handle
                 var thisHandle = GCHandle.Alloc(this, IsCollectible ? GCHandleType.Weak : GCHandleType.Normal);
                 var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
                 m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, fRepresentsTPALoadContext, isCollectible);
@@ -89,33 +87,54 @@ namespace System.Runtime.Loader
                 Unloading = null;
 
                 id = _nextId++;
-                ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                if (isCollectible)
+                {
+                    ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                }
             }
         }
 
         ~AssemblyLoadContext()
         {
-            // Only valid for a Collectible ALC
-            // We perform an implicit Unload if no explicit Unload has been done
-            if (IsCollectible)
+            // Only valid for a Collectible ALC. Non-collectible ALCs have the finalizer suppressed.
+            // We get here only in case the explicit Unload was not initiated.
+            Debug.Assert(state != InternalState.Unloading);
+            InitiateUnload();
+        }
+
+        private void InitiateUnload()
+        {
+            Debug.Assert(IsCollectible);
+
+            if (!_isProcessExiting)
             {
                 var unloading = Unloading;
                 Unloading = null;
-                // TODO: should we enclose this with a try catch?
                 unloading?.Invoke(this);
+            }
 
-                // When in Unloading state, we are not supposed to be called on the finalizer
-                // as the native side is holding a strong reference after calling Unload
-                lock (unloadLock)
+            // When in Unloading state, we are not supposed to be called on the finalizer
+            // as the native side is holding a strong reference after calling Unload
+            lock (unloadLock)
+            {
+                if (!_isProcessExiting)
                 {
-                    Debug.Assert(state != InternalState.Unloading);
-                    if (state == InternalState.Alive)
-                    {
-                        UnloadCollectible();
-                    }
+                    Debug.Assert(state == InternalState.Alive);
+
+                    // The underlying code will transform the original weak handle 
+                    // created by InitializeLoadContext to a strong handle
+                    PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext);
                 }
 
-                OnUnloading();
+                state = InternalState.Unloading;
+            }
+
+            if (!_isProcessExiting)
+            {
+                lock (ContextsToUnload)
+                {
+                    ContextsToUnload.Remove(id);
+                }
             }
         }
 
@@ -244,34 +263,7 @@ namespace System.Runtime.Loader
             }
 
             GC.SuppressFinalize(this);
-
-            var unloading = Unloading;
-            Unloading = null;
-
-            unloading?.Invoke(this);
-
-            lock (unloadLock)
-            {
-                UnloadCollectible();
-            }
-
-            OnUnloading();
-        }
-
-        private void UnloadCollectible()
-        {
-            Debug.Assert(IsCollectible);
-            if (state == InternalState.Alive)
-            {
-                // The underlying code will transform the original weak handle 
-                // created by InitializeLoadContext to a strong handle
-                PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext);
-            }
-            else
-            {
-                throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Unload_AlreadyUnloaded"));
-            }
-            state = InternalState.Unloading;
+            InitiateUnload();
         }
 
         private void VerifyIsAlive()
@@ -381,34 +373,6 @@ namespace System.Runtime.Loader
             }
 
             return assembly;
-        }
-
-        /// <summary>
-        /// This method is called back by the native code after Unloading has been initiated
-        /// This method is called indirectly by the finalizer of the LoaderAllocator
-        /// </summary>
-        private void OnUnloading()
-        {
-            lock (unloadLock)
-            {
-                if (state == InternalState.Unloading)
-                {
-                    state = InternalState.Unloaded;
-                    lock (ContextsToUnload)
-                    {
-                        if (!_isProcessExiting)
-                        {
-                            ContextsToUnload.Remove(id);
-                        }
-                    }
-                }
-                else
-                {
-                    // Otherwise we didn't have time to be called here and we will be 
-                    // called via the finalizer
-                    return;
-                }
-            }
         }
 
         public Assembly LoadFromAssemblyName(AssemblyName assemblyName)
@@ -543,15 +507,7 @@ namespace System.Runtime.Loader
 
         private void OnAppContextUnloading()
         {
-            lock (unloadLock)
-            {
-                if (state == InternalState.Alive)
-                {
-                    state = InternalState.Unloading;
-                }
-            }
-
-            OnUnloading();
+            InitiateUnload();
         }
 
         private static void OnAppContextUnloading(object sender, EventArgs e)
@@ -626,12 +582,7 @@ namespace System.Runtime.Loader
             /// The unload process has started, the Unloading event will be called
             /// once the underlying LoaderAllocator has been finalized
             /// </summary>
-            Unloading,
-
-            /// <summary>
-            /// The event Unloading has been called.
-            /// </summary>
-            Unloaded
+            Unloading
         }
     }
 
