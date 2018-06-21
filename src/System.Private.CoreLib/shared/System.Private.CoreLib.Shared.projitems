@@ -812,6 +812,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.Errors.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.FormatMessage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.Mutex.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.Semaphore.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Win32Marshal.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Mutex.Windows.cs" />
   </ItemGroup>

@@ -2,17 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
-using System.IO;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace System.Threading
 {
     public sealed partial class Semaphore
     {
-        private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.SEMAPHORE_MODIFY_STATE;
+        private const uint AccessRights = (uint)Interop.Kernel32.MAXIMUM_ALLOWED | Interop.Kernel32.SYNCHRONIZE | Interop.Kernel32.SEMAPHORE_MODIFY_STATE;
 
         private Semaphore(SafeWaitHandle handle)
         {
@@ -31,7 +30,7 @@ namespace System.Threading
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
             }
 #endif      
-            SafeWaitHandle myHandle = Win32Native.CreateSemaphoreEx(null, initialCount, maximumCount, name, 0, AccessRights);
+            SafeWaitHandle myHandle = Interop.Kernel32.CreateSemaphoreEx(IntPtr.Zero, initialCount, maximumCount, name, 0, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (myHandle.IsInvalid)
@@ -55,7 +54,7 @@ namespace System.Threading
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
 
             //Pass false to OpenSemaphore to prevent inheritedHandles
-            SafeWaitHandle myHandle = Win32Native.OpenSemaphore(AccessRights, false, name);
+            SafeWaitHandle myHandle = Interop.Kernel32.OpenSemaphore(AccessRights, false, name);
 
             if (myHandle.IsInvalid)
             {
@@ -85,13 +84,12 @@ namespace System.Threading
             // the semaphore's count to exceed the maximum count set when Semaphore was created
             // Non-Zero return 
             int previousCount;
-            if (!Win32Native.ReleaseSemaphore(SafeWaitHandle, releaseCount, out previousCount))
+            if (!Interop.Kernel32.ReleaseSemaphore(SafeWaitHandle, releaseCount, out previousCount))
             {
                 throw new SemaphoreFullException();
             }
 
             return previousCount;
         }
-
     }
 }
