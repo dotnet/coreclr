@@ -1018,7 +1018,8 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
             // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
             // we need to preserve small types.
-            useType = GetEightByteType(structDesc, 0);
+            useType           = GetEightByteType(structDesc, 0);
+            howToReturnStruct = SPK_PrimitiveType;
         }
     }
 
@@ -1032,8 +1033,24 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
         //
-        // The ABI for struct returns in varArg methods, is same as the normal case, so pass false for isVararg
+        // The ABI for struct returns in varArg methods, is same as the normal case,
+        // so pass false for isVararg
         useType = getPrimitiveTypeForStruct(structSize, clsHnd, /*isVararg=*/false);
+
+        if (useType != TYP_UNKNOWN)
+        {
+            if (structSize == genTypeSize(useType))
+            {
+                // Currently: 1, 2, 4, or 8 byte structs
+                howToReturnStruct = SPK_PrimitiveType;
+            }
+            else
+            {
+                // Currently: 3, 5, 6, or 7 byte structs
+                assert(structSize <= genTypeSize(useType));
+                howToReturnStruct = SPK_EnclosingType;
+            }
+        }
     }
 
 #ifdef _TARGET_64BIT_
@@ -1048,16 +1065,16 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     //
     if ((FEATURE_MULTIREG_RET == 0) && (useType == TYP_UNKNOWN) && (structSize == (2 * sizeof(float))) && IsHfa(clsHnd))
     {
-        useType = TYP_I_IMPL;
+        useType           = TYP_I_IMPL;
+        howToReturnStruct = SPK_PrimitiveType;
     }
 #endif
 
     // Did we change this struct type into a simple "primitive" type?
-    //
     if (useType != TYP_UNKNOWN)
     {
-        // Yes, we should use the "primitive" type in 'useType'
-        howToReturnStruct = SPK_PrimitiveType;
+        // If so, we should have already set howToReturnStruct, too.
+        assert(howToReturnStruct != SPK_Unknown);
     }
     else // We can't replace the struct with a "primitive" type
     {

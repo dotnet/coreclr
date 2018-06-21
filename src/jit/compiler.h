@@ -4223,6 +4223,8 @@ public:
     {
         SPK_Unknown,       // Invalid value, never returned
         SPK_PrimitiveType, // The struct is passed/returned using a primitive type.
+        SPK_EnclosingType, // Like SPK_Primitive type, but used for return types that
+                           //  are not a power of two byte size.
         SPK_ByValue,       // The struct is passed/returned by value (using the ABI rules)
                            //  for ARM64 and UNIX_X64 in multiple registers. (when all of the
                            //   parameters registers are used, then the stack will be used)

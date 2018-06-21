@@ -8465,7 +8465,14 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
         if (retRegCount == 1)
         {
             // struct returned in a single register
-            call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+            // retype iff struct size exactly matches integer type size.
+            if (retTypeDesc->IsEnclosingType())
+            {
+            }
+            else
+            {
+                call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+            }
         }
         else
         {
