@@ -4,10 +4,11 @@
 
 #pragma warning disable 0183 // The given expression is always of the provided ('X') type
 
-using System.Runtime.InteropServices;
 using System;
-//using Microsoft;
 using System.ComponentModel;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 // primitives / CLR Types
 
 // interfaces 
@@ -223,27 +224,26 @@ public static class ExitCode
     public static int Passed = 100;
 }
 
-
-internal sealed class GCHandleWrapper
-{
-    public GCHandle Handle { get; private set; }
-
-    public GCHandleWrapper(GCHandle handle)
-    {
-        Handle = handle;
-    }
-
-    ~GCHandleWrapper()
-    {
-        Handle.Free();
-    }
-}
-
 // Create Value Instance
 internal static class Helper
 {
-    private static readonly GCHandleWrapper handleWrapper = new GCHandleWrapper(GCHandle.Alloc(Console.Out));
-    public static GCHandle GCHANDLE => handleWrapper.Handle;
+    public static GCHandle GCHANDLE;
+
+    static Helper()
+    {
+        GCHANDLE = GCHandle.Alloc(Console.Out);
+
+        AssemblyLoadContext currentContext = AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
+        if (currentContext != null)
+        {
+            currentContext.Unloading += Context_Unloading;
+        }
+    }
+
+    private static void Context_Unloading(AssemblyLoadContext obj)
+    {
+        GCHANDLE.Free();
+    }
 
     public static char Create(char val) { return 'c'; }
     public static bool Create(bool val) { return true; }
