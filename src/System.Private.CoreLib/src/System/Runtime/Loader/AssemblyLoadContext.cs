@@ -99,6 +99,11 @@ namespace System.Runtime.Loader
             // We perform an implicit Unload if no explicit Unload has been done
             if (IsCollectible)
             {
+                var unloading = Unloading;
+                Unloading = null;
+                // TODO: should we enclose this with a try catch?
+                unloading?.Invoke(this);
+
                 // When in Unloading state, we are not supposed to be called on the finalizer
                 // as the native side is holding a strong reference after calling Unload
                 lock (unloadLock)
@@ -236,6 +241,11 @@ namespace System.Runtime.Loader
             {
                 throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible"));
             }
+
+            var unloading = Unloading;
+            Unloading = null;
+
+            unloading?.Invoke(this);
 
             lock (unloadLock)
             {
@@ -397,10 +407,6 @@ namespace System.Runtime.Loader
                     // called via the finalizer
                     return;
                 }
-
-                var unloading = Unloading;
-                // TODO: should we enclose this with a try catch?
-                unloading?.Invoke(this);
             }
         }
 
