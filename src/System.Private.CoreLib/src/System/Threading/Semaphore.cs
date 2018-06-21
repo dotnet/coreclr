@@ -4,21 +4,33 @@
 
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security;
 
 namespace System.Threading
 {
     public sealed partial class Semaphore : WaitHandle
     {
-        private const uint AccessRights =
-            (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.SEMAPHORE_MODIFY_STATE;
-
+        // creates a nameless semaphore object
+        // Win32 only takes maximum count of Int32.MaxValue
         public Semaphore(int initialCount, int maximumCount) : this(initialCount, maximumCount, null) { }
 
         public Semaphore(int initialCount, int maximumCount, string name)
+        {
+            VerifyCounts(initialCount, maximumCount);
+
+            bool createdNew;
+            CreateSemaphoreCore(initialCount, maximumCount, name, out createdNew);
+        }
+
+        public Semaphore(int initialCount, int maximumCount, string name, out bool createdNew)
+        {
+            VerifyCounts(initialCount, maximumCount);
+
+            CreateSemaphoreCore(initialCount, maximumCount, name, out createdNew);
+        }
+
+        private static void VerifyCounts(int initialCount, int maximumCount)
         {
             if (initialCount < 0)
             {
@@ -34,66 +46,7 @@ namespace System.Threading
             {
                 throw new ArgumentException(SR.Argument_SemaphoreInitialMaximum);
             }
-
-            SafeWaitHandle myHandle = CreateSemaphore(initialCount, maximumCount, name);
-
-            if (myHandle.IsInvalid)
-            {
-                int errorCode = Marshal.GetLastWin32Error();
-
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
-                    throw new WaitHandleCannotBeOpenedException(
-                        SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
-
-                throw Win32Marshal.GetExceptionForLastWin32Error();
-            }
-            this.SafeWaitHandle = myHandle;
         }
-
-        public Semaphore(int initialCount, int maximumCount, string name, out bool createdNew)
-        {
-            if (initialCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(initialCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
-
-            if (maximumCount < 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(maximumCount), SR.ArgumentOutOfRange_NeedNonNegNum);
-            }
-
-            if (initialCount > maximumCount)
-            {
-                throw new ArgumentException(SR.Argument_SemaphoreInitialMaximum);
-            }
-
-            SafeWaitHandle myHandle = CreateSemaphore(initialCount, maximumCount, name);
-
-            int errorCode = Marshal.GetLastWin32Error();
-            if (myHandle.IsInvalid)
-            {
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
-                    throw new WaitHandleCannotBeOpenedException(
-                        SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
-                throw Win32Marshal.GetExceptionForLastWin32Error();
-            }
-            createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
-            this.SafeWaitHandle = myHandle;
-        }
-
-        private Semaphore(SafeWaitHandle handle)
-        {
-            this.SafeWaitHandle = handle;
-        }
-
-        private static SafeWaitHandle CreateSemaphore(int initialCount, int maximumCount, string name)
-        {
-#if !PLATFORM_WINDOWS
-            if (name != null)
-            {
-                throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-            }
-#endif
 
         public static Semaphore OpenExisting(string name)
         {
