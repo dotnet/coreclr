@@ -183,7 +183,7 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
         // Pick the base buffer size based.  Debug builds have a smaller size to stress the allocate/steal path more.
         unsigned int baseBufferSize =
 #ifdef _DEBUG
-            5 * 1024; // 5K
+            30 * 1024; // 30K
 #else
             100 * 1024; // 100K
 #endif
@@ -194,6 +194,13 @@ EventPipeBuffer* EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
         if(bufferSize < requestSize)
         {
             bufferSize = requestSize;
+        }
+
+        // Don't allow the buffer size to exceed 1MB.
+        const unsigned int maxBufferSize = 1024 * 1024;
+        if(bufferSize > maxBufferSize)
+        {
+            bufferSize = maxBufferSize;
         }
 
         // EX_TRY is used here as opposed to new (nothrow) because
