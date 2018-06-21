@@ -41,6 +41,7 @@ set __DoCrossgen=
 set __CrossgenAltJit=
 set __PerfTests=
 set __CoreFXTests=
+set __CoreFXTestsRunAllAvailable=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -80,6 +81,7 @@ if /i "%1" == "ilasmroundtrip"        (set __IlasmRoundTrip=1&shift&goto Arg_Loo
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTests"           (set __CoreFXTests=true&shift&goto Arg_Loop)
+if /i "%1" == "CoreFXTestsAll"        (set __CoreFXTests=true&shift&set __CoreFXTestsRunAllAvailable=true&shift&goto Arg_Loop)
 if /i "%1" == "CoreFXTestList"        (set __CoreFXTests=true&set __CoreFXTestList=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
 if /i "%1" == "link"                  (set DoLink=true&set ILLINK=%2&shift&shift&goto Arg_Loop)
@@ -336,11 +338,17 @@ set _CoreFXTestExecutableArgs= --notrait category=nonnetcoreapptests --notrait c
 REM Set the log file name to something Jenkins can understand
 set _CoreFX_TestLogFileName=testResults.xml
 set _CoreFX_TestRunScriptName=CoreCLR_RunTest.cmd
+echo All coreFX tests set to %__CoreFXTestsRunAllAvailable%
+if "%__CoreFXTestsRunAllAvailable%" == "true" ( 
+    set _CoreFX_RunCommand=--runAllTests
+) else ( 
+    set _CoreFX_RunCommand=--runSpecifiedTests
+)
 
 
 echo Downloading and Running CoreFX Test Binaries
-echo call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --logPath %_CoreFXLogsDir%  %_CoreFXTestExecutableArgs% 
-call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "%_CoreFXTestRemoteURL%" --runTests --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --log %_CoreFXLogsDir% %_CoreFXTestExecutableArgs% 
+echo call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "!_CoreFXTestRemoteURL!" %_CoreFX_RunCommand% --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --logPath %_CoreFXLogsDir%  %_CoreFXTestExecutableArgs% 
+call "%_dotnet%" "%_CoreFXTestUtilitiesOutputPath%\%_CoreFXTestSetupUtilityName%.dll" --clean --outputDirectory "%_CoreFXTestBinariesPath%" --testListJsonPath "%__CoreFXTestList%" --testUrl "!_CoreFXTestRemoteURL!" %_CoreFX_RunCommand% --dotnetPath "%_CoreFXTestHost%\dotnet.exe" --executable %_CoreFXTestExecutable% --log %_CoreFXLogsDir% %_CoreFXTestExecutableArgs% 
 if errorlevel 1 (
       echo %__MsgPrefix%Running CoreFX tests finished with Failures
       echo %__MsgPrefix%Check %_CoreFXLogsDir% for test run logs

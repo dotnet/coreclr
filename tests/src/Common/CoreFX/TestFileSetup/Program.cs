@@ -23,7 +23,8 @@ namespace CoreFX.TestUtils.TestFileSetup
 
         // Test Run Options
         private static string dotnetPath;
-        private static bool runTests;
+        private static bool runSpecifiedTests;
+        private static bool runAllTests;
         private static int maximumDegreeOfParalellization;
         private static string logRootOutputPath;
 
@@ -36,22 +37,17 @@ namespace CoreFX.TestUtils.TestFileSetup
             // Initialize default options
             exitCode = ExitCode.Success;
             maximumDegreeOfParalellization = Environment.ProcessorCount;
-            runTests = false;
+            runSpecifiedTests = false;
+            runAllTests = false;
             cleanTestBuild = false;
 
             ArgumentSyntax argSyntax = ParseCommandLine(args);
             try
             {
-                SetupTests();
+                SetupTests(runAllTests);
 
-                if (runTests)
+                if (runSpecifiedTests || runAllTests)
                 {
-                    if (String.IsNullOrEmpty(dotnetPath))
-                        throw new ArgumentException("Please supply a test host location to run tests.");
-
-                    if (!File.Exists(dotnetPath))
-                        throw new ArgumentException("Invalid testhost path. Please supply a test host location to run tests.");
-
                     exitCode = RunTests();
 
                 }
@@ -101,7 +97,8 @@ namespace CoreFX.TestUtils.TestFileSetup
                 syntax.DefineOption("testUrl", ref testUrl, "URL, pointing to the list of tests");
                 syntax.DefineOption("testListJsonPath", ref testListPath, "JSON-formatted list of test assembly names to download");
                 syntax.DefineOption("clean|cleanOutputDir", ref cleanTestBuild, "Clean test assembly output directory");
-                syntax.DefineOption("run|runTests", ref runTests, "Run Tests after setup");
+                syntax.DefineOption("runSpecified|runSpecifiedTests", ref runSpecifiedTests, "Run specified Tests after setup");
+                syntax.DefineOption("runAll|runAllTests", ref runAllTests, "Run All available Tests in the specified TestList");
                 syntax.DefineOption("dotnet|dotnetPath", ref dotnetPath, "Path to dotnet executable used to run tests.");
                 syntax.DefineOption("executable|executableName", ref executableName, "Name of the test executable to start");
                 syntax.DefineOption("log|logPath|logRootOutputPath", ref logRootOutputPath, "Run Tests after setup");
@@ -109,10 +106,20 @@ namespace CoreFX.TestUtils.TestFileSetup
                 syntax.DefineOptionList("notrait", ref traitExclusions, "Traits to be excluded from test runs");
 
             });
+
+            if (runSpecifiedTests || runAllTests)
+            {
+                if (String.IsNullOrEmpty(dotnetPath))
+                    throw new ArgumentException("Please supply a test host location to run tests.");
+
+                if (!File.Exists(dotnetPath))
+                    throw new ArgumentException("Invalid testhost path. Please supply a test host location to run tests.");
+            }
+
             return argSyntax;
         }
 
-        private static void SetupTests()
+        private static void SetupTests(bool runAll = false)
         {
             testFileHelper = new TestFileHelper();
 
@@ -127,7 +134,7 @@ namespace CoreFX.TestUtils.TestFileSetup
             // Map test names to their definitions
             Dictionary<string, XUnitTestAssembly> testAssemblyDefinitions = testFileHelper.DeserializeTestJson(testListPath);
 
-            testFileHelper.SetupTests(testUrl, outputDir, testAssemblyDefinitions).Wait();
+            testFileHelper.SetupTests(testUrl, outputDir, testAssemblyDefinitions, runAll).Wait();
         }
 
         private static ExitCode RunTests()
