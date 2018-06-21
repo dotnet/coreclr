@@ -3,13 +3,17 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace R2RDump
 {
     class CoreDisTools
     {
+        private const string _dll = "coredistools.dll";
+
         public enum TargetArch
         {
             Target_Host, // Target is the same as host architecture
@@ -19,26 +23,58 @@ namespace R2RDump
             Target_Arm64
         };
 
-        [DllImport("coredistools.dll")]
-        [return: MarshalAs(UnmanagedType.I8)]
-        public static extern long InitDisasm(TargetArch Target);
+        [DllImport(_dll)]
+        public static extern IntPtr InitBufferedDisasm(TargetArch Target);
 
-        [DllImport("coredistools.dll")]
-        public static extern void DumpCodeBlock(long Disasm, ulong Address, IntPtr Bytes, int Size);
+        [DllImport(_dll)]
+        public static extern void DumpCodeBlock(IntPtr Disasm, ulong Address, IntPtr Bytes, int Size);
 
-        [DllImport("coredistools.dll")]
-        public static extern void FinishDisasm(long Disasm);
+        [DllImport(_dll)]
+        [return: MarshalAs(UnmanagedType.I4)]
+        public static extern int DumpInstruction(IntPtr Disasm, ulong Address, IntPtr Bytes, int Size);
 
-        public unsafe static void DumpCodeBlock(long Disasm, int Address, int Offset, byte[] image, int Size)
+        [DllImport(_dll)]
+        public static extern IntPtr GetOutputBuffer();
+
+        [DllImport(_dll)]
+        public static extern void ClearOutputBuffer();
+
+        [DllImport(_dll)]
+        public static extern void FinishDisasm(IntPtr Disasm);
+
+        public unsafe static string GetCodeBlock(IntPtr Disasm, RuntimeFunction rtf, int imageOffset, byte[] image)
         {
-            fixed (byte* p = image)
+            StringBuilder sb = new StringBuilder();
+
+            int rtfOffset = 0;
+            int codeOffset = rtf.CodeOffset;
+            Dictionary<int, GcInfo.GcTransition> transitions = rtf.Method.GcInfo.Transitions;
+            GcSlotTable slotTable = rtf.Method.GcInfo.SlotTable;
+            while (rtfOffset < rtf.Size)
             {
-                IntPtr ptr = (IntPtr)(p + Offset);
-                DumpCodeBlock(Disasm, (ulong)Address, ptr, Size);
+                int instrSize = 1;
+                fixed (byte* p = image)
+                {
+                    IntPtr ptr = (IntPtr)(p + imageOffset + rtfOffset);
+                    instrSize = DumpInstruction(Disasm, (ulong)(rtf.StartAddress + rtfOffset), ptr, rtf.Size);
+                }
+                IntPtr pBuffer = GetOutputBuffer();
+                string instr = Marshal.PtrToStringAnsi(pBuffer);
+
+                sb.Append(instr);
+                if (transitions.ContainsKey(codeOffset))
+                {
+                    sb.AppendLine($"\t\t\t\t{transitions[codeOffset].GetSlotState(slotTable)}");
+                }
+
+                ClearOutputBuffer();
+                rtfOffset += instrSize;
+                codeOffset += instrSize;
             }
+            return sb.ToString();
         }
 
-        public static long GetDisasm(Machine machine)
+        public static IntPtr GetDisasm(Machine machine)
         {
             TargetArch target = TargetArch.Target_Host;
             switch (machine)
@@ -56,7 +92,7 @@ namespace R2RDump
                     target = TargetArch.Target_Thumb;
                     break;
             }
-            return InitDisasm(target);
+            return InitBufferedDisasm(target);
         }
     }
 }

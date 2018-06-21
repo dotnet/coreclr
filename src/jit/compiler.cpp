@@ -589,7 +589,7 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //    For ARM32 if we have an HFA struct that wraps a 64-bit double
 //    we will return TYP_DOUBLE.
 //
-var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd)
+var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd, bool isVarArg)
 {
     assert(structSize != 0);
 
@@ -605,12 +605,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             useType = TYP_SHORT;
             break;
 
-#ifndef _TARGET_XARCH_
+#if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
         case 3:
             useType = TYP_INT;
             break;
 
-#endif // _TARGET_XARCH_
+#endif // !_TARGET_XARCH_ || UNIX_AMD64_ABI
 
 #ifdef _TARGET_64BIT_
         case 4:
@@ -625,14 +625,14 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             }
             break;
 
-#ifndef _TARGET_XARCH_
+#if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
         case 5:
         case 6:
         case 7:
             useType = TYP_I_IMPL;
             break;
 
-#endif // _TARGET_XARCH_
+#endif // !_TARGET_XARCH_ || UNIX_AMD64_ABI
 #endif // _TARGET_64BIT_
 
         case TARGET_POINTER_SIZE:
@@ -640,8 +640,15 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             // For ARM_SOFTFP, HFA is unsupported so we need to check in another way
             // This matters only for size-4 struct cause bigger structs would be processed with RetBuf
             if (isSingleFloat32Struct(clsHnd))
-#else  // !ARM_SOFTFP
-            if (IsHfa(clsHnd))
+#else // !ARM_SOFTFP
+            if (IsHfa(clsHnd)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                // Arm64 Windows VarArg methods arguments will not
+                // classify HFA types, they will need to be treated
+                // as if they are not HFA types.
+                && !isVarArg
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                )
 #endif // ARM_SOFTFP
             {
 #ifdef _TARGET_64BIT_
@@ -729,6 +736,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 //    clsHnd       - the handle for the struct type
 //    wbPassStruct - An "out" argument with information about how
 //                   the struct is to be passed
+//    isVarArg     - is vararg, used to ignore HFA types for Arm64 windows varargs
 //    structSize   - the size of the struct type,
 //                   or zero if we should call getClassSize(clsHnd)
 //
@@ -756,6 +764,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 //
 var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                         structPassingKind*   wbPassStruct,
+                                        bool                 isVarArg,
                                         unsigned             structSize /* = 0 */)
 {
     var_types         useType         = TYP_UNKNOWN;
@@ -767,6 +776,9 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     }
     assert(structSize > 0);
 
+// Determine if we can pass the struct as a primitive type.
+// Note that on x86 we never pass structs as primitive types (unless the VM unwraps them for us).
+#ifndef _TARGET_X86_
 #ifdef UNIX_AMD64_ABI
 
     // An 8-byte struct may need to be passed in a floating point register
@@ -775,32 +787,33 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(clsHnd, &structDesc);
 
-    // If we have one eightByteCount then we can set 'useType' based on that
-    if (structDesc.eightByteCount == 1)
+    if (structDesc.passedInRegisters && (structDesc.eightByteCount != 1))
     {
-        // Set 'useType' to the type of the first eightbyte item
+        // We can't pass this as a primitive type.
+    }
+    else if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
+    {
+        // If this is passed as a floating type, use that.
+        // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
+        // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
+        // we need to preserve small types.
         useType = GetEightByteType(structDesc, 0);
     }
+    else
+#endif // UNIX_AMD64_ABI
 
-#elif defined(_TARGET_X86_)
-
-    // On x86 we never pass structs as primitive types (unless the VM unwraps them for us)
-    useType = TYP_UNKNOWN;
-
-#else // all other targets
-
-    // The largest primitive type is 8 bytes (TYP_DOUBLE)
-    // so we can skip calling getPrimitiveTypeForStruct when we
-    // have a struct that is larger than that.
-    //
-    if (structSize <= sizeof(double))
+        // The largest primitive type is 8 bytes (TYP_DOUBLE)
+        // so we can skip calling getPrimitiveTypeForStruct when we
+        // have a struct that is larger than that.
+        //
+        if (structSize <= sizeof(double))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
-        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd, isVarArg);
     }
 
-#endif // all other targets
+#endif // !_TARGET_X86_
 
     // Did we change this struct type into a simple "primitive" type?
     //
@@ -817,7 +830,13 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         if (structSize <= MAX_PASS_MULTIREG_BYTES)
         {
             // Structs that are HFA's are passed by value in multiple registers
-            if (IsHfa(clsHnd))
+            if (IsHfa(clsHnd)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                && !isVarArg // Arm64 Windows VarArg methods arguments will not
+                             // classify HFA types, they will need to be treated
+                             // as if they are not HFA types.
+#endif                       // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                )
             {
                 // HFA's of count one should have been handled by getPrimitiveTypeForStruct
                 assert(GetHfaCount(clsHnd) >= 2);
@@ -834,7 +853,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 #ifdef UNIX_AMD64_ABI
 
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
-                if (structDesc.eightByteCount > 1)
+                if ((structDesc.eightByteCount > 1) || !structDesc.passedInRegisters)
                 {
                     // setup wbPassType and useType indicate that this is passed by value in multiple registers
                     //  (when all of the parameters registers are used, then the stack will be used)
@@ -1010,7 +1029,9 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
-        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+        //
+        // The ABI for struct returns in varArg methods, is same as the normal case, so pass false for isVararg
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd, /*isVararg=*/false);
     }
 
 #endif // UNIX_AMD64_ABI
@@ -4057,7 +4078,8 @@ void Compiler::compSetOptimizationLevel()
 
     if (!theMinOptsValue && (jitMinOpts > 0))
     {
-        unsigned methodCount     = Compiler::jitTotalMethodCompiled;
+        // jitTotalMethodCompiled does not include the method that is being compiled now, so make +1.
+        unsigned methodCount     = Compiler::jitTotalMethodCompiled + 1;
         unsigned methodCountMask = methodCount & 0xFFF;
         unsigned kind            = (jitMinOpts & 0xF000000) >> 24;
         switch (kind)

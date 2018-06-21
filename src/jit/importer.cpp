@@ -4753,7 +4753,7 @@ bool Compiler::verCheckTailCallConstraint(
     if (opcode == CEE_CALLI)
     {
         /* Get the call sig */
-        eeGetSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+        eeGetSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
 
         // We don't know the target method, so we have to infer the flags, or
         // assume the worst-case.
@@ -4781,7 +4781,7 @@ bool Compiler::verCheckTailCallConstraint(
 
     if ((sig.callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG)
     {
-        eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+        eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
     }
 
     // check compatibility of the arguments
@@ -4849,7 +4849,7 @@ bool Compiler::verCheckTailCallConstraint(
         if (methodClassFlgs & CORINFO_FLG_ARRAY)
         {
             assert(opcode != CEE_CALLI);
-            eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &sig);
+            eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &sig);
         }
     }
 
@@ -6097,8 +6097,11 @@ void Compiler::impCheckForPInvokeCall(
     }
     optNativeCallCount++;
 
-    if (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) && methHnd == nullptr)
+    if (methHnd == nullptr && (opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) || IsTargetAbi(CORINFO_CORERT_ABI)))
     {
+        // PInvoke in CoreRT ABI must be always inlined. Non-inlineable CALLI cases have been
+        // converted to regular method calls earlier using convertPInvokeCalliToCall.
+
         // PInvoke CALLI in IL stubs must be inlined
     }
     else
@@ -6703,9 +6706,9 @@ bool Compiler::impTailCallRetTypeCompatible(var_types            callerRetType,
     unsigned callerRetTypeSize = 0;
     unsigned calleeRetTypeSize = 0;
     bool     isCallerRetTypMBEnreg =
-        VarTypeIsMultiByteAndCanEnreg(callerRetType, callerRetTypeClass, &callerRetTypeSize, true);
+        VarTypeIsMultiByteAndCanEnreg(callerRetType, callerRetTypeClass, &callerRetTypeSize, true, info.compIsVarArgs);
     bool isCalleeRetTypMBEnreg =
-        VarTypeIsMultiByteAndCanEnreg(calleeRetType, calleeRetTypeClass, &calleeRetTypeSize, true);
+        VarTypeIsMultiByteAndCanEnreg(calleeRetType, calleeRetTypeClass, &calleeRetTypeSize, true, info.compIsVarArgs);
 
     if (varTypeIsIntegral(callerRetType) || isCallerRetTypMBEnreg)
     {
@@ -6967,8 +6970,19 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
     if (opcode == CEE_CALLI)
     {
+        if (IsTargetAbi(CORINFO_CORERT_ABI))
+        {
+            // See comment in impCheckForPInvokeCall
+            BasicBlock* block = compIsForInlining() ? impInlineInfo->iciBlock : compCurBB;
+            if (info.compCompHnd->convertPInvokeCalliToCall(pResolvedToken, !impCanPInvokeInlineCallSite(block)))
+            {
+                eeGetCallInfo(pResolvedToken, nullptr, CORINFO_CALLINFO_ALLOWINSTPARAM, callInfo);
+                return impImportCall(CEE_CALL, pResolvedToken, nullptr, nullptr, prefixFlags, callInfo, rawILOffset);
+            }
+        }
+
         /* Get the call site sig */
-        eeGetSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &calliSig);
+        eeGetSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, &calliSig);
 
         callRetTyp = JITtype2varType(calliSig.retType);
 
@@ -7532,7 +7546,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef DEBUG
             unsigned numArgsDef = sig->numArgs;
 #endif
-            eeGetCallSiteSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, sig);
+            eeGetCallSiteSig(pResolvedToken->token, pResolvedToken->tokenScope, pResolvedToken->tokenContext, sig);
 
 #ifdef DEBUG
             // We cannot lazily obtain the signature of a vararg call because using its method
@@ -8654,7 +8668,12 @@ REDO_RETURN_NODE:
     // and no normalizing
     if (op->gtOper == GT_LCL_VAR)
     {
-        op->ChangeOper(GT_LCL_FLD);
+        // It is possible that we now have a lclVar of scalar type.
+        // If so, don't transform it to GT_LCL_FLD.
+        if (varTypeIsStruct(lvaTable[op->AsLclVar()->gtLclNum].lvType))
+        {
+            op->ChangeOper(GT_LCL_FLD);
+        }
     }
     else if (op->gtOper == GT_OBJ)
     {
@@ -13312,7 +13331,9 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     memset(&resolvedToken, 0, sizeof(resolvedToken));
                     memset(&callInfo, 0, sizeof(callInfo));
 
-                    resolvedToken.token = getU4LittleEndian(codeAddr);
+                    resolvedToken.token        = getU4LittleEndian(codeAddr);
+                    resolvedToken.tokenContext = impTokenLookupContextHandle;
+                    resolvedToken.tokenScope   = info.compScopeHnd;
                 }
 
             CALL: // memberRef should be set.
@@ -13411,31 +13432,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     // For delegates, this is the call to the delegate constructor, not the access check on the
                     // LD(virt)FTN.
                     impHandleAccessAllowed(callInfo.accessAllowed, &callInfo.callsiteCalloutHelper);
-
-#if 0 // DevDiv 410397 - This breaks too many obfuscated apps to do this in an in-place release
-
-                // DevDiv 291703 - we need to check for accessibility between the caller of InitializeArray
-                // and the field it is reading, thus it is now unverifiable to not immediately precede with
-                // ldtoken <filed token>, and we now check accessibility
-                if ((callInfo.methodFlags & CORINFO_FLG_INTRINSIC) &&
-                    (info.compCompHnd->getIntrinsicID(callInfo.hMethod) == CORINFO_INTRINSIC_InitializeArray))
-                {
-                    if (prevOpcode != CEE_LDTOKEN)
-                    {
-                        Verify(prevOpcode == CEE_LDTOKEN, "Need ldtoken for InitializeArray");
-                    }
-                    else
-                    {
-                        assert(lastLoadToken != NULL);
-                        // Now that we know we have a token, verify that it is accessible for loading
-                        CORINFO_RESOLVED_TOKEN resolvedLoadField;
-                        impResolveToken(lastLoadToken, &resolvedLoadField, CORINFO_TOKENKIND_Field);
-                        eeGetFieldInfo(&resolvedLoadField, CORINFO_ACCESS_INIT_ARRAY, &fieldInfo);
-                        impHandleAccessAllowed(fieldInfo.accessAllowed, &fieldInfo.accessCalloutHelper);
-                    }
-                }
-
-#endif // DevDiv 410397
                 }
 
                 if (tiVerificationNeeded)
@@ -13443,21 +13439,6 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     verVerifyCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
                                   explicitTailCall, readonlyCall, delegateCreateStart, codeAddr - 1,
                                   &callInfo DEBUGARG(info.compFullName));
-                }
-
-                // Insert delegate callout here.
-                if (opcode == CEE_NEWOBJ && (mflags & CORINFO_FLG_CONSTRUCTOR) && (clsFlags & CORINFO_FLG_DELEGATE))
-                {
-#ifdef DEBUG
-                    // We should do this only if verification is enabled
-                    // If verification is disabled, delegateCreateStart will not be initialized correctly
-                    if (tiVerificationNeeded)
-                    {
-                        mdMemberRef delegateMethodRef = mdMemberRefNil;
-                        // We should get here only for well formed delegate creation.
-                        assert(verCheckDelegateCreation(delegateCreateStart, codeAddr - 1, delegateMethodRef));
-                    }
-#endif
                 }
 
                 callTyp = impImportCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
@@ -18754,6 +18735,10 @@ GenTree* Compiler::impInlineFetchArg(unsigned lclNum, InlArgInfo* inlArgInfo, In
                 if (varTypeIsStruct(lclTyp))
                 {
                     lvaSetStruct(tmpNum, lclInfo.lclVerTypeInfo.GetClassHandle(), true /* unsafe value cls check */);
+                    if (info.compIsVarArgs)
+                    {
+                        lvaSetStructUsedAsVarArg(tmpNum);
+                    }
                 }
                 else
                 {
@@ -19070,6 +19055,17 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
     {
         inlineResult.NoteFatal(InlineObservation::CALLEE_NEEDS_SECURITY_CHECK);
         return;
+    }
+
+    /* Check legality of PInvoke callsite (for inlining of marshalling code) */
+
+    if (methAttr & CORINFO_FLG_PINVOKE)
+    {
+        if (!impCanPInvokeInlineCallSite(compCurBB))
+        {
+            inlineResult.NoteFatal(InlineObservation::CALLSITE_PINVOKE_EH);
+            return;
+        }
     }
 
     InlineCandidateInfo* inlineCandidateInfo = nullptr;

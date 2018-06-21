@@ -117,11 +117,11 @@ namespace System
 
         // Constant representing the negative number that is the closest possible
         // Decimal value to -0m.
-        private const Decimal NearNegativeZero = -0.000000000000000000000000001m;
+        private const Decimal NearNegativeZero = -0.0000000000000000000000000001m;
 
         // Constant representing the positive number that is the closest possible
         // Decimal value to +0m.
-        private const Decimal NearPositiveZero = +0.000000000000000000000000001m;
+        private const Decimal NearPositiveZero = +0.0000000000000000000000000001m;
 
         // The lo, mid, hi, and flags fields contain the representation of the
         // Decimal value. The lo, mid, and hi fields contain the 96-bit integer
@@ -453,8 +453,7 @@ namespace System
 
         // Returns the hash code for this Decimal.
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public extern override int GetHashCode();
+        public override int GetHashCode() => GetHashCode(ref this);
 
         // Compares two Decimal values for equality. Returns true if the two
         // Decimal values are equal, or false if they are not equal.
@@ -759,7 +758,7 @@ namespace System
                 if (NearNegativeZero <= result && result <= NearPositiveZero)
                 {
                     // Certain Remainder operations on decimals with 28 significant digits round
-                    // to [+-]0.000000000000000000000000001m instead of [+-]0m during the intermediate calculations. 
+                    // to [+-]0.0000000000000000000000000001m instead of [+-]0m during the intermediate calculations. 
                     // 'zero' results just need their sign corrected.
                     result.flags = (result.flags & ~SignMask) | (d1.flags & SignMask);
                 }

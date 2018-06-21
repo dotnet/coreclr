@@ -1182,9 +1182,9 @@ public:
 
     bool OperIsPutArgSplit() const
     {
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
         return gtOper == GT_PUTARG_SPLIT;
-#else
+#else // !FEATURE_ARG_SPLIT
         return false;
 #endif
     }
@@ -5195,7 +5195,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
 #endif
 };
 
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
 // Represent the struct argument: split value in register(s) and stack
 struct GenTreePutArgSplit : public GenTreePutArgStk
 {
@@ -5398,7 +5398,7 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
     }
 #endif
 };
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
 // Represents GT_COPY or GT_RELOAD node
 struct GenTreeCopyOrReload : public GenTreeUnOp
@@ -5801,29 +5801,6 @@ inline bool GenTree::IsValidCallArgument()
 
 #else // FEATURE_MULTIREG_ARGS or FEATURE_PUT_STRUCT_ARG_STK
 
-#ifdef UNIX_AMD64_ABI
-        // For UNIX ABI we currently only allow a GT_FIELD_LIST of GT_LCL_FLDs nodes
-        GenTree* gtListPtr = this;
-        while (gtListPtr != nullptr)
-        {
-            // ToDo: fix UNIX_AMD64 so that we do not generate this kind of a List
-            //  Note the list as currently created is malformed, as the last entry is a nullptr
-            if (gtListPtr->Current() == nullptr)
-            {
-                break;
-            }
-
-            // Only a list of GT_LCL_FLDs is allowed
-            if (gtListPtr->Current()->OperGet() != GT_LCL_FLD)
-            {
-                return false;
-            }
-            gtListPtr = gtListPtr->MoveNext();
-        }
-#endif // UNIX_AMD64_ABI
-
-        // Note that for non-UNIX ABI the GT_FIELD_LIST may contain any node
-        //
         // We allow this GT_FIELD_LIST as an argument
         return true;
 

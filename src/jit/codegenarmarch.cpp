@@ -325,11 +325,11 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             genPutArgReg(treeNode->AsOp());
             break;
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
             genPutArgSplit(treeNode->AsPutArgSplit());
             break;
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
         case GT_CALL:
             genCallInstruction(treeNode->AsCall());
@@ -649,42 +649,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
         if (source->OperGet() == GT_FIELD_LIST)
         {
-            // Deal with the multi register passed struct args.
-            GenTreeFieldList* fieldListPtr = source->AsFieldList();
-
-#ifdef _TARGET_ARM64_
-            // Arm64 ABI does not include argument splitting between registers and stack
-            assert(fieldListPtr);
-            assert(fieldListPtr->gtFieldOffset == 0);
-#endif // _TARGET_ARM64_
-
-            // Evaluate each of the GT_FIELD_LIST items into their register
-            // and store their register into the outgoing argument area
-            for (; fieldListPtr != nullptr; fieldListPtr = fieldListPtr->Rest())
-            {
-                GenTree* nextArgNode = fieldListPtr->gtOp.gtOp1;
-                genConsumeReg(nextArgNode);
-
-                regNumber reg  = nextArgNode->gtRegNum;
-                var_types type = nextArgNode->TypeGet();
-                emitAttr  attr = emitTypeSize(type);
-
-#ifdef _TARGET_ARM64_
-                // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
-                // argument area
-                emit->emitIns_S_R(ins_Store(type), attr, reg, varNumOut, argOffsetOut + fieldListPtr->gtFieldOffset);
-
-                // We can't write beyound the outgoing area area
-                assert((argOffsetOut + fieldListPtr->gtFieldOffset + EA_SIZE_IN_BYTES(attr)) <= argOffsetMax);
-#else
-                // TODO-ARM-Bug?  The following code will pack copied structs
-                // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
-                // argument area
-                emit->emitIns_S_R(ins_Store(type), attr, reg, varNumOut, argOffsetOut);
-                argOffsetOut += EA_SIZE_IN_BYTES(attr);
-                assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
-#endif // _TARGET_ARM64_
-            }
+            genPutArgStkFieldList(treeNode, varNumOut);
         }
         else // We must have a GT_OBJ or a GT_LCL_VAR
         {
@@ -996,7 +961,7 @@ void CodeGen::genPutArgReg(GenTreeOp* tree)
     genProduceReg(tree);
 }
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 //---------------------------------------------------------------------
 // genPutArgSplit - generate code for a GT_PUTARG_SPLIT node
 //
@@ -1043,6 +1008,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             {
                 var_types type   = treeNode->GetRegType(regIndex);
                 regNumber argReg = treeNode->GetRegNumByIdx(regIndex);
+#ifdef _TARGET_ARM_
                 if (type == TYP_LONG)
                 {
                     // We should only see long fields for DOUBLEs passed in 2 integer registers, via bitcast.
@@ -1060,6 +1026,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
                     assert(argReg == treeNode->GetRegNumByIdx(regIndex));
                     fieldReg = nextArgNode->AsMultiRegOp()->GetRegNumByIdx(1);
                 }
+#endif // _TARGET_ARM_
 
                 // If child node is not already in the register we need, move it
                 if (argReg != fieldReg)
@@ -1210,7 +1177,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
     }
     genProduceReg(treeNode);
 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
 //----------------------------------------------------------------------------------
 // genMultiRegCallStoreToLocal: store multi-reg return value of a call node to a local
@@ -2238,7 +2205,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #endif // _TARGET_ARM_
             }
         }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         else if (curArgTabEntry->isSplit)
         {
             assert(curArgTabEntry->numRegs >= 1);
@@ -2253,7 +2220,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 }
             }
         }
-#endif
+#endif // FEATURE_ARG_SPLIT
         else
         {
             regNumber argReg = curArgTabEntry->regNum;
@@ -2689,7 +2656,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             regSet.AddMaskVars(genRegMask(argReg));
             gcInfo.gcMarkRegPtrVal(argReg, loadType);
 
-            if (compiler->lvaIsMultiregStruct(varDsc))
+            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
             {
                 if (varDsc->lvIsHfa())
                 {
@@ -2720,7 +2687,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
 
             fixedIntArgMask |= genRegMask(argReg);
 
-            if (compiler->lvaIsMultiregStruct(varDsc))
+            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
             {
                 assert(argRegNext != REG_NA);
                 fixedIntArgMask |= genRegMask(argRegNext);
