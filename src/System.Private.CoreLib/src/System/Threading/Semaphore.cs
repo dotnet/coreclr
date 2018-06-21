@@ -95,13 +95,6 @@ namespace System.Threading
             }
 #endif
 
-            Debug.Assert(initialCount >= 0);
-            Debug.Assert(maximumCount >= 1);
-            Debug.Assert(initialCount <= maximumCount);
-
-            return Win32Native.CreateSemaphoreEx(null, initialCount, maximumCount, name, 0, AccessRights);
-        }
-
         public static Semaphore OpenExisting(string name)
         {
             Semaphore result;
@@ -112,55 +105,16 @@ namespace System.Threading
                 case OpenExistingResult.NameInvalid:
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
                 case OpenExistingResult.PathNotFound:
-                    throw new IOException(Interop.Kernel32.GetMessage(Interop.Errors.ERROR_PATH_NOT_FOUND));
+                    throw new IOException(SR.Format(SR.IO_PathNotFound_Path, name));
                 default:
                     return result;
             }
         }
 
-        public static bool TryOpenExisting(string name, out Semaphore result)
-        {
-            return OpenExistingWorker(name, out result) == OpenExistingResult.Success;
-        }
+        public static bool TryOpenExisting(string name, out Semaphore result) =>
+            OpenExistingWorker(name, out result) == OpenExistingResult.Success;
 
-        private static OpenExistingResult OpenExistingWorker(string name, out Semaphore result)
-        {
-#if PLATFORM_WINDOWS
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-            if (name.Length == 0)
-                throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-
-            //Pass false to OpenSemaphore to prevent inheritedHandles
-            SafeWaitHandle myHandle = Win32Native.OpenSemaphore(AccessRights, false, name);
-
-            if (myHandle.IsInvalid)
-            {
-                result = null;
-
-                int errorCode = Marshal.GetLastWin32Error();
-
-                if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
-                    return OpenExistingResult.NameNotFound;
-                if (Interop.Errors.ERROR_PATH_NOT_FOUND == errorCode)
-                    return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
-                    return OpenExistingResult.NameInvalid;
-                //this is for passed through NativeMethods Errors
-                throw Win32Marshal.GetExceptionForLastWin32Error();
-            }
-
-            result = new Semaphore(myHandle);
-            return OpenExistingResult.Success;
-#else
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-#endif
-        }
-
-        public int Release()
-        {
-            return Release(1);
-        }
+        public int Release() => ReleaseCore(1);
 
         // increase the count on a semaphore, returns previous count
         public int Release(int releaseCount)
@@ -170,17 +124,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(releaseCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
-            //If ReleaseSempahore returns false when the specified value would cause
-            //   the semaphore's count to exceed the maximum count set when Semaphore was created
-            //Non-Zero return 
-
-            int previousCount;
-            if (!Win32Native.ReleaseSemaphore(SafeWaitHandle, releaseCount, out previousCount))
-            {
-                throw new SemaphoreFullException();
-            }
-
-            return previousCount;
+            return ReleaseCore(releaseCount);
         }
     }
 }
