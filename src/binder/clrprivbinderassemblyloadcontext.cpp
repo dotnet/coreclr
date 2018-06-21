@@ -276,7 +276,7 @@ Exit:
     return hr;
 }
 
-void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext)
+void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease()
 {
     CONTRACTL
     {
@@ -286,13 +286,6 @@ void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrM
         SO_TOLERANT;
     }
     CONTRACTL_END;
-
-    // Replace the weak handle with a strong handle
-    // in order to be able to callback the managed method AssemblyLoadContext.Unloading safely
-    OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
-    OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
-    DestroyShortWeakHandle(handle);
-    m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
 
     _ASSERTE(m_pAssemblyLoaderAllocator != NULL);
     _ASSERTE(m_loaderAllocatorHandle != NULL);
@@ -320,7 +313,7 @@ void CLRPrivBinderAssemblyLoadContext::ReleaseLoadContext()
     // This method is called to release the strong handle on the managed AssemblyLoadContext
     // once the Unloading event has been fired
     OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
-    DestroyHandle(handle);
+    DestroyShortWeakHandle(handle);
     m_ptrManagedAssemblyLoadContext = NULL;
 }
 

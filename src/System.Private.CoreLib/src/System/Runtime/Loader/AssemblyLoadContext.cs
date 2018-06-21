@@ -39,7 +39,7 @@ namespace System.Runtime.Loader
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext, bool isCollectible);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void PrepareForAssemblyLoadContextRelease(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyLoadContextStrong);
+        private static extern void PrepareForAssemblyLoadContextRelease(IntPtr ptrNativeAssemblyLoadContext);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadFromStream(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyArray, int iAssemblyArrayLen, IntPtr ptrSymbols, int iSymbolArrayLen, ObjectHandleOnStack retAssembly);
@@ -111,10 +111,11 @@ namespace System.Runtime.Loader
                     Debug.Assert(state != InternalState.Unloading);
                     if (state == InternalState.Alive)
                     {
-                        GC.ReRegisterForFinalize(this);
                         UnloadCollectible();
                     }
                 }
+
+                OnUnloading();
             }
         }
 
@@ -242,6 +243,8 @@ namespace System.Runtime.Loader
                 throw new InvalidOperationException(SR.GetResourceString("AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible"));
             }
 
+            GC.SuppressFinalize(this);
+
             var unloading = Unloading;
             Unloading = null;
 
@@ -251,6 +254,8 @@ namespace System.Runtime.Loader
             {
                 UnloadCollectible();
             }
+
+            OnUnloading();
         }
 
         private void UnloadCollectible()
@@ -258,13 +263,9 @@ namespace System.Runtime.Loader
             Debug.Assert(IsCollectible);
             if (state == InternalState.Alive)
             {
-                // Only if this ALC is collectible
-                var thisStrongHandle = GCHandle.Alloc(this, GCHandleType.Normal);
-                var thisStrongHandlePtr = GCHandle.ToIntPtr(thisStrongHandle);
-
                 // The underlying code will transform the original weak handle 
                 // created by InitializeLoadContext to a strong handle
-                PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext, thisStrongHandlePtr);
+                PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext);
             }
             else
             {
@@ -408,13 +409,6 @@ namespace System.Runtime.Loader
                     return;
                 }
             }
-        }
-
-        private static void OnUnloadingStatic(IntPtr gchManagedAssemblyLoadContext)
-        {
-            // This method is invoked by the VM after an Unload has been requested
-            var context = (AssemblyLoadContext) GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target;
-            context.OnUnloading();
         }
 
         public Assembly LoadFromAssemblyName(AssemblyName assemblyName)

@@ -77,7 +77,7 @@ public:
                                 UINT_PTR ptrAssemblyLoadContext,
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
 
-    void PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext);
+    void PrepareForLoadContextRelease();
     void ReleaseLoadContext();
 
     CLRPrivBinderAssemblyLoadContext();

@@ -1812,19 +1812,6 @@ void AssemblyLoaderAllocator::OnUnloading()
 
     VERIFY(m_binderToRelease != NULL);
 
-    GCX_COOP();
-    // We are going to invoke the managed AssemblyLoadContext.OnUnloading method
-    MethodDescCallSite methodOnUnloading(METHOD__ASSEMBLYLOADCONTEXT__ONUNLOADING);
-
-    // Setup the arguments for the call
-    ARG_SLOT args[1] =
-    {
-        PtrToArgSlot(m_binderToRelease->GetManagedAssemblyLoadContext()), // IntPtr for managed assembly load context instance
-    };
-
-    // Make the call
-    methodOnUnloading.Call(args);
-
     // Release the managed ALC
     m_binderToRelease->ReleaseLoadContext();
 }
