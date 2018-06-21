@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 
 namespace System.Threading
 {
-    public sealed partial class Semaphore : WaitHandle
+    public sealed partial class Semaphore
     {
         private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.SEMAPHORE_MODIFY_STATE;
 
@@ -21,7 +21,17 @@ namespace System.Threading
 
         private void CreateSemaphoreCore(int initialCount, int maximumCount, string name, out bool createdNew)
         {
-            SafeWaitHandle myHandle = CreateSemaphore(initialCount, maximumCount, name);
+            Debug.Assert(initialCount >= 0);
+            Debug.Assert(maximumCount >= 1);
+            Debug.Assert(initialCount <= maximumCount);
+
+#if !PLATFORM_WINDOWS
+            if (name != null)
+            {
+                throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
+            }
+#endif      
+            SafeWaitHandle myHandle = Win32Native.CreateSemaphoreEx(null, initialCount, maximumCount, name, 0, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (myHandle.IsInvalid)
@@ -34,22 +44,6 @@ namespace System.Threading
             }
             createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
             this.SafeWaitHandle = myHandle;
-        }
-
-        private static SafeWaitHandle CreateSemaphore(int initialCount, int maximumCount, string name)
-        {
-#if !PLATFORM_WINDOWS
-            if (name != null)
-            {
-                throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-            }
-#endif
-
-            Debug.Assert(initialCount >= 0);
-            Debug.Assert(maximumCount >= 1);
-            Debug.Assert(initialCount <= maximumCount);
-
-            return Win32Native.CreateSemaphoreEx(null, initialCount, maximumCount, name, 0, AccessRights);
         }
 
         private static OpenExistingResult OpenExistingWorker(string name, out Semaphore result)
@@ -66,7 +60,6 @@ namespace System.Threading
             if (myHandle.IsInvalid)
             {
                 result = null;
-
                 int errorCode = Marshal.GetLastWin32Error();
 
                 if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
