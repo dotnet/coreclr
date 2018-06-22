@@ -200,7 +200,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.Targets" />
 
   <PropertyGroup>
-    <StrongNameSig>Silverlight</StrongNameSig>
+    <StrongNameSig>SilverlightCert121</StrongNameSig>
   </PropertyGroup>
 
   <!-- Import signing tools -->
