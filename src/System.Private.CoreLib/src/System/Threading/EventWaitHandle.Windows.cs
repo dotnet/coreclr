@@ -11,7 +11,7 @@ namespace System.Threading
 {
     public partial class EventWaitHandle
     {
-        private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.EVENT_MODIFY_STATE;
+        private const uint AccessRights = (uint)Interop.Kernel32.MAXIMUM_ALLOWED | Interop.Kernel32.SYNCHRONIZE | Interop.Kernel32.EVENT_MODIFY_STATE;
 
         private EventWaitHandle(SafeWaitHandle handle)
         {
@@ -26,13 +26,13 @@ namespace System.Threading
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
             }
 #endif
-            uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
+            uint eventFlags = initialState ? Interop.Kernel32.CREATE_EVENT_INITIAL_SET : 0;
             if (mode == EventResetMode.ManualReset)
             {
-                eventFlags |= (uint)Interop.Constants.CreateEventManualReset;
+                eventFlags |= (uint)Interop.Kernel32.CREATE_EVENT_MANUAL_RESET;
             }
 
-            SafeWaitHandle _handle = Win32Native.CreateEventEx(null, name, eventFlags, AccessRights);
+            SafeWaitHandle _handle = Interop.Kernel32.CreateEventEx(null, name, eventFlags, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (_handle.IsInvalid)
@@ -61,7 +61,7 @@ namespace System.Threading
             }
 
             result = null;
-            SafeWaitHandle myHandle = Win32Native.OpenEvent(AccessRights, false, name);
+            SafeWaitHandle myHandle = Interop.Kernel32.OpenEvent(AccessRights, false, name);
 
             if (myHandle.IsInvalid)
             {
@@ -74,7 +74,7 @@ namespace System.Threading
                 if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
                     return OpenExistingResult.NameInvalid;
                 //this is for passed through Win32Native Errors
-                throw Win32Marshal.GetExceptionForWin32Error(errorCode, "");
+                throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
             result = new EventWaitHandle(myHandle);
             return OpenExistingResult.Success;
@@ -85,7 +85,7 @@ namespace System.Threading
 
         public bool Reset()
         {
-            bool res = Win32Native.ResetEvent(_waitHandle);
+            bool res = Interop.Kernel32.ResetEvent(_waitHandle);
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;
@@ -93,7 +93,7 @@ namespace System.Threading
         
         public bool Set()
         {
-            bool res = Win32Native.SetEvent(_waitHandle);
+            bool res = Interop.Kernel32.SetEvent(_waitHandle);
 
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
