@@ -36,7 +36,7 @@
     native images which causes the signing step to fail for obvious reasons.
   -->
   <ItemGroup>
-    <FilesToSign Include="$(BinDir)*.ni.dll">
+    <FilesToSign Include="$(BinDir)*.ni.dll;$(BinDir)SOS.NETCore.dll">
       <StrongName>None</StrongName>
     </FilesToSign>
   </ItemGroup>
