@@ -2,39 +2,17 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-/*=============================================================================
-**
-**
-**
-** Purpose: Base class for representing Events
-**
-**
-=============================================================================*/
-
-
-namespace System.Security.AccessControl
-{
-    internal class EventWaitHandleSecurity
-    {
-    }
-    internal enum EventWaitHandleRights
-    {
-    }
-}
+using System;
+using System.Threading;
+using System.Runtime.CompilerServices;
+using System.IO;
+using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace System.Threading
 {
-    using System;
-    using System.Threading;
-    using System.Runtime.CompilerServices;
-    using System.IO;
-    using Microsoft.Win32;
-    using Microsoft.Win32.SafeHandles;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
-    using System.Security.AccessControl;
-
     [ComVisibleAttribute(true)]
     public class EventWaitHandle : WaitHandle
     {
@@ -86,7 +64,7 @@ namespace System.Threading
         {
         }
 
-        internal unsafe EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew, EventWaitHandleSecurity eventSecurity)
+        internal unsafe EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew)
         {
 #if !PLATFORM_WINDOWS
             if (name != null)
@@ -132,10 +110,10 @@ namespace System.Threading
 
         public static EventWaitHandle OpenExisting(string name)
         {
-            return OpenExisting(name, (EventWaitHandleRights)0);
+            return OpenExisting(name);
         }
 
-        internal static EventWaitHandle OpenExisting(string name, EventWaitHandleRights rights)
+        internal static EventWaitHandle OpenExisting(string name)
         {
             EventWaitHandle result;
             switch (OpenExistingWorker(name, rights, out result))
@@ -156,10 +134,10 @@ namespace System.Threading
 
         public static bool TryOpenExisting(string name, out EventWaitHandle result)
         {
-            return OpenExistingWorker(name, (EventWaitHandleRights)0, out result) == OpenExistingResult.Success;
+            return OpenExistingWorker(name, out result) == OpenExistingResult.Success;
         }
 
-        private static OpenExistingResult OpenExistingWorker(string name, EventWaitHandleRights rights, out EventWaitHandle result)
+        private static OpenExistingResult OpenExistingWorker(string name, out EventWaitHandle result)
         {
 #if PLATFORM_WINDOWS
             if (name == null)
