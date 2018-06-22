@@ -3,25 +3,19 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Threading;
-using System.Runtime.CompilerServices;
 using System.IO;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-using System.Security.AccessControl;
+using Microsoft.Win32.SafeHandles;
 
 namespace System.Threading
 {
     public partial class EventWaitHandle
     {
-        private const uint AccessRights =
-            (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.EVENT_MODIFY_STATE;
+        private const uint AccessRights = (uint)Win32Native.MAXIMUM_ALLOWED | Win32Native.SYNCHRONIZE | Win32Native.EVENT_MODIFY_STATE;
 
         private EventWaitHandle(SafeWaitHandle handle)
         {
-            SetHandleInternal(handle);
+            SafeWaitHandle = handle;
         }
 
         private void CreateEventCore(bool initialState, EventResetMode mode, string name, out bool createdNew)
@@ -50,7 +44,7 @@ namespace System.Threading
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
             createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
-            SetHandleInternal(_handle);
+            SafeWaitHandle = _handle;
         }
 
         private static OpenExistingResult OpenExistingWorker(string name, out EventWaitHandle result)
@@ -103,7 +97,6 @@ namespace System.Threading
 
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
-
             return res;
         }
     }
