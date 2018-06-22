@@ -8464,14 +8464,14 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
     {
         if (retRegCount == 1)
         {
-            // struct returned in a single register
-            // retype iff struct size exactly matches integer type size.
+            // struct returned in a single register, so retype call
+            call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+
+            // if struct size does not matche a supported integer
+            // type size, ensure return writes to a suitable temp.
             if (retTypeDesc->IsEnclosingType())
             {
-            }
-            else
-            {
-                call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+                return impAssignSmallStructTypeToVar(call, retClsHnd);
             }
         }
         else
@@ -15660,7 +15660,47 @@ void Compiler::impMarkLclDstNotPromotable(unsigned tmpNum, GenTree* src, CORINFO
 }
 #endif // _TARGET_ARM_
 
+#ifdef UNIX_AMD64_ABI
+//------------------------------------------------------------------------
+// impAssignSmallStructTypeToVar: ensure calls that return small structs whose
+//    sizes are not supported integral type sizes return values to temps.
+//
+// Arguments:
+//     op -- call returning a small struct in a register
+//     hClass -- class handle for struct
+//
+// Returns:
+//     Tree with reference to struct local to use as call return value.
+//
+// Remarks:
+//     The call will be spilled into a preceding statement.
+//     Currently handles struct returns for 3, 5, 6, and 7 byte structs.
+
+GenTree* Compiler::impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass)
+{
+    unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for small struct return."));
+    impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_ALL);
+    GenTree* ret = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
+
+    // TODO-1stClassStructs: Handle constant propagation and CSE-ing of small struct returns.
+    ret->gtFlags |= GTF_DONT_CSE;
+
+    return ret;
+}
+#endif // UNIX_AMD64_ABI
+
 #if FEATURE_MULTIREG_RET
+//------------------------------------------------------------------------
+// impAssignMultiRegTypeToVar: ensure calls that return structs in multiple
+//    registers return values to suitable temps.
+//
+// Arguments:
+//     op -- call returning a struct in a registers
+//     hClass -- class handle for struct
+//
+// Returns:
+//     Tree with reference to struct local to use as call return value.
+
 GenTree* Compiler::impAssignMultiRegTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass)
 {
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for multireg return."));
