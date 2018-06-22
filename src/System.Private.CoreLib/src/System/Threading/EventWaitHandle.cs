@@ -3,22 +3,15 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Threading;
-using System.Runtime.CompilerServices;
 using System.IO;
-using Microsoft.Win32;
-using Microsoft.Win32.SafeHandles;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace System.Threading
 {
-    [ComVisibleAttribute(true)]
     public partial class EventWaitHandle : WaitHandle
     {
         public EventWaitHandle(bool initialState, EventResetMode mode) :
 			this(initialState, mode, null, out _)
-		{ 
+		{
 		}
 
         public EventWaitHandle(bool initialState, EventResetMode mode, string name) :
@@ -38,13 +31,8 @@ namespace System.Threading
 
         public static EventWaitHandle OpenExisting(string name)
         {
-            return OpenExisting(name);
-        }
-
-        internal static EventWaitHandle OpenExisting(string name)
-        {
             EventWaitHandle result;
-            switch (OpenExistingWorker(name, rights, out result))
+            switch (OpenExistingWorker(name, out result))
             {
                 case OpenExistingResult.NameNotFound:
                     throw new WaitHandleCannotBeOpenedException();
@@ -53,7 +41,7 @@ namespace System.Threading
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 case OpenExistingResult.PathNotFound:
-                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, "");
+                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, name);
 
                 default:
                     return result;
@@ -66,4 +54,3 @@ namespace System.Threading
         }
     }
 }
-
