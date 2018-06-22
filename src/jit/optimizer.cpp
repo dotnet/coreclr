@@ -3973,12 +3973,12 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     unsigned int iterVar = loopDesc.lpIterVar();
     unsigned int iterInc = loopDesc.lpIterConst();
 
-    unsigned int newLoopBodyLimit = 4 / iterInc;
+    unsigned int newLoopBodyLimit = 8 / iterInc;
     unsigned int newLoopIterLimit = iterCount / newLoopBodyLimit;
     if (iterCount % newLoopBodyLimit != 0)
     {
-        // TODO : Generate outer process if loop count does not fit with limit threshold.
-        //        this will not to process partial unroll if doesn't fits with it.
+        // TODO-CQ : Generate outer process if loop count does not fit with limit threshold.
+        //           this will not to process partial unroll if doesn't fits with it.
         return false;
     }
 
@@ -4014,111 +4014,94 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
         return fgWalkResult::WALK_CONTINUE;
     };
 
-    jitstd::vector<GenTree*> gtProcNode(this->getAllocator());
+    jitstd::vector<GenTree*> gtExtractedExpr(this->getAllocator());
+    jitstd::vector<GenTree*> gtExtractedStmt(this->getAllocator());
+    GTExtractData            walkData;
 
-    bool isChanged = false;
+    walkData.varExtracted = &gtExtractedExpr;
+    walkData.varId        = iterVar;
+
     for (BasicBlock* bbCur = bbBeg->bbNext; bbCur != bbEnd->bbNext; bbCur = bbCur->bbNext)
     {
         // Extract all tree's parent of that includes iterVar(which is LoopDsc::lpIterVar())
         // all extracted trees contains iterVar will be modified as partial threshold.
         for (GenTree* gtStmt = bbCur->bbTreeList; gtStmt->gtNext != nullptr; gtStmt = gtStmt->gtNext)
         {
+            fgWalkTreePre(&gtStmt->AsStmt()->gtStmtExpr, gtVisitor, &walkData, true, true);
+
             if (gtStmt == gtInit || gtStmt == gtIncr || gtStmt == gtTest)
             {
                 continue;
             }
-
-            // Extract original gtStmt first.
-            // and check there is something to modify with loop variable.
-            // if there is nothing to modify. we will just pass it
-            jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
-            GTExtractData            data;
-
-            data.varExtracted = &gtExtracted;
-            data.varId        = iterVar;
-            fgWalkTreePre(&gtStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
-
-            // nothing found...
-            if (gtExtracted.empty())
-            {
-                continue;
-            }
-
-            // Or something complcate to resolve found.
-            for (GenTree* extracted : gtExtracted)
-            {
-                if (!extracted->OperIsSimple())
-                {
-                    return false;
-                }
-            }
-
-            gtProcNode.push_back(gtStmt);
-            isChanged = true;
+            gtExtractedStmt.push_back(gtStmt);
         }
+
+        for (GenTree* tree : gtExtractedExpr)
+        {
+            if (!tree->OperIsSimple())
+            {
+                // something complcate to resolve found.
+                // this includes index-checks. it means this loop is not unsafe loop
+                // which will be inefficient when its unrolled.
+                return false;
+            }
+        }
+
+        gtExtractedExpr.clear();
     }
 
-    if (!isChanged)
-    {
-        // Nothing changed. don't modify increaser.
-        return false;
-    }
-
-    for (GenTree* proc : gtProcNode)
+    for (unsigned int i = newLoopBodyLimit; i > 1; --i)
     {
         // We strarting i with 1, because we have original one.
         // if new limit is 4. current BasicBlock has original one. so only needs 3.
-        for (unsigned int i = 1; i < newLoopBodyLimit; ++i)
+
+        for (GenTree* gtStmt : gtExtractedStmt)
         {
-            jitstd::vector<GenTree*> gtExtracted(this->getAllocator());
-            GTExtractData            data;
+            GenTree* gtClonedStmt = gtCloneExpr(gtStmt);
 
-            data.varExtracted = &gtExtracted;
-            data.varId        = iterVar;
+            fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &walkData, true, true);
 
-            GenTree* gtClonedStmt = gtCloneExpr(proc);
-
-            gtExtracted.clear();
-            fgWalkTreePre(&gtClonedStmt->AsStmt()->gtStmtExpr, gtVisitor, &data, true, true);
-
-            // insert stmt after current.
-            for (GenTree* extracted : gtExtracted)
-            {
-                GenTree* Op1 = extracted->gtGetOp1();
-                GenTree* Op2 = extracted->gtGetOp2IfPresent();
-
-                if (extracted->OperIsBinary())
-                {
-                    if (!extracted->IsReverseOp())
-                    {
-                        std::swap(Op1, Op2);
-                    }
-                }
-
-                GenTree* newCns = gtNewIconNode(i * iterInc, Op1->TypeGet());
-                GenTree* newInc = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
-                extracted->ReplaceOperand(&Op1, newInc);
-            }
+            // Insert after extracted stmt tree.
+            // We currently don't have BasicBlock for gtStmt. (but its actually extracted from BasicBlock's)
+            // so we are manually inserting it instead by using fgInsertStmtAfter.
+            gtStmt->gtNext->gtPrev = gtClonedStmt;
+            gtClonedStmt->gtNext   = gtStmt->gtNext;
+            gtClonedStmt->gtPrev   = gtStmt;
+            gtStmt->gtNext         = gtClonedStmt;
         }
+
+        for (GenTree* tree : gtExtractedExpr)
+        {
+            GenTree* Op1 = tree->gtGetOp1();
+            GenTree* Op2 = tree->gtGetOp2IfPresent();
+
+            if (tree->OperIsBinary())
+            {
+                if (!tree->IsReverseOp())
+                {
+                    std::swap(Op1, Op2);
+                }
+            }
+
+            GenTree* newCns = gtNewIconNode(i * iterInc, Op1->TypeGet());
+            GenTree* newInc = gtNewOperNode(loopDesc.lpIterOper(), Op1->TypeGet(), Op1, newCns);
+            tree->ReplaceOperand(&Op1, newInc);
+        }
+
+        gtExtractedExpr.clear();
     }
 
-    jitstd::vector<GenTree*> extractedIncr(this->getAllocator());
-
-    GTExtractData data;
-    data.varExtracted = &extractedIncr;
-    data.varId        = iterVar;
-    fgWalkTreePre(&gtIncr->gtStmt.gtStmtExpr, gtVisitor, &data, true);
-
-    for (GenTree* incExpr : extractedIncr)
+    fgWalkTreePre(&gtIncr->gtStmt.gtStmtExpr, gtVisitor, &walkData, true);
+    for (GenTree* tree : gtExtractedExpr)
     {
-        GenTree* Op1 = incExpr->gtGetOp1();
-        GenTree* Op2 = incExpr->gtGetOp2IfPresent();
+        GenTree* Op1 = tree->gtGetOp1();
+        GenTree* Op2 = tree->gtGetOp2IfPresent();
 
         // LCL_VAR is usually on second operand in binaryOp. but its on first operand if its not
         // we are swapping Op1 and Op2 if its not reversed op. so Op1 is target LCL_VAR
-        if (incExpr->OperIsBinary())
+        if (tree->OperIsBinary())
         {
-            if (!incExpr->IsReverseOp())
+            if (!tree->IsReverseOp())
             {
                 std::swap(Op1, Op2);
             }
@@ -4134,7 +4117,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
 
         GenTree* cnsExpr = gtNewIconNode(newLoopBodyLimit, Op1->TypeGet());
         GenTree* newExpr = gtNewOperNode(genTreeOps::GT_MUL, Op1->TypeGet(), cnsExpr, Op1);
-        incExpr->ReplaceOperand(&Op1, newExpr);
+        tree->ReplaceOperand(&Op1, newExpr);
     }
 
 #ifdef DEBUG
@@ -4190,8 +4173,6 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
             // TODO : should add binary ops? this will not partial unroll with binary processes, such as OR, AND.
             case GT_ADD:
             case GT_SUB:
-            case GT_MUL:
-            case GT_DIV:
                 break;
 
             default:
@@ -4211,10 +4192,14 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
         count += 1;
     }
 
-    if (!bytes || bytes > 64 || count != 1)
+    if (!bytes || bytes > 64)
     {
         // we are not unrolling if inner ALU process is over 64 bytes. only for one count.
-        // TODO : implement for multiple inner ALU process?
+        return false;
+    }
+
+    if (count % 2 != 0 && count > 8 && count != 1)
+    {
         return false;
     }
 
