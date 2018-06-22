@@ -4,7 +4,7 @@
   <!-- must set the default before importing targets -->
   <PropertyGroup>
     <SignType Condition="'$(SignType)' == ''">test</SignType>
-    <StrongNameSig>Silverlight</StrongNameSig>
+    <StrongNameSig>SilverlightCert121</StrongNameSig>
   </PropertyGroup>
 
   <Import Project="..\dir.props"/>
