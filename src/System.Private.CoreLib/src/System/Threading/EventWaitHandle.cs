@@ -21,50 +21,22 @@ namespace System.Threading
 
         public EventWaitHandle(bool initialState, EventResetMode mode) : this(initialState, mode, null) { }
 
-        public EventWaitHandle(bool initialState, EventResetMode mode, string name)
+        public EventWaitHandle(bool initialState, EventResetMode mode, string name) :
+            this(initialState, mode, name, out _)
         {
-#if !PLATFORM_WINDOWS
-            if (name != null)
-            {
-                throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-            }
-#endif
-
-            uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
-            switch (mode)
-            {
-                case EventResetMode.ManualReset:
-                    eventFlags |= Win32Native.CREATE_EVENT_MANUAL_RESET;
-                    break;
-
-                case EventResetMode.AutoReset:
-                    break;
-
-                default:
-                    throw new ArgumentException(SR.Format(SR.Argument_InvalidFlag, name));
-            };
-
-            SafeWaitHandle _handle = Win32Native.CreateEventEx(null, name, eventFlags, AccessRights);
-
-            if (_handle.IsInvalid)
-            {
-                int errorCode = Marshal.GetLastWin32Error();
-
-                _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
-                    throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
-
-                throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
-            }
-            SetHandleInternal(_handle);
         }
 
         public EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew)
-            : this(initialState, mode, name, out createdNew, null)
         {
+            if (mode != EventResetMode.AutoReset && mode != EventResetMode.ManualReset)
+            {
+                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(mode));
+            }
+
+            CreateEventCore(initialState, mode, name, out createdNew);
         }
 
-        internal unsafe EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew)
+        private void CreateEventCore(bool initialState, EventResetMode mode, string name, out bool createdNew)
         {
 #if !PLATFORM_WINDOWS
             if (name != null)
@@ -72,23 +44,14 @@ namespace System.Threading
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
             }
 #endif
-            Win32Native.SECURITY_ATTRIBUTES secAttrs = null;
 
             uint eventFlags = initialState ? Win32Native.CREATE_EVENT_INITIAL_SET : 0;
-            switch (mode)
+            if (mode == EventResetMode.ManualReset)
             {
-                case EventResetMode.ManualReset:
-                    eventFlags |= Win32Native.CREATE_EVENT_MANUAL_RESET;
-                    break;
+                eventFlags |= (uint)Interop.Constants.CreateEventManualReset;
+            }
 
-                case EventResetMode.AutoReset:
-                    break;
-
-                default:
-                    throw new ArgumentException(SR.Format(SR.Argument_InvalidFlag, name));
-            };
-
-            SafeWaitHandle _handle = Win32Native.CreateEventEx(secAttrs, name, eventFlags, AccessRights);
+            SafeWaitHandle _handle = Win32Native.CreateEventEx(null, name, eventFlags, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (_handle.IsInvalid)
