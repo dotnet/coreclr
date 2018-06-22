@@ -64,7 +64,7 @@ namespace System.Threading
                     return OpenExistingResult.PathNotFound;
                 if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     return OpenExistingResult.NameInvalid;
-                //this is for passed through Win32Native Errors
+                // this is for passed through Win32Native Errors
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
             result = new EventWaitHandle(myHandle);
@@ -82,7 +82,9 @@ namespace System.Threading
             return res;
         }
         
-        public bool Set()
+        public bool Set() => Set(_waitHandle);
+
+        internal bool Set(SafeWaitHandle handle)
         {
             bool res = Interop.Kernel32.SetEvent(_waitHandle);
             if (!res)

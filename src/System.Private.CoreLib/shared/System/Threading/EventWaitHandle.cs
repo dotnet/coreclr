@@ -34,13 +34,10 @@ namespace System.Threading
             {
                 case OpenExistingResult.NameNotFound:
                     throw new WaitHandleCannotBeOpenedException();
-
                 case OpenExistingResult.NameInvalid:
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
-
                 case OpenExistingResult.PathNotFound:
-                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_PATH_NOT_FOUND, name);
-
+                    throw new DirectoryNotFoundException(SR.Format(SR.IO_PathNotFound_Path, name));
                 default:
                     return result;
             }
