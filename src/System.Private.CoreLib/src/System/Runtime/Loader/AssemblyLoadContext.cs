@@ -87,10 +87,7 @@ namespace System.Runtime.Loader
                 Unloading = null;
 
                 id = _nextId++;
-                if (isCollectible)
-                {
-                    ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
-                }
+                ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
@@ -104,14 +101,9 @@ namespace System.Runtime.Loader
 
         private void InitiateUnload()
         {
-            Debug.Assert(IsCollectible);
-
-            if (!_isProcessExiting)
-            {
-                var unloading = Unloading;
-                Unloading = null;
-                unloading?.Invoke(this);
-            }
+            var unloading = Unloading;
+            Unloading = null;
+            unloading?.Invoke(this);
 
             // When in Unloading state, we are not supposed to be called on the finalizer
             // as the native side is holding a strong reference after calling Unload
