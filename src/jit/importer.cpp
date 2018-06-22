@@ -8464,14 +8464,23 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
     {
         if (retRegCount == 1)
         {
-            // struct returned in a single register, so retype call
-            call->gtReturnType = retTypeDesc->GetReturnRegType(0);
-
-            // if struct size does not matche a supported integer
-            // type size, ensure return writes to a suitable temp.
+            // See if the struct size is smaller than the return
+            // type size...
             if (retTypeDesc->IsEnclosingType())
             {
-                return impAssignSmallStructTypeToVar(call, retClsHnd);
+                // If we know for sure this call will remain a call,
+                // retype and return value via a suitable temp.
+                if ((!call->CanTailCall()) && (!call->IsInlineCandidate()))
+                {
+                    call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+                    return impAssignSmallStructTypeToVar(call, retClsHnd);
+                }
+            }
+            else
+            {
+                // Return type is same size as struct, so we can
+                // simply retype the call.
+                call->gtReturnType = retTypeDesc->GetReturnRegType(0);
             }
         }
         else
@@ -8735,9 +8744,7 @@ REDO_RETURN_NODE:
         }
         else
         {
-            assert(info.compRetNativeType == op->gtCall.gtReturnType);
-
-            // Don't change the gtType of the node just yet, it will get changed later.
+            // Don't change the gtType of the call just yet, it will get changed later.
             return op;
         }
     }
