@@ -112,7 +112,6 @@ namespace Microsoft.Win32
 
     internal static class Win32Native
     {
-        internal const int SYNCHRONIZE = 0x00100000;
         internal const int KEY_QUERY_VALUE = 0x0001;
         internal const int KEY_SET_VALUE = 0x0002;
         internal const int KEY_CREATE_SUB_KEY = 0x0004;
@@ -152,6 +151,7 @@ namespace Microsoft.Win32
 
         // Win32 ACL-related constants:
         internal const int READ_CONTROL = 0x00020000;
+        internal const int SYNCHRONIZE = 0x00100000;
 
         internal const int STANDARD_RIGHTS_READ = READ_CONTROL;
         internal const int STANDARD_RIGHTS_WRITE = READ_CONTROL;

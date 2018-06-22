@@ -22,43 +22,34 @@ namespace System.Threading
         {
 #if !PLATFORM_WINDOWS
             if (name != null)
-            {
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
-            }
 #endif
             uint eventFlags = initialState ? Interop.Kernel32.CREATE_EVENT_INITIAL_SET : 0;
             if (mode == EventResetMode.ManualReset)
-            {
                 eventFlags |= (uint)Interop.Kernel32.CREATE_EVENT_MANUAL_RESET;
-            }
 
-            SafeWaitHandle _handle = Interop.Kernel32.CreateEventEx(IntPtr.Zero, name, eventFlags, AccessRights);
+            SafeWaitHandle handle = Interop.Kernel32.CreateEventEx(IntPtr.Zero, name, eventFlags, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
-            if (_handle.IsInvalid)
+            if (handle.IsInvalid)
             {
-                _handle.SetHandleAsInvalid();
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
+                handle.SetHandleAsInvalid();
+                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
             }
             createdNew = errorCode != Interop.Errors.ERROR_ALREADY_EXISTS;
-            SafeWaitHandle = _handle;
+            SafeWaitHandle = handle;
         }
 
         private static OpenExistingResult OpenExistingWorker(string name, out EventWaitHandle result)
         {
 #if PLATFORM_WINDOWS
             if (name == null)
-            {
                 throw new ArgumentNullException(nameof(name));
-            }
-
             if (name.Length == 0)
-            {
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
-            }
 
             result = null;
             SafeWaitHandle myHandle = Interop.Kernel32.OpenEvent(AccessRights, false, name);
@@ -67,11 +58,11 @@ namespace System.Threading
             {
                 int errorCode = Marshal.GetLastWin32Error();
 
-                if (Interop.Errors.ERROR_FILE_NOT_FOUND == errorCode || Interop.Errors.ERROR_INVALID_NAME == errorCode)
+                if (errorCode == Interop.Errors.ERROR_FILE_NOT_FOUND || errorCode == Interop.Errors.ERROR_INVALID_NAME)
                     return OpenExistingResult.NameNotFound;
-                if (Interop.Errors.ERROR_PATH_NOT_FOUND == errorCode)
+                if (errorCode == Interop.Errors.ERROR_PATH_NOT_FOUND)
                     return OpenExistingResult.PathNotFound;
-                if (null != name && 0 != name.Length && Interop.Errors.ERROR_INVALID_HANDLE == errorCode)
+                if (name != null && name.Length != 0 && errorCode == Interop.Errors.ERROR_INVALID_HANDLE)
                     return OpenExistingResult.NameInvalid;
                 //this is for passed through Win32Native Errors
                 throw Win32Marshal.GetExceptionForWin32Error(errorCode, name);
@@ -94,7 +85,6 @@ namespace System.Threading
         public bool Set()
         {
             bool res = Interop.Kernel32.SetEvent(_waitHandle);
-
             if (!res)
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;
