@@ -4,309 +4,217 @@
 //
 
 using System;
-using System.Runtime.Intrinsics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics;
 
 namespace IntelHardwareIntrinsicTest
 {
-    internal static partial class Program
+    class Program
     {
-        private const int Pass = 100;
-        private const int Fail = 0;
+        const int Pass = 100;
+        const int Fail = 0;
 
         static unsafe int Main(string[] args)
         {
             int testResult = Pass;
-            int testsCount = 21;
-            string methodUnderTestName = nameof(Sse2.SetVector128);
 
             if (Sse2.IsSupported)
             {
-                using (var doubleTable = TestTableSse2<double>.Create(testsCount))
-                using (var longTable = TestTableSse2<long>.Create(testsCount))
-                using (var ulongTable = TestTableSse2<ulong>.Create(testsCount))
-                using (var intTable = TestTableSse2<int>.Create(testsCount))
-                using (var uintTable = TestTableSse2<uint>.Create(testsCount))
-                using (var shortTable = TestTableSse2<short>.Create(testsCount))
-                using (var ushortTable = TestTableSse2<ushort>.Create(testsCount))
-                using (var sbyteTable = TestTableSse2<sbyte>.Create(testsCount))
-                using (var byteTable = TestTableSse2<byte>.Create(testsCount))
+                using (TestTable<double> doubleTable = new TestTable<double>(new double[2] { double.NaN, double.NaN}))
                 {
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<double> value = doubleTable.GetAssignmentData(i).Span;
-                        Vector128<double> result = Sse2.SetVector128(value[1], value[0]);
-                        doubleTable.SetOutArray(result, i);
-                    }
+                    var vf1 = Sse2.SetVector128((double)1, 2);
+                    Unsafe.Write(doubleTable.outArrayPtr, vf1);
 
-                    if (Environment.Is64BitProcess)
+                    if (!doubleTable.CheckResult((x) => ((x[0] == 2) && (x[1] == 1))))
                     {
-                        for (int i = 0; i < testsCount; i++)
+                        Console.WriteLine("SSE2 SetVector128 failed on double:");
+                        foreach (var item in doubleTable.outArray)
                         {
-                            Span<long> value = longTable.GetAssignmentData(i).Span;
-                            Vector128<long> result = Sse2.SetVector128(value[1], value[0]);
-                            longTable.SetOutArray(result, i);
+                            Console.Write(item + ", ");
                         }
-
-                        for (int i = 0; i < testsCount; i++)
-                        {
-                            Span<ulong> value = ulongTable.GetAssignmentData(i).Span;
-                            Vector128<ulong> result = Sse2.SetVector128(value[1], value[0]);
-                            ulongTable.SetOutArray(result, i);
-                        }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            for (int i = 0; i < testsCount; i++)
-                            {
-                                Span<long> value = longTable.GetAssignmentData(i).Span;
-                                Vector128<long> result = Sse2.SetVector128(value[1], value[0]);
-                                longTable.SetOutArray(result, i);
-                            }
-                            testResult = Fail;
-                            Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetVector128)} failed on long: expected PlatformNotSupportedException exception.");
-                        }
-                        catch (PlatformNotSupportedException)
-                        {
-                            // We expect PlatformNotSupportedException
-                        }
-                        catch (Exception ex)
-                        {
-                            testResult = Fail;
-                            Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetVector128)}-{ex} failed on long: expected PlatformNotSupportedException exception.");                            
-                        }
-
-                        try
-                        {
-                            for (int i = 0; i < testsCount; i++)
-                            {
-                                Span<ulong> value = ulongTable.GetAssignmentData(i).Span;
-                                Vector128<ulong> result = Sse2.SetVector128(value[1], value[0]);
-                                ulongTable.SetOutArray(result, i);
-                            }
-                            testResult = Fail;
-                            Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetVector128)} failed on ulong: expected PlatformNotSupportedException exception.");
-                        }
-                        catch (PlatformNotSupportedException)
-                        {
-                            // We expect PlatformNotSupportedException
-                        }
-                        catch (Exception ex)
-                        {
-                            testResult = Fail;
-                            Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetVector128)}-{ex} failed on ulong: expected PlatformNotSupportedException exception.");                            
-                        }
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<int> value = intTable.GetAssignmentData(i).Span;
-                        Vector128<int> result = Sse2.SetVector128(value[3], value[2], value[1], value[0]);
-                        intTable.SetOutArray(result, i);
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<uint> value = uintTable.GetAssignmentData(i).Span;
-                        Vector128<uint> result = Sse2.SetVector128(value[3], value[2], value[1], value[0]);
-                        uintTable.SetOutArray(result, i);
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<short> value = shortTable.GetAssignmentData(i).Span;
-                        Vector128<short> result = Sse2.SetVector128(value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0]);
-                        shortTable.SetOutArray(result, i);
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<ushort> value = ushortTable.GetAssignmentData(i).Span;
-                        Vector128<ushort> result = Sse2.SetVector128(value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0]);
-                        ushortTable.SetOutArray(result, i);
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<sbyte> value = sbyteTable.GetAssignmentData(i).Span;
-                        Vector128<sbyte> result = Sse2.SetVector128(value[15], value[14], value[13], value[12], value[11], value[10], value[9],
-                            value[8], value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0]);
-                        sbyteTable.SetOutArray(result, i);
-                    }
-
-                    for (int i = 0; i < testsCount; i++)
-                    {
-                        Span<byte> value = byteTable.GetAssignmentData(i).Span;
-                        Vector128<byte> result = Sse2.SetVector128(value[15], value[14], value[13], value[12], value[11], value[10], value[9],
-                            value[8], value[7], value[6], value[5], value[4], value[3], value[2], value[1], value[0]);
-                        byteTable.SetOutArray(result, i);
-                    }
-
-                    CheckMethodSpan<double> checkDouble = (Span<double> x, Span<double> y, Span<double> z, Span<double> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (BitConverter.DoubleToInt64Bits(z[i]) != BitConverter.DoubleToInt64Bits(x[i]))
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!doubleTable.CheckResult(checkDouble))
-                    {
-                        PrintError(doubleTable, methodUnderTestName, "(double x, double y, double z, ref double a) => (a = BitwiseXor(x, y)) == z", checkDouble);
-                        testResult = Fail;
-                    }
-
-                     if (Environment.Is64BitProcess)
-                     {
-                        CheckMethodSpan<long> checkLong = (Span<long> x, Span<long> y, Span<long> z, Span<long> a) =>
-                        {
-                            bool result = true;
-                            for (int i = 0; i < x.Length; i++)
-                            {
-                                if (x[i] != z[i])
-                                    result = false;
-                            }
-                            return result;
-                        };
-
-                        if (!longTable.CheckResult(checkLong))
-                        {
-                            PrintError(longTable, methodUnderTestName, "(long x, long y, long z, ref long a) => (a = x ^ y) == z", checkLong);
-                            testResult = Fail;
-                        }
-
-                        CheckMethodSpan<ulong> checkUlong = (Span<ulong> x, Span<ulong> y, Span<ulong> z, Span<ulong> a) =>
-                        {
-                            bool result = true;
-                            for (int i = 0; i < x.Length; i++)
-                            {
-                                if (x[i] != z[i])
-                                    result = false;
-                            }
-                            return result;
-                        };
-
-                        if (!longTable.CheckResult(checkLong))
-                        {
-                            PrintError(ulongTable, methodUnderTestName, "(ulong x, ulong y, ulong z, ref ulong a) => (a = x ^ y) == z", checkUlong);
-                            testResult = Fail;
-                        }
-                     }
-
-                    CheckMethodSpan<int> checkInt32 = (Span<int> x, Span<int> y, Span<int> z, Span<int> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!intTable.CheckResult(checkInt32))
-                    {
-                        PrintError(intTable, methodUnderTestName, "(int x, int y, int z, ref int a) => (a = x ^ y) == z", checkInt32);
-                        testResult = Fail;
-                    }
-
-                    CheckMethodSpan<uint> checkUInt32 = (Span<uint> x, Span<uint> y, Span<uint> z, Span<uint> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!uintTable.CheckResult(checkUInt32))
-                    {
-                        PrintError(uintTable, methodUnderTestName, "(uint x, uint y, uint z, ref uint a) => (a = x ^ y) == z", checkUInt32);
-                        testResult = Fail;
-                    }
-
-                    CheckMethodSpan<short> checkInt16 = (Span<short> x, Span<short> y, Span<short> z, Span<short> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!shortTable.CheckResult(checkInt16))
-                    {
-                        PrintError(shortTable, methodUnderTestName, "(short x, short y, short z, ref short a) => (a = (short)(x ^ y)) == z", checkInt16);
-                        testResult = Fail;
-                    }
-
-                    CheckMethodSpan<ushort> checkUInt16 = (Span<ushort> x, Span<ushort> y, Span<ushort> z, Span<ushort> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!ushortTable.CheckResult(checkUInt16))
-                    {
-                        PrintError(ushortTable, methodUnderTestName, "(ushort x, ushort y, ushort z, ref ushort a) => (a = (ushort)(x ^ y)) == z", checkUInt16);
-                        testResult = Fail;
-                    }
-
-                    CheckMethodSpan<sbyte> checkSByte = (Span<sbyte> x, Span<sbyte> y, Span<sbyte> z, Span<sbyte> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!sbyteTable.CheckResult(checkSByte))
-                    {
-                        PrintError(sbyteTable, methodUnderTestName, "(sbyte x, sbyte y, sbyte z, ref sbyte a) => (a = (sbyte)(x ^ y)) == z", checkSByte);
-                        testResult = Fail;
-                    }
-
-                    CheckMethodSpan<byte> checkByte = (Span<byte> x, Span<byte> y, Span<byte> z, Span<byte> a) =>
-                    {
-                        bool result = true;
-                        for (int i = 0; i < x.Length; i++)
-                        {
-                            if (x[i] != z[i])
-                                result = false;
-                        }
-                        return result;
-                    };
-
-                    if (!byteTable.CheckResult(checkByte))
-                    {
-                        PrintError(byteTable, methodUnderTestName, "(byte x, byte y, byte z, ref byte a) => (a = (byte)(x ^ y)) == z", checkByte);
+                        Console.WriteLine();
                         testResult = Fail;
                     }
                 }
-            }
-            else
-            {
-                Console.WriteLine($"Sse2.IsSupported: {Sse2.IsSupported}, skipped tests of {typeof(Sse2)}.{methodUnderTestName}");
+
+                using (TestTable<sbyte> sbyteTable = new TestTable<sbyte>(new sbyte[16] { sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue,
+                                                                                          sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue, sbyte.MaxValue }))
+                {
+                    var vf1 = Sse2.SetVector128(1, -5, 100, 0, 1, 2, 3, 4, 1, -5, 100, 0, 1, 2, 3, 4);
+                    Unsafe.Write(sbyteTable.outArrayPtr, vf1);
+
+                    if (!sbyteTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1) &&
+                                                       (x[4] == 0) && (x[5] == 100) && (x[6] == -5) && (x[7] == 1) &&
+                                                       (x[8] == 4) && (x[9] == 3) && (x[10] == 2) && (x[11] == 1) &&
+                                                       (x[12] == 0) && (x[13] == 100) && (x[14] == -5) && (x[15] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on sbyte:");
+                        foreach (var item in sbyteTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+
+                using (TestTable<byte> byteTable = new TestTable<byte>(new byte[16] { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue,
+                                                                                      byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue }))
+                {
+                    Vector128<byte> vf1 = Sse2.SetVector128((byte)1, 5, 100, 0, 1, 2, 3, 4, 1, 5, 100, 0, 1, 2, 3, 4);
+                    Unsafe.Write(byteTable.outArrayPtr, vf1);
+
+                    if (!byteTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1) &&
+                                                       (x[4] == 0) && (x[5] == 100) && (x[6] == 5) && (x[7] == 1) &&
+                                                       (x[8] == 4) && (x[9] == 3) && (x[10] == 2) && (x[11] == 1) &&
+                                                       (x[12] == 0) && (x[13] == 100) && (x[14] == 5) && (x[15] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on byte:");
+                        foreach (var item in byteTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+
+                using (TestTable<short> shortTable = new TestTable<short>(new short[8] { short.MaxValue, short.MaxValue, short.MaxValue, short.MaxValue, short.MaxValue, short.MaxValue, short.MaxValue, short.MaxValue }))
+                {
+                    var vf1 = Sse2.SetVector128(1, -5, 100, 0, 1, 2, 3, 4);
+                    Unsafe.Write(shortTable.outArrayPtr, vf1);
+
+                    if (!shortTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1) &&
+                                                       (x[4] == 0) && (x[5] == 100) && (x[6] == -5) && (x[7] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on short:");
+                        foreach (var item in shortTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+
+                using (TestTable<ushort> ushortTable = new TestTable<ushort>(new ushort[8] { ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue, ushort.MaxValue}))
+                {
+                    Vector128<ushort> vf1 = Sse2.SetVector128((ushort)1, 5, 100, 0, 1, 2, 3, 4);
+                    Unsafe.Write(ushortTable.outArrayPtr, vf1);
+
+                    if (!ushortTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1) &&
+                                                       (x[4] == 0) && (x[5] == 100) && (x[6] == 5) && (x[7] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on ushort:");
+                        foreach (var item in ushortTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+
+                using (TestTable<int> intTable = new TestTable<int>(new int[4] { int.MaxValue, int.MaxValue, int.MaxValue, int.MaxValue }))
+                {
+                    var vf1 = Sse2.SetVector128(1, 2, 3, 4);
+                    Unsafe.Write(intTable.outArrayPtr, vf1);
+
+                    if (!intTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on int:");
+                        foreach (var item in intTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+
+                using (TestTable<uint> uintTable = new TestTable<uint>(new uint[4] { uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue }))
+                {
+                    Vector128<uint> vf1 = Sse2.SetVector128((uint)1, 2, 3, 4);
+                    Unsafe.Write(uintTable.outArrayPtr, vf1);
+
+                    if (!uintTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3) && (x[2] == 2) && (x[3] == 1)))
+                    {
+                        Console.WriteLine("SSE2 SetVector128 failed on uint:");
+                        foreach (var item in uintTable.outArray)
+                        {
+                            Console.Write(item + ", ");
+                        }
+                        Console.WriteLine();
+                        testResult = Fail;
+                    }
+                }
+                
+                if (Environment.Is64BitProcess)
+                {
+                    using (TestTable<long> longTable = new TestTable<long>(new long[2] { long.MaxValue, long.MaxValue }))
+                    {
+                        var vf1 = Sse2.SetVector128(3, 4);
+                        Unsafe.Write(longTable.outArrayPtr, vf1);
+
+                        if (!longTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3)))
+                        {
+                            Console.WriteLine("SSE2 SetVector128 failed on long:");
+                            foreach (var item in longTable.outArray)
+                            {
+                                Console.Write(item + ", ");
+                            }
+                            Console.WriteLine();
+                            testResult = Fail;
+                        }
+                    }
+
+                    using (TestTable<ulong> ulongTable = new TestTable<ulong>(new ulong[2] { ulong.MaxValue, ulong.MaxValue }))
+                    {
+                        Vector128<ulong> vf1 = Sse2.SetVector128((ulong)3, 4);
+                        Unsafe.Write(ulongTable.outArrayPtr, vf1);
+    
+                        if (!ulongTable.CheckResult((x) => (x[0] == 4) && (x[1] == 3)))
+                        {
+                            Console.WriteLine("SSE2 SetVector128 failed on ulong:");
+                            foreach (var item in ulongTable.outArray)
+                            {
+                                Console.Write(item + ", ");
+                            }
+                            Console.WriteLine();
+                            testResult = Fail;
+                        }
+                    }
+                }
             }
 
             return testResult;
         }
+
+        public unsafe struct TestTable<T> : IDisposable where T : struct
+        {
+            public T[] outArray;
+
+            public void* outArrayPtr => outHandle.AddrOfPinnedObject().ToPointer();
+
+            GCHandle outHandle;
+            public TestTable(T[] a)
+            {
+                this.outArray = a;
+
+                outHandle = GCHandle.Alloc(outArray, GCHandleType.Pinned);
+            }
+            public bool CheckResult(Func<T[], bool> check)
+            {
+                return check(outArray);
+            }
+
+            public void Dispose()
+            {
+                outHandle.Free();
+            }
+        }
+
     }
 }

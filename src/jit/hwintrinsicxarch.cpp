@@ -911,6 +911,36 @@ GenTree* Compiler::impSSEIntrinsic(NamedIntrinsic        intrinsic,
             retNode = gtNewSimdHWIntrinsicNode(TYP_VOID, intrinsic, TYP_VOID, 0);
             break;
 
+        case NI_SSE_SetVector128:
+            assert(sig->numArgs == 4);
+            assert(getBaseTypeOfSIMDType(sig->retTypeSigClass) == TYP_FLOAT);
+
+            op4 = impPopStack().val;
+            op3 = impPopStack().val;
+            op2 = impPopStack().val;
+            op1 = impPopStack().val;
+
+            if (compSupports(InstructionSet_SSE41))
+            {
+                GenTree* tmpVector1 =
+                    gtNewSimdHWIntrinsicNode(TYP_SIMD16, op4, op3, gtNewIconNode(16), NI_SSE41_Insert, TYP_FLOAT, 16);
+                GenTree* tmpVector2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, tmpVector1, op2, gtNewIconNode(32),
+                                                               NI_SSE41_Insert, TYP_FLOAT, 16);
+
+                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, tmpVector2, op1, gtNewIconNode(48), NI_SSE41_Insert,
+                                                   TYP_FLOAT, 16);
+            }
+            else
+            {
+                GenTree* lowerHalfVector =
+                    gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE_UnpackLow, TYP_FLOAT, 16);
+                GenTree* higherHalfVector =
+                    gtNewSimdHWIntrinsicNode(TYP_SIMD16, op4, op3, NI_SSE_UnpackLow, TYP_FLOAT, 16);
+                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, higherHalfVector, lowerHalfVector, NI_SSE_MoveLowToHigh,
+                                                   TYP_FLOAT, 16);
+            }
+            break;
+
         default:
             JITDUMP("Not implemented hardware intrinsic");
             break;
@@ -926,6 +956,8 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
     GenTree*  retNode  = nullptr;
     GenTree*  op1      = nullptr;
     GenTree*  op2      = nullptr;
+    GenTree*  op3      = nullptr;
+    GenTree*  op4      = nullptr;
     int       ival     = -1;
     int       simdSize = HWIntrinsicInfo::lookupSimdSize(this, intrinsic, sig);
     var_types baseType = TYP_UNKNOWN;
@@ -986,6 +1018,114 @@ GenTree* Compiler::impSSE2Intrinsic(NamedIntrinsic        intrinsic,
             op2     = impPopStack().val;
             op1     = impPopStack().val;
             retNode = gtNewSimdHWIntrinsicNode(TYP_VOID, op1, op2, NI_SSE2_StoreNonTemporal, op2->TypeGet(), 0);
+            break;
+        }
+
+        case NI_SSE2_SetVector128:
+        {
+            int numArgs = sig->numArgs;
+            assert(numArgs >= 2);
+            assert(numArgs <= 16);
+            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+
+            if (baseType == TYP_DOUBLE)
+            {
+                op2     = impPopStack().val;
+                op1     = impPopStack().val;
+                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE_MoveLowToHigh, TYP_FLOAT, 16);
+            }
+            else if (varTypeIsLong(baseType))
+            {
+#ifdef _TARGET_X86_
+                // TODO-XARCH: support long/ulong on 32-bit platfroms
+                retNode = impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
+#else
+                op2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val, NI_SSE2_ConvertScalarToVector128Int64,
+                                               TYP_LONG, 16);
+                op1 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val, NI_SSE2_ConvertScalarToVector128Int64,
+                                               TYP_LONG, 16);
+                retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE2_UnpackLow, TYP_LONG, 16);
+#endif
+            }
+            else
+            {
+                assert(varTypeIsIntegral(baseType));
+                if (compSupports(InstructionSet_SSE41) || varTypeIsShort(baseType))
+                {
+                    NamedIntrinsic insertIntrinsic = varTypeIsShort(baseType) ? NI_SSE2_Insert : NI_SSE41_Insert;
+                    retNode                        = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                       NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                    for (int i = 1; i < numArgs; i++)
+                    {
+                        GenTree* arg = impPopStack().val;
+                        retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, retNode, arg, gtNewIconNode(i), insertIntrinsic,
+                                                           baseType, 16);
+                    }
+                }
+                else
+                {
+                    if (varTypeIsByte(baseType))
+                    {
+                        GenTree* dwordVector[2] = {nullptr};
+                        for (int i = 0; i < 2; i++)
+                        {
+                            GenTree* wordVector[2] = {nullptr};
+                            for (int j = 0; j < 2; j++)
+                            {
+                                GenTree* byteVector[2] = {nullptr};
+                                for (int k = 0; k < 2; k++)
+                                {
+                                    op2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                                   NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                                    op1 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                                   NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                                    byteVector[k] = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE2_UnpackLow,
+                                                                             TYP_UBYTE, 16);
+                                }
+                                wordVector[j] = gtNewSimdHWIntrinsicNode(TYP_SIMD16, byteVector[0], byteVector[1],
+                                                                         NI_SSE2_UnpackLow, TYP_USHORT, 16);
+                            }
+                            dwordVector[i] = gtNewSimdHWIntrinsicNode(TYP_SIMD16, wordVector[0], wordVector[1],
+                                                                      NI_SSE2_UnpackLow, TYP_UINT, 16);
+                        }
+
+                        retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, dwordVector[0], dwordVector[1],
+                                                           NI_SSE2_UnpackLow, TYP_ULONG, 16);
+                    }
+                    else
+                    {
+                        op4 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                       NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                        op3 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                       NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                        op2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                       NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                        op1 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val,
+                                                       NI_SSE2_ConvertScalarToVector128Int32, TYP_INT, 16);
+                        GenTree* tmpVector1 =
+                            gtNewSimdHWIntrinsicNode(TYP_SIMD16, op2, op1, NI_SSE2_UnpackLow, TYP_INT, 16);
+                        GenTree* tmpVector2 =
+                            gtNewSimdHWIntrinsicNode(TYP_SIMD16, op4, op3, NI_SSE2_UnpackLow, TYP_INT, 16);
+                        retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, tmpVector2, tmpVector1, NI_SSE2_UnpackLow,
+                                                           TYP_LONG, 16);
+                    }
+                }
+            }
+            break;
+        }
+
+        case NI_SSE2_SetAllVector128:
+        {
+            assert(sig->numArgs == 1);
+            baseType = getBaseTypeOfSIMDType(sig->retTypeSigClass);
+#ifdef _TARGET_X86_
+            // TODO-XARCH: support long/ulong on 32-bit platfroms
+            if (varTypeIsLong(baseType))
+            {
+                return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
+            }
+#endif
+            retNode = gtNewSimdHWIntrinsicNode(TYP_SIMD16, impPopStack().val, NI_SSE2_SetAllVector128, baseType, 16);
             break;
         }
 
