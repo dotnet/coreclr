@@ -127,7 +127,7 @@ void TieredCompilationManager::OnMethodCalled(
         // Stop call counting when the delay is in effect
         m_methodsPendingCountingForTier1 != nullptr ||
         // Initiate the delay on tier 0 activity (when a new eligible method is called the first time)
-        currentCallCount == 1 && g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0 ||
+        (currentCallCount == 1 && g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0) ||
         // Stop call counting when ready for tier 1 promotion
         currentCallCount >= m_callCountOptimizationThreshhold;
 
