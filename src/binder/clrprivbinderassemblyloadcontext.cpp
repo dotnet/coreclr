@@ -224,8 +224,6 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                                             UINT_PTR ptrAssemblyLoadContext,
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
-    _ASSERTE(pLoaderAllocator != NULL);
-
     HRESULT hr = E_FAIL;
     EX_TRY
     {
