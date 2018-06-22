@@ -32,7 +32,7 @@ namespace System.Threading
                 eventFlags |= (uint)Interop.Kernel32.CREATE_EVENT_MANUAL_RESET;
             }
 
-            SafeWaitHandle _handle = Interop.Kernel32.CreateEventEx(null, name, eventFlags, AccessRights);
+            SafeWaitHandle _handle = Interop.Kernel32.CreateEventEx(IntPtr.Zero, name, eventFlags, AccessRights);
 
             int errorCode = Marshal.GetLastWin32Error();
             if (_handle.IsInvalid)
