@@ -46,6 +46,7 @@ set processedArgs=
 set __unprocessedBuildArgs=
 set __RunArgs=
 set __BuildAgainstPackagesArg=
+set __SkipRestorePackages=
 set __RuntimeId=
 set __ZipTests=
 set __TargetsWindows=1
@@ -76,6 +77,7 @@ if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "skiprestorepackages"   (set __ZipTests=1&set __SkipRestorePackages=1)
 if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
@@ -224,8 +226,7 @@ if errorlevel 1 (
 :skipnative
 
 set "__TestWorkingDir=%__RootBinDir%\tests\%__BuildOS%.%__BuildArch%.%__BuildType%"
-
-if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
+if "%__SkipRestorePackages%" == 1 goto SkipRestoreProduct
 REM =========================================================================================
 REM ===
 REM === Restore product binaries from packages
@@ -245,6 +246,7 @@ set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs%
 
+if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
 set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
@@ -263,7 +265,7 @@ echo %__MsgPrefix% Restored CoreCLR product from packages
 
 :SkipRestoreProduct
 
-if defined __SkipManaged exit /b 0
+if defined __SkipManaged goto BuildTestHost
 
 REM =========================================================================================
 REM ===
@@ -316,6 +318,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __AppendToLog=true
 )
 
+:BuildTestHost
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
 powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
@@ -342,35 +345,6 @@ if defined __BuildAgainstPackagesArg (
     for /R %__PackagesDir%\TestNativeBins\%__RuntimeId%\%__BuildType% %%f in (*.so) do copy %%f %CORE_ROOT_STAGE%
     for /R %__PackagesDir%\TestNativeBins\%__RuntimeId%\%__BuildType% %%f in (*.dylib) do copy %%f %CORE_ROOT_STAGE%
   )
-)
-
-echo %__MsgPrefix%Creating test wrappers...
-
-set RuntimeIdArg=
-set TargetsWindowsArg=
-
-if defined __RuntimeId (
-    set RuntimeIdArg=-RuntimeID="%__RuntimeId%"
-)
-
-if "%__TargetsWindows%"=="1" (
-    set TargetsWindowsArg=-TargetsWindows=true
-) else if "%__TargetsWindows%"=="0" (
-    set TargetsWindowsArg=-TargetsWindows=false
-)
-
-set __BuildLogRootName=Tests_XunitWrapper
-set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
-set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
-set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
-set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
-set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
-set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -BuildWrappers -MsBuildEventLogging=" " -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %TargetsWindowsArg% %__unprocessedBuildArgs%
-if errorlevel 1 (
-    echo Xunit Wrapper build failed
-    exit /b 1
 )
 
 echo %__MsgPrefix%Creating test overlay...
@@ -408,6 +382,38 @@ if errorlevel 1 (
     echo     %__BuildLog%
     echo     %__BuildWrn%
     echo     %__BuildErr%
+    exit /b 1
+)
+
+if defined __SkipManaged exit /b 0
+REM End of BuildTestHost
+
+echo %__MsgPrefix%Creating test wrappers...
+
+set RuntimeIdArg=
+set TargetsWindowsArg=
+
+if defined __RuntimeId (
+    set RuntimeIdArg=-RuntimeID="%__RuntimeId%"
+)
+
+if "%__TargetsWindows%"=="1" (
+    set TargetsWindowsArg=-TargetsWindows=true
+) else if "%__TargetsWindows%"=="0" (
+    set TargetsWindowsArg=-TargetsWindows=false
+)
+
+set __BuildLogRootName=Tests_XunitWrapper
+set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
+set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
+set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
+set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
+set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -BuildWrappers -MsBuildEventLogging=" " -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %TargetsWindowsArg% %__unprocessedBuildArgs%
+if errorlevel 1 (
+    echo Xunit Wrapper build failed
     exit /b 1
 )
 
