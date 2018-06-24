@@ -22,7 +22,7 @@ namespace System.Threading
         public EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew)
         {
             if (mode != EventResetMode.AutoReset && mode != EventResetMode.ManualReset)
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(mode));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
 
             CreateEventCore(initialState, mode, name, out createdNew);
         }
