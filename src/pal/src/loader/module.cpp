@@ -1400,7 +1400,7 @@ static void *LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
     _ASSERTE(libraryNameOrPath != nullptr);
     _ASSERTE(libraryNameOrPath[0] != '\0');
 
-    void *dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY);
+    void *dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY | RTLD_GLOBAL);
     if (dl_handle == nullptr)
     {
         SetLastError(ERROR_MOD_NOT_FOUND);
