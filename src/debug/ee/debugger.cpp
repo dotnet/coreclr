@@ -4990,7 +4990,7 @@ HRESULT Debugger::MapAndBindFunctionPatches(DebuggerJitInfo *djiNew,
             // The DJI gets deleted as part of the Unbind/Rebind process in MovedCode.
             // This is to signal that we should not skip here.
             // <NICE> under exactly what scenarios (EnC, code pitching etc.) will this apply?... </NICE>
-            // <NICE> can't we be a little clearer about why we don't want to bind the patch in this arcance situation?</NICE>
+            // <NICE> can't we be a little clearer about why we don't want to bind the patch in this arcane situation?</NICE>
             if (dcp->HasDJI() && !dcp->IsBreakpointPatch() &&  !dcp->IsStepperPatch())
             {
                 LOG((LF_CORDB, LL_INFO10000, "Neither stepper nor BP but we have valid a DJI (i.e. the DJI hasn't been deleted as part of the Unbind/MovedCode/Rebind mess)! - getting next patch!\n"));
