@@ -27,7 +27,8 @@
 
   <!-- gather the list of binaries to sign with the default certificates -->
   <ItemGroup>
-    <FilesToSign Include="$(BinDir)*.dll" Exclude="$(BinDir)*.ni.dll" />
+    <FileToNotStrongNameSign Include="$(BinDir)*.ni.dll;$(BinDir)SOS.NETCore.dll" />
+    <FilesToSign Include="$(BinDir)*.dll" Exclude="@(FileToNotStrongNameSign)" />
     <FilesToSign Include="$(BinDir)*.exe" />
   </ItemGroup>
 
@@ -36,7 +37,7 @@
     native images which causes the signing step to fail for obvious reasons.
   -->
   <ItemGroup>
-    <FilesToSign Include="$(BinDir)*.ni.dll;$(BinDir)SOS.NETCore.dll">
+    <FilesToSign Include="@(FileToNotStrongNameSign)">
       <StrongName>None</StrongName>
     </FilesToSign>
   </ItemGroup>
