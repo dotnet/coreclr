@@ -1012,12 +1012,12 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
     if (structDesc.eightByteCount == 1)
     {
+        assert(structSize <= sizeof(double));
+
         if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
         {
             // If this is returned as a floating type, use that.
-            // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
-            // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
-            // we need to preserve small types.
+            // Otherwise, leave as TYP_UNKONWN and we'll sort things out below.
             useType           = GetEightByteType(structDesc, 0);
             howToReturnStruct = SPK_PrimitiveType;
         }
@@ -1025,6 +1025,9 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #endif // UNIX_AMD64_ABI
 
+    // Check for cases where a small struct is returned in a register
+    // via a primitive type.
+    //
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
@@ -1047,7 +1050,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             else
             {
                 // Currently: 3, 5, 6, or 7 byte structs
-                assert(structSize <= genTypeSize(useType));
+                assert(structSize < genTypeSize(useType));
                 howToReturnStruct = SPK_EnclosingType;
             }
         }
