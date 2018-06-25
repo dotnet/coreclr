@@ -6357,7 +6357,9 @@ static STRINGREF MissingMemberException_FormatSignature_Internal(I1ARRAYREF* ppP
         psl->EmitUtf8(")");
     }
     psl->Emit8('\0');
-    pstub = psl->Link();
+
+    LoaderHeap* pHeap = SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap();
+    pstub = psl->Link(pHeap);
     }
 
     pString = StringObject::NewString( (LPCUTF8)(pstub->GetEntryPoint()) );

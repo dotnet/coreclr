@@ -281,7 +281,6 @@ public:
         //
         // Throws exception on failure.
         //---------------------------------------------------------------
-        Stub *Link(DWORD flags = 0) { WRAPPER_NO_CONTRACT; return Link(NULL, flags); }
         Stub *Link(LoaderHeap *heap, DWORD flags = 0);
 
         //---------------------------------------------------------------
