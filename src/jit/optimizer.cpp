@@ -3973,7 +3973,7 @@ bool Compiler::optPartialUnrollLoops(unsigned loopId, unsigned iterCount)
     unsigned int iterVar = loopDesc.lpIterVar();
     unsigned int iterInc = loopDesc.lpIterConst();
 
-    unsigned int newLoopBodyLimit = 8 / iterInc;
+    unsigned int newLoopBodyLimit = 4 / iterInc;
     unsigned int newLoopIterLimit = iterCount / newLoopBodyLimit;
     if (iterCount % newLoopBodyLimit != 0)
     {
@@ -4192,14 +4192,10 @@ bool Compiler::optEvaluateLoopBodyWeight(BasicBlock* block, GenTree* test, GenTr
         count += 1;
     }
 
-    if (!bytes || bytes > 64)
+    if (!bytes || bytes > 64 || count != 1)
     {
+        // TODO-CQ : process even the inner loop count is over 1.
         // we are not unrolling if inner ALU process is over 64 bytes. only for one count.
-        return false;
-    }
-
-    if (count % 2 != 0 && count > 8 && count != 1)
-    {
         return false;
     }
 
