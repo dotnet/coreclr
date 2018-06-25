@@ -884,87 +884,38 @@ namespace System.Collections.Generic
             return false;
         }
 
-		public int RemoveAll(Predicate<KeyValuePair<TKey, TValue>> match)
-		{
-			if (match == null)
-			{
-				ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
-			}
+        public int RemoveAll(Predicate<KeyValuePair<TKey, TValue>> match)
+        {
+            if (match == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.match);
+            }
 
-			int removedCount = 0;
-			int count = _count;
-			Entry[] entries = _entries;
-			int[] buckets = _buckets;
-			for (int entryIndex = 0; entryIndex < count; entryIndex++)
-			{
-				if (entries[entryIndex].hashCode >= 0)
-				{
-					int version = _version;
-					TKey key = entries[entryIndex].key;
-					if (match(new KeyValuePair<TKey, TValue>(key, entries[entryIndex].value)))
-					{
-						if (version!=_version)
-						{
-							ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
-						}
+            int removedCount = 0;
+            int count = _count;
+            Entry[] entries = _entries;
+            for (int entryIndex = 0; entryIndex < count; entryIndex++)
+            {
+                if (entries[entryIndex].hashCode >= 0)
+                {
+                    int version = _version;
+                    TKey key = entries[entryIndex].key;
+                    bool matched = match(new KeyValuePair<TKey, TValue>(key, entries[entryIndex].value));
+                    if (version != _version)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
+                    }
+                    if (matched && Remove(key))
+                    {
+                        removedCount+=1;
+                    }
+                }
+            }
 
-						int collisionCount = 0;
-						int hashCode = (_comparer?.GetHashCode(key) ?? key.GetHashCode()) & 0x7FFFFFFF;
-						int bucket = hashCode % buckets.Length;
-						int last = -1;
-						// Value in _buckets is 1-based
-						int i = entryIndex;
-						while (i >= 0)
-						{
-							ref Entry entry = ref entries[i];
+            return removedCount;
+        }
 
-							if (entry.hashCode == hashCode && (_comparer?.Equals(entry.key, key) ?? EqualityComparer<TKey>.Default.Equals(entry.key, key)))
-							{
-								if (last < 0)
-								{
-									// Value in _buckets is 1-based
-									buckets[bucket] = entry.next + 1;
-								}
-								else
-								{
-									entries[last].next = entry.next;
-								}
-								entry.hashCode = -1;
-								entry.next = _freeList;
-
-								if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
-								{
-									entry.key = default;
-								}
-								if (RuntimeHelpers.IsReferenceOrContainsReferences<TValue>())
-								{
-									entry.value = default;
-								}
-								_freeList = i;
-								_freeCount++;
-								_version++;
-								removedCount++;
-								break;
-							}
-
-							last = i;
-							i = entry.next;
-							if (collisionCount >= entries.Length)
-							{
-								// The chain of entries forms a loop; which means a concurrent update has happened.
-								// Break out of the loop and throw, rather than looping forever.
-								ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
-							}
-							collisionCount++;
-						}
-					}
-				}
-			}
-
-			return removedCount;
-		}
-
-		public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             int i = FindEntry(key);
             if (i >= 0)
