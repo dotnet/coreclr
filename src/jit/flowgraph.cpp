@@ -22324,7 +22324,6 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
         }
     }
 
-#if FEATURE_MULTIREG_RET || defined(UNIX_AMD64_ABI)
     // If an inline was rejected and the call returns a struct, we may
     // have deferred some work when importing call for cases where the
     // struct is returned in register(s).
@@ -22341,6 +22340,9 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
 
         switch (howToReturnStruct)
         {
+
+#if FEATURE_MULTIREG_RET
+
             // Is this a type that is returned in multiple registers
             // or a via a primitve type that is larger than the struct type?
             // if so we need to force into into a form we accept.
@@ -22361,6 +22363,8 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
                 }
             }
             break;
+
+#endif // FEATURE_MULTIREG_RET
 
             case SPK_EnclosingType:
             {
@@ -22426,6 +22430,7 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
         }
     }
 
+#if FEATURE_MULTIREG_RET
 #if defined(DEBUG)
 
     // Make sure we don't have a tree like so: V05 = (, , , retExpr);
@@ -22448,7 +22453,7 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
     }
 
 #endif // defined(DEBUG)
-#endif // FEATURE_MULTIREG_RET || defined(UNIX_AMD64_ABI)
+#endif // FEATURE_MULTIREG_RET
 
     return WALK_CONTINUE;
 }

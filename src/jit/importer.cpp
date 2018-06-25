@@ -8523,7 +8523,25 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
     else
     {
         assert(returnType != TYP_UNKNOWN);
-        call->gtReturnType = returnType;
+
+        // See if the struct size is smaller than the return
+        // type size...
+        if (howToReturnStruct == SPK_EnclosingType)
+        {
+            // If we know for sure this call will remain a call,
+            // retype and return value via a suitable temp.
+            if ((!call->CanTailCall()) && (!call->IsInlineCandidate()))
+            {
+                call->gtReturnType = returnType;
+                return impAssignSmallStructTypeToVar(call, retClsHnd);
+            }
+        }
+        else
+        {
+            // Return type is same size as struct, so we can
+            // simply retype the call.
+            call->gtReturnType = returnType;
+        }
 
         // ToDo: Refactor this common code sequence into its own method as it is used 4+ times
         if ((returnType == TYP_LONG) && (compLongUsed == false))
@@ -15667,7 +15685,6 @@ void Compiler::impMarkLclDstNotPromotable(unsigned tmpNum, GenTree* src, CORINFO
 }
 #endif // _TARGET_ARM_
 
-#ifdef UNIX_AMD64_ABI
 //------------------------------------------------------------------------
 // impAssignSmallStructTypeToVar: ensure calls that return small structs whose
 //    sizes are not supported integral type sizes return values to temps.
@@ -15694,7 +15711,6 @@ GenTree* Compiler::impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HAND
 
     return ret;
 }
-#endif // UNIX_AMD64_ABI
 
 #if FEATURE_MULTIREG_RET
 //------------------------------------------------------------------------
