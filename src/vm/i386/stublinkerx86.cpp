@@ -6430,7 +6430,7 @@ Stub * StubLinkerCPU::CreateTailCallCopyArgsThunk(CORINFO_SIG_INFO * pSig,
         EncodeGCOffsets(pSl, gcLayout);
     }
 
-    LoaderHeap* pHeap = SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap();
+    LoaderHeap* pHeap = pMD->GetLoaderAllocatorForCode()->GetStubHeap();
     return pSl->Link(pHeap);
 }
 #endif // DACCESS_COMPILE
