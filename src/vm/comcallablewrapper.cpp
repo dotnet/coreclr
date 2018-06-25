@@ -1926,8 +1926,7 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(REFIID riid)
         {
             // Don't implement IAgileObject if we are aggregated, if the object explicitly implements IMarshal, or if its ICustomQI returns
             // Failed or Handled for IID_IMarshal (compat).
-            if (!IsAggregated() 
-            )
+            if (!IsAggregated())
             {
                 ComCallWrapperTemplate *pTemplate = GetComCallWrapperTemplate();
                 if (!pTemplate->ImplementsIMarshal())
