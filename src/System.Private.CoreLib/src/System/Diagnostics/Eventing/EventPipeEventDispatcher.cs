@@ -9,7 +9,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
     internal sealed class EventPipeEventDispatcher
     {
-        internal static EventPipeEventDispatcher Instance = new EventPipeEventDispatcher();
+        internal static readonly EventPipeEventDispatcher Instance = new EventPipeEventDispatcher();
 
         private IntPtr m_RuntimeProviderID;
 

@@ -379,7 +379,7 @@ namespace System.Diagnostics.Tracing
             writeOutput(outputFile, "{\n")
             increaseTabLevel()
 
-			# Create a static property for the EventSource name so that we don't have to initialize the EventSource to get its name.
+            # Create a static property for the EventSource name so that we don't have to initialize the EventSource to get its name.
             writeOutput(outputFile, "internal const string EventSourceName = \"" + providerName + "\";\n")
 
             # Write the static Log property.

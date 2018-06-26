@@ -3969,6 +3969,13 @@ namespace System.Diagnostics.Tracing
             }
 
             eventSource.SendCommand(this, EventProviderType.None, 0, 0, EventCommand.Update, false, EventLevel.LogAlways, EventKeywords.None, null);
+
+#if FEATURE_PERFTRACING
+            if (eventSource.GetType() == typeof(RuntimeEventSource))
+            {
+                EventPipeEventDispatcher.Instance.SendCommand(this, EventCommand.Update, false, EventLevel.LogAlways, EventKeywords.None);
+            }
+#endif // FEATURE_PERFTRACING
         }
 
         /// <summary>

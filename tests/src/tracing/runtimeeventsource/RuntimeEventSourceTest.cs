@@ -24,12 +24,15 @@ namespace Tracing.Tests
                 listener.EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
 
                 // Wait for events.
-                Thread.Sleep(5000);
+                Thread.Sleep(1000);
 
                 GC.Collect(2, GCCollectionMode.Forced);
 
                 // Wait for more events.
-                Thread.Sleep(5000);
+                Thread.Sleep(1000);
+
+                // Ensure that we've seen some events.
+                Assert.True("listener.EventCount > 0", listener.EventCount > 0);
             }
 
             return 100;
