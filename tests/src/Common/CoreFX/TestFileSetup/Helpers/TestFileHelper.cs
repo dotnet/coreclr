@@ -52,6 +52,12 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
             set{ httpClient = value; }
         }
 
+        private HashSet<string> disabledTests;
+
+        public TestFileHelper() {
+            disabledTests = new HashSet<string>();
+        }
+
         public Dictionary<string, XUnitTestAssembly> DeserializeTestJson(string testDefinitionFilePath)
         {
             JSchemaGenerator jsonGenerator = new JSchemaGenerator();
@@ -81,7 +87,6 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
                 }
             }
 
-            // TODO - ABORT AND WARN
             if (validationMessages.Count != 0)
             {
                 StringBuilder aggregateExceptionMessage = new StringBuilder();
@@ -104,6 +109,8 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
                 // Filter disabled tests
                 if(assembly.IsEnabled)
                     nameToTestAssemblyDef.Add(assembly.Name, assembly);
+                else
+                    disabledTests.Add(assembly.Name);
             }
 
             return nameToTestAssemblyDef;
@@ -164,7 +171,7 @@ namespace CoreFX.TestUtils.TestFileSetup.Helpers
                                 {
                                     string currentTestName = jsonReader.Value.ToString();
 
-                                    if (runAllTests || testDefinitions.ContainsKey(currentTestName))
+                                    if ((runAllTests || testDefinitions.ContainsKey(currentTestName)) && !disabledTests.Contains(currentTestName))
                                     {
                                         markedTestName = currentTestName;
                                     }
