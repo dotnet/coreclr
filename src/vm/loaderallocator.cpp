@@ -581,8 +581,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         // (Also debugging NULL AVs if someone uses it accidentally is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
 
-        // Call the unloading event
-        pDomainLoaderAllocatorDestroyIterator->OnUnloading();
+        pDomainLoaderAllocatorDestroyIterator->ReleaseManagedAssemblyLoadContext();
 
         // The following code was previously happening on delete ~DomainAssembly->Terminate
         // We are moving this part here in order to make sure that we can unload a LoaderAllocator
@@ -1799,7 +1798,7 @@ void LoaderAllocator::CleanupFailedTypeInit()
     }
 }
 
-void AssemblyLoaderAllocator::OnUnloading()
+void AssemblyLoaderAllocator::ReleaseManagedAssemblyLoadContext()
 {
     CONTRACTL
     {
@@ -1810,10 +1809,11 @@ void AssemblyLoaderAllocator::OnUnloading()
     }
     CONTRACTL_END;
 
-    VERIFY(m_binderToRelease != NULL);
-
-    // Release the managed ALC
-    m_binderToRelease->ReleaseLoadContext();
+    if (m_binderToRelease != NULL)
+    {
+        // Release the managed ALC
+        m_binderToRelease->ReleaseLoadContext();
+    }
 }
 
 #endif // !CROSSGEN_COMPILE

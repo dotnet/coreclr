@@ -434,7 +434,7 @@ public:
     BOOL IsDomainNeutral();
     void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL);
     void Terminate();
-    virtual void OnUnloading() {}
+    virtual void ReleaseManagedAssemblyLoadContext() {}
 
     SIZE_T EstimateSize();
 
@@ -554,7 +554,7 @@ public:
     }
     virtual ~AssemblyLoaderAllocator();
     void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
-    virtual void OnUnloading();
+    virtual void ReleaseManagedAssemblyLoadContext();
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 private:

@@ -684,6 +684,12 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
 
         // Create a domain assembly
         pDomainAssembly = new DomainAssembly(pDomain, pFile, pLoaderAllocator);
+        if (pDomainAssembly->IsCollectible())
+        {
+            // We add the assembly to the LoaderAllocator only when we are sure that it can be added
+            // and won't be deleted in case of a concurrent load from the same ALC
+            ((AssemblyLoaderAllocator *)(LoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(pDomainAssembly);
+        }
     }
 
     // Start loading process
