@@ -57,6 +57,18 @@ namespace System.Globalization
             }
         }
 
+        internal static unsafe int InvariantLastIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(value.Length != 0);
+
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
+            fixed (char* pValue = &MemoryMarshal.GetReference(value))
+            {
+                return InvariantFindString(pSource, source.Length, pValue, value.Length, ignoreCase, start: false);
+            }
+        }
+
         private static unsafe int InvariantFindString(char* source, int sourceCount, char* value, int valueCount, bool ignoreCase, bool start)
         {
             int ctrSource = 0;  // index value into source

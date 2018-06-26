@@ -111,6 +111,16 @@ namespace System.Globalization
             return FindStringOrdinal(FIND_FROMEND, source, startIndex - count + 1, count, value, value.Length, ignoreCase);
         }
 
+        internal static int LastIndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(!GlobalizationMode.Invariant);
+
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(value.Length != 0);
+
+            return FindStringOrdinal(FIND_FROMEND, source, value, ignoreCase);
+        }
+
         private unsafe int GetHashCodeOfStringCore(string source, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -398,6 +408,17 @@ namespace System.Globalization
             }
 
             return -1;
+        }
+
+        internal unsafe int LastIndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(target.Length != 0);
+            Debug.Assert((options == CompareOptions.None || options == CompareOptions.IgnoreCase));
+
+            return FindString(FIND_FROMEND | (uint)GetNativeCompareFlags(options), source, target, matchLengthPtr);
         }
 
         private unsafe bool StartsWith(string source, string prefix, CompareOptions options)

@@ -942,12 +942,28 @@ namespace System.Globalization
             return IndexOfOrdinalCore(source, value, ignoreCase);
         }
 
+        internal int LastIndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
+            return LastIndexOfOrdinalCore(source, value, ignoreCase);
+        }
+
         internal unsafe int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
             return IndexOfCore(source, value, options, null);
+        }
+
+        internal unsafe int LastIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
+            return LastIndexOfCore(source, value, options, null);
         }
 
         // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
