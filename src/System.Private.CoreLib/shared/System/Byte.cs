@@ -12,9 +12,9 @@ namespace System
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public readonly struct Byte : IComparable, IConvertible, IFormattable, IComparable<byte>, IEquatable<byte>, ISpanFormattable
+    public struct Byte : IComparable, IConvertible, IFormattable, IComparable<byte>, IEquatable<byte>, ISpanFormattable
     {
-        private readonly byte m_value; // Do not rename (binary serialization)
+        private byte m_value; // Do not rename (binary serialization)
 
         // The maximum value that a Byte may represent: 255.
         public const byte MaxValue = (byte)0xFF;

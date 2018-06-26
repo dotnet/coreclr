@@ -13,9 +13,9 @@ namespace System
     [CLSCompliant(false)]
     [StructLayout(LayoutKind.Sequential)]
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public readonly struct UInt16 : IComparable, IConvertible, IFormattable, IComparable<ushort>, IEquatable<ushort>, ISpanFormattable
+    public struct UInt16 : IComparable, IConvertible, IFormattable, IComparable<ushort>, IEquatable<ushort>, ISpanFormattable
     {
-        private readonly ushort m_value; // Do not rename (binary serialization)
+        private ushort m_value; // Do not rename (binary serialization)
 
         public const ushort MaxValue = (ushort)0xFFFF;
         public const ushort MinValue = 0;

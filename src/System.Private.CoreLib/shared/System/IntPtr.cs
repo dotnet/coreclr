@@ -17,7 +17,7 @@ namespace System
 {
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public readonly struct IntPtr : IEquatable<IntPtr>, ISerializable
+    public struct IntPtr : IEquatable<IntPtr>, ISerializable
     {
         // WARNING: We allow diagnostic tools to directly inspect this member (_value). 
         // See https://github.com/dotnet/corert/blob/master/Documentation/design-docs/diagnostics/diagnostics-tools-contract.md for more details. 
