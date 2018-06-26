@@ -934,36 +934,20 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        internal int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool start = true)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
-            return IndexOfOrdinalCore(source, value, ignoreCase);
+            return IndexOfOrdinalCore(source, value, ignoreCase, start);
         }
 
-        internal int LastIndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        internal unsafe int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options, bool start = true)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
-            return LastIndexOfOrdinalCore(source, value, ignoreCase);
-        }
-
-        internal unsafe int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
-        {
-            Debug.Assert(!_invariantMode);
-            Debug.Assert(!source.IsEmpty);
-            Debug.Assert(!value.IsEmpty);
-            return IndexOfCore(source, value, options, null);
-        }
-
-        internal unsafe int LastIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
-        {
-            Debug.Assert(!_invariantMode);
-            Debug.Assert(!source.IsEmpty);
-            Debug.Assert(!value.IsEmpty);
-            return LastIndexOfCore(source, value, options, null);
+            return IndexOfCore(source, value, options, null, start);
         }
 
         // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated

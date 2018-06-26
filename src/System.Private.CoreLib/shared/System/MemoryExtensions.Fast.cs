@@ -208,15 +208,15 @@ namespace System
             {
                 case StringComparison.CurrentCulture:
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return CultureInfo.CurrentCulture.CompareInfo.LastIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType));
+                    return CultureInfo.CurrentCulture.CompareInfo.IndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType), start: false);
 
                 case StringComparison.InvariantCulture:
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return CompareInfo.Invariant.LastIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType));
+                    return CompareInfo.Invariant.IndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType), start: false);
 
                 case StringComparison.Ordinal:
                 case StringComparison.OrdinalIgnoreCase:
-                    return CompareInfo.Invariant.LastIndexOfOrdinal(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None);
+                    return CompareInfo.Invariant.IndexOfOrdinal(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None, start: false);
             }
 
             Debug.Fail("StringComparison outside range");
