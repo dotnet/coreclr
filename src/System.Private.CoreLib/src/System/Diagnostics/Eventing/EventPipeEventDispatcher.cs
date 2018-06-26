@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tracing
         private EventPipeEventDispatcher()
         {
             // Get the ID of the runtime provider so that it can be used as a filter when processing events.
-            m_RuntimeProviderID = EventPipeInternal.GetProvider(RuntimeEventSource.Log.Name);
+            m_RuntimeProviderID = EventPipeInternal.GetProvider(RuntimeEventSource.EventSourceName);
         }
 
         internal void SendCommand(EventListener eventListener, EventCommand command, bool enable, EventLevel level, EventKeywords matchAnyKeywords)
@@ -32,7 +32,7 @@ namespace System.Diagnostics.Tracing
             {
                 EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
                 {
-                    new EventPipeProviderConfiguration(RuntimeEventSource.Log.Name, (ulong) matchAnyKeywords, (uint) level)
+                    new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) matchAnyKeywords, (uint) level)
                 };
 
                 lock (m_dispatchTaskLock)
