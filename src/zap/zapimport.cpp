@@ -363,12 +363,12 @@ void ZapImport::Save(ZapWriter * pZapWriter)
     if (IsReadyToRunCompilation())
     {
         SIZE_T value = 0;
-        pZapWriter->Write(&value, sizeof(value));
+        pZapWriter->Write(&value, TARGET_POINTER_SIZE);
         return;
     }
 
     SIZE_T token = CORCOMPILE_TAG_TOKEN(GetBlob()->GetRVA());
-    pZapWriter->Write(&token, sizeof(token));
+    pZapWriter->Write(&token, TARGET_POINTER_SIZE);
 }
 
 //
@@ -641,7 +641,7 @@ public:
 
         PVOID cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, sizeof(cell));
+        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
     }
 };
 
@@ -747,7 +747,7 @@ public:
 
         PVOID cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, sizeof(cell));
+        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
     }
 };
 
@@ -1727,7 +1727,7 @@ public:
 
         PVOID cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, sizeof(cell));
+        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
     }
 };
 
