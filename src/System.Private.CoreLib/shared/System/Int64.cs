@@ -14,7 +14,7 @@ namespace System
     [TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public struct Int64 : IComparable, IConvertible, IFormattable, IComparable<Int64>, IEquatable<Int64>, ISpanFormattable
     {
-        private readonly long m_value; // Do not rename (binary serialization)
+        private long m_value; // Do not rename (binary serialization)
 
         public const long MaxValue = 0x7fffffffffffffffL;
         public const long MinValue = unchecked((long)0x8000000000000000L);
