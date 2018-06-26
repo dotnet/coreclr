@@ -91,7 +91,7 @@ namespace System.Globalization
             return FindStringOrdinal(FIND_FROMSTART, source, startIndex, count, value, value.Length, ignoreCase);
         }
 
-        internal static int IndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool start = true)
+        internal static int IndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool start)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
@@ -360,7 +360,7 @@ namespace System.Globalization
             return -1;
         }
 
-        internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr, bool start = true)
+        internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr, bool start)
         {
             Debug.Assert(!_invariantMode);
 
