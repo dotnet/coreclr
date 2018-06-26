@@ -178,6 +178,45 @@ namespace System.Globalization
             return -1;
         }
 
+        internal static unsafe int LastIndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        {
+            Debug.Assert(!GlobalizationMode.Invariant);
+
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(value.Length != 0);
+
+            if (source.Length < value.Length)
+            {
+                return -1;
+            }
+
+            if (ignoreCase)
+            {
+                fixed (char* pSource = &MemoryMarshal.GetReference(source))
+                fixed (char* pValue = &MemoryMarshal.GetReference(value))
+                {
+                    return Interop.Globalization.IndexOfOrdinalIgnoreCase(pValue, value.Length, pSource, source.Length, findLast: true);
+                }
+            }
+
+            for (int i = source.Length - 1; i >= source.Length - value.Length; i--)
+            {
+                int valueIndex, sourceIndex;
+
+                for (valueIndex = 0, sourceIndex = i;
+                     valueIndex < value.Length && source[sourceIndex] == value[valueIndex];
+                     valueIndex++, sourceIndex++)
+                    ;
+
+                if (valueIndex == value.Length)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private static unsafe int CompareStringOrdinalIgnoreCase(ref char string1, int count1, ref char string2, int count2)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
@@ -363,6 +402,23 @@ namespace System.Globalization
             }
         }
 
+        private unsafe int LastIndexOfOrdinalIgnoreCaseHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!target.IsEmpty);
+            Debug.Assert(_isAsciiEqualityOrdinal);
+
+            fixed (char* ap = &MemoryMarshal.GetReference(source))
+            fixed (char* bp = &MemoryMarshal.GetReference(target))
+            {
+                // TODO: add impl
+
+                return Interop.Globalization.LastIndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
+            }
+        }
+
         private unsafe int IndexOfOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
         {
             Debug.Assert(!_invariantMode);
@@ -419,6 +475,23 @@ namespace System.Globalization
             }
         }
 
+        private unsafe int LastIndexOfOrdinalHelper(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!target.IsEmpty);
+            Debug.Assert(_isAsciiEqualityOrdinal);
+
+            fixed (char* ap = &MemoryMarshal.GetReference(source))
+            fixed (char* bp = &MemoryMarshal.GetReference(target))
+            {
+                // TODO: add impl
+
+                return Interop.Globalization.LastIndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
+            }
+        }
+
         private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
@@ -453,6 +526,34 @@ namespace System.Globalization
                 int lastIndex = Interop.Globalization.LastIndexOf(_sortHandle, target, target.Length, pSource + (startIndex - count + 1), count, options);
 
                 return lastIndex != -1 ? lastIndex + leftStartIndex : -1;
+            }
+        }
+
+        // For now, this method is only called from Span APIs with either options == CompareOptions.None or CompareOptions.IgnoreCase
+        internal unsafe int LastIndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr)
+        {
+            Debug.Assert(!_invariantMode);
+            Debug.Assert(source.Length != 0);
+            Debug.Assert(target.Length != 0);
+
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options))
+            {
+                if ((options & CompareOptions.IgnoreCase) == CompareOptions.IgnoreCase)
+                {
+                    return LastIndexOfOrdinalIgnoreCaseHelper(source, target, options, matchLengthPtr);
+                }
+                else
+                {
+                    return LastIndexOfOrdinalHelper(source, target, options, matchLengthPtr);
+                }
+            }
+            else
+            {
+                fixed (char* pSource = &MemoryMarshal.GetReference(source))
+                fixed (char* pTarget = &MemoryMarshal.GetReference(target))
+                {
+                    return Interop.Globalization.LastIndexOf(_sortHandle, pTarget, target.Length, pSource, source.Length, options, matchLengthPtr);
+                }
             }
         }
 
