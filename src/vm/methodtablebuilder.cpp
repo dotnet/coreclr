@@ -3863,8 +3863,8 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
         case ELEMENT_TYPE_I4:
         case ELEMENT_TYPE_U4:
-        IN_WIN32(case ELEMENT_TYPE_I:)
-        IN_WIN32(case ELEMENT_TYPE_U:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         case ELEMENT_TYPE_R4:
             {
                 dwLog2FieldSize = 2;
@@ -3894,8 +3894,8 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
        
         case ELEMENT_TYPE_I8:
         case ELEMENT_TYPE_U8:
-        IN_WIN64(case ELEMENT_TYPE_I:)
-        IN_WIN64(case ELEMENT_TYPE_U:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
             {
 #ifdef FEATURE_64BIT_ALIGNMENT
                 // Record that this field requires alignment for Int64/UInt64.
@@ -7719,7 +7719,7 @@ VOID MethodTableBuilder::PlaceRegularStaticFields()
     if (bmtProp->fDynamicStatics)
     {
         _ASSERTE(dwNonGCOffset == 0 ||  // no statics at all
-                 dwNonGCOffset == DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob()); // We need space to point to the GC statics
+                 dwNonGCOffset == OFFSETOF__DomainLocalModule__NormalDynamicEntry__m_pDataBlob); // We need space to point to the GC statics
         bmtProp->dwNonGCRegularStaticFieldBytes = dwCumulativeStaticFieldPos;
     }
     else
@@ -7841,7 +7841,7 @@ VOID MethodTableBuilder::PlaceThreadStaticFields()
     if (bmtProp->fDynamicStatics)
     {
         _ASSERTE(dwNonGCOffset == 0 ||  // no thread statics at all
-                 dwNonGCOffset == ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob()); // We need space to point to the GC statics
+                 dwNonGCOffset == OFFSETOF__ThreadLocalModule__DynamicEntry__m_pDataBlob); // We need space to point to the GC statics
         bmtProp->dwNonGCThreadStaticFieldBytes = dwCumulativeStaticFieldPos;
     }
     else
