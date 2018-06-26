@@ -1004,28 +1004,30 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     assert(structSize > 0);
 
 #ifdef UNIX_AMD64_ABI
-
     // An 8-byte struct may need to be returned in a floating point register
     // So we always consult the struct "Classifier" routine
     //
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(clsHnd, &structDesc);
 
-    // If we have one eightByteCount then we can set 'useType' based on that
     if (structDesc.eightByteCount == 1)
     {
-        // Set 'useType' to the type of the first eightbyte item
-        useType = GetEightByteType(structDesc, 0);
-        assert(structDesc.passedInRegisters == true);
+        if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
+        {
+            // If this is returned as a floating type, use that.
+            // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
+            // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
+            // we need to preserve small types.
+            useType = GetEightByteType(structDesc, 0);
+        }
     }
 
-#else // not UNIX_AMD64
+#endif // UNIX_AMD64_ABI
 
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
-    //
-    if (structSize <= sizeof(double))
+    if ((useType == TYP_UNKNOWN) && (structSize <= sizeof(double)))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
@@ -1033,8 +1035,6 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         // The ABI for struct returns in varArg methods, is same as the normal case, so pass false for isVararg
         useType = getPrimitiveTypeForStruct(structSize, clsHnd, /*isVararg=*/false);
     }
-
-#endif // UNIX_AMD64_ABI
 
 #ifdef _TARGET_64BIT_
     // Note this handles an odd case when FEATURE_MULTIREG_RET is disabled and HFAs are enabled

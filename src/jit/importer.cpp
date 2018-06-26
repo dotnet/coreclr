@@ -8555,6 +8555,9 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
     assert(varTypeIsStruct(info.compRetType));
     assert(info.compRetBuffArg == BAD_VAR_NUM);
 
+    JITDUMP("\nimpFixupStructReturnType: retyping\n");
+    DISPTREE(op);
+
 #if defined(_TARGET_XARCH_)
 
 #ifdef UNIX_AMD64_ABI
@@ -8749,6 +8752,9 @@ REDO_RETURN_NODE:
     }
 
     op->gtType = info.compRetNativeType;
+
+    JITDUMP("\nimpFixupStructReturnType: result of retyping is\n");
+    DISPTREE(op);
 
     return op;
 }
