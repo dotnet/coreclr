@@ -1,146 +1,85 @@
 [
-    {
-        "name": "Canonicalization.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Common.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Common.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "CoreFx.Private.TestUtilities.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Invariant.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.CSharp.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.VisualBasic.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.Win32.Primitives.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.Win32.Registry.AccessControl.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.Win32.Registry.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
+    
     {
         "name": "Microsoft.Win32.SystemEvents.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "Microsoft.XmlSerializer.Generator.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.AppContext.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Buffers.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.CodeDom.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Collections.Concurrent.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
+            "methods": [
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.PowerModeTests.SignalsPowerModeChanged",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.SessionEndingTests.CancelSessionEnding",
+                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: 0\\r\\nActual:   1"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.SessionEndingTests.SignalsSessionEnding",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.PaletteChangedTests.SignalsEventsAsynchronouslyOnMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.PaletteChangedTests.SignalsEventsSynchronouslyOnReflectedMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.InvokeOnEventsThreadTests.InvokeOnEventsThreadRunsOnSameThreadAsOtherEvents",
+                    "reason": "Xunit.Sdk.NotEqualException Assert.NotEqual() Failure\\r\\nExpected: Not -1\\r\\nActual:   -1"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.LowMemoryTests.SignalsEventsAsynchronouslyOnMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.LowMemoryTests.SignalsEventsSynchronouslyOnReflectedMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.UserPreferenceTests.SignalsUserPreferenceEventsAsynchronouslyOnThemeChanged",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.UserPreferenceTests.SignalsUserPreferenceEventsSynchronously",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.SessionSwitchTests.SignalsSessionSwitch",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.TimeChangedTests.SignalsEventsAsynchronouslyOnMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.TimeChangedTests.SignalsEventsSynchronouslyOnReflectedMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.SessionEndedTests.SignalsSessionEnded",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.InstalledFontsChangedTests.SignalsEventsSynchronouslyOnReflectedMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.InstalledFontsChangedTests.SignalsEventsAsynchronouslyOnMessage",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.DisplaySettingsTests.SignalsDisplayEventsAsynchronouslyOnDISPLAYCHANGE",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                },
+                {
+                    "name": "Microsoft.Win32.SystemEventsTests.DisplaySettingsTests.SignalsDisplayEventsSynchronouslyOnREFLECTDISPLAYCHANGE",
+                    "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
+                }
+            ]
         }
     },
     {
@@ -188,105 +127,6 @@
         }
     },
     {
-        "name": "System.Collections.NonGeneric.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Collections.NonGeneric.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Collections.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Collections.Specialized.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Collections.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.Annotations.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.Composition.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.EventBasedAsync.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.Primitives.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ComponentModel.TypeConverter.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.ComponentModel.TypeConverter.Tests",
         "enabled": true,
         "exclusions": {
@@ -306,87 +146,6 @@
                     "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\r\\nExpected: typeof(System.ArgumentNullException)\\r\\nActual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Composition.AttributeModel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Composition.Convention.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Composition.Hosting.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Composition.Runtime.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Composition.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Composition.TypedParts.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Configuration.ConfigurationManager.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Console.Manual.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Console.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -416,15 +175,6 @@
         }
     },
     {
-        "name": "System.Data.Common.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Data.DataSetExtensions.Tests",
         "enabled": true,
         "exclusions": {
@@ -436,159 +186,6 @@
                     "reason": "System.NullReferenceException : Object reference not set to an instance of an object."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Data.Odbc.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Contracts.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Debug.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.DiagnosticSource.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.EventLog.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.FileVersionInfo.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.PerformanceCounter.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Process.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Process.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.StackTrace.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.TextWriterTraceListener.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Tools.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.TraceSource.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Diagnostics.Tracing.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.DirectoryServices.AccountManagement.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.DirectoryServices.Protocols.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.DirectoryServices.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -630,87 +227,6 @@
         }
     },
     {
-        "name": "System.Drawing.Primitives.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Dynamic.Runtime.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Globalization.Calendars.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Globalization.Extensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Globalization.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Globalization.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Compression.Brotli.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Compression.Brotli.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Compression.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.IO.Compression.Tests",
         "enabled": true,
         "exclusions": {
@@ -726,51 +242,6 @@
                     "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: 1000\\r\\nActual:   1"
                 }
             ]
-        }
-    },
-    {
-        "name": "System.IO.Compression.ZipFile.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.FileSystem.AccessControl.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.FileSystem.DriveInfo.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.FileSystem.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.FileSystem.Primitives.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -836,123 +307,6 @@
         }
     },
     {
-        "name": "System.IO.FileSystem.Watcher.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.IsolatedStorage.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.MemoryMappedFiles.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.MemoryMappedFiles.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Packaging.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Pipelines.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Pipes.AccessControl.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Pipes.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Pipes.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Ports.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.IO.UnmanagedMemoryStream.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Json.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Linq.Expressions.Tests",
         "enabled": true,
         "exclusions": {
@@ -968,69 +322,6 @@
                     "reason": "System.TypeLoadException System.TypeLoadException : The generic type 'System.Action`1' was used with an invalid instantiation in assembly 'System.Private.CoreLib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e'."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Linq.Parallel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Linq.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Linq.Queryable.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Linq.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Management.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Memory.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Memory.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -1060,114 +351,6 @@
         }
     },
     {
-        "name": "System.Net.Http.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Http.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Http.WinHttpHandler.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Http.WinHttpHandler.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.HttpListener.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Mail.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Mail.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.NameResolution.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.NameResolution.Pal.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.NameResolution.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.NetworkInformation.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Ping.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Net.Primitives.Functional.Tests",
         "enabled": true,
         "exclusions": {
@@ -1193,126 +376,24 @@
             ]
         }
     },
-    {
-        "name": "System.Net.Primitives.Pal.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Primitives.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Primitives.UnitTests.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Requests.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
+
     {
         "name": "System.Net.Security.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
-            "methods": null
+            "methods": [
+                {
+                    "name": "System.Net.Security.Tests.SslStreamCredentialCacheTest.SslStream_SameCertUsedForClientAndServer_Ok",
+                    "reason": "Unreliable"
+                }
+            ]
         }
     },
     {
         "name": "System.Net.Security.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.ServicePoint.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Sockets.Async.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Sockets.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.Sockets.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.WebClient.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.WebHeaderCollection.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.WebProxy.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Net.WebSockets.Client.Tests",
-        "enabled": true,
+        "enabled": false,
         "exclusions": {
             "namespaces": null,
             "classes": null,
@@ -1345,60 +426,6 @@
                     "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: 84\\r\\nActual:   0"
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Numerics.Vectors.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Numerics.Vectors.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ObjectModel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Private.Uri.ExtendedFunctional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Private.Uri.Functional.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Private.Uri.Unit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -1760,159 +787,6 @@
         }
     },
     {
-        "name": "System.Reflection.CoreCLR.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.DispatchProxy.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Emit.ILGeneration.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Emit.Lightweight.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Emit.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Extensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Metadata.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.TypeExtensions.CoreCLR.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Reflection.TypeExtensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Resources.Reader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Resources.ResourceManager.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Resources.Writer.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Caching.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.CompilerServices.Unsafe.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.CompilerServices.VisualC.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Extensions.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Runtime.Extensions.Tests",
         "enabled": true,
         "exclusions": {
@@ -1928,159 +802,6 @@
                     "reason": "System.MissingMethodException System.MissingMethodException : Method not found: 'System.String System.IO.Path.Join(System.String, System.String, System.String)'."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Runtime.Handles.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.InteropServices.RuntimeInformation.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.InteropServices.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.InteropServices.WindowsRuntime.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Loader.DefaultContext.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Loader.RefEmitLoadContext.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Loader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Numerics.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Numerics.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Formatters.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Json.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Json.ReflectionOnly.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Json.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Xml.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Xml.ReflectionOnly.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Runtime.Serialization.Xml.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -2103,60 +824,6 @@
                     "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: Object[,] [1, 2, 3, 4, 5, ...]\\r\\nActual:   Object[,] [1, 2, 3, 4, 5, ...]"
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Security.AccessControl.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Claims.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.Algorithms.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.Cng.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.Csp.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.Encoding.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -2466,42 +1133,6 @@
         }
     },
     {
-        "name": "System.Security.Cryptography.Primitives.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.Primitives.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.ProtectedData.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Cryptography.X509Certificates.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Security.Cryptography.Xml.Tests",
         "enabled": true,
         "exclusions": {
@@ -2513,51 +1144,6 @@
                     "reason": "System.MissingMethodException System.MissingMethodException : Method not found: 'Void System.AssertExtensions.Throws(System.String, System.String, System.Func`1<System.Object>)'."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Security.Permissions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.Principal.Windows.Tests",
-        "enabled": false,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Security.SecureString.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ServiceModel.Syndication.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ServiceProcess.ServiceController.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -2588,33 +1174,6 @@
         }
     },
     {
-        "name": "System.Text.Encoding.CodePages.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Text.Encoding.Extensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Text.Encoding.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Text.Encoding.Tests",
         "enabled": true,
         "exclusions": {
@@ -2626,24 +1185,6 @@
                     "reason": "System.Text.DecoderFallbackException System.Text.DecoderFallbackException : Encountered a negative index during Utf8 decoding fallback "
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Text.Encodings.Web.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Text.RegularExpressions.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -2662,96 +1203,6 @@
                     "reason": "System.EntryPointNotFoundException System.EntryPointNotFoundException : Entry point was not found."
                 }
             ]
-        }
-    },
-    {
-        "name": "System.Threading.AccessControl.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Channels.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Channels.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Overlapped.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Tasks.Dataflow.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Tasks.Extensions.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Tasks.Extensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Tasks.Parallel.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Tasks.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     },
     {
@@ -2793,384 +1244,6 @@
         }
     },
     {
-        "name": "System.Threading.Thread.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.ThreadPool.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Threading.Timer.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Transactions.Local.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.ValueTuple.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Web.HttpUtility.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.Axes.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.Events.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.Misc.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.Properties.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.SDMSample.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.Streaming.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.TreeManipulation.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.xNodeBuilder.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Linq.xNodeReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Misc.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.CharCheckingReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.CustomReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.FactoryReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.NameTable.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.ReaderSettings.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.RwFactory.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.SubtreeReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.WrappedReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlConvert.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlReader.ReadContentAs.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlReader.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlSystemPathResolver.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlWriter.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.RW.XmlWriterApi.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Schema.Extensions.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlDocument.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlDocument.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlSchema.XmlSchemaValidatorApi.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlSchemaSet.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlSerializer.Performance.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlSerializer.ReflectionOnly.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XmlSerializer.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XPath.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XPath.XDocument.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.XPath.XmlDocument.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
-        "name": "System.Xml.Xsl.XslCompiledTransformApi.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
-        }
-    },
-    {
         "name": "System.Xml.Xsl.XslTransformApi.Tests",
         "enabled": true,
         "exclusions": {
@@ -3186,15 +1259,6 @@
                     "reason": "Xunit.Sdk.TrueException Assert.True() Failure\\r\\nExpected: True\\r\\nActual:   False"
                 }
             ]
-        }
-    },
-    {
-        "name": "XsltCompiler.Tests",
-        "enabled": true,
-        "exclusions": {
-            "namespaces": null,
-            "classes": null,
-            "methods": null
         }
     }
 ]
