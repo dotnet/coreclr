@@ -76,6 +76,7 @@ if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs
 
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipnative"            (set __SkipNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "buildtesthost"         (set __SkipNative=1&__SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiprestorepackages"   (set __ZipTests=1&set __SkipRestorePackages=1)
@@ -388,7 +389,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if defined __SkipManaged exit /b 0
+if defined __SkipManaged (
+    rd /s /q "%CORE_ROOT_STAGE%"
+    exit /b 0
+) 
 REM End of BuildTestHost
 
 echo %__MsgPrefix%Creating test wrappers...
