@@ -27,7 +27,7 @@ namespace System.Globalization
             }
         }
 
-        internal static unsafe int InvariantIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
+        internal static unsafe int InvariantIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool start = true)
         {
             Debug.Assert(source.Length != 0);
             Debug.Assert(value.Length != 0);
@@ -54,18 +54,6 @@ namespace System.Globalization
                     return index + startIndex - count + 1;
                 }
                 return -1;
-            }
-        }
-
-        internal static unsafe int InvariantLastIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
-        {
-            Debug.Assert(source.Length != 0);
-            Debug.Assert(value.Length != 0);
-
-            fixed (char* pSource = &MemoryMarshal.GetReference(source))
-            fixed (char* pValue = &MemoryMarshal.GetReference(value))
-            {
-                return InvariantFindString(pSource, source.Length, pValue, value.Length, ignoreCase, start: false);
             }
         }
 

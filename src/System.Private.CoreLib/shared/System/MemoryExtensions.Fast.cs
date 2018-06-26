@@ -201,7 +201,7 @@ namespace System
 
             if (GlobalizationMode.Invariant)
             {
-                return CompareInfo.InvariantLastIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None);
+                return CompareInfo.InvariantIndexOf(span, value, string.GetCaseCompareOfComparisonCulture(comparisonType) != CompareOptions.None, start: false);
             }
 
             switch (comparisonType)
